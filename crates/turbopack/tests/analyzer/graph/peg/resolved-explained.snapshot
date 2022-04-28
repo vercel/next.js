@@ -226,17 +226,17 @@ DESCRIBE_EXPECTATION_FNS = {
 }
 - *0* unsupported expression
 
-alias#33 = arguments[0]
+alias#34 = arguments[0]
 
-alias#35 = arguments[1]
+alias#36 = arguments[1]
 
-alias#52 = arguments[1]
+alias#53 = arguments[1]
 
 alternate = arguments[2]
 
-args#39 = arguments[1]
-
 args#40 = arguments[1]
+
+args#41 = arguments[1]
 
 argument = arguments[1]
 
@@ -247,15 +247,15 @@ body = arguments[0]
 buildBinaryExpression = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
 - *0* unsupported expression
 
-ch#10 = arguments[0]
-
-ch#12 = arguments[0]
+ch#11 = arguments[0]
 
 ch#13 = arguments[0]
 
-ch#15 = arguments[0]
+ch#14 = arguments[0]
 
 ch#16 = arguments[0]
+
+ch#17 = arguments[0]
 
 chars = arguments[0]
 
@@ -301,9 +301,9 @@ describeExpected = (...) => (???*0* | `${???*2*} or ${???*4*}` | ???*6*)
 describeFound = (...) => ???*0*
 - *0* unsupported expression
 
-description#74 = arguments[0]
+description#75 = arguments[0]
 
-description#78 = arguments[0]
+description#79 = arguments[0]
 
 descriptions = ???*0*
 - *0* new expression are not supported
@@ -367,9 +367,9 @@ error = (...) => ???*0*
 
 escapedParts = ""
 
-expectation#17 = arguments[0]
+expectation#10 = arguments[0]
 
-expectation#5 = arguments[0]
+expectation#18 = arguments[0]
 
 expectation#6 = arguments[0]
 
@@ -379,29 +379,27 @@ expectation#8 = arguments[0]
 
 expectation#9 = arguments[0]
 
-expected#18 = arguments[0]
+expected#19 = arguments[0]
 
-expected#20 = (...) => ???*0*
+expected#21 = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
 expected#3 = arguments[1]
 
-expected#4 = arguments[0]
+expected#5 = arguments[0]
 
-expected#81 = arguments[0]
+expected#82 = arguments[0]
 
-expected#83 = arguments[0]
+expected#84 = arguments[0]
 
-expression#33 = arguments[1]
-
-expression#34 = arguments[0]
+expression#34 = arguments[1]
 
 expression#35 = arguments[0]
 
-expression#38 = arguments[0]
+expression#36 = arguments[0]
 
-expression#53 = arguments[0]
+expression#39 = arguments[0]
 
 expression#54 = arguments[0]
 
@@ -409,67 +407,69 @@ expression#55 = arguments[0]
 
 expression#56 = arguments[0]
 
-expression#67 = arguments[0]
+expression#57 = arguments[0]
 
-expression#70 = arguments[0]
+expression#68 = arguments[0]
 
-found#19 = arguments[0]
+expression#71 = arguments[0]
+
+found#20 = arguments[0]
 
 found#3 = arguments[2]
 
-found#4 = arguments[1]
+found#5 = arguments[1]
 
-found#83 = arguments[1]
-
-from#24 = arguments[2]
+found#84 = arguments[1]
 
 from#25 = arguments[2]
 
 from#26 = arguments[2]
 
-head#176 = arguments[0]
+from#27 = arguments[2]
 
-head#29 = arguments[0]
+head#177 = arguments[0]
 
 head#30 = arguments[0]
 
-head#37 = arguments[0]
+head#31 = arguments[0]
 
-head#41 = arguments[0]
+head#38 = arguments[0]
 
-head#45 = arguments[0]
+head#42 = arguments[0]
 
 head#46 = arguments[0]
 
-head#48 = arguments[0]
+head#47 = arguments[0]
 
-head#57 = arguments[0]
+head#49 = arguments[0]
 
 head#58 = arguments[0]
 
 head#59 = arguments[0]
 
-head#63 = arguments[0]
+head#60 = arguments[0]
 
-head#68 = arguments[0]
+head#64 = arguments[0]
 
-head#72 = arguments[0]
+head#69 = arguments[0]
 
-hex#4 = (...) => arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+head#73 = arguments[0]
 
-hex#43 = arguments[0]
+hex#44 = arguments[0]
 
-i#18 = (???*0* | 0 | 1)
+hex#5 = (...) => arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+
+i#19 = (???*0* | 0 | 1)
 - *0* i
   ⚠️  pattern without value
 
-i#6 = (???*0* | 0)
+i#7 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-ignoreCase#76 = arguments[1]
+ignoreCase#77 = arguments[1]
 
-ignoreCase#77 = arguments[2]
+ignoreCase#78 = arguments[2]
 
 input = arguments[0]
 
@@ -497,46 +497,46 @@ literalEscape = (...) => ...[...](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"
     (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
 )
 
-location#20 = ???*0*
+location#21 = ???*0*
 - *0* in progress nodes limit reached
 
 location#3 = arguments[3]
 
-location#74 = (arguments[1] | ???*0*)
-- *0* unsupported expression
-
 location#75 = (arguments[1] | ???*0*)
 - *0* unsupported expression
 
-location#82 = arguments[1]
+location#76 = (arguments[1] | ???*0*)
+- *0* unsupported expression
 
-location#83 = arguments[2]
+location#83 = arguments[1]
+
+location#84 = arguments[2]
 
 message#3 = arguments[0]
 
-message#75 = arguments[0]
+message#76 = arguments[0]
 
-message#82 = arguments[0]
-
-name#39 = arguments[0]
+message#83 = arguments[0]
 
 name#40 = arguments[0]
 
-name#47 = arguments[0]
+name#41 = arguments[0]
 
-object#60 = ???*0*
+name#48 = arguments[0]
+
+object#61 = ???*0*
 - *0* object
   ⚠️  pattern without value
 
-object#69 = ???*0*
+object#70 = ???*0*
 - *0* object
   ⚠️  pattern without value
 
-operator#177 = ???*0*
+operator#178 = ???*0*
 - *0* operator
   ⚠️  pattern without value
 
-operator#61 = arguments[0]
+operator#62 = arguments[0]
 
 options = (arguments[1] | ???*0*)
 - *0* unsupported expression
@@ -1445,21 +1445,21 @@ pos = arguments[0]
 
 properties = arguments[0]
 
-property#51 = arguments[0]
-
 property#52 = arguments[0]
 
-property#57 = arguments[1]
+property#53 = arguments[0]
 
 property#58 = arguments[1]
+
+property#59 = arguments[1]
 
 right = ???*0*
 - *0* right
   ⚠️  pattern without value
 
-s#11 = arguments[0]
+s#12 = arguments[0]
 
-s#14 = arguments[0]
+s#15 = arguments[0]
 
 s0#100 = ???*0*
 - *0* in progress nodes limit reached
@@ -1476,12 +1476,12 @@ s0#103 = ???*0*
 s0#104 = ???*0*
 - *0* in progress nodes limit reached
 
-s0#105 = (???*0* | [])
+s0#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s0#106 = (???*0* | [])
 - *0* s0
   ⚠️  pattern without value
-
-s0#106 = ???*0*
-- *0* in progress nodes limit reached
 
 s0#107 = ???*0*
 - *0* in progress nodes limit reached
@@ -1690,7 +1690,7 @@ s0#174 = ???*0*
 s0#175 = ???*0*
 - *0* in progress nodes limit reached
 
-s0#84 = ???*0*
+s0#176 = ???*0*
 - *0* in progress nodes limit reached
 
 s0#85 = ???*0*
@@ -1741,12 +1741,15 @@ s0#99 = ???*0*
 s1#100 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#101 = (???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*})
+s1#101 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#102 = (???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*})
 - *0* s1
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s1#102 = (
+s1#103 = (
   | ???*0*
   | """
   | {}
@@ -1758,16 +1761,16 @@ s1#102 = (
 - *1* s2
   ⚠️  pattern without value
 
-s1#103 = ???*0*
-- *0* in progress nodes limit reached
-
 s1#104 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#105 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#107 = (
+s1#106 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#108 = (
   | ???*0*
   | "--"
   | {}
@@ -1783,9 +1786,6 @@ s1#107 = (
   ⚠️  pattern without value
 - *4* s2
   ⚠️  pattern without value
-
-s1#108 = ???*0*
-- *0* in progress nodes limit reached
 
 s1#109 = ???*0*
 - *0* in progress nodes limit reached
@@ -1850,22 +1850,25 @@ s1#128 = ???*0*
 s1#129 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#131 = ???*0*
+s1#130 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#133 = ???*0*
+s1#132 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#134 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#136 = ???*0*
+s1#135 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#137 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#141 = (
+s1#138 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#142 = (
   | ???*0*
   | "b"
   | {}
@@ -1883,19 +1886,16 @@ s1#141 = (
 - *0* s1
   ⚠️  pattern without value
 
-s1#142 = ???*0*
+s1#143 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#144 = ???*0*
-- *0* in progress nodes limit reached
-
-s1#146 = ???*0*
+s1#145 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#147 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#149 = ???*0*
+s1#148 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#150 = ???*0*
@@ -1976,7 +1976,7 @@ s1#174 = ???*0*
 s1#175 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#84 = ???*0*
+s1#176 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#85 = ???*0*
@@ -1994,7 +1994,7 @@ s1#88 = ???*0*
 s1#89 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#91 = ???*0*
+s1#90 = ???*0*
 - *0* in progress nodes limit reached
 
 s1#92 = ???*0*
@@ -2012,24 +2012,24 @@ s1#95 = ???*0*
 s1#96 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#98 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
+s1#97 = ???*0*
+- *0* in progress nodes limit reached
+
+s1#99 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
 - *0* s1
   ⚠️  pattern without value
 
-s1#99 = ???*0*
+s10#86 = ???*0*
 - *0* in progress nodes limit reached
 
-s10#85 = ???*0*
-- *0* in progress nodes limit reached
-
-s10#94 = (???*0* | [])
+s10#95 = (???*0* | [])
 - *0* s10
   ⚠️  pattern without value
 
-s11#85 = ???*0*
+s11#86 = ???*0*
 - *0* in progress nodes limit reached
 
-s11#94 = (???*0* | ")" | {})
+s11#95 = (???*0* | ")" | {})
 - *0* s11
   ⚠️  pattern without value
 
@@ -2050,11 +2050,7 @@ s15 = (???*0* | [])
 s16 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#101 = (???*0* | "0x" | {} | null)
-- *0* s2
-  ⚠️  pattern without value
-
-s2#102 = (???*0* | [])
+s2#102 = (???*0* | "0x" | {} | null)
 - *0* s2
   ⚠️  pattern without value
 
@@ -2066,12 +2062,13 @@ s2#104 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#107 = (???*0* | [])
+s2#105 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#108 = ???*0*
-- *0* in progress nodes limit reached
+s2#108 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
 
 s2#109 = ???*0*
 - *0* in progress nodes limit reached
@@ -2136,36 +2133,35 @@ s2#128 = ???*0*
 s2#129 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#131 = ???*0*
+s2#130 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#133 = (???*0* | [])
+s2#132 = ???*0*
+- *0* in progress nodes limit reached
+
+s2#134 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#134 = ???*0*
-- *0* in progress nodes limit reached
-
-s2#136 = ???*0*
+s2#135 = ???*0*
 - *0* in progress nodes limit reached
 
 s2#137 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#142 = ???*0*
+s2#138 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#144 = ???*0*
+s2#143 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#146 = ???*0*
+s2#145 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#147 = (???*0* | [])
-- *0* s2
-  ⚠️  pattern without value
+s2#147 = ???*0*
+- *0* in progress nodes limit reached
 
-s2#149 = (???*0* | [])
+s2#148 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2173,7 +2169,7 @@ s2#150 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#152 = (???*0* | [])
+s2#151 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2241,27 +2237,27 @@ s2#168 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#170 = (???*0* | [] | {})
+s2#169 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#173 = ???*0*
+s2#171 = (???*0* | [] | {})
+- *0* s2
+  ⚠️  pattern without value
+
+s2#174 = ???*0*
 - *0* in progress nodes limit reached
-
-s2#174 = (???*0* | [])
-- *0* s2
-  ⚠️  pattern without value
 
 s2#175 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#84 = ???*0*
-- *0* in progress nodes limit reached
-
-s2#85 = (???*0* | [])
+s2#176 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
+
+s2#85 = ???*0*
+- *0* in progress nodes limit reached
 
 s2#86 = (???*0* | [])
 - *0* s2
@@ -2275,19 +2271,19 @@ s2#88 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#89 = ???*0*
-- *0* in progress nodes limit reached
-
-s2#92 = (???*0* | [])
+s2#89 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#93 = ???*0*
+s2#90 = ???*0*
 - *0* in progress nodes limit reached
 
-s2#94 = (???*0* | [])
+s2#93 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
+
+s2#94 = ???*0*
+- *0* in progress nodes limit reached
 
 s2#95 = (???*0* | [])
 - *0* s2
@@ -2297,12 +2293,13 @@ s2#96 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s3#101 = (???*0* | [] | {})
-- *0* s3
+s2#97 = (???*0* | [])
+- *0* s2
   ⚠️  pattern without value
 
-s3#102 = ???*0*
-- *0* in progress nodes limit reached
+s3#102 = (???*0* | [] | {})
+- *0* s3
+  ⚠️  pattern without value
 
 s3#103 = ???*0*
 - *0* in progress nodes limit reached
@@ -2310,7 +2307,7 @@ s3#103 = ???*0*
 s3#104 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#107 = ???*0*
+s3#105 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#108 = ???*0*
@@ -2379,36 +2376,36 @@ s3#128 = ???*0*
 s3#129 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#133 = ???*0*
+s3#130 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#144 = ???*0*
+s3#134 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#146 = ???*0*
+s3#145 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#147 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#149 = ???*0*
+s3#148 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#150 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#152 = ???*0*
+s3#151 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#153 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#154 = (???*0* | "?" | {})
+s3#154 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#155 = (???*0* | "?" | {})
 - *0* s3
   ⚠️  pattern without value
-
-s3#155 = ???*0*
-- *0* in progress nodes limit reached
 
 s3#156 = ???*0*
 - *0* in progress nodes limit reached
@@ -2443,29 +2440,29 @@ s3#165 = ???*0*
 s3#166 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#167 = (???*0* | ":" | {})
-- *0* s3
-  ⚠️  pattern without value
+s3#167 = ???*0*
+- *0* in progress nodes limit reached
 
 s3#168 = (???*0* | ":" | {})
 - *0* s3
   ⚠️  pattern without value
 
-s3#170 = ???*0*
-- *0* in progress nodes limit reached
+s3#169 = (???*0* | ":" | {})
+- *0* s3
+  ⚠️  pattern without value
 
-s3#174 = ???*0*
+s3#171 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#175 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#84 = (???*0* | [])
+s3#176 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#85 = (???*0* | [])
 - *0* s3
   ⚠️  pattern without value
-
-s3#85 = ???*0*
-- *0* in progress nodes limit reached
 
 s3#86 = ???*0*
 - *0* in progress nodes limit reached
@@ -2479,55 +2476,55 @@ s3#88 = ???*0*
 s3#89 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#92 = ???*0*
+s3#90 = ???*0*
 - *0* in progress nodes limit reached
 
 s3#93 = ???*0*
 - *0* in progress nodes limit reached
 
-s3#94 = (???*0* | "." | {} | "(")
+s3#94 = ???*0*
+- *0* in progress nodes limit reached
+
+s3#95 = (???*0* | "." | {} | "(")
 - *0* s3
   ⚠️  pattern without value
-
-s3#95 = ???*0*
-- *0* in progress nodes limit reached
 
 s3#96 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#101 = ???*0*
+s3#97 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#103 = (???*0* | [])
-- *0* s4
-  ⚠️  pattern without value
+s4#102 = ???*0*
+- *0* in progress nodes limit reached
 
 s4#104 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#107 = ???*0*
-- *0* in progress nodes limit reached
-
-s4#144 = ???*0*
-- *0* in progress nodes limit reached
-
-s4#146 = ???*0*
-- *0* in progress nodes limit reached
-
-s4#147 = (???*0* | [])
+s4#105 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#152 = ???*0*
+s4#108 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#154 = (???*0* | [])
+s4#145 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#148 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#155 = ???*0*
+s4#153 = ???*0*
 - *0* in progress nodes limit reached
+
+s4#155 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
 
 s4#156 = ???*0*
 - *0* in progress nodes limit reached
@@ -2538,16 +2535,16 @@ s4#157 = ???*0*
 s4#158 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#159 = (???*0* | [])
-- *0* s4
-  ⚠️  pattern without value
+s4#159 = ???*0*
+- *0* in progress nodes limit reached
 
 s4#160 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#161 = ???*0*
-- *0* in progress nodes limit reached
+s4#161 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
 
 s4#162 = ???*0*
 - *0* in progress nodes limit reached
@@ -2564,28 +2561,28 @@ s4#165 = ???*0*
 s4#166 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#167 = (???*0* | [])
-- *0* s4
-  ⚠️  pattern without value
+s4#167 = ???*0*
+- *0* in progress nodes limit reached
 
 s4#168 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#170 = ???*0*
-- *0* in progress nodes limit reached
-
-s4#174 = ???*0*
-- *0* in progress nodes limit reached
-
-s4#175 = (???*0* | [])
+s4#169 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#85 = ???*0*
+s4#171 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#87 = ???*0*
+s4#175 = ???*0*
+- *0* in progress nodes limit reached
+
+s4#176 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#86 = ???*0*
 - *0* in progress nodes limit reached
 
 s4#88 = ???*0*
@@ -2594,15 +2591,14 @@ s4#88 = ???*0*
 s4#89 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#92 = ???*0*
+s4#90 = ???*0*
 - *0* in progress nodes limit reached
 
 s4#93 = ???*0*
 - *0* in progress nodes limit reached
 
-s4#94 = (???*0* | [])
-- *0* s4
-  ⚠️  pattern without value
+s4#94 = ???*0*
+- *0* in progress nodes limit reached
 
 s4#95 = (???*0* | [])
 - *0* s4
@@ -2612,7 +2608,11 @@ s4#96 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s5#101 = (
+s4#97 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s5#102 = (
   | ???*0*
   | "."
   | {}
@@ -2629,31 +2629,28 @@ s5#101 = (
 - *4* s6
   ⚠️  pattern without value
 
-s5#103 = ???*0*
-- *0* in progress nodes limit reached
-
 s5#104 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#107 = ???*0*
+s5#105 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#144 = ???*0*
+s5#108 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#146 = ???*0*
+s5#145 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#147 = (???*0* | ")" | {})
+s5#147 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#148 = (???*0* | ")" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#152 = (???*0* | "." | {} | "[")
+s5#153 = (???*0* | "." | {} | "[")
 - *0* s5
   ⚠️  pattern without value
-
-s5#154 = ???*0*
-- *0* in progress nodes limit reached
 
 s5#155 = ???*0*
 - *0* in progress nodes limit reached
@@ -2661,108 +2658,107 @@ s5#155 = ???*0*
 s5#156 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#157 = (???*0* | "=" | {} | "!=" | "<>")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#158 = (???*0* | "<=" | {} | ">=" | "<" | ">")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#159 = (???*0* | "(" | {})
-- *0* s5
-  ⚠️  pattern without value
-
-s5#160 = ???*0*
+s5#157 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#161 = (???*0* | "|" | {})
+s5#158 = (???*0* | "=" | {} | "!=" | "<>")
 - *0* s5
   ⚠️  pattern without value
 
-s5#162 = (???*0* | "^" | {})
+s5#159 = (???*0* | "<=" | {} | ">=" | "<" | ">")
 - *0* s5
   ⚠️  pattern without value
 
-s5#163 = (???*0* | "&" | {})
+s5#160 = (???*0* | "(" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#164 = (???*0* | "<<" | {} | ">>>" | ">>")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#165 = (???*0* | "+" | {} | "-" | "||")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#166 = (???*0* | "*" | {} | "/" | "%")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#167 = ???*0*
+s5#161 = ???*0*
 - *0* in progress nodes limit reached
+
+s5#162 = (???*0* | "|" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#163 = (???*0* | "^" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#164 = (???*0* | "&" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#165 = (???*0* | "<<" | {} | ">>>" | ">>")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#166 = (???*0* | "+" | {} | "-" | "||")
+- *0* s5
+  ⚠️  pattern without value
+
+s5#167 = (???*0* | "*" | {} | "/" | "%")
+- *0* s5
+  ⚠️  pattern without value
 
 s5#168 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#170 = (???*0* | "." | {} | "[")
-- *0* s5
-  ⚠️  pattern without value
-
-s5#174 = (???*0* | "," | {})
-- *0* s5
-  ⚠️  pattern without value
-
-s5#175 = (???*0* | ")" | {})
-- *0* s5
-  ⚠️  pattern without value
-
-s5#85 = ???*0*
+s5#169 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#87 = (???*0* | "," | {})
+s5#171 = (???*0* | "." | {} | "[")
 - *0* s5
   ⚠️  pattern without value
 
-s5#88 = ???*0*
+s5#175 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#176 = (???*0* | ")" | {})
+- *0* s5
+  ⚠️  pattern without value
+
+s5#86 = ???*0*
 - *0* in progress nodes limit reached
+
+s5#88 = (???*0* | "," | {})
+- *0* s5
+  ⚠️  pattern without value
 
 s5#89 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#92 = (???*0* | "," | {})
+s5#90 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#93 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
-
-s5#94 = ???*0*
-- *0* in progress nodes limit reached
 
 s5#95 = ???*0*
 - *0* in progress nodes limit reached
 
-s5#96 = (???*0* | "]" | {})
+s5#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s5#97 = (???*0* | "]" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s6#101 = (???*0* | [] | {})
+s6#102 = (???*0* | [] | {})
 - *0* s6
   ⚠️  pattern without value
-
-s6#103 = ???*0*
-- *0* in progress nodes limit reached
 
 s6#104 = ???*0*
 - *0* in progress nodes limit reached
 
-s6#144 = ???*0*
+s6#105 = ???*0*
 - *0* in progress nodes limit reached
 
-s6#152 = (???*0* | [])
-- *0* s6
-  ⚠️  pattern without value
+s6#145 = ???*0*
+- *0* in progress nodes limit reached
 
-s6#154 = (???*0* | [])
+s6#153 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
@@ -2814,59 +2810,60 @@ s6#166 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#170 = (???*0* | [])
+s6#167 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#174 = (???*0* | [])
+s6#171 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#85 = ???*0*
+s6#175 = (???*0* | [])
+- *0* s6
+  ⚠️  pattern without value
+
+s6#86 = ???*0*
 - *0* in progress nodes limit reached
-
-s6#87 = (???*0* | [])
-- *0* s6
-  ⚠️  pattern without value
 
 s6#88 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#92 = (???*0* | [])
+s6#89 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#94 = (???*0* | [])
+s6#93 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#95 = ???*0*
-- *0* in progress nodes limit reached
-
-s7#101 = ???*0*
-- *0* in progress nodes limit reached
-
-s7#103 = (???*0* | "," | {})
-- *0* s7
+s6#95 = (???*0* | [])
+- *0* s6
   ⚠️  pattern without value
+
+s6#96 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#102 = ???*0*
+- *0* in progress nodes limit reached
 
 s7#104 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#144 = ???*0*
-- *0* in progress nodes limit reached
-
-s7#152 = ???*0*
-- *0* in progress nodes limit reached
-
-s7#154 = (???*0* | ":" | {})
+s7#105 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#155 = ???*0*
+s7#145 = ???*0*
 - *0* in progress nodes limit reached
+
+s7#153 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#155 = (???*0* | ":" | {})
+- *0* s7
+  ⚠️  pattern without value
 
 s7#156 = ???*0*
 - *0* in progress nodes limit reached
@@ -2901,49 +2898,48 @@ s7#165 = ???*0*
 s7#166 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#170 = ???*0*
+s7#167 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#174 = ???*0*
+s7#171 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#85 = ???*0*
+s7#175 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#87 = ???*0*
+s7#86 = ???*0*
 - *0* in progress nodes limit reached
 
 s7#88 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#92 = ???*0*
+s7#89 = ???*0*
 - *0* in progress nodes limit reached
 
-s7#94 = (???*0* | "(" | {} | ")")
+s7#93 = ???*0*
+- *0* in progress nodes limit reached
+
+s7#95 = (???*0* | "(" | {} | ")")
 - *0* s7
   ⚠️  pattern without value
 
-s7#95 = (???*0* | "," | {})
+s7#96 = (???*0* | "," | {})
 - *0* s7
-  ⚠️  pattern without value
-
-s8#103 = (???*0* | [])
-- *0* s8
   ⚠️  pattern without value
 
 s8#104 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#152 = (???*0* | [])
+s8#105 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#154 = (???*0* | [])
+s8#153 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#159 = (???*0* | [])
+s8#155 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
@@ -2951,55 +2947,57 @@ s8#160 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#170 = (???*0* | [])
+s8#161 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#85 = ???*0*
+s8#171 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
+
+s8#86 = ???*0*
 - *0* in progress nodes limit reached
-
-s8#94 = (???*0* | [])
-- *0* s8
-  ⚠️  pattern without value
 
 s8#95 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s9#103 = ???*0*
-- *0* in progress nodes limit reached
+s8#96 = (???*0* | [])
+- *0* s8
+  ⚠️  pattern without value
 
 s9#104 = ???*0*
 - *0* in progress nodes limit reached
 
-s9#152 = (???*0* | "]" | {})
+s9#105 = ???*0*
+- *0* in progress nodes limit reached
+
+s9#153 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#154 = ???*0*
+s9#155 = ???*0*
 - *0* in progress nodes limit reached
 
-s9#159 = (???*0* | ")" | {})
+s9#160 = (???*0* | ")" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#160 = ???*0*
+s9#161 = ???*0*
 - *0* in progress nodes limit reached
 
-s9#170 = (???*0* | "]" | {})
+s9#171 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#85 = ???*0*
-- *0* in progress nodes limit reached
-
-s9#94 = ???*0*
+s9#86 = ???*0*
 - *0* in progress nodes limit reached
 
 s9#95 = ???*0*
 - *0* in progress nodes limit reached
 
-select#23 = arguments[1]
+s9#96 = ???*0*
+- *0* in progress nodes limit reached
 
 select#24 = arguments[1]
 
@@ -3007,11 +3005,13 @@ select#25 = arguments[1]
 
 select#26 = arguments[1]
 
+select#27 = arguments[1]
+
 seq = arguments[0]
 
-source#31 = arguments[0]
-
 source#32 = arguments[0]
+
+source#33 = arguments[0]
 
 startPos = arguments[0]
 
@@ -3036,36 +3036,34 @@ startPosDetails = (
 
 subquery = arguments[0]
 
-tail#176 = arguments[1]
+tail#177 = arguments[1]
 
-tail#30 = arguments[1]
+tail#31 = arguments[1]
 
-tail#37 = arguments[1]
+tail#38 = arguments[1]
 
-tail#41 = arguments[1]
-
-tail#45 = arguments[1]
+tail#42 = arguments[1]
 
 tail#46 = arguments[1]
 
-tail#48 = arguments[1]
+tail#47 = arguments[1]
 
-tail#59 = arguments[1]
+tail#49 = arguments[1]
 
-tail#63 = arguments[1]
+tail#60 = arguments[1]
 
-tail#68 = arguments[1]
+tail#64 = arguments[1]
 
-tail#72 = arguments[1]
+tail#69 = arguments[1]
+
+tail#73 = arguments[1]
 
 test = arguments[0]
 
-text#20 = ???*0*
+text#21 = ???*0*
 - *0* in progress nodes limit reached
 
-text#76 = arguments[0]
-
-top#23 = arguments[0]
+text#77 = arguments[0]
 
 top#24 = arguments[0]
 
@@ -3073,32 +3071,34 @@ top#25 = arguments[0]
 
 top#26 = arguments[0]
 
-v#22 = arguments[0]
+top#27 = arguments[0]
 
-v#23 = arguments[2]
+v#23 = arguments[0]
 
-v#24 = arguments[3]
+v#24 = arguments[2]
 
-v#25 = arguments[4]
+v#25 = arguments[3]
 
-v#29 = arguments[1]
+v#26 = arguments[4]
 
-v#31 = arguments[1]
+v#30 = arguments[1]
 
-v#34 = arguments[1]
+v#32 = arguments[1]
 
-v#51 = arguments[1]
+v#35 = arguments[1]
 
-value#28 = arguments[0]
+v#52 = arguments[1]
 
-value#64 = arguments[0]
+value#29 = arguments[0]
 
 value#65 = arguments[0]
 
-value#66 = arguments[1]
+value#66 = arguments[0]
 
-value#71 = arguments[0]
+value#67 = arguments[1]
 
-where#25 = arguments[3]
+value#72 = arguments[0]
 
 where#26 = arguments[3]
+
+where#27 = arguments[3]

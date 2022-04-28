@@ -8,7 +8,7 @@ use std::{
 use async_std::task::block_on;
 use criterion::Criterion;
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
-use swc_ecma_transforms_base::resolver::resolver_with_mark;
+use swc_ecma_transforms_base::resolver;
 use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
 use turbopack::analyzer::{
     graph::{create_graph, EvalContext},
@@ -42,10 +42,11 @@ pub fn benchmark(c: &mut Criterion) {
                 )
                 .unwrap();
 
-                let top_level_mark = Mark::fresh(Mark::root());
-                m.visit_mut_with(&mut resolver_with_mark(top_level_mark));
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
+                m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context = EvalContext::new(&m, top_level_mark);
+                let eval_context = EvalContext::new(&m, unresolved_mark);
 
                 let var_graph = create_graph(&m, &eval_context);
 

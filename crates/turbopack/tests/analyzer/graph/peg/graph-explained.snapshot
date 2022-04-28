@@ -197,17 +197,17 @@ DESCRIBE_EXPECTATION_FNS = {
     "other": *anonymous function 1415*
 }
 
-alias#33 = arguments[0]
+alias#34 = arguments[0]
 
-alias#35 = arguments[1]
+alias#36 = arguments[1]
 
-alias#52 = arguments[1]
+alias#53 = arguments[1]
 
 alternate = arguments[2]
 
-args#39 = arguments[1]
-
 args#40 = arguments[1]
+
+args#41 = arguments[1]
 
 argument = arguments[1]
 
@@ -217,15 +217,15 @@ body = arguments[0]
 
 buildBinaryExpression = (...) => tail["reduce"](*arrow function 169160*, head)
 
-ch#10 = arguments[0]
-
-ch#12 = arguments[0]
+ch#11 = arguments[0]
 
 ch#13 = arguments[0]
 
-ch#15 = arguments[0]
+ch#14 = arguments[0]
 
 ch#16 = arguments[0]
+
+ch#17 = arguments[0]
 
 chars = arguments[0]
 
@@ -247,9 +247,9 @@ describeExpected = (...) => (descriptions[0] | `${descriptions[0]} or ${descript
 describeFound = (...) => ???*0*
 - *0* unsupported expression
 
-description#74 = arguments[0]
+description#75 = arguments[0]
 
-description#78 = arguments[0]
+description#79 = arguments[0]
 
 descriptions = ???*0*
 - *0* new expression are not supported
@@ -274,9 +274,9 @@ error = (...) => FreeVar(undefined)
 
 escapedParts = ""
 
-expectation#17 = arguments[0]
+expectation#10 = arguments[0]
 
-expectation#5 = arguments[0]
+expectation#18 = arguments[0]
 
 expectation#6 = arguments[0]
 
@@ -286,27 +286,25 @@ expectation#8 = arguments[0]
 
 expectation#9 = arguments[0]
 
-expected#18 = arguments[0]
+expected#19 = arguments[0]
 
-expected#20 = (...) => FreeVar(undefined)
+expected#21 = (...) => FreeVar(undefined)
 
 expected#3 = arguments[1]
 
-expected#4 = arguments[0]
+expected#5 = arguments[0]
 
-expected#81 = arguments[0]
+expected#82 = arguments[0]
 
-expected#83 = arguments[0]
+expected#84 = arguments[0]
 
-expression#33 = arguments[1]
-
-expression#34 = arguments[0]
+expression#34 = arguments[1]
 
 expression#35 = arguments[0]
 
-expression#38 = arguments[0]
+expression#36 = arguments[0]
 
-expression#53 = arguments[0]
+expression#39 = arguments[0]
 
 expression#54 = arguments[0]
 
@@ -314,67 +312,69 @@ expression#55 = arguments[0]
 
 expression#56 = arguments[0]
 
-expression#67 = arguments[0]
+expression#57 = arguments[0]
 
-expression#70 = arguments[0]
+expression#68 = arguments[0]
 
-found#19 = arguments[0]
+expression#71 = arguments[0]
+
+found#20 = arguments[0]
 
 found#3 = arguments[2]
 
-found#4 = arguments[1]
+found#5 = arguments[1]
 
-found#83 = arguments[1]
-
-from#24 = arguments[2]
+found#84 = arguments[1]
 
 from#25 = arguments[2]
 
 from#26 = arguments[2]
 
-head#176 = arguments[0]
+from#27 = arguments[2]
 
-head#29 = arguments[0]
+head#177 = arguments[0]
 
 head#30 = arguments[0]
 
-head#37 = arguments[0]
+head#31 = arguments[0]
 
-head#41 = arguments[0]
+head#38 = arguments[0]
 
-head#45 = arguments[0]
+head#42 = arguments[0]
 
 head#46 = arguments[0]
 
-head#48 = arguments[0]
+head#47 = arguments[0]
 
-head#57 = arguments[0]
+head#49 = arguments[0]
 
 head#58 = arguments[0]
 
 head#59 = arguments[0]
 
-head#63 = arguments[0]
+head#60 = arguments[0]
 
-head#68 = arguments[0]
+head#64 = arguments[0]
 
-head#72 = arguments[0]
+head#69 = arguments[0]
 
-hex#4 = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+head#73 = arguments[0]
 
-hex#43 = arguments[0]
+hex#44 = arguments[0]
 
-i#18 = (???*0* | 0 | 1)
+hex#5 = (...) => ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+
+i#19 = (???*0* | 0 | 1)
 - *0* i
   ⚠️  pattern without value
 
-i#6 = (???*0* | 0)
+i#7 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-ignoreCase#76 = arguments[1]
+ignoreCase#77 = arguments[1]
 
-ignoreCase#77 = arguments[2]
+ignoreCase#78 = arguments[2]
 
 input = arguments[0]
 
@@ -396,45 +396,45 @@ list = arguments[1]
 
 literalEscape = (...) => s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1821*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1919*)
 
-location#20 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
+location#21 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
 
 location#3 = arguments[3]
-
-location#74 = (arguments[1] | ???*0*)
-- *0* unsupported expression
 
 location#75 = (arguments[1] | ???*0*)
 - *0* unsupported expression
 
-location#82 = arguments[1]
+location#76 = (arguments[1] | ???*0*)
+- *0* unsupported expression
 
-location#83 = arguments[2]
+location#83 = arguments[1]
+
+location#84 = arguments[2]
 
 message#3 = arguments[0]
 
-message#75 = arguments[0]
+message#76 = arguments[0]
 
-message#82 = arguments[0]
-
-name#39 = arguments[0]
+message#83 = arguments[0]
 
 name#40 = arguments[0]
 
-name#47 = arguments[0]
+name#41 = arguments[0]
 
-object#60 = ???*0*
+name#48 = arguments[0]
+
+object#61 = ???*0*
 - *0* object
   ⚠️  pattern without value
 
-object#69 = ???*0*
+object#70 = ???*0*
 - *0* object
   ⚠️  pattern without value
 
-operator#177 = ???*0*
+operator#178 = ???*0*
 - *0* operator
   ⚠️  pattern without value
 
-operator#61 = arguments[0]
+operator#62 = arguments[0]
 
 options = (arguments[1] | ???*0*)
 - *0* unsupported expression
@@ -1349,27 +1349,27 @@ pos = arguments[0]
 
 properties = arguments[0]
 
-property#51 = arguments[0]
-
 property#52 = arguments[0]
 
-property#57 = arguments[1]
+property#53 = arguments[0]
 
 property#58 = arguments[1]
+
+property#59 = arguments[1]
 
 right = ???*0*
 - *0* right
   ⚠️  pattern without value
 
-s#11 = arguments[0]
+s#12 = arguments[0]
 
-s#14 = arguments[0]
+s#15 = arguments[0]
 
 s0#100 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s0#101 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#101 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1385,15 +1385,15 @@ s0#104 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#105 = (???*0* | [])
+s0#105 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#106 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
+s0#106 = (???*0* | [])
 - *0* s0
   ⚠️  pattern without value
 
-s0#107 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#107 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1485,7 +1485,11 @@ s0#129 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#130 = (
+s0#130 = (???*0* | peg$currPos | s1 | peg$FAILED)
+- *0* s0
+  ⚠️  pattern without value
+
+s0#131 = (
   | ???*0*
   | peg$parseselect()
   | peg$parsetop()
@@ -1513,15 +1517,11 @@ s0#130 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#131 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#132 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#132 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
-- *0* s0
-  ⚠️  pattern without value
-
-s0#133 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#133 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1529,11 +1529,11 @@ s0#134 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#135 = (???*0* | peg$c125 | peg$FAILED | peg$c47 | peg$c127 | peg$parsenot())
+s0#135 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#136 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#136 = (???*0* | peg$c125 | peg$FAILED | peg$c47 | peg$c127 | peg$parsenot())
 - *0* s0
   ⚠️  pattern without value
 
@@ -1541,43 +1541,47 @@ s0#137 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#138 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
+s0#138 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#139 = (???*0* | peg$parsecharactor_escape_sequence() | peg$parseunicode_escape_sequence())
+s0#139 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#140 = (???*0* | peg$parsesingle_escape_character() | peg$parsenon_escape_character())
+s0#140 = (???*0* | peg$parsecharactor_escape_sequence() | peg$parseunicode_escape_sequence())
 - *0* s0
   ⚠️  pattern without value
 
-s0#141 = (???*0* | peg$c57 | peg$FAILED | peg$c54 | peg$c129 | peg$currPos | s1)
+s0#141 = (???*0* | peg$parsesingle_escape_character() | peg$parsenon_escape_character())
 - *0* s0
   ⚠️  pattern without value
 
-s0#142 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#142 = (???*0* | peg$c57 | peg$FAILED | peg$c54 | peg$c129 | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s0#143 = (???*0* | peg$parsesingle_escape_character() | peg$c150 | peg$FAILED)
+s0#143 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#144 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#144 = (???*0* | peg$parsesingle_escape_character() | peg$c150 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#145 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
+s0#145 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#146 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#146 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#147 = (
+s0#147 = (???*0* | peg$currPos | s1 | peg$FAILED)
+- *0* s0
+  ⚠️  pattern without value
+
+s0#148 = (
   | ???*0*
   | peg$parseidentifier()
   | peg$parseparameter_name()
@@ -1592,7 +1596,7 @@ s0#147 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#148 = (
+s0#149 = (
   | ???*0*
   | peg$parsearray_subquery_expression()
   | peg$parseexists_subquery_expression()
@@ -1601,23 +1605,23 @@ s0#148 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#149 = (???*0* | peg$currPos | s1 | peg$FAILED)
-- *0* s0
-  ⚠️  pattern without value
-
 s0#150 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#151 = (???*0* | peg$currPos | s1)
+s0#151 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#152 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#152 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s0#153 = (
+s0#153 = (???*0* | peg$currPos | s1 | peg$FAILED)
+- *0* s0
+  ⚠️  pattern without value
+
+s0#154 = (
   | ???*0*
   | peg$parsescalar_function_expression()
   | peg$parsescalar_member_expression()
@@ -1628,11 +1632,7 @@ s0#153 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#154 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_binary_or_expression())
-- *0* s0
-  ⚠️  pattern without value
-
-s0#155 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#155 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_binary_or_expression())
 - *0* s0
   ⚠️  pattern without value
 
@@ -1648,15 +1648,15 @@ s0#158 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#159 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_between_expression())
+s0#159 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#160 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_binary_bitwise_or_expression())
+s0#160 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_between_expression())
 - *0* s0
   ⚠️  pattern without value
 
-s0#161 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#161 = (???*0* | peg$currPos | s1 | peg$FAILED | peg$parsescalar_binary_bitwise_or_expression())
 - *0* s0
   ⚠️  pattern without value
 
@@ -1688,15 +1688,15 @@ s0#168 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#169 = (???*0* | peg$currPos | s1)
+s0#169 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#170 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#170 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s0#171 = (???*0* | peg$currPos | s1)
+s0#171 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1708,7 +1708,7 @@ s0#173 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s0#174 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#174 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1716,7 +1716,7 @@ s0#175 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#84 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#176 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1740,7 +1740,11 @@ s0#89 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#90 = (
+s0#90 = (???*0* | peg$currPos | s1 | peg$FAILED)
+- *0* s0
+  ⚠️  pattern without value
+
+s0#91 = (
   | ???*0*
   | peg$parsecollection_member_expression()
   | peg$parsecollection_primary_expression()
@@ -1749,11 +1753,7 @@ s0#90 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#91 = (???*0* | peg$currPos | s1)
-- *0* s0
-  ⚠️  pattern without value
-
-s0#92 = (???*0* | peg$currPos | s1 | peg$FAILED)
+s0#92 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
@@ -1773,7 +1773,11 @@ s0#96 = (???*0* | peg$currPos | s1 | peg$FAILED)
 - *0* s0
   ⚠️  pattern without value
 
-s0#97 = (
+s0#97 = (???*0* | peg$currPos | s1 | peg$FAILED)
+- *0* s0
+  ⚠️  pattern without value
+
+s0#98 = (
   | ???*0*
   | peg$parseundefined_constant()
   | peg$parsenull_constant()
@@ -1786,55 +1790,51 @@ s0#97 = (
 - *0* s0
   ⚠️  pattern without value
 
-s0#98 = (???*0* | peg$currPos | s1)
-- *0* s0
-  ⚠️  pattern without value
-
 s0#99 = (???*0* | peg$currPos | s1)
 - *0* s0
   ⚠️  pattern without value
 
-s1#100 = (???*0* | peg$parsefalse() | peg$c45() | peg$parsetrue() | peg$c46())
+s1#100 = (???*0* | peg$parsenull() | peg$c44())
 - *0* s1
   ⚠️  pattern without value
 
-s1#101 = (???*0* | peg$c47 | peg$FAILED | null | peg$c53(s2))
+s1#101 = (???*0* | peg$parsefalse() | peg$c45() | peg$parsetrue() | peg$c46())
 - *0* s1
   ⚠️  pattern without value
 
-s1#102 = (???*0* | peg$c54 | peg$FAILED | peg$c56(s2) | peg$c57)
+s1#102 = (???*0* | peg$c47 | peg$FAILED | null | peg$c53(s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#103 = (???*0* | peg$c36 | peg$FAILED | peg$c59(s3, s4))
+s1#103 = (???*0* | peg$c54 | peg$FAILED | peg$c56(s2) | peg$c57)
 - *0* s1
   ⚠️  pattern without value
 
-s1#104 = (???*0* | peg$c31 | peg$FAILED | peg$c60(s3, s4))
+s1#104 = (???*0* | peg$c36 | peg$FAILED | peg$c59(s3, s4))
 - *0* s1
   ⚠️  pattern without value
 
-s1#105 = (???*0* | peg$parsewhitespace() | peg$parsecomment())
+s1#105 = (???*0* | peg$c31 | peg$FAILED | peg$c60(s3, s4))
 - *0* s1
   ⚠️  pattern without value
 
-s1#107 = (???*0* | peg$c63 | peg$FAILED | [s1, s2])
+s1#106 = (???*0* | peg$parsewhitespace() | peg$parsecomment())
 - *0* s1
   ⚠️  pattern without value
 
-s1#108 = (???*0* | input["substr"](peg$currPos, 6) | peg$FAILED | [s1, s2])
+s1#108 = (???*0* | peg$c63 | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#109 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | [s1, s2])
+s1#109 = (???*0* | input["substr"](peg$currPos, 6) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#110 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | [s1, s2])
+s1#110 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#111 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
+s1#111 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
@@ -1842,7 +1842,7 @@ s1#112 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#113 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | [s1, s2])
+s1#113 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
@@ -1850,90 +1850,94 @@ s1#114 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#115 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | [s1, s2])
+s1#115 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#116 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | [s1, s2])
+s1#116 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#117 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
+s1#117 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#118 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c89())
+s1#118 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#119 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | peg$c92())
+s1#119 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c89())
 - *0* s1
   ⚠️  pattern without value
 
-s1#120 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c95())
+s1#120 = (???*0* | input["substr"](peg$currPos, 4) | peg$FAILED | peg$c92())
 - *0* s1
   ⚠️  pattern without value
 
-s1#121 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | peg$c98())
+s1#121 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c95())
 - *0* s1
   ⚠️  pattern without value
 
-s1#122 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c101())
+s1#122 = (???*0* | input["substr"](peg$currPos, 2) | peg$FAILED | peg$c98())
 - *0* s1
   ⚠️  pattern without value
 
-s1#123 = (???*0* | input["substr"](peg$currPos, 7) | peg$FAILED | [s1, s2])
+s1#123 = (???*0* | input["substr"](peg$currPos, 3) | peg$FAILED | peg$c101())
 - *0* s1
   ⚠️  pattern without value
 
-s1#124 = (???*0* | input["substr"](peg$currPos, 6) | peg$FAILED | [s1, s2])
+s1#124 = (???*0* | input["substr"](peg$currPos, 7) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#125 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
+s1#125 = (???*0* | input["substr"](peg$currPos, 6) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#126 = (???*0* | peg$c108 | peg$FAILED | [s1, s2])
+s1#126 = (???*0* | input["substr"](peg$currPos, 5) | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#127 = (???*0* | peg$c110 | peg$FAILED | [s1, s2])
+s1#127 = (???*0* | peg$c108 | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#128 = (???*0* | peg$c112 | peg$FAILED | [s1, s2])
+s1#128 = (???*0* | peg$c110 | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#129 = (???*0* | peg$c114 | peg$FAILED | [s1, s2])
+s1#129 = (???*0* | peg$c112 | peg$FAILED | [s1, s2])
 - *0* s1
   ⚠️  pattern without value
 
-s1#131 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c116(s2))
+s1#130 = (???*0* | peg$c114 | peg$FAILED | [s1, s2])
+- *0* s1
+  ⚠️  pattern without value
+
+s1#132 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c116(s2))
 - *0* s1
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s1#133 = (???*0* | peg$parseidentifier_start() | peg$c121(s1, s2))
+s1#134 = (???*0* | peg$parseidentifier_start() | peg$c121(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#134 = (???*0* | peg$c122 | peg$FAILED | peg$c124())
+s1#135 = (???*0* | peg$c122 | peg$FAILED | peg$c124())
 - *0* s1
   ⚠️  pattern without value
-
-s1#136 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c131() | peg$c129 | peg$c132(s2))
-- *0* s1
-  ⚠️  pattern without value
-- *1* unsupported expression
 
 s1#137 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c131() | peg$c129 | peg$c132(s2))
 - *0* s1
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s1#141 = (
+s1#138 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c131() | peg$c129 | peg$c132(s2))
+- *0* s1
+  ⚠️  pattern without value
+- *1* unsupported expression
+
+s1#142 = (
   | ???*0*
   | peg$c134
   | peg$FAILED
@@ -1950,96 +1954,92 @@ s1#141 = (
 - *0* s1
   ⚠️  pattern without value
 
-s1#142 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c149())
+s1#143 = (???*0* | peg$currPos | ???*1* | peg$FAILED | peg$c149())
 - *0* s1
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s1#144 = (???*0* | peg$c150 | peg$FAILED | peg$c152(s2))
+s1#145 = (???*0* | peg$c150 | peg$FAILED | peg$c152(s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#146 = (???*0* | peg$parsescalar_conditional_expression() | peg$c156(s1, s2))
+s1#147 = (???*0* | peg$parsescalar_conditional_expression() | peg$c156(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#147 = (???*0* | peg$c25 | peg$FAILED | peg$c157(s3))
+s1#148 = (???*0* | peg$c25 | peg$FAILED | peg$c157(s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#149 = (???*0* | peg$parsearray() | peg$c158(s3))
+s1#150 = (???*0* | peg$parsearray() | peg$c158(s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#150 = (???*0* | peg$parseexists() | peg$c159(s3))
+s1#151 = (???*0* | peg$parseexists() | peg$c159(s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#151 = (???*0* | peg$parsesubquery() | peg$c160(s1))
+s1#152 = (???*0* | peg$parsesubquery() | peg$c160(s1))
 - *0* s1
   ⚠️  pattern without value
 
-s1#152 = (???*0* | peg$parsescalar_primary_expression() | peg$c163(s1, s2))
+s1#153 = (???*0* | peg$parsescalar_primary_expression() | peg$c163(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#153 = (???*0* | peg$parseunary_operator() | peg$c164(s1, s3))
+s1#154 = (???*0* | peg$parseunary_operator() | peg$c164(s1, s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#154 = (???*0* | peg$parsescalar_binary_or_expression() | peg$c169(s1, s5, s9))
+s1#155 = (???*0* | peg$parsescalar_binary_or_expression() | peg$c169(s1, s5, s9))
 - *0* s1
   ⚠️  pattern without value
 
-s1#155 = (???*0* | peg$parsescalar_binary_and_expression() | peg$c172(s1, s2))
+s1#156 = (???*0* | peg$parsescalar_binary_and_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#156 = (???*0* | peg$parsescalar_binary_equality_expression() | peg$c172(s1, s2))
+s1#157 = (???*0* | peg$parsescalar_binary_equality_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#157 = (???*0* | peg$parsescalar_binary_relational_expression() | peg$c172(s1, s2))
+s1#158 = (???*0* | peg$parsescalar_binary_relational_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#158 = (???*0* | peg$parsescalar_in_expression() | peg$c172(s1, s2))
+s1#159 = (???*0* | peg$parsescalar_in_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#159 = (???*0* | peg$parsescalar_between_expression() | peg$c187(s1, s7))
+s1#160 = (???*0* | peg$parsescalar_between_expression() | peg$c187(s1, s7))
 - *0* s1
   ⚠️  pattern without value
 
-s1#160 = (???*0* | peg$parsescalar_binary_bitwise_or_expression() | peg$c188(s1, s5, s9))
+s1#161 = (???*0* | peg$parsescalar_binary_bitwise_or_expression() | peg$c188(s1, s5, s9))
 - *0* s1
   ⚠️  pattern without value
 
-s1#161 = (???*0* | peg$parsescalar_binary_bitwise_xor_expression() | peg$c172(s1, s2))
+s1#162 = (???*0* | peg$parsescalar_binary_bitwise_xor_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#162 = (???*0* | peg$parsescalar_binary_bitwise_and_expression() | peg$c172(s1, s2))
+s1#163 = (???*0* | peg$parsescalar_binary_bitwise_and_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#163 = (???*0* | peg$parsescalar_binary_shift_expression() | peg$c172(s1, s2))
+s1#164 = (???*0* | peg$parsescalar_binary_shift_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#164 = (???*0* | peg$parsescalar_binary_additive_expression() | peg$c172(s1, s2))
+s1#165 = (???*0* | peg$parsescalar_binary_additive_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#165 = (???*0* | peg$parsescalar_binary_multiplicative_expression() | peg$c172(s1, s2))
+s1#166 = (???*0* | peg$parsescalar_binary_multiplicative_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#166 = (???*0* | peg$parsescalar_unary_expression() | peg$c172(s1, s2))
-- *0* s1
-  ⚠️  pattern without value
-
-s1#167 = (???*0* | peg$parseidentifier() | peg$parsestring_constant() | peg$c207(s1, s5))
+s1#167 = (???*0* | peg$parsescalar_unary_expression() | peg$c172(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
@@ -2047,43 +2047,47 @@ s1#168 = (???*0* | peg$parseidentifier() | peg$parsestring_constant() | peg$c207
 - *0* s1
   ⚠️  pattern without value
 
-s1#169 = (???*0* | peg$parseidentifier() | peg$c208(s1))
+s1#169 = (???*0* | peg$parseidentifier() | peg$parsestring_constant() | peg$c207(s1, s5))
 - *0* s1
   ⚠️  pattern without value
 
-s1#170 = (???*0* | peg$parsecollection_primary_expression() | peg$c209(s1, s2))
+s1#170 = (???*0* | peg$parseidentifier() | peg$c208(s1))
 - *0* s1
   ⚠️  pattern without value
 
-s1#171 = (???*0* | peg$parsesubquery() | peg$c210(s1))
+s1#171 = (???*0* | peg$parsecollection_primary_expression() | peg$c209(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#172 = (???*0* | peg$parseunsigned_integer() | peg$parseparameter_name() | peg$c211(s1))
+s1#172 = (???*0* | peg$parsesubquery() | peg$c210(s1))
 - *0* s1
   ⚠️  pattern without value
 
-s1#173 = (???*0* | [] | peg$FAILED | peg$c212())
+s1#173 = (???*0* | peg$parseunsigned_integer() | peg$parseparameter_name() | peg$c211(s1))
 - *0* s1
   ⚠️  pattern without value
 
-s1#174 = (???*0* | peg$parsescalar_conditional_expression() | null | peg$c213(s1, s2))
+s1#174 = (???*0* | [] | peg$FAILED | peg$c212())
 - *0* s1
   ⚠️  pattern without value
 
-s1#175 = (???*0* | peg$c25 | peg$FAILED | peg$c214(s3))
+s1#175 = (???*0* | peg$parsescalar_conditional_expression() | null | peg$c213(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#84 = (???*0* | peg$parse_() | peg$c0(s2))
+s1#176 = (???*0* | peg$c25 | peg$FAILED | peg$c214(s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#85 = (???*0* | peg$parseselect() | peg$c5(s3, s5, s7, s9, s11))
+s1#85 = (???*0* | peg$parse_() | peg$c0(s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#86 = (
+s1#86 = (???*0* | peg$parseselect() | peg$c5(s3, s5, s7, s9, s11))
+- *0* s1
+  ⚠️  pattern without value
+
+s1#87 = (
   | ???*0*
   | peg$c6
   | peg$FAILED
@@ -2096,15 +2100,15 @@ s1#86 = (
 - *0* s1
   ⚠️  pattern without value
 
-s1#87 = (???*0* | peg$parseobject_property() | peg$c14(s1, s2))
+s1#88 = (???*0* | peg$parseobject_property() | peg$c14(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#88 = (???*0* | peg$parsefrom_source() | peg$c16(s1, s2))
+s1#89 = (???*0* | peg$parsefrom_source() | peg$c16(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#89 = (
+s1#90 = (
   | ???*0*
   | peg$parseidentifier()
   | peg$c17(s1, s5)
@@ -2114,39 +2118,35 @@ s1#89 = (
 - *0* s1
   ⚠️  pattern without value
 
-s1#91 = (???*0* | peg$parsescalar_conditional_expression() | peg$c20(s1))
+s1#92 = (???*0* | peg$parsescalar_conditional_expression() | peg$c20(s1))
 - *0* s1
   ⚠️  pattern without value
 
-s1#92 = (???*0* | peg$parsesort_expression() | peg$c21(s1, s2))
+s1#93 = (???*0* | peg$parsesort_expression() | peg$c21(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#93 = (???*0* | peg$parsescalar_conditional_expression() | peg$c22(s1, s2))
+s1#94 = (???*0* | peg$parsescalar_conditional_expression() | peg$c22(s1, s2))
 - *0* s1
   ⚠️  pattern without value
 
-s1#94 = (???*0* | peg$parseudf() | peg$c29(s5, s9) | peg$parseidentifier() | peg$c30(s1, s5))
+s1#95 = (???*0* | peg$parseudf() | peg$c29(s5, s9) | peg$parseidentifier() | peg$c30(s1, s5))
 - *0* s1
   ⚠️  pattern without value
 
-s1#95 = (???*0* | peg$c31 | peg$FAILED | peg$c35(s3, s4))
+s1#96 = (???*0* | peg$c31 | peg$FAILED | peg$c35(s3, s4))
 - *0* s1
   ⚠️  pattern without value
 
-s1#96 = (???*0* | peg$c36 | peg$FAILED | peg$c40(s3))
+s1#97 = (???*0* | peg$c36 | peg$FAILED | peg$c40(s3))
 - *0* s1
   ⚠️  pattern without value
 
-s1#98 = (???*0* | peg$c41 | peg$FAILED | peg$c43())
+s1#99 = (???*0* | peg$c41 | peg$FAILED | peg$c43())
 - *0* s1
   ⚠️  pattern without value
 
-s1#99 = (???*0* | peg$parsenull() | peg$c44())
-- *0* s1
-  ⚠️  pattern without value
-
-s10#85 = (
+s10#86 = (
   | ???*0*
   | peg$parsefrom_specification()
   | peg$parsewhere()
@@ -2156,15 +2156,15 @@ s10#85 = (
 - *0* s10
   ⚠️  pattern without value
 
-s10#94 = (???*0* | peg$parse_())
+s10#95 = (???*0* | peg$parse_())
 - *0* s10
   ⚠️  pattern without value
 
-s11#85 = (???*0* | peg$parse_() | peg$currPos | s12 | peg$FAILED | null)
+s11#86 = (???*0* | peg$parse_() | peg$currPos | s12 | peg$FAILED | null)
 - *0* s11
   ⚠️  pattern without value
 
-s11#94 = (???*0* | peg$c27 | peg$FAILED)
+s11#95 = (???*0* | peg$c27 | peg$FAILED)
 - *0* s11
   ⚠️  pattern without value
 
@@ -2188,15 +2188,11 @@ s16 = (???*0* | peg$parsesort_specification())
 - *0* s16
   ⚠️  pattern without value
 
-s2#101 = (???*0* | peg$c49 | peg$FAILED | null)
+s2#102 = (???*0* | peg$c49 | peg$FAILED | null)
 - *0* s2
   ⚠️  pattern without value
 
-s2#102 = (???*0* | [])
-- *0* s2
-  ⚠️  pattern without value
-
-s2#103 = (???*0* | peg$parse_())
+s2#103 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2204,14 +2200,13 @@ s2#104 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#107 = (???*0* | [])
+s2#105 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#108 = (???*0* | peg$currPos | ???*1* | peg$FAILED)
+s2#108 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
-- *1* unsupported expression
 
 s2#109 = (???*0* | peg$currPos | ???*1* | peg$FAILED)
 - *0* s2
@@ -2318,19 +2313,24 @@ s2#129 = (???*0* | peg$currPos | ???*1* | peg$FAILED)
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s2#131 = (???*0* | peg$parsereserved() | peg$parseidentifier_name())
+s2#130 = (???*0* | peg$currPos | ???*1* | peg$FAILED)
+- *0* s2
+  ⚠️  pattern without value
+- *1* unsupported expression
+
+s2#132 = (???*0* | peg$parsereserved() | peg$parseidentifier_name())
 - *0* s2
   ⚠️  pattern without value
 
-s2#133 = (???*0* | [])
+s2#134 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#134 = (???*0* | peg$parseidentifier_name())
+s2#135 = (???*0* | peg$parseidentifier_name())
 - *0* s2
   ⚠️  pattern without value
 
-s2#136 = (
+s2#137 = (
   | ???*0*
   | peg$c54
   | peg$FAILED
@@ -2341,7 +2341,7 @@ s2#136 = (
 - *0* s2
   ⚠️  pattern without value
 
-s2#137 = (
+s2#138 = (
   | ???*0*
   | peg$c57
   | peg$FAILED
@@ -2352,23 +2352,19 @@ s2#137 = (
 - *0* s2
   ⚠️  pattern without value
 
-s2#142 = (???*0* | peg$parseescape_character() | peg$parsesource_character())
+s2#143 = (???*0* | peg$parseescape_character() | peg$parsesource_character())
 - *0* s2
   ⚠️  pattern without value
 
-s2#144 = (???*0* | peg$currPos | input["substring"](s2, peg$currPos) | s3)
+s2#145 = (???*0* | peg$currPos | input["substring"](s2, peg$currPos) | s3)
 - *0* s2
   ⚠️  pattern without value
 
-s2#146 = (???*0* | peg$currPos | s3 | peg$FAILED | null)
+s2#147 = (???*0* | peg$currPos | s3 | peg$FAILED | null)
 - *0* s2
   ⚠️  pattern without value
 
-s2#147 = (???*0* | peg$parse_())
-- *0* s2
-  ⚠️  pattern without value
-
-s2#149 = (???*0* | peg$parse_())
+s2#148 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
@@ -2376,11 +2372,11 @@ s2#150 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#152 = (???*0* | [])
+s2#151 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#153 = (???*0* | peg$parse_())
+s2#153 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2388,7 +2384,7 @@ s2#154 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#155 = (???*0* | [])
+s2#155 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
@@ -2404,7 +2400,7 @@ s2#158 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#159 = (???*0* | peg$parse_())
+s2#159 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2412,7 +2408,7 @@ s2#160 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#161 = (???*0* | [])
+s2#161 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
@@ -2436,7 +2432,7 @@ s2#166 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#167 = (???*0* | peg$parse_())
+s2#167 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2444,27 +2440,27 @@ s2#168 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#170 = (???*0* | [] | peg$FAILED)
+s2#169 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#173 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
+s2#171 = (???*0* | [] | peg$FAILED)
 - *0* s2
   ⚠️  pattern without value
 
-s2#174 = (???*0* | [])
+s2#174 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s2
   ⚠️  pattern without value
 
-s2#175 = (???*0* | peg$parse_())
+s2#175 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#84 = (???*0* | peg$parseselect_query())
+s2#176 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#85 = (???*0* | peg$parse_())
+s2#85 = (???*0* | peg$parseselect_query())
 - *0* s2
   ⚠️  pattern without value
 
@@ -2472,7 +2468,7 @@ s2#86 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s2#87 = (???*0* | [])
+s2#87 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
@@ -2480,19 +2476,19 @@ s2#88 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#89 = (???*0* | peg$parse_() | peg$currPos | s3 | peg$FAILED | null)
+s2#89 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#92 = (???*0* | [])
+s2#90 = (???*0* | peg$parse_() | peg$currPos | s3 | peg$FAILED | null)
 - *0* s2
   ⚠️  pattern without value
 
-s2#93 = (???*0* | peg$currPos | s3 | peg$FAILED | null)
+s2#93 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#94 = (???*0* | peg$parse_())
+s2#94 = (???*0* | peg$currPos | s3 | peg$FAILED | null)
 - *0* s2
   ⚠️  pattern without value
 
@@ -2504,11 +2500,15 @@ s2#96 = (???*0* | peg$parse_())
 - *0* s2
   ⚠️  pattern without value
 
-s3#101 = (???*0* | [] | peg$FAILED)
+s2#97 = (???*0* | peg$parse_())
+- *0* s2
+  ⚠️  pattern without value
+
+s3#102 = (???*0* | [] | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#102 = (
+s3#103 = (
   | ???*0*
   | peg$parsedouble_string_character()
   | peg$c54
@@ -2519,19 +2519,15 @@ s3#102 = (
 - *0* s3
   ⚠️  pattern without value
 
-s3#103 = (???*0* | peg$parseconstant())
+s3#104 = (???*0* | peg$parseconstant())
 - *0* s3
   ⚠️  pattern without value
 
-s3#104 = (???*0* | peg$parseobject_constant_property())
+s3#105 = (???*0* | peg$parseobject_constant_property())
 - *0* s3
   ⚠️  pattern without value
 
-s3#107 = (???*0* | peg$currPos | s4 | peg$FAILED)
-- *0* s3
-  ⚠️  pattern without value
-
-s3#108 = (???*0* | peg$parseidentifier_start())
+s3#108 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
@@ -2619,23 +2615,23 @@ s3#129 = (???*0* | peg$parseidentifier_start())
 - *0* s3
   ⚠️  pattern without value
 
-s3#133 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
+s3#130 = (???*0* | peg$parseidentifier_start())
 - *0* s3
   ⚠️  pattern without value
 
-s3#144 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#134 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#146 = (???*0* | peg$currPos | s4 | peg$FAILED | null | peg$c155(s1, s5))
+s3#145 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#147 = (???*0* | peg$parsescalar_conditional_expression())
+s3#147 = (???*0* | peg$currPos | s4 | peg$FAILED | null | peg$c155(s1, s5))
 - *0* s3
   ⚠️  pattern without value
 
-s3#149 = (???*0* | peg$parsesubquery())
+s3#148 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s3
   ⚠️  pattern without value
 
@@ -2643,19 +2639,19 @@ s3#150 = (???*0* | peg$parsesubquery())
 - *0* s3
   ⚠️  pattern without value
 
-s3#152 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#151 = (???*0* | peg$parsesubquery())
 - *0* s3
   ⚠️  pattern without value
 
-s3#153 = (???*0* | peg$parsescalar_unary_expression())
+s3#153 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#154 = (???*0* | peg$c165 | peg$FAILED)
+s3#154 = (???*0* | peg$parsescalar_unary_expression())
 - *0* s3
   ⚠️  pattern without value
 
-s3#155 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#155 = (???*0* | peg$c165 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
@@ -2671,15 +2667,15 @@ s3#158 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#159 = (???*0* | peg$parsein())
+s3#159 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#160 = (???*0* | peg$parsebetween())
+s3#160 = (???*0* | peg$parsein())
 - *0* s3
   ⚠️  pattern without value
 
-s3#161 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#161 = (???*0* | peg$parsebetween())
 - *0* s3
   ⚠️  pattern without value
 
@@ -2703,7 +2699,7 @@ s3#166 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#167 = (???*0* | peg$c167 | peg$FAILED)
+s3#167 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
@@ -2711,31 +2707,31 @@ s3#168 = (???*0* | peg$c167 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#170 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#169 = (???*0* | peg$c167 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#174 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#171 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#175 = (???*0* | peg$parseselect_query())
+s3#175 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#84 = (???*0* | peg$parse_())
+s3#176 = (???*0* | peg$parseselect_query())
 - *0* s3
   ⚠️  pattern without value
 
-s3#85 = (???*0* | peg$currPos | s4 | peg$FAILED | null)
+s3#85 = (???*0* | peg$parse_())
 - *0* s3
   ⚠️  pattern without value
 
-s3#86 = (???*0* | peg$parsescalar_conditional_expression())
+s3#86 = (???*0* | peg$currPos | s4 | peg$FAILED | null)
 - *0* s3
   ⚠️  pattern without value
 
-s3#87 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#87 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s3
   ⚠️  pattern without value
 
@@ -2743,35 +2739,35 @@ s3#88 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#89 = (???*0* | peg$parsein() | peg$currPos | s4 | peg$FAILED | null | peg$c18(s1, s5))
+s3#89 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#92 = (???*0* | peg$currPos | s4 | peg$FAILED)
+s3#90 = (???*0* | peg$parsein() | peg$currPos | s4 | peg$FAILED | null | peg$c18(s1, s5))
 - *0* s3
   ⚠️  pattern without value
 
-s3#93 = (???*0* | peg$parse_() | peg$c18(s1, s4))
+s3#93 = (???*0* | peg$currPos | s4 | peg$FAILED)
 - *0* s3
   ⚠️  pattern without value
 
-s3#94 = (???*0* | peg$c23 | peg$FAILED | peg$c25)
+s3#94 = (???*0* | peg$parse_() | peg$c18(s1, s4))
 - *0* s3
   ⚠️  pattern without value
 
-s3#95 = (???*0* | peg$parsescalar_object_element_property() | null)
+s3#95 = (???*0* | peg$c23 | peg$FAILED | peg$c25)
 - *0* s3
   ⚠️  pattern without value
 
-s3#96 = (???*0* | peg$parsescalar_expression_list())
+s3#96 = (???*0* | peg$parsescalar_object_element_property() | null)
 - *0* s3
   ⚠️  pattern without value
 
-s4#101 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED | peg$currPos | s5 | null)
-- *0* s4
+s3#97 = (???*0* | peg$parsescalar_expression_list())
+- *0* s3
   ⚠️  pattern without value
 
-s4#103 = (???*0* | [])
+s4#102 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED | peg$currPos | s5 | null)
 - *0* s4
   ⚠️  pattern without value
 
@@ -2779,32 +2775,32 @@ s4#104 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#107 = (???*0* | peg$currPos | ???*1* | peg$FAILED | [s4, s5])
+s4#105 = (???*0* | [])
+- *0* s4
+  ⚠️  pattern without value
+
+s4#108 = (???*0* | peg$currPos | ???*1* | peg$FAILED | [s4, s5])
 - *0* s4
   ⚠️  pattern without value
 - *1* unsupported expression
 
-s4#144 = (???*0* | peg$parsehex_digit() | [s4, s5, s6, s7])
+s4#145 = (???*0* | peg$parsehex_digit() | [s4, s5, s6, s7])
 - *0* s4
   ⚠️  pattern without value
 
-s4#146 = (???*0* | peg$parse_() | [s4, s5])
+s4#147 = (???*0* | peg$parse_() | [s4, s5])
 - *0* s4
   ⚠️  pattern without value
 
-s4#147 = (???*0* | peg$parse_())
+s4#148 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#152 = (???*0* | peg$parse_() | peg$c161(s1, s7) | peg$c162(s1, s7))
+s4#153 = (???*0* | peg$parse_() | peg$c161(s1, s7) | peg$c162(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#154 = (???*0* | peg$parse_())
-- *0* s4
-  ⚠️  pattern without value
-
-s4#155 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
+s4#155 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
@@ -2820,7 +2816,7 @@ s4#158 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
 - *0* s4
   ⚠️  pattern without value
 
-s4#159 = (???*0* | peg$parse_())
+s4#159 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
 - *0* s4
   ⚠️  pattern without value
 
@@ -2828,7 +2824,7 @@ s4#160 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#161 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
+s4#161 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
@@ -2852,7 +2848,7 @@ s4#166 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
 - *0* s4
   ⚠️  pattern without value
 
-s4#167 = (???*0* | peg$parse_())
+s4#167 = (???*0* | peg$parse_() | [s4, s5, s6, s7])
 - *0* s4
   ⚠️  pattern without value
 
@@ -2860,59 +2856,59 @@ s4#168 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#170 = (???*0* | peg$parse_() | peg$c161(s1, s7) | peg$c162(s1, s7))
+s4#169 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#174 = (???*0* | peg$parse_() | peg$c13(s1, s7))
+s4#171 = (???*0* | peg$parse_() | peg$c161(s1, s7) | peg$c162(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#175 = (???*0* | peg$parse_())
+s4#175 = (???*0* | peg$parse_() | peg$c13(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#85 = (???*0* | peg$parsetop() | peg$c1(s6) | peg$parse_())
+s4#176 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#87 = (???*0* | peg$parse_() | peg$c13(s1, s7))
+s4#86 = (???*0* | peg$parsetop() | peg$c1(s6) | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#88 = (???*0* | peg$parse_() | peg$c15(s1, s7))
+s4#88 = (???*0* | peg$parse_() | peg$c13(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#89 = (???*0* | peg$parse_() | [s4, s5])
+s4#89 = (???*0* | peg$parse_() | peg$c15(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#92 = (???*0* | peg$parse_() | peg$c13(s1, s7))
+s4#90 = (???*0* | peg$parse_() | [s4, s5])
 - *0* s4
   ⚠️  pattern without value
 
-s4#93 = (???*0* | peg$parseasc() | peg$parsedesc())
+s4#93 = (???*0* | peg$parse_() | peg$c13(s1, s7))
 - *0* s4
   ⚠️  pattern without value
 
-s4#94 = (???*0* | peg$parse_())
+s4#94 = (???*0* | peg$parseasc() | peg$parsedesc())
 - *0* s4
   ⚠️  pattern without value
 
-s4#95 = (???*0* | [])
+s4#95 = (???*0* | peg$parse_())
 - *0* s4
   ⚠️  pattern without value
 
-s4#96 = (???*0* | peg$parse_())
+s4#96 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s5#101 = (???*0* | peg$c23 | peg$FAILED | [s5, s6])
-- *0* s5
+s4#97 = (???*0* | peg$parse_())
+- *0* s4
   ⚠️  pattern without value
 
-s5#103 = (???*0* | peg$currPos | s6 | peg$FAILED | peg$parse_())
+s5#102 = (???*0* | peg$c23 | peg$FAILED | [s5, s6])
 - *0* s5
   ⚠️  pattern without value
 
@@ -2920,151 +2916,151 @@ s5#104 = (???*0* | peg$currPos | s6 | peg$FAILED | peg$parse_())
 - *0* s5
   ⚠️  pattern without value
 
-s5#107 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED | peg$parsesource_character())
+s5#105 = (???*0* | peg$currPos | s6 | peg$FAILED | peg$parse_())
 - *0* s5
   ⚠️  pattern without value
 
-s5#144 = (???*0* | peg$parsehex_digit())
+s5#108 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED | peg$parsesource_character())
 - *0* s5
   ⚠️  pattern without value
 
-s5#146 = (???*0* | peg$parseas() | peg$parseidentifier())
+s5#145 = (???*0* | peg$parsehex_digit())
 - *0* s5
   ⚠️  pattern without value
 
-s5#147 = (???*0* | peg$c27 | peg$FAILED)
+s5#147 = (???*0* | peg$parseas() | peg$parseidentifier())
 - *0* s5
   ⚠️  pattern without value
 
-s5#152 = (???*0* | peg$c23 | peg$FAILED | peg$c36)
+s5#148 = (???*0* | peg$c27 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#154 = (???*0* | peg$parsescalar_conditional_expression())
+s5#153 = (???*0* | peg$c23 | peg$FAILED | peg$c36)
 - *0* s5
   ⚠️  pattern without value
 
-s5#155 = (???*0* | peg$parseor() | peg$c170 | peg$FAILED)
+s5#155 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s5
   ⚠️  pattern without value
 
-s5#156 = (???*0* | peg$parseand())
+s5#156 = (???*0* | peg$parseor() | peg$c170 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#157 = (???*0* | peg$c173 | peg$FAILED | peg$c175 | peg$c177)
+s5#157 = (???*0* | peg$parseand())
 - *0* s5
   ⚠️  pattern without value
 
-s5#158 = (???*0* | peg$c179 | peg$FAILED | peg$c181 | peg$c183 | peg$c185)
+s5#158 = (???*0* | peg$c173 | peg$FAILED | peg$c175 | peg$c177)
 - *0* s5
   ⚠️  pattern without value
 
-s5#159 = (???*0* | peg$c25 | peg$FAILED)
+s5#159 = (???*0* | peg$c179 | peg$FAILED | peg$c181 | peg$c183 | peg$c185)
 - *0* s5
   ⚠️  pattern without value
 
-s5#160 = (???*0* | peg$parsescalar_binary_bitwise_or_expression())
+s5#160 = (???*0* | peg$c25 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#161 = (???*0* | peg$c189 | peg$FAILED)
+s5#161 = (???*0* | peg$parsescalar_binary_bitwise_or_expression())
 - *0* s5
   ⚠️  pattern without value
 
-s5#162 = (???*0* | peg$c191 | peg$FAILED)
+s5#162 = (???*0* | peg$c189 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#163 = (???*0* | peg$c193 | peg$FAILED)
+s5#163 = (???*0* | peg$c191 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#164 = (???*0* | peg$c195 | peg$FAILED | peg$c197 | peg$c199)
+s5#164 = (???*0* | peg$c193 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#165 = (???*0* | peg$c125 | peg$FAILED | peg$c47 | peg$c201)
+s5#165 = (???*0* | peg$c195 | peg$FAILED | peg$c197 | peg$c199)
 - *0* s5
   ⚠️  pattern without value
 
-s5#166 = (???*0* | peg$c6 | peg$FAILED | peg$c203 | peg$c205)
+s5#166 = (???*0* | peg$c125 | peg$FAILED | peg$c47 | peg$c201)
 - *0* s5
   ⚠️  pattern without value
 
-s5#167 = (???*0* | peg$parsescalar_conditional_expression())
+s5#167 = (???*0* | peg$c6 | peg$FAILED | peg$c203 | peg$c205)
 - *0* s5
   ⚠️  pattern without value
 
-s5#168 = (???*0* | peg$parseconstant())
+s5#168 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s5
   ⚠️  pattern without value
 
-s5#170 = (???*0* | peg$c23 | peg$FAILED | peg$c36)
+s5#169 = (???*0* | peg$parseconstant())
 - *0* s5
   ⚠️  pattern without value
 
-s5#174 = (???*0* | peg$c11 | peg$FAILED)
+s5#171 = (???*0* | peg$c23 | peg$FAILED | peg$c36)
 - *0* s5
   ⚠️  pattern without value
 
-s5#175 = (???*0* | peg$c27 | peg$FAILED)
+s5#175 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#85 = (???*0* | peg$parse_() | peg$parseselect_specification())
+s5#176 = (???*0* | peg$c27 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#87 = (???*0* | peg$c11 | peg$FAILED)
+s5#86 = (???*0* | peg$parse_() | peg$parseselect_specification())
 - *0* s5
   ⚠️  pattern without value
 
-s5#88 = (???*0* | peg$parsejoin())
+s5#88 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#89 = (???*0* | peg$parsecollection_expression() | peg$parseas() | peg$parseidentifier())
+s5#89 = (???*0* | peg$parsejoin())
 - *0* s5
   ⚠️  pattern without value
 
-s5#92 = (???*0* | peg$c11 | peg$FAILED)
+s5#90 = (???*0* | peg$parsecollection_expression() | peg$parseas() | peg$parseidentifier())
 - *0* s5
   ⚠️  pattern without value
 
-s5#94 = (???*0* | peg$parseidentifier() | peg$parsescalar_expression_list())
+s5#93 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s5
   ⚠️  pattern without value
 
-s5#95 = (???*0* | peg$currPos | s6 | peg$FAILED | peg$parse_())
+s5#95 = (???*0* | peg$parseidentifier() | peg$parsescalar_expression_list())
 - *0* s5
   ⚠️  pattern without value
 
-s5#96 = (???*0* | peg$c38 | peg$FAILED)
+s5#96 = (???*0* | peg$currPos | s6 | peg$FAILED | peg$parse_())
 - *0* s5
   ⚠️  pattern without value
 
-s6#101 = (???*0* | [] | peg$FAILED)
+s5#97 = (???*0* | peg$c38 | peg$FAILED)
+- *0* s5
+  ⚠️  pattern without value
+
+s6#102 = (???*0* | [] | peg$FAILED)
 - *0* s6
   ⚠️  pattern without value
 
-s6#103 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c38 | peg$FAILED)
+s6#104 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c38 | peg$FAILED)
 - *0* s6
   ⚠️  pattern without value
 
-s6#104 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c33 | peg$FAILED)
+s6#105 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c33 | peg$FAILED)
 - *0* s6
   ⚠️  pattern without value
 
-s6#144 = (???*0* | peg$parsehex_digit())
+s6#145 = (???*0* | peg$parsehex_digit())
 - *0* s6
   ⚠️  pattern without value
 
-s6#152 = (???*0* | peg$parse_())
-- *0* s6
-  ⚠️  pattern without value
-
-s6#154 = (???*0* | peg$parse_())
+s6#153 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
@@ -3116,19 +3112,19 @@ s6#166 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#170 = (???*0* | peg$parse_())
+s6#167 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#174 = (???*0* | peg$parse_())
+s6#171 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#85 = (???*0* | peg$parsetop_specification() | peg$parse_())
+s6#175 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#87 = (???*0* | peg$parse_())
+s6#86 = (???*0* | peg$parsetop_specification() | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
@@ -3136,23 +3132,23 @@ s6#88 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#92 = (???*0* | peg$parse_())
+s6#89 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#94 = (???*0* | peg$parse_())
+s6#93 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s6#95 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c33 | peg$FAILED)
+s6#95 = (???*0* | peg$parse_())
 - *0* s6
   ⚠️  pattern without value
 
-s7#101 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
-- *0* s7
+s6#96 = (???*0* | peg$parse_() | peg$c13(s3, s9) | peg$c33 | peg$FAILED)
+- *0* s6
   ⚠️  pattern without value
 
-s7#103 = (???*0* | peg$c11 | peg$FAILED)
+s7#102 = (???*0* | input["charAt"](peg$currPos) | peg$FAILED)
 - *0* s7
   ⚠️  pattern without value
 
@@ -3160,11 +3156,15 @@ s7#104 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s7
   ⚠️  pattern without value
 
-s7#144 = (???*0* | peg$parsehex_digit())
+s7#105 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s7
   ⚠️  pattern without value
 
-s7#152 = (
+s7#145 = (???*0* | peg$parsehex_digit())
+- *0* s7
+  ⚠️  pattern without value
+
+s7#153 = (
   | ???*0*
   | peg$parseidentifier()
   | peg$parsestring_constant()
@@ -3174,59 +3174,59 @@ s7#152 = (
 - *0* s7
   ⚠️  pattern without value
 
-s7#154 = (???*0* | peg$c167 | peg$FAILED)
+s7#155 = (???*0* | peg$c167 | peg$FAILED)
 - *0* s7
   ⚠️  pattern without value
 
-s7#155 = (???*0* | peg$parsescalar_binary_and_expression())
+s7#156 = (???*0* | peg$parsescalar_binary_and_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#156 = (???*0* | peg$parsescalar_binary_equality_expression())
+s7#157 = (???*0* | peg$parsescalar_binary_equality_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#157 = (???*0* | peg$parsescalar_binary_relational_expression())
+s7#158 = (???*0* | peg$parsescalar_binary_relational_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#158 = (???*0* | peg$parsescalar_in_expression())
+s7#159 = (???*0* | peg$parsescalar_in_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#159 = (???*0* | peg$parsescalar_expression_list())
+s7#160 = (???*0* | peg$parsescalar_expression_list())
 - *0* s7
   ⚠️  pattern without value
 
-s7#160 = (???*0* | peg$parseand())
+s7#161 = (???*0* | peg$parseand())
 - *0* s7
   ⚠️  pattern without value
 
-s7#161 = (???*0* | peg$parsescalar_binary_bitwise_xor_expression())
+s7#162 = (???*0* | peg$parsescalar_binary_bitwise_xor_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#162 = (???*0* | peg$parsescalar_binary_bitwise_and_expression())
+s7#163 = (???*0* | peg$parsescalar_binary_bitwise_and_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#163 = (???*0* | peg$parsescalar_binary_shift_expression())
+s7#164 = (???*0* | peg$parsescalar_binary_shift_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#164 = (???*0* | peg$parsescalar_binary_additive_expression())
+s7#165 = (???*0* | peg$parsescalar_binary_additive_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#165 = (???*0* | peg$parsescalar_binary_multiplicative_expression())
+s7#166 = (???*0* | peg$parsescalar_binary_multiplicative_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#166 = (???*0* | peg$parsescalar_unary_expression())
+s7#167 = (???*0* | peg$parsescalar_unary_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#170 = (
+s7#171 = (
   | ???*0*
   | peg$parseidentifier()
   | peg$parsestring_constant()
@@ -3236,51 +3236,47 @@ s7#170 = (
 - *0* s7
   ⚠️  pattern without value
 
-s7#174 = (???*0* | peg$parsescalar_conditional_expression())
+s7#175 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#85 = (???*0* | peg$currPos | s8 | peg$FAILED | null)
+s7#86 = (???*0* | peg$currPos | s8 | peg$FAILED | null)
 - *0* s7
   ⚠️  pattern without value
 
-s7#87 = (???*0* | peg$parseobject_property())
+s7#88 = (???*0* | peg$parseobject_property())
 - *0* s7
   ⚠️  pattern without value
 
-s7#88 = (???*0* | peg$parsefrom_source())
+s7#89 = (???*0* | peg$parsefrom_source())
 - *0* s7
   ⚠️  pattern without value
 
-s7#92 = (???*0* | peg$parsesort_expression())
+s7#93 = (???*0* | peg$parsesort_expression())
 - *0* s7
   ⚠️  pattern without value
 
-s7#94 = (???*0* | peg$c25 | peg$FAILED | peg$c27)
+s7#95 = (???*0* | peg$c25 | peg$FAILED | peg$c27)
 - *0* s7
   ⚠️  pattern without value
 
-s7#95 = (???*0* | peg$c11 | peg$FAILED)
+s7#96 = (???*0* | peg$c11 | peg$FAILED)
 - *0* s7
-  ⚠️  pattern without value
-
-s8#103 = (???*0* | peg$parse_())
-- *0* s8
   ⚠️  pattern without value
 
 s8#104 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#152 = (???*0* | peg$parse_())
+s8#105 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#154 = (???*0* | peg$parse_())
+s8#153 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#159 = (???*0* | peg$parse_())
+s8#155 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
@@ -3288,15 +3284,15 @@ s8#160 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#170 = (???*0* | peg$parse_())
+s8#161 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#85 = (???*0* | peg$parsefrom() | peg$c2(s3, s5, s10) | peg$parse_())
+s8#171 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s8#94 = (???*0* | peg$parse_())
+s8#86 = (???*0* | peg$parsefrom() | peg$c2(s3, s5, s10) | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
@@ -3304,47 +3300,49 @@ s8#95 = (???*0* | peg$parse_())
 - *0* s8
   ⚠️  pattern without value
 
-s9#103 = (???*0* | peg$parseconstant())
+s8#96 = (???*0* | peg$parse_())
+- *0* s8
+  ⚠️  pattern without value
+
+s9#104 = (???*0* | peg$parseconstant())
 - *0* s9
   ⚠️  pattern without value
 
-s9#104 = (???*0* | peg$parseobject_constant_property())
+s9#105 = (???*0* | peg$parseobject_constant_property())
 - *0* s9
   ⚠️  pattern without value
 
-s9#152 = (???*0* | peg$c38 | peg$FAILED)
+s9#153 = (???*0* | peg$c38 | peg$FAILED)
 - *0* s9
   ⚠️  pattern without value
 
-s9#154 = (???*0* | peg$parsescalar_conditional_expression())
+s9#155 = (???*0* | peg$parsescalar_conditional_expression())
 - *0* s9
   ⚠️  pattern without value
 
-s9#159 = (???*0* | peg$c27 | peg$FAILED)
+s9#160 = (???*0* | peg$c27 | peg$FAILED)
 - *0* s9
   ⚠️  pattern without value
 
-s9#160 = (???*0* | peg$parsescalar_binary_bitwise_or_expression())
+s9#161 = (???*0* | peg$parsescalar_binary_bitwise_or_expression())
 - *0* s9
   ⚠️  pattern without value
 
-s9#170 = (???*0* | peg$c38 | peg$FAILED)
+s9#171 = (???*0* | peg$c38 | peg$FAILED)
 - *0* s9
   ⚠️  pattern without value
 
-s9#85 = (???*0* | peg$parse_() | peg$currPos | s10 | peg$FAILED | null)
+s9#86 = (???*0* | peg$parse_() | peg$currPos | s10 | peg$FAILED | null)
 - *0* s9
   ⚠️  pattern without value
 
-s9#94 = (???*0* | peg$parsescalar_expression_list())
+s9#95 = (???*0* | peg$parsescalar_expression_list())
 - *0* s9
   ⚠️  pattern without value
 
-s9#95 = (???*0* | peg$parsescalar_object_element_property())
+s9#96 = (???*0* | peg$parsescalar_object_element_property())
 - *0* s9
   ⚠️  pattern without value
-
-select#23 = arguments[1]
 
 select#24 = arguments[1]
 
@@ -3352,11 +3350,13 @@ select#25 = arguments[1]
 
 select#26 = arguments[1]
 
+select#27 = arguments[1]
+
 seq = arguments[0]
 
-source#31 = arguments[0]
-
 source#32 = arguments[0]
+
+source#33 = arguments[0]
 
 startPos = arguments[0]
 
@@ -3364,35 +3364,33 @@ startPosDetails = peg$computePosDetails(startPos)
 
 subquery = arguments[0]
 
-tail#176 = arguments[1]
+tail#177 = arguments[1]
 
-tail#30 = arguments[1]
+tail#31 = arguments[1]
 
-tail#37 = arguments[1]
+tail#38 = arguments[1]
 
-tail#41 = arguments[1]
-
-tail#45 = arguments[1]
+tail#42 = arguments[1]
 
 tail#46 = arguments[1]
 
-tail#48 = arguments[1]
+tail#47 = arguments[1]
 
-tail#59 = arguments[1]
+tail#49 = arguments[1]
 
-tail#63 = arguments[1]
+tail#60 = arguments[1]
 
-tail#68 = arguments[1]
+tail#64 = arguments[1]
 
-tail#72 = arguments[1]
+tail#69 = arguments[1]
+
+tail#73 = arguments[1]
 
 test = arguments[0]
 
-text#20 = (...) => input["substring"](peg$savedPos, peg$currPos)
+text#21 = (...) => input["substring"](peg$savedPos, peg$currPos)
 
-text#76 = arguments[0]
-
-top#23 = arguments[0]
+text#77 = arguments[0]
 
 top#24 = arguments[0]
 
@@ -3400,32 +3398,34 @@ top#25 = arguments[0]
 
 top#26 = arguments[0]
 
-v#22 = arguments[0]
+top#27 = arguments[0]
 
-v#23 = arguments[2]
+v#23 = arguments[0]
 
-v#24 = arguments[3]
+v#24 = arguments[2]
 
-v#25 = arguments[4]
+v#25 = arguments[3]
 
-v#29 = arguments[1]
+v#26 = arguments[4]
 
-v#31 = arguments[1]
+v#30 = arguments[1]
 
-v#34 = arguments[1]
+v#32 = arguments[1]
 
-v#51 = arguments[1]
+v#35 = arguments[1]
 
-value#28 = arguments[0]
+v#52 = arguments[1]
 
-value#64 = arguments[0]
+value#29 = arguments[0]
 
 value#65 = arguments[0]
 
-value#66 = arguments[1]
+value#66 = arguments[0]
 
-value#71 = arguments[0]
+value#67 = arguments[1]
 
-where#25 = arguments[3]
+value#72 = arguments[0]
 
 where#26 = arguments[3]
+
+where#27 = arguments[3]

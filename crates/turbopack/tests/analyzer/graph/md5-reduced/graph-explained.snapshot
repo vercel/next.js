@@ -10,7 +10,7 @@ a#2 = (
 
 a#3 = arguments[1]
 
-a#4 = arguments[0]
+a#5 = arguments[0]
 
 b#2 = (
   | ???*0*
@@ -26,7 +26,7 @@ b#2 = (
 
 b#3 = arguments[2]
 
-b#4 = arguments[1]
+b#5 = arguments[1]
 
 c#2 = (
   | ???*0*
@@ -40,7 +40,7 @@ c#2 = (
 - *2* unsupported expression
 - *3* unsupported expression
 
-c#4 = arguments[2]
+c#5 = arguments[2]
 
 d#2 = (
   | 271733878
@@ -53,7 +53,7 @@ d#2 = (
 - *1* unsupported expression
 - *2* unsupported expression
 
-d#4 = arguments[3]
+d#5 = arguments[3]
 
 i = (???*0* | 0)
 - *0* i
@@ -92,11 +92,11 @@ q = arguments[0]
 
 s#3 = arguments[4]
 
-s#4 = arguments[5]
+s#5 = arguments[5]
 
 t#3 = arguments[5]
 
-t#4 = arguments[6]
+t#5 = arguments[6]
 
 wordsToMd5 = (...) => [a, b, c, d]
 
@@ -104,4 +104,4 @@ x#2 = arguments[0]
 
 x#3 = arguments[3]
 
-x#4 = arguments[4]
+x#5 = arguments[4]

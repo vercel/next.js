@@ -1,10 +1,10 @@
 use std::{collections::HashMap, iter, mem::replace, sync::Arc};
 
 use swc_atoms::js_word;
-use swc_common::{collections::AHashSet, Mark, Span, Spanned, SyntaxContext};
+use swc_common::{Mark, Span, Spanned, SyntaxContext};
 use swc_ecmascript::{
     ast::*,
-    utils::{collect_decls, ident::IdentLike},
+    utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 
@@ -99,16 +99,14 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
 }
 
 pub struct EvalContext {
-    bindings: AHashSet<Id>,
-    top_level_mark: Mark,
+    unresolved_mark: Mark,
     imports: ImportMap,
 }
 
 impl EvalContext {
-    pub fn new(module: &Program, top_level_mark: Mark) -> Self {
+    pub fn new(module: &Program, unresolved_mark: Mark) -> Self {
         Self {
-            top_level_mark,
-            bindings: collect_decls(module),
+            unresolved_mark,
             imports: ImportMap::analyze(module),
         }
     }
@@ -167,7 +165,7 @@ impl EvalContext {
                 if let Some(imported) = self.imports.get_import(&id) {
                     return imported;
                 }
-                if is_unresolved(&i, &self.bindings, self.top_level_mark) {
+                if is_unresolved(&i, self.unresolved_mark) {
                     match &*i.sym {
                         "require" => return JsValue::FreeVar(FreeVarKind::Require),
                         "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
@@ -210,7 +208,7 @@ impl EvalContext {
             }) => {
                 if &*tag_obj.sym == "String"
                     && &*tag_prop.sym == "raw"
-                    && is_unresolved(&tag_obj, &self.bindings, self.top_level_mark)
+                    && is_unresolved(&tag_obj, self.unresolved_mark)
                 {
                     return self.eval_tpl(tpl, true);
                 } else {

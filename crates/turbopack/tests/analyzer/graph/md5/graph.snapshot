@@ -18,7 +18,13 @@
         ),
     ),
     (
-        "a#4",
+        "a#13",
+        Argument(
+            0,
+        ),
+    ),
+    (
+        "a#5",
         Alternatives(
             210,
             [
@@ -41,25 +47,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -67,13 +73,13 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('i' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ),
@@ -102,25 +108,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -128,7 +134,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -137,7 +143,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -175,25 +181,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -201,7 +207,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -210,7 +216,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -251,25 +257,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -277,7 +283,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -286,7 +292,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -327,25 +333,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -353,7 +359,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -362,7 +368,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -400,25 +406,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -426,7 +432,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -435,7 +441,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -473,25 +479,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -499,7 +505,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -508,7 +514,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -549,25 +555,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -575,7 +581,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -584,7 +590,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -622,25 +628,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -648,7 +654,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -657,7 +663,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -695,25 +701,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -721,7 +727,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -730,7 +736,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -768,25 +774,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -794,7 +800,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -803,7 +809,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -844,25 +850,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -870,7 +876,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -879,7 +885,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -917,25 +923,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -943,13 +949,13 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('i' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ),
@@ -978,25 +984,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1004,7 +1010,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1013,7 +1019,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1054,25 +1060,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1080,7 +1086,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1089,7 +1095,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1130,25 +1136,25 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1156,7 +1162,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1165,7 +1171,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1203,13 +1209,13 @@
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('olda' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ],
@@ -1218,15 +1224,9 @@
         ),
     ),
     (
-        "a#8",
-        Argument(
-            1,
-        ),
-    ),
-    (
         "a#9",
         Argument(
-            0,
+            1,
         ),
     ),
     (
@@ -1248,7 +1248,13 @@
         ),
     ),
     (
-        "b#4",
+        "b#13",
+        Argument(
+            1,
+        ),
+    ),
+    (
+        "b#5",
         Alternatives(
             212,
             [
@@ -1268,25 +1274,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1294,7 +1300,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1303,7 +1309,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1341,25 +1347,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1367,7 +1373,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1376,7 +1382,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1414,25 +1420,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1440,7 +1446,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1449,7 +1455,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1487,25 +1493,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1513,7 +1519,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1522,7 +1528,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1563,25 +1569,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1589,13 +1595,13 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('i' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ),
@@ -1624,25 +1630,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1650,7 +1656,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1659,7 +1665,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1697,25 +1703,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1723,7 +1729,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1732,7 +1738,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1773,25 +1779,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1799,7 +1805,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1808,7 +1814,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1846,25 +1852,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1872,7 +1878,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1881,7 +1887,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1919,25 +1925,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -1945,7 +1951,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -1954,7 +1960,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -1992,25 +1998,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2018,7 +2024,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2027,7 +2033,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2068,25 +2074,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2094,7 +2100,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2103,7 +2109,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2141,25 +2147,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2167,7 +2173,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2176,7 +2182,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2214,25 +2220,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2240,7 +2246,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2249,7 +2255,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2287,25 +2293,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2313,7 +2319,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2322,7 +2328,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2363,25 +2369,25 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2389,7 +2395,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2398,7 +2404,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2436,13 +2442,13 @@
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('oldb' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ],
@@ -2451,15 +2457,9 @@
         ),
     ),
     (
-        "b#8",
-        Argument(
-            2,
-        ),
-    ),
-    (
         "b#9",
         Argument(
-            1,
+            2,
         ),
     ),
     (
@@ -2494,7 +2494,7 @@
             Variable(
                 (
                     Atom('output' type=inline),
-                    #5,
+                    #6,
                 ),
             ),
         ),
@@ -2518,7 +2518,13 @@
         ),
     ),
     (
-        "c#4",
+        "c#13",
+        Argument(
+            2,
+        ),
+    ),
+    (
+        "c#5",
         Alternatives(
             214,
             [
@@ -2538,25 +2544,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2564,7 +2570,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2573,7 +2579,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2614,25 +2620,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2640,7 +2646,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2649,7 +2655,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2687,25 +2693,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2713,7 +2719,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2722,7 +2728,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2760,25 +2766,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2786,7 +2792,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2795,7 +2801,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2833,25 +2839,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2859,7 +2865,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2868,7 +2874,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2909,25 +2915,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -2935,7 +2941,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -2944,7 +2950,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -2982,25 +2988,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3008,7 +3014,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3017,7 +3023,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3055,25 +3061,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3081,7 +3087,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3090,7 +3096,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3131,25 +3137,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3157,7 +3163,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3166,7 +3172,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3207,25 +3213,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3233,7 +3239,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3242,7 +3248,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3280,25 +3286,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3306,7 +3312,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3315,7 +3321,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3353,25 +3359,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3379,7 +3385,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3388,7 +3394,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3429,25 +3435,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3455,7 +3461,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3464,7 +3470,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3502,25 +3508,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3528,7 +3534,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3537,7 +3543,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3575,25 +3581,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3601,7 +3607,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3610,7 +3616,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3648,25 +3654,25 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3674,7 +3680,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3683,7 +3689,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3724,24 +3730,18 @@
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('oldc' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ],
                 ),
             ],
-        ),
-    ),
-    (
-        "c#9",
-        Argument(
-            2,
         ),
     ),
     (
@@ -3769,7 +3769,13 @@
         ),
     ),
     (
-        "d#4",
+        "d#13",
+        Argument(
+            3,
+        ),
+    ),
+    (
+        "d#5",
         Alternatives(
             212,
             [
@@ -3792,25 +3798,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3818,7 +3824,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3827,7 +3833,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3865,25 +3871,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3891,7 +3897,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3900,7 +3906,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -3941,25 +3947,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -3967,7 +3973,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -3976,7 +3982,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4014,25 +4020,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4040,7 +4046,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4049,7 +4055,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4087,25 +4093,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4113,7 +4119,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4122,7 +4128,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4160,25 +4166,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4186,7 +4192,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4195,7 +4201,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4236,25 +4242,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4262,7 +4268,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4271,7 +4277,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4309,25 +4315,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4335,7 +4341,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4344,7 +4350,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4382,25 +4388,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4408,7 +4414,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4417,7 +4423,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4455,25 +4461,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4481,7 +4487,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4490,7 +4496,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4531,25 +4537,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4557,13 +4563,13 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('i' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ),
@@ -4592,25 +4598,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4618,7 +4624,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4627,7 +4633,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4665,25 +4671,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4691,7 +4697,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4700,7 +4706,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4741,25 +4747,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4767,7 +4773,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4776,7 +4782,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4814,25 +4820,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4840,7 +4846,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4849,7 +4855,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4887,25 +4893,25 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('a' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('b' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('c' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Member(
@@ -4913,7 +4919,7 @@
                             Variable(
                                 (
                                     Atom('x' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                             Add(
@@ -4922,7 +4928,7 @@
                                     Variable(
                                         (
                                             Atom('i' type=inline),
-                                            #4,
+                                            #5,
                                         ),
                                     ),
                                     Constant(
@@ -4960,24 +4966,18 @@
                         Variable(
                             (
                                 Atom('d' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('oldd' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ],
                 ),
             ],
-        ),
-    ),
-    (
-        "d#9",
-        Argument(
-            3,
         ),
     ),
     (
@@ -4990,7 +4990,7 @@
                         Variable(
                             (
                                 Atom('hex' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                     ),
@@ -5012,7 +5012,7 @@
                                     Variable(
                                         (
                                             Atom('hexTab' type=inline),
-                                            #3,
+                                            #4,
                                         ),
                                     ),
                                     Constant(
@@ -5032,7 +5032,7 @@
                                     Variable(
                                         (
                                             Atom('hexTab' type=inline),
-                                            #3,
+                                            #4,
                                         ),
                                     ),
                                     Constant(
@@ -5077,32 +5077,6 @@
                     0.0,
                 ),
             ),
-        ),
-    ),
-    (
-        "i#3",
-        Alternatives(
-            3,
-            [
-                Unknown(
-                    Some(
-                        Variable(
-                            (
-                                Atom('i' type=inline),
-                                #3,
-                            ),
-                        ),
-                    ),
-                    "pattern without value",
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            0.0,
-                        ),
-                    ),
-                ),
-            ],
         ),
     ),
     (
@@ -5158,13 +5132,39 @@
         ),
     ),
     (
-        "input#3",
+        "i#6",
+        Alternatives(
+            3,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('i' type=inline),
+                                #6,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "input#4",
         Argument(
             0,
         ),
     ),
     (
-        "input#5",
+        "input#6",
         Argument(
             0,
         ),
@@ -5261,7 +5261,7 @@
             Variable(
                 (
                     Atom('output' type=inline),
-                    #3,
+                    #4,
                 ),
             ),
         ),
@@ -5309,13 +5309,13 @@
                                             Variable(
                                                 (
                                                     Atom('a' type=inline),
-                                                    #8,
+                                                    #9,
                                                 ),
                                             ),
                                             Variable(
                                                 (
                                                     Atom('q' type=inline),
-                                                    #8,
+                                                    #9,
                                                 ),
                                             ),
                                         ],
@@ -5332,13 +5332,13 @@
                                             Variable(
                                                 (
                                                     Atom('x' type=inline),
-                                                    #8,
+                                                    #9,
                                                 ),
                                             ),
                                             Variable(
                                                 (
                                                     Atom('t' type=inline),
-                                                    #8,
+                                                    #9,
                                                 ),
                                             ),
                                         ],
@@ -5348,7 +5348,7 @@
                             Variable(
                                 (
                                     Atom('s' type=inline),
-                                    #8,
+                                    #9,
                                 ),
                             ),
                         ],
@@ -5356,7 +5356,7 @@
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #8,
+                            #9,
                         ),
                     ),
                 ],
@@ -5383,31 +5383,31 @@
                     Variable(
                         (
                             Atom('a' type=inline),
-                            #9,
+                            #10,
                         ),
                     ),
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #9,
+                            #10,
                         ),
                     ),
                     Variable(
                         (
                             Atom('x' type=inline),
-                            #9,
+                            #10,
                         ),
                     ),
                     Variable(
                         (
                             Atom('s' type=inline),
-                            #9,
+                            #10,
                         ),
                     ),
                     Variable(
                         (
                             Atom('t' type=inline),
-                            #9,
+                            #10,
                         ),
                     ),
                 ],
@@ -5434,31 +5434,31 @@
                     Variable(
                         (
                             Atom('a' type=inline),
-                            #10,
+                            #11,
                         ),
                     ),
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #10,
+                            #11,
                         ),
                     ),
                     Variable(
                         (
                             Atom('x' type=inline),
-                            #10,
+                            #11,
                         ),
                     ),
                     Variable(
                         (
                             Atom('s' type=inline),
-                            #10,
+                            #11,
                         ),
                     ),
                     Variable(
                         (
                             Atom('t' type=inline),
-                            #10,
+                            #11,
                         ),
                     ),
                 ],
@@ -5485,31 +5485,31 @@
                     Variable(
                         (
                             Atom('a' type=inline),
-                            #11,
+                            #12,
                         ),
                     ),
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #11,
+                            #12,
                         ),
                     ),
                     Variable(
                         (
                             Atom('x' type=inline),
-                            #11,
+                            #12,
                         ),
                     ),
                     Variable(
                         (
                             Atom('s' type=inline),
-                            #11,
+                            #12,
                         ),
                     ),
                     Variable(
                         (
                             Atom('t' type=inline),
-                            #11,
+                            #12,
                         ),
                     ),
                 ],
@@ -5536,31 +5536,31 @@
                     Variable(
                         (
                             Atom('a' type=inline),
-                            #12,
+                            #13,
                         ),
                     ),
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #12,
+                            #13,
                         ),
                     ),
                     Variable(
                         (
                             Atom('x' type=inline),
-                            #12,
+                            #13,
                         ),
                     ),
                     Variable(
                         (
                             Atom('s' type=inline),
-                            #12,
+                            #13,
                         ),
                     ),
                     Variable(
                         (
                             Atom('t' type=inline),
-                            #12,
+                            #13,
                         ),
                     ),
                 ],
@@ -5632,7 +5632,7 @@
                         Variable(
                             (
                                 Atom('olda' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ),
@@ -5641,7 +5641,7 @@
                 Variable(
                     (
                         Atom('a' type=inline),
-                        #4,
+                        #5,
                     ),
                 ),
             ],
@@ -5657,7 +5657,7 @@
                         Variable(
                             (
                                 Atom('oldb' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ),
@@ -5666,7 +5666,7 @@
                 Variable(
                     (
                         Atom('b' type=inline),
-                        #4,
+                        #5,
                     ),
                 ),
             ],
@@ -5682,7 +5682,7 @@
                         Variable(
                             (
                                 Atom('oldc' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ),
@@ -5691,7 +5691,7 @@
                 Variable(
                     (
                         Atom('c' type=inline),
-                        #4,
+                        #5,
                     ),
                 ),
             ],
@@ -5707,7 +5707,7 @@
                         Variable(
                             (
                                 Atom('oldd' type=inline),
-                                #4,
+                                #5,
                             ),
                         ),
                     ),
@@ -5716,21 +5716,21 @@
                 Variable(
                     (
                         Atom('d' type=inline),
-                        #4,
+                        #5,
                     ),
                 ),
             ],
         ),
     ),
     (
-        "output#3",
+        "output#4",
         Array(
             1,
             [],
         ),
     ),
     (
-        "output#5",
+        "output#6",
         Array(
             1,
             [],
@@ -5761,15 +5761,15 @@
         ),
     ),
     (
-        "s#8",
+        "s#13",
         Argument(
-            4,
+            5,
         ),
     ),
     (
         "s#9",
         Argument(
-            5,
+            4,
         ),
     ),
     (
@@ -5801,15 +5801,15 @@
         ),
     ),
     (
-        "t#8",
+        "t#13",
         Argument(
-            5,
+            6,
         ),
     ),
     (
         "t#9",
         Argument(
-            6,
+            5,
         ),
     ),
     (
@@ -5822,25 +5822,25 @@
                     Variable(
                         (
                             Atom('a' type=inline),
-                            #4,
+                            #5,
                         ),
                     ),
                     Variable(
                         (
                             Atom('b' type=inline),
-                            #4,
+                            #5,
                         ),
                     ),
                     Variable(
                         (
                             Atom('c' type=inline),
-                            #4,
+                            #5,
                         ),
                     ),
                     Variable(
                         (
                             Atom('d' type=inline),
-                            #4,
+                            #5,
                         ),
                     ),
                 ],
@@ -5866,7 +5866,13 @@
         ),
     ),
     (
-        "x#3",
+        "x#13",
+        Argument(
+            4,
+        ),
+    ),
+    (
+        "x#4",
         Alternatives(
             3,
             [
@@ -5875,7 +5881,7 @@
                         Variable(
                             (
                                 Atom('x' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                     ),
@@ -5889,27 +5895,21 @@
         ),
     ),
     (
-        "x#4",
+        "x#5",
         Argument(
             0,
         ),
     ),
     (
-        "x#6",
+        "x#7",
         Argument(
             0,
-        ),
-    ),
-    (
-        "x#8",
-        Argument(
-            3,
         ),
     ),
     (
         "x#9",
         Argument(
-            4,
+            3,
         ),
     ),
     (

@@ -19,7 +19,7 @@
         Variable(
             (
                 Atom('b' type=inline),
-                #2,
+                #3,
             ),
         ),
     ),
@@ -37,7 +37,7 @@
         Variable(
             (
                 Atom('d' type=inline),
-                #3,
+                #4,
             ),
         ),
     ),
@@ -55,7 +55,7 @@
         Variable(
             (
                 Atom('f' type=inline),
-                #4,
+                #5,
             ),
         ),
     ),
