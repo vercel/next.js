@@ -163,7 +163,7 @@ export default async function build(
 
       // We enable concurrent features (Fizz-related rendering architecture) when
       // using React 18 or experimental.
-      const hasReactRoot = shouldUseReactRoot()
+      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
       const hasConcurrentFeatures = hasReactRoot
       const hasServerComponents =
         hasReactRoot && !!config.experimental.serverComponents
