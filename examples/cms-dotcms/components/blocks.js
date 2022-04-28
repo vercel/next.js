@@ -1,20 +1,20 @@
 import React from 'react'
 import cn from 'classnames';
 import DotCmsImage from "./dotcms-image";
-import DotLink from './link'
+import Link from 'next/link';
 
 export const Bold = ({ children }) => <strong>{children}</strong>
 export const Italic = ({ children }) => <em>{children}</em>
 export const Strike = ({ children }) => <s>{children}</s>
 export const Underline = ({ children }) => <u>{children}</u>
-export const Link = ({ attrs: { href, target }, children }) => (
-  <DotLink href={href} target={target}>
-    {children}
-  </DotLink>
-)
+export const DotLink = ({ attrs: { href, target }, children }) => {
+  const regEx = /https?:\/\//;
+
+  return regEx.test(href) ? <a href={href} rel="noopener noreferrer" target="_blank">{children}</a> : <Link href={href} target={target || '_self'}>{children}</Link>
+}
 
 const nodeMarks = {
-  link: Link,
+  link: DotLink,
   bold: Bold,
   underline: Underline,
   italic: Italic,
@@ -41,18 +41,18 @@ export const DotImage = ({ attrs: { textAlign, data } }) => {
   const [imgTitle] = title.split('.')
 
   return (
-    <div className="w-full h-64 mb-4 relative" style={{ textAlign: textAlign }}>
+    <DotCmsImage
+      objectFit="cover"
+      style={{ textAlign: textAlign }}
+      width="800"
+      height="400"
+      alt={`Cover Image for ${title}`}
+      className={cn('shadow-small', {
+        'hover:shadow-medium transition-shadow  duration-200': imgTitle,
+      })}
+      src={asset}
+    />
 
-      <DotCmsImage
-        alt={`Cover Image for ${title}`}
-        className={cn('shadow-small', {
-          'hover:shadow-medium transition-shadow  duration-200': imgTitle,
-        })}
-        src={asset}
-        layout="fill"
-      />
-
-    </div>
   )
 }
 
@@ -72,7 +72,7 @@ export const BulletList = ({ children }) => {
   return <ul>{children}</ul>
 }
 
-export const Heading = ({ level,  children }) => {
+export const Heading = ({ level, children }) => {
   const Tag = `h${level}`
   return <Tag>{children}</Tag>
 }
@@ -83,6 +83,6 @@ export const BlockQuote = ({ children }) => {
 
 export const CodeBlock = ({ language, children }) => {
   return <pre data-language={language}>
-  <code>{children}</code>
-</pre>
+    <code>{children}</code>
+  </pre>
 }
