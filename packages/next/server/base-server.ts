@@ -17,7 +17,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 
-import pathMod from '../shared/lib/isomorphic/path'
+import { join, resolve } from '../shared/lib/isomorphic/path'
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
@@ -65,8 +65,6 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
-
-const { join, resolve } = pathMod
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -532,7 +530,7 @@ export default abstract class Server {
                 parsedUrl.query.__nextLocale = opts.locale
               }
             } else {
-              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt) || {}
             }
 
             if (params) {
