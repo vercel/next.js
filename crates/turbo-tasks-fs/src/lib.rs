@@ -910,5 +910,6 @@ impl FileSystem for NullFileSystem {
 }
 
 pub fn register() {
+    turbo_tasks::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

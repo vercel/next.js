@@ -118,9 +118,10 @@ use turbopack::{
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
 fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     register();
-    COMMANDOUTPUT_VALUE_TYPE.register("test::CommandOutput");
-    EXEC_NODE_FUNCTION.register("test::exec_node");
-    ASSERT_OUTPUT_FUNCTION.register("test::assert_output");
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/register_test_node-file-trace.rs"
+    ));
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut tests_root = package_root.clone();
