@@ -72,7 +72,7 @@
     "@next/env": "12.1.6-canary.14",
     "caniuse-lite": "^1.0.30001332",
     "postcss": "8.4.5",
-    "styled-jsx": "5.0.1"
+    "styled-jsx": "5.0.2"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -153,7 +153,6 @@
     "@types/react-is": "16.7.1",
     "@types/semver": "7.3.1",
     "@types/send": "0.14.4",
-    "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/ua-parser-js": "0.7.36",
     "@types/uuid": "8.3.1",
