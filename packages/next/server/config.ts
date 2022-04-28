@@ -20,7 +20,6 @@ import {
 } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
-import { shouldUseReactRoot } from '../lib/react'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -188,7 +187,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  const hasReactRoot = shouldUseReactRoot
+  const hasReactRoot = process.env.__NEXT_REACT_ROOT
   if (hasReactRoot) {
     // users might not have the `experimental` key in their config
     result.experimental = result.experimental || {}
