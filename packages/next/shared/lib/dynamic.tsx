@@ -118,7 +118,7 @@ export default function dynamic<P = {}>(
     loader: Loader<P>
   }
   // Error if Fizz rendering is not enabled and `suspense` option is set to true
-  if (!process.env.__NEXT_CONCURRENT_FEATURES && suspenseOptions.suspense) {
+  if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
     throw new Error(
       `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
     )

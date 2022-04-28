@@ -1,3 +1,4 @@
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -109,9 +110,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { shouldUseReactRoot } from '../server/config'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise } from './swc'
 
@@ -164,7 +163,7 @@ export default async function build(
 
       // We enable concurrent features (Fizz-related rendering architecture) when
       // using React 18 or experimental.
-      const hasReactRoot = shouldUseReactRoot()
+      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
       const hasConcurrentFeatures = hasReactRoot
       const hasServerComponents =
         hasReactRoot && !!config.experimental.serverComponents
