@@ -1064,6 +1064,9 @@ jobs:
       - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/production/react-18-streaming-ssr/index.test.ts
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   # Build binaries for publishing
   build-native:
     strategy:
