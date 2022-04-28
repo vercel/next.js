@@ -940,7 +940,7 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.1.1"
+version = "0.3.0"
 dependencies = [
  "handlebars",
  "once_cell",
@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.1.1"
+version = "0.3.0"
 dependencies = [
  "easy-error",
  "swc_common",
@@ -2540,7 +2540,7 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.2.1"
+version = "0.4.0"
 dependencies = [
  "base64 0.13.0",
  "byteorder",
