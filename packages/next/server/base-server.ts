@@ -128,7 +128,7 @@ type RequestContext = {
   renderOpts: RenderOptsPartial
 }
 
-export default abstract class Server {
+export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
   protected quiet: boolean
   protected nextConfig: NextConfigComplete
@@ -171,6 +171,7 @@ export default abstract class Server {
     serverComponentProps?: any
     reactRoot: boolean
   }
+  protected serverOptions: ServerOptions
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
   protected router: Router
@@ -261,16 +262,19 @@ export default abstract class Server {
 
   protected abstract loadEnvConfig(params: { dev: boolean }): void
 
-  public constructor({
-    dir = '.',
-    quiet = false,
-    conf,
-    dev = false,
-    minimalMode = false,
-    customServer = true,
-    hostname,
-    port,
-  }: Options) {
+  public constructor(options: ServerOptions) {
+    const {
+      dir = '.',
+      quiet = false,
+      conf,
+      dev = false,
+      minimalMode = false,
+      customServer = true,
+      hostname,
+      port,
+    } = options
+    this.serverOptions = options
+
     this.dir = resolve(dir)
     this.quiet = quiet
     this.loadEnvConfig({ dev })
