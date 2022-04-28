@@ -1,14 +1,19 @@
 use std::{collections::HashSet, future::Future, pin::Pin};
 
+use anyhow::Result;
+use event_listener::EventListener;
+
 use crate::{
     backend::{
-        Backend, PersistentTaskType, SlotMappings, TaskExecutionSpec, TaskType, TransientTaskType,
+        Backend, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec, TaskType,
+        TransientTaskType,
     },
     id::BackgroundJobId,
     id_factory::IdFactory,
     manager::TurboTasksApi,
     no_move_vec::NoMoveVec,
-    Task, TaskId,
+    output::Output,
+    RawVc, Task, TaskId,
 };
 
 pub struct MemoryBackend {
@@ -33,6 +38,18 @@ impl MemoryBackend {
             self.background_jobs.insert(*id, job);
         }
         id
+    }
+
+    fn try_get_output<T, F: FnOnce(&mut Output) -> T>(
+        &self,
+        id: TaskId,
+        func: F,
+    ) -> Result<T, EventListener> {
+        self.with_task(id, |task| task.get_or_wait_output(func))
+    }
+
+    pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
+        func(&self.memory_tasks.get(*id).unwrap())
     }
 }
 
@@ -84,10 +101,6 @@ impl Backend for MemoryBackend {
         }
     }
 
-    fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        func(&self.memory_tasks.get(*id).unwrap())
-    }
-
     fn try_start_task_execution(
         &self,
         task: TaskId,
@@ -116,6 +129,47 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| {
             task.execution_result(result);
             task.execution_completed(slot_mappings, self)
+        })
+    }
+
+    fn try_read_task_output(
+        &self,
+        task: TaskId,
+        reader: TaskId,
+    ) -> Result<Result<RawVc>, EventListener> {
+        self.try_get_output(task, |output| {
+            Task::add_dependency_to_current(RawVc::TaskOutput(task));
+            output.read(reader)
+        })
+    }
+
+    unsafe fn try_read_task_output_untracked(
+        &self,
+        task: TaskId,
+    ) -> Result<Result<RawVc>, EventListener> {
+        self.try_get_output(task, |output| unsafe { output.read_untracked() })
+    }
+
+    fn read_task_slot(&self, task: TaskId, index: usize, reader: TaskId) -> SlotContent {
+        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
+        self.with_task(task, |task| {
+            task.with_slot_mut(index, |slot| slot.read_content(reader))
+        })
+    }
+
+    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent {
+        self.with_task(task, |task| {
+            task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
+        })
+    }
+
+    fn get_fresh_slot(&self, task: TaskId) -> usize {
+        self.with_task(task, |task| task.get_fresh_slot())
+    }
+
+    fn update_task_slot(&self, task: TaskId, index: usize, content: SlotContent) {
+        self.with_task(task, |task| {
+            task.with_slot_mut(index, |slot| slot.assign(content))
         })
     }
 

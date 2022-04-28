@@ -63,12 +63,14 @@ fn main() {
             // create a graph
             let mut stats = Stats::new();
 
+            let b = tt.backend();
+
             // graph root node
-            stats.add_id(&tt, task);
+            stats.add_id(b, task);
 
             // graph tasks in cache
             tt.with_all_cached_tasks(|task| {
-                stats.add(&tt, &task);
+                stats.add_id(b, task);
             });
 
             // prettify graph

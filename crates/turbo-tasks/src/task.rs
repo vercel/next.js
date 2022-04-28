@@ -1,5 +1,5 @@
 use crate::{
-    backend::{Backend, SlotMappings},
+    backend::SlotMappings,
     id::{FunctionId, TraitTypeId},
     manager::{get_invalidator, TurboTasksApi},
     memory_backend::BackgroundJob,
@@ -331,6 +331,25 @@ impl Task {
         }
     }
 
+    pub(crate) fn remove_dependent_task(dep: RawVc, reader: TaskId, backend: &MemoryBackend) {
+        match dep {
+            RawVc::TaskOutput(task) => {
+                backend.with_task(task, |task| {
+                    task.with_output_mut(|output| {
+                        output.dependent_tasks.remove(&reader);
+                    });
+                });
+            }
+            RawVc::TaskSlot(task, index) => {
+                backend.with_task(task, |task| {
+                    task.with_slot_mut(index, |slot| {
+                        slot.dependent_tasks.remove(&reader);
+                    });
+                });
+            }
+        }
+    }
+
     #[cfg(not(feature = "report_expensive"))]
     fn clear_dependencies(&self, backend: &MemoryBackend) {
         let mut execution_data = self.execution_data.lock().unwrap();
@@ -338,7 +357,7 @@ impl Task {
         drop(execution_data);
 
         for dep in dependencies.into_iter() {
-            dep.remove_dependent_task(self.id, backend);
+            Task::remove_dependent_task(dep, self.id, backend);
         }
     }
 
@@ -352,7 +371,7 @@ impl Task {
         let count = dependencies.len();
 
         for dep in dependencies.into_iter() {
-            dep.remove_dependent_task(self, backend);
+            Task::remove_dependent_task(dep, self.id, backend);
         }
         let elapsed = start.elapsed();
         if elapsed.as_millis() >= 100 {

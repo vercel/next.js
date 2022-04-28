@@ -12,9 +12,8 @@ use anyhow::Result;
 use event_listener::EventListener;
 
 use crate::{
-    backend::Backend,
     manager::{read_task_output, read_task_output_untracked, TurboTasksApi},
-    turbo_tasks, MemoryBackend, TaskId, TurboTasks,
+    turbo_tasks, TaskId
 };
 
 /// The result of reading a ValueVc.
@@ -109,25 +108,6 @@ impl RawVc {
                     current = read_task_output(&*tt, task).await?;
                 }
                 RawVc::TaskSlot(_, _) => return Ok(current),
-            }
-        }
-    }
-
-    pub(crate) fn remove_dependent_task(&self, reader: TaskId, backend: &MemoryBackend) {
-        match self {
-            RawVc::TaskOutput(task) => {
-                backend.with_task(*task, |task| {
-                    task.with_output_mut(|slot| {
-                        slot.dependent_tasks.remove(&reader);
-                    });
-                });
-            }
-            RawVc::TaskSlot(task, index) => {
-                backend.with_task(*task, |task| {
-                    task.with_slot_mut(*index, |slot| {
-                        slot.dependent_tasks.remove(&reader);
-                    });
-                });
             }
         }
     }

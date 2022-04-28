@@ -200,10 +200,11 @@ fn main() {
             println!("done in {} ms", start.elapsed().as_millis());
             if visualize_graph {
                 let mut stats = Stats::new();
+                let b = tt.backend();
                 tt.with_all_cached_tasks(|task| {
-                    stats.add(&tt, &task);
+                    stats.add_id(b, task);
                 });
-                stats.add_id(&tt, root_task);
+                stats.add_id(b, root_task);
                 stats.merge_resolve();
                 let tree = stats.treeify();
                 let graph = viz::visualize_stats_tree(tree);

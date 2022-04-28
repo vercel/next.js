@@ -9,22 +9,29 @@ use std::{
 
 use any_key::AnyHash;
 use anyhow::{anyhow, Result};
-use serde::Serialize;
 
 use crate::{
+    backend::SlotContent,
     id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
     manager::read_task_output,
-    registry,
-    slot::SlotContent,
-    turbo_tasks,
+    registry, turbo_tasks,
     util::try_join_all,
     value::Value,
-    RawVc, Task, TaskId, TraitType, TurboTasks, ValueTypeId,
+    RawVc, TaskId, TraitType, ValueTypeId,
 };
 
 #[derive(Clone)]
 pub struct SharedReference(pub Arc<dyn Any + Send + Sync>);
+
+impl SharedReference {
+    pub fn downcast<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
+        match Arc::downcast(self.0) {
+            Ok(data) => Some(data),
+            Err(_) => None,
+        }
+    }
+}
 
 impl Hash for SharedReference {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -54,6 +61,11 @@ impl Ord for SharedReference {
             &(&*self.0 as *const (dyn Any + Send + Sync)),
             &(&*other.0 as *const (dyn Any + Send + Sync)),
         )
+    }
+}
+impl Debug for SharedReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SharedReference").field(&self.0).finish()
     }
 }
 
@@ -205,9 +217,7 @@ impl From<SlotContent> for TaskInput {
     fn from(content: SlotContent) -> Self {
         match content {
             SlotContent::Empty => TaskInput::Nothing,
-            SlotContent::SharedReference(ty, data) => {
-                TaskInput::SharedReference(ty, SharedReference(data))
-            }
+            SlotContent::SharedReference(ty, data) => TaskInput::SharedReference(ty, data),
         }
     }
 }
