@@ -45,6 +45,9 @@ export default async function middlewareSSRLoader(this: any) {
       stringified500Path ? `require(${stringified500Path})` : 'null'
     }
 
+    if (${isServerComponent}) {
+      pageMod.__next_rsc__.__next_rsc_client_entry__ = self._CLIENT_ENTRY.__next_rsc_client_entry__
+    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST

@@ -636,19 +636,22 @@ export default class HotReloader {
               if (!isReserved) {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
-                  value: `next-middleware-ssr-loader?${stringify({
-                    dev: true,
-                    page,
-                    stringifiedConfig: JSON.stringify(this.config),
-                    absoluteAppPath: this.pagesMapping['/_app'],
-                    absoluteAppServerPath: this.pagesMapping['/_app.server'],
-                    absoluteDocumentPath: this.pagesMapping['/_document'],
-                    absoluteErrorPath: this.pagesMapping['/_error'],
-                    absolute404Path: this.pagesMapping['/404'] || '',
-                    absolutePagePath,
-                    isServerComponent,
-                    buildId: this.buildId,
-                  } as any)}!`,
+                  value: {
+                    import: `next-middleware-ssr-loader?${stringify({
+                      dev: true,
+                      page,
+                      stringifiedConfig: JSON.stringify(this.config),
+                      absoluteAppPath: this.pagesMapping['/_app'],
+                      absoluteAppServerPath: this.pagesMapping['/_app.server'],
+                      absoluteDocumentPath: this.pagesMapping['/_document'],
+                      absoluteErrorPath: this.pagesMapping['/_error'],
+                      absolute404Path: this.pagesMapping['/404'] || '',
+                      absolutePagePath,
+                      isServerComponent,
+                      buildId: this.buildId,
+                    } as any)}!`,
+                    layer: isServerComponent ? 'sc_server' : undefined,
+                  },
                   isServer: false,
                   isEdgeServer: true,
                 })

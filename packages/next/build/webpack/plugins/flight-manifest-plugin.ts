@@ -7,7 +7,10 @@
 
 import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import {
+  MIDDLEWARE_FLIGHT_MANIFEST,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+} from '../../../shared/lib/constants'
 import {
   createClientComponentFilter,
   createServerComponentFilter,
@@ -23,20 +26,26 @@ import {
 type Options = {
   dev: boolean
   pageExtensions: string[]
+  isEdgeRuntime: boolean
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
+
+const edgeFlightManifest = {}
+const nodeFlightManifest = {}
 
 const isClientComponent = createClientComponentFilter()
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
+  isEdgeRuntime: boolean
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
     this.pageExtensions = options.pageExtensions
+    this.isEdgeRuntime = options.isEdgeRuntime
   }
 
   apply(compiler: any) {
@@ -71,7 +80,12 @@ export class FlightManifestPlugin {
           // Check if the page entry is a server component or not.
           const entryDependency = entry.dependencies?.[0]
           const request = entryDependency?.request
-          if (request && isServerComponent(request)) {
+          if (
+            request &&
+            (isServerComponent(request) ||
+              (request.startsWith('next-middleware-ssr-loader?') &&
+                request.includes('&isServerComponent=true')))
+          ) {
             const visited = new Set()
             const clientComponentImports: string[] = []
 
@@ -111,7 +125,20 @@ export class FlightManifestPlugin {
                 compilation.addEntry(
                   context,
                   clientComponentEntryDep,
-                  name + '.__sc_client__',
+                  this.isEdgeRuntime
+                    ? {
+                        name: name + '.__sc_client__',
+                        library: {
+                          name: ['self._CLIENT_ENTRY'],
+                          type: 'assign',
+                        },
+                        runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+                        asyncChunks: false,
+                      }
+                    : {
+                        name: name + '.__sc_client__',
+                        runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+                      },
                   (err: any) => {
                     if (err) {
                       rej(err)
@@ -204,8 +231,17 @@ export class FlightManifestPlugin {
 
     // With switchable runtime, we need to emit the manifest files for both
     // runtimes.
+    if (this.isEdgeRuntime) {
+      Object.assign(edgeFlightManifest, manifest)
+    } else {
+      Object.assign(nodeFlightManifest, manifest)
+    }
+    const mergedManifest = {
+      ...nodeFlightManifest,
+      ...edgeFlightManifest,
+    }
     const file = MIDDLEWARE_FLIGHT_MANIFEST
-    const json = JSON.stringify(manifest)
+    const json = JSON.stringify(mergedManifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
     assets[file + '.json'] = new sources.RawSource(json)

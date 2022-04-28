@@ -1563,8 +1563,11 @@ export default async function getBaseWebpackConfig(
       hasServerComponents &&
         // @TODO: Include this plugin in both node and edge servers.
         isServer &&
-        !isEdgeRuntime &&
-        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
+        new FlightManifestPlugin({
+          dev,
+          pageExtensions: rawPageExtensions,
+          isEdgeRuntime,
+        }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(

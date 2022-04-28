@@ -3,3 +3,7 @@ import Bar from '../components/bar.server'
 export default function Multi() {
   return <Bar />
 }
+
+export const config = {
+  runtime: 'edge',
+}

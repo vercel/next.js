@@ -81,14 +81,22 @@ export function getEntrypointInfo(
       .getFiles()
       .filter((file: string) => !file.endsWith('.hot-update.js'))
 
+    const isServerComponent = ssrEntryInfo && ssrEntryInfo.requireFlightManifest
+
     const files = ssrEntryInfo
       ? [
-          ssrEntryInfo.requireFlightManifest
-            ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`
-            : null,
+          isServerComponent ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js` : null,
           `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
           `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
-          ...entryFiles.map((file) => 'server/' + file),
+          ...entryFiles.flatMap((file) => {
+            if (isServerComponent && file.startsWith('pages/')) {
+              return [
+                'server/' + file.replace(/\.js$/, '.__sc_client__.js'),
+                'server/' + file,
+              ]
+            }
+            return 'server/' + file
+          }),
         ].filter(nonNullable)
       : entryFiles.map((file: string) => file)
 
