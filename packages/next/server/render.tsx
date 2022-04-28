@@ -88,6 +88,9 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -486,20 +489,17 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    reactRoot,
     runtime: globalRuntime,
     ComponentMod,
     AppMod,
     AppServerMod,
   } = renderOpts
 
-  const hasConcurrentFeatures = reactRoot
-
   let Document = renderOpts.Document
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
-    hasConcurrentFeatures &&
+    !!process.env.__NEXT_REACT_ROOT &&
     !!serverComponentManifest &&
     !!ComponentMod.__next_rsc__?.server
 
@@ -1292,10 +1292,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = hasConcurrentFeatures
-    ? require('react-dom/server.browser')
-    : require('react-dom/server')
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1436,7 +1432,7 @@ export async function renderToHTML(
       )
     }
 
-    if (!hasConcurrentFeatures) {
+    if (!process.env.__NEXT_REACT_ROOT) {
       if (Document.getInitialProps) {
         const documentInitialPropsRes = await documentInitialProps()
         if (documentInitialPropsRes === null) return null
@@ -1543,7 +1539,8 @@ export async function renderToHTML(
           renderStream,
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          generateStaticHTML:
+            generateStaticHTML || !process.env.__NEXT_REACT_ROOT,
           flushEffectHandler,
         })
       }

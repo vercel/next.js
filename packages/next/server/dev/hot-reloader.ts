@@ -38,7 +38,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageRuntime } from '../../build/entries'
-import { shouldUseReactRoot } from '../config'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -199,7 +198,7 @@ export default class HotReloader {
 
     this.config = config
     this.runtime = config.experimental.runtime
-    this.hasReactRoot = shouldUseReactRoot()
+    this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
     this.previewProps = previewProps
