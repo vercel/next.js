@@ -10,10 +10,17 @@ use std::{collections::BTreeMap, env::current_dir};
 use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks, Vc};
 
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc, FileSystemVc,
+    register, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc,
+    FileSystemVc,
 };
 
 fn main() {
+    register();
+    include!(concat!(
+        env!("OUT_DIR"),
+        "/register_example_hash_directory.rs"
+    ));
+
     let tt = TurboTasks::new(MemoryBackend::new());
     block_on(async {
         let start = Instant::now();

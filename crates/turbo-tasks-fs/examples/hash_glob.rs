@@ -11,10 +11,14 @@ use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks, Vc};
 use turbo_tasks_fs::glob::GlobVc;
 
 use turbo_tasks_fs::{
-    DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc, FileSystemVc, ReadGlobResultVc,
+    register, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc, FileSystemVc,
+    ReadGlobResultVc,
 };
 
 fn main() {
+    register();
+    include!(concat!(env!("OUT_DIR"), "/register_example_hash_glob.rs"));
+
     let tt = TurboTasks::new(MemoryBackend::new());
     block_on(async {
         let start = Instant::now();
