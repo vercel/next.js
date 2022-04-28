@@ -111,7 +111,7 @@
                         Variable(
                             (
                                 Atom('binPath' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                     ),
@@ -134,7 +134,7 @@
                                 Variable(
                                     (
                                         Atom('pkg' type=inline),
-                                        #3,
+                                        #4,
                                     ),
                                 ),
                                 Constant(
@@ -145,7 +145,7 @@
                                 Variable(
                                     (
                                         Atom('subpath' type=inline),
-                                        #3,
+                                        #4,
                                     ),
                                 ),
                             ],
@@ -163,13 +163,13 @@
                         Variable(
                             (
                                 Atom('pkg' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                         Variable(
                             (
                                 Atom('subpath' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                     ],
@@ -196,7 +196,7 @@
                 Variable(
                     (
                         Atom('esbuildLibDir' type=dynamic),
-                        #6,
+                        #7,
                     ),
                 ),
                 Concat(
@@ -210,7 +210,7 @@
                         Variable(
                             (
                                 Atom('pkg' type=inline),
-                                #3,
+                                #4,
                             ),
                         ),
                         Constant(
@@ -235,7 +235,7 @@
                                 Variable(
                                     (
                                         Atom('subpath' type=inline),
-                                        #3,
+                                        #4,
                                     ),
                                 ),
                             ],
@@ -269,20 +269,6 @@
         ),
     ),
     (
-        "e#4",
-        Unknown(
-            Some(
-                Variable(
-                    (
-                        Atom('e' type=inline),
-                        #4,
-                    ),
-                ),
-            ),
-            "pattern without value",
-        ),
-    ),
-    (
         "e#5",
         Unknown(
             Some(
@@ -290,6 +276,20 @@
                     (
                         Atom('e' type=inline),
                         #5,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "e#6",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=inline),
+                        #6,
                     ),
                 ),
             ),
@@ -357,13 +357,13 @@
                     Variable(
                         (
                             Atom('binTargetPath' type=dynamic),
-                            #6,
+                            #7,
                         ),
                     ),
                     Variable(
                         (
                             Atom('binPath' type=inline),
-                            #3,
+                            #4,
                         ),
                     ),
                 ],
@@ -649,7 +649,7 @@
         ),
     ),
     (
-        "pkg#2",
+        "pkg#3",
         Alternatives(
             8,
             [
@@ -658,7 +658,7 @@
                         Variable(
                             (
                                 Atom('pkg' type=inline),
-                                #2,
+                                #3,
                             ),
                         ),
                     ),
@@ -675,7 +675,7 @@
                     Variable(
                         (
                             Atom('platformKey' type=dynamic),
-                            #2,
+                            #3,
                         ),
                     ),
                 ),
@@ -690,7 +690,7 @@
                     Variable(
                         (
                             Atom('platformKey' type=dynamic),
-                            #2,
+                            #3,
                         ),
                     ),
                 ),
@@ -698,7 +698,7 @@
         ),
     ),
     (
-        "pkg#3",
+        "pkg#4",
         Member(
             4,
             Call(
@@ -734,7 +734,7 @@
                         Variable(
                             (
                                 Atom('pkg' type=inline),
-                                #2,
+                                #3,
                             ),
                         ),
                     ),
@@ -747,7 +747,7 @@
                         Variable(
                             (
                                 Atom('subpath' type=inline),
-                                #2,
+                                #3,
                             ),
                         ),
                     ),
@@ -815,7 +815,7 @@
         ),
     ),
     (
-        "subpath#2",
+        "subpath#3",
         Alternatives(
             4,
             [
@@ -824,7 +824,7 @@
                         Variable(
                             (
                                 Atom('subpath' type=inline),
-                                #2,
+                                #3,
                             ),
                         ),
                     ),
@@ -844,7 +844,7 @@
         ),
     ),
     (
-        "subpath#3",
+        "subpath#4",
         Member(
             4,
             Call(

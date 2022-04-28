@@ -18,18 +18,18 @@ path = FreeVar(Require)("path")
 
 path2 = FreeVar(Require)("path")
 
-pkg#2 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
+pkg#3 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
 - *0* pkg
   ⚠️  pattern without value
 
-pkg#3 = pkgAndSubpathForCurrentPlatform()["pkg"]
+pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
-subpath#2 = (???*0* | "esbuild.exe")
+subpath#3 = (???*0* | "esbuild.exe")
 - *0* subpath
   ⚠️  pattern without value
 
-subpath#3 = pkgAndSubpathForCurrentPlatform()["subpath"]
+subpath#4 = pkgAndSubpathForCurrentPlatform()["subpath"]
 
 x = generateBinPath()
