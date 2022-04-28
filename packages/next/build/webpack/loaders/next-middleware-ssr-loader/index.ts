@@ -64,12 +64,6 @@ export default async function middlewareSSRLoader(this: any) {
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
 
-    // Set server context
-    self.__server_context = {
-      page: ${JSON.stringify(page)},
-      buildId: ${JSON.stringify(buildId)},
-    }
-
     const render = getRender({
       dev: ${dev},
       page: ${JSON.stringify(page)},
