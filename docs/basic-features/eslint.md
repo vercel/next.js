@@ -261,5 +261,3 @@ If you already use a separate ESLint configuration and want to include `eslint-c
 ```
 
 The `next` configuration already handles setting default values for the `parser`, `plugins` and `settings` properties. There is no need to manually re-declare any of these properties unless you need a different configuration for your use case. If you include any other shareable configurations, **you will need to make sure that these properties are not overwritten or modified**. Otherwise, we recommend removing any configurations that share behavior with the `next` configuration or extending directly from the Next.js ESLint plugin as mentioned above.
-
-If ESLint shows a conflicting plugin error, it is because you have installed a different version than what Next.js already includes. You should remove the conflicting plugins from your `package.json`.
