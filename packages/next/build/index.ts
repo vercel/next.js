@@ -2180,11 +2180,11 @@ export default async function build(
     })
     return buildResult
   } finally {
-    // Ensure all traces are flushed before finishing the command
-    await flushAllTraces()
-
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
+
+    // Ensure all traces are flushed before finishing the command
+    await flushAllTraces()
   }
 }
 
