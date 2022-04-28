@@ -132,7 +132,14 @@ const collectTraces = async (filePath, metadata) => {
  * Naively validate, collect necessary args.
  */
 const validateArgs = async () => {
-  const { DD_ENV, DD_SERVICE } = process.env
+  const { DD_ENV, DD_SERVICE, DATA_DOG_API_KEY } = process.env
+
+  if (!DATA_DOG_API_KEY) {
+    console.log(
+      "Skipping trace collection, api key is not available. Ensure 'DATA_DOG_API_KEY' env variable is set."
+    )
+    return
+  }
 
   if (!DD_ENV || !DD_SERVICE) {
     throw new Error(

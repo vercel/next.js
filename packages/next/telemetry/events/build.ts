@@ -160,3 +160,21 @@ export function eventBuildFeatureUsage(
     },
   }))
 }
+
+export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
+  'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
+
+export type EventPackageUsedInGetServerSideProps = {
+  package: string
+}
+
+export function eventPackageUsedInGetServerSideProps(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventPackageUsedInGetServerSideProps }> {
+  return telemetryPlugin.packagesUsedInServerSideProps().map((packageName) => ({
+    eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
+    payload: {
+      package: packageName,
+    },
+  }))
+}

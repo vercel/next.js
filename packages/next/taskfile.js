@@ -192,11 +192,17 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless mode
+  // be treated as commonjs in serverless/client mode
   fs.writeFileSync(
     clientFile,
     content.replace(
-      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=v;define((function(){return v}))}else ',
+      new RegExp(
+        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
+          /[|\\{}()[\]^$+*?.-]/g,
+          '\\$&'
+        ),
+        'g'
+      ),
       ''
     )
   )
@@ -313,6 +319,7 @@ export async function ncc_use_subscription(task, opts) {
         react: 'react',
         'react-dom': 'react-dom',
       },
+      target: 'es5',
     })
     .target('compiled/use-subscription')
 }
@@ -1771,6 +1778,7 @@ export async function compile(task, opts) {
       'telemetry',
       'trace',
       'shared',
+      'shared_re_exported',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
@@ -1826,7 +1834,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -1847,6 +1855,13 @@ export async function pages_app(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_app_server(task, opts) {
+  await task
+    .source('pages/_app.server.tsx')
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .target('dist/pages')
+}
+
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
@@ -1862,7 +1877,10 @@ export async function pages_document(task, opts) {
 }
 
 export async function pages(task, opts) {
-  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+  await task.parallel(
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {
@@ -1899,16 +1917,37 @@ export default async function (task) {
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
-  await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
+  await task.watch(
+    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared_re_exported',
+    opts
+  )
+  await task.watch(
+    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared',
+    opts
+  )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
 
 export async function shared(task, opts) {
   await task
-    .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
+    .source(
+      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+    )
     .swc('server', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
+}
+
+export async function shared_re_exported(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+    )
+    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/shared')
+  notify('Compiled shared re-exported files')
 }
 
 export async function server_wasm(task, opts) {

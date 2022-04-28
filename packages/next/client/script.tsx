@@ -108,14 +108,14 @@ const loadScript = (props: ScriptProps): void => {
   document.body.appendChild(el)
 }
 
-function handleClientScriptLoad(props: ScriptProps) {
+export function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
-  if (strategy === 'afterInteractive') {
-    loadScript(props)
-  } else if (strategy === 'lazyOnload') {
+  if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
+  } else {
+    loadScript(props)
   }
 }
 
@@ -129,8 +129,20 @@ function loadLazyScript(props: ScriptProps) {
   }
 }
 
+function addBeforeInteractiveToCache() {
+  const scripts = [
+    ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
+    ...document.querySelectorAll('[data-nscript="beforePageRender"]'),
+  ]
+  scripts.forEach((script) => {
+    const cacheKey = script.id || script.getAttribute('src')
+    LoadCache.add(cacheKey)
+  })
+}
+
 export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
   scriptLoaderItems.forEach(handleClientScriptLoad)
+  addBeforeInteractiveToCache()
 }
 
 function Script(props: ScriptProps): JSX.Element | null {

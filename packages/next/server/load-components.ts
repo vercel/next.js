@@ -31,7 +31,7 @@ export type LoadComponentsReturnType = {
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
-  serverComponentManifest?: any | null
+  serverComponentManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -39,6 +39,7 @@ export type LoadComponentsReturnType = {
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
   AppMod: any
+  AppServerMod: any
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -57,6 +58,8 @@ export async function loadDefaultErrorComponents(distDir: string) {
     reactLoadableManifest: {},
     ComponentMod,
     AppMod,
+    // Use App for fallback
+    AppServerMod: AppMod,
   }
 }
 
@@ -99,10 +102,11 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
+  const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
     requirePage('/_document', distDir, serverless),
     requirePage('/_app', distDir, serverless),
     requirePage(pathname, distDir, serverless),
+    serverComponents ? requirePage('/_app.server', distDir, serverless) : null,
   ])
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
@@ -129,6 +133,7 @@ export async function loadComponents(
     pageConfig: ComponentMod.config || {},
     ComponentMod,
     AppMod,
+    AppServerMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,

@@ -21,7 +21,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
@@ -60,16 +59,6 @@ const fsStat = (file: string) => {
   const cached = fileStats[file]
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
-}
-
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
 }
 
 export interface PageInfo {
@@ -144,6 +133,11 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
+  const hasCustomAppServer = await findPageFile(
+    pagesDir,
+    '/_app.server',
+    pageExtensions
+  )
 
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
@@ -170,7 +164,8 @@ export async function printTreeView(
         !(
           e === '/_document' ||
           e === '/_error' ||
-          (!hasCustomApp && e === '/_app')
+          (!hasCustomApp && e === '/_app') ||
+          (!hasCustomAppServer && e === '/_app.server')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -192,7 +187,7 @@ export async function printTreeView(
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
     const symbol =
-      item === '/_app'
+      item === '/_app' || item === '/_app.server'
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
@@ -859,7 +854,6 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
-  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -882,7 +876,6 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
-      const hasFlightData = !!(mod as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -970,11 +963,7 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic:
-          !hasStaticProps &&
-          !hasGetInitialProps &&
-          !hasServerProps &&
-          !hasFlightData,
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -982,7 +971,6 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
-        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
@@ -1104,7 +1092,12 @@ export function detectConflictingPaths(
   }
 }
 
-export function getRawPageExtensions(pageExtensions: string[]): string[] {
+/**
+ * With RSC we automatically add .server and .client to page extensions. This
+ * function allows to remove them for cases where we just need to strip out
+ * the actual extension keeping the .server and .client.
+ */
+export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
   )
@@ -1118,7 +1111,7 @@ export function isFlightPage(
     return false
   }
 
-  const rawPageExtensions = getRawPageExtensions(
+  const rawPageExtensions = withoutRSCExtensions(
     nextConfig.pageExtensions || []
   )
   return rawPageExtensions.some((ext) => {
@@ -1173,10 +1166,7 @@ export async function copyTracedFiles(
 
           if (symlink) {
             console.log('symlink', path.relative(tracingRoot, symlink))
-            await fs.symlink(
-              path.relative(tracingRoot, symlink),
-              fileOutputPath
-            )
+            await fs.symlink(symlink, fileOutputPath)
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
           }

@@ -348,6 +348,7 @@ describe('ESLint', () => {
         (await findUp(
           [
             '.eslintrc.js',
+            '.eslintrc.cjs',
             '.eslintrc.yaml',
             '.eslintrc.yml',
             '.eslintrc.json',

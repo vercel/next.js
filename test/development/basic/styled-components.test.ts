@@ -17,8 +17,6 @@ describe('styled-components SWC transform', () => {
       },
       dependencies: {
         'styled-components': '5.3.3',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })
@@ -74,5 +72,16 @@ describe('styled-components SWC transform', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('background:transparent')
     expect(html).toContain('color:white')
+  })
+
+  it('should only render once on the server per request', async () => {
+    const outputs = []
+    next.on('stdout', (args) => {
+      outputs.push(args)
+    })
+    await renderViaHTTP(next.url, '/')
+    expect(
+      outputs.filter((output) => output.trim() === '__render__').length
+    ).toBe(1)
   })
 })

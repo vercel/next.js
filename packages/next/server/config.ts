@@ -616,6 +616,24 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.pageExtensions = pageExtensions
   }
 
+  if (result.devIndicators?.buildActivityPosition) {
+    const { buildActivityPosition } = result.devIndicators
+    const allowedValues = [
+      'top-left',
+      'top-right',
+      'bottom-left',
+      'bottom-right',
+    ]
+
+    if (!allowedValues.includes(buildActivityPosition)) {
+      throw new Error(
+        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+          ', '
+        )}, received ${buildActivityPosition}`
+      )
+    }
+  }
+
   return result
 }
 

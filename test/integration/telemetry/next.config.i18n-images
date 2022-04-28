@@ -1,6 +1,7 @@
 module.exports = phase => {
   return {
     images: {
+      formats: ['image/avif', 'image/webp'],
       imageSizes: [64, 128, 256, 512, 1024],
       domains: ['example.com'],
     },
