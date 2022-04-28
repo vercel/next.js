@@ -1,4 +1,4 @@
-import { posix } from 'path'
+import { posix } from '../shared/lib/isomorphic/path'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 
 export { normalizePathSep, denormalizePagePath } from './denormalize-page-path'

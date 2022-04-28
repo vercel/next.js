@@ -30,7 +30,7 @@ use crate::{
     complete_output, get_compiler,
     util::{deserialize_json, CtxtExt, MapErr},
 };
-use anyhow::{anyhow, bail, Context as _, Error};
+use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use next_swc::{custom_before_pass, TransformOptions};
@@ -43,8 +43,7 @@ use std::{
     sync::Arc,
 };
 use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{errors::ColorConfig, FileName, SourceFile};
-use swc_ecmascript::ast::Program;
+use swc_common::{errors::ColorConfig, FileName};
 use swc_ecmascript::transforms::pass::noop;
 
 /// Input to transform
@@ -156,11 +155,11 @@ impl Task for TransformTask {
 }
 
 /// returns `compiler, (src / path), options, plugin, callback`
-pub fn schedule_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
+pub fn schedule_transform<F>(cx: &CallContext, op: F) -> napi::Result<TransformTask>
 where
     F: FnOnce(&Arc<Compiler>, Input, bool, String) -> TransformTask,
 {
-    let c = get_compiler(&cx);
+    let c = get_compiler(cx);
 
     let unknown_src = cx.get::<JsUnknown>(0)?;
     let src = match unknown_src.get_type()? {
@@ -183,68 +182,28 @@ where
     let is_module = cx.get::<JsBoolean>(1)?;
     let options = cx.get_buffer_as_string(2)?;
 
-    let task = op(&c, src, is_module.get_value()?, options);
-
-    cx.env.spawn(task).map(|t| t.promise_object())
-}
-
-pub fn exec_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
-where
-    F: FnOnce(&Compiler, String, &TransformOptions) -> Result<Arc<SourceFile>, Error>,
-{
-    let c = get_compiler(&cx);
-
-    let s = cx.get::<JsString>(0)?.into_utf8()?;
-    let is_module = cx.get::<JsBoolean>(1)?;
-    let mut options: TransformOptions = cx.get_deserialized(2)?;
-    options.swc.swcrc = false;
-
-    let output = try_with_handler(
-        c.cm.clone(),
-        swc::HandlerOpts {
-            color: ColorConfig::Never,
-            skip_filename: true,
-        },
-        |handler| {
-            c.run(|| {
-                if is_module.get_value()? {
-                    let program: Program = serde_json::from_str(s.as_str()?)
-                        .context("failed to deserialize Program")?;
-                    c.process_js(handler, program, &options.swc)
-                } else {
-                    let fm =
-                        op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                    c.process_js_file(fm, handler, &options.swc)
-                }
-            })
-        },
-    )
-    .convert_err()?;
-
-    complete_output(cx.env, output, Default::default())
+    Ok(op(&c, src, is_module.get_value()?, options))
 }
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, input, _, options| TransformTask {
+    let task = schedule_transform(&cx, |c, input, _, options| TransformTask {
         c: c.clone(),
         input,
         options,
-    })
+    })?;
+    cx.env.spawn(task).map(|handle| handle.promise_object())
 }
 
 #[js_function(4)]
 pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
-    exec_transform(cx, |c, src, options| {
-        Ok(c.cm.new_source_file(
-            if options.swc.filename.is_empty() {
-                FileName::Anon
-            } else {
-                FileName::Real(options.swc.filename.clone().into())
-            },
-            src,
-        ))
-    })
+    let mut task = schedule_transform(&cx, |c, input, _, options| TransformTask {
+        c: c.clone(),
+        input,
+        options,
+    })?;
+    let output = task.compute()?;
+    task.resolve(*cx.env, output)
 }
 
 #[test]

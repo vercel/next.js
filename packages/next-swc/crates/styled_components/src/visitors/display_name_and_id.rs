@@ -4,23 +4,26 @@ use crate::{
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::{cell::RefCell, convert::TryInto, path::Path, rc::Rc, sync::Arc};
+use std::{cell::RefCell, convert::TryInto, path::Path, rc::Rc};
 use swc_atoms::{js_word, JsWord};
-use swc_common::{util::take::Take, FileName, SourceFile, DUMMY_SP};
+use swc_common::{util::take::Take, FileName, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::{quote_ident, ExprFactory},
     visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
-use tracing::{span, trace, Level};
+use tracing::{debug, span, trace, Level};
 
 pub fn display_name_and_id(
-    file: Arc<SourceFile>,
+    file_name: FileName,
+    src_file_hash: u128,
     config: Rc<Config>,
     state: Rc<RefCell<State>>,
 ) -> impl Fold + VisitMut {
     as_folder(DisplayNameAndId {
-        file,
+        file_name,
+        src_file_hash,
+
         config,
         state,
         cur_display_name: Default::default(),
@@ -33,7 +36,9 @@ static DISPLAY_NAME_REGEX: Lazy<Regex> =
 
 #[derive(Debug)]
 struct DisplayNameAndId {
-    file: Arc<SourceFile>,
+    file_name: FileName,
+    src_file_hash: u128,
+
     config: Rc<Config>,
     state: Rc<RefCell<State>>,
 
@@ -59,7 +64,7 @@ impl DisplayNameAndId {
     fn get_display_name(&mut self, _: &Expr) -> JsWord {
         let component_name = self.cur_display_name.clone().unwrap_or(js_word!(""));
 
-        match &self.file.name {
+        match &self.file_name {
             FileName::Real(f) if self.config.file_name => {
                 let block_name = self.get_block_name(f);
 
@@ -91,7 +96,7 @@ impl DisplayNameAndId {
         let next_id = self.next_id();
 
         let hash = {
-            let base = self.file.src_hash;
+            let base = self.src_file_hash;
             let base = base.to_be_bytes();
             let a = u32::from_be_bytes(base[0..4].try_into().unwrap());
             let b = u32::from_be_bytes(base[4..8].try_into().unwrap());
@@ -325,6 +330,7 @@ impl VisitMut for DisplayNameAndId {
         if !is_styled {
             return;
         }
+        debug!("Found styled component");
 
         let _tracing = if cfg!(debug_assertions) {
             Some(span!(Level::ERROR, "display_name_and_id").entered())

@@ -14,6 +14,10 @@ On Windows make sure you have Microsoft Visual C++ Redistributable installed. ht
 
 Alternatively, you might need to allow optional packages to be installed by your package manager (remove `--no-optional` flag) for the package to download correctly.
 
+In some cases your package manager (e.g. `npm`) might have generated a lockfile that only includes `optionalDependencies` specific to the platform it was generated on, preventing the `optionalDependency` needed for CI from being installed.
+
+This can be fixed by removing the lockfile and regenerating it with a newer version of your package manager `npm i -g npm@latest`.
+
 If SWC continues to fail to load you can opt-out by disabling `swcMinify` in your `next.config.js` or by adding a `.babelrc` to your project with the following content:
 
 ```json

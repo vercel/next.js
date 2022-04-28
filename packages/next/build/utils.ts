@@ -21,7 +21,6 @@ import {
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
@@ -60,16 +59,6 @@ const fsStat = (file: string) => {
   const cached = fileStats[file]
   if (cached) return cached
   return (fileStats[file] = fileSize(file))
-}
-
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
 }
 
 export interface PageInfo {
@@ -1103,7 +1092,12 @@ export function detectConflictingPaths(
   }
 }
 
-export function getRawPageExtensions(pageExtensions: string[]): string[] {
+/**
+ * With RSC we automatically add .server and .client to page extensions. This
+ * function allows to remove them for cases where we just need to strip out
+ * the actual extension keeping the .server and .client.
+ */
+export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   return pageExtensions.filter(
     (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
   )
@@ -1117,7 +1111,7 @@ export function isFlightPage(
     return false
   }
 
-  const rawPageExtensions = getRawPageExtensions(
+  const rawPageExtensions = withoutRSCExtensions(
     nextConfig.pageExtensions || []
   )
   return rawPageExtensions.some((ext) => {

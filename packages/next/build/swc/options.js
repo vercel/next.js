@@ -40,6 +40,9 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -63,6 +66,7 @@ function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
