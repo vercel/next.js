@@ -40,7 +40,7 @@ import {
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
-import { normalizePagePath } from '../page-path-utils'
+import { absolutePathToPage, normalizePagePath } from '../page-path-utils'
 import Router from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { hasBasePath, replaceBasePath } from '../router-utils'
@@ -242,10 +242,8 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise((resolve, reject) => {
-      const pagesDir = this.pagesDir
-
       // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir!, (_, files) => {
+      fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
           return
         }
@@ -257,7 +255,7 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [pagesDir!], 0)
+      wp.watch([], [this.pagesDir], 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware = []
@@ -270,19 +268,20 @@ export default class DevServer extends Server {
             continue
           }
 
+          const pageName = absolutePathToPage(
+            this.pagesDir,
+            fileName,
+            this.nextConfig.pageExtensions
+          )
+
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
+              `/${relative(this.pagesDir, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
             continue
           }
-
-          let pageName =
-            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-          pageName = pageName.replace(regexPageExtension, '')
-          pageName = pageName.replace(/\/index$/, '') || '/'
 
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(

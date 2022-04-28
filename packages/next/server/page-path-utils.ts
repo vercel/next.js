@@ -1,5 +1,5 @@
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { join, posix } from '../shared/lib/isomorphic/path'
+import { join, posix, relative } from '../shared/lib/isomorphic/path'
 import { flatten } from '../shared/lib/flatten'
 
 /**
@@ -98,5 +98,26 @@ export function getPagePaths(normalizedPagePath: string, extensions: string[]) {
         ? [`${page}.${extension}`, join(page, `index.${extension}`)]
         : [join(page, `index.${extension}`)]
     })
+  )
+}
+
+/**
+ * Given the absolute path to the pages folder, an absolute file path for a
+ * page and the page extensions, this function will return the page path
+ * relative to the pages folder. It doesn't consider index tail. Example:
+ *  - `/Users/rick/my-project/pages/foo/bar/baz.js` -> `/foo/bar/baz`
+ *
+ * @param pagesDir Absolute path to the pages folder.
+ * @param filepath Absolute path to the page.
+ * @param extensions Extensions allowed for the page.
+ */
+export function absolutePathToPage(
+  pagesDir: string,
+  pagePath: string,
+  extensions: string[]
+) {
+  return removePagePathTail(
+    normalizePathSep(ensureLeadingSlash(relative(pagesDir, pagePath))),
+    extensions
   )
 }
