@@ -105,6 +105,7 @@ if (process.env.NODE_ENV) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+;(process.env as any).__NEXT_REACT_ROOT = !!require('react').useId
 
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {

@@ -1399,9 +1399,6 @@ export default async function getBaseWebpackConfig(
           config.reactStrictMode
         ),
         'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-        'process.env.__NEXT_CONCURRENT_FEATURES': JSON.stringify(
-          hasConcurrentFeatures
-        ),
         'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
