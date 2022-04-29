@@ -2,6 +2,9 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { getProjectDir } from '../lib/get-project-dir'
+import isError from '../lib/is-error'
+import { printAndExit } from '../server/lib/utils'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -146,14 +149,27 @@ commands[command]()
 if (command === 'dev') {
   const { CONFIG_FILES } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
+  const { validArgs } = require('../cli/next-dev')
+  let devArgs
+  try {
+    devArgs = arg(validArgs, { argv: forwardedArgs })
+  } catch (error) {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
+      printAndExit(error.message, 1)
+    }
+    throw error
+  }
 
   for (const CONFIG_FILE of CONFIG_FILES) {
-    watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
-      if (cur.size > 0 || prev.size > 0) {
-        console.log(
-          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-        )
+    watchFile(
+      `${getProjectDir(devArgs._[0])}/${CONFIG_FILE}`,
+      (cur: any, prev: any) => {
+        if (cur.size > 0 || prev.size > 0) {
+          console.log(
+            `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
+          )
+        }
       }
-    })
+    )
   }
 }

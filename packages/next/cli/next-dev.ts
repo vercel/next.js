@@ -9,18 +9,19 @@ import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextDev: cliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
+const validArgs: arg.Spec = {
+  // Types
+  '--help': Boolean,
+  '--port': Number,
+  '--hostname': String,
 
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }
+  // Aliases
+  '-h': '--help',
+  '-p': '--port',
+  '-H': '--hostname',
+}
+
+const nextDev: cliCommand = (argv) => {
   let args: arg.Result<arg.Spec>
   try {
     args = arg(validArgs, { argv })
@@ -130,4 +131,4 @@ const nextDev: cliCommand = (argv) => {
     })
 }
 
-export { nextDev }
+export { nextDev, validArgs }
