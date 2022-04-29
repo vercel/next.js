@@ -11,9 +11,9 @@ export const getMiddlewareSourceMapPlugins = () => {
       filename: '[file].map',
       include: [
         // Middlewares are the only ones who have `server/pages/[name]` as their filename
-        /^server\/pages\//,
+        /^pages\//,
         // All middleware chunks
-        /^server\/middleware-chunks\//,
+        /^edge-chunks\//,
       ],
     }),
     new MiddlewareSourceMapsPlugin(),

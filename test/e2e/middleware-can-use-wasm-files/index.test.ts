@@ -65,7 +65,7 @@ describe('middleware can use wasm files', () => {
         wasm: [
           {
             filePath:
-              'server/middleware-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
+              'server/edge-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
             name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
           },
         ],

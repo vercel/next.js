@@ -57,6 +57,7 @@ export function getRender({
     conf: config,
     minimalMode: true,
     webServerConfig: {
+      page,
       extendRenderOpts: {
         buildId,
         reactRoot: true,
