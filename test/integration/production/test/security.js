@@ -73,8 +73,10 @@ module.exports = (context) => {
       ]
 
       for (const path of pathsToCheck) {
-        const data = await renderViaHTTP(context.appPort, path)
+        const res = await fetchViaHTTP(context.appPort, path)
+        const data = await res.text()
         expect(data.includes('cool-version')).toBeFalsy()
+        expect([400, 404].includes(res.status)).toBeTruthy()
       }
     })
 

@@ -1,5 +1,6 @@
 import { posix } from '../shared/lib/isomorphic/path'
 import { isDynamicRoute } from '../shared/lib/router/utils'
+import { NormalizeError } from '../shared/lib/utils'
 
 export { normalizePathSep, denormalizePagePath } from './denormalize-page-path'
 
@@ -17,7 +18,7 @@ export function normalizePagePath(page: string): string {
   // Throw when using ../ etc in the pathname
   const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
-    throw new Error(
+    throw new NormalizeError(
       `Requested and resolved page mismatch: ${page} ${resolvedPage}`
     )
   }
