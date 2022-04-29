@@ -5,12 +5,7 @@ import { readFileSync } from 'fs'
 import http from 'http'
 import url from 'url'
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  getBrowserBodyText,
-  waitFor,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
