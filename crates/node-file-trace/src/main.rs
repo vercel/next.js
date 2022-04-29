@@ -202,7 +202,7 @@ fn main() {
             if visualize_graph {
                 let mut stats = Stats::new();
                 let b = tt.backend();
-                tt.with_all_cached_tasks(|task| {
+                b.with_all_cached_tasks(|task| {
                     stats.add_id(b, task);
                 });
                 stats.add_id(b, root_task);

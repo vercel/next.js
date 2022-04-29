@@ -3,8 +3,9 @@ use event_listener::EventListener;
 use std::{any::Any, collections::HashMap, fmt::Display, future::Future, pin::Pin};
 
 use crate::{
-    magic_any::MagicAny, manager::TurboTasksApi, registry, task_input::SharedReference, FunctionId,
-    RawVc, RawVcReadResult, TaskId, TaskInput, TraitTypeId, ValueTypeId,
+    id_factory::IdFactory, magic_any::MagicAny, manager::TurboTasksApi, registry,
+    task_input::SharedReference, FunctionId, RawVc, RawVcReadResult, TaskId, TaskInput,
+    TraitTypeId, ValueTypeId,
 };
 
 pub use crate::id::BackgroundJobId;
@@ -37,6 +38,7 @@ pub enum TransientTaskType {
     Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PersistentTaskType {
     /// A normal task execution a native (rust) function
     Native(FunctionId, Vec<TaskInput>),
@@ -109,9 +111,6 @@ impl SlotContent {
 }
 
 pub trait Backend: Sync + Send {
-    unsafe fn insert_task(&self, id: TaskId, task_type: TaskType);
-    unsafe fn remove_task(&self, id: TaskId);
-    fn connect_task_child(&self, parent: TaskId, child: TaskId, turbo_tasks: &dyn TurboTasksApi);
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksApi);
     fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksApi);
     fn try_start_task_execution(
@@ -156,4 +155,18 @@ pub trait Backend: Sync + Send {
         content: SlotContent,
         turbo_tasks: &dyn TurboTasksApi,
     );
+
+    fn get_or_create_persistent_task(
+        &self,
+        task_type: PersistentTaskType,
+        id_factory: &IdFactory<TaskId>,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> TaskId;
+    fn create_transient_task(
+        &self,
+        task_type: TransientTaskType,
+        id_factory: &IdFactory<TaskId>,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> TaskId;
 }

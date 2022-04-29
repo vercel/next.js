@@ -189,7 +189,7 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         Err(err) => {
             let mut pending_tasks = 0_usize;
             let b = tt.backend();
-            tt.with_all_cached_tasks(|task| {
+            b.with_all_cached_tasks(|task| {
                 b.with_task(task, |task| {
                     if task.is_pending() {
                         println!("PENDING: {task}");

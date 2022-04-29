@@ -14,4 +14,5 @@ anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
 event-listener = "2.5.2"
 async-std = "1.10.0"
+flurry = "0.4.0"
 

@@ -72,7 +72,7 @@ fn main() {
             stats.add_id(b, task);
 
             // graph tasks in cache
-            tt.with_all_cached_tasks(|task| {
+            b.with_all_cached_tasks(|task| {
                 stats.add_id(b, task);
             });
 
