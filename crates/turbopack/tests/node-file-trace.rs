@@ -187,11 +187,14 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         }
         Err(err) => {
             let mut pending_tasks = 0_usize;
+            let b = tt.backend();
             tt.with_all_cached_tasks(|task| {
-                if task.is_pending() {
-                    println!("PENDING: {task}");
-                    pending_tasks += 1;
-                }
+                b.with_task(task, |task| {
+                    if task.is_pending() {
+                        println!("PENDING: {task}");
+                        pending_tasks += 1;
+                    }
+                })
             });
             panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks): {err}");
         }

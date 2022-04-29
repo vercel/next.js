@@ -19,16 +19,16 @@ use event_listener::{Event, EventListener};
 use flurry::HashMap as FHashMap;
 
 use crate::{
-    backend::{Backend, PersistentTaskType, SlotMappings, TaskType, TransientTaskType},
+    backend::{
+        Backend, PersistentTaskType, SlotContent, SlotMappings, TaskType, TransientTaskType,
+    },
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
-    output::Output,
     raw_vc::RawVc,
-    slot::SlotContent,
     task::NativeTaskFuture,
-    task_input::TaskInput,
+    task_input::{SharedReference, TaskInput},
     trace::TraceRawVcs,
-    Task, TaskId, ValueTypeId, Vc,
+    TaskId, ValueTypeId, Vc,
 };
 
 pub trait TurboTasksApi: Sync + Send {
@@ -58,7 +58,6 @@ pub trait TurboTasksApi: Sync + Send {
     unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent;
 
     fn get_fresh_slot(&self, task: TaskId) -> usize;
-
     fn read_current_task_slot(&self, index: usize) -> SlotContent;
     fn update_current_task_slot(&self, index: usize, content: SlotContent);
 
@@ -325,21 +324,9 @@ impl<B: Backend> TurboTasks<B> {
             .unwrap()
     }
 
-    fn try_get_output<T, F: FnOnce(&mut Output) -> T>(
-        &self,
-        id: TaskId,
-        func: F,
-    ) -> Result<T, EventListener> {
-        self.with_task(id, |task| task.get_or_wait_output(func))
-    }
-
     pub async fn wait_done(&self) -> (Duration, usize) {
         self.event.listen().await;
         self.last_update.lock().unwrap().unwrap()
-    }
-
-    pub(crate) fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        self.backend.with_task(id, func)
     }
 
     pub(crate) fn schedule_background_job<
@@ -374,7 +361,7 @@ impl<B: Backend> TurboTasks<B> {
         });
     }
 
-    pub fn with_all_cached_tasks(&self, mut func: impl FnMut(&Task)) {
+    pub fn with_all_cached_tasks(&self, mut func: impl FnMut(TaskId)) {
         let guard = &self.native_task_cache.guard();
         for id in self
             .resolve_task_cache
@@ -382,8 +369,12 @@ impl<B: Backend> TurboTasks<B> {
             .chain(self.native_task_cache.values(guard))
             .chain(self.trait_task_cache.values(guard))
         {
-            self.backend.with_task(*id, &mut func)
+            func(*id);
         }
+    }
+
+    pub fn backend(&self) -> &B {
+        &self.backend
     }
 }
 
@@ -420,34 +411,28 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc>, EventListener> {
-        self.try_get_output(task, |output| {
-            Task::add_dependency_to_current(RawVc::TaskOutput(task));
-            output.read(current_task("reading Vcs"))
-        })
+        self.backend
+            .try_read_task_output(task, current_task("reading Vcs"))
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
     ) -> Result<Result<RawVc>, EventListener> {
-        self.try_get_output(task, |output| unsafe { output.read_untracked() })
+        unsafe { self.backend.try_read_task_output_untracked(task) }
     }
 
     fn read_task_slot(&self, task: TaskId, index: usize) -> SlotContent {
-        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
-        self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.read_content(current_task("reading Vcs")))
-        })
+        self.backend
+            .read_task_slot(task, index, current_task("reading Vcs"))
     }
 
     unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent {
-        self.with_task(task, |task| {
-            task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
-        })
+        unsafe { self.backend.read_task_slot_untracked(task, index) }
     }
 
     fn get_fresh_slot(&self, task: TaskId) -> usize {
-        self.with_task(task, |task| task.get_fresh_slot())
+        self.backend.get_fresh_slot(task)
     }
 
     fn read_current_task_slot(&self, index: usize) -> SlotContent {
@@ -455,9 +440,8 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn update_current_task_slot(&self, index: usize, content: SlotContent) {
-        self.with_task(current_task("slotting turbo_tasks values"), |task| {
-            task.with_slot_mut(index, |slot| slot.assign(content))
-        })
+        self.backend
+            .update_task_slot(current_task("slotting turbo_tasks values"), index, content);
     }
 
     fn pin(&self) -> Arc<dyn TurboTasksApi> {
@@ -583,7 +567,7 @@ impl CurrentSlotRef {
         if let Some(update) = update {
             tt.update_current_task_slot(
                 self.index,
-                SlotContent::SharedReference(self.type_id, Arc::new(update)),
+                SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(update))),
             )
         }
     }
@@ -603,7 +587,7 @@ impl CurrentSlotRef {
         let tt = turbo_tasks();
         tt.update_current_task_slot(
             self.index,
-            SlotContent::SharedReference(self.type_id, Arc::new(new_content)),
+            SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(new_content))),
         )
     }
 }
