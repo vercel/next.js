@@ -11,8 +11,9 @@ use anyhow::{anyhow, Context, Result};
 use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use rstest::*;
-use turbo_tasks::{MemoryBackend, TurboTasks, ValueToString};
+use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
     source_asset::SourceAssetVc,
@@ -188,7 +189,7 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         Err(err) => {
             let mut pending_tasks = 0_usize;
             let b = tt.backend();
-            tt.with_all_cached_tasks(|task| {
+            b.with_all_cached_tasks(|task| {
                 b.with_task(task, |task| {
                     if task.is_pending() {
                         println!("PENDING: {task}");

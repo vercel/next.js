@@ -5,10 +5,9 @@ use std::{
     mem::take,
 };
 
-use crate::{
-    id::{FunctionId, TraitTypeId},
-    registry, MemoryBackend, Task, TaskId,
-};
+use turbo_tasks::{registry, FunctionId, TaskId, TraitTypeId};
+
+use crate::{task::Task, MemoryBackend};
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub enum TaskType {

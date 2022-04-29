@@ -1,8 +1,10 @@
 use std::{
     cell::{Cell, RefCell},
+    collections::HashSet,
     fmt::Debug,
     future::Future,
     hash::Hash,
+    pin::Pin,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, Mutex, Weak,
@@ -16,16 +18,12 @@ use async_std::{
     task_local,
 };
 use event_listener::{Event, EventListener};
-use flurry::HashMap as FHashMap;
 
 use crate::{
-    backend::{
-        Backend, PersistentTaskType, SlotContent, SlotMappings, TaskType, TransientTaskType,
-    },
+    backend::{Backend, PersistentTaskType, SlotContent, SlotMappings, TransientTaskType},
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
-    task::NativeTaskFuture,
     task_input::{SharedReference, TaskInput},
     trace::TraceRawVcs,
     TaskId, ValueTypeId, Vc,
@@ -61,6 +59,10 @@ pub trait TurboTasksApi: Sync + Send {
     fn read_current_task_slot(&self, index: usize) -> SlotContent;
     fn update_current_task_slot(&self, index: usize, content: SlotContent);
 
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `notify_slot_change()` on all tasks.
+    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>);
+
     fn schedule_backend_background_job(&self, id: BackgroundJobId);
 }
 
@@ -68,9 +70,6 @@ pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
     task_id_factory: IdFactory<TaskId>,
-    resolve_task_cache: FHashMap<(FunctionId, Vec<TaskInput>), TaskId>,
-    native_task_cache: FHashMap<(FunctionId, Vec<TaskInput>), TaskId>,
-    trait_task_cache: FHashMap<(TraitTypeId, String, Vec<TaskInput>), TaskId>,
     currently_scheduled_tasks: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
@@ -104,9 +103,6 @@ impl<B: Backend> TurboTasks<B> {
             this: this.clone(),
             backend,
             task_id_factory: IdFactory::new(),
-            resolve_task_cache: FHashMap::new(),
-            native_task_cache: FHashMap::new(),
-            trait_task_cache: FHashMap::new(),
             currently_scheduled_tasks: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
@@ -121,17 +117,17 @@ impl<B: Backend> TurboTasks<B> {
 
     /// Creates a new root task
     pub fn spawn_root_task(
-        self: &Arc<Self>,
-        functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
+        &self,
+        functor: impl Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>
+            + Sync
+            + Send
+            + 'static,
     ) -> TaskId {
-        let id = self.task_id_factory.get();
-        let task = TaskType::Transient(TransientTaskType::Root(Box::new(functor)));
-        // SAFETY: We have a fresh task id where nobody knows about yet
-        unsafe {
-            self.backend.insert_task(id, task);
-        }
-        self.clone().schedule(id);
-        id
+        self.backend.create_transient_task(
+            TransientTaskType::Root(Box::new(functor)),
+            &self.task_id_factory,
+            self,
+        )
     }
 
     // TODO make sure that all dependencies settle before reading them
@@ -141,14 +137,11 @@ impl<B: Backend> TurboTasks<B> {
         &self,
         future: impl Future<Output = Result<RawVc>> + Send + 'static,
     ) -> TaskId {
-        let id = self.task_id_factory.get();
-        let task = TaskType::Transient(TransientTaskType::Once(Box::pin(future)));
-        // SAFETY: We have a fresh task id where nobody knows about yet
-        unsafe {
-            self.backend.insert_task(id, task);
-        }
-        self.schedule(id);
-        id
+        self.backend.create_transient_task(
+            TransientTaskType::Once(Box::pin(future)),
+            &self.task_id_factory,
+            self,
+        )
     }
 
     pub async fn run_once<T: TraceRawVcs + Sync + Send + 'static>(
@@ -169,64 +162,16 @@ impl<B: Backend> TurboTasks<B> {
         Ok(guard.take().unwrap())
     }
 
-    /// Helper to get a [Task] from a HashMap or create a new one
-    fn cached_call<'de, K: Ord + PartialEq + Clone + Hash + Sync + Send + 'static>(
-        &self,
-        map: &FHashMap<K, TaskId>,
-        key: K,
-        create_new: impl FnOnce(&K) -> TaskType,
-    ) -> RawVc {
-        let map = map.pin();
-        let result = if let Some(task) = map.get(&key).map(|guard| *guard) {
-            // fast pass without creating a new task
-            self.backend
-                .connect_task_child(current_task("turbo_function calls"), task, self);
-
-            // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
-            // "in progress" until they become active
-            RawVc::TaskOutput(task)
-        } else {
-            // slow pass with key lock
-            let id = self.task_id_factory.get();
-            let task_type = create_new(&key);
-            // SAFETY: We have a fresh task id where nobody knows about yet
-            unsafe {
-                self.backend.insert_task(id, task_type);
-            }
-            let result_task = match map.try_insert(key, id) {
-                Ok(_) => {
-                    // This is the most likely case
-                    id
-                }
-                Err(r) => {
-                    // SAFETY: We have a fresh task id where nobody knows about yet
-                    unsafe {
-                        self.backend.remove_task(id);
-                        self.task_id_factory.reuse(id);
-                    }
-                    *r.current
-                }
-            };
-            self.backend.connect_task_child(
-                current_task("turbo_function calls"),
-                result_task,
-                self,
-            );
-            RawVc::TaskOutput(result_task)
-        };
-        // keep the guard alive over the whole function
-        // to avoid load on GC
-        drop(map);
-        result
-    }
-
     /// Call a native function with arguments.
     /// All inputs must be resolved.
     pub(crate) fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
-        self.cached_call(&self.native_task_cache, (func, inputs), |(_, inputs)| {
-            TaskType::Persistent(PersistentTaskType::Native(func, inputs.clone()))
-        })
+        RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
+            PersistentTaskType::Native(func, inputs.clone()),
+            &self.task_id_factory,
+            current_task("turbo_function calls"),
+            self,
+        ))
     }
 
     /// Calls a native function with arguments. Resolves arguments when needed
@@ -235,9 +180,12 @@ impl<B: Backend> TurboTasks<B> {
         if inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()) {
             self.native_call(func, inputs)
         } else {
-            self.cached_call(&self.resolve_task_cache, (func, inputs), |(_, inputs)| {
-                TaskType::Persistent(PersistentTaskType::ResolveNative(func, inputs.clone()))
-            })
+            RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
+                PersistentTaskType::ResolveNative(func, inputs.clone()),
+                &self.task_id_factory,
+                current_task("turbo_function calls"),
+                self,
+            ))
         }
     }
 
@@ -249,17 +197,12 @@ impl<B: Backend> TurboTasks<B> {
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
-        self.cached_call(
-            &self.trait_task_cache,
-            (trait_type, trait_fn_name, inputs),
-            |(_, trait_fn_name, inputs)| {
-                TaskType::Persistent(PersistentTaskType::ResolveTrait(
-                    trait_type,
-                    trait_fn_name.clone(),
-                    inputs.clone(),
-                ))
-            },
-        )
+        RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
+            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name.clone(), inputs.clone()),
+            &self.task_id_factory,
+            current_task("turbo_function calls"),
+            self,
+        ))
     }
 
     pub(crate) fn schedule(&self, task_id: TaskId) -> JoinHandle<()> {
@@ -361,18 +304,6 @@ impl<B: Backend> TurboTasks<B> {
         });
     }
 
-    pub fn with_all_cached_tasks(&self, mut func: impl FnMut(TaskId)) {
-        let guard = &self.native_task_cache.guard();
-        for id in self
-            .resolve_task_cache
-            .values(guard)
-            .chain(self.native_task_cache.values(guard))
-            .chain(self.trait_task_cache.values(guard))
-        {
-            func(*id);
-        }
-    }
-
     pub fn backend(&self) -> &B {
         &self.backend
     }
@@ -440,8 +371,12 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn update_current_task_slot(&self, index: usize, content: SlotContent) {
-        self.backend
-            .update_task_slot(current_task("slotting turbo_tasks values"), index, content);
+        self.backend.update_task_slot(
+            current_task("slotting turbo_tasks values"),
+            index,
+            content,
+            self,
+        );
     }
 
     fn pin(&self) -> Arc<dyn TurboTasksApi> {
@@ -452,6 +387,15 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         self.schedule_background_job(move |this| async move {
             this.backend.run_background_job(id, &*this).await;
         })
+    }
+
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `dependent_slot_updated()` on all tasks.
+    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>) {
+        TASKS_TO_NOTIFY.with(|tasks_list| {
+            let mut list = tasks_list.borrow_mut();
+            list.extend(tasks.iter());
+        });
     }
 }
 
@@ -515,15 +459,6 @@ pub fn get_invalidator() -> Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),
         turbo_tasks: weak_turbo_tasks(),
     }
-}
-
-/// Enqueues tasks for notification of changed dependencies. This will
-/// eventually call `dependent_slot_updated()` on all tasks.
-pub(crate) fn schedule_notify_tasks<'a>(tasks_iter: impl Iterator<Item = &'a TaskId>) {
-    TASKS_TO_NOTIFY.with(|tasks| {
-        let mut list = tasks.borrow_mut();
-        list.extend(tasks_iter);
-    });
 }
 
 pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {

@@ -2,24 +2,23 @@ use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use event_listener::EventListener;
-
-use crate::{
+use flurry::HashMap as FHashMap;
+use turbo_tasks::{
     backend::{
-        Backend, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec, TaskType,
+        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
         TransientTaskType,
     },
-    id::BackgroundJobId,
-    id_factory::IdFactory,
-    manager::TurboTasksApi,
-    no_move_vec::NoMoveVec,
-    output::Output,
-    RawVc, Task, TaskId,
+    util::{IdFactory, NoMoveVec},
+    RawVc, TaskId, TurboTasksApi,
 };
+
+use crate::{output::Output, task::Task};
 
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
     background_jobs: NoMoveVec<BackgroundJob>,
     background_job_id_factory: IdFactory<BackgroundJobId>,
+    task_cache: FHashMap<PersistentTaskType, TaskId>,
 }
 
 impl MemoryBackend {
@@ -28,7 +27,14 @@ impl MemoryBackend {
             memory_tasks: NoMoveVec::new(),
             background_jobs: NoMoveVec::new(),
             background_job_id_factory: IdFactory::new(),
+            task_cache: FHashMap::new(),
         }
+    }
+
+    fn connect_task_child(&self, parent: TaskId, child: TaskId, turbo_tasks: &dyn TurboTasksApi) {
+        self.with_task(parent, |parent| {
+            parent.connect_child(child, self, turbo_tasks)
+        });
     }
 
     pub(crate) fn create_background_job(&self, job: BackgroundJob) -> BackgroundJobId {
@@ -48,47 +54,18 @@ impl MemoryBackend {
         self.with_task(id, |task| task.get_or_wait_output(func))
     }
 
+    pub fn with_all_cached_tasks(&self, mut func: impl FnMut(TaskId)) {
+        for id in self.task_cache.pin().values() {
+            func(*id);
+        }
+    }
+
     pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
         func(&self.memory_tasks.get(*id).unwrap())
     }
 }
 
 impl Backend for MemoryBackend {
-    /// SAFETY: id must be a fresh id
-    unsafe fn insert_task(&self, id: crate::TaskId, task_type: TaskType) {
-        let task = match task_type {
-            TaskType::Transient(TransientTaskType::Root(f)) => Task::new_root(id, f),
-            TaskType::Transient(TransientTaskType::Once(f)) => Task::new_once(id, f),
-            TaskType::Persistent(PersistentTaskType::Native(fn_id, inputs)) => {
-                Task::new_native(id, inputs, fn_id)
-            }
-            TaskType::Persistent(PersistentTaskType::ResolveNative(fn_id, inputs)) => {
-                Task::new_resolve_native(id, inputs, fn_id)
-            }
-            TaskType::Persistent(PersistentTaskType::ResolveTrait(
-                trait_type,
-                trait_fn_name,
-                inputs,
-            )) => Task::new_resolve_trait(id, trait_type, trait_fn_name, inputs),
-        };
-        unsafe {
-            self.memory_tasks.insert(*id, task);
-        }
-    }
-
-    /// SAFETY: id must no longer be used
-    unsafe fn remove_task(&self, id: TaskId) {
-        unsafe {
-            self.memory_tasks.remove(*id);
-        }
-    }
-
-    fn connect_task_child(&self, parent: TaskId, child: TaskId, turbo_tasks: &dyn TurboTasksApi) {
-        self.with_task(parent, |parent| {
-            parent.connect_child(child, self, turbo_tasks)
-        });
-    }
-
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksApi) {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
@@ -123,11 +100,11 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         slot_mappings: Option<SlotMappings>,
-        result: anyhow::Result<crate::RawVc>,
-        _turbo_tasks: &dyn TurboTasksApi,
+        result: anyhow::Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksApi,
     ) -> bool {
         self.with_task(task, |task| {
-            task.execution_result(result);
+            task.execution_result(result, turbo_tasks);
             task.execution_completed(slot_mappings, self)
         })
     }
@@ -167,9 +144,15 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.get_fresh_slot())
     }
 
-    fn update_task_slot(&self, task: TaskId, index: usize, content: SlotContent) {
+    fn update_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        content: SlotContent,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
         self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.assign(content))
+            task.with_slot_mut(index, |slot| slot.assign(content, turbo_tasks))
         })
     }
 
@@ -191,6 +174,81 @@ impl Backend for MemoryBackend {
         } else {
             Box::pin(async {})
         }
+    }
+
+    fn get_or_create_persistent_task(
+        &self,
+        task_type: PersistentTaskType,
+        id_factory: &IdFactory<TaskId>,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> TaskId {
+        let map = self.task_cache.pin();
+        let result = if let Some(task) = map.get(&task_type).map(|guard| *guard) {
+            // fast pass without creating a new task
+            self.connect_task_child(parent_task, task, turbo_tasks);
+
+            // TODO maybe force (background) scheduling to avoid inactive tasks hanging in
+            // "in progress" until they become active
+            task
+        } else {
+            // slow pass with key lock
+            let id = id_factory.get();
+            let task = match &task_type {
+                PersistentTaskType::Native(fn_id, inputs) => {
+                    Task::new_native(id, inputs.clone(), *fn_id)
+                }
+                PersistentTaskType::ResolveNative(fn_id, inputs) => {
+                    Task::new_resolve_native(id, inputs.clone(), *fn_id)
+                }
+                PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs) => {
+                    Task::new_resolve_trait(id, *trait_type, trait_fn_name.clone(), inputs.clone())
+                }
+            };
+            // SAFETY: We have a fresh task id where nobody knows about yet
+            unsafe {
+                self.memory_tasks.insert(*id, task);
+            }
+            let result_task = match map.try_insert(task_type, id) {
+                Ok(_) => {
+                    // This is the most likely case
+                    id
+                }
+                Err(r) => {
+                    // SAFETY: We have a fresh task id where nobody knows about yet
+                    unsafe {
+                        self.memory_tasks.remove(*id);
+                        id_factory.reuse(id);
+                    }
+                    *r.current
+                }
+            };
+            self.connect_task_child(parent_task, result_task, turbo_tasks);
+            result_task
+        };
+        // keep the guard alive over the whole function
+        // to avoid load on GC
+        drop(map);
+        result
+    }
+
+    fn create_transient_task(
+        &self,
+        task_type: TransientTaskType,
+        id_factory: &IdFactory<TaskId>,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> TaskId {
+        let id = id_factory.get();
+        let task = match task_type {
+            TransientTaskType::Root(f) => Task::new_root(id, f),
+            TransientTaskType::Once(f) => Task::new_once(id, f),
+        };
+        // SAFETY: We have a fresh task id where nobody knows about yet
+        unsafe {
+            self.memory_tasks.insert(*id, task);
+        }
+        turbo_tasks.schedule(id);
+        id
     }
 }
 

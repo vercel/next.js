@@ -1,16 +1,3 @@
-use crate::{
-    backend::SlotMappings,
-    id::{FunctionId, TraitTypeId},
-    manager::{get_invalidator, TurboTasksApi},
-    memory_backend::BackgroundJob,
-    output::Output,
-    raw_vc::RawVc,
-    registry,
-    slot::Slot,
-    stats,
-    task_input::TaskInput,
-    Invalidator, MemoryBackend, TaskId,
-};
 use anyhow::{anyhow, Result};
 use async_std::task_local;
 use event_listener::{Event, EventListener};
@@ -28,6 +15,10 @@ use std::{
         atomic::{AtomicU32, Ordering},
         Mutex, RwLock,
     },
+};
+use turbo_tasks::{
+    backend::SlotMappings, get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId,
+    TaskInput, TraitTypeId, TurboTasksApi,
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
@@ -202,6 +193,8 @@ impl Default for TaskStateType {
 }
 
 use TaskStateType::*;
+
+use crate::{memory_backend::BackgroundJob, output::Output, slot::Slot, stats, MemoryBackend};
 
 impl Task {
     pub(crate) fn new_native(id: TaskId, inputs: Vec<TaskInput>, native_fn: FunctionId) -> Self {
@@ -428,12 +421,12 @@ impl Task {
         true
     }
 
-    pub(crate) fn execution_result(&self, result: Result<RawVc>) {
+    pub(crate) fn execution_result(&self, result: Result<RawVc>, turbo_tasks: &dyn TurboTasksApi) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
-                Ok(result) => state.output.link(result),
-                Err(err) => state.output.error(err),
+                Ok(result) => state.output.link(result, turbo_tasks),
+                Err(err) => state.output.error(err, turbo_tasks),
             },
             InProgressDirty => {
                 // We don't want to assign the output slot here
@@ -913,8 +906,3 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
-
-pub enum TaskArgumentOptions {
-    Unresolved,
-    Resolved,
-}

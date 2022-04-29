@@ -1,13 +1,18 @@
 use crate::{
-    self as turbo_tasks, error::SharedError, registry::register_function, task::NativeTaskFn,
-    task_input::TaskInput, TaskArgumentOptions,
+    self as turbo_tasks, registry::register_function, task_input::TaskInput, util::SharedError,
+    RawVc,
 };
 use anyhow::Result;
 use std::{
     fmt::Debug,
+    future::Future,
     hash::Hash,
+    pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
+type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
@@ -15,10 +20,6 @@ use std::{
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,
-    /// Configuration about how arguments are passed. e. g. if they are passed
-    /// unresolved or resolved.
-    #[trace_ignore]
-    pub task_argument_options: Vec<TaskArgumentOptions>,
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     #[trace_ignore]
@@ -40,14 +41,10 @@ impl Debug for NativeFunction {
 impl NativeFunction {
     pub fn new(
         name: String,
-        task_argument_options: Vec<TaskArgumentOptions>,
         bind_fn: impl (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
     ) -> Self {
-        let mut task_argument_options = task_argument_options;
-        task_argument_options.shrink_to_fit();
         Self {
             name,
-            task_argument_options,
             bind_fn: Box::new(bind_fn),
             executed_count: AtomicUsize::new(0),
         }

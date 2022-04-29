@@ -1070,7 +1070,6 @@ fn gen_native_function_code(
     self_ref_type: Option<&Ident>,
     self_is_ref_type: bool,
 ) -> (TokenStream2, Vec<TokenStream2>) {
-    let mut task_argument_options = Vec::new();
     let mut input_extraction = Vec::new();
     let mut input_convert = Vec::new();
     let mut input_clone = Vec::new();
@@ -1094,9 +1093,6 @@ fn gen_native_function_code(
                         .emit();
                 }
                 let self_ref_type = self_ref_type.unwrap();
-                task_argument_options.push(quote! {
-                    turbo_tasks::TaskArgumentOptions::Resolved
-                });
                 input_extraction.push(quote! {
                     let __self = __iter
                         .next()
@@ -1126,9 +1122,6 @@ fn gen_native_function_code(
                 });
             }
             FnArg::Typed(PatType { pat, ty, .. }) => {
-                task_argument_options.push(quote! {
-                    turbo_tasks::TaskArgumentOptions::Resolved
-                });
                 input_extraction.push(quote! {
                     let #pat = __iter
                         .next()
@@ -1198,7 +1191,7 @@ fn gen_native_function_code(
     (
         quote! {
             turbo_tasks::lazy_static! {
-                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), vec![#(#task_argument_options),*], |inputs| {
+                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), |inputs| {
                     let mut __iter = inputs.iter();
                     #(#input_extraction)*
                     if __iter.next().is_some() {
