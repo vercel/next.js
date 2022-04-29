@@ -1,16 +1,14 @@
-import { EventEmitter } from 'events'
-import { join, posix } from 'path'
+import type ws from 'ws'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../config-shared'
+import { EventEmitter } from 'events'
+import { findPageFile } from '../lib/find-page-file'
+import { getPageRuntime, runDependingOnPageType } from '../../build/entries'
+import { join, posix } from 'path'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
-import { findPageFile } from '../lib/find-page-file'
-import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
-import type ws from 'ws'
-import { NextConfigComplete } from '../config-shared'
-import { isCustomErrorPage } from '../../build/utils'
-import { getPageRuntime } from '../../build/entries'
+import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -155,65 +153,15 @@ export default function onDemandEntryHandler(
   }
 
   return {
-    async ensurePage(page: string, clientOnly: boolean) {
-      let normalizedPagePath: string
-      try {
-        normalizedPagePath = normalizePagePath(page)
-      } catch (err) {
-        console.error(err)
-        throw pageNotFoundError(page)
-      }
-
-      let pagePath = await findPageFile(
+    async ensurePage(_page: string, clientOnly: boolean) {
+      const { absolutePagePath, bundlePath, page } = await getPageInfo({
+        pageExtensions: nextConfig.pageExtensions,
+        page: _page,
         pagesDir,
-        normalizedPagePath,
-        nextConfig.pageExtensions
-      )
-
-      // Default the /_error route to the Next.js provided default page
-      if (page === '/_error' && pagePath === null) {
-        pagePath = 'next/dist/pages/_error'
-      }
-
-      if (pagePath === null) {
-        throw pageNotFoundError(normalizedPagePath)
-      }
-
-      let bundlePath: string
-      let absolutePagePath: string
-      if (pagePath.startsWith('next/dist/pages/')) {
-        bundlePath = page
-        absolutePagePath = require.resolve(pagePath)
-      } else {
-        let pageUrl = pagePath.replace(/\\/g, '/')
-
-        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-          .replace(
-            new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
-            ''
-          )
-          .replace(/\/index$/, '')}`
-
-        pageUrl = pageUrl === '' ? '/' : pageUrl
-        const bundleFile = normalizePagePath(pageUrl)
-        bundlePath = posix.join('pages', bundleFile)
-        absolutePagePath = join(pagesDir, pagePath)
-        page = posix.normalize(pageUrl)
-      }
-
-      const normalizedPage = normalizePathSep(page)
-
-      const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
-      const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
-      const pageRuntimeConfig = await getPageRuntime(
-        absolutePagePath,
-        nextConfig
-      )
-      const isEdgeServer = pageRuntimeConfig === 'edge'
-
-      const isCustomError = isCustomErrorPage(page)
+      })
 
       let entriesChanged = false
+
       const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
@@ -250,29 +198,24 @@ export default function onDemandEntryHandler(
         })
       }
 
-      const isClientOrMiddleware = clientOnly || isMiddleware
-
-      const promise = isApiRoute
-        ? addPageEntry('server')
-        : isClientOrMiddleware
-        ? addPageEntry('client')
-        : Promise.all([
-            addPageEntry('client'),
-            addPageEntry(
-              isEdgeServer && !isCustomError ? 'edge-server' : 'server'
-            ),
-          ])
+      const promises = runDependingOnPageType({
+        page,
+        pageRuntime: await getPageRuntime(absolutePagePath, nextConfig),
+        onClient: () => addPageEntry('client'),
+        onServer: () => addPageEntry('server'),
+        onEdgeServer: () => addPageEntry('edge-server'),
+      })
 
       if (entriesChanged) {
         reportTrigger(
-          isApiRoute || isMiddleware || clientOnly
-            ? normalizedPage
-            : `${normalizedPage} (client and server)`
+          !clientOnly && promises.length > 1
+            ? `${page} (client and server)`
+            : page
         )
         invalidator.invalidate()
       }
 
-      return promise
+      return Promise.all(promises)
     },
 
     onHMR(client: ws) {
@@ -363,5 +306,57 @@ class Invalidator {
       this.rebuildAgain = false
       this.invalidate()
     }
+  }
+}
+
+async function getPageInfo(opts: {
+  page: string
+  pageExtensions: string[]
+  pagesDir: string
+}) {
+  const { page, pagesDir, pageExtensions } = opts
+
+  let normalizedPagePath: string
+
+  try {
+    normalizedPagePath = normalizePagePath(page)
+  } catch (err) {
+    console.error(err)
+    throw pageNotFoundError(page)
+  }
+
+  let pagePath = await findPageFile(
+    pagesDir,
+    normalizedPagePath,
+    pageExtensions
+  )
+
+  if (pagePath === null) {
+    // Default the /_error route to the Next.js provided default page
+    if (page === '/_error') {
+      pagePath = 'next/dist/pages/_error'
+    } else {
+      throw pageNotFoundError(normalizedPagePath)
+    }
+  }
+
+  if (pagePath.startsWith('next/dist/pages/')) {
+    return {
+      page: normalizePathSep(page),
+      bundlePath: page,
+      absolutePagePath: require.resolve(pagePath),
+    }
+  }
+
+  let pageUrl = pagePath.replace(/\\/g, '/')
+  pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
+    .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+    .replace(/\/index$/, '')}`
+  pageUrl = pageUrl === '' ? '/' : pageUrl
+
+  return {
+    bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+    absolutePagePath: join(pagesDir, pagePath),
+    page: normalizePathSep(posix.normalize(pageUrl)),
   }
 }

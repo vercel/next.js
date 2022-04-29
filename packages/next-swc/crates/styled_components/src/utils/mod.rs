@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
 use std::{borrow::Cow, cell::RefCell};
 use swc_atoms::js_word;
-use swc_common::collections::AHashMap;
+use swc_common::{collections::AHashMap, SyntaxContext};
 use swc_ecmascript::{
     ast::*,
     utils::{ident::IdentLike, Id},
@@ -58,6 +58,8 @@ pub(crate) fn get_prop_name2(p: &Prop) -> PropName {
 #[derive(Debug, Default)]
 pub struct State {
     pub(crate) styled_required: Option<Id>,
+
+    unresolved_ctxt: Option<SyntaxContext>,
 
     imported_local_name: Option<Id>,
     /// Namespace imports
@@ -227,11 +229,7 @@ impl State {
 
         let cache_key = cache_identifier.map(|i| i.to_id()).unwrap_or_default();
 
-        let ctxt = self
-            .styled_required
-            .as_ref()
-            .map(|v| v.1)
-            .unwrap_or_default();
+        let ctxt = self.unresolved_ctxt.unwrap_or_default();
 
         let local_name = if self.styled_required.is_some() {
             Some(if name == "default" {

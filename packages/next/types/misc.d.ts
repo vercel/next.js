@@ -340,11 +340,6 @@ declare module 'next/dist/compiled/process' {
   export = m
 }
 
-declare module 'next/dist/compiled/path-browserify' {
-  import m from 'path'
-  export = m
-}
-
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 

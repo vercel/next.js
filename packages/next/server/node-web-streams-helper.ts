@@ -132,18 +132,18 @@ export function createFlushEffectStream(
   })
 }
 
-export async function renderToInitialStream({
+export function renderToInitialStream({
   ReactDOMServer,
   element,
 }: {
-  ReactDOMServer: typeof import('react-dom/server')
+  ReactDOMServer: any
   element: React.ReactElement
 }): Promise<
   ReadableStream<Uint8Array> & {
     allReady?: Promise<void>
   }
 > {
-  return await (ReactDOMServer as any).renderToReadableStream(element)
+  return ReactDOMServer.renderToReadableStream(element)
 }
 
 export async function continueFromInitialStream({
