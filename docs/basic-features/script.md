@@ -243,10 +243,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 />
 ```
 
-There are two limitations to be aware of when using the Script component for inline scripts:
-
-- Only the `afterInteractive` and `lazyOnload` strategies can be used. The `beforeInteractive` loading strategy injects the contents of an external script into the initial HTML response. Inline scripts already do this, which is why **the `beforeInteractive` strategy cannot be used with inline scripts.**
-- An `id` attribute must be defined in order for Next.js to track and optimize the script
+The `id` property is required for **inline scripts** in order for Next.js to track and optimize the script.
 
 ### Executing Code After Loading (`onLoad`)
 
