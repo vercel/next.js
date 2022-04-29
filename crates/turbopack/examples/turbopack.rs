@@ -6,9 +6,12 @@ use async_std::task::{block_on, sleep, spawn};
 use std::fs;
 use std::time::Instant;
 use std::{env::current_dir, time::Duration};
-use turbo_tasks::stats::Stats;
-use turbo_tasks::viz::{visualize_stats_tree, wrap_html};
-use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks};
+use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks_memory::{
+    stats::Stats,
+    viz::{visualize_stats_tree, wrap_html},
+    MemoryBackend,
+};
 use turbopack::emit;
 use turbopack::rebase::RebasedAssetVc;
 use turbopack::source_asset::SourceAssetVc;

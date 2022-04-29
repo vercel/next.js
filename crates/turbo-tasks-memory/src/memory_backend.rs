@@ -3,18 +3,16 @@ use std::{collections::HashSet, future::Future, pin::Pin};
 use anyhow::Result;
 use event_listener::EventListener;
 
-use crate::{
+use turbo_tasks::{
     backend::{
-        Backend, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec, TaskType,
-        TransientTaskType,
+        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
+        TaskType, TransientTaskType,
     },
-    id::BackgroundJobId,
-    id_factory::IdFactory,
-    manager::TurboTasksApi,
-    no_move_vec::NoMoveVec,
-    output::Output,
-    RawVc, Task, TaskId,
+    util::{IdFactory, NoMoveVec},
+    RawVc, TaskId, TurboTasksApi,
 };
+
+use crate::{output::Output, task::Task};
 
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
@@ -55,7 +53,7 @@ impl MemoryBackend {
 
 impl Backend for MemoryBackend {
     /// SAFETY: id must be a fresh id
-    unsafe fn insert_task(&self, id: crate::TaskId, task_type: TaskType) {
+    unsafe fn insert_task(&self, id: TaskId, task_type: TaskType) {
         let task = match task_type {
             TaskType::Transient(TransientTaskType::Root(f)) => Task::new_root(id, f),
             TaskType::Transient(TransientTaskType::Once(f)) => Task::new_once(id, f),
@@ -123,11 +121,11 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         slot_mappings: Option<SlotMappings>,
-        result: anyhow::Result<crate::RawVc>,
-        _turbo_tasks: &dyn TurboTasksApi,
+        result: anyhow::Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksApi,
     ) -> bool {
         self.with_task(task, |task| {
-            task.execution_result(result);
+            task.execution_result(result, turbo_tasks);
             task.execution_completed(slot_mappings, self)
         })
     }
@@ -167,9 +165,15 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.get_fresh_slot())
     }
 
-    fn update_task_slot(&self, task: TaskId, index: usize, content: SlotContent) {
+    fn update_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        content: SlotContent,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) {
         self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.assign(content))
+            task.with_slot_mut(index, |slot| slot.assign(content, turbo_tasks))
         })
     }
 

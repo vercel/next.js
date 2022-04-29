@@ -14,6 +14,7 @@ lazy_static = "1.4.0"
 anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
+"turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
 async-std = "1.10.0"
 regex = "1.5.4"
 testing = "0.19.1"

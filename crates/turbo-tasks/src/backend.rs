@@ -1,12 +1,13 @@
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
-use std::{any::Any, collections::HashMap, fmt::Display, future::Future, pin::Pin, sync::Arc};
+use std::{any::Any, collections::HashMap, fmt::Display, future::Future, pin::Pin};
 
 use crate::{
-    id::BackgroundJobId, magic_any::MagicAny, manager::TurboTasksApi, registry,
-    task_input::SharedReference, FunctionId, RawVc, RawVcReadResult, TaskId, TaskInput,
-    TraitTypeId, ValueTypeId,
+    magic_any::MagicAny, manager::TurboTasksApi, registry, task_input::SharedReference, FunctionId,
+    RawVc, RawVcReadResult, TaskId, TaskInput, TraitTypeId, ValueTypeId,
 };
+
+pub use crate::id::BackgroundJobId;
 
 /// Different Task types
 pub enum TaskType {
@@ -148,5 +149,11 @@ pub trait Backend: Sync + Send {
 
     fn get_fresh_slot(&self, task: TaskId) -> usize;
 
-    fn update_task_slot(&self, task: TaskId, index: usize, content: SlotContent);
+    fn update_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        content: SlotContent,
+        turbo_tasks: &dyn TurboTasksApi,
+    );
 }

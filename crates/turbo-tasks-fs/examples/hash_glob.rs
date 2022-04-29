@@ -7,8 +7,9 @@ use async_std::task::{block_on, spawn};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
-use turbo_tasks::{MemoryBackend, NothingVc, TurboTasks, Vc};
+use turbo_tasks::{NothingVc, TurboTasks, Vc};
 use turbo_tasks_fs::glob::GlobVc;
+use turbo_tasks_memory::{MemoryBackend};
 
 use turbo_tasks_fs::{
     register, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc, FileSystemVc,

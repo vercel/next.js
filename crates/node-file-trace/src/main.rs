@@ -7,11 +7,12 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{stats::Stats, viz, MemoryBackend, NothingVc, TaskId, TurboTasks};
+use turbo_tasks::{NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
+use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{
     all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };

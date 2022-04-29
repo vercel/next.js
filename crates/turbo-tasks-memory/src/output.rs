@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use crate::{error::SharedError, manager::schedule_notify_tasks, RawVc, TaskId};
+use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksApi};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -50,7 +50,7 @@ impl Output {
         }
     }
 
-    pub fn link(&mut self, target: RawVc) {
+    pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksApi) {
         let change;
         let mut _type_change = false;
         match &self.content {
@@ -75,21 +75,21 @@ impl Output {
             }
         };
         if let Some(target) = change {
-            self.assign(OutputContent::Link(target))
+            self.assign(OutputContent::Link(target), turbo_tasks)
         }
     }
 
-    pub fn error(&mut self, error: Error) {
+    pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksApi) {
         self.content = OutputContent::Error(SharedError::new(error));
         self.updates += 1;
         // notify
-        schedule_notify_tasks(self.dependent_tasks.iter());
+        turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
     }
 
-    pub fn assign(&mut self, content: OutputContent) {
+    pub fn assign(&mut self, content: OutputContent, turbo_tasks: &dyn TurboTasksApi) {
         self.content = content;
         self.updates += 1;
         // notify
-        schedule_notify_tasks(self.dependent_tasks.iter());
+        turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
     }
 }

@@ -11,8 +11,9 @@ use anyhow::{anyhow, Context, Result};
 use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
 use rstest::*;
-use turbo_tasks::{MemoryBackend, TurboTasks, ValueToString};
+use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
     source_asset::SourceAssetVc,

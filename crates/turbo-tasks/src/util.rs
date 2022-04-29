@@ -1,4 +1,41 @@
+use std::fmt::Display;
+use std::sync::Arc;
 use std::{future::Future, pin::Pin, task::Poll};
+
+use anyhow::Error;
+
+pub use super::id_factory::IdFactory;
+pub use super::no_move_vec::NoMoveVec;
+
+/// A error struct that is backed by an Arc to allow cloning errors
+#[derive(Debug, Clone)]
+pub struct SharedError {
+    inner: Arc<Error>,
+}
+
+impl SharedError {
+    pub fn new(err: Error) -> Self {
+        Self {
+            inner: Arc::new(err),
+        }
+    }
+}
+
+impl std::error::Error for SharedError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.inner.source()
+    }
+
+    fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+        Some(self.inner.backtrace())
+    }
+}
+
+impl Display for SharedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&*self.inner, f)
+    }
+}
 
 pub enum MaybeDoneFuture<T: Unpin, F: Future<Output = T> + Unpin, D: Unpin> {
     Future(F),

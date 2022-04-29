@@ -13,7 +13,7 @@ use event_listener::EventListener;
 
 use crate::{
     manager::{read_task_output, read_task_output_untracked, TurboTasksApi},
-    turbo_tasks, TaskId
+    turbo_tasks, TaskId,
 };
 
 /// The result of reading a ValueVc.
@@ -119,7 +119,7 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn get_task_id(&self) -> TaskId {
+    pub fn get_task_id(&self) -> TaskId {
         match self {
             RawVc::TaskOutput(t) | RawVc::TaskSlot(t, _) => *t,
         }

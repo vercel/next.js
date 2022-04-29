@@ -1,6 +1,8 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use crate::{backend::SlotContent, manager::schedule_notify_tasks, TaskId};
+use turbo_tasks::TurboTasksApi;
+
+use turbo_tasks::{backend::SlotContent, TaskId};
 
 #[derive(Default, Debug)]
 pub struct Slot {
@@ -27,10 +29,10 @@ impl Slot {
         self.content.clone()
     }
 
-    pub fn assign(&mut self, content: SlotContent) {
+    pub fn assign(&mut self, content: SlotContent, turbo_tasks: &dyn TurboTasksApi) {
         self.content = content;
         self.updates += 1;
         // notify
-        schedule_notify_tasks(self.dependent_tasks.iter());
+        turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
     }
 }

@@ -121,7 +121,7 @@ impl TaskInput {
         }
     }
 
-    pub(crate) fn get_task_id(&self) -> Option<TaskId> {
+    pub fn get_task_id(&self) -> Option<TaskId> {
         match self {
             TaskInput::TaskOutput(t) | TaskInput::TaskSlot(t, _) => Some(*t),
             _ => None,

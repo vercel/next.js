@@ -1,8 +1,10 @@
 use std::{
     cell::{Cell, RefCell},
+    collections::HashSet,
     fmt::Debug,
     future::Future,
     hash::Hash,
+    pin::Pin,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, Mutex, Weak,
@@ -25,7 +27,6 @@ use crate::{
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
-    task::NativeTaskFuture,
     task_input::{SharedReference, TaskInput},
     trace::TraceRawVcs,
     TaskId, ValueTypeId, Vc,
@@ -60,6 +61,10 @@ pub trait TurboTasksApi: Sync + Send {
     fn get_fresh_slot(&self, task: TaskId) -> usize;
     fn read_current_task_slot(&self, index: usize) -> SlotContent;
     fn update_current_task_slot(&self, index: usize, content: SlotContent);
+
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `notify_slot_change()` on all tasks.
+    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>);
 
     fn schedule_backend_background_job(&self, id: BackgroundJobId);
 }
@@ -122,7 +127,10 @@ impl<B: Backend> TurboTasks<B> {
     /// Creates a new root task
     pub fn spawn_root_task(
         self: &Arc<Self>,
-        functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
+        functor: impl Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>
+            + Sync
+            + Send
+            + 'static,
     ) -> TaskId {
         let id = self.task_id_factory.get();
         let task = TaskType::Transient(TransientTaskType::Root(Box::new(functor)));
@@ -440,8 +448,12 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn update_current_task_slot(&self, index: usize, content: SlotContent) {
-        self.backend
-            .update_task_slot(current_task("slotting turbo_tasks values"), index, content);
+        self.backend.update_task_slot(
+            current_task("slotting turbo_tasks values"),
+            index,
+            content,
+            self,
+        );
     }
 
     fn pin(&self) -> Arc<dyn TurboTasksApi> {
@@ -452,6 +464,15 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         self.schedule_background_job(move |this| async move {
             this.backend.run_background_job(id, &*this).await;
         })
+    }
+
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `dependent_slot_updated()` on all tasks.
+    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>) {
+        TASKS_TO_NOTIFY.with(|tasks_list| {
+            let mut list = tasks_list.borrow_mut();
+            list.extend(tasks.iter());
+        });
     }
 }
 
@@ -515,15 +536,6 @@ pub fn get_invalidator() -> Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),
         turbo_tasks: weak_turbo_tasks(),
     }
-}
-
-/// Enqueues tasks for notification of changed dependencies. This will
-/// eventually call `dependent_slot_updated()` on all tasks.
-pub(crate) fn schedule_notify_tasks<'a>(tasks_iter: impl Iterator<Item = &'a TaskId>) {
-    TASKS_TO_NOTIFY.with(|tasks| {
-        let mut list = tasks.borrow_mut();
-        list.extend(tasks_iter);
-    });
 }
 
 pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {
