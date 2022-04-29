@@ -31,6 +31,7 @@ describe('Middleware importing Node.js built-in module', () => {
     let output = ''
 
     // restart the app for every test since the latest error is not shown sometimes
+    // See https://github.com/vercel/next.js/issues/36575
     beforeEach(async () => {
       output = ''
       context.appPort = await findPort()
