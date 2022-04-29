@@ -163,7 +163,7 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('32880')
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -180,7 +180,7 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/animated.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('63435')
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -197,7 +197,7 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/animated2.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('550091')
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -214,7 +214,7 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/animated.webp' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('37342')
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -233,7 +233,7 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
+      expect(res.headers.get('Content-Length')).toBe('603')
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -291,7 +291,7 @@ export function runTests(ctx) {
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('3381')
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -310,7 +310,7 @@ export function runTests(ctx) {
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
+    expect(res.headers.get('Content-Length')).toBe('2783')
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -329,7 +329,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -339,6 +338,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.jpeg"`
     )
+    await expectWidth(res, ctx.w)
   })
 
   if (!ctx.isOutdatedSharp) {
@@ -349,7 +349,6 @@ export function runTests(ctx) {
       const opts = { headers: { accept } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
       expect(res.headers.get('Content-Type')).toContain('image/jpeg')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -359,6 +358,7 @@ export function runTests(ctx) {
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.jpeg"`
       )
+      await expectWidth(res, ctx.w)
     })
   }
 
@@ -452,7 +452,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/webp,*/*' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -470,7 +469,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/png' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -488,7 +486,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -506,7 +503,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -524,7 +520,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -544,7 +539,6 @@ export function runTests(ctx) {
     }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -567,7 +561,6 @@ export function runTests(ctx) {
       }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
       expect(res.headers.get('Content-Type')).toBe('image/avif')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -602,7 +595,6 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -626,7 +618,6 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -1015,7 +1006,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -1043,7 +1033,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    //expect(res.headers.get('Content-Length')).toBe(100)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -1066,7 +1055,6 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/png' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
-      //expect(res.headers.get('Content-Length')).toBe(100)
       expect(res.headers.get('Content-Type')).toBe('image/png')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
