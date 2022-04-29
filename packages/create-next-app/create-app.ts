@@ -93,7 +93,7 @@ export async function createApp({
           `1. Your spelling of example ${chalk.red(
             `"${example}"`
           )} might be incorrect.\n`,
-          `2. You might not be connected to the internet.`
+          `2. You might not be connected to the internet or you are behind a proxy.`
         )
         process.exit(1)
       }
