@@ -121,12 +121,54 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
           }}
         />
         {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
-          const { strategy, ...scriptProps } = file
+          const {
+            strategy,
+            src,
+            children: scriptChildren,
+            dangerouslySetInnerHTML,
+            ...scriptProps
+          } = file
+
+          let srcProps: {
+            src?: string
+            dangerouslySetInnerHTML?: {
+              __html: string
+            }
+          } = {}
+
+          if (src) {
+            // Use external src if provided
+            srcProps.src = src
+          } else if (
+            dangerouslySetInnerHTML &&
+            dangerouslySetInnerHTML.__html
+          ) {
+            // Embed inline script if provided with dangerouslySetInnerHTML
+            srcProps.dangerouslySetInnerHTML = {
+              __html: dangerouslySetInnerHTML.__html,
+            }
+          } else if (scriptChildren) {
+            // Embed inline script if provided with children
+            srcProps.dangerouslySetInnerHTML = {
+              __html:
+                typeof scriptChildren === 'string'
+                  ? scriptChildren
+                  : Array.isArray(scriptChildren)
+                  ? scriptChildren.join('')
+                  : '',
+            }
+          } else {
+            throw new Error(
+              'Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script'
+            )
+          }
+
           return (
             <script
+              {...srcProps}
               {...scriptProps}
               type="text/partytown"
-              key={scriptProps.src || index}
+              key={src || index}
               nonce={props.nonce}
               data-nscript="worker"
               crossOrigin={props.crossOrigin || crossOrigin}
@@ -137,9 +179,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
     )
   } catch (err) {
     if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
-      console.warn(
-        `Warning: Partytown could not be instantiated in your application due to an error. ${err.message}`
-      )
+      console.warn(`Warning: ${err.message}`)
     }
     return null
   }
@@ -150,8 +190,9 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
 
   const webWorkerScripts = getPreNextWorkerScripts(context, props)
 
-  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map(
-    (file: ScriptProps, index: number) => {
+  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || [])
+    .filter((script) => script.src)
+    .map((file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
         <script
@@ -163,8 +204,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
-    }
-  )
+    })
 
   return (
     <>
@@ -500,6 +540,44 @@ export class Head extends Component<
     ]
   }
 
+  getBeforeInteractiveInlineScripts() {
+    const { scriptLoader } = this.context
+    const { nonce, crossOrigin } = this.props
+
+    return (scriptLoader.beforeInteractive || [])
+      .filter(
+        (script) =>
+          !script.src && (script.dangerouslySetInnerHTML || script.children)
+      )
+      .map((file: ScriptProps, index: number) => {
+        const { strategy, children, dangerouslySetInnerHTML, ...scriptProps } =
+          file
+        let html = ''
+
+        if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+          html = dangerouslySetInnerHTML.__html
+        } else if (children) {
+          html =
+            typeof children === 'string'
+              ? children
+              : Array.isArray(children)
+              ? children.join('')
+              : ''
+        }
+
+        return (
+          <script
+            {...scriptProps}
+            dangerouslySetInnerHTML={{ __html: html }}
+            key={scriptProps.id || index}
+            nonce={nonce}
+            data-nscript="beforeInteractive"
+            crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+          />
+        )
+      })
+  }
+
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)
   }
@@ -782,6 +860,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getBeforeInteractiveInlineScripts()}
             {!optimizeCss && this.getCssLinks(files)}
             {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
 
