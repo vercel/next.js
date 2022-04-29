@@ -34,8 +34,12 @@ function isValidSeverity(severity: string): severity is Severity {
 }
 
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {

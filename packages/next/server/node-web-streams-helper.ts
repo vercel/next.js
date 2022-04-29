@@ -1,3 +1,5 @@
+import { nonNullable } from '../lib/non-nullable'
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
@@ -130,18 +132,18 @@ export function createFlushEffectStream(
   })
 }
 
-export async function renderToInitialStream({
+export function renderToInitialStream({
   ReactDOMServer,
   element,
 }: {
-  ReactDOMServer: typeof import('react-dom/server')
+  ReactDOMServer: any
   element: React.ReactElement
 }): Promise<
   ReadableStream<Uint8Array> & {
     allReady?: Promise<void>
   }
 > {
-  return await (ReactDOMServer as any).renderToReadableStream(element)
+  return ReactDOMServer.renderToReadableStream(element)
 }
 
 export async function continueFromInitialStream({
@@ -172,7 +174,7 @@ export async function continueFromInitialStream({
     suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
-  ].filter(Boolean) as any
+  ].filter(nonNullable)
 
   return transforms.reduce(
     (readable, transform) => readable.pipeThrough(transform),

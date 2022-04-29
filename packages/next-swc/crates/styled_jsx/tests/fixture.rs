@@ -23,7 +23,7 @@ fn styled_jsx_fixture(input: PathBuf) {
         syntax(),
         &|t| {
             chain!(
-                resolver(),
+                resolver(Mark::new(), Mark::new(), false),
                 styled_jsx(
                     t.cm.clone(),
                     FileName::Real(PathBuf::from("/some-project/src/some-file.js"))
@@ -47,7 +47,7 @@ fn styled_jsx_fixture(input: PathBuf) {
             }
 
             chain!(
-                resolver(),
+                resolver(Mark::new(), Mark::new(), false),
                 styled_jsx(
                     t.cm.clone(),
                     FileName::Real(PathBuf::from("/some-project/src/some-file.js"))

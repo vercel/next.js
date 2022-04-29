@@ -40,6 +40,9 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -63,6 +66,7 @@ function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
@@ -164,13 +168,6 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-      // we always transpile optional chaining and nullish coalescing
-      // since it can cause issues with webpack even if the node target
-      // supports them
-      include: [
-        'proposal-optional-chaining',
-        'proposal-nullish-coalescing-operator',
-      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
@@ -219,13 +216,6 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
-        // we always transpile optional chaining and nullish coalescing
-        // since it can cause issues with webpack even if the node target
-        // supports them
-        include: [
-          'proposal-optional-chaining',
-          'proposal-nullish-coalescing-operator',
-        ],
       },
     }
   } else {

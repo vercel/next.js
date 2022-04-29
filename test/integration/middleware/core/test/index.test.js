@@ -104,7 +104,7 @@ describe('Middleware base tests', () => {
       for (const key of Object.keys(manifest.middleware)) {
         const middleware = manifest.middleware[key]
         expect(middleware.files).toContainEqual(
-          expect.stringContaining('middleware-runtime')
+          expect.stringContaining('server/edge-runtime-webpack')
         )
         expect(middleware.files).not.toContainEqual(
           expect.stringContaining('static/chunks/')
@@ -119,6 +119,7 @@ describe('Middleware base tests', () => {
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
+          NEXT_RUNTIME: 'edge',
         },
       })
     })
@@ -130,8 +131,8 @@ describe('Middleware base tests', () => {
         process: {
           env: {
             MIDDLEWARE_TEST: 'asdf',
+            NEXT_RUNTIME: 'edge',
           },
-          nextTick: 'function',
         },
       })
     })
@@ -259,13 +260,13 @@ function rewriteTests(log, locale = '') {
     )
 
     expect(res.status).toBe(200)
-    expect(await res.text()).toContain('Vercel')
+    expect(await res.text()).toContain('Example Domain')
 
     const browser = await webdriver(context.appPort, `${locale}/rewrites`)
     await browser.elementByCss('#override-with-external-rewrite').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
-      /Vercel/
+      /Example Domain/
     )
     await check(
       () => browser.eval('window.location.pathname'),
@@ -473,12 +474,9 @@ function rewriteTests(log, locale = '') {
       `${locale}/rewrites/rewrite-me-to-vercel`
     )
     const html = await res.text()
-    const $ = cheerio.load(html)
     // const browser = await webdriver(context.appPort, '/rewrite-me-to-vercel')
     // TODO: running this to chech the window.location.pathname hangs for some reason;
-    expect($('head > title').text()).toBe(
-      'Develop. Preview. Ship. For the best frontend teams – Vercel'
-    )
+    expect(html).toContain('Example Domain')
   })
 
   it(`${locale} should rewrite without hard navigation`, async () => {

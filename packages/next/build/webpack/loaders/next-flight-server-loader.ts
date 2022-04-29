@@ -1,33 +1,20 @@
+import { builtinModules } from 'module'
+
 import { parse } from '../../swc'
-import { buildExports } from './utils'
+import {
+  buildExports,
+  createClientComponentFilter,
+  createServerComponentFilter,
+  isNextBuiltinClientComponent,
+} from './utils'
 
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-
-export const createClientComponentFilter = (extensions: string[]) => {
-  // Special cases for Next.js APIs that are considered as client components:
-  // - .client.[ext]
-  // - next built-in client components
-  // - .[imageExt]
-  const regex = new RegExp(
-    '(' +
-      `\\.client(\\.(${extensions.join('|')}))?|` +
-      `next/(link|image)(\\.js)?|` +
-      `\\.(${imageExtensions.join('|')})` +
-      ')$'
-  )
-
-  return (importSource: string) => regex.test(importSource)
-}
-
-export const createServerComponentFilter = (extensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
-  return (importSource: string) => regex.test(importSource)
-}
-
-function createFlightServerRequest(request: string, extensions: string[]) {
-  return `next-flight-server-loader?${JSON.stringify({
-    extensions,
-  })}!${request}`
+function createFlightServerRequest(
+  request: string,
+  options?: { client: 1 | undefined }
+) {
+  return `next-flight-server-loader${
+    options ? '?' + JSON.stringify(options) : ''
+  }!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -37,7 +24,6 @@ function hasFlightLoader(request: string, type: 'client' | 'server') {
 async function parseModuleInfo({
   resourcePath,
   source,
-  extensions,
   isClientCompilation,
   isServerComponent,
   isClientComponent,
@@ -46,7 +32,6 @@ async function parseModuleInfo({
   resourcePath: string
   source: string
   isClientCompilation: boolean
-  extensions: string[]
   isServerComponent: (name: string) => boolean
   isClientComponent: (name: string) => boolean
   resolver: (req: string) => Promise<string>
@@ -62,21 +47,51 @@ async function parseModuleInfo({
     isModule: 'unknown',
   })
   const { type, body } = ast
+  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
   let imports = []
   let __N_SSP = false
   let pageRuntime = null
+  let isBuiltinModule
+  let isNodeModuleImport
 
   const isEsm = type === 'Module'
+
+  async function getModuleType(path: string) {
+    const isBuiltinModule_ = builtinModules.includes(path)
+    const resolvedPath = isBuiltinModule_ ? path : await resolver(path)
+
+    const isNodeModuleImport_ =
+      /[\\/]node_modules[\\/]/.test(resolvedPath) &&
+      // exclude next built-in modules
+      !isNextBuiltinClientComponent(resolvedPath)
+
+    return [isBuiltinModule_, isNodeModuleImport_] as const
+  }
+
+  function addClientImport(path: string) {
+    if (isServerComponent(path) || hasFlightLoader(path, 'server')) {
+      // If it's a server component, we recursively import its dependencies.
+      imports.push(path)
+    } else if (isClientComponent(path)) {
+      // Client component.
+      imports.push(path)
+    } else {
+      // Shared component.
+      imports.push(createFlightServerRequest(path, { client: 1 }))
+    }
+  }
 
   for (let i = 0; i < body.length; i++) {
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration':
         const importSource = node.source.value
-        const resolvedPath = await resolver(importSource)
-        const isNodeModuleImport = resolvedPath.includes('/node_modules/')
+
+        ;[isBuiltinModule, isNodeModuleImport] = await getModuleType(
+          importSource
+        )
 
         // matching node_module package but excluding react cores since react is required to be shared
         const isReactImports = [
@@ -93,7 +108,7 @@ async function parseModuleInfo({
 
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start
+            node.source.span.start - beginPos
           )
 
           if (isClientComponent(importSource)) {
@@ -104,9 +119,10 @@ async function parseModuleInfo({
             imports.push(importSource)
           } else {
             // A shared component. It should be handled as a server component.
-            const serverImportSource = isReactImports
-              ? importSource
-              : createFlightServerRequest(importSource, extensions)
+            const serverImportSource =
+              isReactImports || isBuiltinModule
+                ? importSource
+                : createFlightServerRequest(importSource)
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(serverImportSource)
 
@@ -116,21 +132,13 @@ async function parseModuleInfo({
             }
           }
         } else {
-          // For the client compilation, we skip all modules imports but
-          // always keep client/shared components in the bundle. All client components
-          // have to be imported from either server or client components.
-          if (
-            isServerComponent(importSource) ||
-            hasFlightLoader(importSource, 'server') ||
-            // TODO: support handling RSC components from node_modules
-            isNodeModuleImport
-          ) {
-            continue
-          }
-          imports.push(importSource)
+          // For now we assume there is no .client.js inside node_modules.
+          // TODO: properly handle this.
+          if (isNodeModuleImport || isBuiltinModule) continue
+          addClientImport(importSource)
         }
 
-        lastIndex = node.source.span.end
+        lastIndex = node.source.span.end - beginPos
         break
       case 'ExportDeclaration':
         if (isClientCompilation) {
@@ -158,6 +166,18 @@ async function parseModuleInfo({
           }
         }
         break
+      case 'ExportNamedDeclaration':
+        if (isClientCompilation) {
+          if (node.source) {
+            // export { ... } from '...'
+            const path = node.source.value
+            ;[isBuiltinModule, isNodeModuleImport] = await getModuleType(path)
+            if (!isBuiltinModule && !isNodeModuleImport) {
+              addClientImport(path)
+            }
+          }
+        }
+        break
       default:
         break
     }
@@ -174,7 +194,7 @@ export default async function transformSource(
   this: any,
   source: string
 ): Promise<string> {
-  const { client: isClientCompilation, extensions } = this.getOptions()
+  const { client: isClientCompilation } = this.getOptions()
   const { resourcePath, resolve: resolveFn, context } = this
 
   const resolver = (req: string): Promise<string> => {
@@ -190,8 +210,8 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isServerComponent = createServerComponentFilter(extensions)
-  const isClientComponent = createClientComponentFilter(extensions)
+  const isServerComponent = createServerComponentFilter()
+  const isClientComponent = createClientComponentFilter()
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
   })
@@ -214,7 +234,6 @@ export default async function transformSource(
   } = await parseModuleInfo({
     resourcePath,
     source,
-    extensions,
     isClientCompilation,
     isServerComponent,
     isClientComponent,

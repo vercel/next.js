@@ -6,8 +6,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_RUNTIME_WEBPACK,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+  EDGE_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 import type { WasmBinding } from '../loaders/next-middleware-wasm-loader'
@@ -51,15 +50,14 @@ function getPageFromEntrypointName(pagePath: string) {
   return page
 }
 
-export type PerRoute = {
+interface PerRoute {
   envPerRoute: Map<string, string[]>
   wasmPerRoute: Map<string, WasmBinding[]>
 }
 
-export function getEntrypointInfo(
+function getEntrypointInfo(
   compilation: webpack5.Compilation,
-  { envPerRoute, wasmPerRoute }: PerRoute,
-  isEdgeRuntime: boolean
+  { envPerRoute, wasmPerRoute }: PerRoute
 ) {
   const entrypoints = compilation.entrypoints
   const infos = []
@@ -67,12 +65,7 @@ export function getEntrypointInfo(
     if (!entrypoint.name) continue
 
     const ssrEntryInfo = ssrEntries.get(entrypoint.name)
-
-    if (ssrEntryInfo && !isEdgeRuntime) continue
-    if (!ssrEntryInfo && isEdgeRuntime) continue
-
     const page = getPageFromEntrypointName(entrypoint.name)
-
     if (!page) {
       continue
     }
@@ -90,7 +83,9 @@ export function getEntrypointInfo(
           `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           ...entryFiles.map((file) => 'server/' + file),
         ].filter(nonNullable)
-      : entryFiles.map((file: string) => file)
+      : entryFiles.map((file: string) => {
+          return 'server/' + file
+        })
 
     infos.push({
       env: envPerRoute.get(entrypoint.name) || [],
@@ -106,30 +101,17 @@ export function getEntrypointInfo(
 
 export default class MiddlewarePlugin {
   dev: boolean
-  isEdgeRuntime: boolean
 
-  constructor({
-    dev,
-    isEdgeRuntime,
-  }: {
-    dev: boolean
-    isEdgeRuntime: boolean
-  }) {
+  constructor({ dev }: { dev: boolean }) {
     this.dev = dev
-    this.isEdgeRuntime = isEdgeRuntime
   }
 
   createAssets(
     compilation: webpack5.Compilation,
     assets: any,
-    { envPerRoute, wasmPerRoute }: PerRoute,
-    isEdgeRuntime: boolean
+    { envPerRoute, wasmPerRoute }: PerRoute
   ) {
-    const infos = getEntrypointInfo(
-      compilation,
-      { envPerRoute, wasmPerRoute },
-      isEdgeRuntime
-    )
+    const infos = getEntrypointInfo(compilation, { envPerRoute, wasmPerRoute })
     infos.forEach((info) => {
       middlewareManifest.middleware[info.page] = info
     })
@@ -140,52 +122,36 @@ export default class MiddlewarePlugin {
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => {
         const middleware = middlewareManifest.middleware[key]
-        const ssrEntryInfo = ssrEntries.get(middleware.name)
-        return [key, !!ssrEntryInfo]
+        return [key, !!ssrEntries.get(middleware.name)]
       }
     )
 
-    assets[
-      this.isEdgeRuntime ? MIDDLEWARE_MANIFEST : `server/${MIDDLEWARE_MANIFEST}`
-    ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
+    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
+      JSON.stringify(middlewareManifest, null, 2)
+    )
   }
 
   apply(compiler: webpack5.Compiler) {
     collectAssets(compiler, this.createAssets.bind(this), {
       dev: this.dev,
       pluginName: PLUGIN_NAME,
-      isEdgeRuntime: this.isEdgeRuntime,
     })
   }
 }
 
-export function collectAssets(
+function collectAssets(
   compiler: webpack5.Compiler,
   createAssets: (
     compilation: webpack5.Compilation,
     assets: any,
-    { envPerRoute, wasmPerRoute }: PerRoute,
-    isEdgeRuntime: boolean
+    { envPerRoute, wasmPerRoute }: PerRoute
   ) => void,
-  options: {
-    dev: boolean
-    pluginName: string
-    isEdgeRuntime: boolean
-  }
+  options: { dev: boolean; pluginName: string }
 ) {
   const wp = compiler.webpack
   compiler.hooks.compilation.tap(
     options.pluginName,
     (compilation, { normalModuleFactory }) => {
-      compilation.hooks.afterChunks.tap(options.pluginName, () => {
-        const middlewareRuntimeChunk = compilation.namedChunks.get(
-          MIDDLEWARE_RUNTIME_WEBPACK
-        )
-        if (middlewareRuntimeChunk) {
-          middlewareRuntimeChunk.filenameTemplate = 'server/[name].js'
-        }
-      })
-
       const envPerRoute = new Map<string, string[]>()
       const wasmPerRoute = new Map<string, WasmBinding[]>()
 
@@ -194,10 +160,7 @@ export function collectAssets(
         envPerRoute.clear()
 
         for (const [name, info] of compilation.entries) {
-          if (
-            info.options.runtime === MIDDLEWARE_SSR_RUNTIME_WEBPACK ||
-            info.options.runtime === MIDDLEWARE_RUNTIME_WEBPACK
-          ) {
+          if (info.options.runtime === EDGE_RUNTIME_WEBPACK) {
             const middlewareEntries = new Set<webpack5.Module>()
             const env = new Set<string>()
             const wasm = new Set<WasmBinding>()
@@ -236,6 +199,7 @@ export function collectAssets(
                   )
                 )
                   continue
+
                 const error = new wp.WebpackError(
                   `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${name}${
                     typeof buildInfo.usingIndirectEval !== 'boolean'
@@ -270,11 +234,14 @@ export function collectAssets(
       })
 
       const handler = (parser: webpack5.javascript.JavascriptParser) => {
-        const isMiddlewareModule = () =>
-          parser.state.module && parser.state.module.layer === 'middleware'
+        const isMiddlewareModule = () => {
+          return parser.state.module?.layer === 'middleware'
+        }
 
         const wrapExpression = (expr: any) => {
-          if (!isMiddlewareModule()) return
+          if (!isMiddlewareModule()) {
+            return
+          }
 
           if (options.dev) {
             const dep1 = new wp.dependencies.ConstDependency(
@@ -393,12 +360,7 @@ export function collectAssets(
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          createAssets(
-            compilation,
-            assets,
-            { envPerRoute, wasmPerRoute },
-            options.isEdgeRuntime
-          )
+          createAssets(compilation, assets, { envPerRoute, wasmPerRoute })
         }
       )
     }
