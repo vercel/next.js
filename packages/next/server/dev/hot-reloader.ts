@@ -29,7 +29,6 @@ import {
 import { denormalizePagePath, normalizePathSep } from '../page-path-utils'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
@@ -559,7 +558,6 @@ export default class HotReloader {
                       isDev: true,
                       page,
                       pages: this.pagesMapping,
-                      ssrEntries,
                     }),
                   })
                 }

@@ -11,7 +11,7 @@ import { normalizePagePath, denormalizePagePath } from './page-path-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type { WasmBinding } from '../build/webpack/loaders/next-middleware-wasm-loader'
+import type { WasmBinding } from '../build/webpack/loaders/get-module-build-info'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)

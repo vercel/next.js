@@ -17,7 +17,6 @@ import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { normalizePagePath } from '../server/page-path-utils'
 import { normalizePathSep } from '../server/page-path-utils'
-import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import { warn } from './output/log'
 import { parse } from '../build/swc'
 import { isFlightPage, withoutRSCExtensions } from './utils'
@@ -233,7 +232,6 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   page: string
   pages: { [page: string]: string }
-  ssrEntries: Map<string, { requireFlightManifest: boolean }>
 }): ObjectValue<webpack5.EntryObject> {
   if (opts.page.match(MIDDLEWARE_ROUTE)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -257,10 +255,6 @@ export function getEdgeServerEntry(opts: {
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
   }
-
-  ssrEntries.set(opts.bundlePath, {
-    requireFlightManifest: isFlightPage(opts.config, opts.absolutePagePath),
-  })
 
   return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
 }
@@ -375,7 +369,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             bundlePath: clientBundlePath,
             isDev: false,
             page,
-            ssrEntries,
           })
         },
       })
