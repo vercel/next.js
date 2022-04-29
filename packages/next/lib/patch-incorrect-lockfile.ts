@@ -19,15 +19,15 @@ export async function patchIncorrectLockfile(dir: string) {
   const content = await promises.readFile(lockfilePath, 'utf8')
   const lockfileParsed = JSON.parse(content)
 
-  const packageKeys = Object.keys(lockfileParsed.dependencies)
   const foundSwcPkgs = new Set()
-  const nextPkg = lockfileParsed.packages['node_modules/next']
+  const nextPkg = lockfileParsed.packages?.['node_modules/next']
 
   // if we don't find next in the package-lock we can't continue
   if (!nextPkg) {
     return
   }
   const nextVersion = nextPkg.version
+  const packageKeys = Object.keys(lockfileParsed.dependencies || {})
 
   const expectedSwcPkgs = Object.keys(nextPkg?.optionalDependencies).filter(
     (pkg) => pkg.startsWith('@next/swc-')
