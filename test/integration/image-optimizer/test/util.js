@@ -70,12 +70,13 @@ export async function fsToJson(dir, output = {}) {
   return output
 }
 
-export async function expectWidth(res, w) {
+export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   const buffer = await res.buffer()
   const d = sizeOf(buffer)
   expect(d.width).toBe(w)
   const lengthStr = res.headers.get('Content-Length')
   expect(lengthStr).toBe(Buffer.byteLength(buffer).toString())
+  expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
 export const cleanImagesDir = async (ctx) => {
@@ -163,7 +164,6 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('32880')
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -173,14 +173,13 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 50, { expectAnimated: true })
   })
 
   it('should maintain animated png', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('63435')
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -190,14 +189,13 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.png"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 100, { expectAnimated: true })
   })
 
   it('should maintain animated png 2', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated2.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('550091')
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -207,14 +205,13 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated2.png"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 1105, { expectAnimated: true })
   })
 
   it('should maintain animated webp', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.webp' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('37342')
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -224,7 +221,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.webp"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 400, { expectAnimated: true })
   })
 
   if (ctx.dangerouslyAllowSVG) {
@@ -291,7 +288,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('3381')
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
@@ -310,7 +306,6 @@ export function runTests(ctx) {
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Length')).toBe('2783')
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=0, must-revalidate`
