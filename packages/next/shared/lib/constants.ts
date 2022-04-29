@@ -25,6 +25,13 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+export const MODERN_BROWSERSLIST_TARGET = [
+  'chrome 61',
+  'edge 16',
+  'firefox 60',
+  'opera 48',
+  'safari 11',
+]
 
 // server/middleware-flight-manifest.js
 export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'

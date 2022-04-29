@@ -78,6 +78,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
   newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
@@ -467,6 +468,8 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
+    // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
     // TODO: change default in next major release (current v12.1.5)
     newNextLinkBehavior: false,
     cpus: Math.max(
