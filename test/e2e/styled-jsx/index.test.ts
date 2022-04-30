@@ -23,7 +23,7 @@ function runTest(packageManager?: string) {
         },
         ...(packageManager
           ? {
-              installCommand: `${packageManager} install`,
+              installCommand: `npx ${packageManager} install`,
             }
           : {}),
       })
