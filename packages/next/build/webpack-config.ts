@@ -66,10 +66,13 @@ function getSupportedBrowsers(
 ): string[] | undefined {
   let browsers: any
   try {
-    browsers = browserslist.loadConfig({
-      path: dir,
-      env: isDevelopment ? 'development' : 'production',
-    })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    browsers = browserslist(
+      browserslist.loadConfig({
+        path: dir,
+        env: isDevelopment ? 'development' : 'production',
+      })
+    )
   } catch {}
 
   // When user has browserslist use that target
@@ -347,6 +350,7 @@ export default async function getBaseWebpackConfig(
     config
   )
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
