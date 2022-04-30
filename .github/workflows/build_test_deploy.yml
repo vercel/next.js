@@ -629,7 +629,7 @@ jobs:
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: PKG_MANAGER=pnpm xvfb-run node run-tests.js test/e2e/styled-jsx/index.test.ts
+      - run: NEXT_TEST_MODE=start PKG_MANAGER=pnpm xvfb-run node run-tests.js test/e2e/styled-jsx/index.test.ts
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
