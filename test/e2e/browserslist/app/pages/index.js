@@ -14,9 +14,9 @@ export default function Page() {
     })()
   }, [])
   return (
-    <p>
+    <>
       {helloWorld}
       <MyComp />
-    </p>
+    </>
   )
 }

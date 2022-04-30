@@ -1722,6 +1722,7 @@ export default async function getBaseWebpackConfig(
     relay: config.compiler?.relay,
     emotion: config.experimental?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
+    legacyBrowsers: config.experimental?.legacyBrowsers,
   })
 
   const cache: any = {

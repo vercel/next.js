@@ -37,11 +37,14 @@ describe('legacyBrowsers: false', () => {
         .map(async (el) => {
           const src = $(el).attr('src')
           if (!src) return
-          if (src.includes('index-')) {
+          if (src.includes('/index')) {
             const source = next.url + src
             const code = await fetch(source).then((res) => res.text())
 
-            expect(code.includes('async()=>{console.log(')).toBe(true)
+            const isDev = (global as any).isNextDev
+            expect(
+              code.includes(isDev ? 'async ()=>{' : 'async()=>{console.log(')
+            ).toBe(true)
             finished = true
           }
         })
