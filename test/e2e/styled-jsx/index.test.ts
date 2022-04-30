@@ -3,7 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-describe('pnpm ssr', () => {
+describe('styled-jsx', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -20,8 +20,9 @@ describe('pnpm ssr', () => {
           }
         `,
       },
-      dependencies: {},
-      installCommand: 'pnpm install',
+      ...(!!process.env.PKG_MANAGER && {
+        installCommand: `${process.env.PKG_MANAGER} install`,
+      }),
     })
   })
   afterAll(() => next.destroy())
