@@ -50,7 +50,7 @@ import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { denormalizePagePath } from './denormalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
@@ -133,7 +133,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected quiet: boolean
   protected nextConfig: NextConfigComplete
   protected distDir: string
-  protected pagesDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
