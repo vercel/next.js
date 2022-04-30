@@ -22,6 +22,7 @@ import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
+  NEXT_BUILTIN_DOCUMENT,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -1216,7 +1217,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // When concurrent features is enabled, the built-in `Document`
         // component also supports dynamic HTML.
         (this.renderOpts.reactRoot &&
-          !!(components.Document as any)?.__next_internal_document)
+          NEXT_BUILTIN_DOCUMENT in components.Document)
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
