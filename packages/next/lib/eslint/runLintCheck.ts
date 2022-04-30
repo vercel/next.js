@@ -1,4 +1,4 @@
-import { promises as fs, promises, statSync } from 'fs'
+import { promises as fs } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 

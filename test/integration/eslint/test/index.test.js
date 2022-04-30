@@ -604,5 +604,108 @@ describe('ESLint', () => {
       expect(output).not.toContain('pages/index.js')
       expect(output).not.toContain('External synchronous scripts are forbidden')
     })
+
+    test('output flag create a file respecting the chosen format', async () => {
+      const filePath = `${__dirname}/output/output.json`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'json', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+      const fileOutput = await fs.readJSON(filePath)
+
+      expect(cliOutput).toContain(
+        `The output file has been created: ${filePath}`
+      )
+
+      if (fileOutput && fileOutput.length) {
+        fileOutput.forEach((file) => {
+          expect(file).toHaveProperty('filePath')
+          expect(file).toHaveProperty('messages')
+          expect(file).toHaveProperty('errorCount')
+          expect(file).toHaveProperty('warningCount')
+          expect(file).toHaveProperty('fixableErrorCount')
+          expect(file).toHaveProperty('fixableWarningCount')
+          expect(file).toHaveProperty('source')
+          expect(file).toHaveProperty('usedDeprecatedRules')
+        })
+
+        expect(fileOutput[0].messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message:
+                'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.',
+            }),
+            expect.objectContaining({
+              message: `Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element`,
+            }),
+          ])
+        )
+
+        expect(fileOutput[1].messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message:
+                'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts',
+            }),
+          ])
+        )
+      }
+    })
+
+    test('output flag create a file respecting the chosen format', async () => {
+      const filePath = `${__dirname}/output/output.txt`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'compact', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+      const fileOutput = fs.readFileSync(filePath, 'utf8')
+
+      expect(cliOutput).toContain(
+        `The output file has been created: ${filePath}`
+      )
+
+      expect(fileOutput).toContain('file-linting/pages/bar.js')
+      expect(fileOutput).toContain(
+        'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
+      )
+      expect(fileOutput).toContain(
+        `Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element`
+      )
+
+      expect(fileOutput).toContain('file-linting/pages/index.js')
+      expect(fileOutput).toContain(
+        'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts'
+      )
+    })
+
+    test('show error message when the file path is a directory', async () => {
+      const filePath = `${__dirname}`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'compact', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+
+      expect(cliOutput).toContain(
+        `Cannot write to output file path, it is a directory: ${filePath}`
+      )
+    })
   })
 })
