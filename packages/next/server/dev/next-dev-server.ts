@@ -40,7 +40,8 @@ import {
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
-import { absolutePathToPage, normalizePagePath } from '../page-path-utils'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { hasBasePath, replaceBasePath } from '../router-utils'

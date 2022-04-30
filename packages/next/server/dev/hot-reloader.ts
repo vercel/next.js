@@ -26,7 +26,8 @@ import {
   entries,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
-import { denormalizePagePath, normalizePathSep } from '../page-path-utils'
+import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
 import { difference } from '../../build/utils'

@@ -55,7 +55,7 @@ import BaseServer, {
   stringifyQuery,
 } from './base-server'
 import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
-import { normalizePagePath } from './page-path-utils'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'

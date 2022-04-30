@@ -1,4 +1,5 @@
-import { normalizePagePath, denormalizePagePath } from './page-path-utils'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type BuildManifest = {
   devFiles: readonly string[]

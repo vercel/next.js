@@ -1,5 +1,5 @@
 import { fileExists } from '../../lib/file-exists'
-import { getPagePaths } from '../page-path-utils'
+import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
 import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
 import { promises } from 'fs'

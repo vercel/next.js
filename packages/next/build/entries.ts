@@ -15,11 +15,11 @@ import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
-import { normalizePagePath } from '../server/page-path-utils'
-import { normalizePathSep } from '../server/page-path-utils'
 import { warn } from './output/log'
 import { parse } from '../build/swc'
 import { isFlightPage, withoutRSCExtensions } from './utils'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
