@@ -134,10 +134,12 @@ export class FlightManifestPlugin {
                         },
                         runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
                         asyncChunks: false,
+                        layer: 'sc_client',
                       }
                     : {
                         name: name + '.__sc_client__',
                         runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+                        layer: 'sc_client',
                       },
                   (err: any) => {
                     if (err) {

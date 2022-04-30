@@ -962,6 +962,14 @@ export default async function getBaseWebpackConfig(
           'next',
           ...(isEdgeRuntime
             ? [
+                // {
+                //   byLayer: {
+                //     sc_client: {
+                //       // @ts-ignore
+                //       react: ''
+                //     }
+                //   }
+                // },
                 {
                   '@builder.io/partytown': '{}',
                   'next/dist/compiled/etag': '{}',
@@ -1035,7 +1043,23 @@ export default async function getBaseWebpackConfig(
         : {}),
       splitChunks: isServer
         ? dev
-          ? false
+          ? isEdgeRuntime
+            ? {
+                cacheGroups: {
+                  react: {
+                    test(module) {
+                      const resource =
+                        module.nameForCondition && module.nameForCondition()
+                      if (!resource) {
+                        return false
+                      }
+                      return resource.includes('/node_modules/react/')
+                    },
+                    enforce: true,
+                  },
+                },
+              }
+            : false
           : ({
               filename: isEdgeRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
