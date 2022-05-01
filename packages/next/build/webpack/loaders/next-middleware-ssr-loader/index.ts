@@ -1,3 +1,4 @@
+import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 
 export type MiddlewareSSRLoaderQuery = {
@@ -27,7 +28,13 @@ export default async function middlewareSSRLoader(this: any) {
     absoluteErrorPath,
     isServerComponent,
     stringifiedConfig,
-  }: MiddlewareSSRLoaderQuery = this.getOptions()
+  } = this.getOptions()
+
+  const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextEdgeSSR = {
+    isServerComponent: isServerComponent === 'true',
+    page: page,
+  }
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
