@@ -36,7 +36,7 @@ npx create-next-app@latest --typescript
 # or
 yarn create next-app --typescript
 # or
-pnpm create next-app -- --typescript
+npm create next-app -- --typescript
 ```
 
 After the installation is complete:
@@ -56,7 +56,7 @@ npm install next react react-dom
 # or
 yarn add next react react-dom
 # or
-pnpm add next react react-dom
+npm add next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
