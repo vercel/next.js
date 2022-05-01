@@ -1,9 +1,8 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
-import fetch from 'node-fetch'
 const appDir = path.join(__dirname, 'app')
 
 describe('Browserslist', () => {
@@ -32,8 +31,9 @@ describe('Browserslist', () => {
           const src = $(el).attr('src')
           if (!src) return
           if (src.includes('/index')) {
-            const source = next.url + src
-            const code = await fetch(source).then((res) => res.text())
+            const code = await fetchViaHTTP(next.url, src).then((res) =>
+              res.text()
+            )
 
             const isDev = (global as any).isNextDev
             expect(
