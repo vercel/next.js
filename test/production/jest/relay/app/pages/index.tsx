@@ -1,10 +1,4 @@
-import { Suspense } from 'react'
-import {
-  useLazyLoadQuery,
-  graphql,
-  useRelayEnvironment,
-  QueryRenderer,
-} from 'react-relay'
+import { graphql, useRelayEnvironment, QueryRenderer } from 'react-relay'
 
 import type { pagesQueryResponse } from '../types/pagesQuery.graphql'
 
