@@ -379,7 +379,7 @@ export async function imageOptimizer(
   ) {
     contentType = upstreamType
   } else {
-    contentType = JPEG
+    contentType = PNG
   }
   try {
     let optimizedBuffer: Buffer | undefined
