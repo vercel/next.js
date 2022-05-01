@@ -29,7 +29,7 @@ export function useIntersection<T extends Element>({
   rootRef,
   rootMargin,
   disabled,
-}: UseIntersection): [(element: T | null) => void, boolean] {
+}: UseIntersection): [(element: T | null) => void, boolean, () => void] {
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const unobserve = useRef<Function>()
@@ -55,6 +55,10 @@ export function useIntersection<T extends Element>({
     [isDisabled, root, rootMargin, visible]
   )
 
+  const resetVisible = useCallback(() => {
+    setVisible(false)
+  }, [])
+
   useEffect(() => {
     if (!hasIntersectionObserver) {
       if (!visible) {
@@ -67,7 +71,7 @@ export function useIntersection<T extends Element>({
   useEffect(() => {
     if (rootRef) setRoot(rootRef.current)
   }, [rootRef])
-  return [setRef, visible]
+  return [setRef, visible, resetVisible]
 }
 
 function observe(

@@ -10,15 +10,15 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.42"
 console_error_panic_hook = "0.1.6"
+next-swc = {version = "0.0.0", path = "../core"}
 once_cell = "1.3.1"
 parking_lot_core = "=0.8.0"
 path-clean = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
-next-swc = { version = "0.0.0", path = "../core" }
-swc = "0.138.0"
-swc_common = { version = "0.17.9", features = ["concurrent", "sourcemap"] }
-swc_ecmascript = { version = "0.123.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+swc = "0.172.1"
+swc_common = { version = "0.17.25", features = ["concurrent", "sourcemap"] }
+swc_ecmascript = { version = "0.150.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"

@@ -21,6 +21,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-elasticsearch with-elasticsearch-app
 # or
 yarn create next-app --example with-elasticsearch with-elasticsearch-app
+# or
+pnpm create next-app -- --example with-elasticsearch with-elasticsearch-app
 ```
 
 ## Configuration

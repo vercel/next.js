@@ -2,9 +2,9 @@
 # https://help.github.com/en/articles/about-code-owners
 
 *          @timneutkens @ijjk @shuding @huozhi
-/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia
-/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @lfades @molebox
-/examples/ @timneutkens @ijjk @shuding @leerob @lfades @steven-tey
+/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @balazsorban44
+/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44
+/examples/ @timneutkens @ijjk @shuding @leerob @steven-tey @balazsorban44
 
 # SWC Build (@padmaia)
 

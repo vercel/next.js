@@ -10,6 +10,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 
@@ -438,6 +439,7 @@ For example, we can add a test to check if the `<Home />` component successfully
 
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {

@@ -1,28 +1,34 @@
 # React 18
 
-[React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
+[React 18](https://reactjs.org/blog/2022/03/29/react-v18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 Next.js also provides streaming related APIs, please checkout [next/streaming](/docs/api-reference/next/streaming.md) for details.
 
-React 18 is now in Release Candidate (RC). Read more about React 18's [release plan](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
+React 18 is now released. Read more about [React 18](https://reactjs.org/blog/2022/03/29/react-v18.html).
 
 ## Using React 18 with Next.js
 
-Install the RC version of React 18:
+Install the latest version of React:
 
 ```jsx
-npm install next@latest react@rc react-dom@rc
+npm install next@latest react@latest react-dom@latest
 ```
 
 You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
 
-## Streaming SSR (Alpha)
+## Streaming SSR
 
-Streaming server-rendering (SSR) is an experimental feature in Next.js 12. When enabled, SSR will use the same [Edge Runtime](/docs/api-reference/edge-runtime.md) as [Middleware](/docs/middleware.md).
+Next.js supports React 18 streaming server-rendering (SSR) out of the box.
 
-[Learn how to enable streaming in Next.js.](/docs/advanced-features/react-18/streaming.md)
+[Learn more about streaming in Next.js](/docs/advanced-features/react-18/streaming.md).
 
 ## React Server Components (Alpha)
 
 Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
 
 Server Components are still in research and development. [Learn how to try Server Components](/docs/advanced-features/react-18/server-components.md) as an experimental feature in Next.js.
+
+## Switchable Runtime (Alpha)
+
+Next.js supports changing the runtime of your application between Node.js and the [Edge Runtime](/docs/api-reference/edge-runtime.md) at the page level. For example, you can selectively configure specific pages to be server-side rendered in the Edge Runtime.
+
+This feature is still experimental. [Learn more about the switchable runtime](/docs/advanced-features/react-18/switchable-runtime.md).

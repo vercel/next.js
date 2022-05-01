@@ -6,7 +6,7 @@ use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
     ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
     ExprOrSpread, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, MemberProp,
-    Null, ObjectLit, Prop, PropName, PropOrSpread, Str, StrKind,
+    Null, ObjectLit, Prop, PropName, PropOrSpread, Str,
 };
 use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::utils::{
@@ -148,8 +148,7 @@ impl Fold for NextDynamicPatcher {
                                                 )
                                                 .into(),
                                                 span: DUMMY_SP,
-                                                kind: StrKind::Synthesized {},
-                                                has_escape: false,
+                                                raw: None,
                                             }))),
                                             right: Box::new(Expr::Lit(Lit::Str(Str {
                                                 value: self
@@ -159,10 +158,7 @@ impl Fold for NextDynamicPatcher {
                                                     .clone()
                                                     .into(),
                                                 span: DUMMY_SP,
-                                                kind: StrKind::Normal {
-                                                    contains_quote: false,
-                                                },
-                                                has_escape: false,
+                                                raw: None,
                                             }))),
                                         })),
                                         spread: None,
@@ -202,8 +198,7 @@ impl Fold for NextDynamicPatcher {
                                                             .clone()
                                                             .into(),
                                                         span: DUMMY_SP,
-                                                        kind: StrKind::Synthesized {},
-                                                        has_escape: false,
+                                                        raw: None,
                                                     }))),
                                                     spread: None,
                                                 }],

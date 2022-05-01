@@ -18,6 +18,7 @@ export type ServerlessLoaderQuery = {
   distDir: string
   absolutePagePath: string
   absoluteAppPath: string
+  absoluteAppServerPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolute404Path: string
@@ -55,7 +56,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
     i18n,
     reactRoot,
   }: ServerlessLoaderQuery =
-    typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+    typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
@@ -104,19 +105,15 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
-        const combinedRewrites = Array.isArray(routesManifest.rewrites)
-          ? routesManifest.rewrites
-          : []
-
-        if (!Array.isArray(routesManifest.rewrites)) {
-          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-          combinedRewrites.push(...routesManifest.rewrites.fallback)
-        }
+        const rewrites = Array.isArray(routesManifest.rewrites)
+          ? {
+            afterFiles: routesManifest.rewrites
+          }
+          : routesManifest.rewrites
 
         const apiHandler = getApiHandler({
           pageModule: require(${stringifyRequest(this, absolutePagePath)}),
-          rewrites: combinedRewrites,
+          rewrites: rewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -165,15 +162,11 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
-      const combinedRewrites = Array.isArray(routesManifest.rewrites)
-        ? routesManifest.rewrites
-        : []
-
-      if (!Array.isArray(routesManifest.rewrites)) {
-        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-        combinedRewrites.push(...routesManifest.rewrites.fallback)
-      }
+      const rewrites = Array.isArray(routesManifest.rewrites)
+        ? {
+          afterFiles: routesManifest.rewrites
+        }
+        : routesManifest.rewrites
 
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
@@ -201,7 +194,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: combinedRewrites,
+        rewrites: rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

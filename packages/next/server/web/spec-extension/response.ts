@@ -67,9 +67,14 @@ export class NextResponse extends Response {
     return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
   }
 
-  static json(body: any) {
+  static json(body: any, init?: ResponseInit) {
+    const { headers, ...responseInit } = init || {}
     return new NextResponse(JSON.stringify(body), {
-      headers: { 'content-type': 'application/json' },
+      ...responseInit,
+      headers: {
+        ...headers,
+        'content-type': 'application/json',
+      },
     })
   }
 

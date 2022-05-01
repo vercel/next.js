@@ -55,8 +55,6 @@ The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.
 
 The `waitUntil()` method can be used to prolong the execution of the function, after the response has been sent. In practice this means that you can send a response, then continue the function execution if you have other background work to make.
 
-An example of _why_ you would use `waitUntil()` is integrations with logging tools such as [Sentry](https://sentry.io) or [DataDog](https://www.datadoghq.com). After the response has been sent, you can send logs of response times, errors, API call durations or overall performance metrics.
-
 The `event` object is fully typed and can be imported from `next/server`.
 
 ```ts
@@ -165,6 +163,10 @@ The introduction of the `307` status code means that the request method is prese
 - `307` - Temporary redirect, will preserve the request method as `POST`
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
+
+If you want to cause a `GET` response to a `POST` request, use `303`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections) about HTTP Redirects.
 
 ### How do I access Environment Variables?
 

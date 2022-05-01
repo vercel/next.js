@@ -81,7 +81,7 @@ store.subscribe((state) => {
       const matches = cleanError.match(/\[.*\]=/)
       if (matches) {
         for (const match of matches) {
-          const prop = (match.split(']').shift() || '').substr(1)
+          const prop = (match.split(']').shift() || '').slice(1)
           console.log(
             `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
           )

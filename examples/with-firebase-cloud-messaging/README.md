@@ -10,6 +10,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 # or
 yarn create next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
+# or
+pnpm create next-app -- --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 ```
 
 ## Set your send id
