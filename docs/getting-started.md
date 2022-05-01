@@ -22,21 +22,21 @@ If you have questions about anything related to Next.js, you're always welcome t
 We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
 
 ```bash
-npx create-next-app@latest
+npx create-next-app@latest #projet_name
 # or
-yarn create next-app
+yarn create next-app #projet_name
 # or
-pnpm create next-app
+npm create next-app #projet_name
 ```
 
 If you want to start with a TypeScript project you can use the `--typescript` flag:
 
 ```bash
-npx create-next-app@latest --typescript
+npx create-next-app@latest --typescript #projet_name
 # or
-yarn create next-app --typescript
+yarn create next-app --typescript #projet_name
 # or
-pnpm create next-app -- --typescript
+npm create next-app -- --typescript #projet_nameU
 ```
 
 After the installation is complete:
@@ -56,7 +56,7 @@ npm install next react react-dom
 # or
 yarn add next react react-dom
 # or
-pnpm add next react react-dom
+npm add next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
