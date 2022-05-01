@@ -12,7 +12,34 @@ describe('next/jest', () => {
       files: {
         components: new FileRef(path.join(appDir, 'components')),
         pages: new FileRef(path.join(appDir, 'pages')),
-        tests: new FileRef(path.join(appDir, 'tests')),
+        'tests/entry.test.tsx': `
+        import { render as renderFn, waitFor } from '@testing-library/react'
+        import { RelayEnvironmentProvider } from 'react-relay'
+        import { createMockEnvironment, MockPayloadGenerator } from 'relay-test-utils'
+        
+        import Page from '../pages'
+        
+        describe('test graphql tag transformation', () => {
+          it('should work', async () => {
+            let environment = createMockEnvironment()
+        
+            const { getByText } = renderFn(
+              <RelayEnvironmentProvider environment={environment}>
+                <Page />
+              </RelayEnvironmentProvider>
+            )
+        
+            environment.mock.resolveMostRecentOperation((operation) => {
+              return MockPayloadGenerator.generate(operation)
+            })
+        
+            await waitFor(() => getByText('Data requested:'))
+        
+            expect(getByText('Data requested:')).not.toBe(null)
+          })
+        })
+        
+        `,
         types: new FileRef(path.join(appDir, 'types')),
         'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
         'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
