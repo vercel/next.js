@@ -63,7 +63,7 @@ import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {

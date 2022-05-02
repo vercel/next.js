@@ -1,15 +1,11 @@
+import { getModuleBuildInfo } from './get-module-build-info'
 import crypto from 'crypto'
-
-export type WasmBinding = {
-  filePath: string
-  name: string
-}
 
 export default function MiddlewareWasmLoader(this: any, source: Buffer) {
   const name = `wasm_${sha1(source)}`
   const filePath = `edge-chunks/${name}.wasm`
-  const binding: WasmBinding = { filePath: `server/${filePath}`, name }
-  this._module.buildInfo.nextWasmMiddlewareBinding = binding
+  const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextWasmMiddlewareBinding = { filePath: `server/${filePath}`, name }
   this.emitFile(`/${filePath}`, source, null)
   return `module.exports = ${name};`
 }

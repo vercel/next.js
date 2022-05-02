@@ -32,10 +32,6 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths, PageConfig } from 'next/types'
-import {
-  denormalizePagePath,
-  normalizePagePath,
-} from '../server/normalize-page-path'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -48,6 +44,8 @@ import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPageRuntime } from './entries'
 
 const { builtinModules } = require('module')
