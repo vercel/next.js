@@ -459,6 +459,7 @@ export default async function getBaseWebpackConfig(
             development: dev,
             hasReactRefresh: dev && isClient,
             hasJsxRuntime: true,
+            nextConfig: config,
           },
         }
   }

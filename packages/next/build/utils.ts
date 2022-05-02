@@ -1101,6 +1101,18 @@ export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   )
 }
 
+export function isPage(
+  filename: string,
+  pagesDir: string,
+  pageExtensions: NextConfigComplete['pageExtensions']
+): boolean {
+  return (
+    filename.startsWith(pagesDir) &&
+    (!pageExtensions.length ||
+      pageExtensions.some((ext) => filename.endsWith(ext)))
+  )
+}
+
 export function isFlightPage(
   nextConfig: NextConfigComplete,
   filePath: string

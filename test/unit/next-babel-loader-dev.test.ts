@@ -21,6 +21,7 @@ const babel = async (code: string, queryOpts = {} as any) => {
     cache: false,
     development: true,
     hasReactRefresh: !isServer,
+    nextConfig: { pageExtensions: [] },
   }
   return new Promise<string>((resolve, reject) => {
     function callback(err, content) {

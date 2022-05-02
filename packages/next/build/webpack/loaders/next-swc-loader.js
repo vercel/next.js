@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
+import { isPage } from '../../utils'
 import { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
@@ -38,7 +39,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig } =
     loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
+  const isPageFile = isPage(filename, pagesDir, nextConfig.pageExtensions)
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
