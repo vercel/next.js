@@ -78,7 +78,7 @@ import {
   eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { CompilerResult, runCompiler } from './compiler'
+import { runCompiler } from './compiler'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -96,6 +96,7 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
@@ -135,6 +136,16 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
+type CompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: [
+    webpack.Stats | undefined,
+    webpack.Stats | undefined,
+    webpack.Stats | undefined
+  ]
+}
+
 export default async function build(
   dir: string,
   conf = null,
@@ -164,7 +175,6 @@ export default async function build(
       // We enable concurrent features (Fizz-related rendering architecture) when
       // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasConcurrentFeatures = hasReactRoot
       const hasServerComponents =
         hasReactRoot && !!config.experimental.serverComponents
 
@@ -619,7 +629,11 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let result: CompilerResult = { warnings: [], errors: [] }
+      let result: CompilerResult = {
+        warnings: [],
+        errors: [],
+        stats: [undefined, undefined, undefined],
+      }
       let webpackBuildStart
       let telemetryPlugin
       await (async () => {
@@ -684,6 +698,7 @@ export default async function build(
             result = {
               warnings: [...clientResult.warnings],
               errors: [...clientResult.errors],
+              stats: [clientResult.stats, undefined, undefined],
             }
           } else {
             const serverResult = await runCompiler(configs[1], {
@@ -703,6 +718,11 @@ export default async function build(
                 ...clientResult.errors,
                 ...serverResult.errors,
                 ...(edgeServerResult?.errors || []),
+              ],
+              stats: [
+                clientResult.stats,
+                serverResult.stats,
+                edgeServerResult?.stats,
               ],
             }
           }
@@ -745,14 +765,18 @@ export default async function build(
         console.error(error)
         console.error()
 
-        // When using the web runtime, common Node.js native APIs are not available.
-        const moduleName = getUnresolvedModuleFromError(error)
-        if (hasConcurrentFeatures && moduleName) {
-          const err = new Error(
-            `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
+        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
+
+        for (const err of edgeRuntimeErrors) {
+          // When using the web runtime, common Node.js native APIs are not available.
+          const moduleName = getUnresolvedModuleFromError(err.message)
+          if (!moduleName) continue
+
+          const e = new Error(
+            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
           ) as NextError
-          err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw err
+          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
+          throw e
         }
 
         if (
