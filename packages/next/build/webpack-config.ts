@@ -436,6 +436,16 @@ export default async function getBaseWebpackConfig(
   }
 
   const getBabelOrSwcLoader = () => {
+    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+      // This will init subscribers once only in a single process lifecycle,
+      // even though it can be called multiple times.
+      // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
+      // to collect correct trace spans when they are called.
+      require('./swc')?.initCustomTraceSubscriber?.(
+        path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
+      )
+    }
+
     return useSWCLoader
       ? {
           loader: 'next-swc-loader',

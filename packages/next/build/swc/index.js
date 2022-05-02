@@ -17,6 +17,7 @@ let nativeBindings
 let wasmBindings
 let downloadWasmPromise
 let pendingBindings
+let swcTraceFlushGuard
 export const lockfilePatchPromise = {}
 
 async function loadBindings() {
@@ -261,6 +262,8 @@ function loadNative() {
       },
 
       getTargetTriple: bindings.getTargetTriple,
+      initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
+      teardownTraceSubscriber: bindings.teardownTraceSubscriber,
     }
     return nativeBindings
   }
@@ -320,3 +323,43 @@ export function getBinaryMetadata() {
     target: bindings?.getTargetTriple?.(),
   }
 }
+
+/**
+ * Initialize trace subscriber to emit traces.
+ *
+ */
+export const initCustomTraceSubscriber = (() => {
+  return (filename) => {
+    if (!swcTraceFlushGuard) {
+      // Wasm binary doesn't support trace emission
+      let bindings = loadNative()
+      swcTraceFlushGuard = bindings.initCustomTraceSubscriber(filename)
+    }
+  }
+})()
+
+/**
+ * Teardown swc's trace subscriber if there's an initialized flush guard exists.
+ *
+ * This is workaround to amend behavior with process.exit
+ * (https://github.com/vercel/next.js/blob/4db8c49cc31e4fc182391fae6903fb5ef4e8c66e/packages/next/bin/next.ts#L134=)
+ * seems preventing napi's cleanup hook execution (https://github.com/swc-project/swc/blob/main/crates/node/src/util.rs#L48-L51=),
+ *
+ * instead parent process manually drops guard when process gets signal to exit.
+ */
+export const teardownTraceSubscriber = (() => {
+  let flushed = false
+  return () => {
+    if (!flushed) {
+      flushed = true
+      try {
+        let bindings = loadNative()
+        if (swcTraceFlushGuard) {
+          bindings.teardownTraceSubscriber(swcTraceFlushGuard)
+        }
+      } catch (e) {
+        // Suppress exceptions, this fn allows to fail to load native bindings
+      }
+    }
+  }
+})()

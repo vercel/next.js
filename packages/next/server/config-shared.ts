@@ -132,6 +132,7 @@ export interface ExperimentalConfig {
       skipDefaultConversion?: boolean
     }
   >
+  swcTraceProfiling?: boolean
 }
 
 /**
