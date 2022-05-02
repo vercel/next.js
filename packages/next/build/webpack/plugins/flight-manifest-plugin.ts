@@ -201,7 +201,7 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id: id.slice('(sc_server)/'.length),
+              id: id.replace(/^\(sc_server\)\//, '(sc_client)/'),
               name,
               chunks: [],
             }

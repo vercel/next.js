@@ -91,8 +91,8 @@ export function getEntrypointInfo(
           ...entryFiles.flatMap((file) => {
             if (isServerComponent && file.startsWith('pages/')) {
               return [
-                'server/' + file.replace(/\.js$/, '.__sc_client__.js'),
                 'server/' + file,
+                'server/' + file.replace(/\.js$/, '.__sc_client__.js'),
               ]
             }
             return 'server/' + file

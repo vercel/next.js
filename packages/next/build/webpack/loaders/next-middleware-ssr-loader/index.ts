@@ -30,6 +30,7 @@ export default async function middlewareSSRLoader(this: any) {
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
     import { RouterContext } from 'next/dist/shared/lib/router-context'
+    import React from 'react'
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
@@ -45,13 +46,11 @@ export default async function middlewareSSRLoader(this: any) {
       stringified500Path ? `require(${stringified500Path})` : 'null'
     }
 
-    if (${isServerComponent}) {
-      pageMod.__next_rsc__.__next_rsc_client_entry__ = self._CLIENT_ENTRY.__next_rsc_client_entry__
-    }
-
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
+
+    self.__REACT = React
 
     // Set server context
     self.__server_context = {
@@ -76,6 +75,10 @@ export default async function middlewareSSRLoader(this: any) {
     })
 
     export default function rscMiddleware(opts) {
+      if (${isServerComponent}) {
+        pageMod.__next_rsc__.__next_rsc_client_entry__ = self._CLIENT_ENTRY.__next_rsc_client_entry__
+      }
+  
       return adapter({
         ...opts,
         handler: render

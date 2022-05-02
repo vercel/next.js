@@ -3,6 +3,13 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
+import type {
+  PageConfig,
+  GetStaticPaths,
+  GetServerSideProps,
+  GetStaticProps,
+} from 'next/types'
+
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -12,12 +19,6 @@ import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
-import {
-  PageConfig,
-  GetStaticPaths,
-  GetServerSideProps,
-  GetStaticProps,
-} from 'next/types'
 import { normalizePagePath } from './normalize-page-path'
 
 export type ManifestItem = {

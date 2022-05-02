@@ -962,14 +962,14 @@ export default async function getBaseWebpackConfig(
           'next',
           ...(isEdgeRuntime
             ? [
-                // {
-                //   byLayer: {
-                //     sc_client: {
-                //       // @ts-ignore
-                //       react: ''
-                //     }
-                //   }
-                // },
+                {
+                  byLayer: {
+                    sc_client: {
+                      // @ts-ignore
+                      react: 'globalThis.__REACT',
+                    },
+                  },
+                },
                 {
                   '@builder.io/partytown': '{}',
                   'next/dist/compiled/etag': '{}',
