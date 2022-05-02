@@ -96,6 +96,8 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir: string
+  // @ts-ignore TODO: add implementation
+  private rootDir?: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -175,7 +177,13 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    this.pagesDir = findPagesDir(this.dir)
+    // TODO: hot-reload root/pages dirs?
+    const { pages: pagesDir, root: rootDir } = findPagesDir(
+      this.dir,
+      this.nextConfig.experimental.rootDir
+    )
+    this.pagesDir = pagesDir
+    this.rootDir = rootDir
   }
 
   protected getBuildId(): string {
@@ -361,7 +369,12 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(this.dir, this.pagesDir, false, this.nextConfig)
+    await verifyTypeScriptSetup(
+      this.dir,
+      [this.pagesDir!, this.rootDir].filter(Boolean) as string[],
+      false,
+      this.nextConfig
+    )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 

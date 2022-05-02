@@ -25,6 +25,7 @@ import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
 import runtime from './runtime'
+import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
 const rscAppPage = `
 import Container from '../components/container.server'
@@ -52,7 +53,7 @@ export default function Page500() {
 describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
+      getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('dns')
     const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
       stderr: true,
     })
