@@ -10,7 +10,7 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-function findDir(dir: string, name: string): string | null {
+function findDir(dir: string, name: 'pages' | 'root'): string | null {
   // prioritize ./${name} over ./src/${name}
   let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
