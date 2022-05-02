@@ -32,7 +32,14 @@ export default (context, _render) => {
     })
   })
 
-  it('flushes styles as the page renders', async () => {
+  it('flushes styled-jsx styles as the page renders', async () => {
+    const html = await renderViaHTTP(
+      context.appPort,
+      '/use-flush-effect/styled-jsx'
+    )
+    const stylesOccurrence = html.match(/color:(\s)*blue/g) || []
+    expect(stylesOccurrence.length).toBe(1)
+
     await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
       await check(
         () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
