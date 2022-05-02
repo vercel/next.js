@@ -36,6 +36,23 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
      npm install @next/mdx @mdx-js/loader
    ```
 
+#### Options in webpack requirement in MDX
+
+when installing mdx packages as instructed on Using MDX page,
+you can see the "webpack" peer dependency warning below.
+
+```bash
+ ERR_PNPM_PEER_DEP_ISSUES  Unmet peer dependencies
+
+.
+└─┬ @mdx-js/loader
+└── ✕ missing peer webpack@>=4
+Peer dependencies that should be installed:
+webpack@>=4
+```
+
+because mdx loader requires webpack as peer dep, but next.js already has webpack bundled in,not as a dependency. so It's an expected outcome and you can ignore it if you want.
+
 2. Require the package and configure to support top level `.mdx` pages. The following adds the `options` object key allowing you to pass in any plugins:
 
    ```js
@@ -63,23 +80,6 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
        - my-mdx-page.mdx
      - package.json
    ```
-
-4. Options in webpack requirement in MDX
-
-when installing mdx packages as instructed on Using MDX page,
-you can see the "webpack" peer dependency warning below.
-
-```bash
- ERR_PNPM_PEER_DEP_ISSUES  Unmet peer dependencies
-
-.
-└─┬ @mdx-js/loader
-└── ✕ missing peer webpack@>=4
-Peer dependencies that should be installed:
-webpack@>=4
-```
-
-because mdx loader requires webpack as peer dep, but next.js already has webpack bundled in,not as a dependency. so It's an expected outcome and you can ignore it if you want.
 
 ## Using Components, Layouts and Custom Elements
 
