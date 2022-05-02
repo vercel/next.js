@@ -100,7 +100,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
-  isFlightPage,
+  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -977,7 +977,7 @@ export default async function build(
                 : undefined
 
               if (hasServerComponents && pagePath) {
-                if (isFlightPage(config, pagePath)) {
+                if (isServerComponentPage(config, pagePath)) {
                   isServerComponent = true
                 }
               }

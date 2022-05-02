@@ -1101,7 +1101,7 @@ export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   )
 }
 
-export function isFlightPage(
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
