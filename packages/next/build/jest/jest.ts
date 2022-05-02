@@ -51,11 +51,11 @@ export default function nextJest(options: { dir?: string } = {}) {
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
-      let pagesDir
+      let pagesDir: string | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
-        pagesDir = findPagesDir(resolvedDir)
+        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
