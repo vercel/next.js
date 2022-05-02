@@ -236,17 +236,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
 
-      // static images are automatically prefixed with assetPrefix
-      // so we need to ensure _next/image allows downloading from
-      // this resource
+      // Static images are automatically prefixed with assetPrefix
+      // so we must add to allowed remotePatterns which is used by
+      // the default Image Optimization API.
       if (config.assetPrefix?.startsWith('http')) {
-        const {
-          protocol: proto,
-          hostname,
-          pathname,
-        } = new URL(config.assetPrefix)
+        const { protocol: proto, hostname, port } = new URL(config.assetPrefix)
         const protocol = proto === 'https:' ? 'https' : 'http'
-        images.remotePatterns.push({ protocol, hostname, pathname })
+        images.remotePatterns.push({ protocol, hostname, port })
       }
 
       if (images.remotePatterns.length > 50) {
