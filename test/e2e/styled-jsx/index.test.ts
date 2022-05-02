@@ -27,8 +27,7 @@ function runTest(packageManager?: string) {
     it('should contain styled-jsx styles in html', async () => {
       const html = await renderViaHTTP(next.url, '/')
       const $ = cheerio.load(html)
-      const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-      expect($(isReact17 ? 'head' : 'body').text()).toMatch(/color:(\s)*red/)
+      expect($('html').text()).toMatch(/color:(\s)*red/)
     })
   })
 }

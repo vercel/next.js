@@ -90,7 +90,6 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
-const GIP_GEN_STYLES = '__GIP_GEN_STYLES__'
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
   : require('react-dom/server')
@@ -772,7 +771,7 @@ export async function renderToHTML(
 
       const { html, head } = await docCtx.renderPage({ enhanceApp })
       const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
-      ;(styles as any)[GIP_GEN_STYLES] = true
+      jsxStyleRegistry.flush()
       return { html, head, styles }
     },
   }
@@ -1577,12 +1576,9 @@ export async function renderToHTML(
         return <Document {...htmlProps} {...docProps} />
       }
 
-      let styles: any[]
+      let styles
       if (hasDocumentGetInitialProps) {
-        // If styles are generated from default Document.getInitialProps in concurrent mode,
-        // discard it and use generated styles from flush-effects instead.
-        // To guarantee it's concurrent safe and no duplicates in both head and body.
-        styles = docProps.styles[GIP_GEN_STYLES] ? [] : docProps.styles
+        styles = docProps.styles
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()
