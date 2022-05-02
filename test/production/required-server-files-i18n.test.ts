@@ -47,14 +47,14 @@ describe('should set-up next', () => {
           join(__dirname, 'required-server-files/data.txt')
         ),
       },
-      packageJson: wasmPkgIsAvailable
-        ? {
-            scripts: {
-              build: 'rm -rfv node_modules/@next/swc && yarn next build',
-            },
-          }
-        : undefined,
-      buildCommand: wasmPkgIsAvailable ? 'yarn build' : undefined,
+      packageJson: {
+        scripts: {
+          build: wasmPkgIsAvailable
+            ? 'rm -rfv node_modules/@next/swc && yarn next build'
+            : 'yarn next build',
+        },
+      },
+      buildCommand: 'yarn build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],
