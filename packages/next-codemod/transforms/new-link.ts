@@ -22,6 +22,13 @@ export default function transformer(file: FileInfo, api: API) {
       }
 
       const linkElements = $j.findJSXElements(variableName)
+      const hasStylesJSX = $j.findJSXElements('style').some((stylePath) => {
+        const $style = j(stylePath)
+        const hasJSXProp =
+          $style.find(j.JSXAttribute, { name: { name: 'jsx' } }).size() !== 0
+
+        return hasJSXProp
+      })
 
       linkElements.forEach((linkPath) => {
         const $link = j(linkPath).filter((childPath) => {
@@ -34,6 +41,15 @@ export default function transformer(file: FileInfo, api: API) {
         })
 
         if ($link.size() === 0) {
+          return
+        }
+
+        // If file has <style jsx> enable legacyBehavior
+        // and keep <a> to  stay on the safe side
+        if (hasStylesJSX) {
+          $link
+            .get('attributes')
+            .push(j.jsxAttribute(j.jsxIdentifier('legacyBehavior')))
           return
         }
 
