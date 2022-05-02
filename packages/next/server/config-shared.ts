@@ -19,8 +19,8 @@ export type NextConfigComplete = Required<NextConfig> & {
 
 export interface I18NConfig {
   defaultLocale: string
+  domainHeader?: string
   domains?: DomainLocale[]
-  trustProxy?: false
   localeDetection?: false
   locales: string[]
 }

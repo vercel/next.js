@@ -209,7 +209,7 @@ describe('i18n Support', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// localeDetection', 'localeDetection')
-      nextConfig.replace('// trustProxy', 'trustProxy')
+      nextConfig.replace('// domainHeader', 'domainHeader')
 
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -240,8 +240,8 @@ describe('i18n Support', () => {
           'do',
           'do-BE',
         ],
-        trustProxy: true,
         defaultLocale: 'en-US',
+        domainHeader: 'x-forwarded-host',
         domains: [
           {
             http: true,
@@ -258,7 +258,7 @@ describe('i18n Support', () => {
       })
     })
 
-    it('should detect locale from x-forwarded-host', async () => {
+    it('should detect locale from matching x-forwarded-host header', async () => {
       const res = await fetchViaHTTP(
         ctx.appPort,
         '/',
@@ -275,6 +275,28 @@ describe('i18n Support', () => {
       const $ = cheerio.load(await res.text())
       expect($('html').attr('lang')).toBe('do')
       expect($('#router-locale').text()).toBe('do')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
+    })
+
+    it('should detect locale from not matching x-forwarded-host header', async () => {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/',
+        {},
+        {
+          redirect: 'manual',
+          headers: {
+            'x-forwarded-host': 'not.example.do',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
       expect($('#router-pathname').text()).toBe('/')
       expect($('#router-as-path').text()).toBe('/')

@@ -17,8 +17,8 @@ module.exports = {
       'do',
       'do-BE',
     ],
-    // trustProxy: true,
     defaultLocale: 'en-US',
+    // domainHeader: 'x-forwarded-host',
     domains: [
       {
         http: true,

@@ -97,7 +97,8 @@ module.exports = {
   i18n: {
     locales: ['en-US', 'fr', 'nl-NL', 'nl-BE'],
     defaultLocale: 'en-US',
-
+    // Note: the property allows NextJS to use a different host header (useful when nextjs server is behind a proxy).
+    // domainHeader: 'x-forwarded-host',
     domains: [
       {
         // Note: subdomains must be included in the domain value to be matched
@@ -128,6 +129,8 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.fr/blog`
 - `example.nl/blog`
 - `example.nl/nl-BE/blog`
+
+In case your application is behind a proxy, you can use `domainHeader` set to `x-forwarded-host` (for example) in order for the server to use another domain header.
 
 ## Automatic Locale Detection
 

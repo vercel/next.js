@@ -77,9 +77,9 @@ function getHostname(
   headers?: { [key: string]: string | string[] | undefined }
 ) {
   return (
-    (i18n.trustProxy &&
-      !Array.isArray(headers?.['x-forwarded-host']) &&
-      headers?.['x-forwarded-host']) ||
+    ((i18n.domainHeader &&
+      !Array.isArray(headers?.[i18n.domainHeader]) &&
+      headers?.[i18n.domainHeader]) as string | undefined) ||
     (!Array.isArray(headers?.host) && headers?.host) ||
     parsed.hostname
   )
