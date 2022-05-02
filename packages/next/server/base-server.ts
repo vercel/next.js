@@ -11,7 +11,12 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
-import type { CacheFs } from '../shared/lib/utils'
+import {
+  CacheFs,
+  NormalizeError,
+  DecodeError,
+  normalizeRepeatedSlashes,
+} from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -39,7 +44,6 @@ import {
   checkIsManualRevalidate,
 } from './api-utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import { DecodeError, normalizeRepeatedSlashes } from '../shared/lib/utils'
 import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -50,7 +54,7 @@ import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { denormalizePagePath } from './denormalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
@@ -133,7 +137,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected quiet: boolean
   protected nextConfig: NextConfigComplete
   protected distDir: string
-  protected pagesDir?: string
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
@@ -565,7 +568,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             ])
           }
         } catch (err) {
-          if (err instanceof DecodeError) {
+          if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
             return this.renderError(null, req, res, '/_error', {})
           }
@@ -613,7 +616,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } catch (err: any) {
       if (
         (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
-        err instanceof DecodeError
+        err instanceof DecodeError ||
+        err instanceof NormalizeError
       ) {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
@@ -986,7 +990,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return
       }
     } catch (err) {
-      if (err instanceof DecodeError) {
+      if (err instanceof DecodeError || err instanceof NormalizeError) {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
@@ -1746,7 +1750,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
-      if (err instanceof DecodeError) {
+      if (err instanceof DecodeError || err instanceof NormalizeError) {
         res.statusCode = 400
         return await this.renderErrorToResponse(ctx, err)
       }
