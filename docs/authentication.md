@@ -102,32 +102,6 @@ export default Profile
 
 An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and increasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).
 
-### Protect your sensitive information using Next.js
-
-At this point, we should use both `getInitialProps` in a custom `_app` combined with a getStaticProps and revalidate on a page including your cradential, in order not to accidentally cache sensitive information.There are several solutions to this issue.
-
-1. you can use Middleware recently introduced in NextAuth.js. you can lock down your whole site with a single line:
-
-```jsx
-export { default } from 'next-auth/middleware'
-```
-
-2. you can use getServerSideProps: Fetching the user data must happen dynamically, to avoid caching sensitive information. Instead of getInitialProps + getStaticSideProps, you can simply add the following to your desired pages:
-
-```jsx
-export async function getServerSideProps(ctx) {
-  return {
-    props: { session: await getSession(ctx) },
-  }
-}
-```
-
-3. If you think it's annoying to add this to several pages, you can define this function in a shared location and add only this to the pages:
-
-```jsx
-export { getServerSideProps } from 'shared'
-```
-
 ## Authentication Providers
 
 Now that we've discussed authentication patterns, let's look at specific providers and explore how they're used with Next.js.
