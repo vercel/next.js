@@ -1410,6 +1410,16 @@ export async function ncc_nft(task, opts) {
     .ncc({ packageName: '@vercel/nft', externals })
     .target('compiled/@vercel/nft')
 }
+
+// eslint-disable-next-line camelcase
+externals['tar'] = 'next/dist/compiled/tar'
+export async function ncc_tar(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('tar')))
+    .ncc({ packageName: 'tar', externals })
+    .target('compiled/tar')
+}
+
 // eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
@@ -1729,6 +1739,7 @@ export async function ncc(task, opts) {
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_nft',
+        'ncc_tar',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
