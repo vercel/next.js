@@ -17,7 +17,7 @@ import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
 import { parse } from '../build/swc'
-import { isFlightPage, withoutRSCExtensions } from './utils'
+import { isServerComponentPage, withoutRSCExtensions } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
@@ -251,7 +251,10 @@ export function getEdgeServerEntry(opts: {
     absolutePagePath: opts.absolutePagePath,
     buildId: opts.buildId,
     dev: opts.isDev,
-    isServerComponent: isFlightPage(opts.config, opts.absolutePagePath),
+    isServerComponent: isServerComponentPage(
+      opts.config,
+      opts.absolutePagePath
+    ),
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
   }

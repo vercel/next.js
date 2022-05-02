@@ -163,7 +163,11 @@ function formatWebpackMessages(json, verbose) {
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)
   })
-  const result = { errors: formattedErrors, warnings: formattedWarnings }
+  const result = {
+    ...json,
+    errors: formattedErrors,
+    warnings: formattedWarnings,
+  }
   if (!verbose && result.errors.some(isLikelyASyntaxError)) {
     // If there are any syntax errors, show just them.
     result.errors = result.errors.filter(isLikelyASyntaxError)
