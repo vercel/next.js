@@ -62,7 +62,7 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
-import { isCustomErrorPage, isReservedPage } from '../../build/utils'
+import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import {
   getPageStaticInfo,
@@ -334,19 +334,18 @@ export default class DevServer extends Server {
           }
 
           invalidatePageRuntimeCache(fileName, safeTime)
-          const pageRuntimeConfig = (
-            await getPageStaticInfo(fileName, this.nextConfig)
-          ).runtime
-          const isEdgeRuntime = pageRuntimeConfig === 'edge'
-
-          if (
-            isEdgeRuntime &&
-            !(isReservedPage(pageName) || isCustomErrorPage(pageName))
-          ) {
-            routedMiddleware.push(pageName)
-            ssrMiddleware.add(pageName)
-          }
-
+          runDependingOnPageType({
+            page: pageName,
+            pageRuntime: (
+              await getPageStaticInfo(fileName, this.nextConfig)
+            ).runtime,
+            onClient: () => {},
+            onServer: () => {},
+            onEdgeServer: () => {
+              routedMiddleware.push(pageName)
+              ssrMiddleware.add(pageName)
+            },
+          })
           routedPages.push(pageName)
         }
 
