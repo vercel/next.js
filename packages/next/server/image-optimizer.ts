@@ -10,7 +10,6 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
-import type { RemotePattern } from '../shared/lib/image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
@@ -18,10 +17,7 @@ import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
-import {
-  hasMatch,
-  matchRemotePattern,
-} from '../shared/lib/match-remote-pattern'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
