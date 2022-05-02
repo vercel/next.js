@@ -100,7 +100,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
-  isFlightPage,
+  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -196,7 +196,11 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const pagesDir = findPagesDir(dir)
+      const { pages: pagesDir, root: rootDir } = findPagesDir(
+        dir,
+        config.experimental.rootDir
+      )
+
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
@@ -230,7 +234,7 @@ export default async function build(
         .traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            pagesDir,
+            [pagesDir, rootDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
@@ -973,7 +977,7 @@ export default async function build(
                 : undefined
 
               if (hasServerComponents && pagePath) {
-                if (isFlightPage(config, pagePath)) {
+                if (isServerComponentPage(config, pagePath)) {
                   isServerComponent = true
                 }
               }
