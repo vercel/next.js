@@ -30,7 +30,6 @@ use crate::{
 };
 
 pub trait TurboTasksApi: Sync + Send {
-    fn pin(&self) -> Arc<dyn TurboTasksApi>;
     fn dynamic_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc;
     fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc;
     fn trait_call(
@@ -40,7 +39,6 @@ pub trait TurboTasksApi: Sync + Send {
         inputs: Vec<TaskInput>,
     ) -> RawVc;
     fn invalidate(&self, task: TaskId);
-    fn schedule(&self, task: TaskId);
 
     /// Eagerly notifies all tasks that were scheduled for notifications via
     /// `schedule_notify_tasks()`
@@ -58,12 +56,17 @@ pub trait TurboTasksApi: Sync + Send {
     fn get_fresh_slot(&self, task: TaskId) -> usize;
     fn read_current_task_slot(&self, index: usize) -> SlotContent;
     fn update_current_task_slot(&self, index: usize, content: SlotContent);
+}
+
+pub trait TurboTasksBackendApi: Sync + Send {
+    fn pin(&self) -> Arc<dyn TurboTasksApi>;
+
+    fn schedule(&self, task: TaskId);
+    fn schedule_backend_background_job(&self, id: BackgroundJobId);
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `notify_slot_change()` on all tasks.
     fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>);
-
-    fn schedule_backend_background_job(&self, id: BackgroundJobId);
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -327,9 +330,6 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     fn invalidate(&self, task: TaskId) {
         self.backend.invalidate_task(task, self);
     }
-    fn schedule(&self, task: TaskId) {
-        self.schedule(task);
-    }
 
     fn notify_scheduled_tasks(&self) {
         TASKS_TO_NOTIFY.with(|tasks| {
@@ -378,11 +378,12 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             self,
         );
     }
+}
 
+impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     fn pin(&self) -> Arc<dyn TurboTasksApi> {
         self.pin()
     }
-
     fn schedule_backend_background_job(&self, id: BackgroundJobId) {
         self.schedule_background_job(move |this| async move {
             this.backend.run_background_job(id, &*this).await;
@@ -396,6 +397,10 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             let mut list = tasks_list.borrow_mut();
             list.extend(tasks.iter());
         });
+    }
+
+    fn schedule(&self, task: TaskId) {
+        self.schedule(task);
     }
 }
 
@@ -502,7 +507,7 @@ impl CurrentSlotRef {
         if let Some(update) = update {
             tt.update_current_task_slot(
                 self.index,
-                SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(update))),
+                SlotContent(Some(SharedReference(Some(self.type_id), Arc::new(update)))),
             )
         }
     }
@@ -522,7 +527,10 @@ impl CurrentSlotRef {
         let tt = turbo_tasks();
         tt.update_current_task_slot(
             self.index,
-            SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(new_content))),
+            SlotContent(Some(SharedReference(
+                Some(self.type_id),
+                Arc::new(new_content),
+            ))),
         )
     }
 }

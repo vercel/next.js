@@ -31,6 +31,7 @@ pub use id::{FunctionId, TaskId, TraitTypeId, ValueTypeId};
 pub use lazy_static::lazy_static;
 pub use manager::{
     dynamic_call, get_invalidator, trait_call, turbo_tasks, Invalidator, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi,
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
@@ -38,7 +39,7 @@ pub use raw_vc::{RawVc, RawVcReadResult, ReadRawVcFuture};
 pub use task_input::TaskInput;
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
 pub use value::Value;
-pub use value_type::{TraitMethod, TraitType, ValueType};
+pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
 pub use vc::Vc;
 
 pub mod macro_helpers {

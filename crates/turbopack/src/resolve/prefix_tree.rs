@@ -5,9 +5,10 @@ use std::{
 
 use anyhow::{bail, Result};
 use json::JsonValue;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 struct PrefixTreeEntry<T> {
     direct_mapping: Option<T>,
     wildcard_mapping: Option<(T, bool)>,
@@ -24,7 +25,7 @@ impl<T> Default for PrefixTreeEntry<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub struct PrefixTree<T>(HashMap<String, PrefixTreeEntry<T>>);
 
 impl<T> Default for PrefixTree<T> {

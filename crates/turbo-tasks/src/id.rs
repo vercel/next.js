@@ -5,8 +5,8 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use crate::registry;
 
 macro_rules! define_id {
-    ($name:ident) => {
-        #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    (internal $name:ident $(,$derive:ty)*) => {
+        #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord $(,$derive)*)]
         pub struct $name {
             id: usize,
         }
@@ -31,15 +31,20 @@ macro_rules! define_id {
             }
         }
     };
+    ($name:ident) => {
+        define_id!(internal $name);
+    };
+    ($name:ident, derive($($derive:ty),*)) => {
+        define_id!(internal $name $(,$derive)*);
+    };
 }
 
-define_id!(TaskId);
+define_id!(TaskId, derive(Serialize, Deserialize));
 define_id!(FunctionId);
 define_id!(ValueTypeId);
 define_id!(TraitTypeId);
 define_id!(BackgroundJobId);
 
-// TODO
 macro_rules! make_serializable {
     ($ty:ty, $get_global_name:path, $get_id:path, $visitor_name:ident) => {
         impl Serialize for $ty {

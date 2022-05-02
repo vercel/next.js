@@ -1,7 +1,8 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize)]
 enum GlobPart {
     /// `/**/`: Matches any path of directories
     AnyDirectories,

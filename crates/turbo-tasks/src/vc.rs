@@ -18,7 +18,7 @@ pub struct Vc<T: Any + TraceRawVcs + Send + Sync> {
 }
 
 lazy_static! {
-    pub(crate) static ref VALUE_TYPE: ValueType = ValueType::new("generic vc".to_string());
+    pub(crate) static ref VALUE_TYPE: ValueType = ValueType::new::<Vc<()>>();
     static ref VALUE_TYPE_ID: ValueTypeId = registry::get_value_type_id(&VALUE_TYPE);
 }
 
@@ -116,20 +116,8 @@ impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for RawVc {
     }
 }
 
-impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for RawVc {
-    fn from(vc: &Vc<T>) -> Self {
-        vc.raw
-    }
-}
-
 impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for TaskInput {
     fn from(vc: Vc<T>) -> Self {
-        vc.raw.into()
-    }
-}
-
-impl<T: Any + TraceRawVcs + Send + Sync> From<&Vc<T>> for TaskInput {
-    fn from(vc: &Vc<T>) -> Self {
         vc.raw.into()
     }
 }
@@ -152,16 +140,6 @@ impl<T: Any + TraceRawVcs + Send + Sync> TraceRawVcs for Vc<T> {
 }
 
 impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for Vc<T> {
-    type Output = Result<RawVcReadResult<T>>;
-
-    type IntoFuture = ReadRawVcFuture<T>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        self.raw.into_read::<T>()
-    }
-}
-
-impl<T: Any + TraceRawVcs + Send + Sync> IntoFuture for &Vc<T> {
     type Output = Result<RawVcReadResult<T>>;
 
     type IntoFuture = ReadRawVcFuture<T>;

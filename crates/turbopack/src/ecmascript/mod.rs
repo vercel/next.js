@@ -12,12 +12,13 @@ use crate::{
     target::CompileTarget,
 };
 use anyhow::Result;
-use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use self::references::module_references;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value(serialization: auto_for_input)]
 pub enum ModuleAssetType {
     Ecmascript,
     Typescript,

@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::Result;
 use event_listener::EventListener;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     manager::{read_task_output, read_task_output_untracked, TurboTasksApi},
@@ -24,18 +25,12 @@ use crate::{
 /// Instead the data or an [Arc] to the data is cloned out of the slot
 /// and hold by this type.
 pub struct RawVcReadResult<T: Any + Send + Sync> {
-    inner: RawVcReadResultInner<T>,
-}
-
-pub enum RawVcReadResultInner<T: Any + Send + Sync> {
-    SharedReference(Arc<T>),
+    inner: Arc<T>,
 }
 
 impl<T: Any + Send + Sync> RawVcReadResult<T> {
-    pub(crate) fn shared_reference(shared_ref: Arc<T>) -> Self {
-        Self {
-            inner: RawVcReadResultInner::SharedReference(shared_ref),
-        }
+    pub(crate) fn new(shared_ref: Arc<T>) -> Self {
+        Self { inner: shared_ref }
     }
 }
 
@@ -43,9 +38,7 @@ impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match &self.inner {
-            RawVcReadResultInner::SharedReference(a) => a,
-        }
+        &*self.inner
     }
 }
 
@@ -61,7 +54,7 @@ impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskSlot(TaskId, usize),

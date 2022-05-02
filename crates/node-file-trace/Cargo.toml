@@ -19,6 +19,7 @@ bench = false
 anyhow = "1.0.47"
 async-std = "1.10.0"
 json = "0.12.4"
+serde = "1.0.136"
 
 [build-dependencies]
 "turbo-tasks-build" = { path = "../turbo-tasks-build" }

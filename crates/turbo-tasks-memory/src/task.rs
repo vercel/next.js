@@ -18,7 +18,7 @@ use std::{
 };
 use turbo_tasks::{
     backend::SlotMappings, get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId,
-    TaskInput, TraitTypeId, TurboTasksApi,
+    TaskInput, TraitTypeId, TurboTasksBackendApi,
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
@@ -276,7 +276,7 @@ impl Task {
         }
     }
 
-    pub(crate) fn remove(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+    pub(crate) fn remove(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         if self.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
             self.deactivate(1, backend, turbo_tasks);
         }
@@ -286,7 +286,7 @@ impl Task {
     pub(crate) fn deactivate_tasks(
         tasks: Vec<TaskId>,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         for child in tasks.into_iter() {
             backend.with_task(child, |child| child.deactivate(1, backend, turbo_tasks));
@@ -297,7 +297,7 @@ impl Task {
     pub(crate) fn deactivate_tasks(
         tasks: Vec<TaskId>,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let start = Instant::now();
         let mut count = 0;
@@ -387,7 +387,7 @@ impl Task {
     pub(crate) fn execution_started(
         self: &Task,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         let mut state = self.state.write().unwrap();
         if !state.active {
@@ -421,7 +421,11 @@ impl Task {
         true
     }
 
-    pub(crate) fn execution_result(&self, result: Result<RawVc>, turbo_tasks: &dyn TurboTasksApi) {
+    pub(crate) fn execution_result(
+        &self,
+        result: Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
@@ -488,7 +492,7 @@ impl Task {
     }
 
     /// This method should be called after adding the first parent
-    fn activate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) -> usize {
+    fn activate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
         let mut state = self.state.write().unwrap();
 
         if self.active_parents.load(Ordering::Acquire) == 0 {
@@ -530,7 +534,7 @@ impl Task {
         &self,
         depth: u8,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> usize {
         let mut state = self.state.write().unwrap();
 
@@ -578,12 +582,12 @@ impl Task {
     pub(crate) fn dependent_slot_updated(
         &self,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.make_dirty(backend, turbo_tasks);
     }
 
-    fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+    fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
             return;
@@ -627,7 +631,7 @@ impl Task {
         })
     }
 
-    pub(crate) fn execute(&self, tt: &dyn TurboTasksApi) -> NativeTaskFuture {
+    pub(crate) fn execute(&self, tt: &dyn TurboTasksBackendApi) -> NativeTaskFuture {
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
@@ -717,7 +721,11 @@ impl Task {
 
     /// Called by the [Invalidator]. Invalidate the [Task]. When the task is
     /// active it will be scheduled for execution.
-    pub(crate) fn invalidate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+    pub(crate) fn invalidate(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         self.make_dirty(backend, turbo_tasks)
     }
 
@@ -801,7 +809,7 @@ impl Task {
         &self,
         child_id: TaskId,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write().unwrap();
         if state.children.insert(child_id) {

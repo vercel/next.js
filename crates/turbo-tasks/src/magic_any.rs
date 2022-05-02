@@ -1,15 +1,18 @@
 use core::fmt;
 use mopa::mopafy;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 use std::{
-    any::{type_name, TypeId},
+    any::{type_name, Any, TypeId},
     cmp::Ordering,
     fmt::Debug,
     hash::{Hash, Hasher},
     ops::DerefMut,
+    sync::Arc,
 };
 
 pub trait MagicAny: mopa::Any + Send + Sync {
+    fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;
+
     fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result;
 
     fn magic_eq(&self, other: &dyn MagicAny) -> bool;
@@ -21,6 +24,10 @@ pub trait MagicAny: mopa::Any + Send + Sync {
 mopafy!(MagicAny);
 
 impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
+    fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send> {
+        self
+    }
+
     fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut d = f.debug_tuple("MagicAny");
         d.field(&TypeId::of::<Self>());
@@ -98,96 +105,84 @@ where
     }
 }
 
-pub trait SerializableMagicAny: mopa::Any + Send + Sync {
-    fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result;
-
-    fn magic_eq(&self, other: &dyn SerializableMagicAny) -> bool;
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher);
-
-    fn magic_cmp(&self, other: &dyn SerializableMagicAny) -> Ordering;
-}
-mopafy!(SerializableMagicAny);
-
-impl<'de, T: Debug + Eq + Ord + Hash + Serialize + Deserialize<'de> + Send + Sync + 'static>
-    SerializableMagicAny for T
-{
-    fn magic_debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut d = f.debug_tuple("SerializableMagicAny");
-        d.field(&TypeId::of::<Self>());
-
-        #[cfg(debug_assertions)]
-        d.field(&type_name::<Self>());
-
-        d.field(&(self as &Self));
-        d.finish()
-    }
-
-    fn magic_eq(&self, other: &dyn SerializableMagicAny) -> bool {
-        match other.downcast_ref::<Self>() {
-            None => false,
-            Some(other) => self == other,
-        }
-    }
-
-    fn magic_hash(&self, hasher: &mut dyn Hasher) {
-        Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(hasher))
-    }
-
-    fn magic_cmp(&self, other: &dyn SerializableMagicAny) -> Ordering {
-        match other.downcast_ref::<Self>() {
-            None => Ord::cmp(&TypeId::of::<Self>(), &other.type_id()),
-            Some(other) => self.cmp(other),
-        }
+impl dyn MagicAny {
+    pub fn as_serialize<T: Debug + Eq + Ord + Hash + Serialize + Send + Sync + 'static>(
+        &self,
+    ) -> &dyn erased_serde::Serialize {
+        self.downcast_ref::<T>().unwrap()
     }
 }
 
-impl fmt::Debug for dyn SerializableMagicAny {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.magic_debug(f)
-    }
+#[derive(Clone, Copy)]
+pub struct MagicAnyDeserializeSeed {
+    functor: fn(
+        &mut dyn erased_serde::Deserializer<'_>,
+    ) -> Result<Box<dyn MagicAny>, erased_serde::Error>,
 }
 
-impl PartialEq for dyn SerializableMagicAny {
-    fn eq(&self, other: &Self) -> bool {
-        self.magic_eq(other)
-    }
-}
-
-impl Eq for dyn SerializableMagicAny {}
-
-impl PartialOrd for dyn SerializableMagicAny {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.magic_cmp(other))
-    }
-}
-
-impl Ord for dyn SerializableMagicAny {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.magic_cmp(other)
-    }
-}
-
-impl Hash for dyn SerializableMagicAny {
-    fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.magic_hash(hasher)
-    }
-}
-
-impl Serialize for Box<dyn SerializableMagicAny> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+impl MagicAnyDeserializeSeed {
+    pub fn new<T: Debug + Eq + Ord + Hash + Send + Sync + 'static>() -> Self
     where
-        S: serde::Serializer,
+        T: for<'de> Deserialize<'de>,
     {
-        todo!()
+        fn deserialize<
+            T: Debug + Eq + Ord + Hash + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        >(
+            deserializer: &mut dyn erased_serde::Deserializer<'_>,
+        ) -> Result<Box<dyn MagicAny>, erased_serde::Error> {
+            let value: T = erased_serde::deserialize(deserializer)?;
+            Ok(Box::new(value))
+        }
+        Self {
+            functor: deserialize::<T>,
+        }
     }
 }
 
-impl<'de> Deserialize<'de> for Box<dyn SerializableMagicAny> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+impl<'de> DeserializeSeed<'de> for MagicAnyDeserializeSeed {
+    type Value = Box<dyn MagicAny>;
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        todo!()
+        let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
+        (self.functor)(&mut deserializer).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct AnyDeserializeSeed {
+    functor: fn(
+        &mut dyn erased_serde::Deserializer<'_>,
+    ) -> Result<Box<dyn Any + Sync + Send>, erased_serde::Error>,
+}
+
+impl AnyDeserializeSeed {
+    pub fn new<T: Any + Send + Sync + 'static>() -> Self
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        fn deserialize<T: Any + for<'de> Deserialize<'de> + Send + Sync + 'static>(
+            deserializer: &mut dyn erased_serde::Deserializer<'_>,
+        ) -> Result<Box<dyn Any + Sync + Send>, erased_serde::Error> {
+            let value: T = erased_serde::deserialize(deserializer)?;
+            Ok(Box::new(value))
+        }
+        Self {
+            functor: deserialize::<T>,
+        }
+    }
+}
+
+impl<'de> DeserializeSeed<'de> for AnyDeserializeSeed {
+    type Value = Box<dyn Any + Sync + Send>;
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
+        (self.functor)(&mut deserializer).map_err(|e| serde::de::Error::custom(e))
     }
 }

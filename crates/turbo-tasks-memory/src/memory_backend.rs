@@ -9,7 +9,7 @@ use turbo_tasks::{
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},
-    RawVc, TaskId, TurboTasksApi,
+    RawVc, TaskId, TurboTasksBackendApi,
 };
 
 use crate::{output::Output, task::Task};
@@ -31,7 +31,12 @@ impl MemoryBackend {
         }
     }
 
-    fn connect_task_child(&self, parent: TaskId, child: TaskId, turbo_tasks: &dyn TurboTasksApi) {
+    fn connect_task_child(
+        &self,
+        parent: TaskId,
+        child: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         self.with_task(parent, |parent| {
             parent.connect_child(child, self, turbo_tasks)
         });
@@ -66,11 +71,11 @@ impl MemoryBackend {
 }
 
 impl Backend for MemoryBackend {
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksApi) {
+    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
 
-    fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksApi) {
+    fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
         for task in tasks.into_iter() {
             self.with_task(task, |task| {
                 task.dependent_slot_updated(self, turbo_tasks);
@@ -81,7 +86,7 @@ impl Backend for MemoryBackend {
     fn try_start_task_execution(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec> {
         self.with_task(task, |task| {
             if task.execution_started(self, turbo_tasks) {
@@ -101,7 +106,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         slot_mappings: Option<SlotMappings>,
         result: anyhow::Result<RawVc>,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
             task.execution_result(result, turbo_tasks);
@@ -149,7 +154,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         index: usize,
         content: SlotContent,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |task| {
             task.with_slot_mut(index, |slot| slot.assign(content, turbo_tasks))
@@ -160,7 +165,7 @@ impl Backend for MemoryBackend {
     fn run_background_job<'a>(
         &'a self,
         id: BackgroundJobId,
-        turbo_tasks: &'a dyn TurboTasksApi,
+        turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         // SAFETY: id will not be reused until with job is done
         if let Some(job) = unsafe { self.background_jobs.take(*id) } {
@@ -181,7 +186,7 @@ impl Backend for MemoryBackend {
         task_type: PersistentTaskType,
         id_factory: &IdFactory<TaskId>,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let map = self.task_cache.pin();
         let result = if let Some(task) = map.get(&task_type).map(|guard| *guard) {
@@ -236,7 +241,7 @@ impl Backend for MemoryBackend {
         &self,
         task_type: TransientTaskType,
         id_factory: &IdFactory<TaskId>,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = id_factory.get();
         let task = match task_type {
@@ -258,7 +263,7 @@ pub(crate) enum BackgroundJob {
 }
 
 impl BackgroundJob {
-    async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+    async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
             BackgroundJob::RemoveTasks(tasks) => {
                 for id in tasks {

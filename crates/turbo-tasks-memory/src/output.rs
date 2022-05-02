@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksApi};
+use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksBackendApi};
 
 #[derive(Default, Debug)]
 pub struct Output {
@@ -50,7 +50,7 @@ impl Output {
         }
     }
 
-    pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksApi) {
+    pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksBackendApi) {
         let change;
         let mut _type_change = false;
         match &self.content {
@@ -79,14 +79,14 @@ impl Output {
         }
     }
 
-    pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksApi) {
+    pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = OutputContent::Error(SharedError::new(error));
         self.updates += 1;
         // notify
         turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
     }
 
-    pub fn assign(&mut self, content: OutputContent, turbo_tasks: &dyn TurboTasksApi) {
+    pub fn assign(&mut self, content: OutputContent, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = content;
         self.updates += 1;
         // notify

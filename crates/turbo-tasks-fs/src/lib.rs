@@ -10,6 +10,7 @@ pub mod util;
 
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
+use serde::{Deserialize, Serialize};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -45,7 +46,7 @@ pub trait FileSystem {
     fn to_string(&self) -> Vc<String>;
 }
 
-#[turbo_tasks::value(slot: new, FileSystem)]
+#[turbo_tasks::value(slot: new, serialization: none, FileSystem)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
@@ -933,7 +934,7 @@ impl FileContentVc {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization: none)]
 #[derive(PartialEq, Eq)]
 pub enum FileJsonContent {
     Content(#[trace_ignore] JsonValue),
@@ -941,7 +942,7 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum DirectoryEntry {
     File(FileSystemPathVc),
     Directory(FileSystemPathVc),
@@ -949,7 +950,7 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum FileSystemEntryType {
     NotFound,
     File,

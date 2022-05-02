@@ -6,7 +6,7 @@ use regex::Regex;
 use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
-#[turbo_tasks::value(shared, ValueToString)]
+#[turbo_tasks::value(shared, serialization: auto_for_input, ValueToString)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
