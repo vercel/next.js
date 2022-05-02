@@ -1075,11 +1075,9 @@ function defaultLoader({
       }
 
       if (process.env.NODE_ENV === 'development') {
-        const domains = config.remotePatterns
-          .map((p) => p.hostname)
-          .concat(config.domains)
-        // TODO: can we utilize the backend to get the error message, perhaps from onError()?
-        if (!domains.includes(parsedSrc.hostname)) {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

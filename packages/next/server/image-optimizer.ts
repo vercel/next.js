@@ -18,6 +18,10 @@ import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
+import {
+  hasMatch,
+  matchRemotePattern,
+} from '../shared/lib/match-remote-pattern'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -106,13 +110,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      const allPatterns = remotePatterns.concat(
-        domains.map((hostname) => ({ hostname }))
-      )
-      const hasMatch = allPatterns.some((p) =>
-        matchRemotePattern(p, hrefParsed)
-      )
-      if (!hasMatch) {
+      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -794,62 +792,6 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
-}
-
-export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
-  if (pattern.protocol !== undefined) {
-    const actualProto = url.protocol.slice(0, -1)
-    if (pattern.protocol !== actualProto) {
-      return false
-    }
-  }
-  if (pattern.port !== undefined) {
-    if (pattern.port !== url.port) {
-      return false
-    }
-  }
-  if (pattern.pathname !== undefined) {
-    const patternParts = pattern.pathname.split('/')
-    const actualParts = url.pathname.split('/')
-    const len = Math.max(patternParts.length, actualParts.length)
-    for (let i = 0; i < len; i++) {
-      if (patternParts[i] === '**' && actualParts[i] !== undefined) {
-        // Double asterisk means "match everything until the end of the path"
-        // so we can break the loop early
-        break
-      }
-      if (patternParts[i] === '*') {
-        // Single asterisk means "match this part" so we can
-        // continue to the next part of the loop
-        continue
-      }
-      if (patternParts[i] !== actualParts[i]) {
-        return false
-      }
-    }
-  }
-
-  if (pattern.hostname !== undefined) {
-    const patternParts = pattern.hostname.split('.').reverse()
-    const actualParts = url.hostname.split('.').reverse()
-    const len = Math.max(patternParts.length, actualParts.length)
-    for (let i = 0; i < len; i++) {
-      if (patternParts[i] === '**' && actualParts[i] !== undefined) {
-        // Double asterisk means "match every subdomain"
-        // so we can break the loop early
-        break
-      }
-      if (patternParts[i] === '*') {
-        // Single asterisk means "match this subdomain" so we can
-        // continue to the next part of the loop
-        continue
-      }
-      if (patternParts[i] !== actualParts[i]) {
-        return false
-      }
-    }
-  }
-  return true
 }
 
 export class Deferred<T> {

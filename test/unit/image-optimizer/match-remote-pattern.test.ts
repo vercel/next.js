@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { matchRemotePattern as m } from 'next/dist/server/image-optimizer'
+import { matchRemotePattern as m } from 'next/dist/shared/lib/match-remote-pattern.js'
 
 describe('matchRemotePattern', () => {
   it('should match literal hostname', () => {
