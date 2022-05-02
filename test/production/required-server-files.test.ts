@@ -49,20 +49,29 @@ describe('should set-up next', () => {
           outputStandalone: true,
         },
         async rewrites() {
-          return [
-            {
-              source: '/some-catch-all/:path*',
-              destination: '/',
-            },
-            {
-              source: '/to-dynamic/post-2',
-              destination: '/dynamic/post-2?hello=world',
-            },
-            {
-              source: '/to-dynamic/:path',
-              destination: '/dynamic/:path',
-            },
-          ]
+          return {
+            beforeFiles: [],
+            fallback: [
+              {
+                source: '/an-ssg-path',
+                destination: '/hello.txt',
+              },
+            ],
+            afterFiles: [
+              {
+                source: '/some-catch-all/:path*',
+                destination: '/',
+              },
+              {
+                source: '/to-dynamic/post-2',
+                destination: '/dynamic/post-2?hello=world',
+              },
+              {
+                source: '/to-dynamic/:path',
+                destination: '/dynamic/:path',
+              },
+            ],
+          }
         },
       },
     })
@@ -141,7 +150,7 @@ describe('should set-up next', () => {
   it('should output middleware correctly', async () => {
     expect(
       await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware-runtime.js')
+        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
       )
     ).toBe(true)
     expect(
@@ -691,6 +700,7 @@ describe('should set-up next', () => {
     expect(res.status).toBe(200)
     const $ = cheerio.load(await res.text())
     expect($('#resolved-url').text()).toBe('/dynamic/post-2')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/to-dynamic/post-2')
   })
 
   it('should have correct resolvedUrl from dynamic route', async () => {
@@ -794,6 +804,86 @@ describe('should set-up next', () => {
     expect(props.params).toEqual({})
   })
 
+  it('should normalize optional revalidations correctly for SSG page', async () => {
+    const reqs = [
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg.json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+        query: { rest: '' },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '1=',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/optional-ssg/[[...rest]]`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/optional-ssg/[[...rest]]`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+    ]
+
+    for (const req of reqs) {
+      console.error('checking', req)
+      const res = await fetchViaHTTP(appPort, req.path, req.query, {
+        headers: req.headers,
+      })
+
+      const content = await res.text()
+      let props
+
+      try {
+        const data = JSON.parse(content)
+        props = data.pageProps
+      } catch (_) {
+        props = JSON.parse(cheerio.load(content)('#__NEXT_DATA__').text()).props
+          .pageProps
+      }
+      expect(props.params).toEqual({})
+    }
+  })
+
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -874,6 +964,20 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+  })
+
+  it('should have correct asPath on dynamic SSG page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/an-ssg-path', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/an-ssg-path')
   })
 
   it('should copy and read .env file', async () => {

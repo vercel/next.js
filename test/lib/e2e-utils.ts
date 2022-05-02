@@ -7,7 +7,7 @@ import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 
 // increase timeout to account for yarn install time
-jest.setTimeout((process.platform === 'win32' ? 240 : 180) * 1000)
+jest.setTimeout(240 * 1000)
 
 const testsFolder = path.join(__dirname, '..')
 
@@ -119,6 +119,7 @@ export async function createNext(opts: {
   buildCommand?: string
   packageJson?: PackageJson
   startCommand?: string
+  packageLockPath?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {
@@ -149,7 +150,7 @@ export async function createNext(opts: {
   } catch (err) {
     require('console').error('Failed to create next instance', err)
     try {
-      await nextInstance.destroy()
+      nextInstance.destroy()
     } catch (_) {}
     process.exit(1)
   }

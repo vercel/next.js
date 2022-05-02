@@ -40,8 +40,10 @@ import {
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
-import { normalizePagePath } from '../normalize-page-path'
-import Router, { route } from '../router'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
+import Router from '../router'
+import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { hasBasePath, replaceBasePath } from '../router-utils'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
@@ -93,6 +95,7 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
+  private pagesDir: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -199,7 +202,7 @@ export default class DevServer extends Server {
 
         // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.addFsRoute({
-          match: route(path),
+          match: getPathMatch(path),
           type: 'route',
           name: `${path} exportpathmap route`,
           fn: async (req, res, _params, parsedUrl) => {
@@ -240,10 +243,8 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise((resolve, reject) => {
-      const pagesDir = this.pagesDir
-
       // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir!, (_, files) => {
+      fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
           return
         }
@@ -255,7 +256,7 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [pagesDir!], 0)
+      wp.watch([], [this.pagesDir], 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware = []
@@ -268,19 +269,20 @@ export default class DevServer extends Server {
             continue
           }
 
+          const pageName = absolutePathToPage(
+            this.pagesDir,
+            fileName,
+            this.nextConfig.pageExtensions
+          )
+
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
+              `/${relative(this.pagesDir, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
             continue
           }
-
-          let pageName =
-            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-          pageName = pageName.replace(regexPageExtension, '')
-          pageName = pageName.replace(/\/index$/, '') || '/'
 
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
@@ -359,12 +361,7 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      this.pagesDir!,
-      false,
-      this.nextConfig
-    )
+    await verifyTypeScriptSetup(this.dir, this.pagesDir, false, this.nextConfig)
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
@@ -382,7 +379,7 @@ export default class DevServer extends Server {
     }
 
     this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir!,
+      pagesDir: this.pagesDir,
       distDir: this.distDir,
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
@@ -407,7 +404,7 @@ export default class DevServer extends Server {
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        isSrcDir: relative(this.dir, this.pagesDir).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
       })
@@ -447,7 +444,7 @@ export default class DevServer extends Server {
     }
 
     const pageFile = await findPageFile(
-      this.pagesDir!,
+      this.pagesDir,
       normalizedPath,
       this.nextConfig.pageExtensions
     )
@@ -540,16 +537,20 @@ export default class DevServer extends Server {
       const result = await super.runMiddleware({
         ...params,
         onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning', 'client')
+          this.logErrorWithOriginalStack(warn, 'warning', 'edge-server')
         },
       })
 
       result?.waitUntil.catch((error) =>
-        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
+        this.logErrorWithOriginalStack(
+          error,
+          'unhandledRejection',
+          'edge-server'
+        )
       )
       return result
     } catch (error) {
-      this.logErrorWithOriginalStack(error, undefined, 'client')
+      this.logErrorWithOriginalStack(error, undefined, 'edge-server')
 
       const preflight =
         params.request.method === 'HEAD' &&
@@ -626,7 +627,7 @@ export default class DevServer extends Server {
   private async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
-    stats: 'server' | 'client' = 'server'
+    stats: 'server' | 'edge-server' = 'server'
   ) {
     let usedOriginalStack = false
 
@@ -637,9 +638,9 @@ export default class DevServer extends Server {
 
         if (frame.lineNumber && frame?.file) {
           const compilation =
-            stats === 'client'
-              ? this.hotReloader?.clientStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
+            stats === 'server'
+              ? this.hotReloader?.serverStats?.compilation
+              : this.hotReloader?.edgeServerStats?.compilation
 
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
@@ -754,7 +755,7 @@ export default class DevServer extends Server {
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
     fsRoutes.unshift({
-      match: route('/_next/development/:path*'),
+      match: getPathMatch('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
       fn: async (req, res, params) => {
@@ -767,7 +768,7 @@ export default class DevServer extends Server {
     })
 
     fsRoutes.unshift({
-      match: route(
+      match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
       ),
       type: 'route',
@@ -789,7 +790,7 @@ export default class DevServer extends Server {
     })
 
     fsRoutes.unshift({
-      match: route(
+      match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
       ),
       type: 'route',
@@ -814,7 +815,7 @@ export default class DevServer extends Server {
     })
 
     fsRoutes.push({
-      match: route('/:path*'),
+      match: getPathMatch('/:path*'),
       type: 'route',
       requireBasePath: false,
       name: 'catchall public directory route',

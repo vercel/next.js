@@ -55,8 +55,8 @@ import {
   loadGetInitialProps,
 } from '../shared/lib/utils'
 import { HtmlContext } from '../shared/lib/html-context'
-import { denormalizePagePath } from './denormalize-page-path'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
@@ -88,8 +88,11 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
-if (!process.browser) {
+if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
@@ -486,20 +489,17 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    reactRoot,
     runtime: globalRuntime,
     ComponentMod,
     AppMod,
     AppServerMod,
   } = renderOpts
 
-  const hasConcurrentFeatures = reactRoot
-
   let Document = renderOpts.Document
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
-    hasConcurrentFeatures &&
+    !!process.env.__NEXT_REACT_ROOT &&
     !!serverComponentManifest &&
     !!ComponentMod.__next_rsc__?.server
 
@@ -518,7 +518,9 @@ export async function renderToHTML(
     Uint8Array,
     Uint8Array
   > | null =
-    isServerComponent && !process.browser ? new TransformStream() : null
+    isServerComponent && process.env.NEXT_RUNTIME !== 'edge'
+      ? new TransformStream()
+      : null
 
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
@@ -700,7 +702,11 @@ export async function renderToHTML(
   let isPreview
   let previewData: PreviewData
 
-  if ((isSSG || getServerSideProps) && !isFallback && !process.browser) {
+  if (
+    (isSSG || getServerSideProps) &&
+    !isFallback &&
+    process.env.NEXT_RUNTIME !== 'edge'
+  ) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
@@ -775,7 +781,7 @@ export async function renderToHTML(
   }
 
   // Disable AMP under the web environment
-  const inAmpMode = !process.browser && isInAmpMode(ampState)
+  const inAmpMode = process.env.NEXT_RUNTIME !== 'edge' && isInAmpMode(ampState)
 
   const reactLoadableModules: string[] = []
 
@@ -1286,10 +1292,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = hasConcurrentFeatures
-    ? require('react-dom/server.browser')
-    : require('react-dom/server')
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1313,7 +1315,7 @@ export async function renderToHTML(
       | typeof Document
       | undefined
 
-    if (process.browser && Document.getInitialProps) {
+    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
       if (!builtinDocument) {
@@ -1323,7 +1325,10 @@ export async function renderToHTML(
       }
     }
 
-    if ((isServerComponent || process.browser) && Document.getInitialProps) {
+    if (
+      (isServerComponent || process.env.NEXT_RUNTIME === 'edge') &&
+      Document.getInitialProps
+    ) {
       if (builtinDocument) {
         Document = builtinDocument
       } else {
@@ -1427,7 +1432,7 @@ export async function renderToHTML(
       )
     }
 
-    if (!hasConcurrentFeatures) {
+    if (!process.env.__NEXT_REACT_ROOT) {
       if (Document.getInitialProps) {
         const documentInitialPropsRes = await documentInitialProps()
         if (documentInitialPropsRes === null) return null
@@ -1534,14 +1539,15 @@ export async function renderToHTML(
           renderStream,
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          generateStaticHTML:
+            generateStaticHTML || !process.env.__NEXT_REACT_ROOT,
           flushEffectHandler,
         })
       }
 
       const hasDocumentGetInitialProps = !(
         isServerComponent ||
-        process.browser ||
+        process.env.NEXT_RUNTIME === 'edge' ||
         !Document.getInitialProps
       )
 
@@ -1560,7 +1566,7 @@ export async function renderToHTML(
 
       const { docProps } = (documentInitialPropsRes as any) || {}
       const documentElement = () => {
-        if (isServerComponent || process.browser) {
+        if (isServerComponent || process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
         }
 
@@ -1751,7 +1757,8 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          !process.browser && process.env.__NEXT_OPTIMIZE_FONTS
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          process.env.__NEXT_OPTIMIZE_FONTS
             ? async (html: string) => {
                 return await postProcess(
                   html,
@@ -1762,7 +1769,7 @@ export async function renderToHTML(
                 )
               }
             : null,
-          !process.browser && renderOpts.optimizeCss
+          process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
             ? async (html: string) => {
                 // eslint-disable-next-line import/no-extraneous-dependencies
                 const Critters = require('critters')
