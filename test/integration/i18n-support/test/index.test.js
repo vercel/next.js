@@ -209,6 +209,7 @@ describe('i18n Support', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// localeDetection', 'localeDetection')
+      nextConfig.replace('// trustProxy', 'trustProxy')
 
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -239,6 +240,7 @@ describe('i18n Support', () => {
           'do',
           'do-BE',
         ],
+        trustProxy: true,
         defaultLocale: 'en-US',
         domains: [
           {
@@ -254,6 +256,28 @@ describe('i18n Support', () => {
           },
         ],
       })
+    })
+
+    it('should detect locale from x-forwarded-host', async () => {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/',
+        {},
+        {
+          redirect: 'manual',
+          headers: {
+            'x-forwarded-host': 'example.do',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('do')
+      expect($('#router-locale').text()).toBe('do')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
     })
 
     it('should not detect locale from accept-language', async () => {

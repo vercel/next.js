@@ -17,6 +17,7 @@ module.exports = {
       'do',
       'do-BE',
     ],
+    // trustProxy: true,
     defaultLocale: 'en-US',
     domains: [
       {
