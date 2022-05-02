@@ -16,7 +16,10 @@ export function getLocaleMetadata(params: Params) {
   const { i18n } = params.nextConfig
   const { cookies, headers, nextConfig, url } = params
   const path = normalizeLocalePath(url.pathname, i18n.locales)
-  const domain = detectDomainLocale(i18n.domains, getHostname(url, headers))
+  const domain = detectDomainLocale(
+    i18n.domains,
+    getHostname(i18n, url, headers)
+  )
   const defaultLocale = domain?.defaultLocale || i18n.defaultLocale
   const preferredLocale = getAcceptPreferredLocale(i18n, headers)
   return {
@@ -69,10 +72,17 @@ function getAcceptPreferredLocale(
 }
 
 function getHostname(
+  i18n: I18NConfig,
   parsed: { hostname?: string | null },
   headers?: { [key: string]: string | string[] | undefined }
 ) {
-  return ((!Array.isArray(headers?.host) && headers?.host) || parsed.hostname)
+  return (
+    (i18n.trustProxy &&
+      !Array.isArray(headers?.['x-forwarded-host']) &&
+      headers?.['x-forwarded-host']) ||
+    (!Array.isArray(headers?.host) && headers?.host) ||
+    parsed.hostname
+  )
     ?.split(':')[0]
     .toLowerCase()
 }
