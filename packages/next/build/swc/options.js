@@ -145,6 +145,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  pagesDir,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -174,6 +175,7 @@ export function getJestSWCOptions({
     },
     disableNextSsg: true,
     disablePageConfig: true,
+    pagesDir,
   }
 }
 

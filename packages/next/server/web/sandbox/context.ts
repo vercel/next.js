@@ -10,7 +10,7 @@ import {
   AbortSignal,
 } from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
-import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader'
+import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -265,7 +265,9 @@ function buildEnvironmentVariablesFrom(
   keys: string[]
 ): Record<string, string | undefined> {
   const pairs = keys.map((key) => [key, process.env[key]])
-  return Object.fromEntries(pairs)
+  const env = Object.fromEntries(pairs)
+  env.NEXT_RUNTIME = 'edge'
+  return env
 }
 
 async function loadWasm(

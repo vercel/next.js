@@ -32,7 +32,7 @@ const requiredPackages = [
 
 export async function verifyTypeScriptSetup(
   dir: string,
-  pagesDir: string,
+  intentDirs: string[],
   typeCheckPreflight: boolean,
   config: NextConfigComplete,
   cacheDir?: string
@@ -41,7 +41,7 @@ export async function verifyTypeScriptSetup(
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir, config)
+    const intent = await getTypeScriptIntent(dir, intentDirs, config)
     if (!intent) {
       return { version: null }
     }
