@@ -8,7 +8,7 @@ export type TypeScriptIntent = { firstTimeSetup: boolean }
 
 export async function getTypeScriptIntent(
   baseDir: string,
-  pagesDir: string,
+  intentDirs: string[],
   config: NextConfigComplete
 ): Promise<TypeScriptIntent | false> {
   const tsConfigPath = path.join(baseDir, config.typescript.tsconfigPath)
@@ -28,13 +28,15 @@ export async function getTypeScriptIntent(
   // project for the user when we detect TypeScript files. So, we need to check
   // the `pages/` directory for a TypeScript file.
   // Checking all directories is too slow, so this is a happy medium.
-  const typescriptFiles = await recursiveReadDir(
-    pagesDir,
-    /.*\.(ts|tsx)$/,
-    /(node_modules|.*\.d\.ts)/
-  )
-  if (typescriptFiles.length) {
-    return { firstTimeSetup: true }
+  for (const dir of intentDirs) {
+    const typescriptFiles = await recursiveReadDir(
+      dir,
+      /.*\.(ts|tsx)$/,
+      /(node_modules|.*\.d\.ts)/
+    )
+    if (typescriptFiles.length) {
+      return { firstTimeSetup: true }
+    }
   }
 
   return false

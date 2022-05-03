@@ -1,2 +1,0 @@
-error: /some-project/src/some-file.ts uses `css.resolve`, but ends with `.ts`. The file extension needs to be `.tsx` so that the jsx injected by `css.resolve` will be transformed.
-

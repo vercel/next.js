@@ -84,6 +84,8 @@ Next.js can be deployed to any hosting provider that supports [Docker](https://w
 1. Build your container: `docker build -t nextjs-docker .`
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`
 
+If you need to use different Environment Variables across multiple environments, check out our [with-docker-multi-env](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) example.
+
 ### Static HTML Export
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Export documentation](/docs/advanced-features/static-html-export.md).

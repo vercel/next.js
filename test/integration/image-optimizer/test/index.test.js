@@ -327,6 +327,32 @@ describe('Image Optimizer', () => {
     runTests(ctx)
   })
 
+  describe('Server support for trailingSlash in next.config.js', () => {
+    let app
+    let appPort
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          trailingSlash: true,
+        })
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+
+    it('should return successful response for original loader', async () => {
+      let res
+      const query = { url: '/test.png', w: 8, q: 70 }
+      res = await fetchViaHTTP(appPort, '/_next/image/', query)
+      expect(res.status).toBe(200)
+    })
+  })
+
   describe('Server support for headers in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
     let app

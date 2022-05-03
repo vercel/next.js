@@ -8,7 +8,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import isAnimated from 'next/dist/compiled/is-animated'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
@@ -17,6 +16,7 @@ import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
+import { mockRequest } from './lib/mock-request'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -307,60 +307,12 @@ export async function imageOptimizer(
     maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   } else {
     try {
-      const resBuffers: Buffer[] = []
-      const mockRes: any = new Stream.Writable()
-
-      const isStreamFinished = new Promise(function (resolve, reject) {
-        mockRes.on('finish', () => resolve(true))
-        mockRes.on('end', () => resolve(true))
-        mockRes.on('error', (err: any) => reject(err))
-      })
-
-      mockRes.write = (chunk: Buffer | string) => {
-        resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-      }
-      mockRes._write = (
-        chunk: Buffer | string,
-        _encoding: string,
-        callback: () => void
-      ) => {
-        mockRes.write(chunk)
-        // According to Node.js documentation, the callback MUST be invoked to signal that
-        // the write completed successfully. If this callback is not invoked, the 'finish' event
-        // will not be emitted.
-        // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
-        callback()
-      }
-
-      const mockHeaders: Record<string, string | string[]> = {}
-
-      mockRes.writeHead = (_status: any, _headers: any) =>
-        Object.assign(mockHeaders, _headers)
-      mockRes.getHeader = (name: string) => mockHeaders[name.toLowerCase()]
-      mockRes.getHeaders = () => mockHeaders
-      mockRes.getHeaderNames = () => Object.keys(mockHeaders)
-      mockRes.setHeader = (name: string, value: string | string[]) =>
-        (mockHeaders[name.toLowerCase()] = value)
-      mockRes.removeHeader = (name: string) => {
-        delete mockHeaders[name.toLowerCase()]
-      }
-      mockRes._implicitHeader = () => {}
-      mockRes.connection = _res.connection
-      mockRes.finished = false
-      mockRes.statusCode = 200
-
-      const mockReq: any = new Stream.Readable()
-
-      mockReq._read = () => {
-        mockReq.emit('end')
-        mockReq.emit('close')
-        return Buffer.from('')
-      }
-
-      mockReq.headers = _req.headers
-      mockReq.method = _req.method
-      mockReq.url = href
-      mockReq.connection = _req.connection
+      const {
+        resBuffers,
+        req: mockReq,
+        res: mockRes,
+        streamPromise: isStreamFinished,
+      } = mockRequest(href, _req.headers, _req.method || 'GET', _req.connection)
 
       await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
       await isStreamFinished
@@ -419,7 +371,12 @@ export async function imageOptimizer(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
+  } else if (
+    upstreamType?.startsWith('image/') &&
+    getExtension(upstreamType) &&
+    upstreamType !== WEBP &&
+    upstreamType !== AVIF
+  ) {
     contentType = upstreamType
   } else {
     contentType = JPEG
@@ -546,10 +503,18 @@ export async function imageOptimizer(
       throw new ImageError(500, 'Unable to optimize buffer')
     }
   } catch (error) {
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType!,
-      maxAge,
+    if (upstreamBuffer && upstreamType) {
+      // If we fail to optimize, fallback to the original image
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge: nextConfig.images.minimumCacheTTL,
+      }
+    } else {
+      throw new ImageError(
+        500,
+        'Unable to optimize image and unable to fallback to upstream image'
+      )
     }
   }
 }
@@ -656,6 +621,7 @@ export function sendResponse(
     contentSecurityPolicy
   )
   if (!result.finished) {
+    res.setHeader('Content-Length', Buffer.byteLength(buffer))
     res.end(buffer)
   }
 }

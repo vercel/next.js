@@ -21,6 +21,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
 # or
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
+# or
+pnpm create next-app -- --example with-firebase-hosting with-firebase-hosting-app
 ```
 
 **Important:** Update `.firebaserc` and add your firebase project ID.

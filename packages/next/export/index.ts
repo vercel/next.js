@@ -34,10 +34,8 @@ import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
-import {
-  normalizePagePath,
-  denormalizePagePath,
-} from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -239,7 +237,12 @@ export default async function exportApp(
         continue
       }
 
-      if (page === '/_document' || page === '/_app' || page === '/_error') {
+      if (
+        page === '/_document' ||
+        page === '/_app.server' ||
+        page === '/_app' ||
+        page === '/_error'
+      ) {
         continue
       }
 
@@ -384,6 +387,7 @@ export default async function exportApp(
       runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       reactRoot: nextConfig.experimental.reactRoot || false,
     }
@@ -577,6 +581,7 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
+            rootDir: nextConfig.experimental.rootDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
@@ -587,6 +592,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
+            serverComponents: nextConfig.experimental.serverComponents,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -645,7 +651,7 @@ export default async function exportApp(
             // strip leading / and then recurse number of nested dirs
             // to place from base folder
             pageName
-              .substr(1)
+              .slice(1)
               .split('/')
               .map(() => '..')
               .join('/')

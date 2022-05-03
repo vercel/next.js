@@ -60,6 +60,14 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should have proper error when no children are provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-no-child')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'No children were passed to <Link> with `href` of `/about` but one child is required'
+      )
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()
@@ -1423,75 +1431,6 @@ describe('Client Navigation', () => {
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
         ).toBe(1)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should warn when scripts are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Use next/script instead')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(true)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should not warn when application/ld+json scripts are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Use next/script instead')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(false)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should warn when stylesheets are in head', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/head')
-
-        await browser.waitForElementByCss('h1')
-        await waitFor(2000)
-        const browserLogs = await browser.log('browser')
-        let found = false
-        browserLogs.forEach((log) => {
-          console.log('log.message', log.message)
-          if (log.message.includes('Do not add stylesheets using next/head')) {
-            found = true
-          }
-        })
-        expect(found).toEqual(true)
       } finally {
         if (browser) {
           await browser.close()

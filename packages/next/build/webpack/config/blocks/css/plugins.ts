@@ -9,7 +9,7 @@ type CssPluginCollection =
   | CssPluginCollection_Array
   | CssPluginCollection_Object
 
-type CssPluginShape = [string, object | boolean]
+type CssPluginShape = [string, object | boolean | string]
 
 const genericErrorText = 'Malformed PostCSS Configuration'
 
@@ -62,7 +62,7 @@ const createLazyPostCssPlugin = (
 async function loadPlugin(
   dir: string,
   pluginName: string,
-  options: boolean | object
+  options: boolean | object | string
 ): Promise<import('postcss').AcceptedPlugin | false> {
   if (options === false || isIgnoredPlugin(pluginName)) {
     return false
@@ -79,8 +79,7 @@ async function loadPlugin(
   } else if (options === true) {
     return createLazyPostCssPlugin(() => require(pluginPath))
   } else {
-    const keys = Object.keys(options)
-    if (keys.length === 0) {
+    if (typeof options === 'object' && Object.keys(options).length === 0) {
       return createLazyPostCssPlugin(() => require(pluginPath))
     }
     return createLazyPostCssPlugin(() => require(pluginPath)(options))
@@ -187,7 +186,9 @@ export async function getPostCssPlugins(
       const pluginConfig = plugin[1]
       if (
         typeof pluginName === 'string' &&
-        (typeof pluginConfig === 'boolean' || typeof pluginConfig === 'object')
+        (typeof pluginConfig === 'boolean' ||
+          typeof pluginConfig === 'object' ||
+          typeof pluginConfig === 'string')
       ) {
         parsed.push([pluginName, pluginConfig])
       } else {

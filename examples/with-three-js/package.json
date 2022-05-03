@@ -6,11 +6,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "@react-three/drei": "7.6.1",
-    "@react-three/fiber": "7.0.6",
+    "@react-three/drei": "9.3.4",
+    "@react-three/fiber": "8.0.10",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "three": "0.128.0"
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "three": "0.139.2"
   }
 }

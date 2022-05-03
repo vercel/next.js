@@ -12,7 +12,9 @@ export async function middleware(request) {
   ) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
+      isExternal
+        ? 'https://example.vercel.sh'
+        : new URL('/rewrites/a', request.url)
     )
   }
 
@@ -41,8 +43,18 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
+  if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
+    url.pathname = '/rewrites/with:colon'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrites/colon:here') {
+    url.pathname = '/rewrites/no-colon-here'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
-    return NextResponse.rewrite('https://vercel.com')
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname === '/rewrites/clear-query-params') {
@@ -55,7 +67,10 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
-  if (url.pathname === '/rewrites/rewrite-me-without-hard-navigation') {
+  if (
+    url.pathname === '/rewrites/rewrite-me-without-hard-navigation' ||
+    url.searchParams.get('path') === 'rewrite-me-without-hard-navigation'
+  ) {
     url.searchParams.set('middleware', 'foo')
     url.pathname =
       request.cookies['about-bypass'] === '1'

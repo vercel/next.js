@@ -70,10 +70,13 @@ export async function fsToJson(dir, output = {}) {
   return output
 }
 
-export async function expectWidth(res, w) {
+export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   const buffer = await res.buffer()
   const d = sizeOf(buffer)
   expect(d.width).toBe(w)
+  const lengthStr = res.headers.get('Content-Length')
+  expect(lengthStr).toBe(Buffer.byteLength(buffer).toString())
+  expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
 export const cleanImagesDir = async (ctx) => {
@@ -170,7 +173,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 50, { expectAnimated: true })
   })
 
   it('should maintain animated png', async () => {
@@ -186,7 +189,23 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.png"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 100, { expectAnimated: true })
+  })
+
+  it('should maintain animated png 2', async () => {
+    const query = { w: ctx.w, q: 90, url: '/animated2.png' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated2.png"`
+    )
+    await expectWidth(res, 1105, { expectAnimated: true })
   })
 
   it('should maintain animated webp', async () => {
@@ -202,7 +221,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.webp"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 400, { expectAnimated: true })
   })
 
   if (ctx.dangerouslyAllowSVG) {
@@ -211,6 +230,7 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Length')).toBe('603')
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -296,6 +316,46 @@ export function runTests(ctx) {
       `inline; filename="test.png"`
     )
   })
+
+  it('should downlevel webp format to jpeg for old Safari', async () => {
+    const accept =
+      'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+    const query = { w: ctx.w, q: 74, url: '/test.webp' }
+    const opts = { headers: { accept } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.jpeg"`
+    )
+    await expectWidth(res, ctx.w)
+  })
+
+  if (!ctx.isOutdatedSharp) {
+    it('should downlevel avif format to jpeg for old Safari', async () => {
+      const accept =
+        'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+      const query = { w: ctx.w, q: 74, url: '/test.avif' }
+      const opts = { headers: { accept } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.jpeg"`
+      )
+      await expectWidth(res, ctx.w)
+    })
+  }
 
   it('should fail when url is missing', async () => {
     const query = { w: ctx.w, q: 100 }
@@ -689,6 +749,17 @@ export function runTests(ctx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"url" parameter is invalid`)
+  })
+
+  it('should fail when internal url is not an image', async () => {
+    const url = `//<h1>not-an-image</h1>`
+    const query = { url, w: ctx.w, q: 39 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe(
+      `Unable to optimize image and unable to fallback to upstream image`
+    )
   })
 
   if (ctx.domains.includes('localhost')) {

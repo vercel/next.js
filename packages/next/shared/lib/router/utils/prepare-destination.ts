@@ -109,7 +109,7 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return compile(`/${value}`, { validate: false })(params).substr(1)
+  return compile(`/${value}`, { validate: false })(params).slice(1)
 }
 
 export function prepareDestination(args: {
@@ -217,6 +217,7 @@ export function prepareDestination(args: {
 
   return {
     newUrl,
+    destQuery,
     parsedDestination,
   }
 }
