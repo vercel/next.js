@@ -1,6 +1,6 @@
 import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
-import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
+import { getMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'

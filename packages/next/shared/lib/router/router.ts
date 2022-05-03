@@ -36,8 +36,7 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 
 declare global {

@@ -61,7 +61,7 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
+import { getMiddlewareRegex } from '../../shared/lib/router/utils/route-regex'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import {
