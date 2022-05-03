@@ -6,6 +6,7 @@ import type { DomainLocale } from './config'
 import type {
   AppType,
   DocumentInitialProps,
+  DocumentType,
   DocumentProps,
   DocumentContext,
   NextComponentType,
@@ -35,6 +36,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../lib/constants'
 import {
+  NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -55,8 +57,8 @@ import {
   loadGetInitialProps,
 } from '../shared/lib/utils'
 import { HtmlContext } from '../shared/lib/html-context'
-import { denormalizePagePath } from './denormalize-page-path'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
@@ -88,6 +90,9 @@ let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -486,20 +491,17 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     supportsDynamicHTML,
     images,
-    reactRoot,
     runtime: globalRuntime,
     ComponentMod,
     AppMod,
     AppServerMod,
   } = renderOpts
 
-  const hasConcurrentFeatures = reactRoot
-
   let Document = renderOpts.Document
 
   // We don't need to opt-into the flight inlining logic if the page isn't a RSC.
   const isServerComponent =
-    hasConcurrentFeatures &&
+    !!process.env.__NEXT_REACT_ROOT &&
     !!serverComponentManifest &&
     !!ComponentMod.__next_rsc__?.server
 
@@ -769,6 +771,7 @@ export async function renderToHTML(
 
       const { html, head } = await docCtx.renderPage({ enhanceApp })
       const styles = jsxStyleRegistry.styles({ nonce: options.nonce })
+      jsxStyleRegistry.flush()
       return { html, head, styles }
     },
   }
@@ -1292,10 +1295,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const ReactDOMServer = hasConcurrentFeatures
-    ? require('react-dom/server.browser')
-    : require('react-dom/server')
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1315,14 +1314,14 @@ export async function renderToHTML(
     // 1. Using `Document.getInitialProps` in the Edge runtime.
     // 2. Using the class component `Document` with concurrent features.
 
-    const builtinDocument = (Document as any).__next_internal_document as
-      | typeof Document
-      | undefined
+    const BuiltinFunctionalDocument: DocumentType | undefined = (
+      Document as any
+    )[NEXT_BUILTIN_DOCUMENT]
 
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!builtinDocument) {
+      if (!BuiltinFunctionalDocument) {
         throw new Error(
           '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
@@ -1333,8 +1332,8 @@ export async function renderToHTML(
       (isServerComponent || process.env.NEXT_RUNTIME === 'edge') &&
       Document.getInitialProps
     ) {
-      if (builtinDocument) {
-        Document = builtinDocument
+      if (BuiltinFunctionalDocument) {
+        Document = BuiltinFunctionalDocument
       } else {
         throw new Error(
           '`getInitialProps` in Document component is not supported with React Server Components.'
@@ -1436,7 +1435,8 @@ export async function renderToHTML(
       )
     }
 
-    if (!hasConcurrentFeatures) {
+    if (!process.env.__NEXT_REACT_ROOT) {
+      // Enabling react legacy rendering mode: __NEXT_REACT_ROOT = false
       if (Document.getInitialProps) {
         const documentInitialPropsRes = await documentInitialProps()
         if (documentInitialPropsRes === null) return null
@@ -1472,6 +1472,7 @@ export async function renderToHTML(
         }
       }
     } else {
+      // Enabling react concurrent rendering mode: __NEXT_REACT_ROOT = true
       let renderStream: ReadableStream<Uint8Array> & {
         allReady?: Promise<void> | undefined
       }
@@ -1538,12 +1539,11 @@ export async function renderToHTML(
         // be streamed.
         // Do not use `await` here.
         generateStaticFlightDataIfNeeded()
-
         return await continueFromInitialStream({
           renderStream,
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
+          generateStaticHTML,
           flushEffectHandler,
         })
       }
@@ -1575,8 +1575,8 @@ export async function renderToHTML(
 
         return <Document {...htmlProps} {...docProps} />
       }
-      let styles
 
+      let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
       } else {

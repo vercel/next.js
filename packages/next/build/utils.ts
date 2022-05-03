@@ -1,4 +1,9 @@
-import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  PageRuntime,
+} from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -20,16 +25,13 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_ROUTE,
 } from '../lib/constants'
+import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths, PageConfig } from 'next/types'
-import {
-  denormalizePagePath,
-  normalizePagePath,
-} from '../server/normalize-page-path'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -42,6 +44,9 @@ import isError from '../lib/is-error'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { getPageRuntime } from './entries'
 
 const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -1103,7 +1108,7 @@ export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   )
 }
 
-export function isFlightPage(
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
@@ -1123,7 +1128,7 @@ export function getUnresolvedModuleFromError(
   error: string
 ): string | undefined {
   const moduleErrorRegex = new RegExp(
-    `Module not found: Can't resolve '(\\w+)'`
+    `Module not found: Error: Can't resolve '(\\w+)'`
   )
   const [, moduleName] = error.match(moduleErrorRegex) || []
   return builtinModules.find((item: string) => item === moduleName)
@@ -1265,4 +1270,42 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+// FIX ME: it does not work for non-middleware edge functions
+//  since chunks don't contain runtime specified somehow
+export async function isEdgeRuntimeCompiled(
+  compilation: webpack5.Compilation,
+  module: any,
+  config: NextConfig
+) {
+  if (!module) return false
+
+  for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
+    let runtimes: string[]
+    if (typeof chunk.runtime === 'string') {
+      runtimes = [chunk.runtime]
+    } else if (chunk.runtime) {
+      runtimes = [...chunk.runtime]
+    } else {
+      runtimes = []
+    }
+
+    if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
+      return true
+    }
+  }
+
+  // Check the page runtime as well since we cannot detect the runtime from
+  // compilation when it's for the client part of edge function
+  return (await getPageRuntime(module.resource, config)) === 'edge'
+}
+
+export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
+  name: string
+) {
+  return (
+    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
+    'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
+  )
 }

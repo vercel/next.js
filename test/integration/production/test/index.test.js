@@ -105,7 +105,7 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(

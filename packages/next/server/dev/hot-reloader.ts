@@ -21,14 +21,15 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
-import onDemandEntryHandler, {
-  entries,
+import {
   BUILDING,
+  entries,
+  onDemandEntryHandler,
 } from './on-demand-entry-handler'
-import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
+import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
@@ -38,7 +39,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageRuntime } from '../../build/entries'
-import { shouldUseReactRoot } from '../config'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -199,7 +199,7 @@ export default class HotReloader {
 
     this.config = config
     this.runtime = config.experimental.runtime
-    this.hasReactRoot = shouldUseReactRoot()
+    this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
     this.previewProps = previewProps
@@ -559,7 +559,6 @@ export default class HotReloader {
                       isDev: true,
                       page,
                       pages: this.pagesMapping,
-                      ssrEntries,
                     }),
                   })
                 }
@@ -831,7 +830,9 @@ export default class HotReloader {
       )
     })
 
-    this.onDemandEntries = onDemandEntryHandler(this.watcher, multiCompiler, {
+    this.onDemandEntries = onDemandEntryHandler({
+      multiCompiler,
+      watcher: this.watcher,
       pagesDir: this.pagesDir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {

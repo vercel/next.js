@@ -804,6 +804,86 @@ describe('should set-up next', () => {
     expect(props.params).toEqual({})
   })
 
+  it('should normalize optional revalidations correctly for SSG page', async () => {
+    const reqs = [
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg.json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+        query: { rest: '' },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '1=',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/optional-ssg/[[...rest]]`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/optional-ssg/[[...rest]]`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+    ]
+
+    for (const req of reqs) {
+      console.error('checking', req)
+      const res = await fetchViaHTTP(appPort, req.path, req.query, {
+        headers: req.headers,
+      })
+
+      const content = await res.text()
+      let props
+
+      try {
+        const data = JSON.parse(content)
+        props = data.pageProps
+      } catch (_) {
+        props = JSON.parse(cheerio.load(content)('#__NEXT_DATA__').text()).props
+          .pageProps
+      }
+      expect(props.params).toEqual({})
+    }
+  })
+
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
     const res = await fetchViaHTTP(
       appPort,

@@ -436,6 +436,16 @@ export default async function getBaseWebpackConfig(
   }
 
   const getBabelOrSwcLoader = () => {
+    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+      // This will init subscribers once only in a single process lifecycle,
+      // even though it can be called multiple times.
+      // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
+      // to collect correct trace spans when they are called.
+      require('./swc')?.initCustomTraceSubscriber?.(
+        path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
+      )
+    }
+
     return useSWCLoader
       ? {
           loader: 'next-swc-loader',
@@ -1399,9 +1409,6 @@ export default async function getBaseWebpackConfig(
           config.reactStrictMode
         ),
         'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
-        'process.env.__NEXT_CONCURRENT_FEATURES': JSON.stringify(
-          hasConcurrentFeatures
-        ),
         'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
@@ -1540,7 +1547,7 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      new WellKnownErrorsPlugin(),
+      new WellKnownErrorsPlugin({ config }),
       isClient &&
         new CopyFilePlugin({
           filePath: require.resolve('./polyfills/polyfill-nomodule'),

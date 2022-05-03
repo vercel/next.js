@@ -149,7 +149,6 @@ function Script(props: ScriptProps): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},
-    dangerouslySetInnerHTML,
     strategy = 'afterInteractive',
     onError,
     ...restProps

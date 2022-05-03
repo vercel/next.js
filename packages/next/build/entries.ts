@@ -15,12 +15,11 @@ import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
-import { normalizePagePath } from '../server/normalize-page-path'
-import { normalizePathSep } from '../server/denormalize-page-path'
-import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import { warn } from './output/log'
 import { parse } from '../build/swc'
-import { isFlightPage, withoutRSCExtensions } from './utils'
+import { isServerComponentPage, withoutRSCExtensions } from './utils'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -233,7 +232,6 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   page: string
   pages: { [page: string]: string }
-  ssrEntries: Map<string, { requireFlightManifest: boolean }>
 }): ObjectValue<webpack5.EntryObject> {
   if (opts.page.match(MIDDLEWARE_ROUTE)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -253,14 +251,13 @@ export function getEdgeServerEntry(opts: {
     absolutePagePath: opts.absolutePagePath,
     buildId: opts.buildId,
     dev: opts.isDev,
-    isServerComponent: isFlightPage(opts.config, opts.absolutePagePath),
+    isServerComponent: isServerComponentPage(
+      opts.config,
+      opts.absolutePagePath
+    ),
     page: opts.page,
     stringifiedConfig: JSON.stringify(opts.config),
   }
-
-  ssrEntries.set(opts.bundlePath, {
-    requireFlightManifest: isFlightPage(opts.config, opts.absolutePagePath),
-  })
 
   return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
 }
@@ -375,7 +372,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             bundlePath: clientBundlePath,
             isDev: false,
             page,
-            ssrEntries,
           })
         },
       })
