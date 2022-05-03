@@ -2,7 +2,6 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { shouldUseReactRoot } from '../shared/lib/react'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -42,6 +41,10 @@ const args = arg(
     permissive: true,
   }
 )
+
+// Detect if react-dom is enabled streaming rendering mode
+const shouldUseReactRoot = !!require('react-dom/server.browser')
+  .renderToReadableStream
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {

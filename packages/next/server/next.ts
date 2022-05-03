@@ -12,12 +12,6 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import { shouldUseReactRoot } from '../shared/lib/react'
-
-// Make sure env of custom server is overridden
-if (shouldUseReactRoot) {
-  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-}
 
 let ServerImpl: typeof Server
 
@@ -42,6 +36,7 @@ export class NextServer {
   private server?: Server
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
+  private reactRootEnabled?: boolean
   public options: NextServerOptions
 
   constructor(options: NextServerOptions) {
@@ -57,6 +52,17 @@ export class NextServer {
   }
 
   getRequestHandler(): RequestHandler {
+    // Make sure env of custom server is overridden
+    if (this.reactRootEnabled === undefined) {
+      // Use dynamic require to make sure it's executed in it's own context
+      const ReactDOMServer = require('react-dom/server.browser')
+      this.reactRootEnabled = !!ReactDOMServer.renderToReadableStream
+
+      if (this.reactRootEnabled) {
+        ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+      }
+    }
+
     return async (
       req: IncomingMessage,
       res: ServerResponse,
