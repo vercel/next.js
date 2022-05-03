@@ -63,7 +63,7 @@ export function getPagePath(
         manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
           pagesManifest[key]
       }
-      curPath = manifestNoLocales[curPath]
+      curPath = manifestNoLocales[page]
     }
     return curPath
   }
