@@ -25,7 +25,7 @@ Update your build script in `package.json` to use `next export`:
 }
 ```
 
-Running `npm run build` will generate an `out` directory.
+Running `npm run build` will generate an `.next` directory.
 
 `next export` builds an HTML version of your app. During `next build`, [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md) will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md)). Then, `next export` will copy the already exported files into the correct directory. `getInitialProps` will generate the HTML files during `next export` instead of `next build`.
 
