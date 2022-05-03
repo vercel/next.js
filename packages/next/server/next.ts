@@ -12,6 +12,12 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { shouldUseReactRoot } from '../shared/lib/react'
+
+// Make sure env of custom server is overridden
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 let ServerImpl: typeof Server
 
