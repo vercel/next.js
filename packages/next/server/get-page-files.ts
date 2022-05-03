@@ -6,6 +6,7 @@ export type BuildManifest = {
   ampDevFiles: readonly string[]
   polyfillFiles: readonly string[]
   lowPriorityFiles: readonly string[]
+  rootMainFiles: readonly string[]
   pages: {
     '/_app': readonly string[]
     [page: string]: readonly string[]

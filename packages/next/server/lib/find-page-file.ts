@@ -20,7 +20,12 @@ export async function findPageFile(
   normalizedPagePath: string,
   pageExtensions: string[]
 ): Promise<string | null> {
-  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions)
+  const isRootPaths = pagesDir.replace(/\\/g, '/').endsWith('/root')
+  const pagePaths = getPagePaths(
+    normalizedPagePath,
+    pageExtensions,
+    isRootPaths
+  )
   const [existingPath, ...others] = (
     await Promise.all(
       pagePaths.map(async (path) =>

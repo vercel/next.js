@@ -78,7 +78,7 @@ import {
   eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { CompilerResult, runCompiler } from './compiler'
+import { runCompiler } from './compiler'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -96,11 +96,12 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
-  isFlightPage,
+  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -112,7 +113,8 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise } from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { findPageFile } from '../server/lib/find-page-file'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -133,6 +135,16 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
+}
+
+type CompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: [
+    webpack.Stats | undefined,
+    webpack.Stats | undefined,
+    webpack.Stats | undefined
+  ]
 }
 
 export default async function build(
@@ -164,7 +176,6 @@ export default async function build(
       // We enable concurrent features (Fizz-related rendering architecture) when
       // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasConcurrentFeatures = hasReactRoot
       const hasServerComponents =
         hasReactRoot && !!config.experimental.serverComponents
 
@@ -196,7 +207,11 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const pagesDir = findPagesDir(dir)
+      const { pages: pagesDir, root: rootDir } = findPagesDir(
+        dir,
+        config.experimental.rootDir
+      )
+
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
@@ -230,7 +245,7 @@ export default async function build(
         .traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            pagesDir,
+            [pagesDir, rootDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
@@ -295,6 +310,26 @@ export default async function build(
             new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
           )
         )
+
+      let rootPaths: string[] | undefined
+
+      if (rootDir) {
+        rootPaths = await nextBuildSpan
+          .traceChild('collect-root-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              rootDir,
+              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+            )
+          )
+
+        const rootFile = await findPageFile(
+          path.join(rootDir, '..'),
+          'root',
+          config.pageExtensions
+        )
+        if (rootFile) rootPaths.push(rootFile)
+      }
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -318,6 +353,22 @@ export default async function build(
           })
         )
 
+      let mappedRootPaths: ReturnType<typeof createPagesMapping> | undefined
+
+      if (rootPaths && rootDir) {
+        mappedRootPaths = nextBuildSpan
+          .traceChild('create-root-mapping')
+          .traceFn(() =>
+            createPagesMapping({
+              pagePaths: rootPaths!,
+              hasServerComponents,
+              isDev: false,
+              isRoot: true,
+              pageExtensions: config.pageExtensions,
+            })
+          )
+      }
+
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
@@ -330,6 +381,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir,
+            rootPaths: mappedRootPaths,
           })
         )
 
@@ -615,7 +668,11 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let result: CompilerResult = { warnings: [], errors: [] }
+      let result: CompilerResult = {
+        warnings: [],
+        errors: [],
+        stats: [undefined, undefined, undefined],
+      }
       let webpackBuildStart
       let telemetryPlugin
       await (async () => {
@@ -631,6 +688,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
+          rootDir,
         }
 
         const configs = await runWebpackSpan
@@ -680,6 +738,7 @@ export default async function build(
             result = {
               warnings: [...clientResult.warnings],
               errors: [...clientResult.errors],
+              stats: [clientResult.stats, undefined, undefined],
             }
           } else {
             const serverResult = await runCompiler(configs[1], {
@@ -699,6 +758,11 @@ export default async function build(
                 ...clientResult.errors,
                 ...serverResult.errors,
                 ...(edgeServerResult?.errors || []),
+              ],
+              stats: [
+                clientResult.stats,
+                serverResult.stats,
+                edgeServerResult?.stats,
               ],
             }
           }
@@ -741,14 +805,18 @@ export default async function build(
         console.error(error)
         console.error()
 
-        // When using the web runtime, common Node.js native APIs are not available.
-        const moduleName = getUnresolvedModuleFromError(error)
-        if (hasConcurrentFeatures && moduleName) {
-          const err = new Error(
-            `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
+        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
+
+        for (const err of edgeRuntimeErrors) {
+          // When using the web runtime, common Node.js native APIs are not available.
+          const moduleName = getUnresolvedModuleFromError(err.message)
+          if (!moduleName) continue
+
+          const e = new Error(
+            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
           ) as NextError
-          err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw err
+          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
+          throw e
         }
 
         if (
@@ -973,7 +1041,7 @@ export default async function build(
                 : undefined
 
               if (hasServerComponents && pagePath) {
-                if (isFlightPage(config, pagePath)) {
+                if (isServerComponentPage(config, pagePath)) {
                   isServerComponent = true
                 }
               }
@@ -2184,6 +2252,7 @@ export default async function build(
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
+    teardownTraceSubscriber()
   }
 }
 
