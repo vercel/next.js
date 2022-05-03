@@ -34,12 +34,12 @@ import {
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import {
-  getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
+import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'

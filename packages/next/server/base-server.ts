@@ -34,7 +34,6 @@ import {
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import {
-  getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
@@ -71,6 +70,7 @@ import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
 import { normalizeViewPath } from '../shared/lib/router/utils/view-paths'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
