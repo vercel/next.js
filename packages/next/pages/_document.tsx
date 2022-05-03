@@ -1,9 +1,13 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
+import {
+  OPTIMIZED_FONT_PROVIDERS,
+  NEXT_BUILTIN_DOCUMENT,
+} from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
+  DocumentType,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
@@ -309,7 +313,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
 
 // Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
-;(Document as any).__next_internal_document =
+const InternalFunctionDocument: DocumentType =
   function InternalFunctionDocument() {
     return (
       <Html>
@@ -321,6 +325,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       </Html>
     )
   }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
 
 export function Html(
   props: React.DetailedHTMLProps<
