@@ -27,6 +27,7 @@ import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
+  NEXT_BUILTIN_DOCUMENT,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -69,6 +70,7 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
+import { normalizeRootPath } from '../shared/lib/router/utils/root-paths'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -140,6 +142,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
+  protected rootPathsManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
   protected renderOpts: {
@@ -179,6 +182,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
+  protected rootPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
@@ -189,6 +193,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
+  protected abstract getRootPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
@@ -351,6 +356,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
 
     this.pagesManifest = this.getPagesManifest()
+    this.rootPathsManifest = this.getRootPathsManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
@@ -868,6 +874,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
+      this.rootPathRoutes = this.getRootPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
       if (!this.minimalMode) {
         this.middleware = this.getMiddleware()
@@ -887,6 +894,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       pageChecker: this.hasPage.bind(this),
       locales: this.nextConfig.i18n?.locales || [],
     }
+  }
+
+  protected isRoutableRootPath(pathname: string): boolean {
+    if (this.rootPathRoutes) {
+      const paths = Object.keys(this.rootPathRoutes)
+
+      /**
+       * a root path is only routable if
+       * 1. has root/hello.js and no root/hello/ folder
+       * 2. has root/hello.js and a root/hello/index.js
+       */
+      const hasFolderIndex = this.rootPathRoutes[`${pathname}/index`]
+      const hasFolder = paths.some((path) => {
+        return path.startsWith(`${pathname}/`)
+      })
+
+      if (hasFolder && hasFolderIndex) {
+        return true
+      }
+      if (!hasFolder && this.rootPathRoutes[pathname]) {
+        return true
+      }
+    }
+    return false
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -961,7 +992,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(
-      Object.keys(this.pagesManifest!).map(
+      [
+        ...Object.keys(this.rootPathRoutes || {}),
+        ...Object.keys(this.pagesManifest!),
+      ].map(
         (page) =>
           normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
       )
@@ -975,6 +1009,35 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       })
       .filter((item): item is RoutingItem => Boolean(item))
+  }
+
+  protected getRootPathRoutes(): Record<string, string> {
+    const rootPathRoutes: Record<string, string> = {}
+
+    Object.keys(this.rootPathsManifest || {}).forEach((entry) => {
+      rootPathRoutes[normalizeRootPath(entry)] = entry
+    })
+    return rootPathRoutes
+  }
+
+  protected getRootPathLayouts(pathname: string): string[] {
+    const layoutPaths: string[] = []
+
+    if (this.rootPathRoutes) {
+      const paths = Object.values(this.rootPathRoutes)
+      const parts = pathname.split('/').filter(Boolean)
+
+      for (let i = 1; i < parts.length; i++) {
+        const parentPath = `/${parts.slice(0, i).join('/')}`
+
+        if (paths.includes(parentPath)) {
+          layoutPaths.push(parentPath)
+        }
+      }
+      // TODO: when should we bail on adding the root.js wrapper
+      layoutPaths.unshift('/_root')
+    }
+    return layoutPaths
   }
 
   protected async run(
@@ -1221,7 +1284,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // When concurrent features is enabled, the built-in `Document`
         // component also supports dynamic HTML.
         (this.renderOpts.reactRoot &&
-          !!(components.Document as any)?.__next_internal_document)
+          NEXT_BUILTIN_DOCUMENT in components.Document)
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
@@ -1687,14 +1750,63 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
+    // map the route to the actual bundle name e.g.
+    // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
+    const getOriginalRootPath = (rootPath: string) => {
+      if (this.nextConfig.experimental.rootDir) {
+        const originalRootPath =
+          this.rootPathRoutes?.[`${pathname}/index`] ||
+          this.rootPathRoutes?.[pathname]
+
+        if (!originalRootPath) {
+          return null
+        }
+        const isRoutable = this.isRoutableRootPath(rootPath)
+
+        // 404 when layout is hit and this isn't a routable path
+        // e.g. root/hello.js with root/hello/another.js but
+        // no root/hello/index.js
+        if (!isRoutable) {
+          return ''
+        }
+        return originalRootPath
+      }
+      return null
+    }
+
+    const gatherRootLayouts = async (
+      rootPath: string,
+      result: FindComponentsResult
+    ): Promise<void> => {
+      const layoutPaths = this.getRootPathLayouts(rootPath)
+      result.components.rootLayouts = await Promise.all(
+        layoutPaths.map(async (path) => {
+          const layoutRes = await this.findPageComponents(path)
+          return {
+            isRoot: path === '/_root',
+            Component: layoutRes?.components.Component!,
+            getStaticProps: layoutRes?.components.getStaticProps,
+            getServerSideProps: layoutRes?.components.getServerSideProps,
+          }
+        })
+      )
+    }
 
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(pathname)) {
-        const result = await this.findPageComponents(pathname, query)
+        const rootPath = getOriginalRootPath(pathname)
+
+        if (typeof rootPath === 'string') {
+          page = rootPath
+        }
+        const result = await this.findPageComponents(page, query)
         if (result) {
           try {
+            if (result.components.isRootPath) {
+              await gatherRootLayouts(page, result)
+            }
             return await this.renderToResponseWithComponents(ctx, result)
           } catch (err) {
             const isNoFallbackError = err instanceof NoFallbackError
@@ -1712,6 +1824,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (!params) {
             continue
           }
+          page = dynamicRoute.page
+          const rootPath = getOriginalRootPath(page)
+
+          if (typeof rootPath === 'string') {
+            page = rootPath
+          }
 
           const dynamicRouteResult = await this.findPageComponents(
             dynamicRoute.page,
@@ -1720,11 +1838,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
           if (dynamicRouteResult) {
             try {
-              page = dynamicRoute.page
+              if (dynamicRouteResult.components.isRootPath) {
+                await gatherRootLayouts(page, dynamicRouteResult)
+              }
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
-                  pathname: dynamicRoute.page,
+                  pathname: page,
                   renderOpts: {
                     ...ctx.renderOpts,
                     params,
