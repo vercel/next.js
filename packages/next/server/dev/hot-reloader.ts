@@ -168,6 +168,7 @@ export default class HotReloader {
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
+  private rootDir?: string
 
   constructor(
     dir: string,
@@ -178,6 +179,7 @@ export default class HotReloader {
       buildId,
       previewProps,
       rewrites,
+      rootDir,
     }: {
       config: NextConfigComplete
       pagesDir: string
@@ -185,12 +187,14 @@ export default class HotReloader {
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
+      rootDir?: string
     }
   ) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
+    this.rootDir = rootDir
     this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
@@ -423,6 +427,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
+        rootDir: this.rootDir,
       }
 
       return webpackConfigSpan
@@ -834,6 +839,7 @@ export default class HotReloader {
       multiCompiler,
       watcher: this.watcher,
       pagesDir: this.pagesDir,
+      rootDir: this.rootDir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

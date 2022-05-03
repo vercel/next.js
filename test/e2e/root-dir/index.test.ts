@@ -5,8 +5,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-// TODO: implementation
-describe.skip('root dir', () => {
+describe('root dir', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -127,12 +126,13 @@ describe.skip('root dir', () => {
 
   // TODO: do we want to make this only work for /root or is it allowed
   // to work for /pages as well?
-  it('should match partial parameters', async () => {
+  it.skip('should match partial parameters', async () => {
     const html = await renderViaHTTP(next.url, '/partial-match-123')
     expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
   })
 
-  describe('parallel routes', () => {
+  // TODO: Implement
+  describe.skip('parallel routes', () => {
     describe('conditional routes', () => {
       it('should serve user page', async () => {
         const html = await renderViaHTTP(next.url, '/conditional/tim')
@@ -229,7 +229,8 @@ describe.skip('root dir', () => {
       expect(html).toContain('hello from root/shared-component-route')
     })
 
-    it('should serve client component', async () => {
+    // TODO: implement
+    it.skip('should serve client component', async () => {
       const html = await renderViaHTTP(next.url, '/client-component-route')
       expect(html).toContain('hello from root/client-component-route. count: 0')
 
@@ -240,7 +241,8 @@ describe.skip('root dir', () => {
       )
     })
 
-    it('should include client component layout with server component route', async () => {
+    // TODO: implement
+    it.skip('should include client component layout with server component route', async () => {
       const html = await renderViaHTTP(next.url, '/client-nested')
       const $ = cheerio.load(html)
       // Should not be nested in dashboard
