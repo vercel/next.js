@@ -40,11 +40,17 @@ describe('dependencies can use env vars in middlewares', () => {
             })
           }
         `,
+        // make sure invalid package-lock doesn't error
+        'package-lock.json': '{}',
       },
       dependencies: {},
     })
   })
   afterAll(() => next.destroy())
+
+  it('does not error from patching lockfile', () => {
+    expect(next.cliOutput).not.toContain('patch-incorrect-lockfile')
+  })
 
   it('parses the env vars correctly', async () => {
     const testDir = next.testDir

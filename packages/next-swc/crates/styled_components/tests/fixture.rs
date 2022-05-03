@@ -2,7 +2,7 @@
 
 use std::{fs::read_to_string, path::PathBuf};
 use styled_components::{styled_components, Config};
-use swc_common::chain;
+use swc_common::{chain, Mark};
 use swc_ecma_transforms_testing::test_fixture;
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
@@ -25,7 +25,10 @@ fn fixture(input: PathBuf) {
             //
             let fm = t.cm.load_file(&input).unwrap();
 
-            chain!(resolver(), styled_components(fm, config.clone()))
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                styled_components(fm.name.clone(), fm.src_hash, config.clone())
+            )
         },
         &input,
         &dir.join("output.js"),

@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 import colors, { size } from './constants';
 const color = 'red';
 const bar = new String("div.jsx-aaed0341accea8f{font-size:3em}");

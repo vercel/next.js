@@ -7,6 +7,7 @@ import { getScssError } from './parseScss'
 import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
+import { NextConfig } from '../../../../server/config-shared'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -42,7 +43,8 @@ function getFileData(
 
 export async function getModuleBuildError(
   compilation: webpack.Compilation,
-  input: any
+  input: any,
+  config: NextConfig
 ): Promise<SimpleWebpackError | false> {
   if (
     !(
@@ -62,7 +64,8 @@ export async function getModuleBuildError(
   const notFoundError = await getNotFoundError(
     compilation,
     input,
-    sourceFilename
+    sourceFilename,
+    config
   )
   if (notFoundError !== false) {
     return notFoundError

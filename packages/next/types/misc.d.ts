@@ -293,6 +293,12 @@ declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
+
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export = m
+}
+
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -337,11 +343,6 @@ declare module 'next/dist/compiled/comment-json' {
 
 declare module 'next/dist/compiled/process' {
   import m from 'process'
-  export = m
-}
-
-declare module 'next/dist/compiled/path-browserify' {
-  import m from 'path'
   export = m
 }
 

@@ -8,7 +8,9 @@ const fixtures = [
   'add-legacy-behavior',
   'excludes-links-with-legacybehavior-prop',
   'children-interpolation',
-  'spread-props'
+  'spread-props',
+  'link-string',
+  'styled-jsx',
 ]
 
 for (const fixture of fixtures) {
