@@ -247,7 +247,7 @@ The `id` property is required for **inline scripts** in order for Next.js to tra
 
 ### Executing Code After Loading (`onLoad`)
 
-> **Note: Both `onLoad` and `onError` can't be used with the `beforeInteractive` loading strategy.**
+> **Note: Neither `onLoad` nor `onError` can't be used with the `beforeInteractive` loading strategy.**
 
 Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
