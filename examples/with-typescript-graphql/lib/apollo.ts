@@ -6,6 +6,7 @@ import {
   NormalizedCacheObject,
 } from '@apollo/client'
 import resolvers from './resolvers'
+import { typeDefs } from './schema'
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
@@ -17,11 +18,10 @@ export type ResolverContext = {
 function createIsomorphLink(context: ResolverContext = {}) {
   if (typeof window === 'undefined') {
     const { SchemaLink } = require('@apollo/client/link/schema')
-    const { readFileSync } = require('fs')
     const { makeExecutableSchema } = require('@graphql-tools/schema')
 
     const schema = makeExecutableSchema({
-      typeDefs: readFileSync('lib/schema.graphql', 'utf8'),
+      typeDefs,
       resolvers,
     })
     return new SchemaLink({ schema, context })

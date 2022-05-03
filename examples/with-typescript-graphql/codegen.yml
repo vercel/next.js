@@ -1,4 +1,4 @@
-schema: ./lib/schema.graphql
+schema: pages/api/graphql.ts
 documents: ./lib/documents/*.graphql
 generates:
   ./lib/graphql-operations.ts:

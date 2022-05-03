@@ -9,11 +9,11 @@
   },
   "dependencies": {
     "@apollo/client": "^3.5.10",
+    "graphql-tag": "^2.12.6",
     "@graphql-tools/load-files": "6.0.18",
     "@graphql-yoga/node": "^2.2.1",
     "@graphql-tools/merge": "6.0.18",
     "@graphql-tools/schema": "6.0.18",
-    "apollo-server-micro": "^2.16.1",
     "graphql": "15.6.0",
     "next": "^12.1.5",
     "react": "^17.0.2",
