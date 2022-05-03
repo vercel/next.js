@@ -24,7 +24,6 @@ pnpm create next-app -- --example with-unocss with-unocss-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-
 ## Working Configuration
 
 - Install and use a preset manually (e.g. `@unocss/preset-uno`)
@@ -36,34 +35,34 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 `next.config.js`
 
 ```js
-const UnoCSS = require("@unocss/webpack").default;
-const presetUno = require("@unocss/preset-uno").default;
+const UnoCSS = require('@unocss/webpack').default
+const presetUno = require('@unocss/preset-uno').default
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 
   webpack(config, context) {
-    config.plugins.push(UnoCSS({ presets: [presetUno()] }));
+    config.plugins.push(UnoCSS({ presets: [presetUno()] }))
 
-    if (context.buildId !== "development") {
+    if (context.buildId !== 'development') {
       // * disable filesystem cache for build
       // * see: https://github.com/unocss/unocss/issues/419
       // * see: https://webpack.js.org/configuration/cache/
-      config.cache = false;
+      config.cache = false
     }
 
-    return config;
+    return config
   },
-};
+}
 
-module.exports = nextConfig;
+module.exports = nextConfig
 ```
 
 `_app.js`
 
 ```tsx
-import "uno.css";
+import 'uno.css'
 ```
 
 `index.tsx`
