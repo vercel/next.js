@@ -465,8 +465,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : matchedPathname
 
         let srcPathname = isDataUrl
-          ? parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
-            matchedPathnameNoExt
+          ? this.stripNextDataPath(
+              parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
+                matchedPathnameNoExt
+            ) || '/'
           : matchedPathnameNoExt
 
         if (this.nextConfig.i18n) {
@@ -1338,21 +1340,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.nextConfig.i18n?.locales
     ).pathname
 
-    const stripNextDataPath = (path: string) => {
-      if (path.includes(this.buildId)) {
-        const splitPath = path.substring(
-          path.indexOf(this.buildId) + this.buildId.length
-        )
-
-        path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
-      }
-
-      if (this.nextConfig.i18n) {
-        return normalizeLocalePath(path, locales).pathname
-      }
-      return path
-    }
-
     const handleRedirect = (pageData: any) => {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
@@ -1383,8 +1370,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq) {
-      resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
-      urlPathname = stripNextDataPath(urlPathname)
+      resolvedUrlPathname = this.stripNextDataPath(resolvedUrlPathname)
+      urlPathname = this.stripNextDataPath(urlPathname)
     }
 
     let ssgCacheKey =
@@ -1741,6 +1728,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         revalidateOptions,
       }
     }
+  }
+
+  private stripNextDataPath(path: string) {
+    if (path.includes(this.buildId)) {
+      const splitPath = path.substring(
+        path.indexOf(this.buildId) + this.buildId.length
+      )
+
+      path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+    }
+
+    if (this.nextConfig.i18n) {
+      const { locales } = this.nextConfig.i18n
+      return normalizeLocalePath(path, locales).pathname
+    }
+    return path
   }
 
   private async renderToResponse(
