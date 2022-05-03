@@ -102,7 +102,7 @@ When using TypeScript, you must first create a new type for your pages which inc
 import type { ReactElement } from 'react'
 import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
-import type { NextPageWithLayout } from "./_app";
+import type { NextPageWithLayout } from './_app';
 
 export default function Page(): NextPageWithLayout {
   return {
