@@ -33,11 +33,6 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -61,7 +56,11 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { getMiddlewareRegex } from '../../shared/lib/router/utils/route-regex'
+import {
+  getMiddlewareRegex,
+  getRouteRegex,
+} from '../../shared/lib/router/utils/route-regex'
+import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import {

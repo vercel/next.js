@@ -54,11 +54,7 @@ import {
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
@@ -115,6 +111,7 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
