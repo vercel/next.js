@@ -55,7 +55,7 @@ it('.set with options', async () => {
 
   const options: CookieSerializeOptions = {
     path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 7,
     httpOnly: true,
     sameSite: 'strict',
     domain: 'example.com',
@@ -65,7 +65,7 @@ it('.set with options', async () => {
 
   expect(options).toStrictEqual({
     path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 7,
     httpOnly: true,
     sameSite: 'strict',
     domain: 'example.com',

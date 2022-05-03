@@ -5,8 +5,7 @@ const normalizeCookieOptions = (options: CookieSerializeOptions) => {
   options = Object.assign({}, options)
 
   if (options.maxAge) {
-    options.expires = new Date(Date.now() + options.maxAge)
-    options.maxAge /= 1000
+    options.expires = new Date(Date.now() + options.maxAge * 1000)
   }
 
   if (options.path == null) {
