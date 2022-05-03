@@ -351,7 +351,7 @@ export default class DevServer extends Server {
         this.viewPathRoutes = viewPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
-            getMiddlewareRegex(page, !ssrMiddleware.has(page))
+            getMiddlewareRegex(page, { catchAll: !ssrMiddleware.has(page) })
           ),
           page,
           ssr: ssrMiddleware.has(page),

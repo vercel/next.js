@@ -1216,7 +1216,9 @@ export default class NextNodeServer extends BaseServer {
     return (
       this.middlewareManifest?.sortedMiddleware.map((page) => ({
         match: getRouteMatcher(
-          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+          getMiddlewareRegex(page, {
+            catchAll: MIDDLEWARE_ROUTE.test(middleware[page].name),
+          })
         ),
         page,
       })) || []
