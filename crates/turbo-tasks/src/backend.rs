@@ -1,12 +1,20 @@
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
-use std::{any::Any, collections::HashMap, fmt::Display, future::Future, pin::Pin};
+use std::{
+    any::Any,
+    collections::HashMap,
+    fmt::{Debug, Display},
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+};
 
 use crate::{
-    id_factory::IdFactory, magic_any::MagicAny, manager::TurboTasksBackendApi,
-    task_input::SharedReference, FunctionId, RawVc, RawVcReadResult, TaskId, TaskInput,
-    TraitTypeId, ValueTypeId,
+    manager::TurboTasksBackendApi,
+    registry,
+    task_input::{SharedReference, SharedValue},
+    FunctionId, RawVc, RawVcReadResult, TaskId, TaskInput, TraitTypeId, ValueTypeId,
 };
 
 pub use crate::id::BackgroundJobId;
@@ -39,7 +47,16 @@ pub enum TransientTaskType {
     Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+impl Debug for TransientTaskType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Root(_) => f.debug_tuple("Root").finish(),
+            Self::Once(_) => f.debug_tuple("Once").finish(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PersistentTaskType {
     /// A normal task execution a native (rust) function
     Native(FunctionId, Vec<TaskInput>),
@@ -55,10 +72,10 @@ pub enum PersistentTaskType {
     ResolveTrait(TraitTypeId, String, Vec<TaskInput>),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SlotMappings {
     // TODO use [SerializableMagicAny]
-    pub by_key: HashMap<(ValueTypeId, Box<dyn MagicAny>), usize>,
+    pub by_key: HashMap<(ValueTypeId, SharedValue), usize>,
     pub by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
 }
 
@@ -74,7 +91,7 @@ impl Display for SlotContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
             None => write!(f, "empty"),
-            Some(content) => content.fmt(f),
+            Some(content) => Display::fmt(content, f),
         }
     }
 }
@@ -99,8 +116,9 @@ impl SlotContent {
 }
 
 pub trait Backend: Sync + Send {
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
-    fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
+    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
     fn try_start_task_execution(
         &self,
         task: TaskId,
@@ -124,17 +142,30 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, EventListener>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, EventListener>;
 
-    fn read_task_slot(&self, task: TaskId, index: usize, reader: TaskId) -> SlotContent;
+    fn try_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent>, EventListener>;
 
-    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent;
+    unsafe fn try_read_task_slot_untracked(
+        &self,
+        task: TaskId,
+        index: usize,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent>, EventListener>;
 
-    fn get_fresh_slot(&self, task: TaskId) -> usize;
+    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
 
     fn update_task_slot(
         &self,
@@ -147,14 +178,92 @@ pub trait Backend: Sync + Send {
     fn get_or_create_persistent_task(
         &self,
         task_type: PersistentTaskType,
-        id_factory: &IdFactory<TaskId>,
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId;
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        id_factory: &IdFactory<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId;
+}
+
+impl PersistentTaskType {
+    pub async fn run_resolve_native(
+        fn_id: FunctionId,
+        inputs: Vec<TaskInput>,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+    ) -> Result<RawVc> {
+        let mut resolved_inputs = Vec::new();
+        for input in inputs.into_iter() {
+            resolved_inputs.push(input.resolve().await?)
+        }
+        Ok(turbo_tasks.native_call(fn_id, resolved_inputs))
+    }
+
+    pub async fn run_resolve_trait(
+        trait_type: TraitTypeId,
+        name: String,
+        inputs: Vec<TaskInput>,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+    ) -> Result<RawVc> {
+        let mut resolved_inputs = Vec::new();
+        let mut iter = inputs.into_iter();
+        if let Some(this) = iter.next() {
+            let this = this.resolve().await?;
+            let this_value = this.clone().resolve_to_value().await?;
+            match this_value.get_trait_method(trait_type, name.clone()) {
+                Some(native_fn) => {
+                    resolved_inputs.push(this);
+                    for input in iter {
+                        resolved_inputs.push(input)
+                    }
+                    Ok(turbo_tasks.dynamic_call(native_fn, resolved_inputs))
+                }
+                None => {
+                    if !this_value.has_trait(trait_type) {
+                        let traits = this_value
+                            .traits()
+                            .iter()
+                            .map(|t| format!(" {}", t))
+                            .collect::<String>();
+                        Err(anyhow!(
+                            "{} doesn't implement trait {} (only{})",
+                            this_value,
+                            registry::get_trait(trait_type),
+                            traits,
+                        ))
+                    } else {
+                        Err(anyhow!(
+                            "{} implements trait {}, but method {} is missing",
+                            this_value,
+                            registry::get_trait(trait_type),
+                            name
+                        ))
+                    }
+                }
+            }
+        } else {
+            panic!("No arguments for trait call");
+        }
+    }
+
+    pub fn run(
+        self,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+    ) -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> {
+        match self {
+            PersistentTaskType::Native(fn_id, inputs) => {
+                let native_fn = registry::get_function(fn_id);
+                let bound = native_fn.bind(&inputs);
+                (bound)()
+            }
+            PersistentTaskType::ResolveNative(fn_id, inputs) => {
+                Box::pin(Self::run_resolve_native(fn_id, inputs, turbo_tasks))
+            }
+            PersistentTaskType::ResolveTrait(trait_type, name, inputs) => Box::pin(
+                Self::run_resolve_trait(trait_type, name, inputs, turbo_tasks),
+            ),
+        }
+    }
 }

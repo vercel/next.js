@@ -17,8 +17,9 @@ use std::{
     },
 };
 use turbo_tasks::{
-    backend::SlotMappings, get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId,
-    TaskInput, TraitTypeId, TurboTasksBackendApi,
+    backend::{PersistentTaskType, SlotMappings},
+    get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId, TaskInput, TraitTypeId,
+    TurboTasksBackendApi,
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
@@ -579,14 +580,6 @@ impl Task {
         }
     }
 
-    pub(crate) fn dependent_slot_updated(
-        &self,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        self.make_dirty(backend, turbo_tasks);
-    }
-
     fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
@@ -655,60 +648,18 @@ impl Task {
                 let native_fn = *native_fn;
                 let inputs = self.inputs.clone();
                 let tt = tt.pin();
-                Box::pin(async move {
-                    let mut resolved_inputs = Vec::new();
-                    for input in inputs.into_iter() {
-                        resolved_inputs.push(input.resolve().await?)
-                    }
-                    Ok(tt.native_call(native_fn, resolved_inputs))
-                })
+                Box::pin(PersistentTaskType::run_resolve_native(
+                    native_fn, inputs, tt,
+                ))
             }
             TaskType::ResolveTrait(trait_type, name) => {
                 let trait_type = *trait_type;
                 let name = name.clone();
                 let inputs = self.inputs.clone();
                 let tt = tt.pin();
-                Box::pin(async move {
-                    let mut resolved_inputs = Vec::new();
-                    let mut iter = inputs.into_iter();
-                    if let Some(this) = iter.next() {
-                        let this = this.resolve().await?;
-                        let this_value = this.clone().resolve_to_value().await?;
-                        match this_value.get_trait_method(trait_type, name.clone()) {
-                            Some(native_fn) => {
-                                resolved_inputs.push(this);
-                                for input in iter {
-                                    resolved_inputs.push(input)
-                                }
-                                Ok(tt.dynamic_call(native_fn, resolved_inputs))
-                            }
-                            None => {
-                                if !this_value.has_trait(trait_type) {
-                                    let traits = this_value
-                                        .traits()
-                                        .iter()
-                                        .map(|t| format!(" {}", t))
-                                        .collect::<String>();
-                                    Err(anyhow!(
-                                        "{} doesn't implement trait {} (only{})",
-                                        this_value,
-                                        trait_type,
-                                        traits,
-                                    ))
-                                } else {
-                                    Err(anyhow!(
-                                        "{} implements trait {}, but method {} is missing",
-                                        this_value,
-                                        trait_type,
-                                        name
-                                    ))
-                                }
-                            }
-                        }
-                    } else {
-                        panic!("No arguments for trait call");
-                    }
-                })
+                Box::pin(PersistentTaskType::run_resolve_trait(
+                    trait_type, name, inputs, tt,
+                ))
             }
         }
     }

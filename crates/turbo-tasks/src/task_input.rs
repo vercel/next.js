@@ -14,7 +14,7 @@ use crate::{
     backend::SlotContent,
     id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
-    manager::read_task_output,
+    manager::{read_task_output, read_task_slot},
     registry, turbo_tasks,
     util::try_join_all,
     value::{TransientValue, Value},
@@ -267,7 +267,7 @@ impl<'de> Deserialize<'de> for SharedValue {
 }
 
 #[allow(clippy::derive_hash_xor_eq)]
-#[derive(Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TaskInput {
     TaskOutput(TaskId),
     TaskSlot(TaskId, usize),
@@ -289,7 +289,9 @@ impl TaskInput {
         loop {
             current = match current {
                 TaskInput::TaskOutput(task_id) => read_task_output(&*tt, task_id).await?.into(),
-                TaskInput::TaskSlot(task_id, index) => tt.read_task_slot(task_id, index).into(),
+                TaskInput::TaskSlot(task_id, index) => {
+                    read_task_slot(&*tt, task_id, index).await?.into()
+                }
                 _ => return Ok(current),
             }
         }
@@ -487,7 +489,11 @@ where
     for<'de2> T: Deserialize<'de2>,
 {
     fn from(v: Value<T>) -> Self {
-        TaskInput::SharedValue(SharedValue(Some(T::get_value_type_id()), Arc::new(v)))
+        let raw_value: T = v.into_value();
+        TaskInput::SharedValue(SharedValue(
+            Some(T::get_value_type_id()),
+            Arc::new(raw_value),
+        ))
     }
 }
 
@@ -498,7 +504,8 @@ where
     for<'de2> T: Deserialize<'de2>,
 {
     fn from(v: TransientValue<T>) -> Self {
-        TaskInput::SharedValue(SharedValue(None, Arc::new(v)))
+        let raw_value: T = v.into_value();
+        TaskInput::SharedValue(SharedValue(None, Arc::new(raw_value)))
     }
 }
 
@@ -599,17 +606,17 @@ where
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::SharedValue(value) => {
-                let v = value.1.downcast_ref::<Value<T>>().ok_or_else(|| {
+                let v = value.1.downcast_ref::<T>().ok_or_else(|| {
                     anyhow!(
                         "invalid task input type, expected {} got {:?}",
-                        type_name::<Value<T>>(),
+                        type_name::<T>(),
                         value.1,
                     )
                 })?;
-                Ok(v.clone())
+                Ok(Value::new(v.clone()))
             }
             _ => Err(anyhow!(
-                "invalid task input type, expected Value<{}>",
+                "invalid task input type, expected {}",
                 type_name::<T>()
             )),
         }
@@ -627,17 +634,17 @@ where
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::SharedValue(value) => {
-                let v = value.1.downcast_ref::<TransientValue<T>>().ok_or_else(|| {
+                let v = value.1.downcast_ref::<T>().ok_or_else(|| {
                     anyhow!(
                         "invalid task input type, expected {} got {:?}",
-                        type_name::<TransientValue<T>>(),
+                        type_name::<T>(),
                         value.1,
                     )
                 })?;
-                Ok(v.clone())
+                Ok(TransientValue::new(v.clone()))
             }
             _ => Err(anyhow!(
-                "invalid task input type, expected TransientValue<{}>",
+                "invalid task input type, expected {}",
                 type_name::<T>()
             )),
         }

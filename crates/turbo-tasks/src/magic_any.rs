@@ -20,6 +20,9 @@ pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_hash(&self, hasher: &mut dyn Hasher);
 
     fn magic_cmp(&self, other: &dyn MagicAny) -> Ordering;
+
+    #[cfg(debug_assertions)]
+    fn magic_type_name(&self) -> &'static str;
 }
 mopafy!(MagicAny);
 
@@ -55,6 +58,11 @@ impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
             None => Ord::cmp(&TypeId::of::<Self>(), &other.type_id()),
             Some(other) => self.cmp(other),
         }
+    }
+
+    #[cfg(debug_assertions)]
+    fn magic_type_name(&self) -> &'static str {
+        type_name::<T>()
     }
 }
 
@@ -109,7 +117,18 @@ impl dyn MagicAny {
     pub fn as_serialize<T: Debug + Eq + Ord + Hash + Serialize + Send + Sync + 'static>(
         &self,
     ) -> &dyn erased_serde::Serialize {
-        self.downcast_ref::<T>().unwrap()
+        if let Some(r) = self.downcast_ref::<T>() {
+            return r;
+        } else {
+            #[cfg(debug_assertions)]
+            panic!(
+                "MagicAny::as_serializable broken: got {} but expected {}",
+                self.magic_type_name(),
+                type_name::<T>()
+            );
+            #[cfg(not(debug_assertions))]
+            panic!("MagicAny::as_serializable bug");
+        }
     }
 }
 

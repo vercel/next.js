@@ -331,7 +331,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
             >(key: K, content: #ident) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
                 slot.update_shared(content);
@@ -356,7 +356,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
             >(key: K, content: #ident) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
                 slot.compare_and_update_shared(content);

@@ -5,6 +5,7 @@ use std::{
     path::PathBuf,
 };
 
+use anyhow::Context;
 use syn::{Attribute, Item, Path, PathArguments, PathSegment, Type, TypePath};
 
 pub fn generate_register() {
@@ -80,7 +81,9 @@ pub fn generate_register() {
         while let Some((mod_path, file_path)) = queue.pop() {
             println!("cargo:rerun-if-changed={}", file_path.to_string_lossy());
             let src = std::fs::read_to_string(&file_path).unwrap();
-            let file = syn::parse_file(&src).unwrap();
+            let file = syn::parse_file(&src)
+                .with_context(|| format!("failed to parse {}", file_path.display()))
+                .unwrap();
             for item in file.items {
                 match item {
                     Item::Enum(enum_item) => {

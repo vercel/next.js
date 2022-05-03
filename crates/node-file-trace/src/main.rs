@@ -7,12 +7,13 @@ use std::{
     collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
     sync::Arc, time::Instant,
 };
-use turbo_tasks::{NothingVc, TaskId, TurboTasks};
+use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbo_tasks_rocksdb::RocksDbBackend;
 use turbopack::{
     all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };
@@ -24,7 +25,13 @@ struct CommonArgs {
     input: Vec<String>,
 
     #[clap(short, long)]
+    context_directory: Option<String>,
+
+    #[clap(short, long)]
     visualize_graph: bool,
+
+    #[clap(long)]
+    cache: Option<String>,
 
     #[clap(short, long)]
     watch: bool,
@@ -37,27 +44,18 @@ enum Args {
     Print {
         #[clap(flatten)]
         common: CommonArgs,
-
-        #[clap(short, long)]
-        context_directory: Option<String>,
     },
 
     // Adds a *.nft.json file next to each input file which lists the referenced files
     Annotate {
         #[clap(flatten)]
         common: CommonArgs,
-
-        #[clap(short, long)]
-        context_directory: Option<String>,
     },
 
     // Copy input files and all referenced files to the output directory
     Build {
         #[clap(flatten)]
         common: CommonArgs,
-
-        #[clap(short, long)]
-        context_directory: Option<String>,
 
         #[clap(short, long, default_value_t = String::from("dist"))]
         output_directory: String,
@@ -67,19 +65,16 @@ enum Args {
     Size {
         #[clap(flatten)]
         common: CommonArgs,
-
-        #[clap(short, long)]
-        context_directory: Option<String>,
     },
 }
 
 impl Args {
-    fn common(&self) -> CommonArgs {
+    fn common(&self) -> &CommonArgs {
         match self {
             Args::Print { common, .. }
             | Args::Annotate { common, .. }
             | Args::Build { common, .. }
-            | Args::Size { common, .. } => common.clone(),
+            | Args::Size { common, .. } => common,
         }
     }
 }
@@ -126,8 +121,8 @@ async fn input_to_modules<'a>(fs: FileSystemVc, input: &'a Vec<String>) -> Resul
     Ok(list)
 }
 
-fn process_context(dir: &PathBuf, context_directory: Option<String>) -> Result<String> {
-    let mut context = PathBuf::from(context_directory.unwrap_or_else(|| ".".to_string()));
+fn process_context(dir: &PathBuf, context_directory: Option<&String>) -> Result<String> {
+    let mut context = PathBuf::from(context_directory.map_or(".", |s| s));
     if !context.is_absolute() {
         context = dir.join(context);
     }
@@ -158,9 +153,9 @@ fn make_relative_path(dir: &PathBuf, context: &str, input: &str) -> Result<Strin
         .replace("\\", "/"))
 }
 
-fn process_input(dir: &PathBuf, context: &String, input: Vec<String>) -> Result<Vec<String>> {
+fn process_input(dir: &PathBuf, context: &String, input: &Vec<String>) -> Result<Vec<String>> {
     input
-        .into_iter()
+        .iter()
         .map(|input| make_relative_path(dir, context, &input))
         .collect()
 }
@@ -169,14 +164,56 @@ fn main() {
     register();
 
     let args = Args::parse();
-    let CommonArgs {
-        input,
+    let &CommonArgs {
+        ref input,
         visualize_graph,
+        ref cache,
+        ref context_directory,
+        ..
+    } = args.common();
+    if let Some(cache) = cache {
+        run(
+            &args,
+            || RocksDbBackend::new(cache, (input, context_directory)).unwrap(),
+            |_, _| {},
+        )
+    } else {
+        run(
+            &args,
+            || MemoryBackend::new(),
+            |tt, root_task| {
+                if visualize_graph {
+                    let mut stats = Stats::new();
+                    let b = tt.backend();
+                    b.with_all_cached_tasks(|task| {
+                        stats.add_id(b, task);
+                    });
+                    stats.add_id(b, root_task);
+                    stats.merge_resolve();
+                    let tree = stats.treeify();
+                    let graph = viz::visualize_stats_tree(tree);
+                    fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
+                    println!("graph.html written");
+                }
+            },
+        )
+    }
+}
+
+fn run<B: Backend + 'static>(
+    args: &Args,
+    create_backend: impl Fn() -> B,
+    final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId),
+) {
+    let &CommonArgs {
+        ref input,
         watch,
+        ref context_directory,
+        ..
     } = args.common();
 
     let start = Instant::now();
-    let finish = |tt: Arc<TurboTasks<MemoryBackend>>, root_task: TaskId| {
+    let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| {
         if watch {
             let handle = spawn({
                 let tt = tt.clone();
@@ -199,31 +236,16 @@ fn main() {
         } else {
             block_on(tt.wait_done());
             println!("done in {} ms", start.elapsed().as_millis());
-            if visualize_graph {
-                let mut stats = Stats::new();
-                let b = tt.backend();
-                b.with_all_cached_tasks(|task| {
-                    stats.add_id(b, task);
-                });
-                stats.add_id(b, root_task);
-                stats.merge_resolve();
-                let tree = stats.treeify();
-                let graph = viz::visualize_stats_tree(tree);
-                fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
-                println!("graph.html written");
-            }
+            final_finish(tt, root_task);
         }
     };
 
     match args {
-        Args::Print {
-            context_directory,
-            common: _,
-        } => {
+        Args::Print { common: _ } => {
             let dir = current_dir().unwrap();
-            let context = process_context(&dir, context_directory).unwrap();
+            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(MemoryBackend::new());
+            let tt = TurboTasks::new(create_backend());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -246,14 +268,11 @@ fn main() {
             });
             finish(tt, task);
         }
-        Args::Annotate {
-            context_directory,
-            common: _,
-        } => {
+        Args::Annotate { common: _ } => {
             let dir = current_dir().unwrap();
-            let context = process_context(&dir, context_directory).unwrap();
+            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(MemoryBackend::new());
+            let tt = TurboTasks::new(create_backend());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -269,15 +288,14 @@ fn main() {
             finish(tt, task);
         }
         Args::Build {
-            context_directory,
-            output_directory,
+            ref output_directory,
             common: _,
         } => {
             let dir = current_dir().unwrap();
-            let context = process_context(&dir, context_directory).unwrap();
+            let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(MemoryBackend::new());
+            let tt = TurboTasks::new(create_backend());
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -296,10 +314,7 @@ fn main() {
             });
             finish(tt, task);
         }
-        Args::Size {
-            context_directory,
-            common: _,
-        } => todo!(),
+        Args::Size { common: _ } => todo!(),
     }
 }
 

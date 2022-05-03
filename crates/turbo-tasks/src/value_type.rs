@@ -1,5 +1,5 @@
 use std::{
-    any::Any,
+    any::{type_name, Any},
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
@@ -89,7 +89,13 @@ impl Debug for ValueType {
 pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
     this: &(dyn Any + Send + Sync),
 ) -> &dyn erased_serde::Serialize {
-    this.downcast_ref::<T>().unwrap()
+    if let Some(r) = this.downcast_ref::<T>() {
+        return r;
+    }
+    panic!(
+        "any_as_serialize::<{}> called with invalid type",
+        type_name::<T>()
+    );
 }
 
 impl ValueType {
@@ -138,7 +144,8 @@ impl ValueType {
         arc: &'a Arc<dyn MagicAny>,
     ) -> Option<&'a dyn erased_serde::Serialize> {
         if let Some(s) = self.magic_serialization {
-            Some((s.0)(arc))
+            let r: &dyn MagicAny = &**arc;
+            Some((s.0)(r))
         } else {
             None
         }
@@ -149,7 +156,7 @@ impl ValueType {
         arc: &'a Arc<dyn Any + Sync + Send>,
     ) -> Option<&'a dyn erased_serde::Serialize> {
         if let Some(s) = self.any_serialization {
-            Some((s.0)(arc))
+            Some((s.0)(&**arc))
         } else {
             None
         }

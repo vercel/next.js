@@ -75,10 +75,10 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
 
-    fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
         for task in tasks.into_iter() {
             self.with_task(task, |task| {
-                task.dependent_slot_updated(self, turbo_tasks);
+                task.invalidate(self, turbo_tasks);
             });
         }
     }
@@ -118,6 +118,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, EventListener> {
         self.try_get_output(task, |output| {
             Task::add_dependency_to_current(RawVc::TaskOutput(task));
@@ -128,24 +129,36 @@ impl Backend for MemoryBackend {
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, EventListener> {
         self.try_get_output(task, |output| unsafe { output.read_untracked() })
     }
 
-    fn read_task_slot(&self, task: TaskId, index: usize, reader: TaskId) -> SlotContent {
+    fn try_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent>, EventListener> {
         Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
-        self.with_task(task, |task| {
+        Ok(Ok(self.with_task(task, |task| {
             task.with_slot_mut(index, |slot| slot.read_content(reader))
-        })
+        })))
     }
 
-    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent {
-        self.with_task(task, |task| {
+    unsafe fn try_read_task_slot_untracked(
+        &self,
+        task: TaskId,
+        index: usize,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent>, EventListener> {
+        Ok(Ok(self.with_task(task, |task| {
             task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
-        })
+        })))
     }
 
-    fn get_fresh_slot(&self, task: TaskId) -> usize {
+    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
         self.with_task(task, |task| task.get_fresh_slot())
     }
 
@@ -184,7 +197,6 @@ impl Backend for MemoryBackend {
     fn get_or_create_persistent_task(
         &self,
         task_type: PersistentTaskType,
-        id_factory: &IdFactory<TaskId>,
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
@@ -198,7 +210,7 @@ impl Backend for MemoryBackend {
             task
         } else {
             // slow pass with key lock
-            let id = id_factory.get();
+            let id = turbo_tasks.get_fresh_task_id();
             let task = match &task_type {
                 PersistentTaskType::Native(fn_id, inputs) => {
                     Task::new_native(id, inputs.clone(), *fn_id)
@@ -223,7 +235,7 @@ impl Backend for MemoryBackend {
                     // SAFETY: We have a fresh task id where nobody knows about yet
                     unsafe {
                         self.memory_tasks.remove(*id);
-                        id_factory.reuse(id);
+                        turbo_tasks.reuse_task_id(id);
                     }
                     *r.current
                 }
@@ -240,10 +252,9 @@ impl Backend for MemoryBackend {
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        id_factory: &IdFactory<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
-        let id = id_factory.get();
+        let id = turbo_tasks.get_fresh_task_id();
         let task = match task_type {
             TransientTaskType::Root(f) => Task::new_root(id, f),
             TransientTaskType::Once(f) => Task::new_once(id, f),
@@ -252,7 +263,6 @@ impl Backend for MemoryBackend {
         unsafe {
             self.memory_tasks.insert(*id, task);
         }
-        turbo_tasks.schedule(id);
         id
     }
 }

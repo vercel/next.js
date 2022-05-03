@@ -33,6 +33,6 @@ impl Slot {
         self.content = content;
         self.updates += 1;
         // notify
-        turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
+        turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
     }
 }

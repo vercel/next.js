@@ -8,7 +8,7 @@ use crate::{
     manager::{find_slot_by_key, find_slot_by_type},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, ValueType,
+    RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, Typed, TypedForInput, ValueType,
 };
 
 #[derive(PartialEq, Eq, Clone)]
@@ -60,7 +60,9 @@ impl<T: Hash + PartialEq + Eq + TraceRawVcs + Send + Sync + 'static> Vc<T> {
     ///
     /// Slot is selected by the provided `key`. `key` must not be used twice
     /// during the current task.
-    pub fn keyed_slot<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
+    pub fn keyed_slot<
+        K: Debug + Eq + Ord + Hash + Typed + TypedForInput + Send + Sync + 'static,
+    >(
         key: K,
         content: T,
     ) -> Self {
