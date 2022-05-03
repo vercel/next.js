@@ -56,13 +56,9 @@ export type ImageConfigComplete = {
   path: string
 
   /**
-   * @deprecated Use `remotePatterns` instead for more granular configuration.
    * @see [Image domains configuration](https://nextjs.org/docs/api-reference/next/image#domains)
    */
   domains: string[]
-
-  /** @see [Remote Images](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
-  remotePatterns: RemotePattern[]
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
   disableStaticImages: boolean
@@ -88,7 +84,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
-  remotePatterns: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,
   formats: ['image/webp'],

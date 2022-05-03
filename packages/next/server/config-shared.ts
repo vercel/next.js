@@ -5,6 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
+  RemotePattern,
 } from '../shared/lib/image-config'
 
 export type PageRuntime = 'nodejs' | 'edge' | undefined
@@ -114,6 +115,7 @@ export interface ExperimentalConfig {
   outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
+    remotePatterns: RemotePattern[]
   }
   middlewareSourceMaps?: boolean
   emotion?:
@@ -498,6 +500,7 @@ export const defaultConfig: NextConfig = {
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
+      remotePatterns: [],
     },
   },
 }

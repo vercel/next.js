@@ -73,10 +73,10 @@ export class ImageOptimizerCache {
       deviceSizes = [],
       imageSizes = [],
       domains = [],
-      remotePatterns = [],
       minimumCacheTTL = 60,
       formats = ['image/webp'],
     } = imageData
+    const remotePatterns = nextConfig.experimental.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
 

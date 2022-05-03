@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                               |
 | --------- | ----------------------------------------------------------------------------------------------------- |
-| `v12.2.0` | `remotePatterns` configuration added and `domains` configuration deprecated.                          |
+| `v12.1.7` | Experimental `remotePatterns` configuration added.                                                    |
 | `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
 | `v12.0.9` | `lazyRoot` prop added.                                                                                |
@@ -44,7 +44,7 @@ Must be one of the following:
    or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
-[remotePatterns](#remote-patterns) in
+[domains](#domains) in
 `next.config.js`.
 
 ### width
@@ -316,19 +316,23 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Remote Patterns
 
+> Note: The `remotePatterns` feature is currently **experimental**.
+
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'example.com',
-        port: '',
-        pathname: '/account123/**',
-      },
-    ],
+  experimental: {
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: 'example.com',
+          port: '',
+          pathname: '/account123/**',
+        },
+      ],
+    },
   },
 }
 ```
@@ -339,13 +343,15 @@ Below is another example of the `remotePatterns` property in the `next.config.js
 
 ```js
 module.exports = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.example.com',
-      },
-    ],
+  experimental: {
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: '**.example.com',
+        },
+      ],
+    },
   },
 }
 ```
@@ -362,8 +368,6 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
 However, the `domains` configuration does not support wildcard pattern matching and it cannot restrict protocol, port, or pathname.
-
-In most cases, you should use [`remotePatterns`](#remote-patterns) instead for more granular configuration.
 
 Below is an example of the `domains` property in the `next.config.js` file:
 
