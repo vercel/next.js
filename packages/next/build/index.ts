@@ -114,6 +114,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { findPageFile } from '../server/lib/find-page-file'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -309,6 +310,26 @@ export default async function build(
             new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
           )
         )
+
+      let rootPaths: string[] | undefined
+
+      if (rootDir) {
+        rootPaths = await nextBuildSpan
+          .traceChild('collect-root-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              rootDir,
+              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+            )
+          )
+
+        const rootFile = await findPageFile(
+          path.join(rootDir, '..'),
+          'root',
+          config.pageExtensions
+        )
+        if (rootFile) rootPaths.push(rootFile)
+      }
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -332,6 +353,22 @@ export default async function build(
           })
         )
 
+      let mappedRootPaths: ReturnType<typeof createPagesMapping> | undefined
+
+      if (rootPaths && rootDir) {
+        mappedRootPaths = nextBuildSpan
+          .traceChild('create-root-mapping')
+          .traceFn(() =>
+            createPagesMapping({
+              pagePaths: rootPaths!,
+              hasServerComponents,
+              isDev: false,
+              isRoot: true,
+              pageExtensions: config.pageExtensions,
+            })
+          )
+      }
+
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
@@ -344,6 +381,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir,
+            rootPaths: mappedRootPaths,
           })
         )
 
@@ -649,6 +688,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
+          rootDir,
         }
 
         const configs = await runWebpackSpan

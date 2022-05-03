@@ -10,10 +10,19 @@ import { normalizePathSep } from './normalize-path-sep'
  * @param pagePath A page to a page file (absolute or relative)
  * @param extensions Extensions allowed for the page.
  */
-export function removePagePathTail(pagePath: string, extensions: string[]) {
-  return (
-    normalizePathSep(pagePath)
-      .replace(new RegExp(`\\.+(?:${extensions.join('|')})$`), '')
-      .replace(/\/index$/, '') || '/'
+export function removePagePathTail(
+  pagePath: string,
+  extensions: string[],
+  stripIndex?: boolean
+) {
+  pagePath = normalizePathSep(pagePath).replace(
+    new RegExp(`\\.+(?:${extensions.join('|')})$`),
+    ''
   )
+
+  if (stripIndex) {
+    pagePath = pagePath.replace(/\/index$/, '') || '/'
+  }
+
+  return pagePath
 }
