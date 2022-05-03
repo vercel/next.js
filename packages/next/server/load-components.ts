@@ -111,11 +111,15 @@ export async function loadComponents(
   }
 
   const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless, rootEnabled),
-    requirePage('/_app', distDir, serverless, rootEnabled),
-    requirePage(pathname, distDir, serverless, rootEnabled),
+    Promise.resolve().then(() =>
+      requirePage('/_document', distDir, serverless)
+    ),
+    Promise.resolve().then(() => requirePage('/_app', distDir, serverless)),
+    Promise.resolve().then(() => requirePage(pathname, distDir, serverless)),
     serverComponents
-      ? requirePage('/_app.server', distDir, serverless, rootEnabled)
+      ? Promise.resolve().then(() =>
+          requirePage('/_app.server', distDir, serverless)
+        )
       : null,
   ])
 
