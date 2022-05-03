@@ -341,6 +341,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       reactRoot: this.nextConfig.experimental.reactRoot === true,
+      dev,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
