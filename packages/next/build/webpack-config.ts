@@ -10,12 +10,15 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  ROOT_ALIAS,
+  ROOT_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -312,6 +315,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     runWebpackSpan,
     target = 'server',
+    rootDir,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -325,6 +329,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
+    rootDir?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -537,6 +542,18 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
+        ...(config.experimental.rootDir
+          ? {
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
+                `./` +
+                path
+                  .relative(
+                    dir,
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'root-next.js')
+                  )
+                  .replace(/\\/g, '/'),
+            }
+          : {}),
       } as ClientEntries)
     : undefined
 
@@ -559,6 +576,7 @@ export default async function getBaseWebpackConfig(
   const customAppAliases: { [key: string]: string[] } = {}
   const customErrorAlias: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
+  const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
@@ -589,6 +607,16 @@ export default async function getBaseWebpackConfig(
       }, [] as string[]),
       `next/dist/pages/_document.js`,
     ]
+
+    if (config.experimental.rootDir && rootDir) {
+      customRootAliases[`${ROOT_ALIAS}/root`] = [
+        ...config.pageExtensions.reduce((prev, ext) => {
+          prev.push(path.join(rootDir, `root.${ext}`))
+          return prev
+        }, [] as string[]),
+        'next/dist/pages/root.js',
+      ]
+    }
   }
 
   const resolveConfig = {
@@ -620,8 +648,15 @@ export default async function getBaseWebpackConfig(
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,
+      ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
+      ...(rootDir
+        ? {
+            [ROOT_DIR_ALIAS]: rootDir,
+            [ROOT_ALIAS]: path.join(rootDir, '..'),
+          }
+        : {}),
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
@@ -1523,6 +1558,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
+          rootEnabled: !!config.experimental.rootDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1533,6 +1569,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
+          rootEnabled: !!config.experimental.rootDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

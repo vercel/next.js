@@ -103,6 +103,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       [this.serverOptions.webServerConfig.page]: '',
     }
   }
+  protected getRootPathsManifest() {
+    return {
+      [(globalThis as any).__server_context.page]: '',
+    }
+  }
   protected getFilesystemPaths() {
     return new Set<string>()
   }

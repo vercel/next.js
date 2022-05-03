@@ -10,8 +10,23 @@ import { join } from '../isomorphic/path'
  * @param normalizedPagePath Normalized page path (it will denormalize).
  * @param extensions Allowed extensions.
  */
-export function getPagePaths(normalizedPagePath: string, extensions: string[]) {
+export function getPagePaths(
+  normalizedPagePath: string,
+  extensions: string[],
+  isRoot?: boolean
+) {
   const page = denormalizePagePath(normalizedPagePath)
+
+  if (isRoot) {
+    return flatten(
+      extensions.map((extension) => {
+        return normalizedPagePath.endsWith('/index')
+          ? [`${page}.${extension}`, join(page, `index.${extension}`)]
+          : [`${page}.${extension}`]
+      })
+    )
+  }
+
   return flatten(
     extensions.map((extension) => {
       return !normalizedPagePath.endsWith('/index')
