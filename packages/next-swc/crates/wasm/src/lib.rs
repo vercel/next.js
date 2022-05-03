@@ -85,7 +85,7 @@ pub fn transform_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
 pub fn parse_sync(s: &str, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
-    let c = compiler();
+    let c = swc::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
 
     try_with_handler(
         c.cm.clone(),

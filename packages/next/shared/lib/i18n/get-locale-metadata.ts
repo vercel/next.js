@@ -1,5 +1,5 @@
 import { acceptLanguage } from '../../../server/accept-header'
-import { denormalizePagePath } from '../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
 import { formatUrl } from '../router/utils/format-url'
 import { normalizeLocalePath } from './normalize-locale-path'

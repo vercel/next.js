@@ -98,6 +98,25 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
+  it('emits event when swc fails to load', async () => {
+    await fs.remove(path.join(appDir, '.next'))
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        // block swc from loading
+        NODE_OPTIONS: '--no-addons',
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    expect(stderr).toMatch(/NEXT_SWC_LOAD_FAILURE/)
+    expect(stderr).toContain(
+      `"nextVersion": "${require('next/package.json').version}"`
+    )
+    expect(stderr).toContain(`"arch": "${process.arch}"`)
+    expect(stderr).toContain(`"platform": "${process.platform}"`)
+    expect(stderr).toContain(`"nodeVersion": "${process.versions.node}"`)
+  })
+
   it('logs completed `next build` with warnings', async () => {
     await fs.rename(
       path.join(appDir, 'pages', 'warning.skip'),
