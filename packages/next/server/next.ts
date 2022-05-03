@@ -36,7 +36,6 @@ export class NextServer {
   private server?: Server
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
-  private reactRootEnabled?: boolean
   public options: NextServerOptions
 
   constructor(options: NextServerOptions) {
@@ -52,17 +51,6 @@ export class NextServer {
   }
 
   getRequestHandler(): RequestHandler {
-    // Make sure env of custom server is overridden
-    if (this.reactRootEnabled === undefined) {
-      // Use dynamic require to make sure it's executed in it's own context
-      const ReactDOMServer = require('react-dom/server.browser')
-      this.reactRootEnabled = !!ReactDOMServer.renderToReadableStream
-
-      if (this.reactRootEnabled) {
-        ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-      }
-    }
-
     return async (
       req: IncomingMessage,
       res: ServerResponse,
@@ -193,6 +181,14 @@ function createServer(options: NextServerOptions): NextServer {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
     )
+  }
+
+  // Make sure env of custom server is overridden.
+  // Use dynamic require to make sure it's executed in it's own context.
+  const ReactDOMServer = require('react-dom/server.browser')
+  const shouldUseReactRoot = !!ReactDOMServer.renderToReadableStream
+  if (shouldUseReactRoot) {
+    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
 
   return new NextServer(options)
