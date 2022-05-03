@@ -19,14 +19,15 @@ export async function patchIncorrectLockfile(dir: string) {
   const content = await promises.readFile(lockfilePath, 'utf8')
   const lockfileParsed = JSON.parse(content)
 
-  const packageKeys = Object.keys(lockfileParsed.dependencies)
   const foundSwcPkgs = new Set()
-  const nextPkg = lockfileParsed.packages['node_modules/next']
+  const nextPkg = lockfileParsed.packages?.['node_modules/next']
 
+  // if we don't find next in the package-lock we can't continue
   if (!nextPkg) {
-    return console.error('Failed to locate next in', lockfilePath)
+    return
   }
   const nextVersion = nextPkg.version
+  const packageKeys = Object.keys(lockfileParsed.dependencies || {})
 
   const expectedSwcPkgs = Object.keys(nextPkg?.optionalDependencies).filter(
     (pkg) => pkg.startsWith('@next/swc-')
@@ -49,7 +50,6 @@ export async function patchIncorrectLockfile(dir: string) {
       // populate fields for each missing swc pkg
       for (const pkg of expectedSwcPkgs) {
         if (!foundSwcPkgs.has(pkg)) {
-          console.log('fetching', pkg)
           const res = await fetch(`https://registry.npmjs.org/${pkg}`)
 
           if (!res.ok) {
@@ -64,6 +64,14 @@ export async function patchIncorrectLockfile(dir: string) {
             throw new Error(
               `Failed to find matching version for ${pkg} at ${nextVersion}`
             )
+          }
+          if (lockfileParsed.dependencies) {
+            lockfileParsed.dependencies[pkg] = {
+              version: nextVersion,
+              resolved: version.dist.tarball,
+              integrity: version.dist.integrity,
+              optional: true,
+            }
           }
           lockfileParsed.packages[`node_modules/${pkg}`] = {
             version: nextVersion,

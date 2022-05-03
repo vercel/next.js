@@ -40,7 +40,8 @@ import {
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
-import { normalizePagePath } from '../normalize-page-path'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { hasBasePath, replaceBasePath } from '../router-utils'
@@ -64,6 +65,8 @@ import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { normalizeRootPath } from '../../shared/lib/router/utils/root-paths'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -94,6 +97,8 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
+  private pagesDir: string
+  private rootDir?: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -173,7 +178,13 @@ export default class DevServer extends Server {
     }
 
     this.isCustomServer = !options.isNextDevCommand
-    this.pagesDir = findPagesDir(this.dir)
+    // TODO: hot-reload root/pages dirs?
+    const { pages: pagesDir, root: rootDir } = findPagesDir(
+      this.dir,
+      this.nextConfig.experimental.rootDir
+    )
+    this.pagesDir = pagesDir
+    this.rootDir = rootDir
   }
 
   protected getBuildId(): string {
@@ -241,10 +252,8 @@ export default class DevServer extends Server {
 
     let resolved = false
     return new Promise((resolve, reject) => {
-      const pagesDir = this.pagesDir
-
       // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir!, (_, files) => {
+      fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
           return
         }
@@ -256,32 +265,70 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [pagesDir!], 0)
+      const toWatch = [this.pagesDir!]
+
+      if (this.rootDir) {
+        toWatch.push(this.rootDir)
+      }
+      wp.watch([], toWatch, 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware = []
-        const routedPages = []
+        const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
+        const rootPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
         for (const [fileName, { accuracy, safeTime }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
+          let pageName: string = ''
+          let isRootPath = false
+
+          if (
+            this.rootDir &&
+            normalizePathSep(fileName).startsWith(
+              normalizePathSep(this.rootDir)
+            )
+          ) {
+            isRootPath = true
+            pageName = absolutePathToPage(
+              this.rootDir,
+              fileName,
+              this.nextConfig.pageExtensions,
+              false
+            )
+          } else {
+            pageName = absolutePathToPage(
+              this.pagesDir,
+              fileName,
+              this.nextConfig.pageExtensions
+            )
+          }
+
+          if (isRootPath) {
+            // TODO: should only routes ending in /index.js be route-able?
+            const originalPageName = pageName
+            pageName = normalizeRootPath(pageName)
+            rootPaths[pageName] = originalPageName
+
+            if (routedPages.includes(pageName)) {
+              continue
+            }
+          } else {
+            // /index is preserved for root folder
+            pageName = pageName.replace(/\/index$/, '') || '/'
+          }
 
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
+              `/${relative(this.pagesDir, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
             continue
           }
-
-          let pageName =
-            '/' + relative(pagesDir!, fileName).replace(/\\+/g, '/')
-          pageName = pageName.replace(regexPageExtension, '')
-          pageName = pageName.replace(/\/index$/, '') || '/'
 
           invalidatePageRuntimeCache(fileName, safeTime)
           const pageRuntimeConfig = await getPageRuntime(
@@ -301,6 +348,7 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
+        this.rootPathRoutes = rootPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
             getMiddlewareRegex(page, !ssrMiddleware.has(page))
@@ -362,7 +410,7 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      this.pagesDir!,
+      [this.pagesDir!, this.rootDir].filter(Boolean) as string[],
       false,
       this.nextConfig
     )
@@ -383,12 +431,13 @@ export default class DevServer extends Server {
     }
 
     this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir!,
+      pagesDir: this.pagesDir,
       distDir: this.distDir,
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
+      rootDir: this.rootDir,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -408,7 +457,7 @@ export default class DevServer extends Server {
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
+        isSrcDir: relative(this.dir, this.pagesDir).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
       })
@@ -436,7 +485,6 @@ export default class DevServer extends Server {
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
-
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {
@@ -447,8 +495,18 @@ export default class DevServer extends Server {
       return false
     }
 
+    // check rootDir first if enabled
+    if (this.rootDir) {
+      const pageFile = await findPageFile(
+        this.rootDir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      )
+      if (pageFile) return true
+    }
+
     const pageFile = await findPageFile(
-      this.pagesDir!,
+      this.pagesDir,
       normalizedPath,
       this.nextConfig.pageExtensions
     )
@@ -725,6 +783,10 @@ export default class DevServer extends Server {
   }
 
   protected getPagesManifest(): undefined {
+    return undefined
+  }
+
+  protected getRootPathsManifest(): undefined {
     return undefined
   }
 

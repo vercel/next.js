@@ -1,3 +1,4 @@
+import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
 
 export type MiddlewareLoaderOptions = {
@@ -8,6 +9,10 @@ export type MiddlewareLoaderOptions = {
 export default function middlewareLoader(this: any) {
   const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+  const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextEdgeMiddleware = {
+    page: page.replace(/\/_middleware$/, '') || '/',
+  }
 
   return `
         import { adapter } from 'next/dist/server/web/adapter'

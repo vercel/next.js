@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -40,6 +39,10 @@ import {
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -549,8 +552,7 @@ function renderReactElement(
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      const ReactDOMClient = require('react-dom/client')
-      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
