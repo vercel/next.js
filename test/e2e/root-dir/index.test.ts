@@ -5,7 +5,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-describe('root dir', () => {
+describe.skip('root dir', () => {
   let next: NextInstance
 
   beforeAll(async () => {
