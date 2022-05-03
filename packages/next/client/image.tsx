@@ -1077,7 +1077,7 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV !== 'test') {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../shared/lib/match-remote-pattern')
         if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
