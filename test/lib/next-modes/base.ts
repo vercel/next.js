@@ -128,7 +128,8 @@ export class NextInstance {
       if (
         process.env.NEXT_TEST_STARTER &&
         !this.dependencies &&
-        !this.installCommand
+        !this.installCommand &&
+        !this.packageJson
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {

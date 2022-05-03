@@ -54,6 +54,7 @@ export function onDemandEntryHandler({
   nextConfig,
   pagesBufferLength,
   pagesDir,
+  rootDir,
   watcher,
 }: {
   maxInactiveAge: number
@@ -61,6 +62,7 @@ export function onDemandEntryHandler({
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir: string
+  rootDir?: string
   watcher: any
 }) {
   const invalidator = new Invalidator(watcher)
@@ -78,13 +80,16 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: 'client' | 'server' | 'edge-server',
-    entrypoints: Map<string, { name?: string }>
+    entrypoints: Map<string, { name?: string }>,
+    root?: boolean
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!)
+      const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
+      } else if (root && entrypoint.name === 'root') {
+        pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
 
@@ -96,19 +101,23 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
+    const root = !!rootDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
-        clientStats.compilation.entrypoints
+        clientStats.compilation.entrypoints,
+        root
       ),
       ...getPagePathsFromEntrypoints(
         'server',
-        serverStats.compilation.entrypoints
+        serverStats.compilation.entrypoints,
+        root
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             'edge-server',
-            edgeServerStats.compilation.entrypoints
+            edgeServerStats.compilation.entrypoints,
+            root
           )
         : []),
     ]
@@ -172,7 +181,8 @@ export function onDemandEntryHandler({
       const pagePathData = await findPagePathData(
         pagesDir,
         page,
-        nextConfig.pageExtensions
+        nextConfig.pageExtensions,
+        rootDir
       )
 
       let entryAdded = false
@@ -329,18 +339,50 @@ class Invalidator {
 async function findPagePathData(
   pagesDir: string,
   page: string,
-  extensions: string[]
+  extensions: string[],
+  rootDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
-  const pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
-  if (pagePath !== null) {
-    const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions)
+  let pagePath: string | null = null
+  let isRoot = false
+  const isRootFile = rootDir && normalizedPagePath === '/_root'
+
+  // check rootDir first
+  if (rootDir) {
+    pagePath = await findPageFile(
+      join(rootDir, isRootFile ? '..' : ''),
+      isRootFile ? 'root' : normalizedPagePath,
+      extensions
     )
 
+    if (pagePath) {
+      isRoot = true
+    }
+  }
+
+  if (!pagePath) {
+    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  }
+
+  if (pagePath !== null) {
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), extensions, !isRoot)
+    )
+    const bundleFile = normalizePagePath(pageUrl)
+    let bundlePath
+    let absolutePagePath
+
+    if (isRootFile) {
+      bundlePath = 'root'
+      absolutePagePath = join(rootDir!, '..', pagePath)
+    } else {
+      bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
+      absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
+    }
+
     return {
-      absolutePagePath: join(pagesDir, pagePath),
-      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+      absolutePagePath,
+      bundlePath,
       page: posix.normalize(pageUrl),
     }
   }
