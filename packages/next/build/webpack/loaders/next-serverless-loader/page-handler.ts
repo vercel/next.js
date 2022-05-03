@@ -6,7 +6,7 @@ import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
 import { tryGetPreviewData } from '../../../../server/api-utils/node'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'

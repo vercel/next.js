@@ -397,6 +397,7 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>
