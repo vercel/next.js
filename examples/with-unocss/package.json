@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "export": "next build && next export",
+    "serve": "serve out"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.31",
+    "@types/react": "^18.0.8",
+    "@unocss/preset-uno": "^0.32.9",
+    "@unocss/webpack": "^0.32.9",
+    "serve": "^13.0.2",
+    "typescript": "^4.6.4"
+  }
+}
