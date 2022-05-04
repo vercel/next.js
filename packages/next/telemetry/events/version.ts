@@ -79,7 +79,7 @@ export function eventCliSession(
     return []
   }
 
-  const { images, i18n } = nextConfig || {}
+  const { images, i18n, experimental } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -99,8 +99,8 @@ export function eventCliSession(
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageRemotePatternsCount: nextConfig?.experimental?.images?.remotePatterns
-      ? nextConfig.experimental.images.remotePatterns.length
+    imageRemotePatternsCount: experimental?.images?.remotePatterns
+      ? experimental.images.remotePatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
