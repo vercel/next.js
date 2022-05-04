@@ -1,5 +1,8 @@
 /* eslint-env jest */
-import { matchRemotePattern as m } from 'next/dist/shared/lib/match-remote-pattern.js'
+import {
+  matchRemotePattern as m,
+  hasMatch,
+} from 'next/dist/shared/lib/match-remote-pattern.js'
 
 describe('matchRemotePattern', () => {
   it('should match literal hostname', () => {
@@ -163,5 +166,49 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+  })
+
+  it('should properly work with hasMatch', () => {
+    const url = new URL('https://example.com')
+    expect(hasMatch([], [], url)).toBe(false)
+    expect(hasMatch(['foo.com'], [], url)).toBe(false)
+    expect(hasMatch(['example.com'], [], url)).toBe(true)
+    expect(hasMatch(['**.example.com'], [], url)).toBe(false)
+    expect(hasMatch(['*.example.com'], [], url)).toBe(false)
+    expect(hasMatch(['*.example.com'], [], url)).toBe(false)
+    expect(hasMatch([], [{ hostname: 'foo.com' }], url)).toBe(false)
+    expect(
+      hasMatch([], [{ hostname: 'foo.com' }, { hostname: 'example.com' }], url)
+    ).toBe(true)
+    expect(
+      hasMatch([], [{ hostname: 'example.com', pathname: '/act123/**' }], url)
+    ).toBe(false)
+    expect(
+      hasMatch(
+        ['example.com'],
+        [{ hostname: 'example.com', pathname: '/act123/**' }],
+        url
+      )
+    ).toBe(true)
+    expect(
+      hasMatch([], [{ protocol: 'https', hostname: 'example.com' }], url)
+    ).toBe(true)
+    expect(
+      hasMatch([], [{ protocol: 'http', hostname: 'example.com' }], url)
+    ).toBe(false)
+    expect(
+      hasMatch(
+        ['example.com'],
+        [{ protocol: 'http', hostname: 'example.com' }],
+        url
+      )
+    ).toBe(true)
+    expect(
+      hasMatch(
+        ['foo.com'],
+        [{ protocol: 'http', hostname: 'example.com' }],
+        url
+      )
+    ).toBe(false)
   })
 })

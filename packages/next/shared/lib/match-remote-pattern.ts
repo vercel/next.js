@@ -61,8 +61,8 @@ export function hasMatch(
   remotePatterns: RemotePattern[],
   url: URL
 ): boolean {
-  const allPatterns = remotePatterns.concat(
-    domains.map((hostname) => ({ hostname }))
+  return (
+    domains.some((domain) => url.hostname === domain) ||
+    remotePatterns.some((p) => matchRemotePattern(p, url))
   )
-  return allPatterns.some((p) => matchRemotePattern(p, url))
 }
