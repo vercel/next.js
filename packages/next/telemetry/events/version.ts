@@ -99,8 +99,8 @@ export function eventCliSession(
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageRemotePatternsCount: nextConfig.experimental?.images?.remotePatterns
-      ? nextConfig.experimental?.images?.remotePatterns.length
+    imageRemotePatternsCount: nextConfig?.experimental?.images?.remotePatterns
+      ? nextConfig.experimental.images.remotePatterns.length
       : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
