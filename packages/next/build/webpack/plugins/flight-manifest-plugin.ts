@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import path from 'path'
 import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -19,7 +20,10 @@ import {
   getInvalidator,
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
-import { normalizePagePath } from '../../../server/normalize-page-path'
+import {
+  denormalizePagePath,
+  normalizePagePath,
+} from '../../../server/normalize-page-path'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -120,9 +124,22 @@ export class FlightManifestPlugin {
               modules: clientComponentImports,
             })}!`
 
-            const routeInfo =
+            const entryModule =
               compilation.moduleGraph.getResolvedModule(entryDependency)
-                .buildInfo.route
+            const routeInfo = entryModule.buildInfo.route || {
+              page: denormalizePagePath(
+                '/' +
+                  path
+                    .relative(entryModule.context, entryModule.resource)
+                    .replace(
+                      new RegExp(
+                        `(\\.server)?\\.(?:${this.pageExtensions.join('|')})$`
+                      ),
+                      ''
+                    )
+              ),
+              absolutePagePath: entryModule.resource,
+            }
 
             // Inject the entry to the client compiler.
             const pageKey = 'client' + entry
