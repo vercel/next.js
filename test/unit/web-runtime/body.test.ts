@@ -17,6 +17,7 @@ class Implementation extends Body {
 
 beforeAll(() => {
   global['Blob'] = Blob
+  // @ts-ignore https://github.com/vercel/next.js/discussions/36663
   global['crypto'] = new Crypto()
   global['File'] = File
   global['FormData'] = FormData

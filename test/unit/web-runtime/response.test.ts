@@ -8,6 +8,7 @@ import * as streams from 'web-streams-polyfill/ponyfill'
 
 beforeAll(() => {
   global['Blob'] = Blob
+  // @ts-ignore https://github.com/vercel/next.js/discussions/36663
   global['crypto'] = new Crypto()
   global['File'] = File
   global['FormData'] = FormData
