@@ -5,7 +5,7 @@ edition = "2018"
 license = "Apache-2.0"
 name = "modularize_imports"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.1.1"
+version = "0.3.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,8 +15,8 @@ once_cell = "1.8.0"
 regex = "1.5"
 serde = "1"
 swc_cached = "0.1.1"
-swc_ecmascript = { version = "0.147.0", features = ["visit"] }
+swc_ecmascript = { version = "0.150.0", features = ["visit"] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.80.0"
+swc_ecma_transforms_testing = "0.82.0"
 testing = "0.19.1"

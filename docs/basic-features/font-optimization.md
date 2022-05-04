@@ -16,6 +16,7 @@ By default, Next.js will automatically inline font CSS at build time, eliminatin
 />
 
 // After
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <style data-href="https://fonts.googleapis.com/css2?family=Inter&display=optional">
   @font-face{font-family:'Inter';font-style:normal...
 </style>

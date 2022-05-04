@@ -621,6 +621,7 @@ export function sendResponse(
     contentSecurityPolicy
   )
   if (!result.finished) {
+    res.setHeader('Content-Length', Buffer.byteLength(buffer))
     res.end(buffer)
   }
 }

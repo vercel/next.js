@@ -13,7 +13,7 @@ import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import '../server/node-polyfill-fetch'
 import { requireFontManifest } from '../server/require'
@@ -60,6 +60,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
+  rootDir?: boolean
 }
 
 interface ExportPageResults {
@@ -84,6 +85,7 @@ interface RenderOpts {
   locale?: string
   defaultLocale?: string
   trailingSlash?: boolean
+  rootDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -97,6 +99,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
+  rootDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -262,7 +265,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(distDir, page, serverless, serverComponents)
+        } = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents,
+          rootDir
+        )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),

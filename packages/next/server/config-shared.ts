@@ -65,6 +65,8 @@ export interface WebpackConfigContext {
   totalPages: number
   /** The webpack configuration */
   webpack: any
+  /** The current server runtime */
+  nextRuntime?: 'nodejs' | 'edge'
 }
 
 export interface NextJsWebpackConfig {
@@ -76,6 +78,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -92,6 +95,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
+  rootDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -128,6 +132,7 @@ export interface ExperimentalConfig {
       skipDefaultConversion?: boolean
     }
   >
+  swcTraceProfiling?: boolean
 }
 
 /**
@@ -464,6 +469,8 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
+    // TODO: change default in next major release (current v12.1.5)
+    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -485,6 +492,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
+    rootDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,

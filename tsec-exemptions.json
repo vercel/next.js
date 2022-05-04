@@ -9,10 +9,8 @@
     "packages/next/client/script.tsx"
   ],
   "ban-script-content-assignments": ["packages/next/client/script.tsx"],
-  "ban-script-src-assignments": [
-    "packages/next/client/route-loader.ts",
-    "packages/next/client/script.tsx"
-  ],
+  "ban-script-src-assignments": ["packages/next/client/script.tsx"],
+  "ban-trustedtypes-createpolicy": ["packages/next/client/trusted-types.ts"],
   "ban-window-stringfunctiondef": [
     "packages/next/lib/recursive-delete.ts",
     "packages/next/client/dev/fouc.ts"
