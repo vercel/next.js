@@ -139,6 +139,7 @@ export default class DevServer extends Server {
 
   constructor(options: Options) {
     super({ ...options, dev: true })
+    this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
