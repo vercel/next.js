@@ -23,7 +23,11 @@ import onDemandEntryHandler, {
   entries,
   BUILDING,
 } from './on-demand-entry-handler'
-import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
+import {
+  denormalizePagePath,
+  normalizePagePath,
+  normalizePathSep,
+} from '../normalize-page-path'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
@@ -619,7 +623,9 @@ export default class HotReloader {
                       value:
                         `next-client-pages-loader?${stringify({
                           isServerComponent,
-                          page: 'pages/index',
+                          page: denormalizePagePath(
+                            bundlePath.replace(/^pages/, '')
+                          ),
                           absolutePagePath: page,
                         })}!` + page,
                       isServer: false,

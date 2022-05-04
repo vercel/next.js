@@ -12,6 +12,6 @@ export default async function transformSource(this: any): Promise<string> {
       .join(';') +
     `;export const __next_rsc_client_entry__ = {
       __webpack_require__
-    }`
+    };export default function RSC() {}`
   )
 }
