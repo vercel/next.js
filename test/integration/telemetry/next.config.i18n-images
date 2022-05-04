@@ -9,7 +9,7 @@ module.exports = phase => {
       images: {
         remotePatterns: [{ protocol: 'https', hostname: '**.example.com' }],
       },
-    }
+    },
     i18n: {
       locales: ['en','nl','fr'],
       defaultLocale: 'en',
