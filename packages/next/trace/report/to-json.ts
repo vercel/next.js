@@ -53,10 +53,14 @@ let writeStream: RotatingWriteStream
 let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
-const writeStreamOptions = {
+const writeStreamOptions: {
+  flags: string
+  encoding: BufferEncoding
+} = {
   flags: 'a',
   encoding: 'utf8',
 }
+
 class RotatingWriteStream {
   file: string
   writeStream!: fs.WriteStream

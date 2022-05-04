@@ -1,5 +1,6 @@
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
+import { Duplex } from 'stream'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
@@ -293,7 +294,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
+  public onHMR(req: IncomingMessage, _res: Duplex, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client)

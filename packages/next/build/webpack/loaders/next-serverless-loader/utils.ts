@@ -258,7 +258,7 @@ export function getUtils({
                 return routeKeyNames.reduce((prev, keyName) => {
                   const paramName = routeKeys?.[keyName]
 
-                  if (paramName && !filterLocaleItem(obj[keyName])) {
+                  if (paramName && !filterLocaleItem(obj[keyName]!)) {
                     prev[groups[paramName].pos] = obj[keyName]
                   }
                   return prev
@@ -266,7 +266,7 @@ export function getUtils({
               }
 
               return Object.keys(obj).reduce((prev, key) => {
-                if (!filterLocaleItem(obj[key])) {
+                if (!filterLocaleItem(obj[key]!)) {
                   let normalizedKey = key
 
                   if (matchesHasLocale) {
@@ -300,7 +300,7 @@ export function getUtils({
       const paramIdx = pathname!.indexOf(builtParam)
 
       if (paramIdx > -1) {
-        let paramValue: string
+        let paramValue: string | undefined
 
         if (Array.isArray(params[param])) {
           paramValue = (params[param] as string[])

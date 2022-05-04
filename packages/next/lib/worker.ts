@@ -44,7 +44,7 @@ export class Worker {
       })
     }
 
-    let hangingTimer: number | false = false
+    let hangingTimer: NodeJS.Timeout | false = false
 
     const onActivity = () => {
       if (hangingTimer) clearTimeout(hangingTimer)

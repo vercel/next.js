@@ -35,7 +35,7 @@ export function urlQueryToSearchParams(
   Object.entries(urlQuery).forEach(([key, value]) => {
     if (Array.isArray(value)) {
       value.forEach((item) => result.append(key, stringifyUrlQueryParam(item)))
-    } else {
+    } else if (value !== undefined) {
       result.set(key, stringifyUrlQueryParam(value))
     }
   })
