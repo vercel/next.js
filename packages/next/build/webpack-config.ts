@@ -1190,6 +1190,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
+        'next-view-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
