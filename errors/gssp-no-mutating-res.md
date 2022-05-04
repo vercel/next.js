@@ -16,4 +16,4 @@ If you’re using a custom server and running into this problem due to session m
 
 ### Useful Links
 
-- [Data Fetching Docs](https://nextjs.org/docs/basic-features/data-fetching)
+- [Data Fetching Docs](https://nextjs.org/docs/basic-features/data-fetching/index)

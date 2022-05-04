@@ -766,4 +766,11 @@ describe('basic HMR', () => {
       }
     })
   })
+
+  it('should have client HMR events in trace file', async () => {
+    const traceData = await next.readFile('.next/trace')
+    expect(traceData).toContain('client-hmr-latency')
+    expect(traceData).toContain('client-error')
+    expect(traceData).toContain('client-success')
+  })
 })
