@@ -54,6 +54,7 @@ describe('Middleware base tests', () => {
       expect(log.output).toContain(middlewareWarning)
     })
   })
+
   describe('production mode', () => {
     let serverOutput = { output: '' }
     let buildOutput
@@ -126,8 +127,7 @@ describe('Middleware base tests', () => {
 
     it('should contains process polyfill', async () => {
       const res = await fetchViaHTTP(context.appPort, `/global`)
-      const json = await res.json()
-      expect(json).toEqual({
+      expect(readMiddlewareJSON(res)).toEqual({
         process: {
           env: {
             MIDDLEWARE_TEST: 'asdf',
@@ -145,13 +145,15 @@ function urlTests(_log, locale = '') {
       context.appPort,
       `${locale}/interface/fetchUserAgentDefault`
     )
-    expect((await res.json()).headers['user-agent']).toBe('Next.js Middleware')
+    expect(readMiddlewareJSON(res).headers['user-agent']).toBe(
+      'Next.js Middleware'
+    )
 
     const res2 = await fetchViaHTTP(
       context.appPort,
       `${locale}/interface/fetchUserAgentCustom`
     )
-    expect((await res2.json()).headers['user-agent']).toBe('custom-agent')
+    expect(readMiddlewareJSON(res2).headers['user-agent']).toBe('custom-agent')
   })
 
   it('rewrites by default to a target location', async () => {
@@ -161,43 +163,14 @@ function urlTests(_log, locale = '') {
     expect($('.title').text()).toBe('URLs A')
   })
 
-  it('throws when using URL with a relative URL', async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/urls/relative-url`
-    )
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
-  })
-
-  it('throws when using Request with a relative URL', async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/urls/relative-request`
-    )
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
-  })
-
-  it('throws when using NextRequest with a relative URL', async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/urls/relative-next-request`
-    )
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
-  })
-
   it('warns when using Response.redirect with a relative URL', async () => {
     const response = await fetchViaHTTP(
       context.appPort,
       `${locale}/urls/relative-redirect`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toEqual(
+      expect.stringContaining(urlsError)
+    )
   })
 
   it('warns when using NextResponse.redirect with a relative URL', async () => {
@@ -205,11 +178,9 @@ function urlTests(_log, locale = '') {
       context.appPort,
       `${locale}/urls/relative-next-redirect`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toEqual(
+      expect.stringContaining(urlsError)
+    )
   })
 
   it('throws when using NextResponse.rewrite with a relative URL', async () => {
@@ -217,11 +188,9 @@ function urlTests(_log, locale = '') {
       context.appPort,
       `${locale}/urls/relative-next-rewrite`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toEqual(
+      expect.stringContaining(urlsError)
+    )
   })
 }
 
@@ -600,22 +569,24 @@ function responseTests(locale = '') {
     ])
   })
 
-  it(`${locale} should stream a response`, async () => {
+  it(`${locale} should fail when returning a stream`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
       `${locale}/responses/stream-a-response`
     )
+    expect(res.status).toBe(500)
     const html = await res.text()
-    expect(html).toBe('this is a streamed response with some text')
+    expect(html).toBe('')
   })
 
-  it(`${locale} should respond with a body`, async () => {
+  it(`${locale} should fail when returning a text body`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
       `${locale}/responses/send-response`
     )
+    expect(res.status).toBe(500)
     const html = await res.text()
-    expect(html).toBe('{"message":"hi!"}')
+    expect(html).toBe('')
   })
 
   it(`${locale} should respond with a 401 status code`, async () => {
@@ -625,40 +596,7 @@ function responseTests(locale = '') {
     )
     const html = await res.text()
     expect(res.status).toBe(401)
-    expect(html).toBe('Auth required')
-  })
-
-  it(`${locale} should render a React component`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/react?name=jack`
-    )
-    const html = await res.text()
-    expect(html).toBe('<h1>SSR with React! Hello, jack</h1>')
-  })
-
-  it(`${locale} should stream a React component`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/react-stream`
-    )
-    const html = await res.text()
-    expect(html).toBe('<h1>I am a stream</h1><p>I am another stream</p>')
-  })
-
-  it(`${locale} should stream a long response`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/responses/stream-long')
-    const html = await res.text()
-    expect(html).toBe(
-      'this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed this is a streamed after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 2 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds after 4 seconds '
-    )
-  })
-
-  it(`${locale} should render the right content via SSR`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/responses/')
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('.title').text()).toBe('Hello World')
+    expect(html).toBe('')
   })
 
   it(`${locale} should respond with 2 nested headers`, async () => {
@@ -697,27 +635,26 @@ function responseTests(locale = '') {
       context.appPort,
       `${locale}/responses/deep?deep-intercept=true`
     )
-    expect(await res.text()).toBe('intercepted!')
+    expect(res.headers.has('x-intercepted')).toBe(true)
+    expect(res.headers.has('x-deep-header')).toBe(false)
   })
 }
 
 function interfaceTests(locale = '') {
   it(`${locale} \`globalThis\` is accessible`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/interface/globalthis')
-    const globals = await res.json()
-    expect(globals.length > 0).toBe(true)
+    expect(readMiddlewareJSON(res).length > 0).toBe(true)
   })
 
   it(`${locale} collection constructors are shared`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/interface/webcrypto')
-    const response = await res.json()
-    expect('error' in response).toBe(false)
+    expect('error' in readMiddlewareJSON(res)).toBe(false)
   })
 
   it(`${locale} fetch accepts a URL instance`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/interface/fetchURL')
-    const response = await res.json()
-    expect('error' in response).toBe(true)
+    const response = readMiddlewareJSON(res)
+    expect(response).toHaveProperty('error.name')
     expect(response.error.name).not.toBe('TypeError')
   })
 
@@ -726,11 +663,12 @@ function interfaceTests(locale = '') {
       context.appPort,
       '/interface/abort-controller'
     )
-    const response = await res.json()
+    const response = readMiddlewareJSON(res)
 
     expect('error' in response).toBe(true)
-    expect(response.error.name).toBe('AbortError')
-    expect(response.error.message).toBe('The user aborted a request.')
+    expect(readMiddlewareJSON(res)).toEqual({
+      error: { name: 'AbortError', message: 'The user aborted a request.' },
+    })
   })
 
   it(`${locale} should validate request url parameters from a static route`, async () => {
@@ -791,23 +729,6 @@ function interfaceTests(locale = '') {
     }
   })
 
-  it(`${locale} renders correctly rewriting with a root subrequest`, async () => {
-    const browser = await webdriver(
-      context.appPort,
-      '/interface/root-subrequest'
-    )
-    const element = await browser.elementByCss('.title')
-    expect(await element.text()).toEqual('Dynamic route')
-  })
-
-  it(`${locale} allows subrequests without infinite loops`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `/interface/root-subrequest`
-    )
-    expect(res.headers.get('x-dynamic-path')).toBe('true')
-  })
-
   it(`${locale} renders correctly rewriting to a different dynamic path`, async () => {
     const browser = await webdriver(
       context.appPort,
@@ -843,4 +764,12 @@ function getCookieFromResponse(res, cookieName) {
     }
   }
   return -1
+}
+
+function readMiddlewareJSON(response) {
+  return JSON.parse(response.headers.get('data'))
+}
+
+function readMiddlewareError(response) {
+  return response.headers.get('error')
 }

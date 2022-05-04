@@ -1,10 +1,20 @@
-import type { NextMiddleware, RequestData, FetchEventResult } from './types'
+import type {
+  NextMiddleware,
+  RequestData,
+  FetchEventResult,
+  NextMiddlewareResult,
+} from './types'
 import type { RequestInit } from './spec-extension/request'
 import { DeprecationError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
-import { NextResponse } from './spec-extension/response'
+import {
+  NextResponse,
+  RedirectHeader,
+  RewriteHeader,
+  NextMiddlewareHeader,
+} from './spec-extension/response'
 import { waitUntilSymbol } from './spec-compliant/fetch-event'
 
 export async function adapter(params: {
@@ -27,12 +37,29 @@ export async function adapter(params: {
   })
 
   const event = new NextFetchEvent({ request, page: params.page })
-  const original = await params.handler(request, event)
+  const response = await params.handler(request, event)
+
+  const error = isAllowed(response)
+    ? null
+    : new Response(null, {
+        status: 500,
+        statusText: `Middleware can not alter response's body`,
+      })
 
   return {
-    response: original || NextResponse.next(),
+    response: error || response || NextResponse.next(),
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
+}
+
+function isAllowed(response: NextMiddlewareResult): boolean {
+  return (
+    !response ||
+    response.headers.has(RedirectHeader) ||
+    response.headers.has(RewriteHeader) ||
+    response.headers.has(NextMiddlewareHeader) ||
+    !response.body
+  )
 }
 
 class NextRequestHint extends NextRequest {

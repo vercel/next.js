@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server'
 
-export async function middleware(request, ev) {
+export async function middleware() {
   console.log(process.env.MIDDLEWARE_TEST)
-
-  return NextResponse.json({
-    process: {
-      env: process.env,
-    },
+  return new NextResponse(null, {
+    headers: { data: JSON.stringify({ process: { env: process.env } }) },
   })
 }

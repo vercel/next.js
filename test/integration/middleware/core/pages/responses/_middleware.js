@@ -1,5 +1,3 @@
-import { createElement } from 'react'
-import { renderToString } from 'react-dom/server.browser'
 import { NextResponse } from 'next/server'
 import { getText } from '../../lib/utils'
 
@@ -36,9 +34,7 @@ export async function middleware(request, ev) {
     const headers = new Headers()
     headers.append('set-cookie', 'foo=chocochip')
     headers.append('set-cookie', 'bar=chocochip')
-    return new Response('cookies set', {
-      headers,
-    })
+    return new Response(null, { headers })
   }
 
   // Streams a basic response
@@ -56,26 +52,10 @@ export async function middleware(request, ev) {
   }
 
   if (url.pathname === '/responses/bad-status') {
-    return new Response('Auth required', {
+    return new Response(null, {
       headers: { 'WWW-Authenticate': 'Basic realm="Secure Area"' },
       status: 401,
     })
-  }
-
-  if (url.pathname === '/responses/stream-long') {
-    ev.waitUntil(
-      (async () => {
-        writer.write(encoder.encode('this is a streamed '.repeat(10)))
-        await sleep(200)
-        writer.write(encoder.encode('after 2 seconds '.repeat(10)))
-        await sleep(200)
-        writer.write(encoder.encode('after 4 seconds '.repeat(10)))
-        await sleep(200)
-        writer.close()
-      })()
-    )
-
-    return new Response(readable)
   }
 
   // Sends response
@@ -83,48 +63,5 @@ export async function middleware(request, ev) {
     return new Response(JSON.stringify({ message: 'hi!' }))
   }
 
-  // Render React component
-  if (url.pathname === '/responses/react') {
-    return new Response(
-      renderToString(
-        createElement(
-          'h1',
-          {},
-          'SSR with React! Hello, ' + url.searchParams.get('name')
-        )
-      )
-    )
-  }
-
-  // Stream React component
-  if (url.pathname === '/responses/react-stream') {
-    ev.waitUntil(
-      (async () => {
-        writer.write(
-          encoder.encode(
-            renderToString(createElement('h1', {}, 'I am a stream'))
-          )
-        )
-        await sleep(500)
-        writer.write(
-          encoder.encode(
-            renderToString(createElement('p', {}, 'I am another stream'))
-          )
-        )
-        writer.close()
-      })()
-    )
-
-    return new Response(readable)
-  }
-
   return next
-}
-
-function sleep(time) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve()
-    }, time)
-  })
 }

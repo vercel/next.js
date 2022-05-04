@@ -6,11 +6,7 @@ export async function middleware(request) {
   const url = request.nextUrl
 
   if (url.pathname.endsWith('/globalthis')) {
-    return new NextResponse(JSON.stringify(Object.keys(globalThis)), {
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-      },
-    })
+    return serializeData(JSON.stringify(Object.keys(globalThis)))
   }
 
   if (url.pathname.endsWith('/fetchURL')) {
@@ -23,11 +19,7 @@ export async function middleware(request) {
         message: err.message,
       }
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
   }
 
@@ -36,19 +28,9 @@ export async function middleware(request) {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
       const res = await fetch(apiRoute)
-      return new Response(await res.text(), {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeData(await res.text())
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeError(err)
     }
   }
 
@@ -61,19 +43,9 @@ export async function middleware(request) {
           'user-agent': 'custom-agent',
         },
       })
-      return new Response(await res.text(), {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeData(await res.text())
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeError(err)
     }
   }
 
@@ -91,16 +63,8 @@ export async function middleware(request) {
     } catch (err) {
       response.error = true
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
-  }
-
-  if (url.pathname.endsWith('/root-subrequest')) {
-    return fetch(url)
   }
 
   if (url.pathname.endsWith('/abort-controller')) {
@@ -118,11 +82,7 @@ export async function middleware(request) {
         message: err.message,
       }
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
   }
 
@@ -141,4 +101,12 @@ export async function middleware(request) {
       'req-url-locale': request.nextUrl.locale,
     },
   })
+}
+
+function serializeData(data) {
+  return new NextResponse(null, { headers: { data } })
+}
+
+function serializeError(error) {
+  return new NextResponse(null, { headers: { error: error.message } })
 }

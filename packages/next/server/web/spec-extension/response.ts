@@ -7,6 +7,10 @@ import { NextCookies } from './cookies'
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
+export const RedirectHeader = 'location'
+export const RewriteHeader = 'x-middleware-rewrite'
+export const NextMiddlewareHeader = 'x-middleware-next'
+
 export class NextResponse extends Response {
   [INTERNALS]: {
     cookies: NextCookies
@@ -53,24 +57,20 @@ export class NextResponse extends Response {
 
     const destination = validateURL(url)
     return new NextResponse(destination, {
-      headers: { Location: destination },
+      headers: { [RedirectHeader]: destination },
       status,
     })
   }
 
   static rewrite(destination: string | NextURL | URL) {
     return new NextResponse(null, {
-      headers: {
-        'x-middleware-rewrite': validateURL(destination),
-      },
+      headers: { [RewriteHeader]: validateURL(destination) },
     })
   }
 
   static next() {
     return new NextResponse(null, {
-      headers: {
-        'x-middleware-next': '1',
-      },
+      headers: { [NextMiddlewareHeader]: '1' },
     })
   }
 }
