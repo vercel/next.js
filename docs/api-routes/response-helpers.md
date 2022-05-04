@@ -98,6 +98,8 @@ export default function handler(
 }
 ```
 
+> Note: You cannot type the body of `NextApiRequest` by design. You should run the input through a schema validator to generate a typed object for consumption.
+
 To view more examples using types, check out the [TypeScript documentation](/docs/basic-features/typescript.md#api-routes).
 
 If you prefer to view your examples within a real projects structure you can checkout our examples repository:
