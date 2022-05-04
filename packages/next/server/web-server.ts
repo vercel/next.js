@@ -71,9 +71,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getHasStaticDir() {
     return false
   }
-  protected async hasMiddleware() {
-    return false
-  }
   protected generateImageRoutes() {
     return []
   }
@@ -86,16 +83,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected generatePublicRoutes() {
     return []
   }
-  protected getMiddleware() {
-    return []
-  }
   protected generateCatchAllMiddlewareRoute() {
     return undefined
   }
   protected getFontManifest() {
-    return undefined
-  }
-  protected getMiddlewareManifest() {
     return undefined
   }
   protected getPagesManifest() {

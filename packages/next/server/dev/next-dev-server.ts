@@ -10,6 +10,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -101,6 +102,13 @@ export default class DevServer extends Server {
   private addedUpgradeListener = false
   private pagesDir: string
   private viewsDir?: string
+
+  /**
+   * Since the dev server is stateful and middleware routes can be added and
+   * removed over time, we need to keep a list of all of the middleware
+   * routing items to be returned in `getMiddleware()`
+   */
+  private middleware?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -790,12 +798,8 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getMiddleware(): never[] {
-    return []
-  }
-
-  protected getMiddlewareManifest(): undefined {
-    return undefined
+  protected getMiddleware() {
+    return this.middleware ?? []
   }
 
   protected getServerComponentManifest() {
@@ -867,10 +871,10 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              this.middleware?.map((middleware) => [
+              this.getMiddleware().map((middleware) => [
                 middleware.page,
                 !!middleware.ssr,
-              ]) || []
+              ])
             )
           )
           .send()
