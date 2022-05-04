@@ -131,51 +131,6 @@ describe.skip('root dir', () => {
     expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
   })
 
-  // TODO: Implement
-  describe.skip('parallel routes', () => {
-    describe('conditional routes', () => {
-      it('should serve user page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim')
-        expect(html).toContain('hello from user homepage')
-      })
-
-      it('should serve user teams page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim/teams')
-        expect(html).toContain('hello from user/teams')
-      })
-
-      it('should not serve teams page to user', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim/members')
-        expect(html).not.toContain('hello from team/members')
-      })
-
-      it('should serve team page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/vercel')
-        expect(html).toContain('hello from team homepage')
-      })
-
-      it('should serve team members page', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/conditional/vercel/members'
-        )
-        expect(html).toContain('hello from team/members')
-      })
-
-      it('should provide both matches if both paths match', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/both')
-        expect(html).toContain('hello from team homepage')
-        expect(html).toContain('hello from user homepage')
-      })
-
-      it('should 404 based on getServerSideProps', async () => {
-        const res = await fetchViaHTTP(next.url, '/conditional/nonexistent')
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('This page could not be found')
-      })
-    })
-  })
-
   describe('server components', () => {
     // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
     // should be? Seems like they both either should be servable or not
