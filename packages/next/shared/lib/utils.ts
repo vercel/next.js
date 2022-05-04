@@ -185,7 +185,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: JSX.Element | React.ReactElement[] | React.ReactFragment
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
