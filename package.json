@@ -59,7 +59,7 @@
     "@types/html-validator": "5.0.2",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
-    "@types/node": "13.11.0",
+    "@types/node": "14.18.16",
     "@types/relay-runtime": "13.0.0",
     "@types/selenium-webdriver": "4.0.15",
     "@types/sharp": "0.29.3",
