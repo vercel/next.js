@@ -1,10 +1,12 @@
 import { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
-import type { DynamicRoutes, PageChecker, Params, Route } from './router'
+import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
@@ -74,9 +76,9 @@ export type FindComponentsResult = {
   query: NextParsedUrlQuery
 }
 
-interface RoutingItem {
+export interface RoutingItem {
   page: string
-  match: ReturnType<typeof getRouteMatcher>
+  match: RouteMatch
   ssr?: boolean
 }
 

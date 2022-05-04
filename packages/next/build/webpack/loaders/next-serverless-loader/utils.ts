@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Rewrite } from '../../../../lib/load-custom-routes'
 import type { BuildManifest } from '../../../../server/get-page-files'
+import type { RouteMatch } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../../server/config'
 import type {
   GetServerSideProps,
@@ -80,7 +81,7 @@ export function getUtils({
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
-  let dynamicRouteMatcher: ReturnType<typeof getRouteMatcher> | undefined
+  let dynamicRouteMatcher: RouteMatch | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
