@@ -641,7 +641,13 @@ export default class Router implements BaseRouter {
     isPreview: boolean
   }>
 
-  private _idx: number = 0
+  private get _idx() {
+    return parseInt(sessionStorage.getItem('__next_idx') ?? '0')
+  }
+
+  private set _idx(value: number) {
+    sessionStorage.setItem('__next_idx', value.toString())
+  }
 
   static events: MittEmitter<RouterEvent> = mitt()
 
