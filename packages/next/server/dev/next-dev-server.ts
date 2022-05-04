@@ -293,29 +293,19 @@ export default class DevServer extends Server {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
-          let pageName: string = ''
-          let isViewPath = false
 
-          if (
+          const isViewPath = Boolean(
             this.viewsDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(this.viewsDir)
-            )
-          ) {
-            isViewPath = true
-            pageName = absolutePathToPage(
-              this.viewsDir,
-              fileName,
-              this.nextConfig.pageExtensions,
-              false
-            )
-          } else {
-            pageName = absolutePathToPage(
-              this.pagesDir,
-              fileName,
-              this.nextConfig.pageExtensions
-            )
-          }
+              normalizePathSep(fileName).startsWith(
+                normalizePathSep(this.viewsDir)
+              )
+          )
+
+          let pageName = absolutePathToPage(fileName, {
+            pagesDir: isViewPath ? this.viewsDir! : this.pagesDir,
+            extensions: this.nextConfig.pageExtensions,
+            keepIndex: isViewPath,
+          })
 
           if (isViewPath) {
             // TODO: should only routes ending in /index.js be route-able?

@@ -375,7 +375,10 @@ async function findPagePathData(
 
   if (pagePath !== null) {
     const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions, !isView)
+      removePagePathTail(normalizePathSep(pagePath), {
+        keepIndex: isView,
+        extensions,
+      })
     )
     const bundleFile = normalizePagePath(pageUrl)
     const bundlePath = posix.join(isView ? 'views' : 'pages', bundleFile)
