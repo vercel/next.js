@@ -2,7 +2,7 @@
 import {
   matchRemotePattern as m,
   hasMatch,
-} from 'next/dist/shared/lib/match-remote-pattern.js'
+} from 'next/dist/shared/lib/match-remote-pattern'
 
 describe('matchRemotePattern', () => {
   it('should match literal hostname', () => {
