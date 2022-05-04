@@ -1,10 +1,8 @@
 export default async function transformSource(this: any): Promise<string> {
-  // @TODO: this.getOptions doesn't seem to work for inlined requests.
-  const query = this.resourceQuery
-
-  const modules = JSON.parse(
-    decodeURIComponent(query).slice('?modules='.length)
-  )
+  let { modules } = this.getOptions()
+  if (!Array.isArray(modules)) {
+    modules = [modules]
+  }
 
   return (
     modules

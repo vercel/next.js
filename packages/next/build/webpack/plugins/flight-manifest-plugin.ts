@@ -15,6 +15,11 @@ import {
   createClientComponentFilter,
   createServerComponentFilter,
 } from '../loaders/utils'
+import {
+  getInvalidator,
+  entries,
+} from '../../../server/dev/on-demand-entry-handler'
+import { normalizePagePath } from '../../../server/normalize-page-path'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -111,15 +116,32 @@ export class FlightManifestPlugin {
             // Traverse the module graph to find all client components.
             filterClientComponents(entryDependency)
 
+            const entry = `next-flight-client-entry-loader?${stringify({
+              modules: clientComponentImports,
+            })}!`
+
+            const routeInfo =
+              compilation.moduleGraph.getResolvedModule(entryDependency)
+                .buildInfo.route
+
+            // Inject the entry to the client compiler.
+            const pageKey = 'client' + entry
+            if (!entries[pageKey]) {
+              entries[pageKey] = {
+                bundlePath: 'pages' + normalizePagePath(routeInfo.page),
+                absolutePagePath: routeInfo.absolutePagePath,
+                dispose: false,
+              }
+              const invalidator = getInvalidator()
+              if (invalidator) {
+                invalidator.invalidate()
+              }
+            }
+
+            // Inject the entry to the server compiler.
             const clientComponentEntryDep = (
               webpack as any
-            ).EntryPlugin.createDependency(
-              `!next-flight-client-entry-loader!${request}?${stringify({
-                modules: JSON.stringify(clientComponentImports),
-              })}`,
-              name + '.__sc_client__'
-            )
-
+            ).EntryPlugin.createDependency(entry, name + '.__sc_client__')
             promises.push(
               new Promise<void>((res, rej) => {
                 compilation.addEntry(
@@ -134,12 +156,10 @@ export class FlightManifestPlugin {
                         },
                         runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
                         asyncChunks: false,
-                        layer: 'sc_client',
                       }
                     : {
                         name: name + '.__sc_client__',
                         runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
-                        layer: 'sc_client',
                       },
                   (err: any) => {
                     if (err) {
@@ -201,7 +221,8 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, '(sc_client)/'),
+              // Get rid of the layer prefix.
+              id: id.replace(/^\(sc_server\)\//, ''),
               name,
               chunks: [],
             }

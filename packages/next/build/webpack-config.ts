@@ -43,6 +43,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { FlightClientPlugin } from './webpack/plugins/flight-client-plugin'
 import {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -954,6 +955,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    // @ts-ignore
     externals: targetWeb
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
@@ -963,11 +965,13 @@ export default async function getBaseWebpackConfig(
           ...(isEdgeRuntime
             ? [
                 {
-                  byLayer: {
-                    sc_client: {
-                      // @ts-ignore
-                      react: 'globalThis.__REACT',
-                    },
+                  byLayer: (layer: string) => {
+                    // For client components entry.
+                    if (layer === null) {
+                      return {
+                        react: 'globalThis.__REACT',
+                      }
+                    }
                   },
                 },
                 {
@@ -1584,14 +1588,14 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasServerComponents &&
-        // @TODO: Include this plugin in both node and edge servers.
-        isServer &&
-        new FlightManifestPlugin({
-          dev,
-          pageExtensions: rawPageExtensions,
-          isEdgeRuntime,
-        }),
+      hasServerComponents && isServer
+        ? new FlightManifestPlugin({
+            dev,
+            pageExtensions: rawPageExtensions,
+            isEdgeRuntime,
+          })
+        : new FlightClientPlugin(),
+
       !dev &&
         !isServer &&
         new TelemetryPlugin(

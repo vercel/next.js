@@ -26,6 +26,10 @@ export const entries: {
   }
 } = {}
 
+let invalidator: Invalidator
+
+export const getInvalidator = () => invalidator
+
 export default function onDemandEntryHandler(
   watcher: any,
   multiCompiler: webpack.MultiCompiler,
@@ -42,7 +46,7 @@ export default function onDemandEntryHandler(
   }
 ) {
   const { compilers } = multiCompiler
-  const invalidator = new Invalidator(watcher, multiCompiler)
+  invalidator = new Invalidator(watcher, multiCompiler)
 
   let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()

@@ -288,7 +288,7 @@ export async function createEntrypoints(
       const isLikeServerless = isTargetLikeServerless(target)
       const isReserved = isReservedPage(page)
       const isCustomError = isCustomErrorPage(page)
-      const isFlight = isFlightPage(config, absolutePagePath)
+      const isServerComponent = isFlightPage(config, absolutePagePath)
       const isInternalPages = !absolutePagePath.startsWith(PAGES_DIR_ALIAS)
       const pageFilePath = isInternalPages
         ? require.resolve(absolutePagePath)
@@ -309,18 +309,23 @@ export async function createEntrypoints(
       }
 
       if (isEdgeRuntime && !isReserved && !isCustomError && !isApiRoute) {
-        ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
+        ssrEntries.set(clientBundlePath, {
+          requireFlightManifest: isServerComponent,
+        })
         edgeServer[serverBundlePath] = finalizeEntrypoint({
           name: '[name].js',
-          value: `next-middleware-ssr-loader?${stringify({
-            dev: false,
-            page,
-            stringifiedConfig: JSON.stringify(config),
-            absolute500Path: pages['/500'] || '',
-            absolutePagePath,
-            isServerComponent: isFlight,
-            ...defaultServerlessOptions,
-          } as any)}!`,
+          value: {
+            import: `next-middleware-ssr-loader?${stringify({
+              dev: false,
+              page,
+              stringifiedConfig: JSON.stringify(config),
+              absolute500Path: pages['/500'] || '',
+              absolutePagePath,
+              isServerComponent,
+              ...defaultServerlessOptions,
+            } as any)}!`,
+            layer: isServerComponent ? 'sc_server' : 'edge_ssr',
+          },
           isServer: false,
           isEdgeServer: true,
         })

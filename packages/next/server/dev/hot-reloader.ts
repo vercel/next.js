@@ -156,7 +156,6 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   private hasReactRoot: boolean
   public clientStats: webpack5.Stats | null
@@ -201,7 +200,6 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.runtime = config.experimental.runtime
     this.hasReactRoot = shouldUseReactRoot()
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
@@ -570,6 +568,7 @@ export default class HotReloader {
             }
 
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+
             const pageExists = !dispose && (await fileExists(absolutePagePath))
             if (!pageExists) {
               // page was removed or disposed
@@ -613,22 +612,41 @@ export default class HotReloader {
                   isMiddleware: true,
                 })
               } else {
-                // A page route
-                entrypoints[bundlePath] = finalizeEntrypoint({
-                  name: bundlePath,
-                  value: `next-client-pages-loader?${stringify(
-                    pageLoaderOpts
-                  )}!`,
-                  isServer: false,
-                })
+                if (isServerComponent) {
+                  if (page.startsWith('next-flight-client-entry-loader')) {
+                    entrypoints[bundlePath] = finalizeEntrypoint({
+                      name: bundlePath,
+                      value:
+                        `next-client-pages-loader?${stringify({
+                          isServerComponent,
+                          page: 'pages/index',
+                          absolutePagePath: page,
+                        })}!` + page,
+                      isServer: false,
+                    })
+                  }
+                } else {
+                  // A page route
+                  entrypoints[bundlePath] = finalizeEntrypoint({
+                    name: bundlePath,
+                    value: `next-client-pages-loader?${stringify(
+                      pageLoaderOpts
+                    )}!`,
+                    isServer: false,
+                  })
+                }
 
                 // Tell the middleware plugin of the client compilation
                 // that this route is a page.
                 if (isEdgeSSRPage) {
                   if (isServerComponent) {
-                    ssrEntries.set(bundlePath, { requireFlightManifest: true })
+                    ssrEntries.set(bundlePath, {
+                      requireFlightManifest: true,
+                    })
                   } else if (!isCustomError && !isReserved) {
-                    ssrEntries.set(bundlePath, { requireFlightManifest: false })
+                    ssrEntries.set(bundlePath, {
+                      requireFlightManifest: false,
+                    })
                   }
                 }
               }
@@ -650,7 +668,7 @@ export default class HotReloader {
                       isServerComponent,
                       buildId: this.buildId,
                     } as any)}!`,
-                    layer: isServerComponent ? 'sc_server' : undefined,
+                    layer: isServerComponent ? 'sc_server' : 'edge_ssr',
                   },
                   isServer: false,
                   isEdgeServer: true,
