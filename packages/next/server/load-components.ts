@@ -41,12 +41,6 @@ export type LoadComponentsReturnType = {
   AppMod: any
   AppServerMod: any
   isViewPath?: boolean
-  viewLayouts?: Array<{
-    isRootLayout?: boolean
-    Component: NextComponentType
-    getStaticProps?: GetStaticProps
-    getServerSideProps?: GetServerSideProps
-  }>
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
