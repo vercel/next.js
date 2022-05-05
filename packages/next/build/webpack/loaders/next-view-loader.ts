@@ -18,7 +18,7 @@ async function resolveLayoutPathsByPage({
   resolve,
 }: {
   pagePath: string
-  resolve: (path: string) => Promise<string | undefined>
+  resolve: (pathname: string) => Promise<string | undefined>
 }) {
   const layoutPaths = new Map<string, string | undefined>()
   const parts = pagePath.split('/')
@@ -57,9 +57,9 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
 
   const layoutPaths = await resolveLayoutPathsByPage({
     pagePath: loaderOptions.pagePath,
-    resolve: async (path) => {
+    resolve: async (pathname) => {
       try {
-        return await resolve(this.rootContext, path)
+        return await resolve(this.rootContext, pathname)
       } catch (err: any) {
         if (err.message.includes("Can't resolve")) {
           return undefined
