@@ -170,7 +170,23 @@ describe('matchRemotePattern', () => {
 
   it('should throw when hostname is missing', () => {
     const p = { protocol: 'https' } as const
-    expect(() => m(p, new URL('https://example.com'))).toThrow('invariant')
+    expect(() => m(p, new URL('https://example.com'))).toThrow(
+      'Pattern should define hostname but found\n{"protocol":"https"}'
+    )
+  })
+
+  it('should throw when hostname has double asterisk in the middle', () => {
+    const p = { hostname: 'example.**.com' } as const
+    expect(() => m(p, new URL('https://example.com'))).toThrow(
+      'Pattern can only contain ** at start of hostname but found "example.**.com"'
+    )
+  })
+
+  it('should throw when pathname has double asterisk in the middle', () => {
+    const p = { hostname: 'example.com', pathname: '/**/img' } as const
+    expect(() => m(p, new URL('https://example.com'))).toThrow(
+      'Pattern can only contain ** at end of pathname but found "/**/img"'
+    )
   })
 
   it('should properly work with hasMatch', () => {

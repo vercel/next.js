@@ -19,7 +19,13 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
     for (let i = 0; i < len; i++) {
       if (patternParts[i] === '**' && actualParts[i] !== undefined) {
         // Double asterisk means "match everything until the end of the path"
-        // so we can break the loop early
+        // so we can break the loop early. But we throw
+        // if the double asterisk is not the last part.
+        if (patternParts.length - 1 > i) {
+          throw new Error(
+            `Pattern can only contain ** at end of pathname but found "${pattern.pathname}"`
+          )
+        }
         break
       }
       if (patternParts[i] === '*') {
@@ -34,7 +40,9 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
   }
 
   if (pattern.hostname === undefined) {
-    throw new Error(`invariant: hostname is missing ${JSON.stringify(pattern)}`)
+    throw new Error(
+      `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
+    )
   } else {
     const patternParts = pattern.hostname.split('.').reverse()
     const actualParts = url.hostname.split('.').reverse()
@@ -42,7 +50,13 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
     for (let i = 0; i < len; i++) {
       if (patternParts[i] === '**' && actualParts[i] !== undefined) {
         // Double asterisk means "match every subdomain"
-        // so we can break the loop early
+        // so we can break the loop early. But we throw
+        // if the double asterisk is not the last part.
+        if (patternParts.length - 1 > i) {
+          throw new Error(
+            `Pattern can only contain ** at start of hostname but found "${pattern.hostname}"`
+          )
+        }
         break
       }
       if (patternParts[i] === '*') {
