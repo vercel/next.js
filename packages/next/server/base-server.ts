@@ -1748,24 +1748,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    const gatherViewLayouts = async (
-      viewPath: string,
-      result: FindComponentsResult
-    ): Promise<void> => {
-      const layoutPaths = this.getViewPathLayouts(viewPath)
-      result.components.viewLayouts = await Promise.all(
-        layoutPaths.map(async (path) => {
-          const layoutRes = await this.findPageComponents(path)
-          return {
-            isRootLayout: path === '/layout',
-            Component: layoutRes?.components.Component!,
-            getStaticProps: layoutRes?.components.getStaticProps,
-            getServerSideProps: layoutRes?.components.getServerSideProps,
-          }
-        })
-      )
-    }
-
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
@@ -1778,9 +1760,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.findPageComponents(page, query)
         if (result) {
           try {
-            if (result.components.isViewPath) {
-              await gatherViewLayouts(page, result)
-            }
             return await this.renderToResponseWithComponents(ctx, result)
           } catch (err) {
             const isNoFallbackError = err instanceof NoFallbackError
@@ -1812,9 +1791,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
           if (dynamicRouteResult) {
             try {
-              if (dynamicRouteResult.components.isViewPath) {
-                await gatherViewLayouts(page, dynamicRouteResult)
-              }
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,

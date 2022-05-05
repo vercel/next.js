@@ -1,8 +1,9 @@
+import path from 'path'
 import type webpack from 'webpack5'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
-function pathToUrlPath(path: string) {
-  let urlPath = path.replace(/^private-next-views-dir/, '')
+function pathToUrlPath(pathname: string) {
+  let urlPath = pathname.replace(/^private-next-views-dir/, '')
 
   // For `views/layout.js`
   if (urlPath === '') {
@@ -36,24 +37,24 @@ async function resolveLayoutPathsByPage({
   return layoutPaths
 }
 
+const extensions = [
+  ...NODE_RESOLVE_OPTIONS.extensions,
+  ...NODE_RESOLVE_OPTIONS.extensions.map((ext) => `.server${ext}`),
+  ...NODE_RESOLVE_OPTIONS.extensions.map((ext) => `.client${ext}`),
+]
+const resolveOptions: any = {
+  ...NODE_RESOLVE_OPTIONS,
+  extensions,
+}
+
 const nextViewLoader: webpack.LoaderDefinitionFunction<{
   pagePath: string
+  viewsDir: string
 }> = async function nextViewLoader() {
   const loaderOptions = this.getOptions() || {}
+  const resolve = this.getResolve(resolveOptions)
+  const viewsDir = loaderOptions.viewsDir
 
-  // @ts-ignore This is valid currently
-  const resolve = this.getResolve({
-    ...NODE_RESOLVE_OPTIONS,
-    extensions: [
-      ...NODE_RESOLVE_OPTIONS.extensions,
-      '.server.js',
-      '.client.js',
-      '.client.ts',
-      '.server.ts',
-      '.client.tsx',
-      '.server.tsx',
-    ],
-  })
   const layoutPaths = await resolveLayoutPathsByPage({
     pagePath: loaderOptions.pagePath,
     resolve: async (path) => {
@@ -72,20 +73,25 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
   for (const [layoutPath, resolvedLayoutPath] of layoutPaths) {
     if (resolvedLayoutPath) {
       this.addDependency(resolvedLayoutPath)
-      const codeLine = `'${layoutPath}': () => import('${resolvedLayoutPath}')`
+      // use require so that we can bust the require cache
+      const codeLine = `'${layoutPath}': () => require('${resolvedLayoutPath}')`
       componentsCode.push(codeLine)
     } else {
-      // TODO: create all possible paths
-      // this.addMissingDependency(layoutPath)
+      for (const ext of extensions) {
+        this.addMissingDependency(
+          path.join(viewsDir, layoutPath, `layout${ext}`)
+        )
+      }
     }
   }
 
   // Add page itself to the list of components
   componentsCode.push(
     `'${pathToUrlPath(loaderOptions.pagePath).replace(
-      /\/page\.(server|client)\.(js|ts|tsx)$/,
+      new RegExp(`/page\\.+(${extensions.join('|')})$`),
       ''
-    )}': () => import('${loaderOptions.pagePath}')`
+      // use require so that we can bust the require cache
+    )}': () => require('${loaderOptions.pagePath}')`
   )
 
   const result = `
@@ -93,9 +99,6 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
         ${componentsCode.join(',\n')}
     };
   `
-
-  console.log(result)
-
   return result
 }
 

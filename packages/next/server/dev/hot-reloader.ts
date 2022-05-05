@@ -11,11 +11,16 @@ import {
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
+  getViewsEntry,
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
+import {
+  API_ROUTE,
+  MIDDLEWARE_ROUTE,
+  VIEWS_DIR_ALIAS,
+} from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
@@ -592,7 +597,16 @@ export default class HotReloader {
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     compilerType: 'server',
                     name: bundlePath,
-                    value: request,
+                    value:
+                      this.viewsDir && bundlePath.startsWith('views/')
+                        ? getViewsEntry({
+                            pagePath: join(
+                              VIEWS_DIR_ALIAS,
+                              relative(this.viewsDir!, absolutePagePath)
+                            ),
+                            viewsDir: this.viewsDir!,
+                          })
+                        : request,
                   })
                 }
               },
