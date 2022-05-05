@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                               |
 | --------- | ----------------------------------------------------------------------------------------------------- |
+| `v12.1.7` | Experimental `remotePatterns` configuration added.                                                    |
 | `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
 | `v12.0.9` | `lazyRoot` prop added.                                                                                |
@@ -50,9 +51,9 @@ When using an external URL, you must add it to
 
 The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
 The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
@@ -60,9 +61,9 @@ The `width` property is required, except for [statically imported images](#local
 
 The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"` without `sizes`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-When using `layout="responsive"`, `layout="fill"`, or `layout="raw"` with `sizes`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
+When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
 The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
 
@@ -94,8 +95,7 @@ The layout behavior of the image as the viewport changes size.
   - This is usually paired with the [`objectFit`](#objectFit) property.
   - Ensure the parent element has `position: relative` in their stylesheet.
 - When `raw`[\*](#experimental-raw-layout-mode), the image will be rendered as a single image element with no wrappers, sizers or other responsive behavior.
-  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will receive a fixed height and width.
-  - The other layout modes are optimized for performance and should cover nearly all use cases. It is recommended to try to use those modes before using `raw`.
+  - If your image styling will change the size of a `raw` image, you should include the `sizes` property for proper image serving. Otherwise your image will be requested as though it has fixed width and height.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -180,6 +180,8 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
 
 Note that all `layout` modes other than `"raw"`[\*](#experimental-raw-layout-mode) apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
+
+Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
 
 ### objectFit
 
@@ -312,9 +314,64 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ## Configuration Options
 
+### Remote Patterns
+
+> Note: The `remotePatterns` configuration is currently **experimental** and subject to change. Please use [`domains`](#domains) for production use cases.
+
+To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: 'example.com',
+          port: '',
+          pathname: '/account123/**',
+        },
+      ],
+    },
+  },
+}
+```
+
+> Note: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+
+Below is another example of the `remotePatterns` property in the `next.config.js` file:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      remotePatterns: [
+        {
+          protocol: 'https',
+          hostname: '**.example.com',
+        },
+      ],
+    },
+  },
+}
+```
+
+> Note: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+
+Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
+
+- `*` match a single path segment or subdomain
+- `**` match any number of path segments at the end or subdomains at the beginning
+
+The `**` syntax does not work in the middle of the pattern.
+
 ### Domains
 
-To protect your application from malicious users, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in with the `domains` property in your `next.config.js` file, as shown below:
+Similar to [`remotePatterns`](#remote-patterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
+
+However, the `domains` configuration does not support wildcard pattern matching and it cannot restrict protocol, port, or pathname.
+
+Below is an example of the `domains` property in the `next.config.js` file:
 
 ```js
 module.exports = {
@@ -492,10 +549,6 @@ module.exports = {
   },
 }
 ```
-
-> Note on CLS with `layout="raw"`:
-> It is possible to cause [layout shift](https://web.dev/cls/) with the image component in `raw` mode. If you include a `sizes` property, the image component will not pass `height` and `width` attributes to the image, to allow you to apply your own responsive sizing.
-> An [aspect-ratio](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio) style property is automatically applied to prevent layout shift, but this won't apply on [older browsers](https://caniuse.com/mdn-css_properties_aspect-ratio).
 
 ### Animated Images
 

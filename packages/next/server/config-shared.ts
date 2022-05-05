@@ -5,6 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
+  RemotePattern,
 } from '../shared/lib/image-config'
 
 export type PageRuntime = 'nodejs' | 'edge' | undefined
@@ -95,6 +96,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
+  rootDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -114,6 +116,7 @@ export interface ExperimentalConfig {
   outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
+    remotePatterns: RemotePattern[]
   }
   middlewareSourceMaps?: boolean
   emotion?:
@@ -131,6 +134,7 @@ export interface ExperimentalConfig {
       skipDefaultConversion?: boolean
     }
   >
+  swcTraceProfiling?: boolean
 }
 
 /**
@@ -490,6 +494,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
+    rootDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
@@ -498,6 +503,7 @@ export const defaultConfig: NextConfig = {
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
+      remotePatterns: [],
     },
   },
 }
