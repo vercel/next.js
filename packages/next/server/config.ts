@@ -234,6 +234,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    const remotePatterns = result.experimental?.images?.remotePatterns
+    if (remotePatterns) {
+      if (!Array.isArray(remotePatterns)) {
+        throw new Error(
+          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      if (remotePatterns.length > 50) {
+        throw new Error(
+          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
+      const requiredProps = ['hostname']
+      const invalidPatterns = remotePatterns.filter(
+        (d: unknown) =>
+          !d ||
+          typeof d !== 'object' ||
+          Object.entries(d).some(
+            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
+          ) ||
+          requiredProps.some((k) => !(k in d))
+      )
+      if (invalidPatterns.length > 0) {
+        throw new Error(
+          `Invalid images.remotePatterns values:\n${invalidPatterns
+            .map((item) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {

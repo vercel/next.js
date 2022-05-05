@@ -78,7 +78,7 @@ cache:
 Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
 ```yaml
-uses: actions/cache@v2
+uses: actions/cache@v3
 with:
   # See here for caching with `yarn` https://github.com/actions/cache/blob/main/examples.md#node---yarn or you can leverage caching with actions/setup-node https://github.com/actions/setup-node
   path: |

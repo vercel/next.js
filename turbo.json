@@ -1,0 +1,12 @@
+{
+  "pipeline": {
+    "build-native": {
+      "dependsOn": ["^build-native"],
+      "outputs": ["native/*.node"]
+    },
+    "build-wasm": {
+      "dependsOn": ["^build-wasm"],
+      "outputs": ["crates/wasm/pkg/*"]
+    }
+  }
+}

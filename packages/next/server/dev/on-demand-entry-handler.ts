@@ -54,7 +54,7 @@ export function onDemandEntryHandler({
   nextConfig,
   pagesBufferLength,
   pagesDir,
-  rootDir,
+  viewsDir,
   watcher,
 }: {
   maxInactiveAge: number
@@ -62,7 +62,7 @@ export function onDemandEntryHandler({
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir: string
-  rootDir?: string
+  viewsDir?: string
   watcher: any
 }) {
   const invalidator = new Invalidator(watcher)
@@ -101,7 +101,7 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!rootDir
+    const root = !!viewsDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -182,7 +182,7 @@ export function onDemandEntryHandler({
         pagesDir,
         page,
         nextConfig.pageExtensions,
-        rootDir
+        viewsDir
       )
 
       let entryAdded = false
@@ -340,23 +340,18 @@ async function findPagePathData(
   pagesDir: string,
   page: string,
   extensions: string[],
-  rootDir?: string
+  viewsDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
-  let isRoot = false
-  const isRootFile = rootDir && normalizedPagePath === '/_root'
+  let isView = false
 
-  // check rootDir first
-  if (rootDir) {
-    pagePath = await findPageFile(
-      join(rootDir, isRootFile ? '..' : ''),
-      isRootFile ? 'root' : normalizedPagePath,
-      extensions
-    )
+  // check viewsDir first
+  if (viewsDir) {
+    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
 
     if (pagePath) {
-      isRoot = true
+      isView = true
     }
   }
 
@@ -366,19 +361,11 @@ async function findPagePathData(
 
   if (pagePath !== null) {
     const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions, !isRoot)
+      removePagePathTail(normalizePathSep(pagePath), extensions, !isView)
     )
     const bundleFile = normalizePagePath(pageUrl)
-    let bundlePath
-    let absolutePagePath
-
-    if (isRootFile) {
-      bundlePath = 'root'
-      absolutePagePath = join(rootDir!, '..', pagePath)
-    } else {
-      bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
-      absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
-    }
+    const bundlePath = posix.join(isView ? 'views' : 'pages', bundleFile)
+    const absolutePagePath = join(isView ? viewsDir! : pagesDir, pagePath)
 
     return {
       absolutePagePath,
