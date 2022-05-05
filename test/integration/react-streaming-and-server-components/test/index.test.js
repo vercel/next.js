@@ -5,7 +5,6 @@ import fs from 'fs-extra'
 
 import {
   fetchViaHTTP,
-  renderViaHTTP,
   nextBuild,
   runDevSuite,
   runProdSuite,
@@ -15,7 +14,6 @@ import {
   appDir,
   nativeModuleTestAppDir,
   appPage,
-  appServerPage,
   error500Page,
   nextConfig,
 } from './utils'
@@ -26,13 +24,6 @@ import streaming from './streaming'
 import basic from './basic'
 import runtime from './runtime'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
-
-const rscAppPage = `
-import Container from '../components/container.server'
-export default function App({children}) {
-  return <Container>{children}</Container>
-}
-`
 
 const appWithGlobalCss = `
 import '../styles.css'
@@ -184,19 +175,6 @@ const nodejsRuntimeBasicSuite = {
   },
 }
 
-const customAppPageSuite = {
-  runTests: (context) => {
-    it('should render container in app', async () => {
-      const indexHtml = await renderViaHTTP(context.appPort, '/')
-      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
-      expect(indexHtml).toContain('container-server')
-      expect(indexFlight).toContain('container-server')
-    })
-  },
-  beforeAll: () => appServerPage.write(rscAppPage),
-  afterAll: () => appServerPage.delete(),
-}
-
 const cssSuite = {
   runTests: css,
   beforeAll: () => appPage.write(appWithGlobalCss),
@@ -207,9 +185,6 @@ runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
 runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-
-runDevSuite('Custom App', appDir, customAppPageSuite)
-runProdSuite('Custom App', appDir, customAppPageSuite)
 
 runDevSuite('CSS', appDir, cssSuite)
 runProdSuite('CSS', appDir, cssSuite)
