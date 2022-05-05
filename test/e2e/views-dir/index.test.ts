@@ -6,6 +6,10 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('root dir', () => {
+  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
+    it('should skip for react v17', () => {})
+    return
+  }
   let next: NextInstance
 
   beforeAll(async () => {
