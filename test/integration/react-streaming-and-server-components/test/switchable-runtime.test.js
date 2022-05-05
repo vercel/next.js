@@ -40,7 +40,7 @@ function flight(context) {
       expect(
         getOccurrence(
           flightResponse,
-          new RegExp(`"className":\s*"app-server-root"`, 'g')
+          new RegExp(`"className":\\s*"app-server-root"`, 'g')
         )
       ).toBe(1)
     })
@@ -58,7 +58,7 @@ function flight(context) {
     expect(
       getOccurrence(
         flightResponse,
-        new RegExp(`"className":\s*"app-server-root"`, 'g')
+        new RegExp(`"className":\\s*"app-server-root"`, 'g')
       )
     ).toBe(1)
   })
