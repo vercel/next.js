@@ -38,11 +38,12 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root"'
   if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
+    const appServerOccurrence = html1.match(/class="app-server-root"/g) || []
+    expect(appServerOccurrence.length).toBe(1)
+    expect(html1).not.toContain('"app-client-root"')
   } else {
-    expect(html1).not.toContain(customAppServerHtml)
+    expect(html1).not.toContain('"app-server-root"')
   }
 }
 

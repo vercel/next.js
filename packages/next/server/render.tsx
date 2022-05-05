@@ -208,13 +208,8 @@ function renderPageTree(
   isServerComponent: boolean
 ) {
   const { router: _, ...rest } = props
-
   if (isServerComponent) {
-    return (
-      <App>
-        <Component {...rest} />
-      </App>
-    )
+    return <Component {...rest} />
   }
 
   return <App Component={Component} {...props} />
