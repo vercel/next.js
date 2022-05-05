@@ -33,7 +33,9 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
     }
   }
 
-  if (pattern.hostname !== undefined) {
+  if (pattern.hostname === undefined) {
+    throw new Error(`invariant: hostname is missing ${JSON.stringify(pattern)}`)
+  } else {
     const patternParts = pattern.hostname.split('.').reverse()
     const actualParts = url.hostname.split('.').reverse()
     const len = Math.max(patternParts.length, actualParts.length)

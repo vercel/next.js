@@ -168,6 +168,11 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
   })
 
+  it('should throw when hostname is missing', () => {
+    const p = { protocol: 'https' } as const
+    expect(() => m(p, new URL('https://example.com'))).toThrow('invariant')
+  })
+
   it('should properly work with hasMatch', () => {
     const url = new URL('https://example.com')
     expect(hasMatch([], [], url)).toBe(false)
