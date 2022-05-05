@@ -361,7 +361,9 @@ module.exports = {
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
 - `*` match a single path segment or subdomain
-- `**` match any number of path segments or subdomains
+- `**` match any number of path segments at the end or subdomains at the beginning
+
+The `**` syntax does not work in the middle of the pattern.
 
 ### Domains
 
