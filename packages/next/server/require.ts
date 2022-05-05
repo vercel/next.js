@@ -6,7 +6,7 @@ import {
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  ROOT_PATHS_MANIFEST,
+  VIEW_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -39,7 +39,7 @@ export function getPagePath(
     if (page === '/_root') {
       return join(serverBuildPath, 'root.js')
     }
-    rootPathsManifest = require(join(serverBuildPath, ROOT_PATHS_MANIFEST))
+    rootPathsManifest = require(join(serverBuildPath, VIEW_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
     serverBuildPath,

@@ -40,9 +40,9 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   AppMod: any
   AppServerMod: any
-  isRootPath?: boolean
-  rootLayouts?: Array<{
-    isRoot?: boolean
+  isViewPath?: boolean
+  viewLayouts?: Array<{
+    isRootLayout?: boolean
     Component: NextComponentType
     getStaticProps?: GetStaticProps
     getServerSideProps?: GetServerSideProps
@@ -134,7 +134,7 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  let isRootPath = false
+  let isViewPath = false
 
   if (rootEnabled) {
     const pagePath = getPagePath(
@@ -145,7 +145,7 @@ export async function loadComponents(
       undefined,
       rootEnabled
     )
-    isRootPath = !!pagePath?.match(/server[/\\]root[/\\]/)
+    isViewPath = !!pagePath?.match(/server[/\\]views[/\\]/)
   }
 
   return {
@@ -162,6 +162,6 @@ export async function loadComponents(
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
-    isRootPath,
+    isViewPath,
   }
 }

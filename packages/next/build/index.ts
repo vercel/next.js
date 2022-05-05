@@ -114,7 +114,6 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
-import { findPageFile } from '../server/lib/find-page-file'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -207,9 +206,9 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, root: rootDir } = findPagesDir(
+      const { pages: pagesDir, views: viewsDir } = findPagesDir(
         dir,
-        config.experimental.rootDir
+        config.experimental.viewsDir
       )
 
       const hasPublicDir = await fileExists(publicDir)
@@ -245,7 +244,7 @@ export default async function build(
         .traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            [pagesDir, rootDir].filter(Boolean) as string[],
+            [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
@@ -311,24 +310,17 @@ export default async function build(
           )
         )
 
-      let rootPaths: string[] | undefined
+      let viewPaths: string[] | undefined
 
-      if (rootDir) {
-        rootPaths = await nextBuildSpan
-          .traceChild('collect-root-paths')
+      if (viewsDir) {
+        viewPaths = await nextBuildSpan
+          .traceChild('collect-view-paths')
           .traceAsyncFn(() =>
             recursiveReadDir(
-              rootDir,
+              viewsDir,
               new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
-
-        const rootFile = await findPageFile(
-          path.join(rootDir, '..'),
-          'root',
-          config.pageExtensions
-        )
-        if (rootFile) rootPaths.push(rootFile)
       }
       // needed for static exporting since we want to replace with HTML
       // files
@@ -353,17 +345,17 @@ export default async function build(
           })
         )
 
-      let mappedRootPaths: ReturnType<typeof createPagesMapping> | undefined
+      let mappedViewPaths: ReturnType<typeof createPagesMapping> | undefined
 
-      if (rootPaths && rootDir) {
-        mappedRootPaths = nextBuildSpan
-          .traceChild('create-root-mapping')
+      if (viewPaths && viewsDir) {
+        mappedViewPaths = nextBuildSpan
+          .traceChild('create-views-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: rootPaths!,
+              pagePaths: viewPaths!,
               hasServerComponents,
               isDev: false,
-              isRoot: true,
+              isViews: true,
               pageExtensions: config.pageExtensions,
             })
           )
@@ -381,8 +373,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
-            rootDir,
-            rootPaths: mappedRootPaths,
+            viewsDir,
+            viewPaths: mappedViewPaths,
           })
         )
 
@@ -688,7 +680,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
-          rootDir,
+          viewsDir,
         }
 
         const configs = await runWebpackSpan

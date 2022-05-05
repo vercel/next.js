@@ -103,7 +103,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       [this.serverOptions.webServerConfig.page]: '',
     }
   }
-  protected getRootPathsManifest() {
+  protected getViewPathsManifest() {
     return {
       [this.serverOptions.webServerConfig.page]: '',
     }
