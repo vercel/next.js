@@ -32,6 +32,7 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson: PackageJson
+  protected packageLockPath?: string
   protected basePath?: string
 
   constructor({
@@ -42,6 +43,7 @@ export class NextInstance {
     buildCommand,
     startCommand,
     packageJson = {},
+    packageLockPath,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -50,6 +52,7 @@ export class NextInstance {
       [name: string]: string
     }
     packageJson?: PackageJson
+    packageLockPath?: string
     nextConfig?: NextConfig
     installCommand?: InstallCommand
     buildCommand?: string
@@ -62,6 +65,7 @@ export class NextInstance {
     this.buildCommand = buildCommand
     this.startCommand = startCommand
     this.packageJson = packageJson
+    this.packageLockPath = packageLockPath
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
@@ -124,14 +128,16 @@ export class NextInstance {
       if (
         process.env.NEXT_TEST_STARTER &&
         !this.dependencies &&
-        !this.installCommand
+        !this.installCommand &&
+        !this.packageJson
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {
         this.testDir = await createNextInstall(
           finalDependencies,
           this.installCommand,
-          this.packageJson
+          this.packageJson,
+          this.packageLockPath
         )
       }
       console.log('created next.js install, writing test files')
