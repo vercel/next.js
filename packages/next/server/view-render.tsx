@@ -21,7 +21,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import ReactDOMServer from 'react-dom/server.browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
-import DefaultRootLayout from '../pages/layout'
+import DefaultRootLayout from '../lib/views-layout'
 
 export type RenderOptsPartial = {
   err?: Error | null

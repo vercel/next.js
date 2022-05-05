@@ -1887,22 +1887,9 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
-export async function pages_layout(task, opts) {
-  await task
-    .source('pages/layout.tsx')
-    .swc('server', { dev: opts.dev, keepImportAssertions: true })
-    .target('dist/pages')
-}
-
 export async function pages(task, opts) {
   await task.parallel(
-    [
-      'pages_app',
-      'pages_app_server',
-      'pages_error',
-      'pages_document',
-      'pages_layout',
-    ],
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
     opts
   )
 }
