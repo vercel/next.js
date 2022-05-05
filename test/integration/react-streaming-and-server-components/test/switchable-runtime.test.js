@@ -38,12 +38,16 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root"'
-  if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
-  } else {
-    expect(html1).not.toContain(customAppServerHtml)
-  }
+  // If the page is using 1 root, it won't use the other.
+  // e.g. server component page won't have client app root.
+  const rootClasses = ['app-server-root', 'app-client-root']
+  const [rootClass, oppositeRootClass] = isRSC
+    ? [rootClasses[0], rootClasses[1]]
+    : [rootClasses[1], rootClasses[0]]
+  const appServerOccurrence =
+    html1.match(new RegExp(`class="${rootClass}"`, 'g')) || []
+  expect(appServerOccurrence.length).toBe(1)
+  expect(html1).not.toContain(`"${oppositeRootClass}"`)
 }
 
 describe('Switchable runtime (prod)', () => {
