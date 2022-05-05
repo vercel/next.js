@@ -231,7 +231,8 @@ fn node_file_trace(
                 match output {
                     Ok(result) => handle_result(result),
                     Err(err) => {
-                        tt.backend().with_task_id_mapping(&*tt, || {
+                        let r: &dyn turbo_tasks::TurboTasksBackendApi = &*tt;
+                        tt.backend().with_task_id_mapping(r, || {
                             println!("{:#?}", tt.backend());
                         });
                         panic!("Execution is hanging (for > 120s): {err}");

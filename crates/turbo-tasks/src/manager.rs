@@ -74,6 +74,16 @@ pub trait TaskIdProvider {
     unsafe fn reuse_task_id(&self, id: TaskId);
 }
 
+impl TaskIdProvider for IdFactory<TaskId> {
+    fn get_fresh_task_id(&self) -> TaskId {
+        self.get()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { self.reuse(id) }
+    }
+}
+
 pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send {
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi>;
 
@@ -87,6 +97,26 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
     fn schedule_notify_tasks_set(&self, tasks: &HashSet<TaskId>);
+}
+
+impl TaskIdProvider for &dyn TurboTasksBackendApi {
+    fn get_fresh_task_id(&self) -> TaskId {
+        (*self).get_fresh_task_id()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { (*self).reuse_task_id(id) }
+    }
+}
+
+impl TaskIdProvider for &dyn TaskIdProvider {
+    fn get_fresh_task_id(&self) -> TaskId {
+        (*self).get_fresh_task_id()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { (*self).reuse_task_id(id) }
+    }
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
@@ -121,11 +151,13 @@ impl<B: Backend> TurboTasks<B> {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new(backend: B) -> Arc<Self> {
+    pub fn new(mut backend: B) -> Arc<Self> {
+        let task_id_factory = IdFactory::new();
+        backend.initialize(&task_id_factory);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
-            task_id_factory: IdFactory::new(),
+            task_id_factory,
             currently_scheduled_tasks: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),

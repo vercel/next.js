@@ -2,9 +2,9 @@ use std::{
     collections::HashSet,
     fmt::Debug,
     mem::take,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc, Mutex,
     },
 };
@@ -19,7 +19,8 @@ use turbo_tasks::{
         Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
         TransientTaskType,
     },
-    with_task_id_mapping, IdMapping, RawVc, SharedReference, TaskId, TurboTasksBackendApi,
+    with_task_id_mapping, IdMapping, RawVc, SharedReference, TaskId, TaskIdProvider,
+    TurboTasksBackendApi,
 };
 
 use crate::{
@@ -43,9 +44,10 @@ fn sequential<T>(map: &HashMap<TaskId, Mutex<()>>, task: TaskId, func: impl FnOn
 
 #[derive(Debug)]
 pub struct RocksDbBackend {
-    db: Database,
+    path: PathBuf,
+    database: Option<Database>,
     session: SessionKey,
-    generation: AtomicU64,
+    generation: u64,
     next_task_id: AtomicUsize,
     ongoing_create: HashMap<Arc<PersistentTaskType>, Event>,
     in_progress_valid: flurry::HashSet<TaskId>,
@@ -65,12 +67,12 @@ pub struct RocksDbBackend {
 impl RocksDbBackend {
     pub fn new<T: Serialize, P: AsRef<Path>>(path: P, session: T) -> Result<Self> {
         let session = SessionKey::new(DefaultOptions::new().serialize(&session)?);
-        let db = Database::open(path)?;
 
         Ok(Self {
-            db,
+            path: path.as_ref().to_path_buf(),
+            database: None,
             session,
-            generation: AtomicU64::new(0),
+            generation: 0,
             next_task_id: AtomicUsize::new(0),
             ongoing_create: HashMap::new(),
             in_progress_valid: flurry::HashSet::new(),
@@ -86,63 +88,64 @@ impl RocksDbBackend {
         })
     }
 
-    fn try_startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> Result<()> {
+    fn try_initialize(&mut self, task_id_provider: &dyn TaskIdProvider) -> Result<()> {
+        let db = self.with_task_id_mapping(task_id_provider, || Database::open(&self.path))?;
+
         // init globals
-        let mut generation = self.db.generation.get()?.unwrap_or_default();
-        self.generation.store(generation + 1, Ordering::Release);
-        let next_task_id = self.db.next_task_id.get()?.unwrap_or_default();
+        let generation = db.generation.get()?.unwrap_or_default();
+        self.generation = generation + 1;
+        let next_task_id = db.next_task_id.get()?.unwrap_or_default();
         self.next_task_id.store(next_task_id, Ordering::Release);
 
+        self.database = Some(db);
+
+        Ok(())
+    }
+
+    fn try_startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
+
         // Process interruped active updates
-        for task in self
-            .db
-            .session_ongoing_active_update
-            .get_all(&self.session)?
-        {
+        for task in db.session_ongoing_active_update.get_all(&self.session)? {
             self.try_update_active_state(task, turbo_tasks)?;
         }
 
+        let generation = self.generation;
         // Bring session up to date and update generation
-        if let Some(session_generation) = self.db.session_generation.get(&self.session)? {
-            if session_generation != generation {
+        if let Some(session_generation) = db.session_generation.get(&self.session)? {
+            if session_generation != generation - 1 {
                 assert!(session_generation < generation);
                 todo!("bring session up to date");
             }
         }
-        generation += 1;
         {
-            let b = &mut self.db.batch();
-            self.db.generation.write(b, &generation)?;
-            self.db
-                .session_generation
-                .write(b, &self.session, &generation)?;
+            let b = &mut db.batch();
+            db.generation.write(b, &generation)?;
+            db.session_generation.write(b, &self.session, &generation)?;
             b.write()?;
         }
 
         Ok(())
     }
 
-    fn get_generation(&self) -> u64 {
-        self.generation.load(Ordering::Acquire)
-    }
-
     fn try_get_next_task_id(&self) -> Result<TaskId> {
-        let b = &mut self.db.batch();
-        self.db.next_task_id.merge(b, &1)?;
+        let db = self.database.as_ref().unwrap();
+        let b = &mut db.batch();
+        db.next_task_id.merge(b, &1)?;
         b.write()?;
         let id = self.next_task_id.fetch_add(1, Ordering::AcqRel);
         Ok(TaskId::from(id))
     }
 
-    pub fn with_task_id_mapping<T>(
+    pub fn with_task_id_mapping<T, P: TaskIdProvider>(
         &self,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        task_id_provider: P,
         func: impl FnOnce() -> T,
     ) -> T {
         with_task_id_mapping(
             BackendIdMapping {
                 backend: self,
-                turbo_tasks,
+                task_id_provider,
             },
             func,
         )
@@ -161,8 +164,9 @@ impl RocksDbBackend {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<TaskId> {
+        let db = self.database.as_ref().unwrap();
         // Lookup in task_cache
-        if let Some(id) = self.db.task_cache.get_value(&task_type)? {
+        if let Some(id) = db.task_cache.get_value(&task_type)? {
             return Ok(id);
         }
         let task_type = Arc::new(task_type);
@@ -174,17 +178,17 @@ impl RocksDbBackend {
         {
             Err(e) => {
                 let listener = e.current.listen();
-                if let Some(id) = self.db.task_cache.get_value(&task_type)? {
+                if let Some(id) = db.task_cache.get_value(&task_type)? {
                     return Ok(id);
                 }
                 listener.wait();
-                self.db.task_cache.get_value(&task_type)?.unwrap()
+                db.task_cache.get_value(&task_type)?.unwrap()
             }
             Ok(event) => {
                 // Update task_cache
                 let id = turbo_tasks.get_fresh_task_id();
-                let b = &mut self.db.batch();
-                self.db.task_cache.write(b, &task_type, &id)?;
+                let b = &mut db.batch();
+                db.task_cache.write(b, &task_type, &id)?;
                 b.write()?;
                 // If not found:
                 //   Update
@@ -203,54 +207,44 @@ impl RocksDbBackend {
         child: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
         let mut update_active_state = false;
         if self.transient_tasks.pin().contains_key(&parent) {
             if self.transient_task_children.pin().insert(child) {
-                let b = &mut self.db.batch();
-                let old_count = self
-                    .db
+                let b = &mut db.batch();
+                let old_count = db
                     .session_active_parents
                     .get((&self.session, &child))?
                     .unwrap_or_default();
-                self.db
-                    .session_active_parents
+                db.session_active_parents
                     .merge(b, (&self.session, &child), &1)?;
-                self.db
-                    .session_transient_task_children
+                db.session_transient_task_children
                     .insert(b, &self.session, &child)?;
                 if old_count == 0 {
                     update_active_state = true;
-                    self.db
-                        .session_ongoing_active_update
+                    db.session_ongoing_active_update
                         .insert(b, &self.session, &child)?;
                 }
                 b.write()?;
             }
         } else {
             sequential(&self.mutex_task_children, parent, || -> Result<()> {
-                let b = &mut self.db.batch();
-                self.db.task_children.insert(b, &parent, &child)?;
-                self.db.task_generations.insert_unique(
-                    b,
-                    &SortableIndex(self.get_generation()),
-                    &parent,
-                )?;
-                self.db
-                    .session_task_children
+                let b = &mut db.batch();
+                db.task_children.insert(b, &parent, &child)?;
+                db.task_generations
+                    .insert_unique(b, &SortableIndex(self.generation), &parent)?;
+                db.session_task_children
                     .insert(b, (&self.session, &parent), &child)?;
-                if self.db.session_task_active.has(&self.session, &parent)? {
-                    let old_count = self
-                        .db
+                if db.session_task_active.has(&self.session, &parent)? {
+                    let old_count = db
                         .session_active_parents
                         .get((&self.session, &child))?
                         .unwrap_or_default();
-                    self.db
-                        .session_active_parents
+                    db.session_active_parents
                         .merge(b, (&self.session, &child), &1)?;
                     if old_count == 0 {
                         update_active_state = true;
-                        self.db
-                            .session_ongoing_active_update
+                        db.session_ongoing_active_update
                             .insert(b, &self.session, &child)?;
                     }
                 }
@@ -269,38 +263,31 @@ impl RocksDbBackend {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
         let mut update_active_state = HashSet::new();
         let mut schedule = false;
         sequential(&self.mutex_task_children, task, || -> Result<()> {
-            let should_be_active = self
-                .db
+            let should_be_active = db
                 .session_active_parents
                 .get((&self.session, &task))?
                 .unwrap_or_default()
                 > 0;
-            if self.db.session_task_active.has(&self.session, &task)? != should_be_active {
-                let b = &mut self.db.batch();
+            if db.session_task_active.has(&self.session, &task)? != should_be_active {
+                let b = &mut db.batch();
                 if should_be_active {
-                    self.db
-                        .session_task_active
-                        .insert(b, &self.session, &task)?;
+                    db.session_task_active.insert(b, &self.session, &task)?;
                     // Schedule task
-                    self.db
-                        .session_scheduled_tasks
-                        .insert(b, &self.session, &task)?;
+                    db.session_scheduled_tasks.insert(b, &self.session, &task)?;
                     schedule = true;
                 } else {
-                    self.db
-                        .session_task_active
-                        .remove(b, &self.session, &task)?;
+                    db.session_task_active.remove(b, &self.session, &task)?;
                 }
-                for child in self.db.task_children.get_all(&task)? {
-                    let old_count = self
-                        .db
+                for child in db.task_children.get_all(&task)? {
+                    let old_count = db
                         .session_active_parents
                         .get((&self.session, &child))?
                         .unwrap_or_default();
-                    self.db.session_active_parents.merge(
+                    db.session_active_parents.merge(
                         b,
                         (&self.session, &child),
                         &if should_be_active { 1 } else { -1 },
@@ -309,14 +296,12 @@ impl RocksDbBackend {
                         // TODO FIXME: This could be inserted multiple times
                         // but the first try_update_active_state will remove it
                         // Maybe use a 3 state progress None -> Invalid -> Updating -> None/Invalid
-                        self.db
-                            .session_ongoing_active_update
+                        db.session_ongoing_active_update
                             .insert(b, &self.session, &child)?;
                         update_active_state.insert(child);
                     }
                 }
-                self.db
-                    .session_ongoing_active_update
+                db.session_ongoing_active_update
                     .remove(b, &self.session, &task)?;
                 b.write()?;
             }
@@ -332,23 +317,24 @@ impl RocksDbBackend {
     }
 
     fn try_get_fresh_slot(&self, task: TaskId) -> Result<usize> {
+        let db = self.database.as_ref().unwrap();
         // Get and increment task_next_slot
-        let next_slot = self.db.task_next_slot.get(&task)?.unwrap_or_default();
-        let b = &mut self.db.batch();
-        self.db.task_next_slot.write(b, &task, &(next_slot + 1))?;
+        let next_slot = db.task_next_slot.get(&task)?.unwrap_or_default();
+        let b = &mut db.batch();
+        db.task_next_slot.write(b, &task, &(next_slot + 1))?;
         b.write()?;
         Ok(next_slot)
     }
 
     fn try_make_dirty(&self, b: &mut WriteBatch, task: TaskId) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
         // Update task clean flag
-        self.db.task_state.merge(b, &task, &false)?;
+        db.task_state.merge(b, &task, &false)?;
         // Make in progress task invalid (if any)
         self.in_progress_valid.pin().remove(&task);
         // Update task generation
-        self.db
-            .task_generations
-            .insert_unique(b, &SortableIndex(self.get_generation()), &task)?;
+        db.task_generations
+            .insert_unique(b, &SortableIndex(self.generation), &task)?;
         Ok(())
     }
 
@@ -357,22 +343,21 @@ impl RocksDbBackend {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
-        if self.db.task_state.get(&task)?.unwrap_or_default().0 != TaskFreshness::Dirty {
+        let db = self.database.as_ref().unwrap();
+        if db.task_state.get(&task)?.unwrap_or_default().0 != TaskFreshness::Dirty {
             sequential(&self.mutex_task_dependencies, task, || {
-                if self.db.task_state.get(&task)?.unwrap_or_default().0 != TaskFreshness::Dirty {
-                    let b = &mut self.db.batch();
+                if db.task_state.get(&task)?.unwrap_or_default().0 != TaskFreshness::Dirty {
+                    let b = &mut db.batch();
                     self.try_make_dirty(b, task)?;
                     // Clear task_dependencies
-                    for dep in self.db.task_dependencies.get_values(&task)? {
-                        self.db.task_dependencies.remove(b, &task, &dep)?;
+                    for dep in db.task_dependencies.get_values(&task)? {
+                        db.task_dependencies.remove(b, &task, &dep)?;
                     }
                     // Check if task is active in session
-                    let active = self.db.session_task_active.has(&self.session, &task)?;
+                    let active = db.session_task_active.has(&self.session, &task)?;
                     if active {
                         // Schedule task
-                        self.db
-                            .session_scheduled_tasks
-                            .insert(b, &self.session, &task)?;
+                        db.session_scheduled_tasks.insert(b, &self.session, &task)?;
                         b.write()?;
                         turbo_tasks.schedule(task);
                     } else {
@@ -392,20 +377,19 @@ impl RocksDbBackend {
         vc: RawVc,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
         sequential(
             &self.mutex_task_dependencies,
             vc.get_task_id(),
             || -> Result<()> {
                 let b = &mut batch;
-                let tasks = self.db.task_dependencies.get_keys(&vc)?;
+                let tasks = db.task_dependencies.get_keys(&vc)?;
                 for task in tasks.iter() {
                     self.try_make_dirty(b, *task)?;
                     // We assume task is active since this is usually called from
                     // changes in a running task (which is probably active).
                     // But on task start active state is still validated again.
-                    self.db
-                        .session_scheduled_tasks
-                        .insert(b, &self.session, &task)?;
+                    db.session_scheduled_tasks.insert(b, &self.session, &task)?;
                 }
                 b.write()?;
                 if !tasks.is_empty() {
@@ -423,22 +407,18 @@ impl RocksDbBackend {
         content: SlotContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
+        let db = self.database.as_ref().unwrap();
         // Update task_slot
-        let mut batch = self.db.batch();
+        let mut batch = db.batch();
         let b = &mut batch;
         match content {
             SlotContent(None) => {
-                self.db.task_slot.delete(b, (&task, &index))?;
+                db.task_slot.delete(b, (&task, &index))?;
                 self.transient_slots.pin().remove(&(task, index));
             }
             SlotContent(content) => {
-                if self
-                    .db
-                    .task_slot
-                    .write(b, (&task, &index), &content)
-                    .is_err()
-                {
-                    self.db.task_slot.write(b, (&task, &index), &None)?;
+                if db.task_slot.write(b, (&task, &index), &content).is_err() {
+                    db.task_slot.write(b, (&task, &index), &None)?;
                     self.transient_slots.pin().insert((task, index), content);
                 } else {
                     self.transient_slots.pin().remove(&(task, index));
@@ -457,16 +437,16 @@ impl RocksDbBackend {
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<bool> {
-        let mut batch = self.db.batch();
+        let db = self.database.as_ref().unwrap();
+        let mut batch = db.batch();
         let b = &mut batch;
-        let state = self.db.task_state.get(&task).ok().unwrap_or_default();
+        let state = db.task_state.get(&task).ok().unwrap_or_default();
         let new_state = Some(match result {
             Ok(vc) => TaskOutput::Result(vc),
             Err(e) => TaskOutput::Error(e.to_string()),
         });
         // Store result, not yet mark clean
-        self.db
-            .task_state
+        db.task_state
             .write(b, &task, (&TaskFreshness::PreparedForClean, &new_state))?;
         let change = if let Some((_, old_state)) = state {
             old_state != new_state
@@ -475,7 +455,7 @@ impl RocksDbBackend {
         };
         // Write new slot mappings
         if let Some(slot_mappings) = slot_mappings {
-            self.db.task_slot_mappings.write(b, &task, &slot_mappings)?;
+            db.task_slot_mappings.write(b, &task, &slot_mappings)?;
         }
         if change {
             // When result differs from old result:
@@ -487,21 +467,20 @@ impl RocksDbBackend {
         let valid = self.in_progress_valid.pin().remove(&task);
         if !valid {
             // reexecute
-            let b = &mut self.db.batch();
-            self.db.task_state.merge(b, &task, &false)?;
+            let b = &mut db.batch();
+            db.task_state.merge(b, &task, &false)?;
             b.write()?;
             Ok(true)
         } else {
-            let b = &mut self.db.batch();
+            let b = &mut db.batch();
 
             // Finalize task freshness
             // This will account for race conditions between "in_progress_valid" and
             // "task_state"
-            self.db.task_state.merge(b, &task, &true)?;
+            db.task_state.merge(b, &task, &true)?;
 
             // Remove task from list of scheduled tasks
-            self.db
-                .session_scheduled_tasks
+            db.session_scheduled_tasks
                 .remove(b, &self.session, &task)
                 .unwrap();
 
@@ -518,6 +497,10 @@ impl RocksDbBackend {
 }
 
 impl Backend for RocksDbBackend {
+    fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {
+        self.try_initialize(task_id_provider).unwrap();
+    }
+
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.with_task_id_mapping(turbo_tasks, || {
             self.try_startup(turbo_tasks).unwrap();
@@ -544,26 +527,26 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec> {
         self.with_task_id_mapping(turbo_tasks, || {
+            let db = self.database.as_ref().unwrap();
             // Grap task_type
-            if let Some(task_type) = self.db.task_cache.get_key(&task).ok()? {
+            if let Some(task_type) = db.task_cache.get_key(&task).ok()? {
                 let task_transient_slot_request =
                     self.task_transient_slot_request.pin().remove(&task);
                 if !task_transient_slot_request {
                     // Cancel when the task is already clean
-                    let clean = self.db.task_state.get(&task).ok()?.unwrap_or_default().0
+                    let clean = db.task_state.get(&task).ok()?.unwrap_or_default().0
                         == TaskFreshness::Clean;
                     if clean {
                         return None;
                     }
                     // Cancel when the task is not active
-                    let active = self.db.session_task_active.has(&self.session, &task).ok()?;
+                    let active = db.session_task_active.has(&self.session, &task).ok()?;
                     if !active {
                         return None;
                     }
                 }
                 // Grab SlotMappingsx
-                let slot_mappings = self
-                    .db
+                let slot_mappings = db
                     .task_slot_mappings
                     .get(&task)
                     .unwrap_or_default()
@@ -632,10 +615,11 @@ impl Backend for RocksDbBackend {
 
             if result.is_ok() {
                 self.with_task_id_mapping(turbo_tasks, || {
+                    let db = self.database.as_ref().unwrap();
                     // Add dependency (task_dependencies)
-                    let b = &mut self.db.batch();
+                    let b = &mut db.batch();
                     let vc = RawVc::TaskOutput(task);
-                    self.db.task_dependencies.insert(b, &reader, &vc).unwrap();
+                    db.task_dependencies.insert(b, &reader, &vc).unwrap();
                     b.write().unwrap();
                 });
             }
@@ -657,8 +641,9 @@ impl Backend for RocksDbBackend {
         }
 
         self.with_task_id_mapping(turbo_tasks, || {
+            let db = self.database.as_ref().unwrap();
             // Read task_output
-            match self.db.task_state.get(&task) {
+            match db.task_state.get(&task) {
                 Ok(Some((TaskFreshness::PreparedForClean, None)))
                 | Ok(Some((TaskFreshness::Clean, None))) => unreachable!(),
                 Ok(Some((TaskFreshness::Dirty, _)))
@@ -666,7 +651,7 @@ impl Backend for RocksDbBackend {
                 | Ok(None) => {
                     let listener = self.listen_to_task(task);
                     // Check state again in case of race conditions
-                    match self.db.task_state.get(&task) {
+                    match db.task_state.get(&task) {
                         Ok(Some((TaskFreshness::PreparedForClean, None)))
                         | Ok(Some((TaskFreshness::Clean, None))) => unreachable!(),
                         Ok(Some((TaskFreshness::Dirty, _)))
@@ -697,10 +682,11 @@ impl Backend for RocksDbBackend {
 
             if result.is_ok() {
                 self.with_task_id_mapping(turbo_tasks, || {
+                    let db = self.database.as_ref().unwrap();
                     // Add dependency (task_dependencies)
-                    let b = &mut self.db.batch();
+                    let b = &mut db.batch();
                     let vc = RawVc::TaskSlot(task, index);
-                    self.db.task_dependencies.insert(b, &reader, &vc).unwrap();
+                    db.task_dependencies.insert(b, &reader, &vc).unwrap();
                     b.write().unwrap();
                 });
             }
@@ -716,8 +702,9 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener> {
         self.with_task_id_mapping(turbo_tasks, || {
+            let db = self.database.as_ref().unwrap();
             // Read task_slot
-            let content = self.db.task_slot.get((&task, &index));
+            let content = db.task_slot.get((&task, &index));
             match content {
                 Ok(None) => {
                     // empty slot
@@ -807,12 +794,12 @@ impl Backend for RocksDbBackend {
     }
 }
 
-struct BackendIdMapping<'a> {
+struct BackendIdMapping<'a, T: TaskIdProvider + 'a> {
     backend: &'a RocksDbBackend,
-    turbo_tasks: &'a dyn TurboTasksBackendApi,
+    task_id_provider: T,
 }
 
-impl<'a> IdMapping<TaskId> for BackendIdMapping<'a> {
+impl<'a, T: TaskIdProvider + 'a> IdMapping<TaskId> for BackendIdMapping<'a, T> {
     fn forward(&self, id: TaskId) -> TaskId {
         let m = self.backend.task_id_forward_mapping.pin();
         if let Some(r) = m.get(&id) {
@@ -825,7 +812,7 @@ impl<'a> IdMapping<TaskId> for BackendIdMapping<'a> {
             Ok(_) => new_id,
             Err(e) => {
                 m2.remove(&new_id);
-                unsafe { self.turbo_tasks.reuse_task_id(new_id) };
+                unsafe { self.task_id_provider.reuse_task_id(new_id) };
                 *e.current
             }
         }
@@ -836,14 +823,14 @@ impl<'a> IdMapping<TaskId> for BackendIdMapping<'a> {
         if let Some(r) = m.get(&id) {
             return *r;
         }
-        let new_id = self.turbo_tasks.get_fresh_task_id();
+        let new_id = self.task_id_provider.get_fresh_task_id();
         let m2 = self.backend.task_id_forward_mapping.pin();
         m2.insert(new_id, id);
         match m.try_insert(id, new_id) {
             Ok(_) => new_id,
             Err(e) => {
                 m2.remove(&new_id);
-                unsafe { self.turbo_tasks.reuse_task_id(new_id) };
+                unsafe { self.task_id_provider.reuse_task_id(new_id) };
                 *e.current
             }
         }
