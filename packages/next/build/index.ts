@@ -114,7 +114,6 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
-import { findPageFile } from '../server/lib/find-page-file'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
