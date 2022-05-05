@@ -170,6 +170,7 @@ describe('matchRemotePattern', () => {
 
   it('should throw when hostname is missing', () => {
     const p = { protocol: 'https' } as const
+    // @ts-ignore testing invalid input
     expect(() => m(p, new URL('https://example.com'))).toThrow(
       'Pattern should define hostname but found\n{"protocol":"https"}'
     )
