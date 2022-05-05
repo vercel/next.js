@@ -749,7 +749,6 @@ export async function renderToHTML(
     locales: renderOpts.locales,
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
-      console.log('AppTree')
       return (
         <AppContainerWithIsomorphicFiberStructure>
           {renderPageTree(
@@ -1248,7 +1247,6 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    console.log('flight data')
     return new RenderResult(
       renderToReadableStream(
         renderPageTree(
@@ -1382,7 +1380,6 @@ export async function renderToHTML(
           })
         }
 
-        console.log('renderToString')
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
