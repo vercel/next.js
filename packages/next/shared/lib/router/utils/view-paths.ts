@@ -1,5 +1,5 @@
 // remove (name) from pathname as it's not considered for routing
-export function normalizeRootPath(pathname: string) {
+export function normalizeViewPath(pathname: string) {
   let normalized = ''
   const segments = pathname.split('/')
 

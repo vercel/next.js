@@ -1887,9 +1887,9 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
-export async function pages_root(task, opts) {
+export async function pages_layout(task, opts) {
   await task
-    .source('pages/root.tsx')
+    .source('pages/layout.tsx')
     .swc('server', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
@@ -1901,7 +1901,7 @@ export async function pages(task, opts) {
       'pages_app_server',
       'pages_error',
       'pages_document',
-      'pages_root',
+      'pages_layout',
     ],
     opts
   )

@@ -5,7 +5,7 @@ export type RootProps = {
   bodyChildren: any
 }
 
-export default function Root({ headChildren, bodyChildren }: RootProps) {
+export default function RootLayout({ headChildren, bodyChildren }: RootProps) {
   return (
     <html>
       <head>
