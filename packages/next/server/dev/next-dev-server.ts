@@ -65,6 +65,8 @@ import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -96,8 +98,7 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir: string
-  // @ts-ignore TODO: add implementation
-  private rootDir?: string
+  private viewsDir?: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -178,12 +179,12 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
     // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, root: rootDir } = findPagesDir(
+    const { pages: pagesDir, views: viewsDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.rootDir
+      this.nextConfig.experimental.viewsDir
     )
     this.pagesDir = pagesDir
-    this.rootDir = rootDir
+    this.viewsDir = viewsDir
   }
 
   protected getBuildId(): string {
@@ -264,24 +265,61 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      wp.watch([], [this.pagesDir], 0)
+      const toWatch = [this.pagesDir!]
+
+      if (this.viewsDir) {
+        toWatch.push(this.viewsDir)
+      }
+      wp.watch([], toWatch, 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware = []
-        const routedPages = []
+        const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
+        const viewPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
         for (const [fileName, { accuracy, safeTime }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
           }
+          let pageName: string = ''
+          let isViewPath = false
 
-          const pageName = absolutePathToPage(
-            this.pagesDir,
-            fileName,
-            this.nextConfig.pageExtensions
-          )
+          if (
+            this.viewsDir &&
+            normalizePathSep(fileName).startsWith(
+              normalizePathSep(this.viewsDir)
+            )
+          ) {
+            isViewPath = true
+            pageName = absolutePathToPage(
+              this.viewsDir,
+              fileName,
+              this.nextConfig.pageExtensions,
+              false
+            )
+          } else {
+            pageName = absolutePathToPage(
+              this.pagesDir,
+              fileName,
+              this.nextConfig.pageExtensions
+            )
+          }
+
+          if (isViewPath) {
+            // TODO: should only routes ending in /index.js be route-able?
+            const originalPageName = pageName
+            pageName = normalizeViewPath(pageName)
+            viewPaths[pageName] = originalPageName
+
+            if (routedPages.includes(pageName)) {
+              continue
+            }
+          } else {
+            // /index is preserved for root folder
+            pageName = pageName.replace(/\/index$/, '') || '/'
+          }
 
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
@@ -310,6 +348,7 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
+        this.viewPathRoutes = viewPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
             getMiddlewareRegex(page, !ssrMiddleware.has(page))
@@ -371,7 +410,7 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      [this.pagesDir!, this.rootDir].filter(Boolean) as string[],
+      [this.pagesDir!, this.viewsDir].filter(Boolean) as string[],
       false,
       this.nextConfig
     )
@@ -398,6 +437,7 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
+      viewsDir: this.viewsDir,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -445,7 +485,6 @@ export default class DevServer extends Server {
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
-
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {
@@ -454,6 +493,16 @@ export default class DevServer extends Server {
       // so it doesn't exist so don't throw and return false
       // to ensure we return 404 instead of 500
       return false
+    }
+
+    // check viewsDir first if enabled
+    if (this.viewsDir) {
+      const pageFile = await findPageFile(
+        this.viewsDir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      )
+      if (pageFile) return true
     }
 
     const pageFile = await findPageFile(
@@ -734,6 +783,10 @@ export default class DevServer extends Server {
   }
 
   protected getPagesManifest(): undefined {
+    return undefined
+  }
+
+  protected getViewPathsManifest(): undefined {
     return undefined
   }
 

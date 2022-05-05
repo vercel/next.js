@@ -581,6 +581,7 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
+            viewsDir: nextConfig.experimental.viewsDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,

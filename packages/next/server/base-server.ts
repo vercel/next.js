@@ -70,6 +70,7 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
+import { normalizeViewPath } from '../shared/lib/router/utils/view-paths'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -141,6 +142,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
+  protected viewPathsManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
   protected renderOpts: {
@@ -180,6 +182,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
+  protected viewPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
@@ -190,6 +193,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
+  protected abstract getViewPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
@@ -352,6 +356,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
 
     this.pagesManifest = this.getPagesManifest()
+    this.viewPathsManifest = this.getViewPathsManifest()
     this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
@@ -460,8 +465,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : matchedPathname
 
         let srcPathname = isDataUrl
-          ? parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
-            matchedPathnameNoExt
+          ? this.stripNextDataPath(
+              parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
+                matchedPathnameNoExt
+            ) || '/'
           : matchedPathnameNoExt
 
         if (this.nextConfig.i18n) {
@@ -869,6 +876,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
+      this.viewPathRoutes = this.getViewPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
       if (!this.minimalMode) {
         this.middleware = this.getMiddleware()
@@ -962,7 +970,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(
-      Object.keys(this.pagesManifest!).map(
+      [
+        ...Object.keys(this.viewPathRoutes || {}),
+        ...Object.keys(this.pagesManifest!),
+      ].map(
         (page) =>
           normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
       )
@@ -976,6 +987,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       })
       .filter((item): item is RoutingItem => Boolean(item))
+  }
+
+  protected getViewPathRoutes(): Record<string, string> {
+    const viewPathRoutes: Record<string, string> = {}
+
+    Object.keys(this.viewPathsManifest || {}).forEach((entry) => {
+      viewPathRoutes[normalizeViewPath(entry)] = entry
+    })
+    return viewPathRoutes
+  }
+
+  protected getViewPathLayouts(pathname: string): string[] {
+    const layoutPaths: string[] = []
+
+    if (this.viewPathRoutes) {
+      const paths = Object.values(this.viewPathRoutes)
+      const parts = pathname.split('/').filter(Boolean)
+
+      for (let i = 1; i < parts.length; i++) {
+        const layoutPath = `/${parts.slice(0, i).join('/')}/layout`
+
+        if (paths.includes(layoutPath)) {
+          layoutPaths.push(layoutPath)
+        }
+      }
+
+      if (this.viewPathRoutes['/layout']) {
+        layoutPaths.unshift('/layout')
+      }
+    }
+    return layoutPaths
   }
 
   protected async run(
@@ -1276,21 +1318,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.nextConfig.i18n?.locales
     ).pathname
 
-    const stripNextDataPath = (path: string) => {
-      if (path.includes(this.buildId)) {
-        const splitPath = path.substring(
-          path.indexOf(this.buildId) + this.buildId.length
-        )
-
-        path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
-      }
-
-      if (this.nextConfig.i18n) {
-        return normalizeLocalePath(path, locales).pathname
-      }
-      return path
-    }
-
     const handleRedirect = (pageData: any) => {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
@@ -1321,8 +1348,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq) {
-      resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
-      urlPathname = stripNextDataPath(urlPathname)
+      resolvedUrlPathname = this.stripNextDataPath(resolvedUrlPathname)
+      urlPathname = this.stripNextDataPath(urlPathname)
     }
 
     let ssgCacheKey =
@@ -1681,6 +1708,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
+  private stripNextDataPath(path: string) {
+    if (path.includes(this.buildId)) {
+      const splitPath = path.substring(
+        path.indexOf(this.buildId) + this.buildId.length
+      )
+
+      path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+    }
+
+    if (this.nextConfig.i18n) {
+      const { locales } = this.nextConfig.i18n
+      return normalizeLocalePath(path, locales).pathname
+    }
+    return path
+  }
+
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
@@ -1688,14 +1731,56 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
+    // map the route to the actual bundle name e.g.
+    // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
+    const getOriginalViewPath = (viewPath: string) => {
+      if (this.nextConfig.experimental.viewsDir) {
+        const originalViewPath =
+          this.viewPathRoutes?.[`${viewPath}/index`] ||
+          this.viewPathRoutes?.[`${viewPath}`]
+
+        if (!originalViewPath) {
+          return null
+        }
+
+        return originalViewPath
+      }
+      return null
+    }
+
+    const gatherViewLayouts = async (
+      viewPath: string,
+      result: FindComponentsResult
+    ): Promise<void> => {
+      const layoutPaths = this.getViewPathLayouts(viewPath)
+      result.components.viewLayouts = await Promise.all(
+        layoutPaths.map(async (path) => {
+          const layoutRes = await this.findPageComponents(path)
+          return {
+            isRootLayout: path === '/layout',
+            Component: layoutRes?.components.Component!,
+            getStaticProps: layoutRes?.components.getStaticProps,
+            getServerSideProps: layoutRes?.components.getServerSideProps,
+          }
+        })
+      )
+    }
 
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(pathname)) {
-        const result = await this.findPageComponents(pathname, query)
+        const viewPath = getOriginalViewPath(pathname)
+
+        if (typeof viewPath === 'string') {
+          page = viewPath
+        }
+        const result = await this.findPageComponents(page, query)
         if (result) {
           try {
+            if (result.components.isViewPath) {
+              await gatherViewLayouts(page, result)
+            }
             return await this.renderToResponseWithComponents(ctx, result)
           } catch (err) {
             const isNoFallbackError = err instanceof NoFallbackError
@@ -1713,19 +1798,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (!params) {
             continue
           }
+          page = dynamicRoute.page
+          const viewPath = getOriginalViewPath(page)
+
+          if (typeof viewPath === 'string') {
+            page = viewPath
+          }
 
           const dynamicRouteResult = await this.findPageComponents(
-            dynamicRoute.page,
+            page,
             query,
             params
           )
           if (dynamicRouteResult) {
             try {
-              page = dynamicRoute.page
+              if (dynamicRouteResult.components.isViewPath) {
+                await gatherViewLayouts(page, dynamicRouteResult)
+              }
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
-                  pathname: dynamicRoute.page,
+                  pathname: page,
                   renderOpts: {
                     ...ctx.renderOpts,
                     params,

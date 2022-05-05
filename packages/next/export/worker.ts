@@ -60,6 +60,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
+  viewsDir?: boolean
 }
 
 interface ExportPageResults {
@@ -84,6 +85,7 @@ interface RenderOpts {
   locale?: string
   defaultLocale?: string
   trailingSlash?: boolean
+  viewsDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -97,6 +99,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
+  viewsDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -262,7 +265,13 @@ export default async function exportPage({
           getServerSideProps,
           getStaticProps,
           pageConfig,
-        } = await loadComponents(distDir, page, serverless, serverComponents)
+        } = await loadComponents(
+          distDir,
+          page,
+          serverless,
+          serverComponents,
+          viewsDir
+        )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
           hasQuery: Boolean(query.amp),

@@ -10,12 +10,14 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  VIEWS_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -312,6 +314,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     runWebpackSpan,
     target = 'server',
+    viewsDir,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -325,6 +328,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
+    viewsDir?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -436,6 +440,16 @@ export default async function getBaseWebpackConfig(
   }
 
   const getBabelOrSwcLoader = () => {
+    if (useSWCLoader && config?.experimental?.swcTraceProfiling) {
+      // This will init subscribers once only in a single process lifecycle,
+      // even though it can be called multiple times.
+      // Subscriber need to be initialized _before_ any actual swc's call (transform, etcs)
+      // to collect correct trace spans when they are called.
+      require('./swc')?.initCustomTraceSubscriber?.(
+        path.join(distDir, `swc-trace-profile-${Date.now()}.json`)
+      )
+    }
+
     return useSWCLoader
       ? {
           loader: 'next-swc-loader',
@@ -527,6 +541,18 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
+        ...(config.experimental.viewsDir
+          ? {
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
+                `./` +
+                path
+                  .relative(
+                    dir,
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'root-next.js')
+                  )
+                  .replace(/\\/g, '/'),
+            }
+          : {}),
       } as ClientEntries)
     : undefined
 
@@ -549,6 +575,7 @@ export default async function getBaseWebpackConfig(
   const customAppAliases: { [key: string]: string[] } = {}
   const customErrorAlias: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
+  const customRootAliases: { [key: string]: string[] } = {}
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
@@ -610,8 +637,14 @@ export default async function getBaseWebpackConfig(
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,
+      ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
+      ...(viewsDir
+        ? {
+            [VIEWS_DIR_ALIAS]: viewsDir,
+          }
+        : {}),
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
@@ -1145,6 +1178,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
+        'next-view-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1422,6 +1456,8 @@ export default async function getBaseWebpackConfig(
             ? {
                 // pass domains in development to allow validating on the client
                 domains: config.images.domains,
+                experimentalRemotePatterns:
+                  config.experimental?.images?.remotePatterns,
               }
             : {}),
         }),
@@ -1513,6 +1549,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
+          rootEnabled: !!config.experimental.viewsDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1523,6 +1560,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
+          rootEnabled: !!config.experimental.viewsDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

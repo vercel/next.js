@@ -16,10 +16,12 @@ import { removePagePathTail } from './remove-page-path-tail'
 export function absolutePathToPage(
   pagesDir: string,
   pagePath: string,
-  extensions: string[]
+  extensions: string[],
+  stripIndex = true
 ) {
   return removePagePathTail(
     normalizePathSep(ensureLeadingSlash(relative(pagesDir, pagePath))),
-    extensions
+    extensions,
+    stripIndex
   )
 }

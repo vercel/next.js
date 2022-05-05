@@ -113,7 +113,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise } from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -206,9 +206,9 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, root: rootDir } = findPagesDir(
+      const { pages: pagesDir, views: viewsDir } = findPagesDir(
         dir,
-        config.experimental.rootDir
+        config.experimental.viewsDir
       )
 
       const hasPublicDir = await fileExists(publicDir)
@@ -244,7 +244,7 @@ export default async function build(
         .traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            [pagesDir, rootDir].filter(Boolean) as string[],
+            [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
@@ -309,6 +309,19 @@ export default async function build(
             new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
           )
         )
+
+      let viewPaths: string[] | undefined
+
+      if (viewsDir) {
+        viewPaths = await nextBuildSpan
+          .traceChild('collect-view-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              viewsDir,
+              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+            )
+          )
+      }
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -332,6 +345,22 @@ export default async function build(
           })
         )
 
+      let mappedViewPaths: ReturnType<typeof createPagesMapping> | undefined
+
+      if (viewPaths && viewsDir) {
+        mappedViewPaths = nextBuildSpan
+          .traceChild('create-views-mapping')
+          .traceFn(() =>
+            createPagesMapping({
+              pagePaths: viewPaths!,
+              hasServerComponents,
+              isDev: false,
+              isViews: true,
+              pageExtensions: config.pageExtensions,
+            })
+          )
+      }
+
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
         .traceAsyncFn(() =>
@@ -344,6 +373,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            viewsDir,
+            viewPaths: mappedViewPaths,
           })
         )
 
@@ -649,6 +680,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
+          viewsDir,
         }
 
         const configs = await runWebpackSpan
@@ -2092,6 +2124,8 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+      ;(images as any).remotePatterns =
+        config?.experimental?.images?.remotePatterns || []
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -2212,6 +2246,7 @@ export default async function build(
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
+    teardownTraceSubscriber()
   }
 }
 
