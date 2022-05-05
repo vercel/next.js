@@ -48,6 +48,89 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when remotePatterns length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: Array.from({ length: 51 }).map((_) => ({
+                hostname: 'example.com',
+              })),
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.remotePatterns exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when remotePatterns has invalid prop', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Invalid images.remotePatterns values:\n{"hostname":"example.com","foo":"bar"}'
+      )
+    })
+
+    it('should error when remotePatterns is missing hostname', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: [{ protocol: 'https' }],
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Invalid images.remotePatterns values:\n{"protocol":"https"}'
+      )
+    })
+
     it('should error when sizes length exceeds 25', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',

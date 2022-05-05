@@ -21,6 +21,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import ReactDOMServer from 'react-dom/server.browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
+import DefaultRootLayout from '../lib/views-layout'
 
 export type RenderOptsPartial = {
   err?: Error | null
@@ -215,7 +216,7 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const layouts = renderOpts.rootLayouts || []
+  const layouts = renderOpts.viewLayouts || []
 
   layouts.push({
     Component: renderOpts.Component,
@@ -242,7 +243,7 @@ export async function renderToHTML(
     const dataCacheKey = i.toString()
     const layout = layouts[i]
 
-    if (layout.isRoot) {
+    if (layout.isRootLayout) {
       RootLayout = layout.Component
       continue
     }
@@ -330,7 +331,8 @@ export async function renderToHTML(
 
   if (!RootLayout) {
     // TODO: fallback to our own root layout?
-    throw new Error('invariant RootLayout not loaded')
+    // throw new Error('invariant RootLayout not loaded')
+    RootLayout = DefaultRootLayout
   }
 
   const headChildren = buildManifest.rootMainFiles.map((src) => (

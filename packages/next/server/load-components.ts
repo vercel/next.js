@@ -40,9 +40,9 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   AppMod: any
   AppServerMod: any
-  isRootPath?: boolean
-  rootLayouts?: Array<{
-    isRoot?: boolean
+  isViewPath?: boolean
+  viewLayouts?: Array<{
+    isRootLayout?: boolean
     Component: NextComponentType
     getStaticProps?: GetStaticProps
     getServerSideProps?: GetServerSideProps
@@ -111,11 +111,19 @@ export async function loadComponents(
   }
 
   const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless, rootEnabled),
-    requirePage('/_app', distDir, serverless, rootEnabled),
-    requirePage(pathname, distDir, serverless, rootEnabled),
+    Promise.resolve().then(() =>
+      requirePage('/_document', distDir, serverless, rootEnabled)
+    ),
+    Promise.resolve().then(() =>
+      requirePage('/_app', distDir, serverless, rootEnabled)
+    ),
+    Promise.resolve().then(() =>
+      requirePage(pathname, distDir, serverless, rootEnabled)
+    ),
     serverComponents
-      ? requirePage('/_app.server', distDir, serverless, rootEnabled)
+      ? Promise.resolve().then(() =>
+          requirePage('/_app.server', distDir, serverless, rootEnabled)
+        )
       : null,
   ])
 
@@ -134,7 +142,7 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  let isRootPath = false
+  let isViewPath = false
 
   if (rootEnabled) {
     const pagePath = getPagePath(
@@ -145,7 +153,7 @@ export async function loadComponents(
       undefined,
       rootEnabled
     )
-    isRootPath = !!pagePath?.match(/server[/\\]root[/\\]/)
+    isViewPath = !!pagePath?.match(/server[/\\]views[/\\]/)
   }
 
   return {
@@ -162,6 +170,6 @@ export async function loadComponents(
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
-    isRootPath,
+    isViewPath,
   }
 }
