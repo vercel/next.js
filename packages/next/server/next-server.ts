@@ -126,7 +126,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    if (!this.renderOpts.dev) {
+    if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
