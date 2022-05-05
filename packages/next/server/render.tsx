@@ -209,7 +209,11 @@ function renderPageTree(
 ) {
   const { router: _, ...rest } = props
   if (isServerComponent) {
-    return <Component {...rest} />
+    return (
+      <App>
+        <Component {...rest} />
+      </App>
+    )
   }
 
   return <App Component={Component} {...props} />
@@ -395,7 +399,7 @@ const useFlightResponse = createFlightHook()
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
   App: any,
-  ComponentMod: any,
+  Component: any,
   {
     cachePrefix,
     inlinedTransformStream,
@@ -408,12 +412,6 @@ function createServerComponentRenderer(
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
   }
 ) {
-  // We need to expose the `__webpack_require__` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  // @ts-ignore
-  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
-  const Component = interopDefault(ComponentMod)
-
   function ServerComponentWrapper({ router, ...props }: any) {
     const id = (React as any).useId()
 
@@ -522,7 +520,13 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = urlQueryToSearchParams(query).toString()
-    Component = createServerComponentRenderer(App, ComponentMod, {
+    // We need to expose the `__webpack_require__` API globally for
+    // react-server-dom-webpack. This is a hack until we find a better way.
+    // @ts-ignore
+    globalThis.__webpack_require__ =
+      ComponentMod.__next_rsc__.__webpack_require__
+
+    Component = createServerComponentRenderer(App, Component, {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       inlinedTransformStream: serverComponentsInlinedTransformStream,
       staticTransformStream: serverComponentsPageDataTransformStream,
@@ -745,6 +749,7 @@ export async function renderToHTML(
     locales: renderOpts.locales,
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
+      console.log('AppTree')
       return (
         <AppContainerWithIsomorphicFiberStructure>
           {renderPageTree(
@@ -1243,6 +1248,7 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
+    console.log('flight data')
     return new RenderResult(
       renderToReadableStream(
         renderPageTree(
@@ -1252,7 +1258,7 @@ export async function renderToHTML(
             ...props.pageProps,
             ...serverComponentProps,
           },
-          isServerComponent
+          true
         ),
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
@@ -1376,6 +1382,7 @@ export async function renderToHTML(
           })
         }
 
+        console.log('renderToString')
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
@@ -1420,7 +1427,8 @@ export async function renderToHTML(
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
             {renderPageTree(
-              EnhancedApp,
+              // AppServer is included in the EnhancedComponent in ServerComponentWrapper
+              isServerComponent ? React.Fragment : EnhancedApp,
               EnhancedComponent,
               { ...(isServerComponent ? props.pageProps : props), router },
               isServerComponent
