@@ -2124,6 +2124,8 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+      ;(images as any).remotePatterns =
+        config?.experimental?.images?.remotePatterns || []
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
