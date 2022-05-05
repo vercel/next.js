@@ -1,14 +1,17 @@
-// strip `@propName` from pathname and normalize `+` to `/`
+// remove (name) from pathname as it's not considered for routing
 export function normalizeRootPath(pathname: string) {
   let normalized = ''
+  const segments = pathname.split('/')
 
-  pathname.split('/').forEach((segment) => {
-    segment.split('+').forEach((subSegment) => {
-      const value = subSegment.split('@').shift()
-      if (value) {
-        normalized += `/${value}`
-      }
-    })
+  segments.forEach((segment, index) => {
+    if (!segment) return
+    if (segment.startsWith('(') && segment.endsWith(')')) {
+      return
+    }
+    if (segment === 'page' && index === segments.length - 1) {
+      return
+    }
+    normalized += `/${segment}`
   })
   return normalized
 }

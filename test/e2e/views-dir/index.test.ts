@@ -5,7 +5,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-describe.skip('root dir', () => {
+describe('root dir', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,17 +13,10 @@ describe.skip('root dir', () => {
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
-        root: new FileRef(path.join(__dirname, 'app/root')),
-        'root.server.js': new FileRef(
-          path.join(__dirname, 'app/root.server.js')
-        ),
+        views: new FileRef(path.join(__dirname, 'app/views')),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app/next.config.js')
         ),
-      },
-      dependencies: {
-        react: '18.0.0-rc.2',
-        'react-dom': '18.0.0-rc.2',
       },
     })
   })
@@ -60,7 +53,7 @@ describe.skip('root dir', () => {
 
   // TODO: why is this routable but /should-not-serve-server.server.js
   it('should not include parent when not in parent directory with route in directory', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard/rootonly/hello')
+    const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
     // Should be nested in /root.js

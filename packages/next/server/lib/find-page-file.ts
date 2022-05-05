@@ -20,7 +20,7 @@ export async function findPageFile(
   normalizedPagePath: string,
   pageExtensions: string[]
 ): Promise<string | null> {
-  const isRootPaths = pagesDir.replace(/\\/g, '/').endsWith('/root')
+  const isRootPaths = pagesDir.replace(/\\/g, '/').endsWith('/views')
   const pagePaths = getPagePaths(
     normalizedPagePath,
     pageExtensions,

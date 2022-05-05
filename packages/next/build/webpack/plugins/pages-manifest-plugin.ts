@@ -74,7 +74,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
       file = normalizePathSep(file)
 
-      if (entrypoint.name.startsWith('root/')) {
+      if (entrypoint.name.startsWith('views/')) {
         rootPaths[pagePath] = file
       } else {
         pages[pagePath] = file

@@ -376,7 +376,7 @@ async function findPagePathData(
       bundlePath = 'root'
       absolutePagePath = join(rootDir!, '..', pagePath)
     } else {
-      bundlePath = posix.join(isRoot ? 'root' : 'pages', bundleFile)
+      bundlePath = posix.join(isRoot ? 'views' : 'pages', bundleFile)
       absolutePagePath = join(isRoot ? rootDir! : pagesDir, pagePath)
     }
 

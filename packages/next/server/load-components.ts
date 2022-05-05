@@ -145,7 +145,7 @@ export async function loadComponents(
       undefined,
       rootEnabled
     )
-    isRootPath = !!pagePath?.match(/server[/\\]root[/\\]/)
+    isRootPath = !!pagePath?.match(/server[/\\]views[/\\]/)
   }
 
   return {

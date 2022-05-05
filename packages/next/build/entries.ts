@@ -376,7 +376,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath = posix.join(
-        isRoot ? (bundleFile === '/root' ? './' : 'root') : 'pages',
+        isRoot ? (bundleFile === '/root' ? './' : 'views') : 'pages',
         bundleFile
       )
 

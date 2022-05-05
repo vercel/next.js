@@ -1030,14 +1030,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const parts = pathname.split('/').filter(Boolean)
 
       for (let i = 1; i < parts.length; i++) {
-        const parentPath = `/${parts.slice(0, i).join('/')}`
+        const layoutPath = `/${parts.slice(0, i).join('/')}/layout`
 
-        if (paths.includes(parentPath)) {
-          layoutPaths.push(parentPath)
+        if (paths.includes(layoutPath)) {
+          layoutPaths.push(layoutPath)
         }
       }
-      // TODO: when should we bail on adding the root.js wrapper
-      layoutPaths.unshift('/_root')
+
+      if (this.rootPathRoutes['/layout']) {
+        layoutPaths.unshift('/layout')
+      }
     }
     return layoutPaths
   }
@@ -1758,20 +1760,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const getOriginalRootPath = (rootPath: string) => {
       if (this.nextConfig.experimental.rootDir) {
         const originalRootPath =
-          this.rootPathRoutes?.[`${pathname}/index`] ||
-          this.rootPathRoutes?.[pathname]
+          this.rootPathRoutes?.[`${rootPath}/index`] ||
+          this.rootPathRoutes?.[`${rootPath}`]
 
         if (!originalRootPath) {
           return null
         }
-        const isRoutable = this.isRoutableRootPath(rootPath)
+
+        // TODO: isRoutable check no longer needed as it will only
+        // find an originalRootPath if it is routable now
+        // const isRoutable = this.isRoutableRootPath(rootPath)
 
         // 404 when layout is hit and this isn't a routable path
         // e.g. root/hello.js with root/hello/another.js but
         // no root/hello/index.js
-        if (!isRoutable) {
-          return ''
-        }
+        // if (!isRoutable) {
+        //   return ''
+        // }
         return originalRootPath
       }
       return null
@@ -1786,7 +1791,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         layoutPaths.map(async (path) => {
           const layoutRes = await this.findPageComponents(path)
           return {
-            isRoot: path === '/_root',
+            isRoot: path === '/layout',
             Component: layoutRes?.components.Component!,
             getStaticProps: layoutRes?.components.getStaticProps,
             getServerSideProps: layoutRes?.components.getServerSideProps,
@@ -1835,7 +1840,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           const dynamicRouteResult = await this.findPageComponents(
-            dynamicRoute.page,
+            page,
             query,
             params
           )
