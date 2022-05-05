@@ -18,8 +18,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const experimentalLayoutRaw = (process.env.__NEXT_IMAGE_OPTS as any)
-  ?.experimentalLayoutRaw
+const { experimentalLayoutRaw = false, experimentalRemotePatterns = [] } =
+  (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -1063,7 +1063,10 @@ function defaultLoader({
       )
     }
 
-    if (!src.startsWith('/') && config.domains) {
+    if (
+      !src.startsWith('/') &&
+      (config.domains || experimentalRemotePatterns)
+    ) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -1074,14 +1077,15 @@ function defaultLoader({
         )
       }
 
-      if (
-        process.env.NODE_ENV !== 'test' &&
-        !config.domains.includes(parsedSrc.hostname)
-      ) {
-        throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-        )
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
       }
     }
   }

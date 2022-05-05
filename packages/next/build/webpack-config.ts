@@ -1467,6 +1467,8 @@ export default async function getBaseWebpackConfig(
             ? {
                 // pass domains in development to allow validating on the client
                 domains: config.images.domains,
+                experimentalRemotePatterns:
+                  config.experimental?.images?.remotePatterns,
               }
             : {}),
         }),
