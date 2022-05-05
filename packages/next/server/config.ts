@@ -250,20 +250,23 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
-      const invalidIndex = remotePatterns.findIndex(
+      const requiredProps = ['hostname']
+      const invalidPatterns = remotePatterns.filter(
         (d: unknown) =>
           !d ||
           typeof d !== 'object' ||
           Object.entries(d).some(
             ([k, v]) => !validProps.has(k) || typeof v !== 'string'
-          )
+          ) ||
+          requiredProps.some((k) => !(k in d))
       )
-      const invalid = remotePatterns[invalidIndex]
-      if (invalid) {
+      if (invalidPatterns.length > 0) {
         throw new Error(
-          `Specified images.remotePatterns[${invalidIndex}] should be RemotePattern object received invalid value (${JSON.stringify(
-            invalid
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+          `Invalid images.remotePatterns values:\n${invalidPatterns
+            .map((item) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
     }

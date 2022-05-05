@@ -77,13 +77,13 @@ describe('Image Optimizer', () => {
       )
     })
 
-    it('should error when remotePatterns has invalid object', async () => {
+    it('should error when remotePatterns has invalid prop', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
           experimental: {
             images: {
-              remotePatterns: [{ foo: 'example.com' }],
+              remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
             },
           },
         })
@@ -100,7 +100,34 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.remotePatterns[0] should be RemotePattern object received invalid value ({"foo":"example.com"})'
+        'Invalid images.remotePatterns values:\n{"hostname":"example.com","foo":"bar"}'
+      )
+    })
+
+    it('should error when remotePatterns is missing hostname', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: [{ protocol: 'https' }],
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Invalid images.remotePatterns values:\n{"protocol":"https"}'
       )
     })
 
