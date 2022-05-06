@@ -661,6 +661,10 @@
         {
           "title": "invalid-script",
           "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "returning-response-body-in-_middleware",
+          "path": "/errors/returning-response-body-in-_middleware.md"
         }
       ]
     }

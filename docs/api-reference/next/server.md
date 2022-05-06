@@ -105,7 +105,6 @@ The following static methods are available on the `NextResponse` class directly:
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
-- `json()` - A convenience method to create a response that encodes the provided JSON data
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -120,7 +119,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite('/not-home')
   }
 
-  return NextResponse.json({ message: 'Hello World!' })
+  return NextResponse.next()
 }
 ```
 
@@ -182,6 +181,15 @@ console.log(NODE_ENV)
 // process.env is `{}`
 console.log(process.env)
 ```
+
+### The body limitation
+
+When using middlewares, it is not permitted to change the response body: you can only set responses headers (which includes cookies, redirections and rewrites).
+Returning a body from a middleware function will issue an `500` server error with an explicit response message.
+
+If you wish to pass some data to your client application (or to the next middleware), we recommend to use a response header.
+
+**TODO** maybe we should provide more context about this limitation?
 
 ## Related
 

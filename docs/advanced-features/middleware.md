@@ -34,7 +34,7 @@ npm install next@latest
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
-  return new Response('Hello, world!')
+  return new Response(null, { headers: { location: '/hello-world' } })
 }
 ```
 
