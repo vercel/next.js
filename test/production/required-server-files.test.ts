@@ -159,14 +159,6 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(
-          next.testDir,
-          'standalone/.next/server/pages/middleware/_middleware.js'
-        )
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
         join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
       )
     ).toBe(true)

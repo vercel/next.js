@@ -791,12 +791,6 @@ describe('Telemetry CLI', () => {
 
   it('emits telemetry for usage of _middleware', async () => {
     await fs.writeFile(
-      path.join(appDir, 'pages/ssg/_middleware.js'),
-      `export function middleware (evt) {
-        evt.respondWith(new Response(null))
-      }`
-    )
-    await fs.writeFile(
       path.join(appDir, 'pages/_middleware.js'),
       `export function middleware (evt) {
         evt.respondWith(new Response(null))
@@ -808,11 +802,10 @@ describe('Telemetry CLI', () => {
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 
-    await fs.remove(path.join(appDir, 'pages/ssg/_middleware.js'))
     await fs.remove(path.join(appDir, 'pages/_middleware.js'))
 
     const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
     const optimizedEvt = regex.exec(stderr).pop()
-    expect(optimizedEvt).toContain(`"middlewareCount": 2`)
+    expect(optimizedEvt).toContain(`"middlewareCount": 1`)
   })
 })
