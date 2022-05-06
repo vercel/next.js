@@ -285,6 +285,15 @@ export function getEdgeServerEntry(opts: {
   return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
 }
 
+export function getViewsEntry(opts: { pagePath: string; viewsDir: string }) {
+  const loaderParams = {
+    pagePath: opts.pagePath,
+    viewsDir: opts.viewsDir,
+  }
+
+  return `next-view-loader?${stringify(loaderParams)}!`
+}
+
 export function getServerlessEntry(opts: {
   absolutePagePath: string
   buildId: string
@@ -388,7 +397,12 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           })
         },
         onServer: () => {
-          if (isTargetLikeServerless(target)) {
+          if (isViews && viewsDir) {
+            server[serverBundlePath] = getViewsEntry({
+              pagePath: mappings[page],
+              viewsDir,
+            })
+          } else if (isTargetLikeServerless(target)) {
             if (page !== '/_app' && page !== '/_document') {
               server[serverBundlePath] = getServerlessEntry({
                 ...params,

@@ -216,13 +216,13 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const layouts = renderOpts.viewLayouts || []
-
-  layouts.push({
-    Component: renderOpts.Component,
-    getStaticProps: renderOpts.getStaticProps,
-    getServerSideProps: renderOpts.getServerSideProps,
-  })
+  const components = Object.keys(ComponentMod.components)
+    .sort()
+    .map((key) => {
+      const mod = ComponentMod.components[key]()
+      mod.Component = mod.default || mod
+      return mod
+    })
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -239,11 +239,13 @@ export async function renderToHTML(
 
   const dataCache = new Map<string, Record>()
 
-  for (let i = layouts.length - 1; i >= 0; i--) {
+  for (let i = components.length - 1; i >= 0; i--) {
     const dataCacheKey = i.toString()
-    const layout = layouts[i]
+    const layout = components[i]
 
-    if (layout.isRootLayout) {
+    if (i === 0) {
+      // top-most layout is the root layout that renders
+      // the html/body tags
       RootLayout = layout.Component
       continue
     }
