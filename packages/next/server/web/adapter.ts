@@ -41,10 +41,16 @@ export async function adapter(params: {
 
   const error = isAllowed(response)
     ? null
-    : new Response(null, {
-        status: 500,
-        statusText: `Middleware can not alter response's body`,
-      })
+    : new Response(
+        JSON.stringify({
+          message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+        }),
+        {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { 'content-type': 'application/json' },
+        }
+      )
 
   return {
     response: error || response || NextResponse.next(),

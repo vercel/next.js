@@ -605,8 +605,10 @@ function responseTests(locale = '') {
       `${locale}/responses/stream-a-response`
     )
     expect(res.status).toBe(500)
-    const html = await res.text()
-    expect(html).toBe('')
+    const json = await res.json()
+    expect(json).toEqual({
+      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+    })
   })
 
   it(`${locale} should fail when returning a text body`, async () => {
@@ -615,8 +617,10 @@ function responseTests(locale = '') {
       `${locale}/responses/send-response`
     )
     expect(res.status).toBe(500)
-    const html = await res.text()
-    expect(html).toBe('')
+    const json = await res.json()
+    expect(json).toEqual({
+      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+    })
   })
 
   it(`${locale} should respond with a 401 status code`, async () => {
