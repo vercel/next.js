@@ -24,6 +24,7 @@ impl NftJsonAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {
+    #[turbo_tasks::function]
     async fn path(&self) -> Result<FileSystemPathVc> {
         let path = self.entry.path().await?;
         Ok(FileSystemPathVc::new(
@@ -32,6 +33,7 @@ impl Asset for NftJsonAsset {
         ))
     }
 
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<FileContentVc> {
         let context = self.entry.path().parent().await?;
         let self_path = context.get_relative_path_to(&*self.entry.path().await?);
@@ -57,6 +59,7 @@ impl Asset for NftJsonAsset {
         .into())
     }
 
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         Vc::default()
     }

@@ -882,6 +882,7 @@ impl AffectingResolvingAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for AffectingResolvingAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new()).into()
     }

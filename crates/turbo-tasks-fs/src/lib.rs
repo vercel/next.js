@@ -286,6 +286,7 @@ impl fmt::Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
+    #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
@@ -307,6 +308,7 @@ impl FileSystem for DiskFileSystem {
         }
         .into())
     }
+    #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
         let full_path =
@@ -363,6 +365,7 @@ impl FileSystem for DiskFileSystem {
             Err(_) => DirectoryContentVc::not_found(),
         })
     }
+    #[turbo_tasks::function]
     #[allow(unreachable_code)]
     async fn write(
         &self,
@@ -424,6 +427,7 @@ impl FileSystem for DiskFileSystem {
         }
         Ok(CompletionVc::new())
     }
+    #[turbo_tasks::function]
     async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
         let fs_path_value = fs_path.await?;
         if fs_path_value.path.is_empty() {
@@ -436,6 +440,7 @@ impl FileSystem for DiskFileSystem {
         }
         Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
     }
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(self.name.clone())
     }
@@ -679,6 +684,7 @@ impl FileSystemPathVc {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
+    #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
         Ok(Vc::slot(format!(
             "[{}]/{}",
@@ -1004,22 +1010,27 @@ pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
 impl FileSystem for NullFileSystem {
+    #[turbo_tasks::function]
     fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
         FileContent::NotFound.into()
     }
 
+    #[turbo_tasks::function]
     fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
         DirectoryContentVc::not_found()
     }
 
+    #[turbo_tasks::function]
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc {
         FileSystemPathVc::new_normalized(fs_path.fs(), "".to_string())
     }
 
+    #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
         CompletionVc::new()
     }
 
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(String::from("null"))
     }

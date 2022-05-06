@@ -613,6 +613,7 @@ impl Display for Pattern {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for Pattern {
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(self.to_string())
     }

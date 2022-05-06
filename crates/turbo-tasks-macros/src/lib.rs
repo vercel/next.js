@@ -912,6 +912,20 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 ImplItem::Method(ImplItemMethod {
                     sig, attrs, block, ..
                 }) => {
+                    let function_attr = attrs.iter().find(|attr| is_attribute(attr, "function"));
+                    let attrs = if function_attr.is_none() {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        attrs.clone()
+                    } else {
+                        attrs
+                            .iter()
+                            .filter(|attr| !is_attribute(attr, "function"))
+                            .cloned()
+                            .collect()
+                    };
                     let Signature {
                         ident,
                         inputs,
