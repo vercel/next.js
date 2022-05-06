@@ -20,7 +20,12 @@
     "eslint-plugin-react-hooks": "^4.5.0"
   },
   "peerDependencies": {
+    "@next/eslint-plugin-next": "12.1.7-canary.3",
     "eslint": "^7.23.0 || ^8.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-react": "^7.29.4",
+    "eslint-plugin-react-hooks": "^4.5.0",
     "next": ">=10.2.0",
     "typescript": ">=3.3.1"
   },
