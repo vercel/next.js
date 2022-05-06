@@ -136,7 +136,7 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
         slowImageServer.port
@@ -583,7 +583,7 @@ export function runTests(ctx) {
     })
   }
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: 80 }
@@ -762,7 +762,7 @@ export function runTests(ctx) {
     )
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: 100 }
@@ -1119,7 +1119,7 @@ export function runTests(ctx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (ctx.domains.length) {
+  if (ctx.domains?.length > 0) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx)
       const delay = 500
