@@ -318,10 +318,11 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               viewsDir,
-              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }
+
       // needed for static exporting since we want to replace with HTML
       // files
 

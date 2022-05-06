@@ -366,11 +366,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const getEntryHandler =
     (mappings: Record<string, string>, isViews: boolean) =>
     async (page: string) => {
-      // TODO: @timneutkens do not pass layouts to entry here
-      if (isViews && page.endsWith('/layout')) {
-        return
-      }
-
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath = posix.join(
