@@ -59,7 +59,7 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
-  set(...args: Parameters<Cookies['set']>) {
+  set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])
     const store = super.set(...args)
 
@@ -84,7 +84,7 @@ export class NextCookies extends Cookies {
 
     return store
   }
-  delete(key: any, options: CookieSerializeOptions = {}) {
+  delete = (key: any, options: CookieSerializeOptions = {}) => {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
@@ -102,7 +102,7 @@ export class NextCookies extends Cookies {
 
     return isDeleted
   }
-  clear(options: CookieSerializeOptions = {}) {
+  clear = (options: CookieSerializeOptions = {}) => {
     const expiredCookies = Array.from(super.keys())
       .map((key) => serializeExpiredCookie(key, options))
       .join(', ')
