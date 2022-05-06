@@ -163,6 +163,36 @@ function urlTests(_log, locale = '') {
     expect($('.title').text()).toBe('URLs A')
   })
 
+  it('throws when using URL with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-url`
+    )
+    expect(readMiddlewareError(res)).toEqual(
+      expect.stringContaining('Invalid URL')
+    )
+  })
+
+  it('throws when using Request with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-request`
+    )
+    expect(readMiddlewareError(res)).toEqual(
+      expect.stringContaining('Invalid URL')
+    )
+  })
+
+  it('throws when using NextRequest with a relative URL', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/urls/relative-next-request`
+    )
+    expect(readMiddlewareError(res)).toEqual(
+      expect.stringContaining('Invalid URL')
+    )
+  })
+
   it('warns when using Response.redirect with a relative URL', async () => {
     const response = await fetchViaHTTP(
       context.appPort,
