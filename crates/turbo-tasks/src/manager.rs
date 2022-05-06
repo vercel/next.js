@@ -301,6 +301,8 @@ impl<B: Backend> TurboTasks<B> {
                         if !reexecute {
                             break;
                         }
+                    } else {
+                        break;
                     }
                 }
                 if this

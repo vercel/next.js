@@ -6,37 +6,51 @@
 
 use std::{fmt::Debug, sync::Arc};
 
+use lazy_static::lazy_static;
 use rocksdb::AsColumnFamilyRef;
+
+pub fn no_merge_wrapping<T>(func: impl FnOnce() -> T) -> T {
+    func()
+}
 
 macro_rules! table_base_internal_merge {
     ($opt:ident, $value:tt + ()) => {};
     ($opt:ident, ($($value:ty),+) + (($($merge:ty),+): $merge_add_value:expr, $merge_add_merge:expr)) => {
+        $crate::table::table_base_internal_merge!($opt, ($($value),+) + (($($merge),+): $merge_add_value, $merge_add_merge, $crate::table::no_merge_wrapping))
+    };
+    ($opt:ident, ($($value:ty),+) + (($($merge:ty),+): $merge_add_value:expr, $merge_add_merge:expr, $merge_wrapping:expr)) => {
         fn full_merge(_: &[u8], old: Option<&[u8]>, ops: &rocksdb::MergeOperands) -> Option<Vec<u8>> {
-            let merge_add_value = $merge_add_value;
-            #[allow(unused_parens)]
-            let mut current: ($($value),+) = if let Some(old) = old {
-                DefaultOptions::new().deserialize(old).ok()?
-            } else {
-                Default::default()
-            };
-            for op in ops {
+            let merge_wrapping = $merge_wrapping;
+            merge_wrapping(|| {
+                let merge_add_value = $merge_add_value;
                 #[allow(unused_parens)]
-                let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
-                current = merge_add_value(current, op);
-            }
-            Some(DefaultOptions::new().serialize(&current).ok()?)
+                let mut current: ($($value),+) = if let Some(old) = old {
+                    DefaultOptions::new().deserialize(old).ok()?
+                } else {
+                    Default::default()
+                };
+                for op in ops {
+                    #[allow(unused_parens)]
+                    let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
+                    current = merge_add_value(current, op);
+                }
+                Some(DefaultOptions::new().serialize(&current).ok()?)
+            })
         }
         fn partial_merge(_: &[u8], _: Option<&[u8]>, ops: &rocksdb::MergeOperands) -> Option<Vec<u8>> {
-            let merge_add_merge = $merge_add_merge;
-            let mut iter = ops.iter();
-            #[allow(unused_parens)]
-            let mut current: ($($merge),+) = DefaultOptions::new().deserialize(iter.next().unwrap()).ok()?;
-            for op in iter {
+            let merge_wrapping = $merge_wrapping;
+            merge_wrapping(|| {
+                let merge_add_merge = $merge_add_merge;
+                let mut iter = ops.iter();
                 #[allow(unused_parens)]
-                let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
-                current = merge_add_merge(current, op);
-            }
-            Some(DefaultOptions::new().serialize(&current).ok()?)
+                let mut current: ($($merge),+) = DefaultOptions::new().deserialize(iter.next().unwrap()).ok()?;
+                for op in iter {
+                    #[allow(unused_parens)]
+                    let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
+                    current = merge_add_merge(current, op);
+                }
+                Some(DefaultOptions::new().serialize(&current).ok()?)
+            })
         }
         $opt.set_merge_operator(stringify!(($($merge),+)), full_merge, partial_merge);
     };
@@ -44,10 +58,7 @@ macro_rules! table_base_internal_merge {
 macro_rules! table_internal_merge {
     ($name:ident, ()) => {};
     ($name:ident, $key:tt + ()) => {};
-    ($name:ident, (($($merge:ty),+): $merge_add:expr)) => {
-        $crate::table::table_internal_merge!($name, (($($merge),+): $merge_add, $merge_add));
-    };
-    ($name:ident, (($($merge:ty),+): $merge_add_value:expr, $merge_add_merge:expr)) => {
+    ($name:ident, (($($merge:ty),+): $($args:expr),+)) => {
         #[allow(dead_code)]
         pub fn merge(
             &self,
@@ -63,10 +74,7 @@ macro_rules! table_internal_merge {
             Ok(())
         }
     };
-    ($name:ident, ($($key:ty),+) + (($($merge:ty),+): $merge_add:expr)) => {
-        $crate::table::table_internal_merge!($name, (($($key),+)) + (($($merge),+): $merge_add, $merge_add));
-    };
-    ($name:ident, ($($key:ty),+) + (($($merge:ty),+): $merge_add_value:expr, $merge_add_merge:expr)) => {
+    ($name:ident, ($($key:ty),+) + (($($merge:ty),+): $($args:expr),+)) => {
         #[allow(dead_code)]
         pub fn merge(
             &self,
@@ -353,9 +361,7 @@ macro_rules! table {
                     let value_bytes = DefaultOptions::new().serialize(value)?;
                     let value_len = value_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    let mut next_value_temp = Vec::new();
                     if let Some(next_value) = crate::table::next_key(&value_bytes) {
-                        next_value_temp = next_value.clone();
                         read_opt.set_iterate_upper_bound(next_value);
                     }
                     let cf2 = self
@@ -365,7 +371,6 @@ macro_rules! table {
                     let mut iter = self.db.raw_iterator_cf_opt(cf2, read_opt);
                     iter.seek(&value_bytes);
                     while let Some(key) = iter.key() {
-                        println!("{value_bytes:x?} - {next_value_temp:x?} -> {key:x?}");
                         let key = DefaultOptions::new().deserialize(&key[value_len..])?;
                         result.push(key);
                         iter.next();
@@ -817,6 +822,18 @@ macro_rules! database {
                     let mut opt = rocksdb::Options::default();
                     opt.create_missing_column_families(true);
                     opt.create_if_missing(true);
+                    opt.set_log_level(rocksdb::LogLevel::Warn);
+                    opt.set_max_successive_merges(5);
+                    // set_atomic_flush is (only) needed when WAL is disabled
+                    opt.set_atomic_flush(true);
+                    // TODO Measure the following:
+                    opt.set_unordered_write(true);
+                    opt.increase_parallelism(num_cpus::get() as i32);
+                    opt.optimize_universal_style_compaction(1 * 1024 * 1024);
+                    opt.set_skip_checking_sst_file_sizes_on_db_open(true);
+                    opt.set_skip_stats_update_on_db_open(true);
+                    opt.set_allow_mmap_writes(true);
+                    opt.set_allow_mmap_reads(true);
                     let mut cfs = Vec::new();
                     $(
                         super::$table::Api::add_cf_descs(&mut cfs);
@@ -848,6 +865,14 @@ macro_rules! database {
         }
 
         pub use database::Database;
+    };
+}
+
+lazy_static! {
+    static ref DEFAULT_WRITE_OPTIONS: rocksdb::WriteOptions = {
+        let mut opt = rocksdb::WriteOptions::default();
+        opt.disable_wal(true);
+        return opt;
     };
 }
 
@@ -908,7 +933,7 @@ impl WriteBatch {
             .batch
             .take()
             .expect("WriteBatch has already been written");
-        self.db.write(batch)
+        self.db.write_opt(batch, &DEFAULT_WRITE_OPTIONS)
     }
 
     #[allow(dead_code)]

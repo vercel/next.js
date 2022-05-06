@@ -27,7 +27,10 @@ mod vc;
 pub use anyhow::{Error, Result};
 pub use completion::{Completion, CompletionVc};
 pub use display::{ValueToString, ValueToStringVc};
-pub use id::{with_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId, ValueTypeId};
+pub use id::{
+    with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,
+    ValueTypeId,
+};
 pub use lazy_static::lazy_static;
 pub use manager::{
     dynamic_call, get_invalidator, trait_call, turbo_tasks, Invalidator, TaskIdProvider,

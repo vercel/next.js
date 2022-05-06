@@ -152,6 +152,13 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, EventListener>;
 
+    fn track_read_task_output(
+        &self,
+        task: TaskId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    );
+
     fn try_read_task_slot(
         &self,
         task: TaskId,
@@ -166,6 +173,14 @@ pub trait Backend: Sync + Send {
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener>;
+
+    fn track_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    );
 
     fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
 

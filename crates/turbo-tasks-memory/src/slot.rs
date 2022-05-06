@@ -29,6 +29,10 @@ impl Slot {
         self.content.clone()
     }
 
+    pub fn track_read(&mut self, reader: TaskId) {
+        self.dependent_tasks.insert(reader);
+    }
+
     pub fn assign(&mut self, content: SlotContent, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = content;
         self.updates += 1;

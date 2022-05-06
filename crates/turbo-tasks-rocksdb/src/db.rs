@@ -1,9 +1,9 @@
-use std::fmt::{Debug, Write};
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     backend::{PersistentTaskType, SlotMappings},
-    RawVc, SharedReference, TaskId,
+    without_task_id_mapping, RawVc, SharedReference, TaskId,
 };
 
 use crate::sortable_index::SortableIndex;
@@ -101,7 +101,8 @@ table!(task_next_slot, (TaskId) => (usize));
 table!(task_state, (TaskId) => (TaskFreshness, Option<TaskOutput>), merge(
     (bool):
     |v: (TaskFreshness, Option<TaskOutput>), m| (v.0.merge(m), v.1),
-    |m1, m2| m1 && m2
+    |m1, m2| m1 && m2,
+    without_task_id_mapping
 ));
 
 // This stores the mappings of the slotted data to slot indicies
@@ -149,7 +150,8 @@ table!(session_task_children, (SessionKey, TaskId) => [TaskId]);
 table!(session_active_parents, (SessionKey, TaskId) => (usize), merge(
     (i32):
     |v: usize, m: i32| if m < 0 { v.saturating_sub(-m as usize) } else { v + (m as usize) },
-    |m1, m2| m1 + m2
+    |m1, m2| m1 + m2,
+    without_task_id_mapping
 ));
 // This stores if a task is active or not.
 // Changing this need to be propagated onto `session_active_parents` for all

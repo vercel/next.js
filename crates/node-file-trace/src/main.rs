@@ -13,6 +13,7 @@ use turbo_tasks_fs::{
     ReadGlobResultVc,
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
+use turbo_tasks_memory_cache::MemoryCacheBackend;
 use turbo_tasks_rocksdb::RocksDbBackend;
 use turbopack::{
     all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
@@ -174,8 +175,17 @@ fn main() {
     if let Some(cache) = cache {
         run(
             &args,
-            || RocksDbBackend::new(cache, (input, context_directory)).unwrap(),
-            |_, _| {},
+            || {
+                MemoryCacheBackend::new(
+                    RocksDbBackend::new(cache, (input, context_directory)).unwrap(),
+                )
+            },
+            |tt, _| {
+                let start = Instant::now();
+                drop(tt);
+                let elapsed = start.elapsed();
+                println!("flushed cache {} ms", elapsed.as_millis());
+            },
         )
     } else {
         run(

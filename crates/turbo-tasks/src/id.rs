@@ -1,5 +1,4 @@
 use std::{
-    borrow::BorrowMut,
     cell::RefCell,
     fmt::{Debug, Display},
     ops::Deref,
@@ -140,9 +139,20 @@ where
         // except for this module.
         let static_box: Box<dyn IdMapping<TaskId> + 'static> =
             unsafe { std::mem::transmute(dyn_box) };
-        *cell.borrow_mut() = Some(static_box);
+        let old = std::mem::replace(&mut *cell.borrow_mut(), Some(static_box));
         let t = func();
-        *cell.borrow_mut() = None;
+        *cell.borrow_mut() = old;
+        t
+    })
+}
+
+pub fn without_task_id_mapping<T>(func: impl FnOnce() -> T) -> T {
+    TASK_ID_MAPPING.with(|cell| {
+        let old = std::mem::replace(&mut *cell.borrow_mut(), None);
+        let t = func();
+        if old.is_some() {
+            *cell.borrow_mut() = old;
+        }
         t
     })
 }
@@ -157,7 +167,11 @@ impl Serialize for TaskId {
         S: serde::Serializer,
     {
         TASK_ID_MAPPING.with(|cell| {
-            let mapped_id = *cell.borrow().as_ref().unwrap().forward(*self);
+            let mapped_id = *if let Some(mapping) = cell.borrow().as_ref() {
+                mapping.forward(*self)
+            } else {
+                *self
+            };
             serializer.serialize_u64(mapped_id as u64)
         })
     }
@@ -182,11 +196,12 @@ impl<'de> Deserialize<'de> for TaskId {
                 E: serde::de::Error,
             {
                 TASK_ID_MAPPING.with(|cell| {
-                    let mapped_id = cell
-                        .borrow()
-                        .as_ref()
-                        .unwrap()
-                        .backward(TaskId::from(v as usize));
+                    let id = TaskId::from(v as usize);
+                    let mapped_id = if let Some(mapping) = cell.borrow().as_ref() {
+                        mapping.backward(id)
+                    } else {
+                        id
+                    };
                     Ok(mapped_id)
                 })
             }

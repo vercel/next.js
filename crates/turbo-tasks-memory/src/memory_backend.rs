@@ -134,6 +134,20 @@ impl Backend for MemoryBackend {
         self.try_get_output(task, |output| unsafe { output.read_untracked() })
     }
 
+    fn track_read_task_output(
+        &self,
+        task: TaskId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task(task, |t| {
+            t.with_output_mut(|output| {
+                Task::add_dependency_to_current(RawVc::TaskOutput(task));
+                output.track_read(reader);
+            })
+        })
+    }
+
     fn try_read_task_slot(
         &self,
         task: TaskId,
@@ -156,6 +170,19 @@ impl Backend for MemoryBackend {
         Ok(Ok(self.with_task(task, |task| {
             task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
         })))
+    }
+
+    fn track_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
+        self.with_task(task, |task| {
+            task.with_slot_mut(index, |slot| slot.track_read(reader))
+        });
     }
 
     fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {

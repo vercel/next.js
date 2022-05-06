@@ -5,14 +5,15 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, MutexGuard,
     },
+    time::Instant,
 };
 
 use anyhow::Result;
 use bincode::{DefaultOptions, Options};
 use event_listener::{Event, EventListener};
-use flurry::HashMap;
+use flurry::{HashMap, HashMapRef};
 use serde::Serialize;
 use turbo_tasks::{
     backend::{
@@ -30,14 +31,48 @@ use crate::{
 };
 
 fn sequential<T>(map: &HashMap<TaskId, Mutex<()>>, task: TaskId, func: impl FnOnce() -> T) -> T {
-    match map.pin().try_insert(task, Mutex::new(())) {
+    sequential_pinned(&map.pin(), task, func)
+}
+
+fn sequential_pinned<T>(
+    map: &HashMapRef<TaskId, Mutex<()>>,
+    task: TaskId,
+    func: impl FnOnce() -> T,
+) -> T {
+    match map.try_insert(task, Mutex::new(())) {
         Ok(mutex) => {
-            let _ = mutex.lock();
-            func()
+            let guard = mutex.lock();
+            let r = func();
+            drop(guard);
+            r
         }
         Err(e) => {
-            let _ = e.current.lock();
-            func()
+            let guard = e.current.lock();
+            let r = func();
+            drop(guard);
+            r
+        }
+    }
+}
+
+fn try_get_sequential_guard<'a>(
+    map: &'a HashMapRef<TaskId, Mutex<()>>,
+    task: TaskId,
+) -> Option<MutexGuard<'a, ()>> {
+    match map.try_insert(task, Mutex::new(())) {
+        Ok(mutex) => {
+            if let Ok(guard) = mutex.try_lock() {
+                Some(guard)
+            } else {
+                None
+            }
+        }
+        Err(e) => {
+            if let Ok(guard) = e.current.try_lock() {
+                Some(guard)
+            } else {
+                None
+            }
         }
     }
 }
@@ -89,7 +124,13 @@ impl RocksDbBackend {
     }
 
     fn try_initialize(&mut self, task_id_provider: &dyn TaskIdProvider) -> Result<()> {
-        let db = self.with_task_id_mapping(task_id_provider, || Database::open(&self.path))?;
+        let db = self.with_task_id_mapping(task_id_provider, || {
+            let start = Instant::now();
+            let db = Database::open(&self.path);
+            let elapsed = start.elapsed();
+            println!("opening cache {} ms", elapsed.as_millis());
+            db
+        })?;
 
         // init globals
         let generation = db.generation.get()?.unwrap_or_default();
@@ -106,8 +147,12 @@ impl RocksDbBackend {
         let db = self.database.as_ref().unwrap();
 
         // Process interruped active updates
+        let mut schedule = Vec::new();
         for task in db.session_ongoing_active_update.get_all(&self.session)? {
-            self.try_update_active_state(task, turbo_tasks)?;
+            self.try_update_active_state(task, &mut schedule)?;
+        }
+        for task in schedule {
+            turbo_tasks.schedule(task);
         }
 
         let generation = self.generation;
@@ -208,110 +253,217 @@ impl RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
         let db = self.database.as_ref().unwrap();
-        let mut update_active_state = false;
+        let mut update_active_state = HashSet::new();
+        let mut schedule = Vec::new();
         if self.transient_tasks.pin().contains_key(&parent) {
             if self.transient_task_children.pin().insert(child) {
-                let b = &mut db.batch();
-                let old_count = db
-                    .session_active_parents
-                    .get((&self.session, &child))?
-                    .unwrap_or_default();
-                db.session_active_parents
-                    .merge(b, (&self.session, &child), &1)?;
+                let mut batch = db.batch();
+                let b = &mut batch;
                 db.session_transient_task_children
                     .insert(b, &self.session, &child)?;
-                if old_count == 0 {
-                    update_active_state = true;
-                    db.session_ongoing_active_update
-                        .insert(b, &self.session, &child)?;
-                }
-                b.write()?;
+                self.try_increment_active_parents(
+                    batch,
+                    child,
+                    &mut update_active_state,
+                    &mut schedule,
+                )?;
             }
         } else {
             sequential(&self.mutex_task_children, parent, || -> Result<()> {
-                let b = &mut db.batch();
+                let mut batch = db.batch();
+                let b = &mut batch;
                 db.task_children.insert(b, &parent, &child)?;
                 db.task_generations
                     .insert_unique(b, &SortableIndex(self.generation), &parent)?;
                 db.session_task_children
                     .insert(b, (&self.session, &parent), &child)?;
                 if db.session_task_active.has(&self.session, &parent)? {
-                    let old_count = db
-                        .session_active_parents
-                        .get((&self.session, &child))?
-                        .unwrap_or_default();
-                    db.session_active_parents
-                        .merge(b, (&self.session, &child), &1)?;
-                    if old_count == 0 {
-                        update_active_state = true;
-                        db.session_ongoing_active_update
-                            .insert(b, &self.session, &child)?;
-                    }
+                    self.try_increment_active_parents(
+                        batch,
+                        child,
+                        &mut update_active_state,
+                        &mut schedule,
+                    )?;
+                } else {
+                    batch.write()?;
+                    drop(batch);
                 }
-                b.write()?;
                 Ok(())
             })?;
         }
-        if update_active_state {
-            self.try_update_active_state(child, turbo_tasks)?;
+        for task in update_active_state {
+            self.try_update_active_state(task, &mut schedule)?;
+        }
+        for task in schedule {
+            turbo_tasks.schedule(task);
         }
         Ok(())
     }
 
-    fn try_update_active_state(
+    /// Increments the active parents counter and updates as much of the active
+    /// states for the child tasks as possible. Children that couldn't be
+    /// updated are queued in `update_active_state`, for which
+    /// `try_update_active_state` should be called, afterwards. It might
+    /// detect that some tasks need to be scheduled. These are pushed into
+    /// `schedule`. For them `turbo_tasks.schedule` should be called.
+    fn try_increment_active_parents(
         &self,
+        mut b: WriteBatch,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        update_active_state: &mut HashSet<TaskId>,
+        schedule: &mut Vec<TaskId>,
     ) -> Result<()> {
+        println!("try_increment_active_parents({task})");
+        let db = self.database.as_ref().unwrap();
+        let mutex_task_children = self.mutex_task_children.pin();
+        let mut collected_guards = Vec::new();
+        let mut active_state_updated = HashSet::new();
+        self.try_increment_active_parents_inner(
+            db,
+            &mut b,
+            task,
+            &mutex_task_children,
+            update_active_state,
+            &mut active_state_updated,
+            schedule,
+            &mut collected_guards,
+        )?;
+        b.write()?;
+        drop(collected_guards);
+        Ok(())
+    }
+
+    fn try_increment_active_parents_inner<'a>(
+        &'a self,
+        db: &Database,
+        b: &mut WriteBatch,
+        task: TaskId,
+        mutex_task_children: &'a HashMapRef<TaskId, Mutex<()>>,
+        update_active_state: &mut HashSet<TaskId>,
+        active_state_updated: &mut HashSet<TaskId>,
+        schedule: &mut Vec<TaskId>,
+        collected_guards: &mut Vec<MutexGuard<'a, ()>>,
+    ) -> Result<()> {
+        let old_count = db
+            .session_active_parents
+            .get((&self.session, &task))?
+            .unwrap_or_default();
+        db.session_active_parents
+            .merge(b, (&self.session, &task), &1)?;
+        if old_count == 0 {
+            if !active_state_updated.contains(&task) {
+                if let Some(g) = try_get_sequential_guard(mutex_task_children, task) {
+                    collected_guards.push(g);
+                    self.try_update_active_state_inner(
+                        db,
+                        b,
+                        task,
+                        false,
+                        mutex_task_children,
+                        update_active_state,
+                        active_state_updated,
+                        schedule,
+                        collected_guards,
+                    )?;
+                } else {
+                    update_active_state.insert(task);
+                    // TODO FIXME: This could be inserted multiple times
+                    // but the first try_update_active_state will remove it
+                    // Maybe use a 3 state progress None -> Invalid -> Updating -> None/Invalid
+                    db.session_ongoing_active_update
+                        .insert(b, &self.session, &task)?;
+                }
+                active_state_updated.insert(task);
+            }
+        }
+        Ok(())
+    }
+
+    fn try_update_active_state(&self, task: TaskId, schedule: &mut Vec<TaskId>) -> Result<()> {
+        println!("try_update_active_state({task})");
         let db = self.database.as_ref().unwrap();
         let mut update_active_state = HashSet::new();
-        let mut schedule = false;
-        sequential(&self.mutex_task_children, task, || -> Result<()> {
-            let should_be_active = db
-                .session_active_parents
-                .get((&self.session, &task))?
-                .unwrap_or_default()
-                > 0;
-            if db.session_task_active.has(&self.session, &task)? != should_be_active {
-                let b = &mut db.batch();
+        let mutex_task_children = self.mutex_task_children.pin();
+        sequential_pinned(&mutex_task_children, task, || -> Result<()> {
+            let b = &mut db.batch();
+            let mut active_state_updated = HashSet::new();
+            let mut collected_guards = Vec::new();
+            self.try_update_active_state_inner(
+                db,
+                b,
+                task,
+                true,
+                &mutex_task_children,
+                &mut update_active_state,
+                &mut active_state_updated,
+                schedule,
+                &mut collected_guards,
+            )?;
+            b.write()?;
+            drop(collected_guards);
+            Ok(())
+        })?;
+        for child in update_active_state {
+            self.try_update_active_state(child, schedule)?;
+        }
+        Ok(())
+    }
+
+    fn try_update_active_state_inner<'a>(
+        &'a self,
+        db: &Database,
+        b: &mut WriteBatch,
+        task: TaskId,
+        need_remove_ongoing: bool,
+        mutex_task_children: &'a HashMapRef<TaskId, Mutex<()>>,
+        update_active_state: &mut HashSet<TaskId>,
+        active_state_updated: &mut HashSet<TaskId>,
+        schedule: &mut Vec<TaskId>,
+        collected_guards: &mut Vec<MutexGuard<'a, ()>>,
+    ) -> Result<()> {
+        println!("try_update_active_state_inner({task})");
+        let should_be_active = db
+            .session_active_parents
+            .get((&self.session, &task))?
+            .unwrap_or_default()
+            > 0;
+        if db.session_task_active.has(&self.session, &task)? != should_be_active {
+            if should_be_active {
+                db.session_task_active.insert(b, &self.session, &task)?;
+                // Schedule task
+                db.session_scheduled_tasks.insert(b, &self.session, &task)?;
+                schedule.push(task);
+            } else {
+                db.session_task_active.remove(b, &self.session, &task)?;
+            }
+            for child in db.task_children.get_all(&task)? {
                 if should_be_active {
-                    db.session_task_active.insert(b, &self.session, &task)?;
-                    // Schedule task
-                    db.session_scheduled_tasks.insert(b, &self.session, &task)?;
-                    schedule = true;
+                    self.try_increment_active_parents_inner(
+                        db,
+                        b,
+                        task,
+                        mutex_task_children,
+                        update_active_state,
+                        active_state_updated,
+                        schedule,
+                        collected_guards,
+                    )?;
                 } else {
-                    db.session_task_active.remove(b, &self.session, &task)?;
-                }
-                for child in db.task_children.get_all(&task)? {
-                    let old_count = db
-                        .session_active_parents
-                        .get((&self.session, &child))?
-                        .unwrap_or_default();
+                    // TODO add try_decrement_active_parents_inner
                     db.session_active_parents.merge(
                         b,
                         (&self.session, &child),
                         &if should_be_active { 1 } else { -1 },
                     )?;
-                    if old_count == 0 || !should_be_active {
-                        // TODO FIXME: This could be inserted multiple times
-                        // but the first try_update_active_state will remove it
-                        // Maybe use a 3 state progress None -> Invalid -> Updating -> None/Invalid
-                        db.session_ongoing_active_update
-                            .insert(b, &self.session, &child)?;
-                        update_active_state.insert(child);
-                    }
+                    db.session_ongoing_active_update
+                        .insert(b, &self.session, &child)?;
+                    update_active_state.insert(child);
                 }
+            }
+            if need_remove_ongoing {
                 db.session_ongoing_active_update
                     .remove(b, &self.session, &task)?;
-                b.write()?;
             }
-            Ok(())
-        })?;
-        if schedule {
-            turbo_tasks.schedule(task);
-        }
-        for child in update_active_state {
-            self.try_update_active_state(child, turbo_tasks)?;
         }
         Ok(())
     }
@@ -378,26 +530,32 @@ impl RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
         let db = self.database.as_ref().unwrap();
-        sequential(
+        let need_write = sequential(
             &self.mutex_task_dependencies,
             vc.get_task_id(),
-            || -> Result<()> {
+            || -> Result<bool> {
                 let b = &mut batch;
                 let tasks = db.task_dependencies.get_keys(&vc)?;
-                for task in tasks.iter() {
-                    self.try_make_dirty(b, *task)?;
-                    // We assume task is active since this is usually called from
-                    // changes in a running task (which is probably active).
-                    // But on task start active state is still validated again.
-                    db.session_scheduled_tasks.insert(b, &self.session, &task)?;
-                }
-                b.write()?;
                 if !tasks.is_empty() {
+                    for task in tasks.iter() {
+                        self.try_make_dirty(b, *task)?;
+                        // We assume task is active since this is usually called from
+                        // changes in a running task (which is probably active).
+                        // But on task start active state is still validated again.
+                        db.session_scheduled_tasks.insert(b, &self.session, &task)?;
+                    }
+                    b.write()?;
                     turbo_tasks.schedule_notify_tasks(&tasks);
+                    Ok(false)
+                } else {
+                    Ok(true)
                 }
-                Ok(())
             },
-        )
+        )?;
+        if need_write {
+            batch.write()?;
+        }
+        Ok(())
     }
 
     fn try_update_task_slot(
@@ -614,14 +772,7 @@ impl Backend for RocksDbBackend {
             let result = unsafe { self.try_read_task_output_untracked(task, turbo_tasks) };
 
             if result.is_ok() {
-                self.with_task_id_mapping(turbo_tasks, || {
-                    let db = self.database.as_ref().unwrap();
-                    // Add dependency (task_dependencies)
-                    let b = &mut db.batch();
-                    let vc = RawVc::TaskOutput(task);
-                    db.task_dependencies.insert(b, &reader, &vc).unwrap();
-                    b.write().unwrap();
-                });
+                self.track_read_task_output(task, reader, turbo_tasks);
             }
 
             result
@@ -669,6 +820,22 @@ impl Backend for RocksDbBackend {
         })
     }
 
+    fn track_read_task_output(
+        &self,
+        task: TaskId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task_id_mapping(turbo_tasks, || {
+            let db = self.database.as_ref().unwrap();
+            // Add dependency
+            let b = &mut db.batch();
+            let vc = RawVc::TaskOutput(task);
+            db.task_dependencies.insert(b, &reader, &vc).unwrap();
+            b.write().unwrap();
+        });
+    }
+
     fn try_read_task_slot(
         &self,
         task: TaskId,
@@ -681,14 +848,7 @@ impl Backend for RocksDbBackend {
             let result = unsafe { self.try_read_task_slot_untracked(task, index, turbo_tasks) };
 
             if result.is_ok() {
-                self.with_task_id_mapping(turbo_tasks, || {
-                    let db = self.database.as_ref().unwrap();
-                    // Add dependency (task_dependencies)
-                    let b = &mut db.batch();
-                    let vc = RawVc::TaskSlot(task, index);
-                    db.task_dependencies.insert(b, &reader, &vc).unwrap();
-                    b.write().unwrap();
-                });
+                self.track_read_task_slot(task, index, reader, turbo_tasks);
             }
 
             result
@@ -750,6 +910,23 @@ impl Backend for RocksDbBackend {
                 Ok(Some(Some(content))) => Ok(Ok(SlotContent(Some(content)))),
             }
         })
+    }
+
+    fn track_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task_id_mapping(turbo_tasks, || {
+            let db = self.database.as_ref().unwrap();
+            // Add dependency (task_dependencies)
+            let b = &mut db.batch();
+            let vc = RawVc::TaskSlot(task, index);
+            db.task_dependencies.insert(b, &reader, &vc).unwrap();
+            b.write().unwrap();
+        });
     }
 
     fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {

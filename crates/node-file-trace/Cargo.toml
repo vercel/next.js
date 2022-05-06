@@ -15,6 +15,7 @@ bench = false
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
 "turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
+"turbo-tasks-memory-cache" = { path = "../turbo-tasks-memory-cache" }
 "turbopack" = { path = "../turbopack" }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 anyhow = "1.0.47"
