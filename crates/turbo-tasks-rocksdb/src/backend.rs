@@ -313,7 +313,6 @@ impl RocksDbBackend {
         update_active_state: &mut HashSet<TaskId>,
         schedule: &mut Vec<TaskId>,
     ) -> Result<()> {
-        println!("try_increment_active_parents({task})");
         let db = self.database.as_ref().unwrap();
         let mutex_task_children = self.mutex_task_children.pin();
         let mut collected_guards = Vec::new();
@@ -358,7 +357,7 @@ impl RocksDbBackend {
                         db,
                         b,
                         task,
-                        false,
+                        true,
                         mutex_task_children,
                         update_active_state,
                         active_state_updated,
@@ -380,7 +379,6 @@ impl RocksDbBackend {
     }
 
     fn try_update_active_state(&self, task: TaskId, schedule: &mut Vec<TaskId>) -> Result<()> {
-        println!("try_update_active_state({task})");
         let db = self.database.as_ref().unwrap();
         let mut update_active_state = HashSet::new();
         let mutex_task_children = self.mutex_task_children.pin();
@@ -392,7 +390,7 @@ impl RocksDbBackend {
                 db,
                 b,
                 task,
-                true,
+                false,
                 &mutex_task_children,
                 &mut update_active_state,
                 &mut active_state_updated,
@@ -414,19 +412,19 @@ impl RocksDbBackend {
         db: &Database,
         b: &mut WriteBatch,
         task: TaskId,
-        need_remove_ongoing: bool,
+        inlined_in_increase: bool,
         mutex_task_children: &'a HashMapRef<TaskId, Mutex<()>>,
         update_active_state: &mut HashSet<TaskId>,
         active_state_updated: &mut HashSet<TaskId>,
         schedule: &mut Vec<TaskId>,
         collected_guards: &mut Vec<MutexGuard<'a, ()>>,
     ) -> Result<()> {
-        println!("try_update_active_state_inner({task})");
-        let should_be_active = db
-            .session_active_parents
-            .get((&self.session, &task))?
-            .unwrap_or_default()
-            > 0;
+        let should_be_active = inlined_in_increase
+            || db
+                .session_active_parents
+                .get((&self.session, &task))?
+                .unwrap_or_default()
+                > 0;
         if db.session_task_active.has(&self.session, &task)? != should_be_active {
             if should_be_active {
                 db.session_task_active.insert(b, &self.session, &task)?;
@@ -460,7 +458,7 @@ impl RocksDbBackend {
                     update_active_state.insert(child);
                 }
             }
-            if need_remove_ongoing {
+            if !inlined_in_increase {
                 db.session_ongoing_active_update
                     .remove(b, &self.session, &task)?;
             }
@@ -609,7 +607,10 @@ impl RocksDbBackend {
         let change = if let Some((_, old_state)) = state {
             old_state != new_state
         } else {
-            true
+            // We do not need to consider that as change
+            // since the task output couldn't be read yet
+            // (there didn't exist one yet)
+            false
         };
         // Write new slot mappings
         if let Some(slot_mappings) = slot_mappings {

@@ -102,7 +102,7 @@ impl<B: Backend> Backend for MemoryCacheBackend<B> {
         let result = self.backend.try_read_task_output(task, reader, turbo_tasks);
 
         if let Ok(Ok(content)) = result {
-            output_cache.try_insert(task, Some(content));
+            let _ = output_cache.try_insert(task, Some(content));
         }
 
         result

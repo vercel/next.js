@@ -129,7 +129,7 @@ macro_rules! table_base_internal {
         impl Api {
             pub fn add_cf_descs(list: &mut Vec<ColumnFamilyDescriptor>) {
                 #[allow(unused_mut)]
-                let mut opt = rocksdb::Options::default();
+                let mut opt = $crate::table::DEFAULT_OPTIONS.clone();
                 $crate::table::table_base_internal_merge!(opt, $value + $merge);
                 $crate::table::table_base_internal_direction!($name, opt, list, $direction);
                 list.push(ColumnFamilyDescriptor::new(stringify!($name), opt));
@@ -819,26 +819,11 @@ macro_rules! database {
 
             impl Database {
                 pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Database> {
-                    let mut opt = rocksdb::Options::default();
-                    opt.create_missing_column_families(true);
-                    opt.create_if_missing(true);
-                    opt.set_log_level(rocksdb::LogLevel::Warn);
-                    opt.set_max_successive_merges(5);
-                    // set_atomic_flush is (only) needed when WAL is disabled
-                    opt.set_atomic_flush(true);
-                    // TODO Measure the following:
-                    opt.set_unordered_write(true);
-                    opt.increase_parallelism(num_cpus::get() as i32);
-                    opt.optimize_universal_style_compaction(1 * 1024 * 1024);
-                    opt.set_skip_checking_sst_file_sizes_on_db_open(true);
-                    opt.set_skip_stats_update_on_db_open(true);
-                    opt.set_allow_mmap_writes(true);
-                    opt.set_allow_mmap_reads(true);
                     let mut cfs = Vec::new();
                     $(
                         super::$table::Api::add_cf_descs(&mut cfs);
                     )*
-                    let db = Arc::new(DB::open_cf_descriptors(&opt, path, cfs)?);
+                    let db = Arc::new(DB::open_cf_descriptors(&$crate::table::DEFAULT_OPTIONS, path, cfs)?);
                     Ok(Database {
                         $(
                             $table: super::$table::Api::new(db.clone()),
@@ -872,7 +857,25 @@ lazy_static! {
     static ref DEFAULT_WRITE_OPTIONS: rocksdb::WriteOptions = {
         let mut opt = rocksdb::WriteOptions::default();
         opt.disable_wal(true);
-        return opt;
+        opt
+    };
+    pub static ref DEFAULT_OPTIONS: rocksdb::Options = {
+        let mut opt = rocksdb::Options::default();
+        opt.create_missing_column_families(true);
+        opt.create_if_missing(true);
+        opt.set_log_level(rocksdb::LogLevel::Warn);
+        // set_atomic_flush is (only) needed when WAL is disabled
+        opt.set_atomic_flush(true);
+        // TODO Measure the following:
+        opt.set_unordered_write(true);
+        opt.increase_parallelism(num_cpus::get() as i32);
+        opt.set_max_subcompactions(num_cpus::get() as u32);
+        opt.optimize_universal_style_compaction(100 * 1024 * 1024);
+        opt.set_skip_checking_sst_file_sizes_on_db_open(true);
+        opt.set_skip_stats_update_on_db_open(true);
+        opt.set_allow_mmap_writes(true);
+        opt.set_allow_mmap_reads(true);
+        opt
     };
 }
 
