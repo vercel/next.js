@@ -22,7 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { useSyncExternalStoreWithSelector } from 'use-sync-external-store/shim/with-selector'
+import { useSyncExternalStore } from 'use-sync-external-store/shim'
 
 import { LoadableContext } from './loadable-context'
 
@@ -118,8 +118,9 @@ function createLoadableComponent(loadFn, options) {
     init()
 
     const context = React.useContext(LoadableContext)
-    const state = useSyncExternalStoreWithSelector(
+    const state = useSyncExternalStore(
       subscription.subscribe,
+      subscription.getCurrentValue,
       subscription.getCurrentValue
     )
 
