@@ -10,7 +10,7 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-function findDir(dir: string, name: 'pages' | 'root'): string | null {
+function findDir(dir: string, name: 'pages' | 'views'): string | null {
   // prioritize ./${name} over ./src/${name}
   let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
@@ -23,13 +23,13 @@ function findDir(dir: string, name: 'pages' | 'root'): string | null {
 
 export function findPagesDir(
   dir: string,
-  root?: boolean
-): { pages: string; root?: string } {
+  views?: boolean
+): { pages: string; views?: string } {
   const pagesDir = findDir(dir, 'pages')
-  let rootDir: undefined | string
+  let viewsDir: undefined | string
 
-  if (root) {
-    rootDir = findDir(dir, 'root') || undefined
+  if (views) {
+    viewsDir = findDir(dir, 'views') || undefined
   }
 
   // TODO: allow "root" dir without pages dir
@@ -41,6 +41,6 @@ export function findPagesDir(
 
   return {
     pages: pagesDir,
-    root: rootDir,
+    views: viewsDir,
   }
 }

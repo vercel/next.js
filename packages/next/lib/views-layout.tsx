@@ -1,11 +1,14 @@
 import React from 'react'
 
-export type RootProps = {
+export type LayoutProps = {
   headChildren: any
   bodyChildren: any
 }
 
-export default function Root({ headChildren, bodyChildren }: RootProps) {
+export default function ViewsLayout({
+  headChildren,
+  bodyChildren,
+}: LayoutProps) {
   return (
     <html>
       <head>

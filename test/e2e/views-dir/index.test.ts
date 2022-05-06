@@ -5,7 +5,11 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-describe('root dir', () => {
+describe('views dir', () => {
+  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
+    it('should skip for react v17', () => {})
+    return
+  }
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,17 +17,10 @@ describe('root dir', () => {
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
-        root: new FileRef(path.join(__dirname, 'app/root')),
-        'root.server.js': new FileRef(
-          path.join(__dirname, 'app/root.server.js')
-        ),
+        views: new FileRef(path.join(__dirname, 'app/views')),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app/next.config.js')
         ),
-      },
-      dependencies: {
-        react: '18.0.0-rc.2',
-        'react-dom': '18.0.0-rc.2',
       },
     })
   })
@@ -60,7 +57,7 @@ describe('root dir', () => {
 
   // TODO: why is this routable but /should-not-serve-server.server.js
   it('should not include parent when not in parent directory with route in directory', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard/rootonly/hello')
+    const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
     // Should be nested in /root.js
@@ -129,51 +126,6 @@ describe('root dir', () => {
   it.skip('should match partial parameters', async () => {
     const html = await renderViaHTTP(next.url, '/partial-match-123')
     expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
-  })
-
-  // TODO: Implement
-  describe.skip('parallel routes', () => {
-    describe('conditional routes', () => {
-      it('should serve user page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim')
-        expect(html).toContain('hello from user homepage')
-      })
-
-      it('should serve user teams page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim/teams')
-        expect(html).toContain('hello from user/teams')
-      })
-
-      it('should not serve teams page to user', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/tim/members')
-        expect(html).not.toContain('hello from team/members')
-      })
-
-      it('should serve team page', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/vercel')
-        expect(html).toContain('hello from team homepage')
-      })
-
-      it('should serve team members page', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/conditional/vercel/members'
-        )
-        expect(html).toContain('hello from team/members')
-      })
-
-      it('should provide both matches if both paths match', async () => {
-        const html = await renderViaHTTP(next.url, '/conditional/both')
-        expect(html).toContain('hello from team homepage')
-        expect(html).toContain('hello from user homepage')
-      })
-
-      it('should 404 based on getServerSideProps', async () => {
-        const res = await fetchViaHTTP(next.url, '/conditional/nonexistent')
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('This page could not be found')
-      })
-    })
   })
 
   describe('server components', () => {

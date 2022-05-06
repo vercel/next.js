@@ -11,11 +11,16 @@ import {
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
+  getViewsEntry,
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
+import {
+  API_ROUTE,
+  MIDDLEWARE_ROUTE,
+  VIEWS_DIR_ALIAS,
+} from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
@@ -168,7 +173,7 @@ export default class HotReloader {
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private rootDir?: string
+  private viewsDir?: string
 
   constructor(
     dir: string,
@@ -179,7 +184,7 @@ export default class HotReloader {
       buildId,
       previewProps,
       rewrites,
-      rootDir,
+      viewsDir,
     }: {
       config: NextConfigComplete
       pagesDir: string
@@ -187,14 +192,14 @@ export default class HotReloader {
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
-      rootDir?: string
+      viewsDir?: string
     }
   ) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
-    this.rootDir = rootDir
+    this.viewsDir = viewsDir
     this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
@@ -427,7 +432,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
-        rootDir: this.rootDir,
+        viewsDir: this.viewsDir,
       }
 
       return webpackConfigSpan
@@ -592,7 +597,16 @@ export default class HotReloader {
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     compilerType: 'server',
                     name: bundlePath,
-                    value: request,
+                    value:
+                      this.viewsDir && bundlePath.startsWith('views/')
+                        ? getViewsEntry({
+                            pagePath: join(
+                              VIEWS_DIR_ALIAS,
+                              relative(this.viewsDir!, absolutePagePath)
+                            ),
+                            viewsDir: this.viewsDir!,
+                          })
+                        : request,
                   })
                 }
               },
@@ -839,7 +853,7 @@ export default class HotReloader {
       multiCompiler,
       watcher: this.watcher,
       pagesDir: this.pagesDir,
-      rootDir: this.rootDir,
+      viewsDir: this.viewsDir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
