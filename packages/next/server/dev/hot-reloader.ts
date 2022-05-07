@@ -607,6 +607,7 @@ export default class HotReloader {
                               relative(this.viewsDir!, absolutePagePath)
                             ),
                             viewsDir: this.viewsDir!,
+                            pageExtensions: this.config.pageExtensions,
                           })
                         : request,
                   })
