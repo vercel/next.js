@@ -37,26 +37,22 @@ async function resolveLayoutPathsByPage({
   return layoutPaths
 }
 
-const extensions = [
-  ...NODE_RESOLVE_OPTIONS.extensions,
-  ...NODE_RESOLVE_OPTIONS.extensions.map((ext) => `.server${ext}`),
-  ...NODE_RESOLVE_OPTIONS.extensions.map((ext) => `.client${ext}`),
-]
-const resolveOptions: any = {
-  ...NODE_RESOLVE_OPTIONS,
-  extensions,
-}
-
 const nextViewLoader: webpack.LoaderDefinitionFunction<{
   pagePath: string
   viewsDir: string
+  pageExtensions: string[]
 }> = async function nextViewLoader() {
-  const loaderOptions = this.getOptions() || {}
+  const { viewsDir, pagePath, pageExtensions } = this.getOptions() || {}
+
+  const extensions = pageExtensions.map((extension) => `.${extension}`)
+  const resolveOptions: any = {
+    ...NODE_RESOLVE_OPTIONS,
+    extensions,
+  }
   const resolve = this.getResolve(resolveOptions)
-  const viewsDir = loaderOptions.viewsDir
 
   const layoutPaths = await resolveLayoutPathsByPage({
-    pagePath: loaderOptions.pagePath,
+    pagePath: pagePath,
     resolve: async (pathname) => {
       try {
         return await resolve(this.rootContext, pathname)
@@ -87,11 +83,11 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
 
   // Add page itself to the list of components
   componentsCode.push(
-    `'${pathToUrlPath(loaderOptions.pagePath).replace(
+    `'${pathToUrlPath(pagePath).replace(
       new RegExp(`/page\\.+(${extensions.join('|')})$`),
       ''
       // use require so that we can bust the require cache
-    )}': () => require('${loaderOptions.pagePath}')`
+    )}': () => require('${pagePath}')`
   )
 
   const result = `
