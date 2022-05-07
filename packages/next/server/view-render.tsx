@@ -17,11 +17,13 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-// @ts-ignore react-dom/client exists when using React 18
-import ReactDOMServer from 'react-dom/server.browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import DefaultRootLayout from '../lib/views-layout'
+
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 export type RenderOptsPartial = {
   err?: Error | null
