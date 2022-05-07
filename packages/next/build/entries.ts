@@ -245,6 +245,7 @@ interface CreateEntrypointsParams {
   target: 'server' | 'serverless' | 'experimental-serverless-trace'
   viewsDir?: string
   viewPaths?: Record<string, string>
+  pageExtensions: string[]
 }
 
 export function getEdgeServerEntry(opts: {
@@ -285,13 +286,12 @@ export function getEdgeServerEntry(opts: {
   return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
 }
 
-export function getViewsEntry(opts: { pagePath: string; viewsDir: string }) {
-  const loaderParams = {
-    pagePath: opts.pagePath,
-    viewsDir: opts.viewsDir,
-  }
-
-  return `next-view-loader?${stringify(loaderParams)}!`
+export function getViewsEntry(opts: {
+  pagePath: string
+  viewsDir: string
+  pageExtensions: string[]
+}) {
+  return `next-view-loader?${stringify(opts)}!`
 }
 
 export function getServerlessEntry(opts: {
@@ -358,7 +358,16 @@ export function getClientEntry(opts: {
 }
 
 export async function createEntrypoints(params: CreateEntrypointsParams) {
-  const { config, pages, pagesDir, isDev, target, viewsDir, viewPaths } = params
+  const {
+    config,
+    pages,
+    pagesDir,
+    isDev,
+    target,
+    viewsDir,
+    viewPaths,
+    pageExtensions,
+  } = params
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
@@ -366,11 +375,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const getEntryHandler =
     (mappings: Record<string, string>, isViews: boolean) =>
     async (page: string) => {
-      // TODO: @timneutkens do not pass layouts to entry here
-      if (isViews && page.endsWith('/layout')) {
-        return
-      }
-
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath = posix.join(
@@ -406,6 +410,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             server[serverBundlePath] = getViewsEntry({
               pagePath: mappings[page],
               viewsDir,
+              pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
             if (page !== '/_app' && page !== '/_document') {
