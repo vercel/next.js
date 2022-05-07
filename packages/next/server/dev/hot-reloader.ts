@@ -421,6 +421,7 @@ export default class HotReloader {
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
             target: 'server',
+            pageExtensions: this.config.pageExtensions,
           })
         )
 
@@ -488,6 +489,7 @@ export default class HotReloader {
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
           target: 'server',
+          pageExtensions: this.config.pageExtensions,
         })
       ).client,
       hasReactRoot: this.hasReactRoot,

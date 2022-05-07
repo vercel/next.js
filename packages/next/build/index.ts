@@ -376,6 +376,7 @@ export default async function build(
             target,
             viewsDir,
             viewPaths: mappedViewPaths,
+            pageExtensions: config.pageExtensions,
           })
         )
 
