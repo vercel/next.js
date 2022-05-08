@@ -71,12 +71,22 @@ export function redirect(
 }
 
 export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
+  'x-prerender-revalidate-if-generated'
 
 export function checkIsManualRevalidate(
   req: IncomingMessage | BaseNextRequest,
   previewProps: __ApiPreviewProps
-): boolean {
-  return req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId
+): {
+  isManualRevalidate: boolean
+  revalidateOnlyGenerated: boolean
+} {
+  return {
+    isManualRevalidate:
+      req.headers[PRERENDER_REVALIDATE_HEADER] === previewProps.previewModeId,
+    revalidateOnlyGenerated:
+      !!req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER],
+  }
 }
 
 export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`

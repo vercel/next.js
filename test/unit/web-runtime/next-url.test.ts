@@ -188,3 +188,25 @@ it('allows to clone a new copy', () => {
   expect(url.toString()).toEqual('http://localhost/root/es/bar')
   expect(clone.toString()).toEqual('http://localhost/root-test/es/test')
 })
+
+it('does not add locale for api route', () => {
+  const url = new NextURL('http:///localhost:3000/api', {
+    i18n: {
+      defaultLocale: 'en',
+      locales: ['en', 'es', 'fr'],
+    },
+  })
+  url.locale = 'fr'
+
+  let expected = 'http://localhost:3000/api'
+  expect(url.href).toEqual(expected)
+  expect(url.toString()).toEqual(expected)
+  expect(url.toJSON()).toEqual(expected)
+
+  url.pathname = '/api/hello'
+
+  expected = 'http://localhost:3000/api/hello'
+  expect(url.href).toEqual(expected)
+  expect(url.toString()).toEqual(expected)
+  expect(url.toJSON()).toEqual(expected)
+})

@@ -132,7 +132,17 @@ describe('Custom Server', () => {
       try {
         browser = await webdriver(context.appPort, '/test-index-hmr')
         const text = await browser.elementByCss('#go-asset').text()
+        const logs = await browser.log()
         expect(text).toBe('Asset')
+
+        // Hydrates with react 18 is correct as expected
+        expect(
+          logs.some((log) =>
+            log.message.includes(
+              'ReactDOM.hydrate is no longer supported in React 18'
+            )
+          )
+        ).toBe(false)
 
         indexPg.replace('Asset', 'Asset!!')
 

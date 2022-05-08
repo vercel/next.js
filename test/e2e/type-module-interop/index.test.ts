@@ -11,8 +11,37 @@ describe('Type module interop', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page() { 
-            return <p>hello world</p>
+          import Link from 'next/link'
+          import Head from 'next/head'
+          import Script from 'next/script'
+          import dynamic from 'next/dynamic'
+          import { useAmp } from 'next/amp'
+
+          const Dynamic = dynamic(() => import('../components/example'))
+
+          export default function Page() {
+            const isAmp = useAmp()
+            return (
+              <>
+                <Head>
+                  <title>This page has a title 🤔</title>
+                  <meta charSet="utf-8" />
+                  <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+                </Head>
+                <Script
+                  strategy="afterInteractive"
+                  dangerouslySetInnerHTML={{
+                    __html: 'console.log("hello world")',
+                  }}
+                />
+                <p>hello world</p>
+                <Dynamic />
+                <p id="isAmp">isAmp: {isAmp ? 'yes' : 'false'}</p>
+                <Link href="/modules">
+                  <a id="link-to-module">link to module</a>
+                </Link>
+              </>
+            )
           } 
         `,
         'pages/modules.jsx': `
@@ -30,24 +59,38 @@ describe('Type module interop', () => {
             )
           }
         `,
+        'components/example.jsx': `
+          export default function Example() {
+            return <p>An example components load via next/dynamic</p>
+          }
+        `,
       },
       dependencies: {},
     })
-    const contents = await next.readFile('package.json')
-    const pkg = JSON.parse(contents)
-    await next.patchFile(
-      'package.json',
-      JSON.stringify({
-        ...pkg,
-        type: 'module',
-      })
-    )
+
+    // can't modify build output after deploy
+    if (!(global as any).isNextDeploy) {
+      const contents = await next.readFile('package.json')
+      const pkg = JSON.parse(contents)
+      await next.patchFile(
+        'package.json',
+        JSON.stringify({
+          ...pkg,
+          type: 'module',
+        })
+      )
+    }
   })
   afterAll(() => next.destroy())
 
   it('should render server-side', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
+    // component load via next/dynamic should rendered on the server side
+    expect(html).toContain('An example components load via next/dynamic')
+    // imported next/amp should work on the server side
+    const $ = cheerio.load(html)
+    expect($('#isAmp').text()).toContain('false')
   })
 
   it('should render client-side', async () => {

@@ -208,13 +208,20 @@ describe('Font Optimization', () => {
               encoding: 'utf-8',
             })
           )
+          const normalizeContent = (content) => {
+            return content.replace(/\/v[\d]{1,}\//g, '/v0/')
+          }
           const testCss = {}
           testJson.forEach((fontDefinition) => {
-            testCss[fontDefinition.url] = fontDefinition.content
+            testCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
           const snapshotCss = {}
           snapshotJson.forEach((fontDefinition) => {
-            snapshotCss[fontDefinition.url] = fontDefinition.content
+            snapshotCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
 
           expect(testCss).toStrictEqual(snapshotCss)

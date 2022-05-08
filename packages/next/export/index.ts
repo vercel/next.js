@@ -34,10 +34,8 @@ import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
-import {
-  normalizePagePath,
-  denormalizePagePath,
-} from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -583,6 +581,7 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
+            viewsDir: nextConfig.experimental.viewsDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,

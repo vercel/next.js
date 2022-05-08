@@ -16,6 +16,7 @@ function MyApp({ Component, pageProps }) {
     <>
       {/* Google Tag Manager - Global base code */}
       <Script
+        id="gtag-base"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
