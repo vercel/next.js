@@ -236,7 +236,6 @@ export async function renderToHTML(
       return mod
     })
 
-  console.log({ components })
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
