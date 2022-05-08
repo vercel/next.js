@@ -124,7 +124,6 @@ function createLoadableComponent(loadFn, options) {
       subscription.getCurrentValue
     )
 
-    // const state = useSubscription(subscription)
     React.useImperativeHandle(
       ref,
       () => ({
