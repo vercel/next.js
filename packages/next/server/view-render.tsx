@@ -217,12 +217,24 @@ export async function renderToHTML(
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
   const components = Object.keys(ComponentMod.components)
+    .filter((path) => {
+      const { __flight__, __flight_router_path__: routerPath } = query
+      // Rendering part of the page is only allowed for flight data
+      if (__flight__ !== undefined && routerPath) {
+        // TODO: check the actual path
+        const pathLength = path.length
+        return pathLength >= routerPath.length
+      }
+      return true
+    })
     .sort()
-    .map((key) => {
-      const mod = ComponentMod.components[key]()
+    .map((path) => {
+      const mod = ComponentMod.components[path]()
       mod.Component = mod.default || mod
       return mod
     })
+
+  console.log({ components })
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
