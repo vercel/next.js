@@ -103,10 +103,6 @@ export function createPagesMapping({
     {}
   )
 
-  // In development we always alias these to allow Webpack to fallback to
-  // the correct source file so that HMR can work properly when a file is
-  // added or removed.
-
   if (isViews) {
     return pages
   }
@@ -118,7 +114,11 @@ export function createPagesMapping({
     delete pages['/_document']
   }
 
+  // In development we always alias these to allow Webpack to fallback to
+  // the correct source file so that HMR can work properly when a file is
+  // added or removed.
   const root = isDev ? PAGES_DIR_ALIAS : 'next/dist/pages'
+
   return {
     '/_app': `${root}/_app`,
     '/_error': `${root}/_error`,
@@ -420,6 +420,17 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
         return require.resolve(absolutePagePath)
       })()
+
+      /**
+       * When we find a middleware that is declared in the pages/ root we fail.
+       * There is no need to check on `dev` as this should only happen when
+       * building for production.
+       */
+      if (/[\\\\/]_middleware$/.test(page) && page !== '/_middleware') {
+        throw new Error(
+          `nested Middleware is deprecated (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
+        )
+      }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
 

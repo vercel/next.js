@@ -252,10 +252,6 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexMiddleware = new RegExp(
-      `[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
-    )
-
     const regexPageExtension = new RegExp(
       `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
     )
@@ -283,7 +279,7 @@ export default class DevServer extends Server {
       wp.watch([], toWatch, 0)
 
       wp.on('aggregated', async () => {
-        const routedMiddleware = []
+        const routedMiddleware: string[] = []
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const viewPaths: Record<string, string> = {}
@@ -321,11 +317,18 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
-          if (regexMiddleware.test(fileName)) {
-            routedMiddleware.push(
-              `/${relative(this.pagesDir, fileName).replace(/\\+/g, '/')}`
-                .replace(/^\/+/g, '/')
-                .replace(regexMiddleware, '/')
+          if (pageName === '/_middleware') {
+            routedMiddleware.push(`/`)
+            continue
+          }
+
+          /**
+           * If there is a middleware that is not declared in the root we will
+           * warn without adding it so it doesn't make its way into the system.
+           */
+          if (/[\\\\/]_middleware$/.test(pageName)) {
+            Log.warn(
+              `nested Middleware is deprecated (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
             )
             continue
           }

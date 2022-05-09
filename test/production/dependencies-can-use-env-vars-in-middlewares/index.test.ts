@@ -26,7 +26,7 @@ describe('dependencies can use env vars in middlewares', () => {
         `,
 
         // The actual middleware code
-        'pages/api/_middleware.js': `
+        'pages/_middleware.js': `
           import customPackage from 'my-custom-package';
           export default function middleware(_req) {
             return new Response(JSON.stringify({
@@ -59,7 +59,7 @@ describe('dependencies can use env vars in middlewares', () => {
       '.next/server/middleware-manifest.json'
     )
     const manifest = await readJson(manifestPath)
-    const envVars = manifest?.middleware?.['/api']?.env
+    const envVars = manifest?.middleware?.['/']?.env
 
     expect(envVars).toHaveLength(2)
     expect(envVars).toContain('ENV_VAR_USED_IN_MIDDLEWARE')

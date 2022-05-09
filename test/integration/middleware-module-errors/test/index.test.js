@@ -13,13 +13,16 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-const context = {}
-const WEBPACK_BREAKING_CHANGE = 'BREAKING CHANGE:'
-
 jest.setTimeout(1000 * 60 * 2)
-context.appDir = join(__dirname, '../')
-context.middleware = new File(join(__dirname, '../pages/_middleware.js'))
-context.page = new File(join(__dirname, '../pages/index.js'))
+
+const WEBPACK_BREAKING_CHANGE = 'BREAKING CHANGE:'
+const context = {
+  appDir: join(__dirname, '../'),
+  buildLogs: { output: '', stdout: '', stderr: '' },
+  logs: { output: '', stdout: '', stderr: '' },
+  middleware: new File(join(__dirname, '../pages/_middleware.js')),
+  page: new File(join(__dirname, '../pages/index.js')),
+}
 
 describe('Middleware importing Node.js modules', () => {
   function getModuleNotFound(name) {
@@ -39,20 +42,20 @@ describe('Middleware importing Node.js modules', () => {
   })
 
   describe('dev mode', () => {
-    let output = ''
-
     // restart the app for every test since the latest error is not shown sometimes
     // See https://github.com/vercel/next.js/issues/36575
     beforeEach(async () => {
-      output = ''
+      context.logs = { output: '', stdout: '', stderr: '' }
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
         env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStdout(msg) {
-          output += msg
+          context.logs.output += msg
+          context.logs.stdout += msg
         },
         onStderr(msg) {
-          output += msg
+          context.logs.output += msg
+          context.logs.stderr += msg
         },
       })
     })
@@ -72,11 +75,13 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg = getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('path')
       expect(res.status).toBe(500)
-      expect(output).toContain(getModuleNotFound('path'))
-      expect(output).toContain(msg)
+      expect(context.logs.output).toContain(getModuleNotFound('path'))
+      expect(context.logs.output).toContain(msg)
       expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(output)).toContain("import { basename } from 'path'")
-      expect(output).not.toContain(WEBPACK_BREAKING_CHANGE)
+      expect(stripAnsi(context.logs.output)).toContain(
+        "import { basename } from 'path'"
+      )
+      expect(context.logs.output).not.toContain(WEBPACK_BREAKING_CHANGE)
     })
 
     it('shows the right error when importing `child_process` on middleware', async () => {
@@ -95,13 +100,13 @@ describe('Middleware importing Node.js modules', () => {
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
       expect(res.status).toBe(500)
-      expect(output).toContain(getModuleNotFound('child_process'))
-      expect(output).toContain(msg)
+      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
+      expect(context.logs.output).toContain(msg)
       expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(output)).toContain(
+      expect(stripAnsi(context.logs.output)).toContain(
         "import { spawn } from 'child_process'"
       )
-      expect(output).not.toContain(WEBPACK_BREAKING_CHANGE)
+      expect(context.logs.output).not.toContain(WEBPACK_BREAKING_CHANGE)
     })
 
     it('shows the right error when importing a non-node-builtin module on middleware', async () => {
@@ -121,8 +126,8 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
-      expect(output).toContain(getModuleNotFound('not-exist'))
-      expect(output).not.toContain(msg)
+      expect(context.logs.output).toContain(getModuleNotFound('not-exist'))
+      expect(context.logs.output).not.toContain(msg)
       expect(text).not.toContain(escapeLF(msg))
     })
 
@@ -146,9 +151,24 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      expect(output).toContain(getModuleNotFound('child_process'))
-      expect(output).not.toContain(msg)
+      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
+      expect(context.logs.output).not.toContain(msg)
       expect(text).not.toContain(escapeLF(msg))
+    })
+
+    it('warns about nested middleware being deprecated', async () => {
+      const file = new File(join(__dirname, '../pages/about/_middleware.js'))
+      file.write(`export function middleware() {}`)
+      try {
+        const res = await fetchViaHTTP(context.appPort, '/about')
+        console.log(context.logs.stderr)
+        expect(context.logs.stderr).toContain(
+          'nested Middleware is deprecated (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+        )
+        expect(res.status).toBe(200)
+      } finally {
+        file.delete()
+      }
     })
   })
 
@@ -192,6 +212,20 @@ describe('Middleware importing Node.js modules', () => {
       expect(buildResult.stderr).toContain(getModuleNotFound('child_process'))
       expect(buildResult.stderr).not.toContain(
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
+      )
+    })
+
+    it('fails when there is a deprecated middleware', async () => {
+      const file = new File(join(__dirname, '../pages/about/_middleware.js'))
+      file.write(`export function middleware() {}`)
+      const buildResult = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      console.log(buildResult.stdout)
+
+      expect(buildResult.stderr).toContain(
+        'nested Middleware is deprecated (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
       )
     })
   })
