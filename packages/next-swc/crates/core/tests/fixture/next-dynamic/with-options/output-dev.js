@@ -1,5 +1,5 @@
-import dynamic from "next/dynamic";
-const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hello")
+import dynamic from 'next/dynamic';
+const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello')
 , {
     loadableGenerated: {
         modules: [
@@ -8,7 +8,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hell
     },
     loading: ()=><p >...</p>
 });
-const DynamicClientOnlyComponent = dynamic(()=>import("../components/hello")
+const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello')
 , {
     loadableGenerated: {
         modules: [

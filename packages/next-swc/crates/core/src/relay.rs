@@ -43,7 +43,7 @@ fn pull_first_operation_name_from_tpl(tpl: &TaggedTpl) -> Option<String> {
         static OPERATION_REGEX: Lazy<Regex> =
             Lazy::new(|| Regex::new(r"(fragment|mutation|query|subscription) (\w+)").unwrap());
 
-        let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw.value).next();
+        let capture_group = OPERATION_REGEX.captures_iter(&quasis.raw).next();
 
         capture_group.map(|capture_group| capture_group[2].to_string())
     })
@@ -56,8 +56,7 @@ fn build_require_expr_from_path(path: &str) -> Expr {
         args: vec![Lit::Str(Str {
             span: Default::default(),
             value: JsWord::from(path),
-            has_escape: false,
-            kind: Default::default(),
+            raw: None,
         })
         .as_arg()],
         type_args: None,

@@ -13,7 +13,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 25
 
@@ -21,10 +21,10 @@ jobs:
         id: docs-change
 
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          node-version: 14
+          node-version: 16
           check-latest: true
 
       - name: Install
@@ -54,7 +54,7 @@ jobs:
 
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: .turbo
@@ -68,7 +68,7 @@ jobs:
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ./packages/next-target
           key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
@@ -77,8 +77,8 @@ jobs:
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
+      - run: npm i -g @napi-rs/cli@2.7.0
+      - run: npm i -g turbo@1.2.6
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -90,7 +90,7 @@ jobs:
           TURBO_PROJECT: nextjs
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v3
         with:
           name: next-swc-dev-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -106,14 +106,14 @@ jobs:
     needs: build-native-dev
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 25
 
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           name: next-swc-dev-binary

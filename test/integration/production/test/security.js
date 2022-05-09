@@ -5,12 +5,7 @@ import { readFileSync } from 'fs'
 import http from 'http'
 import url from 'url'
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  getBrowserBodyText,
-  waitFor,
-  fetchViaHTTP,
-} from 'next-test-utils'
+import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 
@@ -73,8 +68,10 @@ module.exports = (context) => {
       ]
 
       for (const path of pathsToCheck) {
-        const data = await renderViaHTTP(context.appPort, path)
+        const res = await fetchViaHTTP(context.appPort, path)
+        const data = await res.text()
         expect(data.includes('cool-version')).toBeFalsy()
+        expect([400, 404].includes(res.status)).toBeTruthy()
       }
     })
 

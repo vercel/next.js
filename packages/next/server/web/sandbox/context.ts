@@ -1,8 +1,8 @@
 import type { Context } from 'vm'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
-import { readFileSync } from 'fs'
+import { readFileSync, promises as fs } from 'fs'
 import { requireDependencies } from './require'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+import '../../node-polyfill-web-streams'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
 import {
@@ -10,6 +10,7 @@ import {
   AbortSignal,
 } from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
+import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -52,18 +53,19 @@ const caches = new Map<
  * run in within the context. It may or may not use a cache depending on
  * the parameters.
  */
-export function getModuleContext(options: {
+export async function getModuleContext(options: {
   module: string
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
+  wasm: WasmBinding[]
 }) {
   let moduleCache = options.useCache
     ? caches.get(options.module)
-    : createModuleContext(options)
+    : await createModuleContext(options)
 
   if (!moduleCache) {
-    moduleCache = createModuleContext(options)
+    moduleCache = await createModuleContext(options)
     caches.set(options.module, moduleCache)
   }
 
@@ -95,10 +97,11 @@ export function getModuleContext(options: {
  * 2. Dependencies that require runtime globals such as Blob.
  * 3. Dependencies that are scoped for the provided parameters.
  */
-function createModuleContext(options: {
+async function createModuleContext(options: {
   onWarning: (warn: Error) => void
   module: string
   env: string[]
+  wasm: WasmBinding[]
 }) {
   const requireCache = new Map([
     [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
@@ -151,7 +154,10 @@ function createModuleContext(options: {
     const prevs = init.headers.get(`x-middleware-subrequest`)?.split(':') || []
     const value = prevs.concat(options.module).join(':')
     init.headers.set('x-middleware-subrequest', value)
-    init.headers.set(`user-agent`, `Next.js Middleware`)
+
+    if (!init.headers.has('user-agent')) {
+      init.headers.set(`user-agent`, `Next.js Middleware`)
+    }
 
     if (typeof input === 'object' && 'url' in input) {
       return fetch(input.url, {
@@ -165,6 +171,8 @@ function createModuleContext(options: {
 
     return fetch(String(input), init)
   }
+
+  Object.assign(context, await loadWasm(options.wasm))
 
   return moduleCache
 }
@@ -194,18 +202,17 @@ function createContext(options: {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
-    AbortController: AbortController,
-    AbortSignal: AbortSignal,
+    AbortController,
+    AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
     File,
     FormData,
     process: {
-      ...polyfills.process,
       env: buildEnvironmentVariablesFrom(options.env),
     },
-    ReadableStream: polyfills.ReadableStream,
+    ReadableStream,
     setInterval,
     setTimeout,
     TextDecoder,
@@ -258,5 +265,24 @@ function buildEnvironmentVariablesFrom(
   keys: string[]
 ): Record<string, string | undefined> {
   const pairs = keys.map((key) => [key, process.env[key]])
-  return Object.fromEntries(pairs)
+  const env = Object.fromEntries(pairs)
+  env.NEXT_RUNTIME = 'edge'
+  return env
+}
+
+async function loadWasm(
+  wasm: WasmBinding[]
+): Promise<Record<string, WebAssembly.Module>> {
+  const modules: Record<string, WebAssembly.Module> = {}
+
+  await Promise.all(
+    wasm.map(async (binding) => {
+      const module = await WebAssembly.compile(
+        await fs.readFile(binding.filePath)
+      )
+      modules[binding.name] = module
+    })
+  )
+
+  return modules
 }

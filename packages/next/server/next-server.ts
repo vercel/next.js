@@ -1,4 +1,6 @@
 import './node-polyfill-fetch'
+import './node-polyfill-web-streams'
+
 import type { Params, Route } from './router'
 import type { CacheFs } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -10,23 +12,18 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
-
-import { execOnce } from '../shared/lib/utils'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  NextParsedUrlQuery,
-  NextUrlWithParsedQuery,
-} from './request-meta'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 
+import { execOnce } from '../shared/lib/utils'
+import { addRequestMeta, getRequestMeta } from './request-meta'
+
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
-  SERVER_DIRECTORY,
   MIDDLEWARE_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
@@ -34,13 +31,13 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  SERVERLESS_DIRECTORY,
+  VIEW_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import compression from 'next/dist/compiled/compression'
 import HttpProxy from 'next/dist/compiled/http-proxy'
-import { route } from './router'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { run } from './web/sandbox'
 
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -49,7 +46,8 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { renderToHTML as viewRenderToHTML } from './view-render'
+import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
 import BaseServer, {
@@ -59,7 +57,7 @@ import BaseServer, {
   stringifyQuery,
 } from './base-server'
 import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
@@ -111,6 +109,9 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
+    if (this.renderOpts.nextScriptWorkers) {
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
 
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
@@ -120,11 +121,12 @@ export default class NextNodeServer extends BaseServer {
         new ImageOptimizerCache({
           distDir: this.distDir,
           nextConfig: this.nextConfig,
-        })
+        }),
+        this.minimalMode
       )
     }
 
-    if (!this.renderOpts.dev) {
+    if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
@@ -154,12 +156,17 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    const serverBuildDir = join(
-      this.distDir,
-      this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-    )
-    const pagesManifestPath = join(serverBuildDir, PAGES_MANIFEST)
-    return require(pagesManifestPath)
+    return require(join(this.serverDistDir, PAGES_MANIFEST))
+  }
+
+  protected getViewPathsManifest(): PagesManifest | undefined {
+    if (this.nextConfig.experimental.viewsDir) {
+      const viewPathsManifestPath = join(
+        this.serverDistDir,
+        VIEW_PATHS_MANIFEST
+      )
+      return require(viewPathsManifestPath)
+    }
   }
 
   protected getBuildId(): string {
@@ -180,7 +187,7 @@ export default class NextNodeServer extends BaseServer {
   protected generateImageRoutes(): Route[] {
     return [
       {
-        match: route('/_next/image'),
+        match: getPathMatch('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
         fn: async (req, res, _params, parsedUrl) => {
@@ -285,7 +292,7 @@ export default class NextNodeServer extends BaseServer {
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
             // See more: https://github.com/vercel/next.js/issues/2617
-            match: route('/static/:path*'),
+            match: getPathMatch('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
@@ -306,7 +313,7 @@ export default class NextNodeServer extends BaseServer {
   protected generateFsStaticRoutes(): Route[] {
     return [
       {
-        match: route('/_next/static/:path*'),
+        match: getPathMatch('/_next/static/:path*'),
         type: 'route',
         name: '_next/static catchall',
         fn: async (req, res, params, parsedUrl) => {
@@ -355,7 +362,7 @@ export default class NextNodeServer extends BaseServer {
 
     return [
       {
-        match: route('/:path*'),
+        match: getPathMatch('/:path*'),
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
@@ -550,8 +557,11 @@ export default class NextNodeServer extends BaseServer {
       pageModule,
       {
         ...this.renderOpts.previewProps,
-        port: this.port,
-        hostname: this.hostname,
+        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
+          this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes)
+          ),
         // internal config so is not typed
         trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
       },
@@ -573,6 +583,16 @@ export default class NextNodeServer extends BaseServer {
     // object here but only updating its `serverComponentManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
+
+    if (renderOpts.isViewPath) {
+      return viewRenderToHTML(
+        req.originalRequest,
+        res.originalResponse,
+        pathname,
+        query,
+        renderOpts
+      )
+    }
 
     return renderToHTML(
       req.originalRequest,
@@ -621,7 +641,8 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       this._isLikeServerless,
       this.renderOpts.dev,
-      locales
+      locales,
+      this.nextConfig.experimental.viewsDir
     )
   }
 
@@ -650,7 +671,9 @@ export default class NextNodeServer extends BaseServer {
         const components = await loadComponents(
           this.distDir,
           pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
+          !this.renderOpts.dev && this._isLikeServerless,
+          this.renderOpts.serverComponents,
+          this.nextConfig.experimental.viewsDir
         )
 
         if (
@@ -672,6 +695,7 @@ export default class NextNodeServer extends BaseServer {
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
+                  __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
             ...(params || {}),
@@ -689,7 +713,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getServerComponentManifest() {
-    if (this.nextConfig.experimental.runtime !== 'nodejs') return undefined
+    if (!this.nextConfig.experimental.serverComponents) return undefined
     return require(join(
       this.distDir,
       'server',
@@ -868,7 +892,7 @@ export default class NextNodeServer extends BaseServer {
             // (but it should support as many params as needed, separated by '/')
             // Otherwise this will lead to a pretty simple DOS attack.
             // See more: https://github.com/vercel/next.js/issues/2617
-            match: route('/static/:path*'),
+            match: getPathMatch('/static/:path*'),
             name: 'static catchall',
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
@@ -932,14 +956,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
-    if (!this.minimalMode) {
-      const middlewareManifestPath = join(
-        join(this.distDir, SERVER_DIRECTORY),
-        MIDDLEWARE_MANIFEST
-      )
-      return require(middlewareManifestPath)
-    }
-    return undefined
+    return !this.minimalMode
+      ? require(join(this.serverDistDir, MIDDLEWARE_MANIFEST))
+      : undefined
   }
 
   protected generateRewrites({
@@ -1019,7 +1038,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.minimalMode) return undefined
 
     return {
-      match: route('/:path*'),
+      match: getPathMatch('/:path*'),
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
@@ -1130,12 +1149,8 @@ export default class NextNodeServer extends BaseServer {
           const rewritePath = result.response.headers.get(
             'x-middleware-rewrite'
           )!
-          const { newUrl, parsedDestination } = prepareDestination({
-            appendParamsToQuery: false,
-            destination: rewritePath,
-            params: _params,
-            query: {},
-          })
+          const parsedDestination = parseUrl(rewritePath)
+          const newUrl = parsedDestination.pathname
 
           // TODO: remove after next minor version current `v12.0.9`
           this.warnIfQueryParametersWereDeleted(
@@ -1269,6 +1284,7 @@ export default class NextNodeServer extends BaseServer {
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
           request: {
             headers: params.request.headers,
             method,
@@ -1316,7 +1332,7 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    originalBody?.finalize()
+    await originalBody?.finalize()
 
     return result
   }

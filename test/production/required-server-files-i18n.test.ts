@@ -11,7 +11,9 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
+import nodeFetch from 'node-fetch'
 
 describe('should set-up next', () => {
   let next: NextInstance
@@ -21,6 +23,22 @@ describe('should set-up next', () => {
   let requiredFilesManifest
 
   beforeAll(async () => {
+    let wasmPkgIsAvailable = false
+
+    const res = await nodeFetch(
+      `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
+        require('next/package.json').version
+      }.tgz`,
+      {
+        method: 'HEAD',
+      }
+    )
+
+    if (res.status === 200) {
+      wasmPkgIsAvailable = true
+      console.warn(`Testing wasm fallback handling`)
+    }
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
@@ -29,6 +47,14 @@ describe('should set-up next', () => {
           join(__dirname, 'required-server-files/data.txt')
         ),
       },
+      packageJson: {
+        scripts: {
+          build: wasmPkgIsAvailable
+            ? 'rm -rfv node_modules/@next/swc && yarn next build'
+            : 'yarn next build',
+        },
+      },
+      buildCommand: 'yarn build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],
@@ -133,6 +159,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -160,6 +187,8 @@ describe('should set-up next', () => {
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
     })
+    await next.patchFile('standalone/data.txt', 'show')
+
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
       's-maxage=1, stale-while-revalidate'
@@ -167,18 +196,18 @@ describe('should set-up next', () => {
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/gssp')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/')
+    const html2 = await renderViaHTTP(appPort, '/gssp')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -211,6 +240,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -241,24 +271,24 @@ describe('should set-up next', () => {
   it('should render SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
     const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -505,7 +535,7 @@ describe('should set-up next', () => {
       },
       {
         headers: {
-          'x-matched-path': '/',
+          'x-matched-path': '/gssp',
         },
       }
     )

@@ -1,24 +1,17 @@
-# Streaming SSR (Alpha)
+# Streaming SSR
 
-React 18 will include architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render them on the server and send them through HTTP streams.
-It's worth noting that another experimental feature, React Server Components, is based on streaming. You can read more about server components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on basic React 18 streaming.
+React 18 includes architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render content on the server and send updates through HTTP streams.
+React Server Components, an experimental feature, is based on streaming. You can read more about Server Components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on streaming with React 18.
 
-## Enable Streaming SSR
+## Using Streaming Server-Rendering
 
-Enabling streaming SSR means React renders your components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. In other words, when any suspended components resolve down the line, they are rendered on the server and streamed to the client. With this strategy, the app can start emitting HTML even before all the data is ready, improving your app's loading performance. As an added bonus, in streaming SSR mode, the client will also use selective hydration strategy to prioritize component hydration which based on user interaction.
+When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR. When deployed, streaming can be utilized through infrastructure like [Edge Functions](https://vercel.com/edge) on Vercel (with the Edge Runtime) or with a Node.js server (with the Node.js runtime). AWS Lambda Functions do not currently support streaming responses.
 
-To enable streaming SSR, set the experimental option `runtime` to either `'nodejs'` or `'edge'`:
+All SSR pages have the ability to render components into streams and the client continues receiving updates from these streams even after the initial SSR response is sent. When any suspended components resolve down the line, they are rendered on the server and streamed to the client. This means applications can start emitting HTML even _before_ all the data is ready, improving your app's loading performance.
 
-```jsx
-// next.config.js
-module.exports = {
-  experimental: {
-    runtime: 'nodejs',
-  },
-}
-```
+As an added bonus, in streaming SSR mode the client will also use selective hydration to prioritize component hydration based on user interactions, further improving performance.
 
-This option determines the environment in which streaming SSR will be happening. When setting to `'edge'`, the server will be running entirely in the [Edge Runtime](https://nextjs.org/docs/api-reference/edge-runtime).
+For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
 
 ## Streaming Features
 
@@ -68,4 +61,6 @@ Currently, data fetching within `Suspense` boundaries on the server side is not 
 
 #### Styling
 
-The Next.js team is working on support for `styled-jsx` and CSS modules in streaming SSR. Stay tuned for updates.
+Inline styles, Global CSS, CSS modules and Next.js built-in `styled-jsx` are supported with streaming. The Next.js team is working on the guide of integrating other CSS-in-JS solutions in streaming SSR. Stay tuned for updates.
+
+> Note: The styling code should be only placed in client components, not server components, when using React Server Components

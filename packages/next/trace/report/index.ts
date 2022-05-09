@@ -10,7 +10,8 @@ type Reporter = {
     timestamp: number,
     id: SpanId,
     parentId?: SpanId,
-    attrs?: Object
+    attrs?: Object,
+    startTime?: number
   ) => void
 }
 
@@ -31,10 +32,19 @@ class MultiReporter implements Reporter {
     timestamp: number,
     id: SpanId,
     parentId?: SpanId,
-    attrs?: Object
+    attrs?: Object,
+    startTime?: number
   ) {
     this.reporters.forEach((reporter) =>
-      reporter.report(spanName, duration, timestamp, id, parentId, attrs)
+      reporter.report(
+        spanName,
+        duration,
+        timestamp,
+        id,
+        parentId,
+        attrs,
+        startTime
+      )
     )
   }
 }

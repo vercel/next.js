@@ -13,6 +13,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example custom-server-actionhero custom-server-actionhero-app
 # or
 yarn create next-app --example custom-server-actionhero custom-server-actionhero-app
+# or
+pnpm create next-app -- --example custom-server-actionhero custom-server-actionhero-app
 ```
 
 ## How does this work?

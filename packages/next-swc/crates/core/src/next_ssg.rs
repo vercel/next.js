@@ -1,6 +1,8 @@
 use easy_error::{bail, Error};
 use fxhash::FxHashSet;
+use std::cell::RefCell;
 use std::mem::take;
+use std::rc::Rc;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
@@ -11,10 +13,15 @@ use swc_ecmascript::{
     visit::{noop_fold_type, Fold},
 };
 
+static SSG_EXPORTS: &[&str; 3] = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
+
 /// Note: This paths requires running `resolver` **before** running this.
-pub fn next_ssg() -> impl Fold {
+pub fn next_ssg(eliminated_packages: Rc<RefCell<FxHashSet<String>>>) -> impl Fold {
     Repeat::new(NextSsg {
-        state: Default::default(),
+        state: State {
+            eliminated_packages,
+            ..Default::default()
+        },
         in_lhs_of_var: false,
     })
 }
@@ -41,13 +48,16 @@ struct State {
     done: bool,
 
     should_run_again: bool,
+
+    /// Track the import packages which are eliminated in the
+    /// `getServerSideProps`
+    pub eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
 }
 
 impl State {
+    #[allow(clippy::wrong_self_convention)]
     fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
-        let ssg_exports = &["getStaticProps", "getStaticPaths", "getServerSideProps"];
-
-        if ssg_exports.contains(&&*i.sym) {
+        if SSG_EXPORTS.contains(&&*i.sym) {
             if &*i.sym == "getServerSideProps" {
                 if self.is_prerenderer {
                     HANDLER.with(|handler| {
@@ -122,10 +132,28 @@ impl Fold for Analyzer<'_> {
 
     fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
         if let ModuleExportName::Ident(id) = &s.orig {
-            self.add_ref(id.to_id());
+            if !SSG_EXPORTS.contains(&&*id.sym) {
+                self.add_ref(id.to_id());
+            }
         }
 
         s
+    }
+
+    fn fold_export_decl(&mut self, s: ExportDecl) -> ExportDecl {
+        if let Decl::Var(d) = &s.decl {
+            if d.decls.is_empty() {
+                return s;
+            }
+
+            if let Pat::Ident(id) = &d.decls[0].name {
+                if !SSG_EXPORTS.contains(&&*id.id.sym) {
+                    self.add_ref(id.to_id());
+                }
+            }
+        }
+
+        s.fold_children_with(self)
     }
 
     fn fold_expr(&mut self, e: Expr) -> Expr {
@@ -287,7 +315,7 @@ impl Fold for Analyzer<'_> {
 
 /// Actual implementation of the transform.
 struct NextSsg {
-    state: State,
+    pub state: State,
     in_lhs_of_var: bool,
 }
 
@@ -343,11 +371,23 @@ impl Fold for NextSsg {
             return i;
         }
 
+        let import_src = &i.src.value;
+
         i.specifiers.retain(|s| match s {
             ImportSpecifier::Named(ImportNamedSpecifier { local, .. })
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
+                    if self.state.is_server_props
+                        // filter out non-packages import
+                        // third part packages must start with `a-z` or `@`
+                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                    {
+                        self.state
+                            .eliminated_packages
+                            .borrow_mut()
+                            .insert(import_src.to_string());
+                    }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,

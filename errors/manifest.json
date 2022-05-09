@@ -515,6 +515,10 @@
           "path": "/errors/future-webpack5-moved-to-webpack5.md"
         },
         {
+          "title": "link-no-children",
+          "path": "/errors/link-no-children.md"
+        },
+        {
           "title": "link-multiple-children",
           "path": "/errors/link-multiple-children.md"
         },
@@ -557,6 +561,10 @@
         {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
+        },
+        {
+          "title": "before-interactive-script-outside-document",
+          "path": "/errors/no-before-interactive-script-outside-document.md"
         },
         {
           "title": "script-component-in-head-component",
@@ -637,6 +645,22 @@
         {
           "title": "client-flush-effects",
           "path": "/errors/client-flush-effects.md"
+        },
+        {
+          "title": "import-next",
+          "path": "/errors/import-next.md"
+        },
+        {
+          "title": "invalid-getserversideprops-return-value",
+          "path": "/errors/invalid-getserversideprops-return-value.md"
+        },
+        {
+          "title": "no-assign-module-variable",
+          "path": "/errors/no-assign-module-variable.md"
+        },
+        {
+          "title": "invalid-script",
+          "path": "/errors/invalid-script.md"
         }
       ]
     }

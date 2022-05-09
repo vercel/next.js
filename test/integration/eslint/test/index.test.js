@@ -254,7 +254,7 @@ describe('ESLint', () => {
       })
 
       test('shows a successful message when completed', async () => {
-        const { stdout, eslintrcJson } = await nextLintTemp()
+        const { stdout } = await nextLintTemp()
 
         expect(stdout).toContain(
           'ESLint has successfully been configured. Run next lint again to view warnings and errors'
@@ -332,7 +332,7 @@ describe('ESLint', () => {
 
     test('success message when no warnings or errors', async () => {
       const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }')
+      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }\n')
 
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,
@@ -348,6 +348,7 @@ describe('ESLint', () => {
         (await findUp(
           [
             '.eslintrc.js',
+            '.eslintrc.cjs',
             '.eslintrc.yaml',
             '.eslintrc.yml',
             '.eslintrc.json',
@@ -511,7 +512,9 @@ describe('ESLint', () => {
       await fs.remove(cacheFile)
       await nextLint(dirEslintCache, ['--cache-location', cacheFile])
 
-      expect(fs.existsSync(cacheFile)).toBe(true)
+      const hasCache = fs.existsSync(cacheFile)
+      await fs.remove(cacheFile) // remove after generate
+      expect(hasCache).toBe(true)
     })
 
     const getEslintCacheContent = async (cacheDir) => {

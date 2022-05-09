@@ -54,8 +54,7 @@ impl Fold for PageConfig {
                         init: Some(Box::new(Expr::Lit(Lit::Str(Str {
                             value: format!("{} {}", STRING_LITERAL_DROP_BUNDLE, timestamp).into(),
                             span: DUMMY_SP,
-                            kind: StrKind::Synthesized {},
-                            has_escape: false,
+                            raw: None,
                         })))),
                         span: DUMMY_SP,
                         definite: false,

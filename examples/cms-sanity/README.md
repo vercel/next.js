@@ -6,6 +6,7 @@ You'll get:
 
 - Sanity Studio running on localhost
 - Sub-second as-you-type previews in Next.js
+- [On-demand revalidation of pages](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with [GROQ powered webhooks](https://www.sanity.io/docs/webhooks)
 
 ## Demo
 
@@ -15,7 +16,7 @@ You'll get:
 
 Once you have access to [the environment variables you'll need](#step-4-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&project-name=cms-sanity&repository-name=cms-sanity&env=NEXT_PUBLIC_SANITY_PROJECT_ID,SANITY_API_TOKEN,SANITY_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity&envLink=https://vercel.link/cms-sanity-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&project-name=cms-sanity&repository-name=cms-sanity&env=NEXT_PUBLIC_SANITY_PROJECT_ID,SANITY_API_TOKEN,SANITY_PREVIEW_SECRET,SANITY_STUDIO_REVALIDATE_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity&envLink=https://vercel.link/cms-sanity-env)
 
 ### Related examples
 
@@ -44,6 +45,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-sanity cms-sanity-app
 # or
 yarn create next-app --example cms-sanity cms-sanity-app
+# or
+pnpm create next-app -- --example cms-sanity cms-sanity-app
 ```
 
 ## Configuration
@@ -80,6 +83,7 @@ Then set each variable on `.env.local`:
 - `NEXT_PUBLIC_SANITY_DATASET` should be the `dataset` value from the `sanity.json` file created in step 2 - defaults to `production` if not set.
 - `SANITY_API_TOKEN` should be the API token generated in the previous step.
 - `SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `SANITY_STUDIO_REVALIDATE_SECRET` should be setup the same way as `SANITY_PREVIEW_SECRET` - this is used for [on-demand revalidation](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with [webhooks](https://www.sanity.io/docs/webhooks).
 
 Your `.env.local` file should look like this:
 
@@ -88,6 +92,7 @@ NEXT_PUBLIC_SANITY_PROJECT_ID=...
 NEXT_PUBLIC_SANITY_DATASET=...
 SANITY_API_TOKEN=...
 SANITY_PREVIEW_SECRET=...
+SANITY_STUDIO_REVALIDATE_SECRET=...
 ```
 
 ### Step 5. Prepare the project for previewing
@@ -193,9 +198,25 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&project-name=cms-sanity&repository-name=cms-sanity&env=NEXT_PUBLIC_SANITY_PROJECT_ID,SANITY_API_TOKEN,SANITY_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity&envLink=https://vercel.link/cms-sanity-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-sanity&project-name=cms-sanity&repository-name=cms-sanity&env=NEXT_PUBLIC_SANITY_PROJECT_ID,SANITY_API_TOKEN,SANITY_PREVIEW_SECRET,SANITY_STUDIO_REVALIDATE_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Sanity&envLink=https://vercel.link/cms-sanity-env)
 
-#### Next steps
+### Step 11. Setup Revalidation Webhook
 
-- Invalidate your routes in production [on-demand](https://nextjs.org/blog/next-12-1#on-demand-incremental-static-regeneration-beta) with GROQ powered webhooks
+- Open your Sanity manager, go to **API**, and **Create new webhook**.
+- Set the **URL** to use the Vercel app url from [Step 10](#step-10-deploy-on-vercel) and append `/api/revalidate`, for example: `https://cms-sanity.vercel.app/api/revalidate`
+- Set the **Trigger on** field to <label><input type=checkbox checked> Create</label> <label><input type=checkbox checked> Update</label> <label><input type=checkbox checked> Delete</label>
+- Set the **Filter** to `_type == "post" || _type == "author"`
+- Set the **Secret** to the same value you gave `SANITY_STUDIO_REVALIDATE_SECRET` earlier.
+- Hit **Save**!
+
+#### Testing the Webhook
+
+- Open the Deployment function log. (**Vercel Dashboard > Deployment > Functions** and filter by `api/revalidate`)
+- Edit a Post in your Sanity Studio and publish.
+- The log should start showing calls.
+- And the published changes show up on the site after you reload.
+
+### Next steps
+
 - Mount your preview inside the Sanity Studio for comfortable side-by-side editing
+- [Join the Sanity community](https://slack.sanity.io/)

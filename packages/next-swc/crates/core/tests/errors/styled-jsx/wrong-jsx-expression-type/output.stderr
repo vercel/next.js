@@ -1,9 +1,0 @@
-error: Expected a template literal, string or identifier inside the JSXExpressionContainer.
-Read more: https://nextjs.org/docs/messages/invalid-styled-jsx-children
- --> input.js:3:5
-  |
-3 | /     <style jsx>
-4 | |       {[]}
-5 | |     </style>
-  | |____________^
-

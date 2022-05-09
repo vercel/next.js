@@ -1,6 +1,27 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import {
+  NormalModule,
+  webpack5 as webpack,
+} from 'next/dist/compiled/webpack/webpack'
 
-type Feature =
+/**
+ * List of target triples next-swc native binary supports.
+ */
+export type SWC_TARGET_TRIPLE =
+  | 'x86_64-apple-darwin'
+  | 'x86_64-unknown-linux-gnu'
+  | 'x86_64-pc-windows-msvc'
+  | 'i686-pc-windows-msvc'
+  | 'aarch64-unknown-linux-gnu'
+  | 'armv7-unknown-linux-gnueabihf'
+  | 'aarch64-apple-darwin'
+  | 'aarch64-linux-android'
+  | 'arm-linux-androideabi'
+  | 'x86_64-unknown-freebsd'
+  | 'x86_64-unknown-linux-musl'
+  | 'aarch64-unknown-linux-musl'
+  | 'aarch64-pc-windows-msvc'
+
+export type Feature =
   | 'next/image'
   | 'next/script'
   | 'next/dynamic'
@@ -12,6 +33,8 @@ type Feature =
   | 'swcExperimentalDecorators'
   | 'swcRemoveConsole'
   | 'swcImportSource'
+  | 'swcEmotion'
+  | `swc/target/${SWC_TARGET_TRIPLE}`
 
 interface FeatureUsage {
   featureName: Feature
@@ -50,7 +73,23 @@ const BUILD_FEATURES: Array<Feature> = [
   'swcExperimentalDecorators',
   'swcRemoveConsole',
   'swcImportSource',
+  'swcEmotion',
+  'swc/target/x86_64-apple-darwin',
+  'swc/target/x86_64-unknown-linux-gnu',
+  'swc/target/x86_64-pc-windows-msvc',
+  'swc/target/i686-pc-windows-msvc',
+  'swc/target/aarch64-unknown-linux-gnu',
+  'swc/target/armv7-unknown-linux-gnueabihf',
+  'swc/target/aarch64-apple-darwin',
+  'swc/target/aarch64-linux-android',
+  'swc/target/arm-linux-androideabi',
+  'swc/target/x86_64-unknown-freebsd',
+  'swc/target/x86_64-unknown-linux-musl',
+  'swc/target/aarch64-unknown-linux-musl',
+  'swc/target/aarch64-pc-windows-msvc',
 ]
+
+const ELIMINATED_PACKAGES = new Set<string>()
 
 /**
  * Plugin that queries the ModuleGraph to look for modules that correspond to
@@ -103,10 +142,22 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
         callback()
       }
     )
+    if (compiler.options.mode === 'production' && !compiler.watchMode) {
+      compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation) => {
+        const moduleHooks = NormalModule.getCompilationHooks(compilation)
+        moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
+          loaderContext.eliminatedPackages = ELIMINATED_PACKAGES
+        })
+      })
+    }
   }
 
   usages(): FeatureUsage[] {
     return [...this.usageTracker.values()]
+  }
+
+  packagesUsedInServerSideProps(): string[] {
+    return Array.from(ELIMINATED_PACKAGES)
   }
 }
 
