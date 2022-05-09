@@ -19,15 +19,6 @@ describe.each([
   }
 `,
   },
-  {
-    title: 'use NextResponse.json()',
-    middlewareCode: `
-  import { NextResponse } from 'next/server';
-  export default function middleware(request) {
-    return NextResponse.json({ foo: 'bar' });
-  }
-`,
-  },
 ])('middleware cannot $title', ({ middlewareCode }) => {
   let next: NextInstance
 
