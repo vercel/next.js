@@ -4,7 +4,10 @@
 //   fn get_key(data: &T) -> PrimaryKey;
 // }
 
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 use lazy_static::lazy_static;
 use rocksdb::AsColumnFamilyRef;
@@ -137,6 +140,30 @@ macro_rules! table_base_internal {
 
             pub fn new(db: Arc<DB>) -> Self {
                 Self { db }
+            }
+
+            pub fn get_stats(&self) -> Result<$crate::table::CFStats> {
+                let mut stats = $crate::table::CFStats::default();
+                stats.name = stringify!($name).to_string();
+                let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                let mut iter = self.db.raw_iterator_cf(cf);
+                iter.seek_to_first();
+                while let (Some(key), Some(value)) = (iter.key(), iter.value()) {
+                    stats.entries += 1;
+                    stats.total_key_size += key.len();
+                    stats.total_value_size += value.len();
+                    if stats.max_key_size < key.len() {
+                        stats.max_key_pair = (key.to_vec(), value.to_vec());
+                        stats.max_key_size = key.len();
+                    }
+                    if stats.max_value_size < value.len() {
+                        stats.max_value_pair = (key.to_vec(), value.to_vec());
+                        stats.max_value_size = value.len();
+                    }
+                    iter.next();
+                }
+                iter.status()?;
+                Ok(stats)
             }
         }
     };
@@ -835,6 +862,14 @@ macro_rules! database {
                 pub fn batch(&self) -> $crate::table::WriteBatch {
                     $crate::table::WriteBatch::new(self.db.clone())
                 }
+
+                pub fn get_stats(&self) -> Result<Vec<$crate::table::CFStats>> {
+                    let mut results = Vec::new();
+                    $(
+                        results.push(self.$table.get_stats()?);
+                    )*
+                    Ok(results)
+                }
             }
 
             impl std::fmt::Debug for Database {
@@ -987,5 +1022,55 @@ impl<K: Debug, V: Debug> Debug for KeyValueDebug<K, V> {
         } else {
             write!(f, "{:?} => {:?}", self.key, self.value)
         }
+    }
+}
+
+#[derive(Default)]
+pub struct CFStats {
+    pub name: String,
+    pub entries: usize,
+    pub total_key_size: usize,
+    pub total_value_size: usize,
+    pub max_key_size: usize,
+    pub max_key_pair: (Vec<u8>, Vec<u8>),
+    pub max_value_size: usize,
+    pub max_value_pair: (Vec<u8>, Vec<u8>),
+}
+
+impl Display for CFStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn start(v: &Vec<u8>) -> &[u8] {
+            &v[..std::cmp::min(10, v.len())]
+        }
+        write!(
+            f,
+            "
+{}:
+    entries: {}
+    total_size: {} Kib -> {} Kib
+    avg_size: {} b -> {} b
+    max_key: {} b {:x?} -> {:x?}
+    max_value: {} b {:x?} -> {:x?}",
+            self.name,
+            self.entries,
+            self.total_key_size / 1024,
+            self.total_value_size / 1024,
+            if self.entries > 0 {
+                self.total_key_size / self.entries
+            } else {
+                0
+            },
+            if self.entries > 0 {
+                self.total_value_size / self.entries
+            } else {
+                0
+            },
+            self.max_key_size,
+            start(&self.max_key_pair.0),
+            start(&self.max_key_pair.1),
+            self.max_value_size,
+            start(&self.max_value_pair.0),
+            start(&self.max_value_pair.1)
+        )
     }
 }
