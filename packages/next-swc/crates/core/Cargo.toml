@@ -27,6 +27,7 @@ swc_common = { version = "0.18.7", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.30.2", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.157.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_cached = "0.1.1"
+swc_plugin_runner = { version = "0.53.1", features = ["filesystem_cache"] }
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 
 [dev-dependencies]
