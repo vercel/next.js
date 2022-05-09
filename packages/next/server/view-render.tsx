@@ -19,7 +19,6 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
-import DefaultRootLayout from '../lib/views-layout'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -241,19 +240,7 @@ export async function renderToHTML(
       return mod
     })
 
-  // we need to add the default root layout when
-  // not rendering a sub-tree (flightRouterPath)
-  // and a root layout isn't already present views/layout.js or
-  // views/(new-root)/layout.js
-  let hasRootLayout = componentPaths.some(
-    (path) => path === '/' || path.match(/\/\(.*?\)$/)
-  )
   const isSubtreeRender = components.length < componentPaths.length
-
-  if (!hasRootLayout && !isSubtreeRender) {
-    components.unshift({ Component: DefaultRootLayout })
-    hasRootLayout = true
-  }
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -340,7 +327,7 @@ export async function renderToHTML(
       }
 
       // if this is the root layout pass children as bodyChildren prop
-      if (hasRootLayout && i === 0) {
+      if (!isSubtreeRender && i === 0) {
         return React.createElement(layout.Component, {
           ...props,
           headChildren: props.headChildren,
@@ -369,7 +356,7 @@ export async function renderToHTML(
     // }
   }
 
-  const headChildren = hasRootLayout
+  const headChildren = !isSubtreeRender
     ? buildManifest.rootMainFiles.map((src) => (
         <script src={'/_next/' + src} async key={src} />
       ))
