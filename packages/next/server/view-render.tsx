@@ -246,7 +246,7 @@ export async function renderToHTML(
   // and a root layout isn't already present views/layout.js or
   // views/(new-root)/layout.js
   let hasRootLayout = componentPaths.some(
-    (path) => path === '/' || path.match(/\/\(.*?\)\/$/)
+    (path) => path === '/' || path.match(/\/\(.*?\)$/)
   )
   const isSubtreeRender = components.length < componentPaths.length
 

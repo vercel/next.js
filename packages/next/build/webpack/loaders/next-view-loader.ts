@@ -23,7 +23,9 @@ async function resolveLayoutPathsByPage({
   const layoutPaths = new Map<string, string | undefined>()
   const parts = pagePath.split('/')
   // if a new root is being created we shouldn't include `views/layout.js`
-  const shouldIncludeRootLayout = !parts.some((part) => part.match(/\(.*?\)/))
+  const shouldIncludeRootLayout = !parts.some(
+    (part) => part.startsWith('(') && part.endsWith(')')
+  )
 
   for (let i = 1; i < parts.length; i++) {
     if (i === 1 && !shouldIncludeRootLayout) continue
