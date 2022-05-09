@@ -9,7 +9,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
-import { requirePage } from './require'
+import { requirePage, getPagePath } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import {
@@ -40,6 +40,7 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   AppMod: any
   AppServerMod: any
+  isViewPath?: boolean
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -67,7 +68,8 @@ export async function loadComponents(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  serverComponents?: boolean
+  serverComponents?: boolean,
+  rootEnabled?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -103,10 +105,20 @@ export async function loadComponents(
   }
 
   const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless),
-    requirePage('/_app', distDir, serverless),
-    requirePage(pathname, distDir, serverless),
-    serverComponents ? requirePage('/_app.server', distDir, serverless) : null,
+    Promise.resolve().then(() =>
+      requirePage('/_document', distDir, serverless, rootEnabled)
+    ),
+    Promise.resolve().then(() =>
+      requirePage('/_app', distDir, serverless, rootEnabled)
+    ),
+    Promise.resolve().then(() =>
+      requirePage(pathname, distDir, serverless, rootEnabled)
+    ),
+    serverComponents
+      ? Promise.resolve().then(() =>
+          requirePage('/_app.server', distDir, serverless, rootEnabled)
+        )
+      : null,
   ])
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
@@ -124,6 +136,20 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
+  let isViewPath = false
+
+  if (rootEnabled) {
+    const pagePath = getPagePath(
+      pathname,
+      distDir,
+      serverless,
+      false,
+      undefined,
+      rootEnabled
+    )
+    isViewPath = !!pagePath?.match(/server[/\\]views[/\\]/)
+  }
+
   return {
     App,
     Document,
@@ -138,5 +164,6 @@ export async function loadComponents(
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
+    isViewPath,
   }
 }

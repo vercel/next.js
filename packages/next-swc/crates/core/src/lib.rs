@@ -140,7 +140,12 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
 
                 Either::Left(chain!(
                     styled_components::analyzer(config.clone(), state.clone()),
-                    styled_components::display_name_and_id(file.clone(), config, state)
+                    styled_components::display_name_and_id(
+                        file.name.clone(),
+                        file.src_hash,
+                        config,
+                        state
+                    )
                 ))
             }
             None => {

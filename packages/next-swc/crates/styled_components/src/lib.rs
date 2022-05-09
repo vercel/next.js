@@ -1,3 +1,5 @@
+#![deny(unused)]
+
 pub use crate::{
     utils::{analyze, analyzer, State},
     visitors::{
@@ -5,9 +7,9 @@ pub use crate::{
     },
 };
 use serde::Deserialize;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 use swc_atoms::JsWord;
-use swc_common::{chain, SourceFile};
+use swc_common::{chain, FileName};
 use swc_ecmascript::visit::{Fold, VisitMut};
 
 mod css;
@@ -58,13 +60,17 @@ impl Config {
 /// NOTE: **This is not complete**.
 ///
 /// Only [analyzer] and [display_name_and_id] is implemented.
-pub fn styled_components(file: Arc<SourceFile>, config: Config) -> impl Fold + VisitMut {
+pub fn styled_components(
+    file_name: FileName,
+    src_file_hash: u128,
+    config: Config,
+) -> impl Fold + VisitMut {
     let state: Rc<RefCell<State>> = Default::default();
     let config = Rc::new(config);
 
     chain!(
         analyzer(config.clone(), state.clone()),
-        display_name_and_id(file, config, state),
+        display_name_and_id(file_name, src_file_hash, config, state),
         transpile_css_prop()
     )
 }

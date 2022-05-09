@@ -16,6 +16,13 @@ export default function Document() {
           src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
           strategy="beforeInteractive"
         ></Script>
+        <Script
+          id="inline-before"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `console.log('inline beforeInteractive')`,
+          }}
+        ></Script>
       </Head>
       <body>
         <Main />

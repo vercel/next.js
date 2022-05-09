@@ -64,6 +64,7 @@
     "@types/selenium-webdriver": "4.0.15",
     "@types/sharp": "0.29.3",
     "@types/string-hash": "1.1.1",
+    "@types/trusted-types": "2.0.2",
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
     "@vercel/fetch": "6.1.1",
@@ -145,9 +146,9 @@
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
-    "react": "18.0.0",
+    "react": "18.1.0",
     "react-17": "npm:react@17.0.2",
-    "react-dom": "18.0.0",
+    "react-dom": "18.1.0",
     "react-dom-17": "npm:react-dom@17.0.2",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
@@ -180,25 +181,5 @@
   },
   "engines": {
     "node": ">=12.22.0"
-  },
-  "turbo": {
-    "pipeline": {
-      "build-native": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "build-wasm": {
-        "dependsOn": [
-          "^build-wasm"
-        ],
-        "outputs": [
-          "crates/wasm/pkg/*"
-        ]
-      }
-    }
   }
 }
