@@ -26,6 +26,12 @@ describe('views dir', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should pass props from getServerSideProps in root layout', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard')
+    const $ = cheerio.load(html)
+    expect($('title').text()).toBe('hello world')
+  })
+
   it('should serve from pages', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello from pages/index')
