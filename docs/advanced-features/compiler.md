@@ -316,6 +316,42 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 2. `member`: Has type `string`. The name of the member import.
 3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
 
+### SWC Trace profiling
+
+You can generate SWC's internal transform traces as chromium's [trace event format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?mode=html#%21=).
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcTraceProfiling: true,
+  },
+}
+```
+
+Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
+
+### Experimental SWC plugin support
+
+You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcPlugins: [
+      ['plugin', {
+        ..pluginOptions
+      }]
+    ]
+  }
+}
+```
+
+`swcPlugins` accepts an array of tuple for configuring plugins. A tuple for the plugin contains path to the plugin, and an object for its configurations. Path to the plugin can be a npm module package name, or absolute path to the `.wasm` binary itself.
+
 ## Unsupported Features
 
 When your application has a `.babelrc` file, Next.js will automatically fall back to using Babel for transforming individual files. This ensures backwards compatibility with existing applications that leverage custom Babel plugins.
