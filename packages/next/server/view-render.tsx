@@ -369,11 +369,11 @@ export async function renderToHTML(
     // }
   }
 
-  const headChildren = isSubtreeRender
-    ? undefined
-    : buildManifest.rootMainFiles.map((src) => (
+  const headChildren = hasRootLayout
+    ? buildManifest.rootMainFiles.map((src) => (
         <script src={'/_next/' + src} async key={src} />
       ))
+    : undefined
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
