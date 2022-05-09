@@ -72,7 +72,8 @@
     "@next/env": "12.1.7-canary.3",
     "caniuse-lite": "^1.0.30001332",
     "postcss": "8.4.5",
-    "styled-jsx": "5.0.2"
+    "styled-jsx": "5.0.2",
+    "use-sync-external-store": "1.1.0"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -260,7 +261,6 @@
     "tty-browserify": "0.0.1",
     "ua-parser-js": "0.7.28",
     "unistore": "3.4.1",
-    "use-subscription": "1.5.1",
     "util": "0.12.4",
     "uuid": "8.3.2",
     "vm-browserify": "1.1.2",

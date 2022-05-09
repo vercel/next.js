@@ -17,11 +17,13 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-// @ts-ignore react-dom/client exists when using React 18
-import ReactDOMServer from 'react-dom/server.browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import DefaultRootLayout from '../lib/views-layout'
+
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 export type RenderOptsPartial = {
   err?: Error | null
@@ -217,9 +219,19 @@ export async function renderToHTML(
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
   const components = Object.keys(ComponentMod.components)
+    .filter((path) => {
+      const { __flight__, __flight_router_path__: routerPath } = query
+      // Rendering part of the page is only allowed for flight data
+      if (__flight__ !== undefined && routerPath) {
+        // TODO: check the actual path
+        const pathLength = path.length
+        return pathLength >= routerPath.length
+      }
+      return true
+    })
     .sort()
-    .map((key) => {
-      const mod = ComponentMod.components[key]()
+    .map((path) => {
+      const mod = ComponentMod.components[path]()
       mod.Component = mod.default || mod
       return mod
     })
