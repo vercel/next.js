@@ -5,6 +5,7 @@ import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
+import { loadBindings, lockfilePatchPromise } from '../swc'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -71,6 +72,13 @@ export default function nextJest(options: { dir?: string } = {}) {
         (typeof customJestConfig === 'function'
           ? await customJestConfig()
           : customJestConfig) ?? {}
+
+      // eagerly load swc bindings instead of waiting for transform calls
+      await loadBindings()
+
+      if (lockfilePatchPromise.cur) {
+        await lockfilePatchPromise.cur
+      }
 
       return {
         ...resolvedJestConfig,
