@@ -17,10 +17,13 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
-// @ts-ignore react-dom/client exists when using React 18
-import ReactDOMServer from 'react-dom/server.browser'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
+import DefaultRootLayout from '../lib/views-layout'
+
+const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 export type RenderOptsPartial = {
   err?: Error | null
@@ -215,13 +218,23 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const layouts = renderOpts.rootLayouts || []
-
-  layouts.push({
-    Component: renderOpts.Component,
-    getStaticProps: renderOpts.getStaticProps,
-    getServerSideProps: renderOpts.getServerSideProps,
-  })
+  const components = Object.keys(ComponentMod.components)
+    .filter((path) => {
+      const { __flight__, __flight_router_path__: routerPath } = query
+      // Rendering part of the page is only allowed for flight data
+      if (__flight__ !== undefined && routerPath) {
+        // TODO: check the actual path
+        const pathLength = path.length
+        return pathLength >= routerPath.length
+      }
+      return true
+    })
+    .sort()
+    .map((path) => {
+      const mod = ComponentMod.components[path]()
+      mod.Component = mod.default || mod
+      return mod
+    })
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -238,11 +251,13 @@ export async function renderToHTML(
 
   const dataCache = new Map<string, Record>()
 
-  for (let i = layouts.length - 1; i >= 0; i--) {
+  for (let i = components.length - 1; i >= 0; i--) {
     const dataCacheKey = i.toString()
-    const layout = layouts[i]
+    const layout = components[i]
 
-    if (layout.isRoot) {
+    if (i === 0) {
+      // top-most layout is the root layout that renders
+      // the html/body tags
       RootLayout = layout.Component
       continue
     }
@@ -330,7 +345,8 @@ export async function renderToHTML(
 
   if (!RootLayout) {
     // TODO: fallback to our own root layout?
-    throw new Error('invariant RootLayout not loaded')
+    // throw new Error('invariant RootLayout not loaded')
+    RootLayout = DefaultRootLayout
   }
 
   const headChildren = buildManifest.rootMainFiles.map((src) => (

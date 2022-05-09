@@ -10,8 +10,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
-  ROOT_ALIAS,
-  ROOT_DIR_ALIAS,
+  VIEWS_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -315,7 +314,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     runWebpackSpan,
     target = 'server',
-    rootDir,
+    viewsDir,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -329,7 +328,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
-    rootDir?: string
+    viewsDir?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -542,7 +541,7 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        ...(config.experimental.rootDir
+        ...(config.experimental.viewsDir
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
                 `./` +
@@ -607,16 +606,6 @@ export default async function getBaseWebpackConfig(
       }, [] as string[]),
       `next/dist/pages/_document.js`,
     ]
-
-    if (config.experimental.rootDir && rootDir) {
-      customRootAliases[`${ROOT_ALIAS}/root`] = [
-        ...config.pageExtensions.reduce((prev, ext) => {
-          prev.push(path.join(rootDir, `root.${ext}`))
-          return prev
-        }, [] as string[]),
-        'next/dist/pages/root.js',
-      ]
-    }
   }
 
   const resolveConfig = {
@@ -651,10 +640,9 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
-      ...(rootDir
+      ...(viewsDir
         ? {
-            [ROOT_DIR_ALIAS]: rootDir,
-            [ROOT_ALIAS]: path.join(rootDir, '..'),
+            [VIEWS_DIR_ALIAS]: viewsDir,
           }
         : {}),
       [DOT_NEXT_ALIAS]: distDir,
@@ -1190,6 +1178,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
+        'next-view-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1560,7 +1549,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
-          rootEnabled: !!config.experimental.rootDir,
+          rootEnabled: !!config.experimental.viewsDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1571,7 +1560,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
-          rootEnabled: !!config.experimental.rootDir,
+          rootEnabled: !!config.experimental.viewsDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

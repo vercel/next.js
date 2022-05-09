@@ -96,7 +96,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
-  rootDir?: boolean
+  viewsDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -494,7 +494,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    rootDir: false,
+    viewsDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
