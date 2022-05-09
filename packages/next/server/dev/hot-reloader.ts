@@ -617,6 +617,9 @@ export default class HotReloader {
                 })
               } else {
                 if (isServerComponent) {
+                  // For server components, a special entrypoint started with
+                  // `next-flight-client-entry-loader` will be created and we
+                  // load it with the client pages loader first.
                   if (page.startsWith('next-flight-client-entry-loader')) {
                     entrypoints[bundlePath] = finalizeEntrypoint({
                       name: bundlePath,

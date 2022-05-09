@@ -43,7 +43,6 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientPlugin } from './webpack/plugins/flight-client-plugin'
 import {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -1198,39 +1197,25 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents
-          ? isServer
-            ? [
-                // RSC build, server components
-                {
-                  include: [dir, /next[\\/]dist[\\/]pages/],
-                  test: serverComponentsRegex,
-                  issuerLayer: 'sc_server',
-                  use: {
-                    loader: 'next-flight-server-loader',
-                  },
+        ...(hasServerComponents && isServer
+          ? [
+              // RSC build, server components
+              {
+                test: serverComponentsRegex,
+                issuerLayer: 'sc_server',
+                use: {
+                  loader: 'next-flight-server-loader',
                 },
-                // RSC build, client component module references
-                {
-                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|head|script)/,
-                  issuerLayer: 'sc_server',
-                  use: {
-                    loader: 'next-flight-client-loader',
-                  },
+              },
+              // RSC build, client component module references
+              {
+                test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|head|script)/,
+                issuerLayer: 'sc_server',
+                use: {
+                  loader: 'next-flight-client-loader',
                 },
-              ]
-            : [
-                // RSC client compilation loaders
-                // {
-                //   ...rscCodeCondition,
-                //   use: {
-                //     loader: 'next-flight-server-loader',
-                //     options: {
-                //       client: 1,
-                //     },
-                //   },
-                // },
-              ]
+              },
+            ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1588,14 +1573,13 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasServerComponents && isServer
-        ? new FlightManifestPlugin({
-            dev,
-            pageExtensions: rawPageExtensions,
-            isEdgeRuntime,
-          })
-        : new FlightClientPlugin(),
-
+      hasServerComponents &&
+        isServer &&
+        new FlightManifestPlugin({
+          dev,
+          pageExtensions: rawPageExtensions,
+          isEdgeRuntime,
+        }),
       !dev &&
         !isServer &&
         new TelemetryPlugin(

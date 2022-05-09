@@ -213,6 +213,10 @@ export async function getPageRuntime(
     if (isRuntimeRequired) {
       pageRuntime = globalRuntime
     }
+  } else {
+    if (!isRuntimeRequired) {
+      pageRuntime = undefined
+    }
   }
 
   cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
@@ -341,8 +345,19 @@ export async function createEntrypoints(
           serverlessLoaderOptions
         )}!`
       } else if (isApiRoute || target === 'server') {
-        if (!isEdgeRuntime || isReserved || isCustomError) {
-          server[serverBundlePath] = [absolutePagePath]
+        if (isServerComponent) {
+          server[serverBundlePath] = finalizeEntrypoint({
+            name: '[name].js',
+            value: {
+              import: absolutePagePath,
+              layer: 'sc_server',
+            },
+            isServer: true,
+          })
+        } else {
+          if (!isEdgeRuntime || isReserved || isCustomError) {
+            server[serverBundlePath] = [absolutePagePath]
+          }
         }
       } else if (
         isLikeServerless &&
@@ -378,10 +393,15 @@ export async function createEntrypoints(
         // might cause the router to not be able to load causing hydration
         // to fail
 
-        client[clientBundlePath] =
-          page === '/_app'
-            ? [pageLoader, require.resolve('../client/router')]
-            : pageLoader
+        if (isServerComponent) {
+          // We skip the initial entries for server component pages and let the
+          // server compiler inject them instead.
+        } else {
+          client[clientBundlePath] =
+            page === '/_app'
+              ? [pageLoader, require.resolve('../client/router')]
+              : pageLoader
+        }
       }
     })
   )

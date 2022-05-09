@@ -1,3 +1,7 @@
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import type { BuildManifest } from '../server/get-page-files'
+
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -60,7 +64,6 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
-import { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -102,16 +105,15 @@ import {
   isFlightPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { shouldUseReactRoot } from '../server/config'
+import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -321,6 +323,7 @@ export default async function build(
           false
         )
       )
+
     const pageKeys = Object.keys(mappedPages)
     const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []
@@ -677,33 +680,79 @@ export default async function build(
 
       // We run client and server compilation separately to optimize for memory usage
       await runWebpackSpan.traceAsyncFn(async () => {
-        const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
-        // Fail build if clientResult contains errors
-        if (clientResult.errors.length > 0) {
-          result = {
-            warnings: [...clientResult.warnings],
-            errors: [...clientResult.errors],
+        // If we are under the serverless build, we will have to run the client
+        // compiler first because the server compiler depends on the manifest
+        // files that are created by the client compiler.
+        // Otherwise, we run the server compilers first and then the client
+        // compiler to track the boundary of server/client components.
+
+        let clientResult: CompilerResult | null = null
+        let serverResult: CompilerResult | null = null
+        let edgeServerResult: CompilerResult | null = null
+
+        if (isLikeServerless) {
+          if (config.experimental.serverComponents) {
+            throw new Error(
+              'Server Components are not supported in serverless mode.'
+            )
+          }
+
+          // Build client first
+          clientResult = await runCompiler(clientConfig, {
+            runWebpackSpan,
+          })
+
+          // Only continue if there were no errors
+          if (!clientResult.errors.length) {
+            serverResult = await runCompiler(configs[1], {
+              runWebpackSpan,
+            })
+            edgeServerResult = configs[2]
+              ? await runCompiler(configs[2], { runWebpackSpan })
+              : null
           }
         } else {
-          const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-          const edgeServerResult = configs[2]
+          // During the server compilations, entries of client components will be
+          // injected to this set and then will be consumed by the client compiler.
+          injectedClientEntries.clear()
+
+          serverResult = await runCompiler(configs[1], {
+            runWebpackSpan,
+          })
+          edgeServerResult = configs[2]
             ? await runCompiler(configs[2], { runWebpackSpan })
             : null
 
-          result = {
-            warnings: [
-              ...clientResult.warnings,
-              ...serverResult.warnings,
-              ...(edgeServerResult?.warnings || []),
-            ],
-            errors: [
-              ...clientResult.errors,
-              ...serverResult.errors,
-              ...(edgeServerResult?.errors || []),
-            ],
+          // Only continue if there were no errors
+          if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
+            injectedClientEntries.forEach((value, key) => {
+              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+            })
+
+            clientResult = await runCompiler(clientConfig, {
+              runWebpackSpan,
+            })
           }
         }
+
+        result = {
+          warnings: ([] as any[])
+            .concat(
+              clientResult?.warnings,
+              serverResult?.warnings,
+              edgeServerResult?.warnings
+            )
+            .filter(nonNullable),
+          errors: ([] as any[])
+            .concat(
+              clientResult?.errors,
+              serverResult?.errors,
+              edgeServerResult?.errors
+            )
+            .filter(nonNullable),
+        }
       })
+
       result = nextBuildSpan
         .traceChild('format-webpack-messages')
         .traceFn(() => formatWebpackMessages(result, true))

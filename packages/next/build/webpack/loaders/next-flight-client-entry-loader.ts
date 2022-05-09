@@ -1,7 +1,7 @@
 export default async function transformSource(this: any): Promise<string> {
   let { modules } = this.getOptions()
   if (!Array.isArray(modules)) {
-    modules = [modules]
+    modules = modules ? [modules] : []
   }
 
   return (

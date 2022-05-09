@@ -5,7 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import path from 'path'
 import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -44,6 +43,9 @@ const edgeFlightManifest = {}
 const nodeFlightManifest = {}
 
 const isClientComponent = createClientComponentFilter()
+
+export const injectedClientEntries = new Map()
+
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
@@ -122,37 +124,41 @@ export class FlightManifestPlugin {
 
             const entry = `next-flight-client-entry-loader?${stringify({
               modules: clientComponentImports,
+              // Adding name here to make the entry key unique.
+              name,
             })}!`
 
             const entryModule =
               compilation.moduleGraph.getResolvedModule(entryDependency)
             const routeInfo = entryModule.buildInfo.route || {
-              page: denormalizePagePath(
-                '/' +
-                  path
-                    .relative(entryModule.context, entryModule.resource)
-                    .replace(
-                      new RegExp(
-                        `(\\.server)?\\.(?:${this.pageExtensions.join('|')})$`
-                      ),
-                      ''
-                    )
-              ),
+              page: denormalizePagePath(name.replace(/^pages/, '')),
               absolutePagePath: entryModule.resource,
             }
+            const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
 
             // Inject the entry to the client compiler.
-            const pageKey = 'client' + entry
-            if (!entries[pageKey]) {
-              entries[pageKey] = {
-                bundlePath: 'pages' + normalizePagePath(routeInfo.page),
-                absolutePagePath: routeInfo.absolutePagePath,
-                dispose: false,
+            if (this.dev) {
+              const pageKey = 'client' + entry
+              if (!entries[pageKey]) {
+                entries[pageKey] = {
+                  bundlePath,
+                  absolutePagePath: routeInfo.absolutePagePath,
+                  dispose: false,
+                }
+                const invalidator = getInvalidator()
+                if (invalidator) {
+                  invalidator.invalidate()
+                }
               }
-              const invalidator = getInvalidator()
-              if (invalidator) {
-                invalidator.invalidate()
-              }
+            } else {
+              injectedClientEntries.set(
+                bundlePath,
+                `next-client-pages-loader?${stringify({
+                  isServerComponent: true,
+                  page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
+                  absolutePagePath: entry,
+                })}!` + entry
+              )
             }
 
             // Inject the entry to the server compiler.
@@ -176,7 +182,7 @@ export class FlightManifestPlugin {
                       }
                     : {
                         name: name + '.__sc_client__',
-                        runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+                        runtime: 'webpack-runtime',
                       },
                   (err: any) => {
                     if (err) {
@@ -221,6 +227,10 @@ export class FlightManifestPlugin {
         if (!resource || !isClientComponent(resource)) {
           return
         }
+        if (id.startsWith('(sc_server)/')) {
+          return
+        }
+
         const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
