@@ -19,6 +19,7 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
+import DefaultRootLayout from '../lib/views-layout'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -222,7 +223,8 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const components = Object.keys(ComponentMod.components)
+  const componentPaths = Object.keys(ComponentMod.components)
+  const components = componentPaths
     .filter((path) => {
       // Rendering part of the page is only allowed for flight data
       if (flightRouterPath) {
@@ -238,6 +240,20 @@ export async function renderToHTML(
       mod.Component = mod.default || mod
       return mod
     })
+
+  // we need to add the default root layout when
+  // not rendering a sub-tree (flightRouterPath)
+  // and a root layout isn't already present views/layout.js or
+  // views/(new-root)/layout.js
+  let hasRootLayout = componentPaths.some(
+    (path) => path === '/' || path.match(/\/\(.*?\)\/$/)
+  )
+  const isSubtreeRender = components.length < componentPaths.length
+
+  if (!hasRootLayout && !isSubtreeRender) {
+    components.unshift({ Component: DefaultRootLayout })
+    hasRootLayout = true
+  }
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -324,7 +340,7 @@ export async function renderToHTML(
       }
 
       // if this is the root layout pass children as bodyChildren prop
-      if (i === 0) {
+      if (hasRootLayout && i === 0) {
         return React.createElement(layout.Component, {
           ...props,
           headChildren: props.headChildren,
@@ -353,9 +369,11 @@ export async function renderToHTML(
     // }
   }
 
-  const headChildren = buildManifest.rootMainFiles.map((src) => (
-    <script src={'/_next/' + src} async key={src} />
-  ))
+  const headChildren = isSubtreeRender
+    ? undefined
+    : buildManifest.rootMainFiles.map((src) => (
+        <script src={'/_next/' + src} async key={src} />
+      ))
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,

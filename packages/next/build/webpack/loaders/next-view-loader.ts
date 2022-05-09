@@ -22,8 +22,12 @@ async function resolveLayoutPathsByPage({
 }) {
   const layoutPaths = new Map<string, string | undefined>()
   const parts = pagePath.split('/')
+  // if a new root is being created we shouldn't include `views/layout.js`
+  const shouldIncludeRootLayout = !parts.some((part) => part.match(/\(.*?\)/))
 
   for (let i = 1; i < parts.length; i++) {
+    if (i === 1 && !shouldIncludeRootLayout) continue
+
     const pathWithoutSlashLayout = parts.slice(0, i).join('/')
     const layoutPath = `${pathWithoutSlashLayout}/layout`
 
@@ -84,7 +88,7 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
   // Add page itself to the list of components
   componentsCode.push(
     `'${pathToUrlPath(pagePath).replace(
-      new RegExp(`/page\\.+(${extensions.join('|')})$`),
+      new RegExp(`/page+(${extensions.join('|')})$`),
       ''
       // use require so that we can bust the require cache
     )}': () => require('${pagePath}')`

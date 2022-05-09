@@ -66,9 +66,11 @@ describe('views dir', () => {
     const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
-    // Should be nested in /root.js
-    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
-    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+    // new root has to provide it's own custom root layout
+    expect(html).toContain('<html>')
+    expect(html).toContain('<body>')
+    expect($('html').hasClass('this-is-the-document-html')).toBeFalsy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeFalsy()
 
     // Should not be nested in dashboard
     expect($('h1').text()).toBeFalsy()
@@ -81,7 +83,6 @@ describe('views dir', () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
 
-    // Root has to provide it's own document
     expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
     expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
   })
