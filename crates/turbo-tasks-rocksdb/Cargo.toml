@@ -23,4 +23,6 @@ flurry = "0.4.0"
 num_cpus = "1.13.1"
 
 [features]
+default = []
 log_db = []
+log_backend = []

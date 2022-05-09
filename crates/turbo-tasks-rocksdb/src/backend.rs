@@ -685,6 +685,8 @@ impl Backend for RocksDbBackend {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec> {
+        #[cfg(feature = "log_backend")]
+        println!("RB try_start_task_execution({})", task);
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Grap task_type
@@ -748,6 +750,8 @@ impl Backend for RocksDbBackend {
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
+        #[cfg(feature = "log_backend")]
+        println!("RB task_execution_completed({})", task);
         self.with_task_id_mapping(turbo_tasks, || {
             self.try_task_execution_completed(task, slot_mappings, result, turbo_tasks)
                 .unwrap()
@@ -768,6 +772,8 @@ impl Backend for RocksDbBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, event_listener::EventListener> {
+        #[cfg(feature = "log_backend")]
+        println!("RB try_read_task_output(task: {}, reader: {})", task, reader);
         sequential(&self.mutex_task_dependencies, task, || {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_output_untracked(task, turbo_tasks) };
@@ -785,6 +791,8 @@ impl Backend for RocksDbBackend {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, event_listener::EventListener> {
+        #[cfg(feature = "log_backend")]
+        println!("RB try_read_task_output_untracked({})", task);
         fn output_to_result(output: TaskOutput) -> Result<RawVc> {
             match output {
                 TaskOutput::Result(vc) => Ok(vc),
@@ -827,6 +835,8 @@ impl Backend for RocksDbBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
+        #[cfg(feature = "log_backend")]
+        println!("RB track_read_task_output(task: {}, reader: {})", task, reader);
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Add dependency
@@ -844,6 +854,8 @@ impl Backend for RocksDbBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener> {
+        #[cfg(feature = "log_backend")]
+        println!("RB try_read_task_slot(task: {}, index: {}, reader: {})", task, index, reader);
         sequential(&self.mutex_task_dependencies, task, || {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_slot_untracked(task, index, turbo_tasks) };
@@ -862,6 +874,8 @@ impl Backend for RocksDbBackend {
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener> {
+        #[cfg(feature = "log_backend")]
+        println!("RB try_read_task_slot_untracked(task: {}, index: {})", task, index);
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Read task_slot
@@ -920,6 +934,8 @@ impl Backend for RocksDbBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
+        #[cfg(feature = "log_backend")]
+        println!("RB track_read_task_slot(task: {}, index: {}, reader: {})", task, index, reader);
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Add dependency (task_dependencies)
@@ -941,6 +957,8 @@ impl Backend for RocksDbBackend {
         content: SlotContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
+        #[cfg(feature = "log_backend")]
+        println!("RB update_task_slot(task: {}, index: {})", task, index);
         self.with_task_id_mapping(turbo_tasks, || {
             self.try_update_task_slot(task, index, content, turbo_tasks)
                 .unwrap();
@@ -953,6 +971,8 @@ impl Backend for RocksDbBackend {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
+        #[cfg(feature = "log_backend")]
+        println!("RB get_or_create_persistent_task(task_type: {:?}, parent_task: {})", task_type, parent_task);
         self.with_task_id_mapping(turbo_tasks, || {
             self.try_get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
                 .unwrap()
