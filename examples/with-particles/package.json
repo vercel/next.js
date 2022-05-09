@@ -7,13 +7,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "12.1.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "next": "latest",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
     "react-tsparticles": "^1.42.4"
   },
   "devDependencies": {
     "eslint": "8.11.0",
-    "eslint-config-next": "12.1.0"
+    "eslint-config-next": "latest"
   }
 }
