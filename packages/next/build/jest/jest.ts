@@ -85,9 +85,12 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
           // Handle image imports
-          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
+          '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
+
+          // Keep .svg to it's own rule to make overriding easy
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
