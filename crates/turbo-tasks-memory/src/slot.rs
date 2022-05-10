@@ -37,6 +37,8 @@ impl Slot {
         self.content = content;
         self.updates += 1;
         // notify
-        turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
     }
 }

@@ -1,11 +1,21 @@
 mod nft_json;
 
 use anyhow::{anyhow, Context, Result};
-use async_std::task::{block_on, spawn};
+use async_std::{
+    future::timeout,
+    task::{block_on, spawn},
+};
 use clap::Parser;
 use std::{
-    collections::BTreeSet, env::current_dir, fs, future::Future, path::PathBuf, pin::Pin,
-    sync::Arc, time::Instant,
+    collections::BTreeSet,
+    env::current_dir,
+    fs,
+    future::Future,
+    path::PathBuf,
+    pin::Pin,
+    sync::Arc,
+    thread,
+    time::{Duration, Instant},
 };
 use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
@@ -14,7 +24,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbo_tasks_memory_cache::MemoryCacheBackend;
-use turbo_tasks_rocksdb::RocksDbBackend;
+use turbo_tasks_rocksdb::{new_version::RocksDbPersistedGraph, RocksDbBackend};
 use turbopack::{
     all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };
@@ -84,6 +94,8 @@ async fn create_fs(name: &str, context: &str, watch: bool) -> Result<FileSystemV
     let fs = DiskFileSystemVc::new(name.to_string(), context.to_string());
     if watch {
         fs.await?.start_watching()?;
+    } else {
+        fs.await?.invalidate();
     }
     Ok(fs.into())
 }
@@ -176,22 +188,40 @@ fn main() {
         run(
             &args,
             || {
-                MemoryCacheBackend::new(
-                    RocksDbBackend::new(cache, (input, context_directory)).unwrap(),
+                turbo_tasks_rocksdb::new_version::MemoryBackend::new(
+                    RocksDbPersistedGraph::new(cache).unwrap(),
                 )
+
+                // MemoryCacheBackend::new(
+                //     RocksDbBackend::new(cache, (input,
+                // context_directory)).unwrap(), )
             },
-            |tt, _| {
-                let start = Instant::now();
+            |tt, _, duration| {
+                let mut start = Instant::now();
+                let background_timeout = std::cmp::max(duration / 10, Duration::from_millis(100));
+                let timed_out =
+                    block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
+                let elapsed = start.elapsed();
+                if timed_out {
+                    println!("flushed cache partially {} ms", elapsed.as_millis());
+                    start = Instant::now();
+                    block_on(tt.stop_and_wait());
+                    let elapsed = start.elapsed();
+                    println!("stopping {} ms", elapsed.as_millis());
+                } else {
+                    println!("flushed cache completely {} ms", elapsed.as_millis());
+                }
+                start = Instant::now();
                 drop(tt);
                 let elapsed = start.elapsed();
-                println!("flushed cache {} ms", elapsed.as_millis());
+                println!("writing cache {} ms", elapsed.as_millis());
             },
         )
     } else {
         run(
             &args,
             || MemoryBackend::new(),
-            |tt, root_task| {
+            |tt, root_task, _| {
                 if visualize_graph {
                     let mut stats = Stats::new();
                     let b = tt.backend();
@@ -213,7 +243,7 @@ fn main() {
 fn run<B: Backend + 'static>(
     args: &Args,
     create_backend: impl Fn() -> B,
-    final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId),
+    final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration),
 ) {
     let &CommonArgs {
         ref input,
@@ -245,8 +275,9 @@ fn run<B: Backend + 'static>(
             block_on(handle);
         } else {
             block_on(tt.wait_done());
-            println!("done in {} ms", start.elapsed().as_millis());
-            final_finish(tt, root_task);
+            let dur = start.elapsed();
+            println!("done in {} ms", dur.as_millis());
+            final_finish(tt, root_task, dur);
         }
     };
 

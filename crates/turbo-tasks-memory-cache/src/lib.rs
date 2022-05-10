@@ -92,7 +92,7 @@ impl<B: Backend> Backend for MemoryCacheBackend<B> {
         task: turbo_tasks::TaskId,
         reader: turbo_tasks::TaskId,
         turbo_tasks: &dyn turbo_tasks::TurboTasksBackendApi,
-    ) -> anyhow::Result<anyhow::Result<turbo_tasks::RawVc>, event_listener::EventListener> {
+    ) -> anyhow::Result<anyhow::Result<turbo_tasks::RawVc, event_listener::EventListener>> {
         let output_cache = self.output_cache.pin();
         if let Some(&Some(cached_output)) = output_cache.get(&task) {
             self.track_read_task_output(task, reader, turbo_tasks);
@@ -112,7 +112,7 @@ impl<B: Backend> Backend for MemoryCacheBackend<B> {
         &self,
         task: turbo_tasks::TaskId,
         turbo_tasks: &dyn turbo_tasks::TurboTasksBackendApi,
-    ) -> anyhow::Result<anyhow::Result<turbo_tasks::RawVc>, event_listener::EventListener> {
+    ) -> anyhow::Result<anyhow::Result<turbo_tasks::RawVc, event_listener::EventListener>> {
         let output_cache = self.output_cache.pin();
         if let Some(&Some(cached_output)) = output_cache.get(&task) {
             return Ok(Ok(cached_output));
@@ -146,7 +146,7 @@ impl<B: Backend> Backend for MemoryCacheBackend<B> {
         index: usize,
         reader: turbo_tasks::TaskId,
         turbo_tasks: &dyn turbo_tasks::TurboTasksBackendApi,
-    ) -> anyhow::Result<anyhow::Result<SlotContent>, event_listener::EventListener> {
+    ) -> anyhow::Result<anyhow::Result<SlotContent, event_listener::EventListener>> {
         let slot_cache = self.slot_cache.pin();
         if let Some(cached_content) = slot_cache.get(&(task, index)) {
             self.track_read_task_slot(task, index, reader, turbo_tasks);
@@ -169,7 +169,7 @@ impl<B: Backend> Backend for MemoryCacheBackend<B> {
         task: turbo_tasks::TaskId,
         index: usize,
         turbo_tasks: &dyn turbo_tasks::TurboTasksBackendApi,
-    ) -> anyhow::Result<anyhow::Result<SlotContent>, event_listener::EventListener> {
+    ) -> anyhow::Result<anyhow::Result<SlotContent, event_listener::EventListener>> {
         let slot_cache = self.slot_cache.pin();
         if let Some(cached_content) = slot_cache.get(&(task, index)) {
             return Ok(Ok(cached_content.clone()));

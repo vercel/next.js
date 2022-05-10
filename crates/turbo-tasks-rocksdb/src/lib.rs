@@ -3,6 +3,7 @@
 
 mod backend;
 mod db;
+pub mod new_version;
 mod sortable_index;
 mod table;
 

@@ -181,8 +181,8 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                             this.current = vc;
                             continue 'outer;
                         }
-                        Ok(Err(err)) => return std::task::Poll::Ready(Err(err)),
-                        Err(listener) => break listener,
+                        Ok(Err(listener)) => break listener,
+                        Err(err) => return std::task::Poll::Ready(Err(err)),
                     }
                 },
                 RawVc::TaskSlot(task, index) => loop {
@@ -190,8 +190,8 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                         Ok(Ok(content)) => {
                             return std::task::Poll::Ready(content.cast::<T>());
                         }
-                        Ok(Err(err)) => return std::task::Poll::Ready(Err(err)),
-                        Err(listener) => break listener,
+                        Ok(Err(listener)) => break listener,
+                        Err(err) => return std::task::Poll::Ready(Err(err)),
                     }
                 },
             };

@@ -96,6 +96,24 @@ macro_rules! table_internal_merge {
             batch.merge(cf, &key, &merge);
             Ok(())
         }
+
+        #[allow(dead_code)]
+        pub fn merge_no_batch(
+            &self,
+            #[allow(unused_parens)]
+            key: ($(&$key),+),
+            #[allow(unused_parens)]
+            merge: ($(&$merge),+),
+        ) -> Result<()> {
+            #[cfg(feature = "log_db")]
+            println!("DB     merge({} {:?} += {:?})", stringify!($name), key, merge);
+            #[allow(unused_parens)]
+            let key = Self::make_key::<($(&$key),+)>(&key)?;
+            let merge = DefaultOptions::new().serialize(merge)?;
+            let cf = self.db.cf_handle(stringify!($name)).unwrap();
+            self.db.merge_cf(cf, &key, &merge)?;
+            Ok(())
+        }
     };
 }
 macro_rules! table_base_internal_direction {
@@ -151,6 +169,7 @@ macro_rules! table_base_internal_prefix_helper {
             [&key[slice_len..], &key[..slice_len]].concat()
         }
 
+        #[allow(dead_code)]
         fn make_key<T: serde::Serialize>(key: &T) -> Result<Vec<u8>, bincode::Error> {
             DefaultOptions::new().serialize(key)
         }
@@ -1105,6 +1124,102 @@ macro_rules! table {
             }
         }
     };
+    ($name:ident, raw => ($($value:ty),+)) => {
+        pub mod $name {
+            $crate::table::table_base_internal!($name);
+
+            impl Api {
+                #[allow(unused_parens, dead_code)]
+                pub fn get(
+                    &self,
+                    key_bytes: &[u8],
+                ) -> Result<Option<($($value),+)>> {
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    if let Some(value) = self.db.get_pinned_cf(cf, key_bytes)? {
+                        let value = DefaultOptions::new().deserialize(&*value)?;
+                        #[cfg(feature = "log_db")]
+                        println!("DB get({} {:?}) = {:?}", stringify!($name), &key, &value);
+                        Ok(Some(value))
+                    } else {
+                        #[cfg(feature = "log_db")]
+                        println!("DB get({} {:?}) = NOT FOUND", stringify!($name), &key);
+                        Ok(None)
+                    }
+                }
+
+                #[allow(unused_parens, dead_code)]
+                pub fn get_prefix(&self, prefix_bytes: &[u8], mut limit: usize) -> Result<(Vec<($($value),+)>, bool)> {
+                    let mut result = Vec::new();
+                    let mut read_opt = rocksdb::ReadOptions::default();
+                    Self::set_upper_bound_partial(&mut read_opt, prefix_bytes);
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
+                    iter.seek(prefix_bytes);
+                    let mut complete = true;
+                    while let Some(value) = iter.value() {
+                        if limit == 0 {
+                            complete = false;
+                            break;
+                        }
+                        limit -= 1;
+                        let value = DefaultOptions::new().deserialize(value)?;
+                        result.push(value);
+                        iter.next();
+                    }
+                    iter.status()?;
+                    #[cfg(feature = "log_db")]
+                    println!("DB get_prefix({} {:?}) = {:#?}", stringify!($name), prefix_bytes, &result);
+                    Ok((result, complete))
+                }
+
+
+                #[allow(dead_code)]
+                pub fn write(
+                    &self,
+                    batch: &mut crate::table::WriteBatch,
+                    key_bytes: &[u8],
+                    #[allow(unused_parens)]
+                    value: ($(&$value),+),
+                ) -> Result<(), bincode::Error> {
+                    #[cfg(feature = "log_db")]
+                    println!("DB     put({} {:?} = {:?})", stringify!($name), &key, &value);
+                    #[allow(unused_parens)]
+                    let value = DefaultOptions::new().serialize(&value)?;
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    batch.put(cf, key_bytes, value);
+                    Ok(())
+                }
+
+                #[allow(dead_code)]
+                pub fn delete(
+                    &self,
+                    batch: &mut crate::table::WriteBatch,
+                    key_bytes: &[u8],
+                ) -> Result<(), bincode::Error> {
+                    #[cfg(feature = "log_db")]
+                    println!("DB     delete({} {:?})", stringify!($name), &key);
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    batch.delete(cf, key_bytes);
+                    Ok(())
+                }
+            }
+
+            impl std::fmt::Debug for Api {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let mut list = f.debug_list();
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    for (key_bytes, value_bytes) in self.db.iterator_cf(cf, rocksdb::IteratorMode::Start) {
+                        #[allow(unused_parens)]
+                        let value: Option<($($value),+)> = DefaultOptions::new().deserialize(&value_bytes).ok();
+                        if let Some(value) = value {
+                            list.entry(&$crate::table::KeyValueDebug { key: key_bytes, value });
+                        }
+                    }
+                    list.finish()
+                }
+            }
+        }
+    };
 }
 
 macro_rules! database {
@@ -1159,6 +1274,17 @@ macro_rules! database {
                 }
             }
 
+            impl std::ops::Drop for Database {
+                fn drop(&mut self) {
+                    let mut opt = rocksdb::FlushOptions::new();
+                    opt.set_wait(true);
+                    println!("flushing...");
+                    let _ = self.db.flush_opt(&opt);
+                    println!("flushed");
+                    self.db.cancel_all_background_work(true);
+                    println!("cancelled background");
+                }
+            }
         }
 
         pub use database::Database;

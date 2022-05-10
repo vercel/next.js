@@ -546,7 +546,9 @@ impl RocksDbBackend {
                         db.session_scheduled_tasks.insert(b, &self.session, &task)?;
                     }
                     b.write()?;
-                    turbo_tasks.schedule_notify_tasks(&tasks);
+                    if !tasks.is_empty() {
+                        turbo_tasks.schedule_notify_tasks(&tasks);
+                    }
                     Ok(false)
                 } else {
                     Ok(true)
@@ -774,7 +776,7 @@ impl Backend for RocksDbBackend {
         task: TaskId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, event_listener::EventListener> {
+    ) -> Result<Result<RawVc, event_listener::EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
             "RB try_read_task_output(task: {}, reader: {})",
@@ -784,7 +786,7 @@ impl Backend for RocksDbBackend {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_output_untracked(task, turbo_tasks) };
 
-            if result.is_ok() {
+            if !matches!(result, Ok(Err(EventListener { .. }))) {
                 self.track_read_task_output(task, reader, turbo_tasks);
             }
 
@@ -796,7 +798,7 @@ impl Backend for RocksDbBackend {
         &self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, event_listener::EventListener> {
+    ) -> Result<Result<RawVc, event_listener::EventListener>> {
         #[cfg(feature = "log_backend")]
         println!("RB try_read_task_output_untracked({})", task);
         fn output_to_result(output: TaskOutput) -> Result<RawVc> {
@@ -809,28 +811,26 @@ impl Backend for RocksDbBackend {
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Read task_output
-            match db.task_state.get(&task) {
-                Ok(Some((TaskFreshness::PreparedForClean, None)))
-                | Ok(Some((TaskFreshness::Clean, None))) => unreachable!(),
-                Ok(Some((TaskFreshness::Dirty, _)))
-                | Ok(Some((TaskFreshness::PreparedForClean, _)))
-                | Ok(None) => {
+            match db.task_state.get(&task)? {
+                Some((TaskFreshness::PreparedForClean, None))
+                | Some((TaskFreshness::Clean, None)) => unreachable!(),
+                Some((TaskFreshness::Dirty, _))
+                | Some((TaskFreshness::PreparedForClean, _))
+                | None => {
                     let listener = self.listen_to_task(task);
                     // Check state again in case of race conditions
-                    match db.task_state.get(&task) {
-                        Ok(Some((TaskFreshness::PreparedForClean, None)))
-                        | Ok(Some((TaskFreshness::Clean, None))) => unreachable!(),
-                        Ok(Some((TaskFreshness::Dirty, _)))
-                        | Ok(Some((TaskFreshness::PreparedForClean, _)))
-                        | Ok(None) => Err(listener),
-                        Ok(Some((TaskFreshness::Clean, Some(output)))) => {
-                            Ok(output_to_result(output))
+                    match db.task_state.get(&task)? {
+                        Some((TaskFreshness::PreparedForClean, None))
+                        | Some((TaskFreshness::Clean, None)) => unreachable!(),
+                        Some((TaskFreshness::Dirty, _))
+                        | Some((TaskFreshness::PreparedForClean, _))
+                        | None => Ok(Err(listener)),
+                        Some((TaskFreshness::Clean, Some(output))) => {
+                            Ok(Ok(output_to_result(output)?))
                         }
-                        Err(err) => Ok(Err(err)),
                     }
                 }
-                Ok(Some((TaskFreshness::Clean, Some(output)))) => Ok(output_to_result(output)),
-                Err(err) => Ok(Err(err)),
+                Some((TaskFreshness::Clean, Some(output))) => Ok(Ok(output_to_result(output)?)),
             }
         })
     }
@@ -862,7 +862,7 @@ impl Backend for RocksDbBackend {
         index: usize,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener> {
+    ) -> Result<Result<SlotContent, EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
             "RB try_read_task_slot(task: {}, index: {}, reader: {})",
@@ -872,7 +872,7 @@ impl Backend for RocksDbBackend {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_slot_untracked(task, index, turbo_tasks) };
 
-            if result.is_ok() {
+            if !matches!(result, Ok(Err(EventListener { .. }))) {
                 self.track_read_task_slot(task, index, reader, turbo_tasks);
             }
 
@@ -885,7 +885,7 @@ impl Backend for RocksDbBackend {
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener> {
+    ) -> Result<Result<SlotContent, EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
             "RB try_read_task_slot_untracked(task: {}, index: {})",
@@ -894,13 +894,13 @@ impl Backend for RocksDbBackend {
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Read task_slot
-            let content = db.task_slot.get((&task, &index));
+            let content = db.task_slot.get((&task, &index))?;
             match content {
-                Ok(None) => {
+                None => {
                     // empty slot
                     Ok(Ok(SlotContent(None)))
                 }
-                Ok(Some(None)) => {
+                Some(None) => {
                     // non serializable slot content
                     let slot_ref = (task, index);
                     // check if it's already a transient slot and if we already have content
@@ -914,7 +914,7 @@ impl Backend for RocksDbBackend {
                             if let Some(Some(content)) = self.transient_slots.pin().get(&slot_ref) {
                                 return Ok(Ok(SlotContent(Some(content.clone()))));
                             }
-                            Err(listener)
+                            Ok(Err(listener))
                         }
                         Ok(_) => {
                             // we inserted the transient slot
@@ -929,15 +929,11 @@ impl Backend for RocksDbBackend {
                             if self.task_transient_slot_request.pin().insert(task) {
                                 turbo_tasks.schedule(task);
                             }
-                            Err(listener)
+                            Ok(Err(listener))
                         }
                     }
                 }
-                Err(e) => {
-                    // error during reading
-                    Ok(Err(e.into()))
-                }
-                Ok(Some(Some(content))) => Ok(Ok(SlotContent(Some(content)))),
+                Some(Some(content)) => Ok(Ok(SlotContent(Some(content)))),
             }
         })
     }

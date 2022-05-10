@@ -38,6 +38,12 @@ impl Display for SharedError {
     }
 }
 
+impl From<Error> for SharedError {
+    fn from(e: Error) -> Self {
+        Self::new(e)
+    }
+}
+
 pub enum MaybeDoneFuture<T: Unpin, F: Future<Output = T> + Unpin, D: Unpin> {
     Future(F),
     Done(D),

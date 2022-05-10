@@ -46,7 +46,79 @@ pub trait FileSystem {
     fn to_string(&self) -> Vc<String>;
 }
 
-#[turbo_tasks::value(slot: new, serialization: none, FileSystem)]
+const POOL_THREAD_COUNT: usize = 30;
+
+mod pool_ser {
+    use serde::{de::Visitor, Deserializer, Serializer};
+
+    use super::*;
+
+    pub fn serialize<S>(_: &Mutex<ThreadPool>, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ser.serialize_unit()
+    }
+
+    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<ThreadPool>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = Mutex<ThreadPool>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "a ThreadPool")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Mutex::new(ThreadPool::new(POOL_THREAD_COUNT)))
+            }
+        }
+        de.deserialize_unit(V)
+    }
+}
+
+mod watcher_ser {
+    use serde::{de::Visitor, Deserializer, Serializer};
+
+    use super::*;
+
+    pub fn serialize<S>(_: &Mutex<Option<RecommendedWatcher>>, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ser.serialize_unit()
+    }
+
+    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<Option<RecommendedWatcher>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = Mutex<Option<RecommendedWatcher>>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "a ThreadPool")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Mutex::new(None))
+            }
+        }
+        de.deserialize_unit(V)
+    }
+}
+
+#[turbo_tasks::value(slot: new, FileSystem)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
@@ -55,13 +127,23 @@ pub struct DiskFileSystem {
     #[trace_ignore]
     dir_invalidators: Arc<InvalidatorMap>,
     #[trace_ignore]
-    #[allow(dead_code)] // it's never read, but reference is kept for Drop
+    #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
     #[trace_ignore]
+    #[serde(with = "pool_ser")]
     pool: Mutex<ThreadPool>,
 }
 
 impl DiskFileSystem {
+    pub fn invalidate(&self) {
+        for (_, invalidator) in take(&mut *self.invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+        for (_, invalidator) in take(&mut *self.dir_invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+    }
+
     pub fn start_watching(&self) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -222,7 +304,7 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystemVc {
     #[turbo_tasks::function]
     pub fn new(name: String, root: String) -> Result<Self> {
-        let pool = Mutex::new(ThreadPool::new(30));
+        let pool = Mutex::new(ThreadPool::new(POOL_THREAD_COUNT));
         // create the directory for the filesystem on disk, if it doesn't exist
         create_dir_all(&root)?;
 

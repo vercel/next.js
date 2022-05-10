@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_std::task_local;
 use event_listener::{Event, EventListener};
 #[cfg(feature = "report_expensive")]
@@ -799,22 +799,22 @@ impl Task {
         }
     }
 
-    pub(crate) fn get_or_wait_output<T, F: FnOnce(&mut Output) -> T>(
+    pub(crate) fn get_or_wait_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         func: F,
-    ) -> Result<T, EventListener> {
+    ) -> Result<Result<T, EventListener>> {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             Done => {
-                let result = func(&mut state.output);
+                let result = func(&mut state.output)?;
                 drop(state);
 
-                Ok(result)
+                Ok(Ok(result))
             }
             Dirty | Scheduled | InProgress | InProgressDirty => {
                 let listener = state.event.listen();
                 drop(state);
-                Err(listener)
+                Ok(Err(listener))
             }
         }
     }

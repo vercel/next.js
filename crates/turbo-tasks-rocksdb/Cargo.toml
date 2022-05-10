@@ -21,8 +21,11 @@ owning_ref = "0.4.1"
 byteorder = "1.4.3"
 flurry = "0.4.0"
 num_cpus = "1.13.1"
+concurrent-queue = "1.2.2"
 
 [features]
 default = []
 log_db = []
 log_backend = []
+log_running_tasks = []
+unsafe_once_map = []

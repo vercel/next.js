@@ -87,13 +87,17 @@ impl Output {
         self.content = OutputContent::Error(SharedError::new(error));
         self.updates += 1;
         // notify
-        turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
     }
 
     pub fn assign(&mut self, content: OutputContent, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = content;
         self.updates += 1;
         // notify
-        turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
     }
 }

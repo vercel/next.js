@@ -51,11 +51,11 @@ impl MemoryBackend {
         id
     }
 
-    fn try_get_output<T, F: FnOnce(&mut Output) -> T>(
+    fn try_get_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         id: TaskId,
         func: F,
-    ) -> Result<T, EventListener> {
+    ) -> Result<Result<T, EventListener>> {
         self.with_task(id, |task| task.get_or_wait_output(func))
     }
 
@@ -118,8 +118,8 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, EventListener> {
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, |output| {
             Task::add_dependency_to_current(RawVc::TaskOutput(task));
             output.read(reader)
@@ -130,7 +130,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, EventListener> {
+    ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, |output| unsafe { output.read_untracked() })
     }
 
@@ -138,7 +138,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |t| {
             t.with_output_mut(|output| {
@@ -153,8 +153,8 @@ impl Backend for MemoryBackend {
         task: TaskId,
         index: usize,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener> {
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent, EventListener>> {
         Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
         Ok(Ok(self.with_task(task, |task| {
             task.with_slot_mut(index, |slot| slot.read_content(reader))
@@ -165,8 +165,8 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         index: usize,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener> {
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent, EventListener>> {
         Ok(Ok(self.with_task(task, |task| {
             task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
         })))
@@ -177,7 +177,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         index: usize,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
         self.with_task(task, |task| {
@@ -185,7 +185,7 @@ impl Backend for MemoryBackend {
         });
     }
 
-    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
+    fn get_fresh_slot(&self, task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
         self.with_task(task, |task| task.get_fresh_slot())
     }
 

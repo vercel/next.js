@@ -16,6 +16,7 @@ mod manager;
 mod native_function;
 mod no_move_vec;
 mod nothing;
+pub mod persisted_graph;
 mod raw_vc;
 pub mod registry;
 mod task_input;

@@ -73,11 +73,41 @@ pub enum PersistentTaskType {
     ResolveTrait(TraitTypeId, String, Vec<TaskInput>),
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+impl PersistentTaskType {
+    pub fn len(&self) -> usize {
+        match self {
+            PersistentTaskType::Native(_, v)
+            | PersistentTaskType::ResolveNative(_, v)
+            | PersistentTaskType::ResolveTrait(_, _, v) => v.len(),
+        }
+    }
+
+    pub fn partial(&self, len: usize) -> Self {
+        match self {
+            PersistentTaskType::Native(f, v) => PersistentTaskType::Native(*f, v[..len].to_vec()),
+            PersistentTaskType::ResolveNative(f, v) => {
+                PersistentTaskType::ResolveNative(*f, v[..len].to_vec())
+            }
+            PersistentTaskType::ResolveTrait(f, n, v) => {
+                PersistentTaskType::ResolveTrait(*f, n.clone(), v[..len].to_vec())
+            }
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct SlotMappings {
     // TODO use [SerializableMagicAny]
     pub by_key: HashMap<(ValueTypeId, SharedValue), usize>,
     pub by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
+}
+
+impl SlotMappings {
+    pub fn reset(&mut self) {
+        for list in self.by_type.values_mut() {
+            list.0 = 0;
+        }
+    }
 }
 
 pub struct TaskExecutionSpec {
@@ -145,12 +175,12 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, EventListener>;
+    ) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<RawVc>, EventListener>;
+    ) -> Result<Result<RawVc, EventListener>>;
 
     fn track_read_task_output(
         &self,
@@ -165,14 +195,28 @@ pub trait Backend: Sync + Send {
         index: usize,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener>;
+    ) -> Result<Result<SlotContent, EventListener>>;
 
     unsafe fn try_read_task_slot_untracked(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent>, EventListener>;
+    ) -> Result<Result<SlotContent, EventListener>>;
+
+    unsafe fn try_read_own_task_slot(
+        &self,
+        current_task: TaskId,
+        index: usize,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<SlotContent> {
+        unsafe {
+            match self.try_read_task_slot_untracked(current_task, index, turbo_tasks)? {
+                Ok(content) => Ok(content),
+                Err(_) => Ok(SlotContent(None)),
+            }
+        }
+    }
 
     fn track_read_task_slot(
         &self,
