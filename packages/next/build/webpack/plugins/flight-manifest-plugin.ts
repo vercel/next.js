@@ -113,10 +113,14 @@ export class FlightManifestPlugin {
         for (const mod of chunkModules) {
           let modId = compilation.chunkGraph.getModuleId(mod)
 
-          // remove resource query on production
+          // Clean up the module id.
           if (typeof modId === 'string') {
+            // Remove resource queries.
             modId = modId.split('?')[0]
+            // Remove the loader prefix.
+            modId = modId.split('next-flight-client-loader.js!')[1]
           }
+
           recordModule(modId, chunk, mod)
           // If this is a concatenation, register each child to the parent ID.
           if (mod.modules) {
