@@ -7,7 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { createClientComponentFilter } from '../loaders/utils'
+import { clientComponentRegex } from '../loaders/utils'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -27,7 +27,6 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 let edgeFlightManifest = {}
 let nodeFlightManifest = {}
 
-const isClientComponent = createClientComponentFilter()
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
@@ -78,9 +77,14 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (!resource || !isClientComponent(resource)) {
+        if (
+          !resource ||
+          !clientComponentRegex.test(resource) ||
+          !clientComponentRegex.test(id)
+        ) {
           return
         }
+
         const moduleExports: any = manifest[resource] || {}
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -113,13 +117,12 @@ export class FlightManifestPlugin {
         for (const mod of chunkModules) {
           let modId = compilation.chunkGraph.getModuleId(mod)
 
-          // Clean up the module id.
-          if (typeof modId === 'string') {
-            // Remove resource queries.
-            modId = modId.split('?')[0]
-            // Remove the loader prefix.
-            modId = modId.split('next-flight-client-loader.js!')[1]
-          }
+          if (typeof modId !== 'string') continue
+
+          // Remove resource queries.
+          modId = modId.split('?')[0]
+          // Remove the loader prefix.
+          modId = modId.split('next-flight-client-loader.js!')[1] || modId
 
           recordModule(modId, chunk, mod)
           // If this is a concatenation, register each child to the parent ID.
@@ -143,7 +146,9 @@ export class FlightManifestPlugin {
       ...nodeFlightManifest,
       ...edgeFlightManifest,
     }
-    const file = MIDDLEWARE_FLIGHT_MANIFEST
+    const file =
+      (!this.dev && !this.isEdgeServer ? '../' : '') +
+      MIDDLEWARE_FLIGHT_MANIFEST
     const json = JSON.stringify(mergedManifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
