@@ -22,18 +22,34 @@ async function resolveLayoutPathsByPage({
 }) {
   const layoutPaths = new Map<string, string | undefined>()
   const parts = pagePath.split('/')
+  const isNewRootLayout =
+    parts[1]?.length > 2 && parts[1]?.startsWith('(') && parts[1]?.endsWith(')')
 
-  for (let i = 1; i < parts.length; i++) {
+  for (let i = parts.length; i >= 0; i--) {
     const pathWithoutSlashLayout = parts.slice(0, i).join('/')
+
+    if (!pathWithoutSlashLayout) {
+      continue
+    }
     const layoutPath = `${pathWithoutSlashLayout}/layout`
-
-    const resolvedLayoutPath = await resolve(layoutPath)
-
+    let resolvedLayoutPath = await resolve(layoutPath)
     let urlPath = pathToUrlPath(pathWithoutSlashLayout)
 
-    layoutPaths.set(urlPath, resolvedLayoutPath)
-  }
+    // if we are in a new root views/(root) and a custom root layout was
+    // not provided or a root layout views/layout is not present, we use
+    // a default root layout to provide the html/body tags
+    const isCustomRootLayout = isNewRootLayout && i === 2
 
+    if ((isCustomRootLayout || i === 1) && !resolvedLayoutPath) {
+      resolvedLayoutPath = await resolve('next/dist/lib/views-layout')
+    }
+    layoutPaths.set(urlPath, resolvedLayoutPath)
+
+    // if we're in a new root layout don't add the top-level view/layout
+    if (isCustomRootLayout) {
+      break
+    }
+  }
   return layoutPaths
 }
 
@@ -84,7 +100,7 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
   // Add page itself to the list of components
   componentsCode.push(
     `'${pathToUrlPath(pagePath).replace(
-      new RegExp(`/page\\.+(${extensions.join('|')})$`),
+      new RegExp(`/page+(${extensions.join('|')})$`),
       ''
       // use require so that we can bust the require cache
     )}': () => require('${pagePath}')`
