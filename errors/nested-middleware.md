@@ -4,15 +4,15 @@
 
 You are defining a middleware file in a location different from `pages/_middleware` which is _deprecated_.
 
-Declaring a middleware file under specific pages brought the illusion that a middleware would be executed _only_ when pages below its declaration were matched but this wasn't the case.
-Supporting this API also comes with other consequences like allowing to nest multiple middleware or dragging effects between different middleware executions.
+Declaring a middleware file under specific pages implied that it would _only_ be executed when pages below its declaration were matched.
+This execution model allowed the nesting of multiple middleware, which is hard to reason about and led to consequences such as dragging effects between different middleware executions.
 
-This makes the execution model for middleware **really complex** and hard to reason about so this API is _deprecated_ in favour of a simpler model with a single root middleware.
+The API has been _deprecated_ in favor of a simpler model with a single root middleware.
 
 #### Possible Ways to Fix It
 
-To fix this error you must declare your middleware in the root pages folder and leverage `NextRequest` parsed URL to decide wether or not to execute the middleware code.
-For example, a middleware declared under `pages/about/_middleware.js` can be moved to `pages/_middleware` and updated so that it only executes when `about/*` matches:
+To fix this error, declare your middleware in the root pages folder and use `NextRequest` parsed URL to define which path the middleware code should be executed for.
+For example, a middleware declared under `pages/about/_middleware.js` can be moved to `pages/_middleware`. A conditional can be used to ensure the middleware executes only when it matches the `about/*` path:
 
 ```typescript
 import type { NextRequest } from 'next/server'
@@ -24,4 +24,4 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-This also means that if you have more than one middleware you will need to reunite them in a single file and model their execution depending on the request.
+If you have more than one middleware, you will need to combine them into a single file and model their execution depending on the request.
