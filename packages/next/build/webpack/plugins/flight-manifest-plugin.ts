@@ -19,20 +19,26 @@ import { createClientComponentFilter } from '../loaders/utils'
 type Options = {
   dev: boolean
   pageExtensions: string[]
+  isEdgeServer: boolean
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
+
+let edgeFlightManifest = {}
+let nodeFlightManifest = {}
 
 const isClientComponent = createClientComponentFilter()
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
+  isEdgeServer: boolean
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
     this.pageExtensions = options.pageExtensions
+    this.isEdgeServer = options.isEdgeServer
   }
 
   apply(compiler: any) {
@@ -124,8 +130,17 @@ export class FlightManifestPlugin {
 
     // With switchable runtime, we need to emit the manifest files for both
     // runtimes.
-    const file = `server/${MIDDLEWARE_FLIGHT_MANIFEST}`
-    const json = JSON.stringify(manifest)
+    if (this.isEdgeServer) {
+      edgeFlightManifest = manifest
+    } else {
+      nodeFlightManifest = manifest
+    }
+    const mergedManifest = {
+      ...nodeFlightManifest,
+      ...edgeFlightManifest,
+    }
+    const file = MIDDLEWARE_FLIGHT_MANIFEST
+    const json = JSON.stringify(mergedManifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
     assets[file + '.json'] = new sources.RawSource(json)

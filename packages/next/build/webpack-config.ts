@@ -485,10 +485,6 @@ export default async function getBaseWebpackConfig(
     ? withoutRSCExtensions(config.pageExtensions)
     : config.pageExtensions
 
-  const serverComponentsRegex = new RegExp(
-    `\\.server\\.(${rawPageExtensions.join('|')})$`
-  )
-
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
@@ -909,12 +905,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const rscCodeCondition = {
-    test: serverComponentsRegex,
-    // only apply to the pages as the begin process of rsc loaders
-    include: [dir, /next[\\/]dist[\\/]pages/],
-  }
-
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals:
@@ -1210,7 +1200,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...rscCodeCondition,
+                  test: /\.server\.\w$/,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
@@ -1219,7 +1209,7 @@ export default async function getBaseWebpackConfig(
             : [
                 // RSC client compilation loaders
                 {
-                  ...rscCodeCondition,
+                  test: /\.server\.\w$/,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
@@ -1589,8 +1579,12 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        isClient &&
-        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
+        !isClient &&
+        new FlightManifestPlugin({
+          dev,
+          pageExtensions: rawPageExtensions,
+          isEdgeServer,
+        }),
       !dev &&
         isClient &&
         new TelemetryPlugin(
