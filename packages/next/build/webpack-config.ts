@@ -485,6 +485,10 @@ export default async function getBaseWebpackConfig(
     ? withoutRSCExtensions(config.pageExtensions)
     : config.pageExtensions
 
+  const serverComponentsRegex = new RegExp(
+    `\\.server\\.(${rawPageExtensions.join('|')})$`
+  )
+
   const babelIncludeRegexes: RegExp[] = [
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
@@ -905,6 +909,11 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const serverComponentCodeCondition = {
+    test: serverComponentsRegex,
+    include: [dir, /next[\\/]dist[\\/]pages/],
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals:
@@ -1200,7 +1209,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  test: /\.server\.\w$/,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
@@ -1209,7 +1218,7 @@ export default async function getBaseWebpackConfig(
             : [
                 // RSC client compilation loaders
                 {
-                  test: /\.server\.\w$/,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
