@@ -270,7 +270,7 @@ When you add an example to the [examples](examples) directory, don’t forget to
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
 - Examples should be TypeScript first, if possible.
-- You don’t need to add `name` or `version` in your `package.json`.
+- Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
 - Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.

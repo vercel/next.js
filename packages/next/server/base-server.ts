@@ -1629,7 +1629,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isSSG) {
+    if (isSSG && !this.minimalMode) {
       // set x-nextjs-cache header to match the header
       // we set for the image-optimizer
       res.setHeader(

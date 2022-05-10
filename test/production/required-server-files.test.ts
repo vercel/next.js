@@ -188,6 +188,7 @@ describe('should set-up next', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
+    expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
     const $ = cheerio.load(await res.text())
     const props = JSON.parse($('#props').text())
     expect(props.gspCalls).toBeDefined()
@@ -201,6 +202,7 @@ describe('should set-up next', () => {
       }
     )
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('x-nextjs-cache')).toBeFalsy()
     const { pageProps: props2 } = await res2.json()
     expect(props2.gspCalls).toBe(props.gspCalls)
 
