@@ -210,7 +210,11 @@ export default async function exportPage({
         req.url += '/'
       }
 
-      if (buildExport && renderOpts.domainLocales) {
+      if (
+        buildExport &&
+        renderOpts.domainLocales &&
+        renderOpts.domainLocales.length > 0
+      ) {
         addRequestMeta(req, '__nextIsLocaleDomain', true)
       }
 
