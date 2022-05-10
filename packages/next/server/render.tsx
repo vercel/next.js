@@ -1350,9 +1350,9 @@ export async function renderToHTML(
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
     ) {
-      const renderPage: RenderPage = async (
+      const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
-      ): Promise<RenderPageResult> => {
+      ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
@@ -1377,10 +1377,13 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         if (renderShell) {
-          const stream = await renderShell(EnhancedApp, EnhancedComponent)
-          await stream.allReady
-          const html = await streamToString(stream)
-          return { html, head }
+          return renderShell(EnhancedApp, EnhancedComponent).then(
+            async (stream) => {
+              await stream.allReady
+              const html = await streamToString(stream)
+              return { html, head }
+            }
+          )
         }
 
         const html = ReactDOMServer.renderToString(
