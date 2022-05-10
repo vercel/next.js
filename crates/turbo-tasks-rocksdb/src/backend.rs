@@ -151,6 +151,9 @@ impl RocksDbBackend {
         for task in db.session_ongoing_active_update.get_all(&self.session)? {
             self.try_update_active_state(task, &mut schedule)?;
         }
+        for task in db.session_scheduled_tasks.get_all(&self.session)? {
+            schedule.push(task);
+        }
         for task in schedule {
             turbo_tasks.schedule(task);
         }
