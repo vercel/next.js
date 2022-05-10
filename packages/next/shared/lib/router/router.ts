@@ -1546,7 +1546,7 @@ export default class Router implements BaseRouter {
           styleSheets: res.styleSheets,
           __N_SSG: res.mod.__N_SSG,
           __N_SSP: res.mod.__N_SSP,
-          __N_RSC: !!res.mod.__next_rsc_client_entry__,
+          __N_RSC: !!res.mod.__next_rsc__,
         })))
 
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo

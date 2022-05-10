@@ -121,7 +121,7 @@ export async function loadComponents(
         serverless
       )
       ComponentMod.__next_rsc__.__next_rsc_client_entry__ =
-        ClientEntryMod.__next_rsc_client_entry__
+        ClientEntryMod.__next_rsc__
     } catch (_) {
       // This page isn't a server component page, so there is no __sc_client__
       // bundle to load.

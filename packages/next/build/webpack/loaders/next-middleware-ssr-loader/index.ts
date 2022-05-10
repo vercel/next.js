@@ -81,7 +81,9 @@ export default async function middlewareSSRLoader(this: any) {
 
     export default function rscMiddleware(opts) {
       if (${isServerComponent}) {
-        pageMod.__next_rsc__.__next_rsc_client_entry__ = self._CLIENT_ENTRY.__next_rsc_client_entry__
+        pageMod.__next_rsc__.__next_rsc_client_entry__ = {
+          __webpack_require__
+        }
       }
   
       return adapter({

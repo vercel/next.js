@@ -10,8 +10,11 @@ export default async function transformSource(this: any): Promise<string> {
         (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
       )
       .join(';') +
-    `;export const __next_rsc_client_entry__ = {
+    `
+    export const __next_rsc__ = {
+      server: false,
       __webpack_require__
-    };export default function RSC() {}`
+    };
+    export default function RSC() {};`
   )
 }
