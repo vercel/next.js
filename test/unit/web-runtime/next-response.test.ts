@@ -30,6 +30,7 @@ afterAll(() => {
 const toJSON = async (response) => ({
   body: await response.json(),
   contentType: response.headers.get('content-type'),
+  status: response.status,
 })
 
 it('automatically parses and formats JSON', async () => {
@@ -42,6 +43,24 @@ it('automatically parses and formats JSON', async () => {
     body: { message: 'hello!' },
   })
 
+  expect(
+    await toJSON(NextResponse.json({ status: 'success' }, { status: 201 }))
+  ).toMatchObject({
+    contentType: 'application/json',
+    body: { status: 'success' },
+    status: 201,
+  })
+
+  expect(
+    await toJSON(
+      NextResponse.json({ error: { code: 'bad_request' } }, { status: 400 })
+    )
+  ).toMatchObject({
+    contentType: 'application/json',
+    body: { error: { code: 'bad_request' } },
+    status: 400,
+  })
+
   expect(await toJSON(NextResponse.json(null))).toMatchObject({
     contentType: 'application/json',
     body: null,
@@ -51,15 +70,4 @@ it('automatically parses and formats JSON', async () => {
     contentType: 'application/json',
     body: '',
   })
-})
-
-it('response.cookie does not modify options', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
-
-  const options = { maxAge: 10000 }
-  const response = NextResponse.json(null)
-  response.cookie('cookieName', 'cookieValue', options)
-  expect(options).toEqual({ maxAge: 10000 })
 })

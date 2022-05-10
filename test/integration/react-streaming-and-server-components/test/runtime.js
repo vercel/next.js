@@ -2,9 +2,9 @@ import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
 
-import { distDir } from './utils'
-
 export default async function runtime(context, { runtime, env }) {
+  const distDir = join(context.appDir, '.next')
+
   if (runtime === 'edge') {
     it('should support per-page runtime configuration', async () => {
       const html1 = await renderViaHTTP(context.appPort, '/runtime')

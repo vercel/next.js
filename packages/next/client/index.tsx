@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -40,6 +39,10 @@ import {
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -87,7 +90,7 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isAppRSC: boolean
+let isRSCPage: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -288,7 +291,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    isAppRSC = !!mod.__next_rsc__
     const exportedReportWebVitals = mod && mod.reportWebVitals
     onPerfEntry = ({
       id,
@@ -333,6 +335,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
+    isRSCPage = !!pageEntrypoint.exports.__next_rsc__
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -549,8 +552,7 @@ function renderReactElement(
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      const ReactDOMClient = require('react-dom/client')
-      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -649,7 +651,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isAppRSC) {
+  if (process.env.__NEXT_RSC && isRSCPage) {
     const { Component, err: _, router: __, ...props } = appProps
     return <Component {...props} />
   } else {
@@ -778,7 +780,7 @@ if (process.env.__NEXT_RSC) {
       if (serialized) {
         const readable = new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(serialized))
+            controller.enqueue(encoder.encode(serialized))
             controller.close()
           },
         })

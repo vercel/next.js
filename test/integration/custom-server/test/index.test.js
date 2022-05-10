@@ -98,7 +98,10 @@ describe('Custom Server', () => {
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+    })
     afterAll(() => killApp(server))
 
     it('response includes etag header', async () => {
@@ -129,7 +132,17 @@ describe('Custom Server', () => {
       try {
         browser = await webdriver(context.appPort, '/test-index-hmr')
         const text = await browser.elementByCss('#go-asset').text()
+        const logs = await browser.log()
         expect(text).toBe('Asset')
+
+        // Hydrates with react 18 is correct as expected
+        expect(
+          logs.some((log) =>
+            log.message.includes(
+              'ReactDOM.hydrate is no longer supported in React 18'
+            )
+          )
+        ).toBe(false)
 
         indexPg.replace('Asset', 'Asset!!')
 

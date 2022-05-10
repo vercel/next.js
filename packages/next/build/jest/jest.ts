@@ -4,6 +4,7 @@ import loadConfig from '../../server/config'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
+import { findPagesDir } from '../../lib/find-pages-dir'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -50,8 +51,11 @@ export default function nextJest(options: { dir?: string } = {}) {
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
+      let pagesDir: string | undefined
+
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
+        pagesDir = findPagesDir(resolvedDir).pages
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
@@ -72,6 +76,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         ...resolvedJestConfig,
 
         moduleNameMapper: {
+          // Custom config will be able to override the default mappings
+          // moduleNameMapper is matched top to bottom hence why this has to be before Next.js internal rules
+          ...(resolvedJestConfig.moduleNameMapper || {}),
+
           // Handle CSS imports (with CSS modules)
           // https://jestjs.io/docs/webpack#mocking-css-modules
           '^.+\\.module\\.(css|sass|scss)$':
@@ -84,9 +92,6 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': require.resolve(
             `./__mocks__/fileMock.js`
           ),
-
-          // Custom config will be able to override the default mappings
-          ...(resolvedJestConfig.moduleNameMapper || {}),
         },
         testPathIgnorePatterns: [
           // Don't look for tests in node_modules
@@ -107,6 +112,7 @@ export default function nextJest(options: { dir?: string } = {}) {
               jsConfig,
               resolvedBaseUrl,
               isEsmProject,
+              pagesDir,
             },
           ],
           // Allow for appending/overriding the default transforms

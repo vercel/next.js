@@ -6,7 +6,7 @@ You can set-up a new test using `yarn new-test` which will start from a template
 
 ## Test Types in Next.js
 
-- e2e: These tests will run against `next dev` and `next start`
+- e2e: These tests will run against `next dev`, `next start`, and deployed to Vercel
 - development: These tests only run against `next dev`
 - production: These tests will run against `next start`.
 - integration: These tests run misc checks and modes and is where tests used to be added before we added more specific folders. Ideally we don't add new test suites here as tests here are not isolated from the monorepo.

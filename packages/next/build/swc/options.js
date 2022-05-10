@@ -40,6 +40,9 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -63,10 +66,11 @@ function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
-          importSource: nextConfig?.experimental?.emotion
-            ? '@emotion/react'
-            : jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -141,6 +145,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  pagesDir,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -164,19 +169,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-      // we always transpile optional chaining and nullish coalescing
-      // since it can cause issues with webpack even if the node target
-      // supports them
-      include: [
-        'proposal-optional-chaining',
-        'proposal-nullish-coalescing-operator',
-      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
+    pagesDir,
   }
 }
 
@@ -219,13 +218,6 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
-        // we always transpile optional chaining and nullish coalescing
-        // since it can cause issues with webpack even if the node target
-        // supports them
-        include: [
-          'proposal-optional-chaining',
-          'proposal-nullish-coalescing-operator',
-        ],
       },
     }
   } else {

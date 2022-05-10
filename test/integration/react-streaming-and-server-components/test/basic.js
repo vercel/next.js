@@ -10,18 +10,9 @@ export default async function basic(context, { env }) {
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
-  it('should render dynamic routes correctly', async () => {
-    const dynamicRoute1HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic1'
-    )
-    const dynamicRoute2HTML = await renderViaHTTP(
-      context.appPort,
-      '/routes/dynamic2'
-    )
-
-    expect(dynamicRoute1HTML).toContain('query: dynamic1')
-    expect(dynamicRoute2HTML).toContain('query: dynamic2')
+  it('should render title correctly', async () => {
+    const res = await renderViaHTTP(context.appPort, '/')
+    expect(res).toContain('<title>hello, env_var_test</title>')
   })
 
   it('should support api routes', async () => {
@@ -65,4 +56,11 @@ export default async function basic(context, { env }) {
     expect(content).toMatchInlineSnapshot('"foo.clientbar.client"')
     expect(dynamicIds).toBe(undefined)
   })
+
+  if (env === 'prod') {
+    it(`should not display custom _app or _app.server in treeview if there's not any`, () => {
+      const { stdout } = context
+      expect(stdout).not.toMatch(/\s\/_app(\.server)?/)
+    })
+  }
 }
