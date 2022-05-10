@@ -751,11 +751,11 @@ export default class DevServer extends Server {
 
     if (!usedOriginalStack) {
       if (type === 'warning') {
-        Log.warn(err + '')
+        Log.warn(err)
       } else if (type) {
-        Log.error(`${type}:`, err + '')
+        Log.error(`${type}:`, err)
       } else {
-        Log.error(err + '')
+        Log.error(err)
       }
     }
   }
