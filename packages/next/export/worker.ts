@@ -2,7 +2,7 @@ import type { ComponentType } from 'react'
 import type { FontManifest } from '../server/font-utils'
 import type { GetStaticProps } from '../types'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
 import type { NextParsedUrlQuery } from '../server/request-meta'
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
@@ -23,6 +23,7 @@ import { isInAmpMode } from '../shared/lib/amp-mode'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
+import { addRequestMeta } from '../server/request-meta'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -84,6 +85,7 @@ interface RenderOpts {
   locales?: string[]
   locale?: string
   defaultLocale?: string
+  domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   appDir?: boolean
 }
@@ -206,6 +208,10 @@ export default async function exportPage({
 
       if (renderOpts.trailingSlash && !req.url?.endsWith('/')) {
         req.url += '/'
+      }
+
+      if (buildExport && renderOpts.domainLocales) {
+        addRequestMeta(req, '__nextIsLocaleDomain', true)
       }
 
       envConfig.setConfig({
