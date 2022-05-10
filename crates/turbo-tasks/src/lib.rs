@@ -10,6 +10,7 @@ mod completion;
 mod display;
 mod id;
 mod id_factory;
+mod infinite_vec;
 mod magic_any;
 mod manager;
 mod native_function;
