@@ -87,7 +87,7 @@ export async function patchIncorrectLockfile(dir: string) {
 
       await promises.writeFile(
         lockfilePath,
-        JSON.stringify(lockfileParsed, null, 2)
+        `${JSON.stringify(lockfileParsed, null, 2)}\n`
       )
       Log.warn(
         'Lockfile was successfully patched, please run "npm install" to ensure @next/swc dependencies are downloaded'
