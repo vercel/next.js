@@ -7,6 +7,11 @@
     "url": "vercel/next.js",
     "directory": "packages/next-mdx"
   },
+  "dependencies": {
+    "@mdx-js/mdx": "^2.0.0",
+    "next": "12.1.7-canary.3",
+    "webpack": "^5.0.0"
+  },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0",
     "@mdx-js/react": "*"
