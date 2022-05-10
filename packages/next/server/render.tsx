@@ -1376,8 +1376,8 @@ export async function renderToHTML(
         if (renderShell) {
           return renderShell(EnhancedApp, EnhancedComponent).then(
             async (stream) => {
-              await stream.allReady
-              const html = await streamToString(stream)
+              const forwardStream = readableStreamTee(stream)[1]
+              const html = await streamToString(forwardStream)
               return { html, head }
             }
           )
