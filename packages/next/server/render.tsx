@@ -1341,7 +1341,7 @@ export async function renderToHTML(
       }
     }
 
-    async function documentInitialProps(
+    async function loadDocumentInitialProps(
       renderShell?: (
         _App: AppType,
         _Component: NextComponentType
@@ -1441,9 +1441,9 @@ export async function renderToHTML(
     if (!process.env.__NEXT_REACT_ROOT) {
       // Enabling react legacy rendering mode: __NEXT_REACT_ROOT = false
       if (Document.getInitialProps) {
-        const documentInitialPropsRes = await documentInitialProps()
-        if (documentInitialPropsRes === null) return null
-        const { docProps, documentCtx } = documentInitialPropsRes
+        const documentInitialProps = await loadDocumentInitialProps()
+        if (documentInitialProps === null) return null
+        const { docProps, documentCtx } = documentInitialProps
 
         return {
           bodyResult: (suffix: string) =>
@@ -1476,23 +1476,19 @@ export async function renderToHTML(
       }
     } else {
       // Enabling react concurrent rendering mode: __NEXT_REACT_ROOT = true
-      let renderStream: ReactReadableStream
-
       const renderShell = async (
         EnhancedApp: AppType,
         EnhancedComponent: NextComponentType
       ) => {
         const content = renderContent(EnhancedApp, EnhancedComponent)
-        renderStream = await renderToInitialStream({
+        return await renderToInitialStream({
           ReactDOMServer,
           element: content,
         })
-        return renderStream
       }
 
       const createBodyResult =
-        (initialStream: ReactReadableStream): typeof bodyResult =>
-        (suffix) => {
+        (initialStream: ReactReadableStream) => (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when `wrapApp` is called
           const flushEffectHandler = (): string => {
@@ -1556,17 +1552,15 @@ export async function renderToHTML(
         !Document.getInitialProps
       )
 
-      let bodyResult: (
-        s: string
-      ) => Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array>
+      let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
 
       // If it has getInitialProps, we will render the shell in `renderPage`.
       // Otherwise we do it right now.
       let documentInitialPropsRes:
         | {}
-        | Awaited<ReturnType<typeof documentInitialProps>>
+        | Awaited<ReturnType<typeof loadDocumentInitialProps>>
       if (hasDocumentGetInitialProps) {
-        documentInitialPropsRes = await documentInitialProps(renderShell)
+        documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
         if (documentInitialPropsRes === null) return null
         const { docProps } = documentInitialPropsRes as any
         bodyResult = createBodyResult(streamFromArray([docProps.html]))
