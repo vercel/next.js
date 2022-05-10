@@ -263,6 +263,10 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+type ReactReadableStream = ReadableStream<Uint8Array> & {
+  allReady?: Promise<void> | undefined
+}
+
 const invalidKeysMsg = (
   methodName: 'getServerSideProps' | 'getStaticProps',
   invalidKeys: string[]
@@ -1344,11 +1348,11 @@ export async function renderToHTML(
       renderShell?: (
         _App: AppType,
         _Component: NextComponentType
-      ) => Promise<void>
+      ) => Promise<ReactReadableStream>
     ) {
-      const renderPage: RenderPage = (
+      const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
+      ): Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           // Always start rendering the shell even if there's an error.
           if (renderShell) {
@@ -1373,11 +1377,10 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         if (renderShell) {
-          return renderShell(EnhancedApp, EnhancedComponent).then(() => {
-            // When using concurrent features, we don't have or need the full
-            // html so it's fine to return nothing here.
-            return { html: '', head }
-          })
+          const stream = await renderShell(EnhancedApp, EnhancedComponent)
+          await stream.allReady
+          const html = await streamToString(stream)
+          return { html, head }
         }
 
         const html = ReactDOMServer.renderToString(
@@ -1473,9 +1476,7 @@ export async function renderToHTML(
       }
     } else {
       // Enabling react concurrent rendering mode: __NEXT_REACT_ROOT = true
-      let renderStream: ReadableStream<Uint8Array> & {
-        allReady?: Promise<void> | undefined
-      }
+      let renderStream: ReactReadableStream
 
       const renderShell = async (
         EnhancedApp: AppType,
@@ -1486,12 +1487,16 @@ export async function renderToHTML(
           ReactDOMServer,
           element: content,
         })
+        return renderStream
       }
 
-      const bodyResult = async (suffix: string) => {
+      let bodyResult: (
+        s: string
+      ) => Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array>
+
+      bodyResult = (suffix) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-
         const flushEffectHandler = (): string => {
           const allFlushEffects = [
             styledJsxFlushEffect,
@@ -1539,7 +1544,7 @@ export async function renderToHTML(
         // be streamed.
         // Do not use `await` here.
         generateStaticFlightDataIfNeeded()
-        return await continueFromInitialStream({
+        return continueFromInitialStream({
           renderStream,
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
@@ -1562,6 +1567,8 @@ export async function renderToHTML(
       if (hasDocumentGetInitialProps) {
         documentInitialPropsRes = await documentInitialProps(renderShell)
         if (documentInitialPropsRes === null) return null
+        const { docProps } = documentInitialPropsRes as any
+        bodyResult = (suffix) => streamFromArray([docProps.html, suffix])
       } else {
         await renderShell(App, Component)
         documentInitialPropsRes = {}
