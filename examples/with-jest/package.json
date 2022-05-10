@@ -2,7 +2,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "lint": "next lint",
     "build": "next build",
     "start": "next start",
     "test": "jest --watch",
@@ -18,10 +17,6 @@
     "@testing-library/react": "12.1.2",
     "@testing-library/user-event": "13.5.0",
     "@types/react": "17.0.38",
-    "babel-jest": "27.4.5",
-    "eslint": "8.5.0",
-    "eslint-config-next": "latest",
-    "eslint-plugin-testing-library": "5.0.1",
     "jest": "27.4.5",
     "typescript": "4.5.4"
   }
