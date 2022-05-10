@@ -216,16 +216,18 @@ export async function renderToHTML(
     ComponentMod,
   } = renderOpts
 
+  const isFlight = query.__flight__ !== undefined
+  const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
+
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
   const components = Object.keys(ComponentMod.components)
     .filter((path) => {
-      const { __flight__, __flight_router_path__: routerPath } = query
       // Rendering part of the page is only allowed for flight data
-      if (__flight__ !== undefined && routerPath) {
+      if (flightRouterPath) {
         // TODO: check the actual path
         const pathLength = path.length
-        return pathLength >= routerPath.length
+        return pathLength >= flightRouterPath.length
       }
       return true
     })
@@ -343,9 +345,8 @@ export async function renderToHTML(
     // }
   }
 
+  // Fall back to default root layout that renders <html> / <head> / <body>
   if (!RootLayout) {
-    // TODO: fallback to our own root layout?
-    // throw new Error('invariant RootLayout not loaded')
     RootLayout = DefaultRootLayout
   }
 
@@ -412,7 +413,7 @@ export async function renderToHTML(
     </FlushEffectContainer>
   )
 
-  const renderServerComponentData = query.__flight__ !== undefined
+  const renderServerComponentData = isFlight
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
