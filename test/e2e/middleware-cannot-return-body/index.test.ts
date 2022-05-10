@@ -7,17 +7,21 @@ describe.each([
     title: 'return a text body',
     middlewareCode: `
   export default function middleware(request) {
-    return new Response('this is not allowed');
+    const body = 'this is not allowed'
+    return new Response(body);
   }
 `,
   },
   {
     title: 'return JSON content',
     middlewareCode: `
-  export default function middleware(request) {
-    return new Response(JSON.stringify({ foo: 'bar' }), { headers: {'content-type': 'application/json'} });
-  }
-`,
+    function buildBody() {
+      return JSON.stringify({ foo: 'bar' })
+    }
+    export default function middleware(request) {
+      return new Response(buildBody(), { headers: {'content-type': 'application/json'} });
+    }
+  `,
   },
 ])('middleware cannot $title', ({ middlewareCode }) => {
   let next: NextInstance

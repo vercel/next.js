@@ -11,6 +11,7 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
+import * as Log from '../../output/log'
 
 export interface MiddlewareManifest {
   version: 1
@@ -53,7 +54,6 @@ export default class MiddlewarePlugin {
   apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
-
       /**
        * This is the static code analysis phase.
        */
@@ -176,6 +176,32 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * A handler for calls to `new Response()` so we can fail if user is setting the response's body.
+     */
+    const handleNewResponseExpression = (node: any) => {
+      const firstParameter = node?.arguments?.[0]
+      if (
+        isUserMiddlewareUserFile(parser.state.current) &&
+        firstParameter &&
+        !isNullLiteral(firstParameter) &&
+        !isUndefinedIdentifier(firstParameter)
+      ) {
+        const message = `Your middleware is returning a response body (line ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`
+        if (dev) {
+          // in dev mode, we're aggressively warns on ANY parameter that are not null nor undefined. It may have false-positives like:
+          // new Response(aFunctionThatReturnsNull())
+          Log.warn(message)
+        } else if (
+          isJSONStringifyCall(firstParameter) ||
+          isStringLiteral(firstParameter)
+        ) {
+          // at build time, we only throw on cases which unquestionably are errors.
+          throw new Error(message)
+        }
+      }
+    }
+
+    /**
      * A noop handler to skip analyzing some cases.
      */
     const noop = () =>
@@ -187,6 +213,7 @@ function getCodeAnalizer(params: {
     hooks.call.for('global.Function').tap(NAME, handleWrapExpression)
     hooks.new.for('Function').tap(NAME, handleWrapExpression)
     hooks.new.for('global.Function').tap(NAME, handleWrapExpression)
+    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
     hooks.expression.for('eval').tap(NAME, handleExpression)
     hooks.expression.for('Function').tap(NAME, handleExpression)
     hooks.expression.for('global.eval').tap(NAME, handleExpression)
@@ -405,4 +432,35 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
       .map((file) => 'server/' + file)
   )
   return files
+}
+
+function isUserMiddlewareUserFile(module: any) {
+  return (
+    module.layer === 'middleware' && /_middleware\.\w+$/.test(module.rawRequest)
+  )
+}
+
+function isNullLiteral(expr: any) {
+  return expr.value === null
+}
+
+function isUndefinedIdentifier(expr: any) {
+  return expr.name === 'undefined'
+}
+
+function isJSONStringifyCall(expr: any) {
+  if (
+    expr.type === 'CallExpression' &&
+    expr.callee?.type === 'MemberExpression'
+  ) {
+    const {
+      callee: { object, property },
+    } = expr
+    return object?.name === 'JSON' && property?.name === 'stringify'
+  }
+  return false
+}
+
+function isStringLiteral(expr: any) {
+  return expr.type === 'Literal' && typeof expr.value === 'string'
 }
