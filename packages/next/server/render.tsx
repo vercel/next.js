@@ -20,6 +20,7 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { ReactReadableStream } from './node-web-streams-helper'
 
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -262,10 +263,6 @@ export type RenderOptsPartial = {
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
-
-type ReactReadableStream = ReadableStream<Uint8Array> & {
-  allReady?: Promise<void> | undefined
-}
 
 const invalidKeysMsg = (
   methodName: 'getServerSideProps' | 'getStaticProps',
@@ -1493,74 +1490,75 @@ export async function renderToHTML(
         return renderStream
       }
 
-      let bodyResult: (
-        s: string
-      ) => Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array>
-
-      bodyResult = (suffix) => {
-        // this must be called inside bodyResult so appWrappers is
-        // up to date when `wrapApp` is called
-        const flushEffectHandler = (): string => {
-          const allFlushEffects = [
-            styledJsxFlushEffect,
-            ...(flushEffects || []),
-          ]
-          const flushed = ReactDOMServer.renderToString(
-            <>
-              {allFlushEffects.map((flushEffect, i) => (
-                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-              ))}
-            </>
-          )
-          return flushed
-        }
-
-        // Handle static data for server components.
-        async function generateStaticFlightDataIfNeeded() {
-          if (serverComponentsPageDataTransformStream) {
-            // If it's a server component with the Node.js runtime, we also
-            // statically generate the page data.
-            let data = ''
-
-            const readable = serverComponentsPageDataTransformStream.readable
-            const reader = readable.getReader()
-            const textDecoder = new TextDecoder()
-
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-              data += decodeText(value, textDecoder)
-            }
-
-            ;(renderOpts as any).pageData = {
-              ...(renderOpts as any).pageData,
-              __flight__: data,
-            }
-            return data
+      const createBodyResult =
+        (initialStream: ReactReadableStream): typeof bodyResult =>
+        (suffix) => {
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when `wrapApp` is called
+          const flushEffectHandler = (): string => {
+            const allFlushEffects = [
+              styledJsxFlushEffect,
+              ...(flushEffects || []),
+            ]
+            const flushed = ReactDOMServer.renderToString(
+              <>
+                {allFlushEffects.map((flushEffect, i) => (
+                  <React.Fragment key={i}>{flushEffect()}</React.Fragment>
+                ))}
+              </>
+            )
+            return flushed
           }
-        }
 
-        // @TODO: A potential improvement would be to reuse the inlined
-        // data stream, or pass a callback inside as this doesn't need to
-        // be streamed.
-        // Do not use `await` here.
-        generateStaticFlightDataIfNeeded()
-        return continueFromInitialStream({
-          renderStream,
-          suffix,
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML,
-          flushEffectHandler,
-        })
-      }
+          // Handle static data for server components.
+          async function generateStaticFlightDataIfNeeded() {
+            if (serverComponentsPageDataTransformStream) {
+              // If it's a server component with the Node.js runtime, we also
+              // statically generate the page data.
+              let data = ''
+
+              const readable = serverComponentsPageDataTransformStream.readable
+              const reader = readable.getReader()
+              const textDecoder = new TextDecoder()
+
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) {
+                  break
+                }
+                data += decodeText(value, textDecoder)
+              }
+
+              ;(renderOpts as any).pageData = {
+                ...(renderOpts as any).pageData,
+                __flight__: data,
+              }
+              return data
+            }
+          }
+
+          // @TODO: A potential improvement would be to reuse the inlined
+          // data stream, or pass a callback inside as this doesn't need to
+          // be streamed.
+          // Do not use `await` here.
+          generateStaticFlightDataIfNeeded()
+          return continueFromInitialStream(initialStream, {
+            suffix,
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML,
+            flushEffectHandler,
+          })
+        }
 
       const hasDocumentGetInitialProps = !(
         isServerComponent ||
         process.env.NEXT_RUNTIME === 'edge' ||
         !Document.getInitialProps
       )
+
+      let bodyResult: (
+        s: string
+      ) => Promise<ReadableStream<Uint8Array>> | ReadableStream<Uint8Array>
 
       // If it has getInitialProps, we will render the shell in `renderPage`.
       // Otherwise we do it right now.
@@ -1571,9 +1569,10 @@ export async function renderToHTML(
         documentInitialPropsRes = await documentInitialProps(renderShell)
         if (documentInitialPropsRes === null) return null
         const { docProps } = documentInitialPropsRes as any
-        bodyResult = (suffix) => streamFromArray([docProps.html, suffix])
+        bodyResult = createBodyResult(streamFromArray([docProps.html]))
       } else {
-        await renderShell(App, Component)
+        const stream = await renderShell(App, Component)
+        bodyResult = createBodyResult(stream)
         documentInitialPropsRes = {}
       }
 
