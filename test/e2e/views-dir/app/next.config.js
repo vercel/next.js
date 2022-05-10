@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
-    rootDir: true,
+    viewsDir: true,
     runtime: 'nodejs',
     reactRoot: true,
     serverComponents: true,
