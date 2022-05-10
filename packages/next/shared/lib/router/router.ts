@@ -1070,7 +1070,16 @@ export default class Router implements BaseRouter {
       if (scroll) {
         this.scrollToHash(cleanedAs)
       }
-      this.set(nextState, this.components[nextState.route], null)
+      try {
+        await this.set(nextState, this.components[nextState.route], null)
+      } catch (err) {
+        if (isError(err) && err.cancelled) {
+          Router.events.emit('routeChangeError', err, cleanedAs, routeProps)
+          return false
+        }
+        throw err
+      }
+
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
