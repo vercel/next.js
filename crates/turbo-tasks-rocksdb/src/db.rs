@@ -80,7 +80,7 @@ impl TaskFreshness {
 
 // This stores the type and inputs of a task and maps it to a task id.
 // Can't be changed.
-table!(task_cache, (PersistentTaskType) <=> (TaskId));
+table!(task_cache, (PersistentTaskType) <=> (TaskId), prefix(full));
 
 table!(next_task_id, (usize), merge((usize): |a: usize, b| a + b, |a, b| a + b));
 
@@ -89,9 +89,9 @@ table!(next_task_id, (usize), merge((usize): |a: usize, b| a + b, |a, b| a + b))
 // It might be unset when the slot is empty.
 // In this case we need to re-execute the task before we can read the content
 // When changed to dirty, `task_dependencies` need to be processed
-table!(task_slot, (TaskId, usize) => (Option<SharedReference>));
+table!(task_slot, (TaskId, usize) => (Option<SharedReference>), prefix(full));
 // This stores the next free slot for a task
-table!(task_next_slot, (TaskId) => (usize));
+table!(task_next_slot, (TaskId) => (usize), prefix(full));
 
 // This stores the return value of a task and it's dirty state.
 // When changed to dirty, `task_dependencies` need to be processed
@@ -103,18 +103,18 @@ table!(task_state, (TaskId) => (TaskFreshness, Option<TaskOutput>), merge(
     |v: (TaskFreshness, Option<TaskOutput>), m| (v.0.merge(m), v.1),
     |m1, m2| m1 && m2,
     without_task_id_mapping
-));
+), prefix(full));
 
 // This stores the mappings of the slotted data to slot indicies
-table!(task_slot_mappings, (TaskId) => (SlotMappings));
+table!(task_slot_mappings, (TaskId) => (SlotMappings), prefix(full));
 
 // This stores the dependencies of a task.
 // When processing this from a RawVc, flag all listed tasks as dirty.
-table!(task_dependencies, [TaskId] <=> [RawVc]);
+table!(task_dependencies, [TaskId] <=> [RawVc], prefix(u8));
 
 // This stores to list of child tasks for each task
 // When updated the generation of the task need to be updated
-table!(task_children, (TaskId) => [TaskId]);
+table!(task_children, (TaskId) => [TaskId], prefix(u8));
 
 // This stores tasks sorted by generation.
 // This allows to iterate over all tasks that have been changed
@@ -123,25 +123,25 @@ table!(task_children, (TaskId) => [TaskId]);
 // The only operation is to update a Task to the current generation
 // this operation is idempotent, so we need no syncronization on
 // this.
-table!(task_generations, (SortableIndex) <=> [TaskId]);
+table!(task_generations, (SortableIndex) <=> [TaskId], prefix(u8));
 
 // This stores the current generation of a session.
 // Only written during startup, so we need no sync.
-table!(session_generation, (SessionKey) => (u64));
+table!(session_generation, (SessionKey) => (u64), prefix(full));
 // This stores the tasks that are current scheduled.
 // When restoring a session they need to be rescheduled.
-table!(session_scheduled_tasks, (SessionKey) => [TaskId]);
+table!(session_scheduled_tasks, (SessionKey) => [TaskId], prefix(u32, read_u32, write_u32));
 // This stores the tasks that were children of the root tasks.
 // This is stored because it had affected `session_active_parents`
 // and these counts need to be removed again when the root task
 // has finished executing.
-table!(session_transient_task_children, (SessionKey) => [TaskId]);
+table!(session_transient_task_children, (SessionKey) => [TaskId], prefix(u32, read_u32, write_u32));
 // This stores a snapshot of `task_children` at last point that was
 // processed by this sesssion.
 // When bringing the session up-to-date we can compare that with
 // `task_children` to get the change and update `session_active_parents`.
 // Access to this need to be synced with "session_task_active".
-table!(session_task_children, (SessionKey, TaskId) => [TaskId]);
+table!(session_task_children, (SessionKey, TaskId) => [TaskId], prefix(u32, read_u32, write_u32));
 // This stores the number of active parents of a task in a session.
 // When this reaches 0 or become non-zero we need to update
 // `session_task_active` eventually. This is queued in
@@ -152,19 +152,19 @@ table!(session_active_parents, (SessionKey, TaskId) => (usize), merge(
     |v: usize, m: i32| if m < 0 { v.saturating_sub(-m as usize) } else { v + (m as usize) },
     |m1, m2| m1 + m2,
     without_task_id_mapping
-));
+), prefix(u32, read_u32, write_u32));
 // This stores if a task is active or not.
 // Changing this need to be propagated onto `session_active_parents` for all
 // children (`task_children`).
 // When this is set the task is scheduled and `session_scheduled_tasks`
 // is also updated.
 // Access to this need to be synced.
-table!(session_task_active, (SessionKey) => [TaskId]);
+table!(session_task_active, (SessionKey) => [TaskId], prefix(u32, read_u32, write_u32));
 // This stores for which tasks the active state need to be revalidated
 // on restart. It's only read on startup, but kept up to date with the
 // in memory queue of operations.
 // It's not read during normal operation so this doesn't need to be synced.
-table!(session_ongoing_active_update, (SessionKey) => [TaskId]);
+table!(session_ongoing_active_update, (SessionKey) => [TaskId], prefix(u32, read_u32, write_u32));
 
 // This stores the latest generation of the database.
 // It's only written during startup.

@@ -89,7 +89,8 @@ macro_rules! table_internal_merge {
         ) -> Result<(), bincode::Error> {
             #[cfg(feature = "log_db")]
             println!("DB     merge({} {:?} += {:?})", stringify!($name), key, merge);
-            let key = DefaultOptions::new().serialize(&key)?;
+            #[allow(unused_parens)]
+            let key = Self::make_key::<($(&$key),+)>(&key)?;
             let merge = DefaultOptions::new().serialize(merge)?;
             let cf = self.db.cf_handle(stringify!($name)).unwrap();
             batch.merge(cf, &key, &merge);
@@ -106,17 +107,262 @@ macro_rules! table_base_internal_direction {
         ));
     };
 }
+macro_rules! table_base_internal_prefix {
+    ($opt:ident, (ignore)) => {};
+    ($opt:ident, ()) => {};
+    ($opt:ident, (u8)) => {
+        fn get_prefix(v: &[u8]) -> &[u8] {
+            let len = v[0];
+            &v[..len as usize]
+        }
+        $opt.set_prefix_extractor(rocksdb::SliceTransform::create(
+            concat!("u8 length tagged"),
+            get_prefix,
+            None,
+        ));
+    };
+    ($opt:ident, (full)) => {
+        fn get_prefix(v: &[u8]) -> &[u8] {
+            v
+        }
+        $opt.set_prefix_extractor(rocksdb::SliceTransform::create(
+            concat!("full key"),
+            get_prefix,
+            None,
+        ));
+    };
+    ($opt:ident, ($length:ident, $read:ident, $write:ident)) => {
+        fn get_prefix(v: &[u8]) -> &[u8] {
+            let len = <byteorder::BigEndian as byteorder::ByteOrder>::$read(v);
+            &v[..len as usize]
+        }
+        $opt.set_prefix_extractor(rocksdb::SliceTransform::create(
+            concat!(stringify!($length), " length tagged"),
+            get_prefix,
+            None,
+        ));
+    };
+}
+macro_rules! table_base_internal_prefix_helper {
+    ((ignore)) => {};
+    (()) => {
+        #[allow(dead_code)]
+        fn swap_key(key: &[u8], slice_len: usize) -> Vec<u8> {
+            [&key[slice_len..], &key[..slice_len]].concat()
+        }
+
+        fn make_key<T: serde::Serialize>(key: &T) -> Result<Vec<u8>, bincode::Error> {
+            DefaultOptions::new().serialize(key)
+        }
+
+        #[allow(dead_code)]
+        fn as_key(v: &[u8]) -> Vec<u8> {
+            v.to_vec()
+        }
+
+        #[allow(dead_code)]
+        fn from_key(v: &[u8]) -> &[u8] {
+            v
+        }
+
+        fn next_key(key: &[u8]) -> Option<Vec<u8>> {
+            let mut v = Vec::from(key);
+            for i in (0..v.len()).rev() {
+                if v[i] != u8::MAX {
+                    v[i] += 1;
+                    return Some(v);
+                } else {
+                    v[i] = 0;
+                }
+            }
+            None
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_partial(read_opt: &mut rocksdb::ReadOptions, partial_key: &[u8]) {
+            if let Some(next_key) = Self::next_key(partial_key) {
+                read_opt.set_iterate_upper_bound(next_key);
+            }
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_full(read_opt: &mut rocksdb::ReadOptions, key: &[u8]) {
+            if let Some(next_key) = Self::next_key(key) {
+                read_opt.set_iterate_upper_bound(next_key);
+            }
+        }
+    };
+    ((full)) => {
+        #[allow(dead_code)]
+        fn swap_key(key: &[u8], slice_len: usize) -> Vec<u8> {
+            [&key[slice_len..], &key[..slice_len]].concat()
+        }
+
+        fn make_key<T: serde::Serialize>(key: &T) -> Result<Vec<u8>, bincode::Error> {
+            DefaultOptions::new().serialize(key)
+        }
+
+        #[allow(dead_code)]
+        fn as_key(v: &[u8]) -> Vec<u8> {
+            v.to_vec()
+        }
+
+        #[allow(dead_code)]
+        fn from_key(v: &[u8]) -> &[u8] {
+            v
+        }
+
+        #[allow(dead_code)]
+        fn next_key(key: &[u8]) -> Option<Vec<u8>> {
+            let mut v = Vec::from(key);
+            for i in (0..v.len()).rev() {
+                if v[i] != u8::MAX {
+                    v[i] += 1;
+                    return Some(v);
+                } else {
+                    v[i] = 0;
+                }
+            }
+            None
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_partial(read_opt: &mut rocksdb::ReadOptions, partial_key: &[u8]) {
+            if let Some(next_key) = Self::next_key(partial_key) {
+                read_opt.set_iterate_upper_bound(next_key);
+            }
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_full(read_opt: &mut rocksdb::ReadOptions, _: &[u8]) {
+            read_opt.set_prefix_same_as_start(true);
+        }
+    };
+    ((u8)) => {
+        #[allow(dead_code)]
+        fn swap_key(key: &[u8], slice_len: usize) -> Vec<u8> {
+            let len = match u8::try_from(key.len() - slice_len + 1) {
+                Ok(l) => l,
+                Err(_) => u8::MAX,
+            };
+            let mut len_buf = [0; 1];
+            len_buf[0] = len;
+            [&len_buf, &key[slice_len..], &key[1..slice_len]].concat()
+        }
+
+        fn make_key<T: serde::Serialize>(key: &T) -> Result<Vec<u8>, bincode::Error> {
+            let mut buf = Vec::from([0; 1]);
+            DefaultOptions::new().serialize_into(&mut buf, key)?;
+            let len = match u8::try_from(buf.len()) {
+                Ok(l) => l,
+                Err(_) => u8::MAX,
+            };
+            buf[0] = len;
+            Ok(buf)
+        }
+
+        #[allow(dead_code)]
+        fn as_key(v: &[u8]) -> Vec<u8> {
+            let len = match u8::try_from(v.len() + 1) {
+                Ok(l) => l,
+                Err(_) => u8::MAX,
+            };
+            let mut buf = Vec::new();
+            buf.push(len);
+            buf.extend(v.iter());
+            buf
+        }
+
+        #[allow(dead_code)]
+        fn from_key(v: &[u8]) -> &[u8] {
+            &v[1..]
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_partial(read_opt: &mut rocksdb::ReadOptions, _: &[u8]) {
+            read_opt.set_prefix_same_as_start(true);
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_full(read_opt: &mut rocksdb::ReadOptions, _: &[u8]) {
+            read_opt.set_prefix_same_as_start(true);
+        }
+    };
+    (($length:ident, $read:ident, $write:ident)) => {
+        #[allow(dead_code)]
+        fn swap_key(key: &[u8], slice_len: usize) -> Vec<u8> {
+            const LEN_SIZE: usize = std::mem::size_of::<$length>();
+            let len = match $length::try_from(key.len() - slice_len + LEN_SIZE) {
+                Ok(l) => l,
+                Err(_) => $length::MAX,
+            };
+            let mut len_buf = [0; LEN_SIZE];
+            <byteorder::BigEndian as byteorder::ByteOrder>::$write(&mut len_buf, len);
+            [&len_buf, &key[slice_len..], &key[LEN_SIZE..slice_len]].concat()
+        }
+
+        fn make_key<T: serde::Serialize>(key: &T) -> Result<Vec<u8>, bincode::Error> {
+            const LEN_SIZE: usize = std::mem::size_of::<$length>();
+            let mut buf = Vec::from([0; LEN_SIZE]);
+            DefaultOptions::new().serialize_into(&mut buf, key)?;
+            let len = match $length::try_from(buf.len()) {
+                Ok(l) => l,
+                Err(_) => $length::MAX,
+            };
+            <byteorder::BigEndian as byteorder::ByteOrder>::$write(&mut buf, len);
+            Ok(buf)
+        }
+
+        #[allow(dead_code)]
+        fn as_key(v: &[u8]) -> Vec<u8> {
+            const LEN_SIZE: usize = std::mem::size_of::<$length>();
+            let len = match $length::try_from(v.len() + LEN_SIZE) {
+                Ok(l) => l,
+                Err(_) => $length::MAX,
+            };
+            let mut buf = Vec::from([0; LEN_SIZE]);
+            <byteorder::BigEndian as byteorder::ByteOrder>::$write(&mut buf, len);
+            buf.extend(v.iter());
+            buf
+        }
+
+        #[allow(dead_code)]
+        fn from_key(v: &[u8]) -> &[u8] {
+            const LEN_SIZE: usize = std::mem::size_of::<$length>();
+            &v[LEN_SIZE..]
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_partial(read_opt: &mut rocksdb::ReadOptions, _: &[u8]) {
+            read_opt.set_prefix_same_as_start(true);
+        }
+
+        #[allow(dead_code)]
+        fn set_upper_bound_full(read_opt: &mut rocksdb::ReadOptions, _: &[u8]) {
+            read_opt.set_prefix_same_as_start(true);
+        }
+    };
+}
 macro_rules! table_base_internal {
     ($name:ident) => {
-        $crate::table::table_base_internal!($name, direction single value () merge ());
+        $crate::table::table_base_internal!($name, direction single value () merge () prefix ());
     };
     ($name:ident, direction $direction:tt) => {
-        $crate::table::table_base_internal!($name, direction $direction value () merge ());
+        $crate::table::table_base_internal!($name, direction $direction value () merge () prefix ());
+    };
+    ($name:ident, direction $direction:tt prefix $prefix:tt) => {
+        $crate::table::table_base_internal!($name, direction $direction value () merge () prefix $prefix);
+    };
+    ($name:ident, prefix $prefix:tt) => {
+        $crate::table::table_base_internal!($name, direction single value () merge () prefix $prefix);
     };
     ($name:ident, value $value:tt merge $merge:tt) => {
-        $crate::table::table_base_internal!($name, direction single value $value merge $merge);
+        $crate::table::table_base_internal!($name, direction single value $value merge $merge prefix ());
     };
-    ($name:ident, direction $direction:tt value $value:tt merge $merge:tt) => {
+    ($name:ident, value $value:tt merge $merge:tt prefix $prefix:tt) => {
+        $crate::table::table_base_internal!($name, direction single value $value merge $merge prefix $prefix);
+    };
+    ($name:ident, direction $direction:tt value $value:tt merge $merge:tt prefix $prefix:tt) => {
         #[allow(unused_imports)]
         use super::*;
         use anyhow::Result;
@@ -134,6 +380,7 @@ macro_rules! table_base_internal {
                 #[allow(unused_mut)]
                 let mut opt = $crate::table::DEFAULT_OPTIONS.clone();
                 $crate::table::table_base_internal_merge!(opt, $value + $merge);
+                $crate::table::table_base_internal_prefix!(opt, $prefix);
                 $crate::table::table_base_internal_direction!($name, opt, list, $direction);
                 list.push(ColumnFamilyDescriptor::new(stringify!($name), opt));
             }
@@ -141,6 +388,8 @@ macro_rules! table_base_internal {
             pub fn new(db: Arc<DB>) -> Self {
                 Self { db }
             }
+
+            $crate::table::table_base_internal_prefix_helper!($prefix);
 
             pub fn get_stats(&self) -> Result<$crate::table::CFStats> {
                 let mut stats = $crate::table::CFStats::default();
@@ -175,7 +424,7 @@ macro_rules! table {
     };
     ($name:ident, ($($value:ty),+), merge $merge:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name, value(($($value),+)) merge $merge);
+            $crate::table::table_base_internal!($name, value(($($value),+)) merge $merge prefix(ignore));
 
             impl Api {
                 #[allow(unused_parens)]
@@ -187,6 +436,8 @@ macro_rules! table {
                         println!("DB get({}) = {:?}", stringify!($name), &value);
                         Ok(Some(value))
                     } else {
+                        #[cfg(feature = "log_db")]
+                        println!("DB get({}) = NOT FOUND", stringify!($name));
                         Ok(None)
                     }
                 }
@@ -225,8 +476,11 @@ macro_rules! table {
         }
     };
     ($name:ident, ($($key:ty),+) => [$($value:ty),+]) => {
+        $crate::table::table!($name, ($($key),+) => [$($value),+], prefix());
+    };
+    ($name:ident, ($($key:ty),+) => [$($value:ty),+], prefix $prefix:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name);
+            $crate::table::table_base_internal!($name, prefix $prefix);
 
             impl Api {
                 #[allow(unused_parens, dead_code)]
@@ -236,12 +490,10 @@ macro_rules! table {
                     key: ($(&$key),+),
                 ) -> Result<Vec<($($value),+)>> {
                     let mut result = Vec::new();
-                    let key_bytes = DefaultOptions::new().serialize(&key)?;
+                    let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_key) = crate::table::next_key(&key_bytes) {
-                        read_opt.set_iterate_upper_bound(next_key);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
                     iter.seek(key_bytes);
@@ -259,14 +511,12 @@ macro_rules! table {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_range(&self, start: ($(&$key),+), end: ($(&$key),+)) -> Result<Vec<($($value),+)>> {
                     let mut result = Vec::new();
-                    let start_bytes = DefaultOptions::new().serialize(&start)?;
-                    let end_bytes = DefaultOptions::new().serialize(&end)?;
+                    let start_bytes = Self::make_key::<($(&$key),+)>(&start)?;
+                    let end_bytes = Self::make_key::<($(&$key),+)>(&end)?;
                     assert_eq!(start_bytes.len(), end_bytes.len());
                     let key_len = start_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_key) = crate::table::next_key(&end_bytes) {
-                        read_opt.set_iterate_upper_bound(next_key);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &start_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
                     iter.seek(start_bytes);
@@ -289,7 +539,7 @@ macro_rules! table {
                     #[allow(unused_parens)]
                     value: ($(&$value),+)
                 ) -> Result<bool> {
-                    let mut key_bytes = DefaultOptions::new().serialize(&key)?;
+                    let mut key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     DefaultOptions::new().serialize_into(&mut key_bytes, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let exists = self.db.get_pinned_cf(cf, key_bytes)?.is_some();
@@ -309,7 +559,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     put({} {:?} += {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     batch.put(cf, &key, &[]);
@@ -327,7 +578,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     delete({} {:?} -= {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     batch.delete(cf, &key);
@@ -340,7 +592,7 @@ macro_rules! table {
                     let mut list = f.debug_list();
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     for (key_bytes, _) in self.db.iterator_cf(cf, rocksdb::IteratorMode::Start) {
-                        let mut c = std::io::Cursor::new(key_bytes);
+                        let mut c = std::io::Cursor::new(Self::from_key(&key_bytes));
                         #[allow(unused_parens)]
                         let key: Option<($($key),+)> = DefaultOptions::new().allow_trailing_bytes().deserialize_from(&mut c).ok();
                         #[allow(unused_parens)]
@@ -355,19 +607,20 @@ macro_rules! table {
         }
     };
     ($name:ident, [$($key:ty),+] <=> [$($value:ty),+]) => {
+        $crate::table::table!($name, [$($key),+] <=> [$($value),+], prefix());
+    };
+    ($name:ident, [$($key:ty),+] <=> [$($value:ty),+], prefix $prefix:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name, direction both);
+            $crate::table::table_base_internal!($name, direction both prefix $prefix);
 
             impl Api {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_values(&self, key: ($(&$key),+)) -> Result<Vec<($($value),+)>> {
                     let mut result = Vec::new();
-                    let key_bytes = DefaultOptions::new().serialize(&key)?;
+                    let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_key) = crate::table::next_key(&key_bytes) {
-                        read_opt.set_iterate_upper_bound(next_key);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
                     iter.seek(key_bytes);
@@ -385,12 +638,10 @@ macro_rules! table {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_keys(&self, value: ($(&$value),+)) -> Result<Vec<($($key),+)>> {
                     let mut result = Vec::new();
-                    let value_bytes = DefaultOptions::new().serialize(value)?;
+                    let value_bytes = Self::make_key::<($(&$value),+)>(&value)?;
                     let value_len = value_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_value) = crate::table::next_key(&value_bytes) {
-                        read_opt.set_iterate_upper_bound(next_value);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &value_bytes);
                     let cf2 = self
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
@@ -419,7 +670,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     put({} {:?} +=+ {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key.len();
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
@@ -428,7 +680,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    let key2 = $crate::table::swap_key(&key, key_len);
+                    let key2 = Self::swap_key(&key, key_len);
                     batch.put(cf2, key2, &[]);
                     Ok(())
                 }
@@ -444,7 +696,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     delete({} {:?} -= {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key.len();
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
@@ -453,7 +706,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    let key2 = $crate::table::swap_key(&key, key_len);
+                    let key2 = Self::swap_key(&key, key_len);
                     batch.delete(cf2, key2);
                     Ok(())
                 }
@@ -464,7 +717,7 @@ macro_rules! table {
                     let mut list = f.debug_list();
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     for (key_bytes, _) in self.db.iterator_cf(cf, rocksdb::IteratorMode::Start) {
-                        let mut c = std::io::Cursor::new(key_bytes);
+                        let mut c = std::io::Cursor::new(Self::from_key(&key_bytes));
                         #[allow(unused_parens)]
                         let key: Option<($($key),+)> = DefaultOptions::new().allow_trailing_bytes().deserialize_from(&mut c).ok();
                         #[allow(unused_parens)]
@@ -479,19 +732,20 @@ macro_rules! table {
         }
     };
     ($name:ident, ($($key:ty),+) <=> [$($value:ty),+]) => {
+        $crate::table::table!($name, ($($key),+) <=> [$($value),+], prefix());
+    };
+    ($name:ident, ($($key:ty),+) <=> [$($value:ty),+], prefix $prefix:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name, direction both);
+            $crate::table::table_base_internal!($name, direction both prefix $prefix);
 
             impl Api {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_values(&self, key: ($(&$key),+)) -> Result<Vec<($($value),+)>> {
                     let mut result = Vec::new();
-                    let key_bytes = DefaultOptions::new().serialize(&key)?;
+                    let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_key) = crate::table::next_key(&key_bytes) {
-                        read_opt.set_iterate_upper_bound(next_key);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
                     iter.seek(key_bytes);
@@ -508,7 +762,7 @@ macro_rules! table {
 
                 #[allow(unused_parens, dead_code)]
                 pub fn get_key(&self, value: ($(&$value),+)) -> Result<Option<($($key),+)>> {
-                    let value_bytes = DefaultOptions::new().serialize(value)?;
+                    let value_bytes = Self::make_key::<($(&$value),+)>(&value)?;
                     let cf = self
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
@@ -519,6 +773,8 @@ macro_rules! table {
                         println!("DB get_key({} {:?}) = {:?}", stringify!($name), &value, &key);
                         Ok(Some(key))
                     } else {
+                        #[cfg(feature = "log_db")]
+                        println!("DB get_key({}) = NOT FOUND", stringify!($name));
                         Ok(None)
                     }
                 }
@@ -526,14 +782,12 @@ macro_rules! table {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_values_range(&self, start: ($(&$key),+), end: ($(&$key),+)) -> Result<Vec<($($value),+)>> {
                     let mut result = Vec::new();
-                    let start_bytes = DefaultOptions::new().serialize(start)?;
-                    let end_bytes = DefaultOptions::new().serialize(end)?;
+                    let start_bytes = Self::make_key::<($(&$key),+)>(&start)?;
+                    let end_bytes = Self::make_key::<($(&$key),+)>(&end)?;
                     assert_eq!(start_bytes.len(), end_bytes.len());
                     let key_len = start_bytes.len();
                     let mut read_opt = rocksdb::ReadOptions::default();
-                    if let Some(next_key) = crate::table::next_key(&end_bytes) {
-                        read_opt.set_iterate_upper_bound(next_key);
-                    }
+                    Self::set_upper_bound_partial(&mut read_opt, &start_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
                     iter.seek(start_bytes);
@@ -559,7 +813,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     put({} {:?} +=+ {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key.len();
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
@@ -568,7 +823,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    batch.put(cf2, &key[key_len..], &key[..key_len]);
+                    batch.put(cf2, Self::as_key(&key[key_len..]), Self::from_key(&key[..key_len]));
                     Ok(())
                 }
 
@@ -583,7 +838,9 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     delete({} {:?} -= {:?})", stringify!($name), key, value);
-                    let mut key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    #[allow(unused_parens)]
+                    let mut key = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key.len();
                     DefaultOptions::new().serialize_into(&mut key, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
@@ -592,7 +849,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    let key2 = $crate::table::swap_key(&key, key_len);
+                    let key2 = Self::swap_key(&key, key_len);
                     batch.delete(cf2, key2);
                     Ok(())
                 }
@@ -606,16 +863,19 @@ macro_rules! table {
                     #[allow(unused_parens)]
                     value: ($(&$value),+),
                 ) -> Result<()> {
-                    let mut key_bytes = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let mut key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
                     DefaultOptions::new().serialize_into(&mut key_bytes, value)?;
+                    let keyed_value = Self::as_key(&key_bytes[key_len..]);
+                    let only_key_bytes = Self::from_key(&key_bytes[..key_len]);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let cf2 = self
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    if let Some(current_key) = self.db.get_pinned_cf(cf2, &key_bytes[key_len..])? {
-                        if &*current_key == &key_bytes[..key_len] {
+                    if let Some(current_key) = self.db.get_pinned_cf(cf2, &keyed_value)? {
+                        if &*current_key == only_key_bytes {
                             return Ok(());
                         }
                         #[cfg(feature = "log_db")]
@@ -626,7 +886,7 @@ macro_rules! table {
                         println!("DB     put({} {:?} += {:?})", stringify!($name), key, value);
                     }
                     batch.put(cf, &key_bytes, &[]);
-                    batch.put(cf2, &key_bytes[key_len..], &key_bytes[..key_len]);
+                    batch.put(cf2, &keyed_value, only_key_bytes);
                     Ok(())
                 }
             }
@@ -639,7 +899,7 @@ macro_rules! table {
                         #[allow(unused_parens)]
                         let key: Option<($($key),+)> = DefaultOptions::new().deserialize(&key_bytes).ok();
                         #[allow(unused_parens)]
-                        let value: Option<($($value),+)> = DefaultOptions::new().deserialize(&value_bytes).ok();
+                        let value: Option<($($value),+)> = DefaultOptions::new().deserialize(Self::from_key(&value_bytes)).ok();
                         if let (Some(key), Some(value)) = (key, value) {
                             list.entry(&$crate::table::KeyValueDebug { key, value });
                         }
@@ -650,13 +910,16 @@ macro_rules! table {
         }
     };
     ($name:ident, ($($key:ty),+) <=> ($($value:ty),+)) => {
+        $crate::table::table!($name, ($($key),+) <=> ($($value),+), prefix());
+    };
+    ($name:ident, ($($key:ty),+) <=> ($($value:ty),+), prefix $prefix:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name, direction both);
+            $crate::table::table_base_internal!($name, direction both prefix $prefix);
 
             impl Api {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_value(&self, key: ($(&$key),+)) -> Result<Option<($($value),+)>> {
-                    let key = DefaultOptions::new().serialize(&key)?;
+                    let key = Self::make_key::<($(&$key),+)>(&key)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     if let Some(value) = self.db.get_pinned_cf(cf, &key)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
@@ -668,7 +931,7 @@ macro_rules! table {
 
                 #[allow(unused_parens, dead_code)]
                 pub fn get_key(&self, value: ($(&$value),+)) -> Result<Option<($($key),+)>> {
-                    let value_bytes = DefaultOptions::new().serialize(value)?;
+                    let value_bytes = Self::make_key::<($(&$value),+)>(&value)?;
                     let cf = self
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
@@ -679,6 +942,8 @@ macro_rules! table {
                         println!("DB get_key({} {:?}) = {:?}", stringify!($name), &value, &key);
                         Ok(Some(key))
                     } else {
+                        #[cfg(feature = "log_db")]
+                        println!("DB get_key({} {:?}) = NOT FOUND", stringify!($name), &value);
                         Ok(None)
                     }
                 }
@@ -697,12 +962,12 @@ macro_rules! table {
                     let key = DefaultOptions::new().serialize(&key)?;
                     let value = DefaultOptions::new().serialize(value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    batch.put(cf, &key, &value);
+                    batch.put(cf, Self::as_key(&key), &value);
                     let cf2 = self
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    batch.put(cf2, value, key);
+                    batch.put(cf2, Self::as_key(&value), key);
                     Ok(())
                 }
 
@@ -717,8 +982,10 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     delete({} {:?} != {:?})", stringify!($name), &key, &value);
-                    let key = DefaultOptions::new().serialize(&key)?;
-                    let value = DefaultOptions::new().serialize(value)?;
+                    #[allow(unused_parens)]
+                    let key = Self::make_key::<($(&$key),+)>(&key)?;
+                    #[allow(unused_parens)]
+                    let value = Self::make_key::<($(&$value),+)>(&value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     batch.delete(cf, key);
                     let cf2 = self
@@ -736,7 +1003,7 @@ macro_rules! table {
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     for (key_bytes, value_bytes) in self.db.iterator_cf(cf, rocksdb::IteratorMode::Start) {
                         #[allow(unused_parens)]
-                        let key: Option<($($key),+)> = DefaultOptions::new().deserialize(&key_bytes).ok();
+                        let key: Option<($($key),+)> = DefaultOptions::new().deserialize(Self::from_key(&key_bytes)).ok();
                         #[allow(unused_parens)]
                         let value: Option<($($value),+)> = DefaultOptions::new().deserialize(&value_bytes).ok();
                         if let (Some(key), Some(value)) = (key, value) {
@@ -749,11 +1016,17 @@ macro_rules! table {
         }
     };
     ($name:ident, ($($key:ty),+) => ($($value:ty),+)) => {
-        $crate::table::table!($name, ($($key),+) => ($($value),+), merge());
+        $crate::table::table!($name, ($($key),+) => ($($value),+), merge(), prefix());
+    };
+    ($name:ident, ($($key:ty),+) => ($($value:ty),+), prefix $prefix:tt) => {
+        $crate::table::table!($name, ($($key),+) => ($($value),+), merge(), prefix $prefix);
     };
     ($name:ident, ($($key:ty),+) => ($($value:ty),+), merge $merge:tt) => {
+        $crate::table::table!($name, ($($key),+) => ($($value),+), merge $merge, prefix ());
+    };
+    ($name:ident, ($($key:ty),+) => ($($value:ty),+), merge $merge:tt, prefix $prefix:tt) => {
         pub mod $name {
-            $crate::table::table_base_internal!($name, value(($($value),+)) merge $merge);
+            $crate::table::table_base_internal!($name, value(($($value),+)) merge $merge prefix $prefix);
 
             impl Api {
                 #[allow(unused_parens, dead_code)]
@@ -762,7 +1035,7 @@ macro_rules! table {
                     #[allow(unused_parens)]
                     key: ($(&$key),+),
                 ) -> Result<Option<($($value),+)>> {
-                    let key_bytes = DefaultOptions::new().serialize(&key)?;
+                    let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     if let Some(value) = self.db.get_pinned_cf(cf, key_bytes)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
@@ -770,6 +1043,8 @@ macro_rules! table {
                         println!("DB get({} {:?}) = {:?}", stringify!($name), &key, &value);
                         Ok(Some(value))
                     } else {
+                        #[cfg(feature = "log_db")]
+                        println!("DB get({} {:?}) = NOT FOUND", stringify!($name), &key);
                         Ok(None)
                     }
                 }
@@ -785,7 +1060,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     put({} {:?} = {:?})", stringify!($name), &key, &value);
-                    let key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let key = Self::make_key::<($(&$key),+)>(&key)?;
                     let value = DefaultOptions::new().serialize(&value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     batch.put(cf, key, value);
@@ -801,7 +1077,8 @@ macro_rules! table {
                 ) -> Result<(), bincode::Error> {
                     #[cfg(feature = "log_db")]
                     println!("DB     delete({} {:?})", stringify!($name), &key);
-                    let key = DefaultOptions::new().serialize(&key)?;
+                    #[allow(unused_parens)]
+                    let key = Self::make_key::<($(&$key),+)>(&key)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     batch.delete(cf, key);
                     Ok(())
@@ -816,7 +1093,7 @@ macro_rules! table {
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     for (key_bytes, value_bytes) in self.db.iterator_cf(cf, rocksdb::IteratorMode::Start) {
                         #[allow(unused_parens)]
-                        let key: Option<($($key),+)> = DefaultOptions::new().deserialize(&key_bytes).ok();
+                        let key: Option<($($key),+)> = DefaultOptions::new().deserialize(Self::from_key(&key_bytes)).ok();
                         #[allow(unused_parens)]
                         let value: Option<($($value),+)> = DefaultOptions::new().deserialize(&value_bytes).ok();
                         if let (Some(key), Some(value)) = (key, value) {
@@ -898,14 +1175,17 @@ lazy_static! {
         let mut opt = rocksdb::Options::default();
         opt.create_missing_column_families(true);
         opt.create_if_missing(true);
-        opt.set_log_level(rocksdb::LogLevel::Warn);
+        opt.set_log_level(rocksdb::LogLevel::Debug);
         // set_atomic_flush is (only) needed when WAL is disabled
         opt.set_atomic_flush(true);
         // TODO Measure the following:
+        opt.set_memtable_prefix_bloom_ratio(0.25);
+        opt.set_allow_concurrent_memtable_write(true);
         opt.set_unordered_write(true);
         opt.increase_parallelism(num_cpus::get() as i32);
         opt.set_max_subcompactions(num_cpus::get() as u32);
         opt.optimize_universal_style_compaction(100 * 1024 * 1024);
+        opt.set_max_write_buffer_size_to_maintain(-1);
         opt.set_skip_checking_sst_file_sizes_on_db_open(true);
         opt.set_skip_stats_update_on_db_open(true);
         opt.set_allow_mmap_writes(true);
@@ -988,26 +1268,9 @@ impl Drop for WriteBatch {
     }
 }
 
-pub(crate) fn next_key(key: &[u8]) -> Option<Vec<u8>> {
-    let mut v = Vec::from(key);
-    for i in (0..v.len()).rev() {
-        if v[i] != u8::MAX {
-            v[i] += 1;
-            return Some(v);
-        } else {
-            v[i] = 0;
-        }
-    }
-    None
-}
-
-pub(crate) fn swap_key(key: &[u8], slice_len: usize) -> Vec<u8> {
-    [&key[slice_len..], &key[..slice_len]].concat()
-}
-
 pub(crate) use {
     database, table, table_base_internal, table_base_internal_direction, table_base_internal_merge,
-    table_internal_merge,
+    table_base_internal_prefix, table_base_internal_prefix_helper, table_internal_merge,
 };
 
 pub(crate) struct KeyValueDebug<K, V> {

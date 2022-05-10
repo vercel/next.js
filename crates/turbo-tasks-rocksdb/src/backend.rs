@@ -773,7 +773,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc>, event_listener::EventListener> {
         #[cfg(feature = "log_backend")]
-        println!("RB try_read_task_output(task: {}, reader: {})", task, reader);
+        println!(
+            "RB try_read_task_output(task: {}, reader: {})",
+            task, reader
+        );
         sequential(&self.mutex_task_dependencies, task, || {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_output_untracked(task, turbo_tasks) };
@@ -836,7 +839,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         #[cfg(feature = "log_backend")]
-        println!("RB track_read_task_output(task: {}, reader: {})", task, reader);
+        println!(
+            "RB track_read_task_output(task: {}, reader: {})",
+            task, reader
+        );
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Add dependency
@@ -855,7 +861,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener> {
         #[cfg(feature = "log_backend")]
-        println!("RB try_read_task_slot(task: {}, index: {}, reader: {})", task, index, reader);
+        println!(
+            "RB try_read_task_slot(task: {}, index: {}, reader: {})",
+            task, index, reader
+        );
         sequential(&self.mutex_task_dependencies, task, || {
             // SAFETY: We track the dependency below
             let result = unsafe { self.try_read_task_slot_untracked(task, index, turbo_tasks) };
@@ -875,7 +884,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<SlotContent>, EventListener> {
         #[cfg(feature = "log_backend")]
-        println!("RB try_read_task_slot_untracked(task: {}, index: {})", task, index);
+        println!(
+            "RB try_read_task_slot_untracked(task: {}, index: {})",
+            task, index
+        );
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Read task_slot
@@ -935,7 +947,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         #[cfg(feature = "log_backend")]
-        println!("RB track_read_task_slot(task: {}, index: {}, reader: {})", task, index, reader);
+        println!(
+            "RB track_read_task_slot(task: {}, index: {}, reader: {})",
+            task, index, reader
+        );
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Add dependency (task_dependencies)
@@ -972,7 +987,10 @@ impl Backend for RocksDbBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         #[cfg(feature = "log_backend")]
-        println!("RB get_or_create_persistent_task(task_type: {:?}, parent_task: {})", task_type, parent_task);
+        println!(
+            "RB get_or_create_persistent_task(task_type: {:?}, parent_task: {})",
+            task_type, parent_task
+        );
         self.with_task_id_mapping(turbo_tasks, || {
             self.try_get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
                 .unwrap()
