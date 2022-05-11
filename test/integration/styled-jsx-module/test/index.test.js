@@ -12,7 +12,6 @@ import {
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
-const nodeArgs = ['-r', join(appDir, '../../../lib/react-17-require-hook.js')]
 let appPort
 let app
 
@@ -49,13 +48,9 @@ function runTests() {
 describe('styled-jsx using in node_modules', () => {
   describe('Production', () => {
     beforeAll(async () => {
-      await nextBuild(appDir, undefined, {
-        nodeArgs,
-      })
+      await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        nodeArgs,
-      })
+      app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
 
@@ -65,9 +60,7 @@ describe('styled-jsx using in node_modules', () => {
   describe('Development', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        nodeArgs,
-      })
+      app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
 

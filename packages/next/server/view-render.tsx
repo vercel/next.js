@@ -19,7 +19,6 @@ import {
 import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
-import DefaultRootLayout from '../lib/views-layout'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -218,10 +217,13 @@ export async function renderToHTML(
 
   const isFlight = query.__flight__ !== undefined
   const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
+  delete query.__flight__
+  delete query.__flight_router_path__
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const components = Object.keys(ComponentMod.components)
+  const componentPaths = Object.keys(ComponentMod.components)
+  const components = componentPaths
     .filter((path) => {
       // Rendering part of the page is only allowed for flight data
       if (flightRouterPath) {
@@ -238,6 +240,8 @@ export async function renderToHTML(
       return mod
     })
 
+  const isSubtreeRender = components.length < componentPaths.length
+
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
   // invoke, where we'd have to consider server & serverless.
@@ -247,22 +251,12 @@ export async function renderToHTML(
     (renderOpts as any).previewProps
   )
   const isPreview = previewData !== false
-
-  let WrappedComponent: any
-  let RootLayout: any
-
   const dataCache = new Map<string, Record>()
+  let WrappedComponent: any
 
   for (let i = components.length - 1; i >= 0; i--) {
     const dataCacheKey = i.toString()
     const layout = components[i]
-
-    if (i === 0) {
-      // top-most layout is the root layout that renders
-      // the html/body tags
-      RootLayout = layout.Component
-      continue
-    }
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
@@ -313,8 +307,7 @@ export async function renderToHTML(
 
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
-    WrappedComponent = () => {
-      let props: any
+    WrappedComponent = (props: any) => {
       if (fetcher) {
         // The data fetching was kicked off before rendering (see above)
         // if the data was not resolved yet the layout rendering will be suspended
@@ -325,7 +318,25 @@ export async function renderToHTML(
         )
         // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
         const recordValue = readRecordValue(record)
-        props = recordValue.props
+
+        if (props) {
+          props = Object.assign({}, props, recordValue.props)
+        } else {
+          props = recordValue.props
+        }
+      }
+
+      // if this is the root layout pass children as bodyChildren prop
+      if (!isSubtreeRender && i === 0) {
+        return React.createElement(layout.Component, {
+          ...props,
+          headChildren: props.headChildren,
+          bodyChildren: React.createElement(
+            lastComponent || React.Fragment,
+            {},
+            null
+          ),
+        })
       }
 
       return React.createElement(
@@ -345,14 +356,11 @@ export async function renderToHTML(
     // }
   }
 
-  // Fall back to default root layout that renders <html> / <head> / <body>
-  if (!RootLayout) {
-    RootLayout = DefaultRootLayout
-  }
-
-  const headChildren = buildManifest.rootMainFiles.map((src) => (
-    <script src={'/_next/' + src} async key={src} />
-  ))
+  const headChildren = !isSubtreeRender
+    ? buildManifest.rootMainFiles.map((src) => (
+        <script src={'/_next/' + src} async key={src} />
+      ))
+    : undefined
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -362,11 +370,15 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
-  const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
-    cachePrefix: pathname + (search ? `?${search}` : ''),
-    transformStream: serverComponentsInlinedTransformStream,
-    serverComponentManifest,
-  })
+  const Component = createServerComponentRenderer(
+    WrappedComponent,
+    ComponentMod,
+    {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+    }
+  )
 
   // const serverComponentProps = query.__props__
   //   ? JSON.parse(query.__props__ as string)
@@ -417,10 +429,7 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        <RootLayout
-          headChildren={headChildren}
-          bodyChildren={<WrappedComponent />}
-        />,
+        <WrappedComponent headChildren={headChildren} />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -443,10 +452,7 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <AppContainer>
-        <Component
-          headChildren={headChildren}
-          bodyChildren={<WrappedComponent />}
-        />
+        <Component headChildren={headChildren} />
       </AppContainer>
     )
 
@@ -500,8 +506,7 @@ export async function renderToHTML(
     // Do not use `await` here.
     // generateStaticFlightDataIfNeeded()
 
-    return await continueFromInitialStream({
-      renderStream,
+    return await continueFromInitialStream(renderStream, {
       suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,

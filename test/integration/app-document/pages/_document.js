@@ -42,6 +42,7 @@ export default class MyDocument extends Document {
 
     return {
       ...result,
+      cssInJsCount: (result.html.match(/css-in-js-class/g) || []).length,
       customProperty: 'Hello Document',
       withCSP: ctx.query.withCSP,
     }
@@ -74,6 +75,7 @@ export default class MyDocument extends Document {
           <p id="document-hmr">Hello Document HMR</p>
           <Main />
           <NextScript nonce="test-nonce" />
+          <div id="css-in-cjs-count">{this.props.cssInJsCount}</div>
         </body>
       </Html>
     )
