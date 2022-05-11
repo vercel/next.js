@@ -1173,6 +1173,7 @@ export default async function getBaseWebpackConfig(
         'next-style-loader',
         'next-flight-client-loader',
         'next-flight-server-loader',
+        'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
@@ -1210,23 +1211,20 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   ...serverComponentCodeCondition,
+                  issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-server-loader',
                   },
                 },
-              ]
-            : [
-                // RSC client compilation loaders
                 {
-                  ...serverComponentCodeCondition,
+                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|head|script)/,
+                  issuerLayer: 'sc_server',
                   use: {
-                    loader: 'next-flight-server-loader',
-                    options: {
-                      client: 1,
-                    },
+                    loader: 'next-flight-client-loader',
                   },
                 },
               ]
+            : []
           : []),
         {
           test: /\.(js|cjs|mjs)$/,

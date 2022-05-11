@@ -44,6 +44,8 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageRuntime } from '../../build/entries'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -541,6 +543,10 @@ export default class HotReloader {
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+
+            // @FIXME
+            const { clientLoader } = entries[pageKey] as any
+
             const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
             const [, key, page] = result! // this match should always happen
             if (key === 'client' && !isClientCompilation) return
@@ -554,16 +560,20 @@ export default class HotReloader {
               return
             }
 
+            const isServerComponent =
+              serverComponentRegex.test(absolutePagePath)
+
             runDependingOnPageType({
               page,
               pageRuntime: await getPageRuntime(absolutePagePath, this.config),
               onEdgeServer: () => {
-                if (isEdgeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'edge-server',
-                    name: bundlePath,
-                    value: getEdgeServerEntry({
+                if (!isEdgeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'edge-server',
+                  name: bundlePath,
+                  value: {
+                    import: getEdgeServerEntry({
                       absolutePagePath,
                       buildId: this.buildId,
                       bundlePath,
@@ -572,11 +582,27 @@ export default class HotReloader {
                       page,
                       pages: this.pagesMapping,
                     }),
-                  })
-                }
+                    layer: isServerComponent ? 'sc_server' : 'edge_ssr',
+                  },
+                })
               },
               onClient: () => {
-                if (isClientCompilation) {
+                if (!isClientCompilation) return
+                if (isServerComponent) {
+                  entries[pageKey].status = BUILDING
+                  entrypoints[bundlePath] = finalizeEntrypoint({
+                    name: bundlePath,
+                    compilerType: 'client',
+                    value:
+                      `next-client-pages-loader?${stringify({
+                        isServerComponent,
+                        page: denormalizePagePath(
+                          bundlePath.replace(/^pages/, '')
+                        ),
+                        absolutePagePath: clientLoader,
+                      })}!` + clientLoader,
+                  })
+                } else {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -589,17 +615,18 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (isNodeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  let request = relative(config.context!, absolutePagePath)
-                  if (!isAbsolute(request) && !request.startsWith('../')) {
-                    request = `./${request}`
-                  }
+                if (!isNodeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                let request = relative(config.context!, absolutePagePath)
+                if (!isAbsolute(request) && !request.startsWith('../')) {
+                  request = `./${request}`
+                }
 
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'server',
-                    name: bundlePath,
-                    value:
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'server',
+                  name: bundlePath,
+                  value: {
+                    import:
                       this.viewsDir && bundlePath.startsWith('views/')
                         ? getViewsEntry({
                             pagePath: join(
@@ -610,8 +637,9 @@ export default class HotReloader {
                             pageExtensions: this.config.pageExtensions,
                           })
                         : request,
-                  })
-                }
+                    layer: isServerComponent ? 'sc_server' : undefined,
+                  },
+                })
               },
             })
           })

@@ -30,6 +30,11 @@ export default async function middlewareSSRLoader(this: any) {
     stringifiedConfig,
   } = this.getOptions()
 
+  this._module.buildInfo.route = {
+    page,
+    absolutePagePath,
+  }
+
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeSSR = {
     isServerComponent: isServerComponent === 'true',

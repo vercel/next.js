@@ -256,7 +256,7 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   page: string
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
+}) {
   if (opts.page.match(MIDDLEWARE_ROUTE)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,

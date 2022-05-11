@@ -5,9 +5,19 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex } from '../loaders/utils'
+import {
+  MIDDLEWARE_FLIGHT_MANIFEST,
+  EDGE_RUNTIME_WEBPACK,
+} from '../../../shared/lib/constants'
+import { clientComponentRegex, serverComponentRegex } from '../loaders/utils'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import {
+  getInvalidator,
+  entries,
+} from '../../../server/dev/on-demand-entry-handler'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -27,6 +37,8 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 let edgeFlightManifest = {}
 let nodeFlightManifest = {}
 
+export const injectedClientEntries = new Map()
+
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
@@ -41,6 +53,8 @@ export class FlightManifestPlugin {
   }
 
   apply(compiler: any) {
+    const context = (this as any).context
+
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
@@ -56,6 +70,135 @@ export class FlightManifestPlugin {
     )
 
     // Only for webpack 5
+    compiler.hooks.finishMake.tapAsync(
+      PLUGIN_NAME,
+      (compilation: any, callback: any) => {
+        const promises: any = []
+
+        // For each SC server compilation entry, we need to create its corresponding
+        // client component entry.
+        for (const [name, entry] of compilation.entries.entries()) {
+          if (name === 'pages/_app.server') continue
+
+          // Check if the page entry is a server component or not.
+          const entryDependency = entry.dependencies?.[0]
+          const request = entryDependency?.request
+          if (
+            request &&
+            (serverComponentRegex.test(request) ||
+              (request.startsWith('next-middleware-ssr-loader?') &&
+                request.includes('&isServerComponent=true')))
+          ) {
+            const visited = new Set()
+            const clientComponentImports: string[] = []
+
+            function filterClientComponents(dependency: any) {
+              const module =
+                compilation.moduleGraph.getResolvedModule(dependency)
+              if (!module) return
+
+              if (visited.has(module.userRequest)) return
+              visited.add(module.userRequest)
+
+              if (clientComponentRegex.test(module.userRequest)) {
+                clientComponentImports.push(module.userRequest)
+              }
+
+              compilation.moduleGraph
+                .getOutgoingConnections(module)
+                .forEach((connection: any) => {
+                  filterClientComponents(connection.dependency)
+                })
+            }
+
+            // Traverse the module graph to find all client components.
+            filterClientComponents(entryDependency)
+
+            const entry = `next-flight-client-entry-loader?${stringify({
+              modules: clientComponentImports,
+              // Adding name here to make the entry key unique.
+              name,
+            })}!`
+
+            const entryModule =
+              compilation.moduleGraph.getResolvedModule(entryDependency)
+            const routeInfo = entryModule.buildInfo.route || {
+              page: denormalizePagePath(name.replace(/^pages/, '')),
+              absolutePagePath: entryModule.resource,
+            }
+            const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
+
+            // Inject the entry to the client compiler.
+            if (this.dev) {
+              const pageKey = 'client' + normalizePagePath(routeInfo.page)
+
+              if (!entries[pageKey]) {
+                entries[pageKey] = {
+                  bundlePath,
+                  absolutePagePath: routeInfo.absolutePagePath,
+                  // @TODO: Add type.
+                  clientLoader: entry,
+                  dispose: false,
+                  lastActiveTime: Date.now(),
+                } as any
+                const invalidator = getInvalidator()
+                if (invalidator) {
+                  invalidator.invalidate()
+                }
+              }
+            } else {
+              injectedClientEntries.set(
+                bundlePath,
+                `next-client-pages-loader?${stringify({
+                  isServerComponent: true,
+                  page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
+                  absolutePagePath: entry,
+                })}!` + entry
+              )
+            }
+
+            // Inject the entry to the server compiler.
+            const clientComponentEntryDep = (
+              webpack as any
+            ).EntryPlugin.createDependency(entry, name + '.__sc_client__')
+            promises.push(
+              new Promise<void>((res, rej) => {
+                compilation.addEntry(
+                  context,
+                  clientComponentEntryDep,
+                  this.isEdgeServer
+                    ? {
+                        name: name + '.__sc_client__',
+                        library: {
+                          name: ['self._CLIENT_ENTRY'],
+                          type: 'assign',
+                        },
+                        runtime: EDGE_RUNTIME_WEBPACK,
+                        asyncChunks: false,
+                      }
+                    : {
+                        name: name + '.__sc_client__',
+                        runtime: 'webpack-runtime',
+                      },
+                  (err: any) => {
+                    if (err) {
+                      rej(err)
+                    } else {
+                      res()
+                    }
+                  }
+                )
+              })
+            )
+          }
+        }
+
+        Promise.all(promises)
+          .then(() => callback())
+          .catch(callback)
+      }
+    )
+
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
@@ -102,7 +245,7 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id,
+              id: id.replace(/^\(sc_server\)\//, ''),
               name,
               chunks: [],
             }

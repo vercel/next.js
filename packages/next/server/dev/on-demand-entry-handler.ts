@@ -12,6 +12,7 @@ import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-
 import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -48,6 +49,9 @@ export const entries: {
   }
 } = {}
 
+let invalidator: Invalidator
+export const getInvalidator = () => invalidator
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -65,7 +69,7 @@ export function onDemandEntryHandler({
   viewsDir?: string
   watcher: any
 }) {
-  const invalidator = new Invalidator(watcher)
+  invalidator = new Invalidator(watcher)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
 
@@ -189,7 +193,12 @@ export function onDemandEntryHandler({
 
       const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
+          const isServerComponent = serverComponentRegex.test(
+            pagePathData.absolutePagePath
+          )
+
           const pageKey = `${type}${pagePathData.page}`
+
           if (entries[pageKey]) {
             entries[pageKey].dispose = false
             entries[pageKey].lastActiveTime = Date.now()
@@ -198,13 +207,17 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            entryAdded = true
-            entries[pageKey] = {
-              absolutePagePath: pagePathData.absolutePagePath,
-              bundlePath: pagePathData.bundlePath,
-              dispose: false,
-              lastActiveTime: Date.now(),
-              status: ADDED,
+            if (type === 'client' && isServerComponent) {
+              // Skip adding the client entry here.
+            } else {
+              entryAdded = true
+              entries[pageKey] = {
+                absolutePagePath: pagePathData.absolutePagePath,
+                bundlePath: pagePathData.bundlePath,
+                dispose: false,
+                lastActiveTime: Date.now(),
+                status: ADDED,
+              }
             }
           }
 
