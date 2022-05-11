@@ -135,6 +135,7 @@ export interface ExperimentalConfig {
     }
   >
   swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
 }
 
 /**
@@ -505,6 +506,7 @@ export const defaultConfig: NextConfig = {
       layoutRaw: false,
       remotePatterns: [],
     },
+    forceSwcTransforms: false,
   },
 }
 
