@@ -60,11 +60,7 @@ export async function adapter(params: {
 
 function isAllowed(response: NextMiddlewareResult): boolean {
   return (
-    !response ||
-    response.headers.has(RedirectHeader) ||
-    response.headers.has(RewriteHeader) ||
-    response.headers.has(NextMiddlewareHeader) ||
-    !response.body
+    !response?.body || !response.body || response.headers.has(RedirectHeader)
   )
 }
 

@@ -40,7 +40,6 @@ describe('middlewares', () => {
             }`,
     },
     {
-      shouldWarn: false,
       title: 'populating response with a value',
       code: `export default function middleware(request) {
               const body = JSON.stringify({ foo: 'this should not be allowed, but hard to detect with AST' })
@@ -48,7 +47,6 @@ describe('middlewares', () => {
             }`,
     },
     {
-      shouldWarn: false,
       title: 'populating response with a function call',
       code: `function buildBody() {
               return 'this should not be allowed, but hard to detect with AST'

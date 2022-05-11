@@ -57,7 +57,11 @@ export default class MiddlewarePlugin {
       /**
        * This is the static code analysis phase.
        */
-      const codeAnalyzer = getCodeAnalizer({ dev: this.dev, compiler })
+      const codeAnalyzer = getCodeAnalizer({
+        dev: this.dev,
+        compiler,
+        compilation,
+      })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
@@ -93,11 +97,13 @@ export default class MiddlewarePlugin {
 function getCodeAnalizer(params: {
   dev: boolean
   compiler: webpack5.Compiler
+  compilation: webpack5.Compilation
 }) {
   return (parser: webpack5.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
+      compilation,
     } = params
     const { hooks } = parser
 
@@ -186,17 +192,16 @@ function getCodeAnalizer(params: {
         !isNullLiteral(firstParameter) &&
         !isUndefinedIdentifier(firstParameter)
       ) {
-        const message = `Your middleware is returning a response body (line ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`
+        const error = new wp.WebpackError(
+          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`
+        )
+        error.name = NAME
+        error.module = parser.state.current
+        error.loc = node.loc
         if (dev) {
-          // in dev mode, we're aggressively warns on ANY parameter that are not null nor undefined. It may have false-positives like:
-          // new Response(aFunctionThatReturnsNull())
-          Log.warn(message)
-        } else if (
-          isJSONStringifyCall(firstParameter) ||
-          isStringLiteral(firstParameter)
-        ) {
-          // at build time, we only throw on cases which unquestionably are errors.
-          throw new Error(message)
+          compilation.warnings.push(error)
+        } else {
+          compilation.errors.push(error)
         }
       }
     }
@@ -214,6 +219,7 @@ function getCodeAnalizer(params: {
     hooks.new.for('Function').tap(NAME, handleWrapExpression)
     hooks.new.for('global.Function').tap(NAME, handleWrapExpression)
     hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.expression.for('eval').tap(NAME, handleExpression)
     hooks.expression.for('Function').tap(NAME, handleExpression)
     hooks.expression.for('global.eval').tap(NAME, handleExpression)
@@ -446,21 +452,4 @@ function isNullLiteral(expr: any) {
 
 function isUndefinedIdentifier(expr: any) {
   return expr.name === 'undefined'
-}
-
-function isJSONStringifyCall(expr: any) {
-  if (
-    expr.type === 'CallExpression' &&
-    expr.callee?.type === 'MemberExpression'
-  ) {
-    const {
-      callee: { object, property },
-    } = expr
-    return object?.name === 'JSON' && property?.name === 'stringify'
-  }
-  return false
-}
-
-function isStringLiteral(expr: any) {
-  return expr.type === 'Literal' && typeof expr.value === 'string'
 }

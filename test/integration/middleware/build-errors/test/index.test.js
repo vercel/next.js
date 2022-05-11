@@ -19,28 +19,12 @@ describe('Middleware validation during build', () => {
       code: `export default function () {
               return new Response('this is not allowed')
             }`,
-      failing: true,
     },
     {
       title: 'building body with JSON.stringify',
       code: `export default function () {
               return new Response(JSON.stringify({ error: 'this is not allowed' }))
             }`,
-      failing: true,
-    },
-    {
-      title: 'returning a null body',
-      code: `export default function () {
-              return new Response(null)
-            }`,
-      failing: false,
-    },
-    {
-      title: 'returning an undefined body',
-      code: `export default function () {
-              return new Response(undefined)
-            }`,
-      failing: false,
     },
     {
       title: 'building response body with a variable',
@@ -48,7 +32,6 @@ describe('Middleware validation during build', () => {
               const body = 'this is not allowed, but hard to detect with AST'
               return new Response(body)
             }`,
-      failing: false,
     },
     {
       title: 'building response body with custom code',
@@ -59,20 +42,50 @@ describe('Middleware validation during build', () => {
             export default function () {
               return new Response(buildResponse())
             }`,
-      failing: false,
     },
-  ])('given a middleware $title', ({ code, failing }) => {
+    {
+      title: 'returning a text body with NextResponse',
+      code: `import { NextResponse } from 'next/server'
+            export default function () {
+              return new NextResponse('this is not allowed')
+            }`,
+    },
+  ])('given a middleware $title', ({ code }) => {
     beforeAll(() => fs.writeFile(middlewareFile, code))
 
-    it(failing ? 'throws an error' : 'builds successfully', async () => {
-      const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      if (failing) {
-        expect(stderr).toMatch(middlewareError)
-        expect(code).toBe(1)
-      } else {
-        expect(stderr).not.toMatch(middlewareError)
-        expect(code).toBe(0)
-      }
+    it('throws an error', async () => {
+      const { stderr, code } = await nextBuild(appDir, [], {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr).toMatch(middlewareError)
+      expect(code).toBe(1)
+    })
+  })
+
+  describe.each([
+    {
+      title: 'returning a null body',
+      code: `export default function () {
+              return new Response(null)
+            }`,
+    },
+    {
+      title: 'returning an undefined body',
+      code: `export default function () {
+              return new Response(undefined)
+            }`,
+    },
+  ])('given a middleware $title', ({ code }) => {
+    beforeAll(() => fs.writeFile(middlewareFile, code))
+
+    it('builds successfully', async () => {
+      const { stderr, code } = await nextBuild(appDir, [], {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr).not.toMatch(middlewareError)
+      expect(code).toBe(0)
     })
   })
 })
