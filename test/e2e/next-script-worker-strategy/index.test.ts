@@ -12,7 +12,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -38,7 +38,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]')`
@@ -51,7 +51,7 @@ describe('experimental.nextScriptWorkers: false with no Partytown dependency', (
   })
 })
 
-describe('experimental.nextScriptWorkers: true with required Partytown dependency', () => {
+describe('experimental.nextScriptWorkers: true with required Partytown dependency for external script', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -68,7 +68,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       files: {
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -92,7 +92,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const snippetScript = await browser.eval(
         `document.querySelector('script[data-partytown]').innerHTML`
@@ -117,13 +117,13 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const predefinedWorkerScripts = await browser.eval(
         `document.querySelectorAll('script[type="text/partytown"]').length`
       )
 
-      expect(predefinedWorkerScripts).toEqual(1)
+      expect(predefinedWorkerScripts).toBeGreaterThan(0)
 
       await waitFor(1000)
 
@@ -132,9 +132,105 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
         `document.querySelectorAll('script[type="text/partytown-x"]').length`
       )
 
-      expect(processedWorkerScripts).toEqual(1)
+      expect(processedWorkerScripts).toBeGreaterThan(0)
     } finally {
       if (browser) await browser.close()
+    }
+  })
+})
+
+describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
+  const createNextApp = async (script) =>
+    await createNext({
+      nextConfig: {
+        experimental: {
+          nextScriptWorkers: true,
+        },
+        dependencies: {
+          react: '17',
+          'react-dom': '17',
+        },
+      },
+      files: {
+        'pages/index.js': `
+        import Script from 'next/script'
+      
+        export default function Page() {
+          return (
+            <>
+              ${script}
+              <div id="text" />
+            </>
+          )
+        }
+      `,
+      },
+      dependencies: {
+        '@builder.io/partytown': '0.4.2',
+      },
+    })
+
+  it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
+    let next: NextInstance
+    let browser: BrowserInterface
+
+    next = await createNextApp(
+      `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
+    )
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const predefinedWorkerScripts = await browser.eval(
+        `document.querySelectorAll('script[type="text/partytown"]').length`
+      )
+      expect(predefinedWorkerScripts).toEqual(1)
+
+      await waitFor(1000)
+
+      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      const processedWorkerScripts = await browser.eval(
+        `document.querySelectorAll('script[type="text/partytown-x"]').length`
+      )
+      expect(processedWorkerScripts).toEqual(1)
+
+      const text = await browser.elementById('text').text()
+      expect(text).toBe('abc')
+    } finally {
+      if (browser) await browser.close()
+      await next.destroy()
+    }
+  })
+
+  it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
+    let next: NextInstance
+    let browser: BrowserInterface
+
+    next = await createNextApp(
+      `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
+    )
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const predefinedWorkerScripts = await browser.eval(
+        `document.querySelectorAll('script[type="text/partytown"]').length`
+      )
+      expect(predefinedWorkerScripts).toEqual(1)
+
+      await waitFor(1000)
+
+      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      const processedWorkerScripts = await browser.eval(
+        `document.querySelectorAll('script[type="text/partytown-x"]').length`
+      )
+      expect(processedWorkerScripts).toEqual(1)
+
+      const text = await browser.elementById('text').text()
+      expect(text).toBe('abcd')
+    } finally {
+      if (browser) await browser.close()
+      await next.destroy()
     }
   })
 })
@@ -183,7 +279,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
         `,
         'pages/index.js': `
           import Script from 'next/script'
-        
+
           export default function Page() {
             return (
               <>
@@ -209,7 +305,7 @@ describe('experimental.nextScriptWorkers: true with config override', () => {
     let browser: BrowserInterface
 
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       const configScript = await browser.eval(
         `document.querySelector('script[data-partytown-config]').innerHTML`

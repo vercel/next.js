@@ -22,6 +22,14 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('body').hasClass('custom_class')).toBe(true)
       })
 
+      it('Document.getInitialProps returns html prop representing app shell', async () => {
+        // Extract css-in-js-class from the rendered HTML, which is returned by Document.getInitialProps
+        const $index = await get$('/')
+        const $about = await get$('/about')
+        expect($index('#css-in-cjs-count').text()).toBe('2')
+        expect($about('#css-in-cjs-count').text()).toBe('0')
+      })
+
       test('It injects custom head tags', async () => {
         const $ = await get$('/')
         expect($('head').text()).toMatch('body { margin: 0 }')

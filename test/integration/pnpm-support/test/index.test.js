@@ -13,8 +13,33 @@ const APP_DIRS = {
   'app-multi-page': path.join(__dirname, '..', 'app-multi-page'),
 }
 
+// runs a command showing logs and returning the stdout
+const runCommand = (cwd, cmd, args) => {
+  const proc = execa(cmd, [...args], {
+    cwd,
+    stdio: [process.stdin, 'pipe', process.stderr],
+  })
+
+  let stdout = ''
+  proc.stdout.on('data', (data) => {
+    const s = data.toString()
+    process.stdout.write(s)
+    stdout += s
+  })
+  return new Promise((resolve, reject) => {
+    proc.on('exit', (code) => {
+      if (code === 0) {
+        return resolve({ ...proc, stdout })
+      }
+      reject(
+        new Error(`Command ${cmd} ${args.join(' ')} failed with code ${code}`)
+      )
+    })
+  })
+}
+
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
-const runPnpm = (cwd, ...args) => execa('npx', ['pnpm', ...args], { cwd })
+const runPnpm = (cwd, ...args) => runCommand(cwd, 'npx', ['pnpm', ...args])
 
 async function usingTempDir(fn) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -134,16 +159,16 @@ describe('pnpm support', () => {
         expect(packageJson.pnpm.overrides[dependency]).toMatch(/^file:/)
       }
 
-      const { stdout, stderr } = await runPnpm(appDir, 'run', 'build')
-      console.log(stdout, stderr)
+      const { stdout } = await runPnpm(appDir, 'run', 'build')
+
       expect(stdout).toMatch(/Compiled successfully/)
     })
   })
 
-  it('should execute client-side JS on each page', async () => {
+  it('should execute client-side JS on each page in outputStandalone', async () => {
     await usingPnpmCreateNextApp(APP_DIRS['app-multi-page'], async (appDir) => {
-      const { stdout, stderr } = await runPnpm(appDir, 'run', 'build')
-      console.log(stdout, stderr)
+      const { stdout } = await runPnpm(appDir, 'run', 'build')
+
       expect(stdout).toMatch(/Compiled successfully/)
 
       let appPort
@@ -151,7 +176,61 @@ describe('pnpm support', () => {
       let browser
       try {
         appPort = await findPort()
-        appProcess = runPnpm(appDir, 'run', 'start', '--', '--port', appPort)
+        const standaloneDir = path.resolve(appDir, '.next/standalone/app')
+
+        // simulate what happens in a Dockerfile
+        await fs.remove(path.join(appDir, 'node_modules'))
+        await fs.copy(
+          path.resolve(appDir, './.next/static'),
+          path.resolve(standaloneDir, './.next/static'),
+          { overwrite: true }
+        )
+        appProcess = execa('node', ['server.js'], {
+          cwd: standaloneDir,
+          env: {
+            PORT: appPort,
+          },
+          stdio: 'inherit',
+        })
+
+        await waitFor(1000)
+
+        await renderViaHTTP(appPort, '/')
+
+        browser = await webdriver(appPort, '/', {
+          waitHydration: false,
+        })
+        expect(await browser.waitForElementByCss('#world').text()).toBe('World')
+        await browser.close()
+
+        browser = await webdriver(appPort, '/about', {
+          waitHydration: false,
+        })
+        expect(await browser.waitForElementByCss('#world').text()).toBe('World')
+        await browser.close()
+      } finally {
+        await killProcess(appProcess.pid)
+        await waitFor(5000)
+      }
+    })
+  })
+
+  it('should execute client-side JS on each page', async () => {
+    await usingPnpmCreateNextApp(APP_DIRS['app-multi-page'], async (appDir) => {
+      const { stdout } = await runPnpm(appDir, 'run', 'build')
+
+      expect(stdout).toMatch(/Compiled successfully/)
+
+      let appPort
+      let appProcess
+      let browser
+      try {
+        appPort = await findPort()
+        appProcess = execa('pnpm', ['run', 'start', '--', '--port', appPort], {
+          cwd: appDir,
+          stdio: 'inherit',
+        })
+
         await waitFor(5000)
 
         await renderViaHTTP(appPort, '/')

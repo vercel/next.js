@@ -8,7 +8,7 @@
 import { promisify } from 'util'
 
 import { parse } from '../../swc'
-import { buildExports } from './utils'
+import { buildExports, isNextBuiltinClientComponent } from './utils'
 
 function addExportNames(names: string[], node: any) {
   if (!node) return
@@ -57,7 +57,7 @@ async function collectExports(
   const names: string[] = []
 
   // Next.js built-in client components
-  if (/[\\/]next[\\/](link|image)\.js$/.test(resourcePath)) {
+  if (isNextBuiltinClientComponent(resourcePath)) {
     names.push('default')
   }
 
@@ -103,7 +103,7 @@ async function collectExports(
         } = node
         // exports.xxx = xxx
         if (
-          left.object &&
+          left?.object &&
           left.type === 'MemberExpression' &&
           left.object.type === 'Identifier' &&
           left.object.value === 'exports'
@@ -158,12 +158,14 @@ export default async function transformSource(
   const moduleRefDef =
     "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n"
 
+  const isNextClientBuiltIn = isNextBuiltinClientComponent(resourcePath)
+
   const clientRefsExports = names.reduce((res: any, name) => {
     const moduleRef =
       '{ $$typeof: MODULE_REFERENCE, filepath: ' +
       JSON.stringify(resourcePath) +
       ', name: ' +
-      JSON.stringify(name) +
+      JSON.stringify(name === 'default' && isNextClientBuiltIn ? '' : name) +
       ' };\n'
     res[name] = moduleRef
     return res

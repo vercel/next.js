@@ -34,8 +34,12 @@ function isValidSeverity(severity: string): severity is Severity {
 }
 
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {
@@ -167,7 +171,8 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    // TODO: should we apply these rules to "root" dir as well?
+    const pagesDir = findPagesDir(baseDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false

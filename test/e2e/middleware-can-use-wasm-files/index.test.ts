@@ -54,22 +54,24 @@ describe('middleware can use wasm files', () => {
     })
   })
 
-  it('lists the necessary wasm bindings in the manifest', async () => {
-    const manifestPath = path.join(
-      next.testDir,
-      '.next/server/middleware-manifest.json'
-    )
-    const manifest = await fs.readJSON(manifestPath)
-    expect(manifest.middleware['/']).toMatchObject({
-      wasm: [
-        {
-          filePath:
-            'server/middleware-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
-          name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
-        },
-      ],
+  if (!(global as any).isNextDeploy) {
+    it('lists the necessary wasm bindings in the manifest', async () => {
+      const manifestPath = path.join(
+        next.testDir,
+        '.next/server/middleware-manifest.json'
+      )
+      const manifest = await fs.readJSON(manifestPath)
+      expect(manifest.middleware['/']).toMatchObject({
+        wasm: [
+          {
+            filePath:
+              'server/edge-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
+            name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
+          },
+        ],
+      })
     })
-  })
+  }
 })
 
 describe('middleware can use wasm files with the experimental modes on', () => {
