@@ -1751,56 +1751,51 @@ export async function renderToHTML(
     return RenderResult.fromStatic((renderOpts as any).pageData)
   }
 
-  const postProcessors: Array<((html: string) => Promise<string>) | null> = (
-    generateStaticHTML
-      ? [
-          inAmpMode
-            ? async (html: string) => {
-                html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
-                if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-                  await renderOpts.ampValidator(html, pathname)
-                }
-                return html
-              }
-            : null,
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_OPTIMIZE_FONTS
-            ? async (html: string) => {
-                return await postProcess(
-                  html,
-                  { getFontDefinition },
-                  {
-                    optimizeFonts: renderOpts.optimizeFonts,
-                  }
-                )
-              }
-            : null,
-          process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
-            ? async (html: string) => {
-                // eslint-disable-next-line import/no-extraneous-dependencies
-                const Critters = require('critters')
-                const cssOptimizer = new Critters({
-                  ssrMode: true,
-                  reduceInlineStyles: false,
-                  path: renderOpts.distDir,
-                  publicPath: `${renderOpts.assetPrefix}/_next/`,
-                  preload: 'media',
-                  fonts: false,
-                  ...renderOpts.optimizeCss,
-                })
-                return await cssOptimizer.process(html)
-              }
-            : null,
-          inAmpMode || hybridAmp
-            ? async (html: string) => {
-                return html.replace(/&amp;amp=1/g, '&amp=1')
-              }
-            : null,
-        ]
-      : []
-  ).filter(Boolean)
+  const postProcessors: Array<((html: string) => Promise<string>) | null> = [
+    inAmpMode
+      ? async (html: string) => {
+          html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
+            await renderOpts.ampValidator(html, pathname)
+          }
+          return html
+        }
+      : null,
+    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
+      ? async (html: string) => {
+          return await postProcess(
+            html,
+            { getFontDefinition },
+            {
+              optimizeFonts: renderOpts.optimizeFonts,
+            }
+          )
+        }
+      : null,
+    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
+      ? async (html: string) => {
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          const Critters = require('critters')
+          const cssOptimizer = new Critters({
+            ssrMode: true,
+            reduceInlineStyles: false,
+            path: renderOpts.distDir,
+            publicPath: `${renderOpts.assetPrefix}/_next/`,
+            preload: 'media',
+            fonts: false,
+            ...renderOpts.optimizeCss,
+          })
+          return await cssOptimizer.process(html)
+        }
+      : null,
+    inAmpMode || hybridAmp
+      ? async (html: string) => {
+          return html.replace(/&amp;amp=1/g, '&amp=1')
+        }
+      : null,
+  ].filter(Boolean)
 
-  if (generateStaticHTML || postProcessors.length > 0) {
+  if (postProcessors.length > 0) {
     let html = await streamToString(chainStreams(streams))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
