@@ -8,7 +8,7 @@ export default function Relative2() {
       <button
         onClick={(e) => {
           e.preventDefault()
-          router.push('.')
+          router.push('./relative')
         }}
       >
         To relative index

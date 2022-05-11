@@ -1614,13 +1614,13 @@ describe('Client Navigation', () => {
   it('should navigate to paths relative to the current page', async () => {
     const browser = await webdriver(context.appPort, '/nav/relative')
     await browser.waitForElementByCss('body', 500)
-
     let page
 
     await browser.elementByCss('a').click()
 
+    browser.waitForElementByCss('#relative-1', 500)
     page = await browser.elementByCss('body').text()
-    expect(page).toMatch('On relative 1')
+    expect(page).toMatch(/On relative 1/)
     await browser.elementByCss('a').click()
 
     browser.waitForElementByCss('#relative-2', 500)
