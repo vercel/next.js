@@ -31,6 +31,7 @@ import { parse } from '../build/swc'
 import { isServerComponentPage, withoutRSCExtensions } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { serverComponentRegex } from './webpack/loaders/utils'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -218,6 +219,10 @@ export async function getPageRuntime(
     if (isRuntimeRequired) {
       pageRuntime = globalRuntime
     }
+  } else {
+    if (!isRuntimeRequired) {
+      pageRuntime = undefined
+    }
   }
 
   cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
@@ -254,6 +259,7 @@ export function getEdgeServerEntry(opts: {
   bundlePath: string
   config: NextConfigComplete
   isDev: boolean
+  isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
 }) {
@@ -283,7 +289,10 @@ export function getEdgeServerEntry(opts: {
     stringifiedConfig: JSON.stringify(opts.config),
   }
 
-  return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
+  return {
+    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
+    layer: opts.isServerComponent ? 'sc_server' : 'edge_ssr',
+  }
 }
 
 export function getViewsEntry(opts: {
@@ -381,10 +390,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         isViews ? 'views' : 'pages',
         bundleFile
       )
+      const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        const absolutePagePath = mappings[page]
         if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
@@ -396,14 +405,21 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         return require.resolve(absolutePagePath)
       })()
 
+      const isServerComponent = serverComponentRegex.test(absolutePagePath)
+
       runDependingOnPageType({
         page,
         pageRuntime: await getPageRuntime(pageFilePath, config, isDev),
         onClient: () => {
-          client[clientBundlePath] = getClientEntry({
-            absolutePagePath: mappings[page],
-            page,
-          })
+          if (isServerComponent) {
+            // We skip the initial entries for server component pages and let the
+            // server compiler inject them instead.
+          } else {
+            client[clientBundlePath] = getClientEntry({
+              absolutePagePath: mappings[page],
+              page,
+            })
+          }
         },
         onServer: () => {
           if (isViews && viewsDir) {
@@ -421,7 +437,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = [mappings[page]]
+            server[serverBundlePath] = {
+              import: mappings[page],
+              layer: isServerComponent ? 'sc_server' : null,
+            }
           }
         },
         onEdgeServer: () => {
@@ -430,6 +449,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             absolutePagePath: mappings[page],
             bundlePath: clientBundlePath,
             isDev: false,
+            isServerComponent,
             page,
           })
         },

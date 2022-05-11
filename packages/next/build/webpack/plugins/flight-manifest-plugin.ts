@@ -135,7 +135,6 @@ export class FlightManifestPlugin {
                 entries[pageKey] = {
                   bundlePath,
                   absolutePagePath: routeInfo.absolutePagePath,
-                  // @TODO: Add type.
                   clientLoader: entry,
                   dispose: false,
                   lastActiveTime: Date.now(),

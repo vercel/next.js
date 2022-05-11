@@ -35,6 +35,10 @@ export const entries: {
      */
     bundlePath: string
     /**
+     * Client entry loader and query parameters when RSC is enabled.
+     */
+    clientLoader?: string
+    /**
      * Tells if a page is scheduled to be disposed.
      */
     dispose?: boolean

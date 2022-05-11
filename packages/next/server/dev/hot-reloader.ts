@@ -572,18 +572,16 @@ export default class HotReloader {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: 'edge-server',
                   name: bundlePath,
-                  value: {
-                    import: getEdgeServerEntry({
-                      absolutePagePath,
-                      buildId: this.buildId,
-                      bundlePath,
-                      config: this.config,
-                      isDev: true,
-                      page,
-                      pages: this.pagesMapping,
-                    }),
-                    layer: isServerComponent ? 'sc_server' : 'edge_ssr',
-                  },
+                  value: getEdgeServerEntry({
+                    absolutePagePath,
+                    buildId: this.buildId,
+                    bundlePath,
+                    config: this.config,
+                    isDev: true,
+                    page,
+                    pages: this.pagesMapping,
+                    isServerComponent,
+                  }),
                 })
               },
               onClient: () => {
