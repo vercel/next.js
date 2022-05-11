@@ -326,12 +326,11 @@ export async function renderToHTML(
         }
       }
 
-      // if this is the root layout pass children as bodyChildren prop
+      // if this is the root layout pass children as children prop
       if (!isSubtreeRender && i === 0) {
         return React.createElement(layout.Component, {
           ...props,
-          headChildren: props.headChildren,
-          bodyChildren: React.createElement(
+          children: React.createElement(
             lastComponent || React.Fragment,
             {},
             null
@@ -356,10 +355,8 @@ export async function renderToHTML(
     // }
   }
 
-  const headChildren = !isSubtreeRender
-    ? buildManifest.rootMainFiles.map((src) => (
-        <script src={'/_next/' + src} async key={src} />
-      ))
+  const bootstrapScripts = !isSubtreeRender
+    ? buildManifest.rootMainFiles.map((src) => '/_next/' + src)
     : undefined
 
   let serverComponentsInlinedTransformStream: TransformStream<
@@ -429,7 +426,7 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        <WrappedComponent headChildren={headChildren} />,
+        <WrappedComponent />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -452,13 +449,16 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <AppContainer>
-        <Component headChildren={headChildren} />
+        <Component />
       </AppContainer>
     )
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
       element: content,
+      streamOptions: {
+        bootstrapScripts,
+      },
     })
 
     const flushEffectHandler = (): string => {

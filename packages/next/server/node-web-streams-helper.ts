@@ -135,15 +135,17 @@ export function createFlushEffectStream(
 export function renderToInitialStream({
   ReactDOMServer,
   element,
+  streamOptions,
 }: {
   ReactDOMServer: any
   element: React.ReactElement
+  streamOptions?: any
 }): Promise<
   ReadableStream<Uint8Array> & {
     allReady?: Promise<void>
   }
 > {
-  return ReactDOMServer.renderToReadableStream(element)
+  return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
 export async function continueFromInitialStream({
@@ -180,31 +182,6 @@ export async function continueFromInitialStream({
     (readable, transform) => readable.pipeThrough(transform),
     renderStream
   )
-}
-
-export async function renderToStream({
-  ReactDOMServer,
-  element,
-  suffix,
-  dataStream,
-  generateStaticHTML,
-  flushEffectHandler,
-}: {
-  ReactDOMServer: typeof import('react-dom/server')
-  element: React.ReactElement
-  suffix?: string
-  dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
-  flushEffectHandler?: () => string
-}): Promise<ReadableStream<Uint8Array>> {
-  const renderStream = await renderToInitialStream({ ReactDOMServer, element })
-  return continueFromInitialStream({
-    suffix,
-    dataStream,
-    generateStaticHTML,
-    flushEffectHandler,
-    renderStream,
-  })
 }
 
 export function createSuffixStream(
