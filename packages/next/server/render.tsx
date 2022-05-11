@@ -465,7 +465,6 @@ export async function renderToHTML(
     ampPath = '',
     pageConfig = {},
     buildManifest,
-    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -1740,6 +1739,7 @@ export async function renderToHTML(
 
   const postOptimize = (html: string) =>
     postOptimizeHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+
   if (generateStaticHTML) {
     const html = await streamToString(chainStreams(streams))
     const optimizedHtml = await postOptimize(html)

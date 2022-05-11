@@ -180,7 +180,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 
 async function postOptimizeHTML(
   pathname: string,
-  html: string,
+  content: string,
   renderOpts: RenderOpts,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
@@ -242,10 +242,10 @@ async function postOptimizeHTML(
 
   for (const postProcessor of postProcessors) {
     if (postProcessor) {
-      html = await postProcessor(html)
+      content = await postProcessor(content)
     }
   }
-  return html
+  return content
 }
 
 // Initialization
@@ -257,4 +257,4 @@ registerPostProcessor(
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
 )
 
-export { processHTML, postOptimizeHTML }
+export { postOptimizeHTML }
