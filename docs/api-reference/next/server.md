@@ -194,7 +194,7 @@ The `NextResponse` API (which eventually is tweaking response headers) allows yo
 - set response cookies
 - set response headers
 
-These are solid tools to easily implement A/B testing, authentication, feature flags, bot protection...
+These are solid tools to implement cases such as A/B testing, authentication, feature flags, bot protection...
 A middleware with the ability to change the response's body would bypass Next.js routing logic.
 
 ## Related
