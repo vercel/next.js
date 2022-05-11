@@ -916,6 +916,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    // @ts-ignore
     externals:
       isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
@@ -925,6 +926,16 @@ export default async function getBaseWebpackConfig(
             'next',
             ...(isEdgeServer
               ? [
+                  {
+                    byLayer: (layer: string) => {
+                      // For client components entry.
+                      if (layer === null) {
+                        return {
+                          react: 'self.__REACT',
+                        }
+                      }
+                    },
+                  },
                   {
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',

@@ -130,8 +130,7 @@ export class FlightManifestPlugin {
 
             // Inject the entry to the client compiler.
             if (this.dev) {
-              const pageKey = 'client' + normalizePagePath(routeInfo.page)
-
+              const pageKey = 'client' + routeInfo.page
               if (!entries[pageKey]) {
                 entries[pageKey] = {
                   bundlePath,
