@@ -210,3 +210,72 @@ it('does not add locale for api route', () => {
   expect(url.toString()).toEqual(expected)
   expect(url.toJSON()).toEqual(expected)
 })
+
+it('correctly parses a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/1234/en/hello.json',
+    'http://127.0.0.1:3000'
+  )
+  expect(url.buildId).toEqual('1234')
+  expect(url.pathname).toEqual('/en/hello')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/1234/en/hello.json'
+  )
+})
+
+it('correctly parses a prefetch index url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/index.json',
+    'http://127.0.0.1:3000'
+  )
+  expect(url.pathname).toEqual('/')
+})
+
+it('correctly parses a prefetch url with i18n', async () => {
+  const url = new NextURL(
+    '/_next/data/development/en/hello.json',
+    'http://127.0.0.1:3000',
+    {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    }
+  )
+  expect(url.buildId).toEqual('development')
+  expect(url.pathname).toEqual('/hello')
+  expect(url.locale).toEqual('en')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/en/hello.json'
+  )
+})
+
+it('allows to update the pathname for a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/en/hello.json',
+    'http://127.0.0.1:3000',
+    {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    }
+  )
+
+  url.pathname = '/foo'
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/en/foo.json'
+  )
+})
+
+it('allows to update the pathname to the root path for a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/hello.json',
+    'http://127.0.0.1:3000'
+  )
+  url.pathname = '/'
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/index.json'
+  )
+})

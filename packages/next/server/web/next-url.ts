@@ -19,6 +19,7 @@ export class NextURL {
     url: URL
     options: Options
     basePath: string
+    buildId?: string
     locale?: {
       defaultLocale: string
       domain?: DomainLocale
@@ -61,6 +62,16 @@ export class NextURL {
   private analyzeUrl() {
     const { headers = {}, basePath, i18n } = this[Internal].options
 
+    if (this[Internal].url.pathname.startsWith('/_next/data/')) {
+      const [buildId, ...rest] = this[Internal].url.pathname
+        .replace(/^\/_next\/data\//, '')
+        .replace(/\.json$/, '')
+        .split('/')
+      this[Internal].buildId = buildId
+      this[Internal].url.pathname =
+        rest[0] !== 'index' ? `/${rest.join('/')}` : '/'
+    }
+
     if (basePath && this[Internal].url.pathname.startsWith(basePath)) {
       this[Internal].url.pathname = replaceBasePath(
         this[Internal].url.pathname,
@@ -102,17 +113,22 @@ export class NextURL {
 
     if (
       this[Internal].locale?.locale &&
-      i18n?.defaultLocale !== this[Internal].locale?.locale &&
-      !this.hasPathPrefix('/api')
+      ((i18n?.defaultLocale !== this[Internal].locale?.locale &&
+        !this.hasPathPrefix('/api')) ||
+        this[Internal].buildId)
     ) {
       pathname = `/${this[Internal].locale?.locale}${pathname}`
     }
 
-    if (this[Internal].basePath) {
-      pathname = `${this[Internal].basePath}${pathname}`
-    }
+    return this[Internal].buildId
+      ? `/_next/data/${this[Internal].buildId}${
+          pathname === '/' ? '/index' : pathname
+        }.json`
+      : `${this[Internal].basePath}${pathname}`
+  }
 
-    return pathname
+  public get buildId() {
+    return this[Internal].buildId
   }
 
   private hasPathPrefix(prefix: string) {
