@@ -3,8 +3,8 @@ import { builtinModules } from 'module'
 import { parse } from '../../swc'
 import {
   buildExports,
-  createClientComponentFilter,
-  createServerComponentFilter,
+  clientComponentRegex,
+  serverComponentRegex,
   isNextBuiltinClientComponent,
 } from './utils'
 
@@ -12,7 +12,9 @@ function createFlightServerRequest(
   request: string,
   options?: { client: 1 | undefined }
 ) {
-  return `next-flight-server-loader?${JSON.stringify(options)}!${request}`
+  return `next-flight-server-loader${
+    options ? '?' + JSON.stringify(options) : ''
+  }!${request}`
 }
 
 function hasFlightLoader(request: string, type: 'client' | 'server') {
@@ -23,15 +25,11 @@ async function parseModuleInfo({
   resourcePath,
   source,
   isClientCompilation,
-  isServerComponent,
-  isClientComponent,
   resolver,
 }: {
   resourcePath: string
   source: string
   isClientCompilation: boolean
-  isServerComponent: (name: string) => boolean
-  isClientComponent: (name: string) => boolean
   resolver: (req: string) => Promise<string>
 }): Promise<{
   source: string
@@ -45,6 +43,7 @@ async function parseModuleInfo({
     isModule: 'unknown',
   })
   const { type, body } = ast
+  const beginPos = ast.span.start
   let transformedSource = ''
   let lastIndex = 0
   let imports = []
@@ -68,10 +67,10 @@ async function parseModuleInfo({
   }
 
   function addClientImport(path: string) {
-    if (isServerComponent(path) || hasFlightLoader(path, 'server')) {
+    if (serverComponentRegex.test(path) || hasFlightLoader(path, 'server')) {
       // If it's a server component, we recursively import its dependencies.
       imports.push(path)
-    } else if (isClientComponent(path)) {
+    } else if (clientComponentRegex.test(path)) {
       // Client component.
       imports.push(path)
     } else {
@@ -99,16 +98,16 @@ async function parseModuleInfo({
 
         if (!isClientCompilation) {
           // Server compilation for .server.js.
-          if (isServerComponent(importSource)) {
+          if (serverComponentRegex.test(importSource)) {
             continue
           }
 
           const importDeclarations = source.substring(
             lastIndex,
-            node.source.span.start
+            node.source.span.start - beginPos
           )
 
-          if (isClientComponent(importSource)) {
+          if (clientComponentRegex.test(importSource)) {
             transformedSource += importDeclarations
             transformedSource += JSON.stringify(
               `next-flight-client-loader!${importSource}`
@@ -135,7 +134,7 @@ async function parseModuleInfo({
           addClientImport(importSource)
         }
 
-        lastIndex = node.source.span.end
+        lastIndex = node.source.span.end - beginPos
         break
       case 'ExportDeclaration':
         if (isClientCompilation) {
@@ -207,12 +206,10 @@ export default async function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
-  const isServerComponent = createServerComponentFilter()
-  const isClientComponent = createClientComponentFilter()
   const hasAppliedFlightServerLoader = this.loaders.some((loader: any) => {
     return hasFlightLoader(loader.path, 'server')
   })
-  const isServerExt = isServerComponent(resourcePath)
+  const isServerExt = serverComponentRegex.test(resourcePath)
 
   if (!isClientCompilation) {
     // We only apply the loader to server components, or shared components that
@@ -232,8 +229,6 @@ export default async function transformSource(
     resourcePath,
     source,
     isClientCompilation,
-    isServerComponent,
-    isClientComponent,
     resolver,
   })
 

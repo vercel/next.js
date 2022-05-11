@@ -25,6 +25,7 @@ use swc_ecmascript::{
     codegen::util::SourceMapperExt,
     visit::{Fold, FoldWith},
 };
+use swc_trace_macro::swc_trace;
 
 mod hash;
 
@@ -164,6 +165,7 @@ pub struct EmotionTransformer<C: Comments> {
     in_jsx_element: bool,
 }
 
+#[swc_trace]
 impl<C: Comments> EmotionTransformer<C> {
     pub fn new(options: EmotionOptions, path: &Path, cm: Arc<SourceMap>, comments: C) -> Self {
         EmotionTransformer {

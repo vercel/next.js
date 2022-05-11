@@ -217,6 +217,7 @@ export function prepareDestination(args: {
 
   return {
     newUrl,
+    destQuery,
     parsedDestination,
   }
 }

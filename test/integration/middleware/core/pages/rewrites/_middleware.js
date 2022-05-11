@@ -12,7 +12,9 @@ export async function middleware(request) {
   ) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(
-      isExternal ? 'https://vercel.com' : new URL('/rewrites/a', request.url)
+      isExternal
+        ? 'https://example.vercel.sh'
+        : new URL('/rewrites/a', request.url)
     )
   }
 
@@ -23,12 +25,12 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-to-ab-test') {
-    let bucket = request.cookies.bucket
+    let bucket = request.cookies.get('bucket')
     if (!bucket) {
       bucket = Math.random() >= 0.5 ? 'a' : 'b'
       url.pathname = `/rewrites/${bucket}`
       const response = NextResponse.rewrite(url)
-      response.cookie('bucket', bucket, { maxAge: 10000 })
+      response.cookies.set('bucket', bucket, { maxAge: 10 })
       return response
     }
 
@@ -52,7 +54,7 @@ export async function middleware(request) {
   }
 
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
-    return NextResponse.rewrite('https://vercel.com')
+    return NextResponse.rewrite('https://example.vercel.sh')
   }
 
   if (url.pathname === '/rewrites/clear-query-params') {
@@ -70,10 +72,9 @@ export async function middleware(request) {
     url.searchParams.get('path') === 'rewrite-me-without-hard-navigation'
   ) {
     url.searchParams.set('middleware', 'foo')
-    url.pathname =
-      request.cookies['about-bypass'] === '1'
-        ? '/rewrites/about-bypass'
-        : '/rewrites/about'
+    url.pathname = request.cookies.has('about-bypass')
+      ? '/rewrites/about-bypass'
+      : '/rewrites/about'
 
     const response = NextResponse.rewrite(url)
     response.headers.set('x-middleware-cache', 'no-cache')

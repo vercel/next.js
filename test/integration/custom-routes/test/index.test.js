@@ -89,14 +89,66 @@ const runTests = (isDev = false) => {
       console.error('Invalid response', html)
     }
     expect(res.status).toBe(200)
-    expect(html).toContain('Vercel')
+    expect(html).toContain('Example Domain')
 
     const browser = await webdriver(appPort, '/nav')
     await browser.elementByCss('#to-before-files-overridden').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
-      /Vercel/
+      /Example Domain/
     )
+  })
+
+  it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should handle beforeFiles rewrite to partly dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic-again').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]\/test/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]/test'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should support long URLs for rewrites', async () => {
@@ -1716,9 +1768,16 @@ const runTests = (isDev = false) => {
               source: '/old-blog/:path*',
             },
             {
-              destination: 'https://vercel.com',
+              destination: 'https://example.vercel.sh',
               regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
               source: '/overridden',
+            },
+            {
+              destination: '/_sport/nfl/:path*',
+              regex: normalizeRegEx(
+                '^\\/nfl(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
+              ),
+              source: '/nfl/:path*',
             },
           ],
           afterFiles: [
@@ -1973,6 +2032,22 @@ const runTests = (isDev = false) => {
           fallback: [],
         },
         dynamicRoutes: [
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            page: '/_sport/[slug]',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            page: '/_sport/[slug]/test',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
           {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',

@@ -98,6 +98,25 @@ describe('Telemetry CLI', () => {
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
+  it('emits event when swc fails to load', async () => {
+    await fs.remove(path.join(appDir, '.next'))
+    const { stderr } = await runNextCommand(['build', appDir], {
+      stderr: true,
+      env: {
+        // block swc from loading
+        NODE_OPTIONS: '--no-addons',
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    expect(stderr).toMatch(/NEXT_SWC_LOAD_FAILURE/)
+    expect(stderr).toContain(
+      `"nextVersion": "${require('next/package.json').version}"`
+    )
+    expect(stderr).toContain(`"arch": "${process.arch}"`)
+    expect(stderr).toContain(`"platform": "${process.platform}"`)
+    expect(stderr).toContain(`"nodeVersion": "${process.versions.node}"`)
+  })
+
   it('logs completed `next build` with warnings', async () => {
     await fs.rename(
       path.join(appDir, 'pages', 'warning.skip'),
@@ -483,7 +502,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
-    expect(event1).toMatch(/"imageDomainsCount": 1/)
+    expect(event1).toMatch(/"imageDomainsCount": 2/)
+    expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
@@ -519,7 +539,8 @@ describe('Telemetry CLI', () => {
     expect(event2).toMatch(/"locales": "en,nl,fr"/)
     expect(event2).toMatch(/"localeDomainsCount": 2/)
     expect(event2).toMatch(/"localeDetectionEnabled": true/)
-    expect(event2).toMatch(/"imageDomainsCount": 1/)
+    expect(event2).toMatch(/"imageDomainsCount": 2/)
+    expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
