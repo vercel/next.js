@@ -11,7 +11,6 @@ import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
-import * as Log from '../../output/log'
 
 export interface MiddlewareManifest {
   version: 1
