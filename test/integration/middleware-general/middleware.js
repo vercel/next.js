@@ -141,6 +141,11 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/ssr-page') {
+    url.pathname = '/ssr-page-2'
+    return NextResponse.rewrite(url)
+  }
+
   // Map metadata by default
   return new Response(null, {
     headers: {
