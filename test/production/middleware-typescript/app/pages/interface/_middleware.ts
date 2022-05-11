@@ -5,8 +5,9 @@ export const middleware: NextMiddleware = function (request) {
   console.log(request.ua?.isBot)
   console.log(request.ua?.ua)
 
-  return new Response('hello from middleware', {
+  return new Response(null, {
     headers: {
+      data: 'hello from middleware',
       'req-url-basepath': request.nextUrl.basePath,
       'req-url-pathname': request.nextUrl.pathname,
       'req-url-params': JSON.stringify(request.page.params),

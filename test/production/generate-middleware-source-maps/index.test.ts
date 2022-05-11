@@ -15,8 +15,9 @@ describe('experimental.middlewareSourceMaps: true', () => {
       },
       files: {
         'pages/_middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() { 
-            return new Response("Hello, world!");
+            return NextResponse.next();
           } 
         `,
       },
@@ -42,8 +43,9 @@ describe('experimental.middlewareSourceMaps: false', () => {
     next = await createNext({
       files: {
         'pages/_middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() {
-            return new Response("Hello, world!");
+            return NextResponse.next();
           }
         `,
       },

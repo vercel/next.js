@@ -1,3 +1,3 @@
 export async function middleware(req) {
-  return new Response('hello from middleware')
+  return new Response(null, { headers: { data: 'hello from middleware' } })
 }
