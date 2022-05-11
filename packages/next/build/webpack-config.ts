@@ -1003,7 +1003,7 @@ export default async function getBaseWebpackConfig(
       nodeEnv: false,
       ...(hasServerComponents
         ? {
-            // We have to use the names here instead of hashes to ensure the consistency between builds.
+            // We have to use the names here instead of hashes to ensure the consistency between compilers.
             moduleIds: 'named',
           }
         : {}),
