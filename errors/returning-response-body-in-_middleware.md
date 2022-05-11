@@ -2,24 +2,83 @@
 
 #### Why This Error Occurred
 
-One of your [`_middleware`](https://nextjs.org/docs/advanced-features/middleware) returns a body response, which is not supported.
+Your [`_middleware`](https://nextjs.org/docs/advanced-features/middleware) function returns a response body, which is not supported.
+
+Letting middleware respond to incoming requests would bypass Next.js routing mechanism, creating an unecessary escape hatch.
 
 #### Possible Ways to Fix It
 
-Middlewares in Next.js give you a great opportunity to run code and adjust the served data to the requesting user.
+Next.js middleware gives you a great opportunity to run code and adjust to the requesting user.
 
-It is a great tool for use cases like:
+It is intended for use cases like:
 
 - A/B testing, where you **_rewrite_** to a different page based on external data (User agent, user location, a custom header or cookie...)
+
+  ```js
+  export function middleware(req: NextRequest) {
+    let res = NextResponse.next()
+    // reuses cookie, or builds a new one.
+    const cookie = req.cookies.get(COOKIE_NAME) ?? buildABTestingCookie()
+
+    // the cookie contains the displayed variant, 0 being default
+    const [, variantId] = cookie.split('.')
+    if (variantId !== '0') {
+      const url = req.nextUrl.clone()
+      url.pathname = url.pathname.replace('/', `/${variantId}/`)
+      // rewrites the response to display desired variant
+      res = NextResponse.rewrite(url)
+    }
+
+    // don't forget to set cookie if not set yet
+    if (!req.cookies.has(COOKIE_NAME)) {
+      res.cookies.set(COOKIE_NAME, cookie)
+    }
+    return res
+  }
+  ```
+
 - authentication, where you **_redirect_** to your log-in/sign-in page any un-authenticated request
-- detecting bots and **_redirecting_** them to some sink
+
+  ```js
+  export function middleware(req: NextRequest) {
+    const basicAuth = req.headers.get('authorization')
+
+    if (basicAuth) {
+      const auth = basicAuth.split(' ')[1]
+      const [user, pwd] = atob(auth).split(':')
+      if (areCredentialsValid(user, pwd)) {
+        return NextResponse.next()
+      }
+    }
+
+    return NextResponse.redirec(`/login?from=${req.nextUrl.pathname}`)
+  }
+  ```
+
+- detecting bots and **_rewrite_** response to display to some sink
+
+  ```js
+  export function middleware(req: NextRequest) {
+    if (isABotRequest(req)) {
+      // Bot detected! rewrite to the sink
+      const url = req.nextUrl.clone()
+      url.pathname = '/bot-detected'
+      return NextResponse.rewrite(url)
+    }
+    return NextResponse.next()
+  }
+  ```
+
 - programmatically adding **_headers_** to the response, like cookies.
 
-However, letting a middleware respond to the request completly bypasses Next.js routing mechanism.
-
-**TODO** rewrites this all paragraph, to provide simpler reasons why this is forbidden.
-Having the possibility to stream content is certainly appealing, but creates a dependency with the system hosting your middleware (since they make not sense on the client side). This creates e
-
-### Useful Links
-
-**TODO** examples
+  ```js
+  export function middleware(req: NextRequest) {
+    const res = NextResponse.next(null, {
+      // sets a custom response header
+      headers: { 'response-greetings': 'Hej!' },
+    })
+    // configures cookies
+    response.cookies.set('hello', 'world')
+    return res
+  }
+  ```

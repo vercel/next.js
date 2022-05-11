@@ -184,12 +184,18 @@ console.log(process.env)
 
 ### The body limitation
 
-When using middlewares, it is not permitted to change the response body: you can only set responses headers (which includes cookies, redirections and rewrites).
+When using middlewares, it is not permitted to change the response body: you can only set responses headers.
 Returning a body from a middleware function will issue an `500` server error with an explicit response message.
 
-If you wish to pass some data to your client application (or to the next middleware), we recommend to use a response header.
+The `NextResponse` API (which eventually is tweaking response headers) allows you to:
 
-**TODO** maybe we should provide more context about this limitation?
+- redirect the incoming request to a different url
+- rewrite the response by displaying a given url
+- set response cookies
+- set response headers
+
+These are solid tools to easily implement A/B testing, authentication, feature flags, bot protection...
+A middleware with the ability to change the response's body would bypass Next.js routing logic.
 
 ## Related
 
