@@ -1611,6 +1611,30 @@ describe('Client Navigation', () => {
     expect(value).toBe(false)
   })
 
+  it('should navigate to paths relative to the current page', async () => {
+    const browser = await webdriver(context.appPort, '/nav/relative')
+    await browser.waitForElementByCss('body', 500)
+
+    let page
+
+    await browser.elementByCss('a').click()
+
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch('On relative 1')
+    await browser.elementByCss('a').click()
+
+    browser.waitForElementByCss('#relative-2', 500)
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 2/)
+
+    await browser.elementByCss('button').click()
+    browser.waitForElementByCss('#relative', 500)
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative index/)
+
+    await browser.close()
+  })
+
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
     (p, q) => fetchViaHTTP(context.appPort, p, q),
