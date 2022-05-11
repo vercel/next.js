@@ -216,4 +216,26 @@ describe('Custom Server', () => {
       expect(data).toMatch(/hello world/)
     })
   })
+
+  describe('unhandled rejection', () => {
+    afterEach(() => killApp(server))
+
+    it('stderr should include error message and stack trace', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      await fetchViaHTTP(appPort, '/unhandled-rejection')
+      await check(() => stderr, /unhandledRejection/)
+      expect(stderr).toContain(
+        'error - unhandledRejection: Error: unhandled rejection'
+      )
+      expect(stderr).toContain('server.js:22:22')
+    })
+  })
 })
