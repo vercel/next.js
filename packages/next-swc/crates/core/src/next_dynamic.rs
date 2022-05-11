@@ -226,6 +226,7 @@ impl Fold for NextDynamicPatcher {
                         })))];
 
                     let mut has_ssr_false = false;
+                    let mut has_suspense = false;
 
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
@@ -253,11 +254,18 @@ impl Fold for NextDynamicPatcher {
                                             if let Some(Lit::Bool(Bool {
                                                 value: false,
                                                 span: _,
-                                            })) = match &**value {
-                                                Expr::Lit(lit) => Some(lit),
-                                                _ => None,
-                                            } {
+                                            })) = value.as_lit()
+                                            {
                                                 has_ssr_false = true
+                                            }
+                                        }
+                                        if sym == "suspense" {
+                                            if let Some(Lit::Bool(Bool {
+                                                value: true,
+                                                span: _,
+                                            })) = value.as_lit()
+                                            {
+                                                has_suspense = true
                                             }
                                         }
                                     }
@@ -266,8 +274,9 @@ impl Fold for NextDynamicPatcher {
                             props.extend(options_props.iter().cloned());
                         }
                     }
-
-                    if has_ssr_false && self.is_server {
+                    // Don't need to strip the `loader` argument if suspense is true
+                    // See https://github.com/vercel/next.js/issues/36636 for background
+                    if has_ssr_false && !has_suspense && self.is_server {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
