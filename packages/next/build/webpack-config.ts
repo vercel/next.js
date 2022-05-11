@@ -1402,6 +1402,9 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
+          config.experimental.manualClientBasePath
+        ),
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
