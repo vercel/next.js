@@ -83,12 +83,10 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import { postOptimizeHTML } from './post-process'
 
-let optimizeAmp: typeof import('./optimize-amp').default
-let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
-let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
@@ -97,12 +95,8 @@ const ReactDOMServer = process.env.__NEXT_REACT_ROOT
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
-  optimizeAmp = require('./optimize-amp').default
-  getFontDefinitionFromManifest =
-    require('./font-utils').getFontDefinitionFromManifest
   tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
-  postProcess = require('../shared/lib/post-process').default
 } else {
   warn = console.warn.bind(console)
 }
@@ -533,13 +527,6 @@ export async function renderToHTML(
       staticTransformStream: serverComponentsPageDataTransformStream,
       serverComponentManifest,
     })
-  }
-
-  const getFontDefinition = (url: string): string => {
-    if (fontManifest) {
-      return getFontDefinitionFromManifest(url, fontManifest)
-    }
-    return ''
   }
 
   let renderServerComponentData = isServerComponent
@@ -1751,62 +1738,18 @@ export async function renderToHTML(
     return RenderResult.fromStatic((renderOpts as any).pageData)
   }
 
-  const postProcessors: Array<((html: string) => Promise<string>) | null> = [
-    inAmpMode
-      ? async (html: string) => {
-          html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
-          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-            await renderOpts.ampValidator(html, pathname)
-          }
-          return html
-        }
-      : null,
-    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
-      ? async (html: string) => {
-          return await postProcess(
-            html,
-            { getFontDefinition },
-            {
-              optimizeFonts: renderOpts.optimizeFonts,
-            }
-          )
-        }
-      : null,
-    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
-      ? async (html: string) => {
-          // eslint-disable-next-line import/no-extraneous-dependencies
-          const Critters = require('critters')
-          const cssOptimizer = new Critters({
-            ssrMode: true,
-            reduceInlineStyles: false,
-            path: renderOpts.distDir,
-            publicPath: `${renderOpts.assetPrefix}/_next/`,
-            preload: 'media',
-            fonts: false,
-            ...renderOpts.optimizeCss,
-          })
-          return await cssOptimizer.process(html)
-        }
-      : null,
-    inAmpMode || hybridAmp
-      ? async (html: string) => {
-          return html.replace(/&amp;amp=1/g, '&amp=1')
-        }
-      : null,
-  ].filter(Boolean)
-
-  if (postProcessors.length > 0) {
-    let html = await streamToString(chainStreams(streams))
-    for (const postProcessor of postProcessors) {
-      if (postProcessor) {
-        html = await postProcessor(html)
-      }
-    }
-    return new RenderResult(html)
+  const postOptimize = (html: string) =>
+    postOptimizeHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+  if (generateStaticHTML) {
+    const html = await streamToString(chainStreams(streams))
+    const optimizedHtml = await postOptimize(html)
+    return new RenderResult(optimizedHtml)
   }
 
   return new RenderResult(
-    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+    chainStreams(streams).pipeThrough(
+      createBufferedTransformStream(postOptimize)
+    )
   )
 }
 

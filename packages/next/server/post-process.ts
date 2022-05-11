@@ -1,7 +1,20 @@
+import type { RenderOpts } from './render'
+import type { FontManifest } from './font-utils'
 import { parse, HTMLElement } from 'next/dist/compiled/node-html-parser'
-import { OPTIMIZED_FONT_PROVIDERS } from './constants'
+import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
+import { nonNullable } from '../lib/non-nullable'
 
-// const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
+let optimizeAmp: typeof import('./optimize-amp').default | undefined
+let getFontDefinitionFromManifest:
+  | typeof import('./font-utils').getFontDefinitionFromManifest
+  | undefined
+
+if (process.env.NEXT_RUNTIME !== 'edge') {
+  require('./node-polyfill-web-streams')
+  optimizeAmp = require('./optimize-amp').default
+  getFontDefinitionFromManifest =
+    require('./font-utils').getFontDefinitionFromManifest
+}
 
 type postProcessOptions = {
   optimizeFonts: boolean
@@ -165,6 +178,76 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
+async function postOptimizeHTML(
+  pathname: string,
+  html: string,
+  renderOpts: RenderOpts,
+  { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
+) {
+  const postProcessors: Array<(html: string) => Promise<string>> = [
+    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
+      ? async (html: string) => {
+          html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
+          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
+            await renderOpts.ampValidator(html, pathname)
+          }
+          return html
+        }
+      : null,
+    process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
+      ? async (html: string) => {
+          const createFontDefinitionGetter =
+            (fontManifest?: FontManifest) =>
+            (url: string): string => {
+              if (fontManifest) {
+                return getFontDefinitionFromManifest!(url, fontManifest)
+              }
+              return ''
+            }
+          return await processHTML(
+            html,
+            {
+              getFontDefinition: createFontDefinitionGetter(
+                renderOpts.fontManifest
+              ),
+            },
+            {
+              optimizeFonts: renderOpts.optimizeFonts,
+            }
+          )
+        }
+      : null,
+    process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
+      ? async (html: string) => {
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          const Critters = require('critters')
+          const cssOptimizer = new Critters({
+            ssrMode: true,
+            reduceInlineStyles: false,
+            path: renderOpts.distDir,
+            publicPath: `${renderOpts.assetPrefix}/_next/`,
+            preload: 'media',
+            fonts: false,
+            ...renderOpts.optimizeCss,
+          })
+          return await cssOptimizer.process(html)
+        }
+      : null,
+    inAmpMode || hybridAmp
+      ? async (html: string) => {
+          return html.replace(/&amp;amp=1/g, '&amp=1')
+        }
+      : null,
+  ].filter(nonNullable)
+
+  for (const postProcessor of postProcessors) {
+    if (postProcessor) {
+      html = await postProcessor(html)
+    }
+  }
+  return html
+}
+
 // Initialization
 registerPostProcessor(
   'Inline-Fonts',
@@ -174,4 +257,4 @@ registerPostProcessor(
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
 )
 
-export default processHTML
+export { processHTML, postOptimizeHTML }
