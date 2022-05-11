@@ -1524,6 +1524,10 @@ export default async function build(
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
         },
         {
+          featureName: 'experimental/nextScriptWorkers',
+          invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
+        },
+        {
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
