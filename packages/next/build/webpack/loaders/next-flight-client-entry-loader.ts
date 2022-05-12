@@ -1,5 +1,5 @@
 export default async function transformSource(this: any): Promise<string> {
-  let { modules } = this.getOptions()
+  let { modules, runtime, ssr } = this.getOptions()
   if (!Array.isArray(modules)) {
     modules = modules ? [modules] : []
   }
@@ -15,6 +15,13 @@ export default async function transformSource(this: any): Promise<string> {
       server: false,
       __webpack_require__
     };
-    export default function RSC() {};`
+    export default function RSC() {};
+    ` +
+    // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
+    (runtime === 'edge'
+      ? 'export const __N_SSP = true;'
+      : ssr
+      ? `export const __N_SSP = true;`
+      : `export const __N_SSG = true;`)
   )
 }

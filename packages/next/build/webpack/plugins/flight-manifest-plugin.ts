@@ -18,6 +18,7 @@ import {
   getInvalidator,
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
+import { getPageStaticInfo } from '../../entries'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -72,7 +73,7 @@ export class FlightManifestPlugin {
     // Only for webpack 5
     compiler.hooks.finishMake.tapAsync(
       PLUGIN_NAME,
-      (compilation: any, callback: any) => {
+      async (compilation: any, callback: any) => {
         const promises: any = []
 
         // For each SC server compilation entry, we need to create its corresponding
@@ -114,18 +115,30 @@ export class FlightManifestPlugin {
             // Traverse the module graph to find all client components.
             filterClientComponents(entryDependency)
 
-            const entry = `next-flight-client-entry-loader?${stringify({
-              modules: clientComponentImports,
-              // Adding name here to make the entry key unique.
-              name,
-            })}!`
-
             const entryModule =
               compilation.moduleGraph.getResolvedModule(entryDependency)
             const routeInfo = entryModule.buildInfo.route || {
               page: denormalizePagePath(name.replace(/^pages/, '')),
               absolutePagePath: entryModule.resource,
             }
+
+            // Parse gSSP and gSP exports from the page source.
+            const pageStaticInfo = this.isEdgeServer
+              ? {}
+              : await getPageStaticInfo(
+                  routeInfo.absolutePagePath,
+                  {},
+                  this.dev
+                )
+
+            const entry = `next-flight-client-entry-loader?${stringify({
+              modules: clientComponentImports,
+              runtime: this.isEdgeServer ? 'edge' : 'nodejs',
+              ssr: pageStaticInfo.ssr,
+              // Adding name here to make the entry key unique.
+              name,
+            })}!`
+
             const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
 
             // Inject the entry to the client compiler.

@@ -3,7 +3,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { getPageRuntime, runDependingOnPageType } from '../../build/entries'
+import { getPageStaticInfo, runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -234,10 +234,9 @@ export function onDemandEntryHandler({
 
       const promises = runDependingOnPageType({
         page: pagePathData.page,
-        pageRuntime: await getPageRuntime(
-          pagePathData.absolutePagePath,
-          nextConfig
-        ),
+        pageRuntime: (
+          await getPageStaticInfo(pagePathData.absolutePagePath, nextConfig)
+        ).runtime,
         onClient: () => addPageEntry('client'),
         onServer: () => addPageEntry('server'),
         onEdgeServer: () => addPageEntry('edge-server'),

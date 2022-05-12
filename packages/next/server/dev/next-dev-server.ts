@@ -64,7 +64,10 @@ import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import {
+  getPageStaticInfo,
+  invalidatePageRuntimeCache,
+} from '../../build/entries'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
 
@@ -331,10 +334,9 @@ export default class DevServer extends Server {
           }
 
           invalidatePageRuntimeCache(fileName, safeTime)
-          const pageRuntimeConfig = await getPageRuntime(
-            fileName,
-            this.nextConfig
-          )
+          const pageRuntimeConfig = (
+            await getPageStaticInfo(fileName, this.nextConfig)
+          ).runtime
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
           if (

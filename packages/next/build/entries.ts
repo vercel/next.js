@@ -128,19 +128,19 @@ export function createPagesMapping({
   }
 }
 
-const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
+type PageStaticInfo = { runtime?: PageRuntime; ssr?: boolean; ssg?: boolean }
+
+const cachedPageStaticInfo = new Map<string, [number, PageStaticInfo]>()
 
 // @TODO: We should limit the maximum concurrency of this function as there
 // could be thousands of pages existing.
-export async function getPageRuntime(
+export async function getPageStaticInfo(
   pageFilePath: string,
   nextConfig: Partial<NextConfig>,
   isDev?: boolean
-): Promise<PageRuntime> {
-  if (!nextConfig.experimental?.reactRoot) return undefined
-
+): Promise<PageStaticInfo> {
   const globalRuntime = nextConfig.experimental?.runtime
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  const cached = cachedPageStaticInfo.get(pageFilePath)
   if (cached) {
     return cached[1]
   }
@@ -152,7 +152,7 @@ export async function getPageRuntime(
     })
   } catch (err) {
     if (!isDev) throw err
-    return undefined
+    return {}
   }
 
   // When gSSP or gSP is used, this page requires an execution runtime. If the
@@ -161,6 +161,8 @@ export async function getPageRuntime(
   // https://github.com/vercel/next.js/discussions/34179
   let isRuntimeRequired: boolean = false
   let pageRuntime: PageRuntime = undefined
+  let ssr = false
+  let ssg = false
 
   // Since these configurations should always be static analyzable, we can
   // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
@@ -193,6 +195,8 @@ export async function getPageRuntime(
               identifier === 'getServerSideProps'
             ) {
               isRuntimeRequired = true
+              ssg = identifier === 'getStaticProps'
+              ssr = identifier === 'getServerSideProps'
             }
           }
         } else if (type === 'ExportNamedDeclaration') {
@@ -207,6 +211,8 @@ export async function getPageRuntime(
                 orig?.value === 'getServerSideProps')
             if (hasDataFetchingExports) {
               isRuntimeRequired = true
+              ssg = orig.value === 'getStaticProps'
+              ssr = orig?.value === 'getServerSideProps'
               break
             }
           }
@@ -226,8 +232,13 @@ export async function getPageRuntime(
     }
   }
 
-  cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
-  return pageRuntime
+  const info = {
+    runtime: pageRuntime,
+    ssr,
+    ssg,
+  }
+  cachedPageStaticInfo.set(pageFilePath, [Date.now(), info])
+  return info
 }
 
 export function invalidatePageRuntimeCache(
@@ -410,7 +421,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       runDependingOnPageType({
         page,
-        pageRuntime: await getPageRuntime(pageFilePath, config, isDev),
+        pageRuntime: (await getPageStaticInfo(pageFilePath, config, isDev))
+          .runtime,
         onClient: () => {
           if (isServerComponent) {
             // We skip the initial entries for server component pages and let the

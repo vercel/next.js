@@ -82,7 +82,7 @@ import { runCompiler } from './compiler'
 import {
   createEntrypoints,
   createPagesMapping,
-  getPageRuntime,
+  getPageStaticInfo,
 } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -1079,7 +1079,8 @@ export default async function build(
                   p.startsWith(actualPage + '/index.')
               )
               const pageRuntime = pagePath
-                ? await getPageRuntime(join(pagesDir, pagePath), config)
+                ? (await getPageStaticInfo(join(pagesDir, pagePath), config))
+                    .runtime
                 : undefined
 
               if (hasServerComponents && pagePath) {
