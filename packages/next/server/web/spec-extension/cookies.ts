@@ -62,6 +62,13 @@ export class NextCookies extends Cookies {
   set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])
     const store = super.set(...args)
+    const currentCookie = store.get(args[0])
+
+    if (typeof currentCookie !== 'string') {
+      throw new Error(
+        `Invariant: failed to generate cookie for ${JSON.stringify(args)}`
+      )
+    }
 
     if (isAlreadyAdded) {
       const setCookie = serializeCookie(
@@ -73,13 +80,13 @@ export class NextCookies extends Cookies {
       if (setCookie) {
         this.response.headers.set(
           'set-cookie',
-          [store.get(args[0]), setCookie].join(', ')
+          [currentCookie, setCookie].join(', ')
         )
       } else {
-        this.response.headers.set('set-cookie', store.get(args[0]))
+        this.response.headers.set('set-cookie', currentCookie)
       }
     } else {
-      this.response.headers.append('set-cookie', store.get(args[0]))
+      this.response.headers.append('set-cookie', currentCookie)
     }
 
     return store
