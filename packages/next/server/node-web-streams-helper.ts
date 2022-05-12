@@ -143,7 +143,7 @@ export function renderToInitialStream({
 }: {
   ReactDOMServer: any
   element: React.ReactElement
-  streamOptions: any
+  streamOptions?: any
 }): Promise<ReactReadableStream> {
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
