@@ -178,7 +178,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
 }
 
-async function postOptimizeHTML(
+async function postProcessHTML(
   pathname: string,
   content: string,
   renderOpts: RenderOpts,
@@ -196,21 +196,18 @@ async function postOptimizeHTML(
       : null,
     process.env.NEXT_RUNTIME !== 'edge' && process.env.__NEXT_OPTIMIZE_FONTS
       ? async (html: string) => {
-          const createFontDefinitionGetter =
-            (fontManifest?: FontManifest) =>
-            (url: string): string => {
-              if (fontManifest) {
-                return getFontDefinitionFromManifest!(url, fontManifest)
-              }
-              return ''
+          const getFontDefinition = (url: string): string => {
+            if (renderOpts.fontManifest) {
+              return getFontDefinitionFromManifest!(
+                url,
+                renderOpts.fontManifest
+              )
             }
+            return ''
+          }
           return await processHTML(
             html,
-            {
-              getFontDefinition: createFontDefinitionGetter(
-                renderOpts.fontManifest
-              ),
-            },
+            { getFontDefinition },
             {
               optimizeFonts: renderOpts.optimizeFonts,
             }
@@ -257,4 +254,4 @@ registerPostProcessor(
   (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
 )
 
-export { postOptimizeHTML }
+export { postProcessHTML }

@@ -83,7 +83,7 @@ import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import { postOptimizeHTML } from './post-process'
+import { postProcessHTML } from './post-process'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -1742,7 +1742,7 @@ export async function renderToHTML(
   }
 
   const postOptimize = (html: string) =>
-    postOptimizeHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+    postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
   if (generateStaticHTML) {
     const html = await streamToString(chainStreams(streams))
