@@ -52,7 +52,11 @@ export const initializeTraceOnce = (() => {
     | import('@opentelemetry/sdk-trace-node').NodeTracerProvider
     | null = null
 
-  return (config: TraceConfig) => {
+  return (config?: TraceConfig | undefined) => {
+    if (!config) {
+      return
+    }
+
     if (!!provider) {
       warn('Trace provider is already initialized')
       return

@@ -150,6 +150,9 @@ export interface ExperimentalConfig {
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
+  trace?: {
+    serviceName: string
+  }
 }
 
 export type ExportPathMap = {
