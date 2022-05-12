@@ -450,10 +450,12 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = {
-              import: mappings[page],
-              layer: isServerComponent ? 'sc_server' : null,
-            }
+            server[serverBundlePath] = isServerComponent
+              ? {
+                  import: mappings[page],
+                  layer: 'sc_server',
+                }
+              : mappings[page]
           }
         },
         onEdgeServer: () => {
@@ -514,10 +516,12 @@ export function finalizeEntrypoint({
   name,
   compilerType,
   value,
+  isServerComponent,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
+  isServerComponent?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -529,7 +533,7 @@ export function finalizeEntrypoint({
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : undefined,
+      layer: isApi ? 'api' : isServerComponent ? 'sc_server' : undefined,
       ...entry,
     }
   }

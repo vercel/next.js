@@ -625,20 +625,18 @@ export default class HotReloader {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: 'server',
                   name: bundlePath,
-                  value: {
-                    import:
-                      this.viewsDir && bundlePath.startsWith('views/')
-                        ? getViewsEntry({
-                            pagePath: join(
-                              VIEWS_DIR_ALIAS,
-                              relative(this.viewsDir!, absolutePagePath)
-                            ),
-                            viewsDir: this.viewsDir!,
-                            pageExtensions: this.config.pageExtensions,
-                          })
-                        : request,
-                    layer: isServerComponent ? 'sc_server' : undefined,
-                  },
+                  isServerComponent,
+                  value:
+                    this.viewsDir && bundlePath.startsWith('views/')
+                      ? getViewsEntry({
+                          pagePath: join(
+                            VIEWS_DIR_ALIAS,
+                            relative(this.viewsDir!, absolutePagePath)
+                          ),
+                          viewsDir: this.viewsDir!,
+                          pageExtensions: this.config.pageExtensions,
+                        })
+                      : request,
                 })
               },
             })
