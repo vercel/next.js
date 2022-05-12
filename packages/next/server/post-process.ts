@@ -1,5 +1,4 @@
 import type { RenderOpts } from './render'
-import type { FontManifest } from './font-utils'
 import { parse, HTMLElement } from 'next/dist/compiled/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
