@@ -38,7 +38,7 @@ export default class MyDocument extends Document {
       }
     }
 
-    const result = ctx.renderPage(options)
+    const result = await ctx.renderPage(options)
 
     return {
       ...result,
