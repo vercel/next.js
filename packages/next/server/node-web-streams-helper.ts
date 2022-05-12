@@ -1,5 +1,9 @@
 import { nonNullable } from '../lib/non-nullable'
 
+export type ReactReadableStream = ReadableStream<Uint8Array> & {
+  allReady?: Promise<void> | undefined
+}
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
@@ -139,30 +143,25 @@ export function renderToInitialStream({
 }: {
   ReactDOMServer: any
   element: React.ReactElement
-  streamOptions?: any
-}): Promise<
-  ReadableStream<Uint8Array> & {
-    allReady?: Promise<void>
-  }
-> {
+  streamOptions: any
+}): Promise<ReactReadableStream> {
   return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
-export async function continueFromInitialStream({
-  suffix,
-  dataStream,
-  generateStaticHTML,
-  flushEffectHandler,
-  renderStream,
-}: {
-  suffix?: string
-  dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
-  flushEffectHandler?: () => string
-  renderStream: ReadableStream<Uint8Array> & {
-    allReady?: Promise<void>
+export async function continueFromInitialStream(
+  renderStream: ReactReadableStream,
+  {
+    suffix,
+    dataStream,
+    generateStaticHTML,
+    flushEffectHandler,
+  }: {
+    suffix?: string
+    dataStream?: ReadableStream<Uint8Array>
+    generateStaticHTML: boolean
+    flushEffectHandler?: () => string
   }
-}): Promise<ReadableStream<Uint8Array>> {
+): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
