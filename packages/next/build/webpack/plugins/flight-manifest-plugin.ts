@@ -131,7 +131,7 @@ export class FlightManifestPlugin {
                   this.dev
                 )
 
-            const entry = `next-flight-client-entry-loader?${stringify({
+            const clientLoader = `next-flight-client-entry-loader?${stringify({
               modules: clientComponentImports,
               runtime: this.isEdgeServer ? 'edge' : 'nodejs',
               ssr: pageStaticInfo.ssr,
@@ -148,7 +148,7 @@ export class FlightManifestPlugin {
                 entries[pageKey] = {
                   bundlePath,
                   absolutePagePath: routeInfo.absolutePagePath,
-                  clientLoader: entry,
+                  clientLoader,
                   dispose: false,
                   lastActiveTime: Date.now(),
                 } as any
@@ -163,15 +163,18 @@ export class FlightManifestPlugin {
                 `next-client-pages-loader?${stringify({
                   isServerComponent: true,
                   page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
-                  absolutePagePath: entry,
-                })}!` + entry
+                  absolutePagePath: clientLoader,
+                })}!` + clientLoader
               )
             }
 
             // Inject the entry to the server compiler.
             const clientComponentEntryDep = (
               webpack as any
-            ).EntryPlugin.createDependency(entry, name + '.__sc_client__')
+            ).EntryPlugin.createDependency(
+              clientLoader,
+              name + '.__sc_client__'
+            )
             promises.push(
               new Promise<void>((res, rej) => {
                 compilation.addEntry(

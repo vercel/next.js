@@ -133,15 +133,14 @@ export async function loadComponents(
 
   if (serverComponents) {
     try {
-      const ClientEntryMod = await requirePage(
+      // Make sure to also load the client entry in cache.
+      await requirePage(
         normalizePagePath(pathname) + '.__sc_client__',
         distDir,
         serverless
       )
-      // ComponentMod.__next_rsc__.__next_rsc_client_entry__ =
-      //   ClientEntryMod.__next_rsc__
     } catch (_) {
-      // This page isn't a server component page, so there is no __sc_client__
+      // This page might not be a server component page, so there is no __sc_client__
       // bundle to load.
     }
   }

@@ -77,13 +77,11 @@ export function onDemandEntryHandler({
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
 
+  const startBuilding = (_compilation: webpack.Compilation) => {
+    invalidator.startBuilding()
+  }
   for (const compiler of multiCompiler.compilers) {
-    compiler.hooks.make.tap(
-      'NextJsOnDemandEntries',
-      (_compilation: webpack.Compilation) => {
-        invalidator.startBuilding()
-      }
-    )
+    compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
   }
 
   function getPagePathsFromEntrypoints(
