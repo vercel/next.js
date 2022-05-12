@@ -9,12 +9,7 @@ import { DeprecationError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
-import {
-  NextResponse,
-  RedirectHeader,
-  RewriteHeader,
-  NextMiddlewareHeader,
-} from './spec-extension/response'
+import { NextResponse, RedirectHeader } from './spec-extension/response'
 import { waitUntilSymbol } from './spec-compliant/fetch-event'
 
 export async function adapter(params: {
@@ -39,23 +34,30 @@ export async function adapter(params: {
   const event = new NextFetchEvent({ request, page: params.page })
   const response = await params.handler(request, event)
 
-  const error = isAllowed(response)
-    ? null
-    : new Response(
-        JSON.stringify({
-          message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
-        }),
-        {
-          status: 500,
-          statusText: 'Internal Server Error',
-          headers: { 'content-type': 'application/json' },
-        }
-      )
-
   return {
-    response: error || response || NextResponse.next(),
+    response: response || NextResponse.next(),
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
+}
+
+export function blockUnallowedResponse(
+  promise: Promise<FetchEventResult>
+): Promise<FetchEventResult> {
+  return promise.then((result) => ({
+    ...result,
+    response: isAllowed(result.response)
+      ? result.response
+      : new Response(
+          JSON.stringify({
+            message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+          }),
+          {
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: { 'content-type': 'application/json' },
+          }
+        ),
+  }))
 }
 
 function isAllowed(response: NextMiddlewareResult): boolean {
