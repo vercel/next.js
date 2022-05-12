@@ -506,8 +506,7 @@ export async function renderToHTML(
     // Do not use `await` here.
     // generateStaticFlightDataIfNeeded()
 
-    return await continueFromInitialStream({
-      renderStream,
+    return await continueFromInitialStream(renderStream, {
       suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
