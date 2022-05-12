@@ -54,6 +54,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
+import { loadBindings } from './swc'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -411,7 +412,7 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  let useSWCLoader = !babelConfigFile
+  let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
@@ -430,6 +431,11 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  // eagerly load swc bindings instead of waiting for transform calls
+  if (!babelConfigFile && isClient) {
+    await loadBindings()
   }
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
@@ -909,9 +915,8 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const rscCodeCondition = {
+  const serverComponentCodeCondition = {
     test: serverComponentsRegex,
-    // only apply to the pages as the begin process of rsc loaders
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
@@ -1210,7 +1215,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...rscCodeCondition,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
@@ -1219,7 +1224,7 @@ export default async function getBaseWebpackConfig(
             : [
                 // RSC client compilation loaders
                 {
-                  ...rscCodeCondition,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
@@ -1589,8 +1594,12 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        isClient &&
-        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
+        !isClient &&
+        new FlightManifestPlugin({
+          dev,
+          pageExtensions: rawPageExtensions,
+          isEdgeServer,
+        }),
       !dev &&
         isClient &&
         new TelemetryPlugin(
