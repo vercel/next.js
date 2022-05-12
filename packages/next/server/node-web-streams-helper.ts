@@ -86,18 +86,18 @@ export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
     : new TextDecoder().decode(input)
 }
 
-export function createBufferedTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createBufferedTransformStream(
+  transform: (v: string) => string | Promise<string> = (v) => v
+): TransformStream<Uint8Array, Uint8Array> {
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(() => {
-          controller.enqueue(encodeText(bufferedString))
+        setTimeout(async () => {
+          const buffered = await transform(bufferedString)
+          controller.enqueue(encodeText(buffered))
           bufferedString = ''
           pendingFlush = null
           resolve()
