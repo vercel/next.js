@@ -502,7 +502,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
-    expect(event1).toMatch(/"imageDomainsCount": 1/)
+    expect(event1).toMatch(/"imageDomainsCount": 2/)
+    expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
@@ -538,7 +539,8 @@ describe('Telemetry CLI', () => {
     expect(event2).toMatch(/"locales": "en,nl,fr"/)
     expect(event2).toMatch(/"localeDomainsCount": 2/)
     expect(event2).toMatch(/"localeDetectionEnabled": true/)
-    expect(event2).toMatch(/"imageDomainsCount": 1/)
+    expect(event2).toMatch(/"imageDomainsCount": 2/)
+    expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
@@ -645,6 +647,7 @@ describe('Telemetry CLI', () => {
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    regex.exec(stderr).pop() // nextScriptWorkers
     regex.exec(stderr).pop() // build-lint
     const optimizeFonts = regex.exec(stderr).pop()
     expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
@@ -702,6 +705,7 @@ describe('Telemetry CLI', () => {
 
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    regex.exec(stderr).pop() // nextScriptWorkers
     regex.exec(stderr).pop() // build-lint
     regex.exec(stderr).pop() // optimizeFonts
     const swcLoader = regex.exec(stderr).pop()
@@ -757,6 +761,32 @@ describe('Telemetry CLI', () => {
     const optimizeCss = regex.exec(stderr).pop()
     expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
     expect(optimizeCss).toContain(`"invocationCount": 1`)
+  })
+
+  it('emits telemetry for usage of `nextScriptWorkers`', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.next-script-workers'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.next-script-workers')
+    )
+
+    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    regex.exec(stderr).pop() // build-lint
+    regex.exec(stderr).pop() // optimizeCss
+    const nextScriptWorkers = regex.exec(stderr).pop()
+    expect(nextScriptWorkers).toContain(
+      `"featureName": "experimental/nextScriptWorkers"`
+    )
+    expect(nextScriptWorkers).toContain(`"invocationCount": 1`)
   })
 
   it('emits telemetry for usage of _middleware', async () => {

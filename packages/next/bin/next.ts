@@ -43,8 +43,7 @@ const args = arg(
 )
 
 // Detect if react-dom is enabled streaming rendering mode
-const shouldUseReactRoot = !!require('react-dom/server.browser')
-  .renderToReadableStream
+const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
