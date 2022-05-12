@@ -35,7 +35,7 @@ const deserializeCookie = (input: Request | Response): string[] => {
 
 const serializeCookie = (input: string[]) => input.join(', ')
 
-export class Cookies extends Map<string, any> {
+export class Cookies extends Map<string, string> {
   constructor(input?: string | null) {
     const parsedInput = typeof input === 'string' ? cookie.parse(input) : {}
     super(Object.entries(parsedInput))
