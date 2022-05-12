@@ -245,9 +245,9 @@ export function invalidatePageRuntimeCache(
   pageFilePath: string,
   safeTime: number
 ) {
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  const cached = cachedPageStaticInfo.get(pageFilePath)
   if (cached && cached[0] < safeTime) {
-    cachedPageRuntimeConfig.delete(pageFilePath)
+    cachedPageStaticInfo.delete(pageFilePath)
   }
 }
 
