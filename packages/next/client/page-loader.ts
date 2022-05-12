@@ -156,7 +156,8 @@ export default class PageLoader {
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`,
+        true
       )
     }
 
