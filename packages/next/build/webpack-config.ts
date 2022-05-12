@@ -412,7 +412,7 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  let useSWCLoader = !babelConfigFile
+  let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
   let SWCBinaryTarget: [Feature, boolean] | undefined = undefined
   if (useSWCLoader) {
     // TODO: we do not collect wasm target yet
@@ -915,9 +915,8 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const rscCodeCondition = {
+  const serverComponentCodeCondition = {
     test: serverComponentsRegex,
-    // only apply to the pages as the begin process of rsc loaders
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
@@ -1216,7 +1215,7 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...rscCodeCondition,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                   },
@@ -1225,7 +1224,7 @@ export default async function getBaseWebpackConfig(
             : [
                 // RSC client compilation loaders
                 {
-                  ...rscCodeCondition,
+                  ...serverComponentCodeCondition,
                   use: {
                     loader: 'next-flight-server-loader',
                     options: {
@@ -1595,8 +1594,12 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        isClient &&
-        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
+        !isClient &&
+        new FlightManifestPlugin({
+          dev,
+          pageExtensions: rawPageExtensions,
+          isEdgeServer,
+        }),
       !dev &&
         isClient &&
         new TelemetryPlugin(

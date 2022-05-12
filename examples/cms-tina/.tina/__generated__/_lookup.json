@@ -4,22 +4,19 @@
     "resolveType": "multiCollectionDocumentList",
     "collections": ["posts"]
   },
-  "Node": {
-    "type": "Node",
-    "resolveType": "nodeDocument"
-  },
+  "Node": { "type": "Node", "resolveType": "nodeDocument" },
   "DocumentNode": {
     "type": "DocumentNode",
     "resolveType": "multiCollectionDocument",
     "createDocument": "create",
     "updateDocument": "update"
   },
-  "PostsDocument": {
-    "type": "PostsDocument",
+  "Posts": {
+    "type": "Posts",
     "resolveType": "collectionDocument",
     "collection": "posts",
-    "createPostsDocument": "create",
-    "updatePostsDocument": "update"
+    "createPosts": "create",
+    "updatePosts": "update"
   },
   "PostsConnection": {
     "type": "PostsConnection",
