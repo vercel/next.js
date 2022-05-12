@@ -54,6 +54,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
+import { loadBindings } from './swc'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -430,6 +431,11 @@ export default async function getBaseWebpackConfig(
       )}" https://nextjs.org/docs/messages/swc-disabled`
     )
     loggedSwcDisabled = true
+  }
+
+  // eagerly load swc bindings instead of waiting for transform calls
+  if (!babelConfigFile && isClient) {
+    await loadBindings()
   }
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
