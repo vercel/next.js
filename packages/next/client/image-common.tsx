@@ -59,6 +59,41 @@ type ImgElementWithDataProp = HTMLImageElement & {
   'data-loaded-src': string | undefined
 }
 
+export interface StaticImageData {
+  src: string
+  height: number
+  width: number
+  blurDataURL?: string
+}
+
+interface StaticRequire {
+  default: StaticImageData
+}
+
+export type StaticImport = StaticRequire | StaticImageData
+
+export function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+export function isStaticImport(
+  src: string | StaticImport
+): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
+
 export function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
   width: number | undefined,
