@@ -210,3 +210,4 @@ If you use it across the site you may want to add the provider to `_app.js` so a
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
+- [next-markdown](https://github.com/frouo/next-markdown)
