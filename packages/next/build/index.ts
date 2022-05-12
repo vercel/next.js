@@ -140,7 +140,7 @@ export type PrerenderManifest = {
 type CompilerResult = {
   errors: webpack.StatsError[]
   warnings: webpack.StatsError[]
-  stats: webpack.Stats[]
+  stats: (webpack.Stats | undefined)[]
 }
 
 type SingleCompilerResult = {
@@ -800,13 +800,11 @@ export default async function build(
                 edgeServerResult?.errors
               )
               .filter(nonNullable),
-            stats: ([] as any[])
-              .concat(
-                clientResult?.stats,
-                serverResult?.stats,
-                edgeServerResult?.stats
-              )
-              .filter(nonNullable),
+            stats: [
+              clientResult?.stats,
+              serverResult?.stats,
+              edgeServerResult?.stats,
+            ],
           }
         })
         result = nextBuildSpan
