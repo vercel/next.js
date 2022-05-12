@@ -9,7 +9,6 @@ let getFontDefinitionFromManifest:
   | undefined
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  require('./node-polyfill-web-streams')
   optimizeAmp = require('./optimize-amp').default
   getFontDefinitionFromManifest =
     require('./font-utils').getFontDefinitionFromManifest
