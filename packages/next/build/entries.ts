@@ -220,7 +220,8 @@ export async function getPageRuntime(
       pageRuntime = globalRuntime
     }
   } else {
-    if (!isRuntimeRequired) {
+    // For Node.js runtime, we do static optimization.
+    if (!isRuntimeRequired && pageRuntime === 'nodejs') {
       pageRuntime = undefined
     }
   }
