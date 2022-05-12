@@ -189,7 +189,7 @@ For example, using the exported `primaryColor` Sass variable:
 
 ```scss
 /* variables.module.scss */
-$primary-color: #64FF00;
+$primary-color: #64ff00;
 
 :export {
   primaryColor: $primary-color;
