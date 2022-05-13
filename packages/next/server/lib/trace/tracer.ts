@@ -1,6 +1,6 @@
 import { warn } from '../../../build/output/log'
 
-import type { Span } from '@opentelemetry/api'
+import type { Span, SpanOptions } from '@opentelemetry/api'
 import { TraceConfig } from './trace-config'
 
 interface Tracer {
@@ -59,13 +59,12 @@ interface Tracer {
 }
 
 class NextTracer implements Tracer {
-  private readonly tracerInstance
+  private readonly tracerInstance: import('@opentelemetry/api').Tracer
+  private readonly traceApi: typeof import('@opentelemetry/api').trace
 
   constructor(tracerName: string, _traceConfig: TraceConfig) {
-    const {
-      trace,
-    }: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
-    this.tracerInstance = trace.getTracer(tracerName)
+    this.traceApi = require('next/dist/compiled/@opentelemetry/api').trace
+    this.tracerInstance = this.traceApi.getTracer(tracerName)
   }
 
   public trace<T>(
@@ -96,8 +95,22 @@ class NextTracer implements Tracer {
     throw new Error('not implemented')
   }
 
-  public startSpan(_name: string, _options?: unknown): Span {
-    throw new Error('not implemented')
+  /**
+   * Starts and returns a new Span representing a logical unit of work.
+   */
+  public startSpan(
+    name: string,
+    options?: SpanOptions,
+    parentSpan?: Span
+  ): Span {
+    const {
+      context,
+    }: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
+    const spanContext = parentSpan
+      ? this.traceApi.setSpan(context.active(), parentSpan)
+      : undefined
+
+    return this.tracerInstance.startSpan(name, options, spanContext)
   }
 }
 
