@@ -7,6 +7,12 @@ import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
   const distDir = join(context.appDir, '.next')
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -22,6 +28,7 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toMatch(/<\/body><\/html>$/)
     expect(scriptTagContent).toBe(';')
   })
 
