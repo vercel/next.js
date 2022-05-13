@@ -5,7 +5,7 @@ description = "AST Transforms for emotion"
 license = "Apache-2.0"
 name = "swc_emotion"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.4.0"
+version = "0.5.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
