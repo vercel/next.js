@@ -1,5 +1,6 @@
 import { warn } from '../../../build/output/log'
 import { SpanProcessorConfig, TraceConfig } from './trace-config'
+import { configureTracer } from './tracer'
 
 /**
  * Creates a span processor.
@@ -76,6 +77,7 @@ export const initializeTraceOnce = (() => {
     )
 
     provider.register()
+    configureTracer(config)
 
     Array.from(['SIGTERM', 'SIGINT'] as const).forEach((sig) => {
       process.on(sig, () => {
