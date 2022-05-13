@@ -54,6 +54,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
+import { loadBindings } from './swc'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -432,6 +433,11 @@ export default async function getBaseWebpackConfig(
     loggedSwcDisabled = true
   }
 
+  // eagerly load swc bindings instead of waiting for transform calls
+  if (!babelConfigFile && isClient) {
+    await loadBindings()
+  }
+
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
@@ -548,7 +554,7 @@ export default async function getBaseWebpackConfig(
                 path
                   .relative(
                     dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'root-next.js')
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'views-next.js')
                   )
                   .replace(/\\/g, '/'),
             }
@@ -1431,6 +1437,9 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
+          config.experimental.manualClientBasePath
+        ),
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
