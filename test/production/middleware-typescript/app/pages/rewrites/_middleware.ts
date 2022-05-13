@@ -10,6 +10,9 @@ export const middleware: NextMiddleware = async function (request) {
       const response = NextResponse.rewrite(`/rewrites/${bucket}`)
       response.cookies.set('bucket', bucket, { maxAge: 10 })
       return response
+    } else {
+      // check that `bucket` is type "string", not "any"
+      bucket.toUpperCase()
     }
 
     return NextResponse.rewrite(`/rewrites/${bucket}`)

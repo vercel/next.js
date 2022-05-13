@@ -6,14 +6,13 @@ export async function getServerSideProps() {
   }
 }
 
-export default function Root({ headChildren, bodyChildren, world }) {
+export default function Root({ children, world }) {
   return (
     <html className="this-is-another-document-html">
       <head>
-        {headChildren}
         <title>{`hello ${world}`}</title>
       </head>
-      <body className="this-is-another-document-body">{bodyChildren}</body>
+      <body className="this-is-another-document-body">{children}</body>
     </html>
   )
 }
