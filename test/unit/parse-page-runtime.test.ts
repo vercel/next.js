@@ -12,10 +12,18 @@ function createNextConfig(runtime?: 'edge' | 'nodejs') {
 describe('parse page runtime config', () => {
   it('should parse nodejs runtime correctly', async () => {
     const { runtime } = await getPageStaticInfo(
-      join(fixtureDir, 'page-runtime/nodejs.js'),
+      join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
       createNextConfig()
     )
     expect(runtime).toBe('nodejs')
+  })
+
+  it('should parse static runtime correctly', async () => {
+    const { runtime } = await getPageStaticInfo(
+      join(fixtureDir, 'page-runtime/nodejs.js'),
+      createNextConfig()
+    )
+    expect(runtime).toBe(undefined)
   })
 
   it('should parse edge runtime correctly', async () => {

@@ -212,7 +212,7 @@ export async function getPageStaticInfo(
             if (hasDataFetchingExports) {
               isRuntimeRequired = true
               ssg = orig.value === 'getStaticProps'
-              ssr = orig?.value === 'getServerSideProps'
+              ssr = orig.value === 'getServerSideProps'
               break
             }
           }
