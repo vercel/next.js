@@ -84,12 +84,8 @@ export class FlightManifestPlugin {
           // Check if the page entry is a server component or not.
           const entryDependency = entry.dependencies?.[0]
           const request = entryDependency?.request
-          if (
-            request &&
-            (serverComponentRegex.test(request) ||
-              (request.startsWith('next-middleware-ssr-loader?') &&
-                request.includes('&isServerComponent=true')))
-          ) {
+
+          if (request && entry.options?.layer === 'sc_server') {
             const visited = new Set()
             const clientComponentImports: string[] = []
 

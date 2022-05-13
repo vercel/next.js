@@ -308,6 +308,7 @@ export function getEdgeServerEntry(opts: {
 }
 
 export function getViewsEntry(opts: {
+  name: string
   pagePath: string
   viewsDir: string
   pageExtensions: string[]
@@ -437,6 +438,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onServer: () => {
           if (isViews && viewsDir) {
             server[serverBundlePath] = getViewsEntry({
+              name: serverBundlePath,
               pagePath: mappings[page],
               viewsDir,
               pageExtensions,

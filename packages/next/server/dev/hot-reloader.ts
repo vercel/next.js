@@ -629,6 +629,7 @@ export default class HotReloader {
                   value:
                     this.viewsDir && bundlePath.startsWith('views/')
                       ? getViewsEntry({
+                          name: bundlePath,
                           pagePath: join(
                             VIEWS_DIR_ALIAS,
                             relative(this.viewsDir!, absolutePagePath)
