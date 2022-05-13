@@ -6,10 +6,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@markdoc/markdoc": "*",
-    "@markdoc/next.js": "*",
+    "@markdoc/markdoc": "latest",
+    "@markdoc/next.js": "latest",
     "next": "latest",
-    "react": "*",
-    "react-dom": "*"
+    "react": "latest",
+    "react-dom": "latest"
   }
 }
