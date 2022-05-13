@@ -455,7 +455,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
                   import: mappings[page],
                   layer: 'sc_server',
                 }
-              : mappings[page]
+              : [mappings[page]]
           }
         },
         onEdgeServer: () => {

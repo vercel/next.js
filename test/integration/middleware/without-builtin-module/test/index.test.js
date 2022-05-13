@@ -9,12 +9,17 @@ import {
   launchApp,
   nextBuild,
   waitFor,
+  File,
 } from 'next-test-utils'
 
 const context = {}
 
 jest.setTimeout(1000 * 60 * 2)
 context.appDir = join(__dirname, '../')
+
+const middleware = new File(
+  join(context.appDir, 'pages', 'using-not-exist', '_middleware.js')
+)
 
 describe('Middleware importing Node.js built-in module', () => {
   function getModuleNotFound(name) {
@@ -84,10 +89,18 @@ describe('Middleware importing Node.js built-in module', () => {
     let buildResult
 
     beforeAll(async () => {
+      // Make sure to only keep the child_process error in prod build.
+      middleware.replace(`import NotExist from 'not-exist'`, '')
+      middleware.replace(`new NotExist()`, '')
+
       buildResult = await nextBuild(context.appDir, undefined, {
         stderr: true,
         stdout: true,
       })
+    })
+
+    afterAll(() => {
+      middleware.restore()
     })
 
     it('should not have middleware error during build', () => {
