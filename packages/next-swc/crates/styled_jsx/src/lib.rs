@@ -1,9 +1,9 @@
 use easy_error::{bail, Error};
-use swc_common::errors::HANDLER;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::Arc;
+use swc_common::errors::HANDLER;
 use swc_common::{collections::AHashSet, FileName, SourceMap, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{

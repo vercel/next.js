@@ -1,7 +1,7 @@
 use easy_error::{bail, Error};
-use swc_common::errors::HANDLER;
 use std::panic;
 use std::sync::Arc;
+use swc_common::errors::HANDLER;
 use swc_common::util::take::Take;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_common::{SourceMap, Spanned};

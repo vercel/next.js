@@ -1,9 +1,9 @@
 use easy_error::{bail, Error};
 use fxhash::FxHashSet;
-use swc_common::errors::HANDLER;
 use std::cell::RefCell;
 use std::mem::take;
 use std::rc::Rc;
+use swc_common::errors::HANDLER;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
