@@ -1,4 +1,5 @@
 use easy_error::{bail, Error};
+use swc_common::errors::HANDLER;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
@@ -9,11 +10,7 @@ use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
     marks::Marks,
 };
-use swc_ecmascript::utils::{
-    collect_decls,
-    ident::{Id, IdentLike},
-    prepend, HANDLER,
-};
+use swc_ecmascript::utils::{collect_decls, prepend_stmt};
 use swc_ecmascript::utils::{drop_span, private_ident};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -334,7 +331,7 @@ impl Fold for StyledJSXTransformer {
         }
 
         if self.file_has_styled_jsx || self.file_has_css_resolve {
-            prepend(
+            prepend_stmt(
                 &mut new_items,
                 styled_jsx_import_decl(self.style_import_name.as_ref().unwrap()),
             );
