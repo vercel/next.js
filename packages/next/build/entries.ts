@@ -303,7 +303,7 @@ export function getEdgeServerEntry(opts: {
 
   return {
     import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
-    layer: opts.isServerComponent ? 'sc_server' : 'edge_ssr',
+    layer: opts.isServerComponent ? 'sc_server' : undefined,
   }
 }
 

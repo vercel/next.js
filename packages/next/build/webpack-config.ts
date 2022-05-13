@@ -927,16 +927,6 @@ export default async function getBaseWebpackConfig(
             ...(isEdgeServer
               ? [
                   {
-                    byLayer: (layer: string) => {
-                      // For client components entry.
-                      if (layer === null) {
-                        return {
-                          react: 'self.__REACT',
-                        }
-                      }
-                    },
-                  },
-                  {
                     '@builder.io/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                     'next/dist/compiled/chalk': '{}',
@@ -1008,6 +998,25 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
+        // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
+        // To make some dependencies like `react` to be shared between entrypoints, we use a special
+        // cache group here even under dev mode.
+        const edgeRSCCacheGroups = hasServerComponents
+          ? {
+              rscDeps: {
+                enforce: true,
+                name: 'rsc-runtime-deps',
+                filename: 'rsc-runtime-deps.js',
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+              },
+            }
+          : undefined
+        if (isEdgeServer && edgeRSCCacheGroups) {
+          return {
+            cacheGroups: edgeRSCCacheGroups,
+          }
+        }
+
         if (dev) {
           return false
         }
@@ -1027,6 +1036,7 @@ export default async function getBaseWebpackConfig(
             filename: 'edge-chunks/[name].js',
             chunks: 'all',
             minChunks: 2,
+            cacheGroups: edgeRSCCacheGroups,
           }
         }
 
@@ -1236,6 +1246,16 @@ export default async function getBaseWebpackConfig(
                 },
               ]
             : []
+          : []),
+        ...(hasServerComponents && isEdgeServer
+          ? [
+              // Move shared dependencies from sc_server and sc_client into the
+              // same layer.
+              {
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+                layer: 'rsc_shared_deps',
+              },
+            ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,

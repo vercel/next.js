@@ -54,7 +54,6 @@ export default async function middlewareSSRLoader(this: any) {
     : null
 
   const transformed = `
-    import React from 'react'
     import { adapter } from 'next/dist/server/web/adapter'
     import { RouterContext } from 'next/dist/shared/lib/router-context'
 
@@ -72,7 +71,6 @@ export default async function middlewareSSRLoader(this: any) {
       stringified500Path ? `require(${stringified500Path})` : 'null'
     }
 
-    self.__REACT = React
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
