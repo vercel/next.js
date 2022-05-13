@@ -11,7 +11,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   EDGE_RUNTIME_WEBPACK,
 } from '../../../shared/lib/constants'
-import { clientComponentRegex, serverComponentRegex } from '../loaders/utils'
+import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import {
