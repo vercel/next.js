@@ -1,7 +1,8 @@
+import type { Container, Engine, ISourceOptions } from 'tsparticles-engine'
 import Particles from 'react-tsparticles'
 
 const ParticlesComponent = () => {
-  const particlesInit = async (engine) => {
+  const particlesInit = async (engine: Engine) => {
     // here engine can be used for loading additional presets or plugins
     // PRESETS
     // https://github.com/matteobruni/tsparticles/tree/main/presets all official tsParticles presets
@@ -25,7 +26,7 @@ const ParticlesComponent = () => {
     // await loadOrbitUpdater(engine); // it requires "tsparticles-updater-orbit" dependency
   }
 
-  const particlesLoaded = async (container) => {
+  const particlesLoaded = async (container: Container) => {
     // the container is the current particles instance, it has methods like refresh(), start(), stop(), play(), pause()
     // the documentation can be found here: https://particles.js.org/docs/modules/Core_Container.html
   }
@@ -33,7 +34,7 @@ const ParticlesComponent = () => {
   // options variable is the particles configuration
   // many configurations can be found here: https://particles.js.org
   // other configurations can be found in the official CodePen collection here: https://codepen.io/collection/DPOage
-  const options = {
+  const options: ISourceOptions = {
     fullScreen: {
       enable: true, // set this to false to use the particles like any other DOM element, with this true they act like a background
       zIndex: -1,
