@@ -11,7 +11,13 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     nextUsedEnvVars?: Set<string>
     nextWasmMiddlewareBinding?: WasmBinding
     usingIndirectEval?: boolean | Set<string>
+    route?: RouteMeta
   }
+}
+
+export interface RouteMeta {
+  page: string
+  absolutePagePath: string
 }
 
 export interface EdgeMiddlewareMeta {

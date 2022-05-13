@@ -922,6 +922,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    // @ts-ignore
     externals:
       isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
@@ -998,11 +999,30 @@ export default async function getBaseWebpackConfig(
       nodeEnv: false,
       ...(hasServerComponents
         ? {
-            // We have to use the names here instead of hashes to ensure the consistency between builds.
+            // We have to use the names here instead of hashes to ensure the consistency between compilers.
             moduleIds: 'named',
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
+        // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
+        // To make some dependencies like `react` to be shared between entrypoints, we use a special
+        // cache group here even under dev mode.
+        const edgeRSCCacheGroups = hasServerComponents
+          ? {
+              rscDeps: {
+                enforce: true,
+                name: 'rsc-runtime-deps',
+                filename: 'rsc-runtime-deps.js',
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+              },
+            }
+          : undefined
+        if (isEdgeServer && edgeRSCCacheGroups) {
+          return {
+            cacheGroups: edgeRSCCacheGroups,
+          }
+        }
+
         if (dev) {
           return false
         }
@@ -1022,6 +1042,7 @@ export default async function getBaseWebpackConfig(
             filename: 'edge-chunks/[name].js',
             chunks: 'all',
             minChunks: 2,
+            cacheGroups: edgeRSCCacheGroups,
           }
         }
 
@@ -1179,6 +1200,7 @@ export default async function getBaseWebpackConfig(
         'next-style-loader',
         'next-flight-client-loader',
         'next-flight-server-loader',
+        'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
@@ -1216,23 +1238,30 @@ export default async function getBaseWebpackConfig(
                 // RSC server compilation loaders
                 {
                   ...serverComponentCodeCondition,
+                  issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-server-loader',
                   },
                 },
-              ]
-            : [
-                // RSC client compilation loaders
                 {
-                  ...serverComponentCodeCondition,
+                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|head|script)/,
+                  issuerLayer: 'sc_server',
                   use: {
-                    loader: 'next-flight-server-loader',
-                    options: {
-                      client: 1,
-                    },
+                    loader: 'next-flight-client-loader',
                   },
                 },
               ]
+            : []
+          : []),
+        ...(hasServerComponents && isEdgeServer
+          ? [
+              // Move shared dependencies from sc_server and sc_client into the
+              // same layer.
+              {
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+                layer: 'rsc_shared_deps',
+              },
+            ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
