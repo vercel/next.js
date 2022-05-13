@@ -20,7 +20,7 @@ let pendingBindings
 let swcTraceFlushGuard
 export const lockfilePatchPromise = {}
 
-async function loadBindings() {
+export async function loadBindings() {
   if (pendingBindings) {
     return pendingBindings
   }
@@ -87,6 +87,12 @@ function loadBindingsSync() {
     attempts = attempts.concat(a)
   }
 
+  // we can leverage the wasm bindings if they are already
+  // loaded
+  if (wasmBindings) {
+    return wasmBindings
+  }
+
   logLoadFailure(attempts)
 }
 
@@ -133,16 +139,24 @@ async function loadWasm(importPath = '') {
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return Promise.resolve(
-            bindings.transformSync(src.toString(), options)
-          )
+          return bindings.transformSync(src.toString(), options)
+        },
+        transformSync(src, options) {
+          return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return Promise.resolve(bindings.minifySync(src.toString(), options))
+          return bindings.minifySync(src.toString(), options)
+        },
+        minifySync(src, options) {
+          return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
-          return Promise.resolve(astStr)
+          return astStr
+        },
+        parseSync(src, options) {
+          const astStr = bindings.parseSync(src.toString(), options)
+          return astStr
         },
         getTargetTriple() {
           return undefined
