@@ -1,5 +1,6 @@
 var path = require('path');
 var path2 = require('path');
+var os = require('os');
 
 var knownWindowsPackages = {
   'win32 arm64 LE': 'esbuild-windows-arm64',

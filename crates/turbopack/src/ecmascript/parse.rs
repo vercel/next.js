@@ -118,8 +118,8 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
     let ty = ty.into_value();
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
-        FileContent::Content(buffer) => {
-            match String::from_utf8(buffer.clone()) {
+        FileContent::Content(file) => {
+            match String::from_utf8(file.content().to_vec()) {
                 Err(_err) => ParseResult::Unparseable.into(),
                 Ok(string) => {
                     let cm: Lrc<SourceMap> = Default::default();

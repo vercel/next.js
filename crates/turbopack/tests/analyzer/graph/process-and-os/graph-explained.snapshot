@@ -1,0 +1,30 @@
+arch = FreeVar(Require)("os")["arch"]
+
+binding1 = FreeVar(Require)(
+    `esbuild-${process*0*["arch"]}-${platform()}-${endianness()}`
+)
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+
+binding2 = FreeVar(Require)(`esbuild-${arch()}-${platform()}-${endianness()}`)
+
+binding3 = FreeVar(Require)(
+    `esbuild-${arch()}-${process*0*["platform"]}-${endianness()}`
+)
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+
+binding4 = FreeVar(Require)(
+    `esbuild-${process*0*["arch"]}-${process*1*["platform"]}-${endianness()}`
+)
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+- *1* process: The Node.js process module: https://nodejs.org/api/process.html
+
+binding5 = FreeVar(Require)(
+    `esbuild-${p["arch"]}-${p["platform"]}-${endianness()}`
+)
+
+endianness = FreeVar(Require)("os")["endianness"]
+
+p = process*0*
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+
+platform = FreeVar(Require)("os")["platform"]

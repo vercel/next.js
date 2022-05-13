@@ -9,6 +9,7 @@ pub mod webpack;
 use crate::{
     asset::{Asset, AssetVc},
     reference::AssetReferenceVc,
+    target::CompileTarget,
 };
 use anyhow::Result;
 use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
@@ -28,15 +29,17 @@ pub enum ModuleAssetType {
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub ty: ModuleAssetType,
+    pub target: CompileTarget,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, ty: Value<ModuleAssetType>) -> Self {
+    pub fn new(source: AssetVc, ty: Value<ModuleAssetType>, target: Value<CompileTarget>) -> Self {
         Self::slot(ModuleAsset {
             source,
             ty: ty.into_value(),
+            target: target.into_value(),
         })
     }
 }
@@ -50,6 +53,6 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(self.source, Value::new(self.ty))
+        module_references(self.source, Value::new(self.ty), Value::new(self.target))
     }
 }

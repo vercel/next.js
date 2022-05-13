@@ -1,4 +1,4 @@
-*arrow function 2641* = (...) => (
+*arrow function 2665* = (...) => (
   | [
         "node",
         [
@@ -30,7 +30,7 @@ e#6 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-esbuildCommandAndArgs = *arrow function 2641*
+esbuildCommandAndArgs = *arrow function 2665*
 
 esbuildLibDir = path["dirname"](FreeVar(Require)["resolve"]("esbuild"))
 
@@ -62,6 +62,8 @@ knownWindowsPackages = {
     "win32 x64 LE": "esbuild-windows-64"
 }
 
+os = FreeVar(Require)("os")
+
 path = FreeVar(Require)("path")
 
 path2 = FreeVar(Require)("path")
@@ -74,7 +76,8 @@ pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
-platformKey = `${FreeVar(process)["platform"]} ${FreeVar(os)["arch"]()} ${FreeVar(os)["endianness"]()}`
+platformKey = `${process*0*["platform"]} ${os["arch"]()} ${os["endianness"]()}`
+- *0* process: The Node.js process module: https://nodejs.org/api/process.html
 
 subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
