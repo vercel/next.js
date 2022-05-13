@@ -1,9 +1,24 @@
 import { warn } from '../../../build/output/log'
 
-import type { Span, SpanOptions } from '@opentelemetry/api'
+import type { ContextAPI, Span, SpanOptions } from '@opentelemetry/api'
 import { TraceConfig } from './trace-config'
 
+const isPromise = <T>(p: any): p is Promise<T> => {
+  return p !== null && typeof p === 'object' && typeof p.then === 'function'
+}
+
+const closeSpanWithError = (span: Span, error?: Error) => {
+  const {
+    SpanStatusCode,
+  }: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
+
+  span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
+  span.end()
+}
+
 interface Tracer {
+  getContext(): ContextAPI
+
   /**
    * Instruments a function by automatically creating a span activated on its
    * scope.
@@ -21,12 +36,21 @@ interface Tracer {
    */
   trace<T>(
     name: string,
-    fn: (span?: Span, fnCb?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+  ): Promise<T>
+  trace<T>(
+    name: string,
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
     name: string,
-    options: unknown,
-    fn: (span?: Span, done?: (error?: Error) => string) => T
+    options: SpanOptions & { parentSpan?: Span },
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+  ): Promise<T>
+  trace<T>(
+    name: string,
+    options: SpanOptions & { parentSpan?: Span },
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
 
   /**
@@ -61,23 +85,95 @@ interface Tracer {
 class NextTracer implements Tracer {
   private readonly tracerInstance: import('@opentelemetry/api').Tracer
   private readonly traceApi: typeof import('@opentelemetry/api').trace
+  /**
+   * Singleton object which represents the entry point to the OpenTelemetry Context API
+   */
+  private readonly context: typeof import('@opentelemetry/api').context
 
   constructor(tracerName: string, _traceConfig: TraceConfig) {
     this.traceApi = require('next/dist/compiled/@opentelemetry/api').trace
     this.tracerInstance = this.traceApi.getTracer(tracerName)
+    this.context = require('next/dist/compiled/@opentelemetry/api').context
+  }
+
+  public getContext(): ContextAPI {
+    return this.context
   }
 
   public trace<T>(
     name: string,
-    fn: (span?: Span, fnCb?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+  ): Promise<T>
+  public trace<T>(
+    name: string,
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
     name: string,
-    options: unknown,
-    fn: (span?: Span, done?: (error?: Error) => string) => T
+    options: SpanOptions & { parentSpan?: Span },
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+  ): Promise<T>
+  public trace<T>(
+    name: string,
+    options: SpanOptions & { parentSpan?: Span },
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
-  public trace(..._args: Array<any>) {
-    throw new Error('not implemented')
+  public trace<T>(...args: Array<any>) {
+    const [name, fnOrOptions, fnOrEmpty] = args
+
+    // coerce options form overload
+    const {
+      fn,
+      options,
+    }: {
+      fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
+      options: SpanOptions & { parentSpan?: Span }
+    } =
+      typeof fnOrOptions === 'function'
+        ? {
+            fn: fnOrOptions,
+            options: {},
+          }
+        : {
+            fn: fnOrEmpty,
+            options: fnOrOptions,
+          }
+
+    const spanContext = this.getSpanContext(options?.parentSpan)
+
+    const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
+      spanContext
+        ? this.tracerInstance.startActiveSpan(
+            name,
+            options,
+            spanContext,
+            actualFn
+          )
+        : this.tracerInstance.startActiveSpan(name, options, actualFn)
+
+    return runWithContext((span: Span) => {
+      try {
+        if (fn.length > 1) {
+          return fn(span, (err?: Error) => closeSpanWithError(span, err))
+        }
+
+        const result = fn(span)
+
+        if (isPromise(result)) {
+          result.then(
+            () => span.end(),
+            (err) => closeSpanWithError(span, err)
+          )
+        } else {
+          span.end()
+        }
+
+        return result
+      } catch (err: any) {
+        closeSpanWithError(span, err)
+        throw err
+      }
+    })
   }
 
   public wrap<T = (...args: Array<any>) => any>(name: string, fn: T): T
@@ -103,14 +199,20 @@ class NextTracer implements Tracer {
     options?: SpanOptions,
     parentSpan?: Span
   ): Span {
+    const spanContext = this.getSpanContext(parentSpan)
+    return this.tracerInstance.startSpan(name, options, spanContext)
+  }
+
+  private getSpanContext(parentSpan?: Span) {
     const {
       context,
     }: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
+
     const spanContext = parentSpan
       ? this.traceApi.setSpan(context.active(), parentSpan)
       : undefined
 
-    return this.tracerInstance.startSpan(name, options, spanContext)
+    return spanContext
   }
 }
 
@@ -132,7 +234,7 @@ const { configureTracer, getTracer } = (() => {
         )
       }
     },
-    getTracer: (name?: string) => {
+    getTracer: (name?: string): Tracer => {
       const tracerName =
         name ?? traceConfig?.defaultTracerName ?? traceConfig.serviceName
       if (tracerMap[tracerName]) {
