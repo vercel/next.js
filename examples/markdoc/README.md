@@ -1,33 +1,23 @@
-# Next.js example
+# Example app with Markdoc
 
-This is a boilerplate for a creating a documentation website using Markdoc and Next.js.
+This example shows using [Markdoc](https://github.com/markdoc/markdoc) as top level pages for your Next.js app.
 
-## Setup
+## Deploy your own
 
-First, download this example and install the dependencies required:
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/markdoc)
 
-```bash
-npm install
-# or
-yarn install
-```
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/markdoc&project-name=markdoc&repository-name=markdoc)
 
-Then, run the development server:
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm run dev
+npx create-next-app --example markdoc markdoc-app
 # or
-yarn dev
+yarn create next-app --example markdoc markdoc-app
+# or
+pnpm create next-app -- --example markdoc markdoc-app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `index.md`. The page auto-updates as you edit the file.
-
-## Deploy
-
-The quickest way to deploy your own version of this boilerplate is by deploying it with [Vercel](https://vercel.com) by clicking the button below.
-
-### Deploy with Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/markdoc/docs/tree/main/examples/simple-nextjs)
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
