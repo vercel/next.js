@@ -1,4 +1,3 @@
-/* global localStorage */
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
   window.__BEACONS_COUNT = new Map()
