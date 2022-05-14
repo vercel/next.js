@@ -92,13 +92,17 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Handle CSS imports (without CSS modules)
           '^.+\\.(css|sass|scss)$': require.resolve('./__mocks__/styleMock.js'),
 
-          // Handle image imports
+          // Handle image imports as a StaticImageData-typed png image
           '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$': require.resolve(
-            `./__mocks__/fileMock.js`
+            `./__mocks__/imageMock.js`
           ),
 
-          // Keep .svg to it's own rule to make overriding easy
-          '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+          // Handle svg imports as @svgr/webpack plugin handles
+          '^.+\\.(svg)$': require.resolve(`./__mocks__/svgMock.js`),
+
+          // Handle other files as jest suggested
+          '^.+\\.(eot|otf|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
+            require.resolve(`./__mocks__/fileMock.js`),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

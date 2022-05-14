@@ -1,6 +1,2 @@
-module.exports = {
-  src: '/img.jpg',
-  height: 24,
-  width: 24,
-  blurDataURL: 'data:image/png;base64,imagedata',
-}
+// as jest suggested in https://jestjs.io/docs/webpack#handling-static-assets
+module.exports = 'test-file-stub'
