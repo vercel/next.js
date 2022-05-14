@@ -17,14 +17,22 @@ import { missingDepsError } from './typescript/missingDependencyError'
 import { NextConfigComplete } from '../server/config-shared'
 
 const requiredPackages = [
-  { file: 'typescript', pkg: 'typescript' },
-  { file: '@types/react/index.d.ts', pkg: '@types/react' },
-  { file: '@types/node/index.d.ts', pkg: '@types/node' },
+  { file: 'typescript', pkg: 'typescript', exportsRestrict: false },
+  {
+    file: '@types/react/index.d.ts',
+    pkg: '@types/react',
+    exportsRestrict: true,
+  },
+  {
+    file: '@types/node/index.d.ts',
+    pkg: '@types/node',
+    exportsRestrict: false,
+  },
 ]
 
 export async function verifyTypeScriptSetup(
   dir: string,
-  pagesDir: string,
+  intentDirs: string[],
   typeCheckPreflight: boolean,
   config: NextConfigComplete,
   cacheDir?: string
@@ -33,7 +41,7 @@ export async function verifyTypeScriptSetup(
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir, config)
+    const intent = await getTypeScriptIntent(dir, intentDirs, config)
     if (!intent) {
       return { version: null }
     }

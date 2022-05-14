@@ -54,9 +54,11 @@ export function getRender({
   }
 
   const server = new WebServer({
+    dev,
     conf: config,
     minimalMode: true,
     webServerConfig: {
+      page,
       extendRenderOpts: {
         buildId,
         reactRoot: true,

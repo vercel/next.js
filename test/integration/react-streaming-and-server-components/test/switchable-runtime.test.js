@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -19,6 +20,48 @@ function splitLines(text) {
     .split(/\r?\n/g)
     .map((str) => str.trim())
     .filter(Boolean)
+}
+
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should contain _app.server in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-server-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-server-root"`, 'g')
+        )
+      ).toBe(1)
+    })
+  })
+
+  it('should contain _app.server in flight response (edge)', async () => {
+    const html = await renderViaHTTP(context.appPort, '/edge-rsc')
+    const flightResponse = await renderViaHTTP(
+      context.appPort,
+      '/edge-rsc?__flight__=1'
+    )
+    expect(
+      getOccurrence(html, new RegExp(`class="app-server-root"`, 'g'))
+    ).toBe(1)
+    expect(
+      getOccurrence(
+        flightResponse,
+        new RegExp(`"className":\\s*"app-server-root"`, 'g')
+      )
+    ).toBe(1)
+  })
 }
 
 async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
@@ -37,12 +80,15 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root">'
-  if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
-  } else {
-    expect(html1).not.toContain(customAppServerHtml)
-  }
+  // If the page is using 1 root, it won't use the other.
+  // e.g. server component page won't have client app root.
+  const rootClasses = ['app-server-root', 'app-client-root']
+  const [rootClass, oppositeRootClass] = isRSC
+    ? [rootClasses[0], rootClasses[1]]
+    : [rootClasses[1], rootClasses[0]]
+
+  expect(getOccurrence(html1, new RegExp(`class="${rootClass}"`, 'g'))).toBe(1)
+  expect(html1).not.toContain(`"${oppositeRootClass}"`)
 }
 
 describe('Switchable runtime (prod)', () => {
@@ -61,6 +107,8 @@ describe('Switchable runtime (prod)', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  flight(context)
 
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
@@ -100,6 +148,9 @@ describe('Switchable runtime (prod)', () => {
       isEdge: false,
       isRSC: true,
     })
+
+    const html = await renderViaHTTP(context.appPort, '/node-rsc')
+    expect(html).toContain('data-title="node-rsc"')
   })
 
   it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
@@ -250,6 +301,16 @@ describe('Switchable runtime (prod)', () => {
       'This is a static RSC page.'
     )
   })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
+  })
 })
 
 describe('Switchable runtime (dev)', () => {
@@ -263,6 +324,7 @@ describe('Switchable runtime (dev)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
   it('should support client side navigation to ssr rsc pages', async () => {
     let flightRequest = null
 

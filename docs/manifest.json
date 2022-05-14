@@ -143,8 +143,11 @@
           ]
         },
         {
-          "title": "Middleware",
-          "path": "/docs/middleware.md"
+          "path": "/docs/middleware",
+          "redirect": {
+            "destination": "/docs/advanced-features/middleware",
+            "permanent": true
+          }
         },
         {
           "title": "Going to Production",
@@ -256,12 +259,20 @@
               "path": "/docs/advanced-features/src-directory.md"
             },
             {
+              "title": "CI Build Caching",
+              "path": "/docs/advanced-features/ci-build-caching.md"
+            },
+            {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
             },
             {
               "title": "Measuring performance",
               "path": "/docs/advanced-features/measuring-performance.md"
+            },
+            {
+              "title": "Middleware (Beta)",
+              "path": "/docs/advanced-features/middleware.md"
             },
             {
               "title": "Debugging",

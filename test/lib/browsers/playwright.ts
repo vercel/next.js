@@ -315,12 +315,7 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 

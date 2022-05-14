@@ -115,16 +115,17 @@ module.exports = function (task) {
       }
 
       if (output.map) {
-        const map = `${file.base}.map`
-
         if (interopClientDefaultExport) {
           output.code += `
 if (typeof exports.default === 'function' || (typeof exports.default === 'object' && exports.default !== null)) {
+  Object.defineProperty(exports.default, '__esModule', { value: true });
   Object.assign(exports.default, exports);
   module.exports = exports.default;
 }
 `
         }
+
+        const map = `${file.base}.map`
 
         output.code += Buffer.from(`\n//# sourceMappingURL=${map}`)
 

@@ -5,23 +5,31 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { Params } from './router'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
+import type { Options } from './base-server'
 
-import BaseServer, { Options } from './base-server'
+import BaseServer from './base-server'
 import { renderToHTML } from './render'
+import { byteLength, generateETag } from './api-utils/web'
 
-interface WebServerConfig {
-  loadComponent: (pathname: string) => Promise<LoadComponentsReturnType | null>
-  extendRenderOpts?: Partial<BaseServer['renderOpts']>
+interface WebServerOptions extends Options {
+  webServerConfig: {
+    page: string
+    loadComponent: (
+      pathname: string
+    ) => Promise<LoadComponentsReturnType | null>
+    extendRenderOpts: Partial<BaseServer['renderOpts']> &
+      Pick<BaseServer['renderOpts'], 'buildId'>
+  }
 }
 
-export default class NextWebServer extends BaseServer {
-  webServerConfig: WebServerConfig
-
-  constructor(options: Options & { webServerConfig: WebServerConfig }) {
+export default class NextWebServer extends BaseServer<WebServerOptions> {
+  constructor(options: WebServerOptions) {
     super(options)
-    this.webServerConfig = options.webServerConfig
+
+    // Extend `renderOpts`.
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
+
   protected generateRewrites() {
     // @TODO: assuming minimal mode right now
     return {
@@ -54,7 +62,7 @@ export default class NextWebServer extends BaseServer {
     return ''
   }
   protected getBuildId() {
-    return (globalThis as any).__server_context.buildId
+    return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
   protected loadEnvConfig() {
     // The web server does not need to load the env config. This is done by the
@@ -92,7 +100,12 @@ export default class NextWebServer extends BaseServer {
   }
   protected getPagesManifest() {
     return {
-      [(globalThis as any).__server_context.page]: '',
+      [this.serverOptions.webServerConfig.page]: '',
+    }
+  }
+  protected getViewPathsManifest() {
+    return {
+      [this.serverOptions.webServerConfig.page]: '',
     }
   }
   protected getFilesystemPaths() {
@@ -124,7 +137,7 @@ export default class NextWebServer extends BaseServer {
   ): Promise<RenderResult | null> {
     return renderToHTML(
       {
-        url: pathname,
+        url: req.url,
         cookies: req.cookies,
         headers: req.headers,
       } as any,
@@ -149,6 +162,8 @@ export default class NextWebServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
+    res.setHeader('X-Edge-Runtime', '1')
+
     // Add necessary headers.
     // @TODO: Share the isomorphic logic with server/send-payload.ts.
     if (options.poweredByHeader && options.type === 'html') {
@@ -163,10 +178,8 @@ export default class NextWebServer extends BaseServer {
       )
     }
 
-    // @TODO
-    const writer = res.transformStream.writable.getWriter()
-
     if (options.result.isDynamic()) {
+      const writer = res.transformStream.writable.getWriter()
       options.result.pipe({
         write: (chunk: Uint8Array) => writer.write(chunk),
         end: () => writer.close(),
@@ -176,8 +189,11 @@ export default class NextWebServer extends BaseServer {
         // Not implemented: on/removeListener
       } as any)
     } else {
-      // TODO: generate Etag
       const payload = await options.result.toUnchunkedString()
+      res.setHeader('Content-Length', String(byteLength(payload)))
+      if (options.generateEtags) {
+        res.setHeader('ETag', await generateETag(payload))
+      }
       res.body(payload)
     }
 
@@ -192,7 +208,9 @@ export default class NextWebServer extends BaseServer {
     query?: NextParsedUrlQuery,
     params?: Params | null
   ) {
-    const result = await this.webServerConfig.loadComponent(pathname)
+    const result = await this.serverOptions.webServerConfig.loadComponent(
+      pathname
+    )
     if (!result) return null
 
     return {
