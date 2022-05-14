@@ -40,6 +40,9 @@ function getBaseSWCOptions({
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
   )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
+  )
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -63,6 +66,7 @@ function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
@@ -141,6 +145,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  pagesDir,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -170,6 +175,7 @@ export function getJestSWCOptions({
     },
     disableNextSsg: true,
     disablePageConfig: true,
+    pagesDir,
   }
 }
 
