@@ -418,13 +418,20 @@ export default async function exportApp(
         })
       )
 
-    if (
-      !options.buildExport &&
-      !exportPathMap['/404'] &&
-      !exportPathMap['/404.html']
-    ) {
-      exportPathMap['/404'] = exportPathMap['/404.html'] = {
-        page: '/_error',
+    // only add missing 404 page when `buildExport` is false
+    if (!options.buildExport) {
+      // only add missing /404 if not specified in `exportPathMap`
+      if (!exportPathMap['/404']) {
+        exportPathMap['/404'] = { page: '/_error' }
+      }
+
+      /**
+       * exports 404.html for backwards compat
+       * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
+       */
+      if (!exportPathMap['/404.html']) {
+        // alias /404.html to /404 to be compatible with custom 404 / _error page
+        exportPathMap['/404.html'] = exportPathMap['/404']
       }
     }
 
