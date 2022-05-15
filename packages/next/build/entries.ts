@@ -31,6 +31,7 @@ import { parse } from '../build/swc'
 import { isServerComponentPage, withoutRSCExtensions } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { serverComponentRegex } from './webpack/loaders/utils'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -127,19 +128,19 @@ export function createPagesMapping({
   }
 }
 
-const cachedPageRuntimeConfig = new Map<string, [number, PageRuntime]>()
+type PageStaticInfo = { runtime?: PageRuntime; ssr?: boolean; ssg?: boolean }
+
+const cachedPageStaticInfo = new Map<string, [number, PageStaticInfo]>()
 
 // @TODO: We should limit the maximum concurrency of this function as there
 // could be thousands of pages existing.
-export async function getPageRuntime(
+export async function getPageStaticInfo(
   pageFilePath: string,
   nextConfig: Partial<NextConfig>,
   isDev?: boolean
-): Promise<PageRuntime> {
-  if (!nextConfig.experimental?.reactRoot) return undefined
-
+): Promise<PageStaticInfo> {
   const globalRuntime = nextConfig.experimental?.runtime
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  const cached = cachedPageStaticInfo.get(pageFilePath)
   if (cached) {
     return cached[1]
   }
@@ -151,7 +152,7 @@ export async function getPageRuntime(
     })
   } catch (err) {
     if (!isDev) throw err
-    return undefined
+    return {}
   }
 
   // When gSSP or gSP is used, this page requires an execution runtime. If the
@@ -160,6 +161,8 @@ export async function getPageRuntime(
   // https://github.com/vercel/next.js/discussions/34179
   let isRuntimeRequired: boolean = false
   let pageRuntime: PageRuntime = undefined
+  let ssr = false
+  let ssg = false
 
   // Since these configurations should always be static analyzable, we can
   // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
@@ -192,6 +195,8 @@ export async function getPageRuntime(
               identifier === 'getServerSideProps'
             ) {
               isRuntimeRequired = true
+              ssg = identifier === 'getStaticProps'
+              ssr = identifier === 'getServerSideProps'
             }
           }
         } else if (type === 'ExportNamedDeclaration') {
@@ -206,6 +211,8 @@ export async function getPageRuntime(
                 orig?.value === 'getServerSideProps')
             if (hasDataFetchingExports) {
               isRuntimeRequired = true
+              ssg = orig.value === 'getStaticProps'
+              ssr = orig.value === 'getServerSideProps'
               break
             }
           }
@@ -218,19 +225,29 @@ export async function getPageRuntime(
     if (isRuntimeRequired) {
       pageRuntime = globalRuntime
     }
+  } else {
+    // For Node.js runtime, we do static optimization.
+    if (!isRuntimeRequired && pageRuntime === 'nodejs') {
+      pageRuntime = undefined
+    }
   }
 
-  cachedPageRuntimeConfig.set(pageFilePath, [Date.now(), pageRuntime])
-  return pageRuntime
+  const info = {
+    runtime: pageRuntime,
+    ssr,
+    ssg,
+  }
+  cachedPageStaticInfo.set(pageFilePath, [Date.now(), info])
+  return info
 }
 
 export function invalidatePageRuntimeCache(
   pageFilePath: string,
   safeTime: number
 ) {
-  const cached = cachedPageRuntimeConfig.get(pageFilePath)
+  const cached = cachedPageStaticInfo.get(pageFilePath)
   if (cached && cached[0] < safeTime) {
-    cachedPageRuntimeConfig.delete(pageFilePath)
+    cachedPageStaticInfo.delete(pageFilePath)
   }
 }
 
@@ -245,6 +262,7 @@ interface CreateEntrypointsParams {
   target: 'server' | 'serverless' | 'experimental-serverless-trace'
   viewsDir?: string
   viewPaths?: Record<string, string>
+  pageExtensions: string[]
 }
 
 export function getEdgeServerEntry(opts: {
@@ -253,9 +271,10 @@ export function getEdgeServerEntry(opts: {
   bundlePath: string
   config: NextConfigComplete
   isDev: boolean
+  isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
-}): ObjectValue<webpack5.EntryObject> {
+}) {
   if (opts.page.match(MIDDLEWARE_ROUTE)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
@@ -282,16 +301,19 @@ export function getEdgeServerEntry(opts: {
     stringifiedConfig: JSON.stringify(opts.config),
   }
 
-  return `next-middleware-ssr-loader?${stringify(loaderParams)}!`
+  return {
+    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
+    layer: opts.isServerComponent ? 'sc_server' : undefined,
+  }
 }
 
-export function getViewsEntry(opts: { pagePath: string; viewsDir: string }) {
-  const loaderParams = {
-    pagePath: opts.pagePath,
-    viewsDir: opts.viewsDir,
-  }
-
-  return `next-view-loader?${stringify(loaderParams)}!`
+export function getViewsEntry(opts: {
+  name: string
+  pagePath: string
+  viewsDir: string
+  pageExtensions: string[]
+}) {
+  return `next-view-loader?${stringify(opts)}!`
 }
 
 export function getServerlessEntry(opts: {
@@ -358,7 +380,16 @@ export function getClientEntry(opts: {
 }
 
 export async function createEntrypoints(params: CreateEntrypointsParams) {
-  const { config, pages, pagesDir, isDev, target, viewsDir, viewPaths } = params
+  const {
+    config,
+    pages,
+    pagesDir,
+    isDev,
+    target,
+    viewsDir,
+    viewPaths,
+    pageExtensions,
+  } = params
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
@@ -366,21 +397,16 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const getEntryHandler =
     (mappings: Record<string, string>, isViews: boolean) =>
     async (page: string) => {
-      // TODO: @timneutkens do not pass layouts to entry here
-      if (isViews && page.endsWith('/layout')) {
-        return
-      }
-
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath = posix.join(
         isViews ? 'views' : 'pages',
         bundleFile
       )
+      const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
       const pageFilePath = (() => {
-        const absolutePagePath = mappings[page]
         if (absolutePagePath.startsWith(PAGES_DIR_ALIAS)) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
@@ -392,20 +418,30 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         return require.resolve(absolutePagePath)
       })()
 
+      const isServerComponent = serverComponentRegex.test(absolutePagePath)
+
       runDependingOnPageType({
         page,
-        pageRuntime: await getPageRuntime(pageFilePath, config, isDev),
+        pageRuntime: (await getPageStaticInfo(pageFilePath, config, isDev))
+          .runtime,
         onClient: () => {
-          client[clientBundlePath] = getClientEntry({
-            absolutePagePath: mappings[page],
-            page,
-          })
+          if (isServerComponent) {
+            // We skip the initial entries for server component pages and let the
+            // server compiler inject them instead.
+          } else {
+            client[clientBundlePath] = getClientEntry({
+              absolutePagePath: mappings[page],
+              page,
+            })
+          }
         },
         onServer: () => {
           if (isViews && viewsDir) {
             server[serverBundlePath] = getViewsEntry({
+              name: serverBundlePath,
               pagePath: mappings[page],
               viewsDir,
+              pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
             if (page !== '/_app' && page !== '/_document') {
@@ -416,7 +452,12 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               })
             }
           } else {
-            server[serverBundlePath] = [mappings[page]]
+            server[serverBundlePath] = isServerComponent
+              ? {
+                  import: mappings[page],
+                  layer: 'sc_server',
+                }
+              : [mappings[page]]
           }
         },
         onEdgeServer: () => {
@@ -425,6 +466,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             absolutePagePath: mappings[page],
             bundlePath: clientBundlePath,
             isDev: false,
+            isServerComponent,
             page,
           })
         },
@@ -476,10 +518,12 @@ export function finalizeEntrypoint({
   name,
   compilerType,
   value,
+  isServerComponent,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
+  isServerComponent?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -491,7 +535,7 @@ export function finalizeEntrypoint({
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi ? 'api' : undefined,
+      layer: isApi ? 'api' : isServerComponent ? 'sc_server' : undefined,
       ...entry,
     }
   }

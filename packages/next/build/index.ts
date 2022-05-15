@@ -82,7 +82,7 @@ import { runCompiler } from './compiler'
 import {
   createEntrypoints,
   createPagesMapping,
-  getPageRuntime,
+  getPageStaticInfo,
 } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -114,6 +114,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -139,11 +140,13 @@ export type PrerenderManifest = {
 type CompilerResult = {
   errors: webpack.StatsError[]
   warnings: webpack.StatsError[]
-  stats: [
-    webpack.Stats | undefined,
-    webpack.Stats | undefined,
-    webpack.Stats | undefined
-  ]
+  stats: (webpack.Stats | undefined)[]
+}
+
+type SingleCompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: webpack.Stats | undefined
 }
 
 export default async function build(
@@ -318,10 +321,11 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               viewsDir,
-              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }
+
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -375,6 +379,7 @@ export default async function build(
             target,
             viewsDir,
             viewPaths: mappedViewPaths,
+            pageExtensions: config.pageExtensions,
           })
         )
 
@@ -663,7 +668,7 @@ export default async function build(
       let result: CompilerResult = {
         warnings: [],
         errors: [],
-        stats: [undefined, undefined, undefined],
+        stats: [],
       }
       let webpackBuildStart
       let telemetryPlugin
@@ -722,41 +727,84 @@ export default async function build(
 
         // We run client and server compilation separately to optimize for memory usage
         await runWebpackSpan.traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig, {
-            runWebpackSpan,
-          })
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
-              stats: [clientResult.stats, undefined, undefined],
+          // If we are under the serverless build, we will have to run the client
+          // compiler first because the server compiler depends on the manifest
+          // files that are created by the client compiler.
+          // Otherwise, we run the server compilers first and then the client
+          // compiler to track the boundary of server/client components.
+
+          let clientResult: SingleCompilerResult | null = null
+          let serverResult: SingleCompilerResult | null = null
+          let edgeServerResult: SingleCompilerResult | null = null
+
+          if (isLikeServerless) {
+            if (config.experimental.serverComponents) {
+              throw new Error(
+                'Server Components are not supported in serverless mode.'
+              )
             }
-          } else {
-            const serverResult = await runCompiler(configs[1], {
+
+            // Build client first
+            clientResult = await runCompiler(clientConfig, {
               runWebpackSpan,
             })
-            const edgeServerResult = configs[2]
+
+            // Only continue if there were no errors
+            if (!clientResult.errors.length) {
+              serverResult = await runCompiler(configs[1], {
+                runWebpackSpan,
+              })
+              edgeServerResult = configs[2]
+                ? await runCompiler(configs[2], { runWebpackSpan })
+                : null
+            }
+          } else {
+            // During the server compilations, entries of client components will be
+            // injected to this set and then will be consumed by the client compiler.
+            injectedClientEntries.clear()
+
+            serverResult = await runCompiler(configs[1], {
+              runWebpackSpan,
+            })
+            edgeServerResult = configs[2]
               ? await runCompiler(configs[2], { runWebpackSpan })
               : null
 
-            result = {
-              warnings: [
-                ...clientResult.warnings,
-                ...serverResult.warnings,
-                ...(edgeServerResult?.warnings || []),
-              ],
-              errors: [
-                ...clientResult.errors,
-                ...serverResult.errors,
-                ...(edgeServerResult?.errors || []),
-              ],
-              stats: [
-                clientResult.stats,
-                serverResult.stats,
-                edgeServerResult?.stats,
-              ],
+            // Only continue if there were no errors
+            if (
+              !serverResult.errors.length &&
+              !edgeServerResult?.errors.length
+            ) {
+              injectedClientEntries.forEach((value, key) => {
+                ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              })
+
+              clientResult = await runCompiler(clientConfig, {
+                runWebpackSpan,
+              })
             }
+          }
+
+          result = {
+            warnings: ([] as any[])
+              .concat(
+                clientResult?.warnings,
+                serverResult?.warnings,
+                edgeServerResult?.warnings
+              )
+              .filter(nonNullable),
+            errors: ([] as any[])
+              .concat(
+                clientResult?.errors,
+                serverResult?.errors,
+                edgeServerResult?.errors
+              )
+              .filter(nonNullable),
+            stats: [
+              clientResult?.stats,
+              serverResult?.stats,
+              edgeServerResult?.stats,
+            ],
           }
         })
         result = nextBuildSpan
@@ -1029,7 +1077,8 @@ export default async function build(
                   p.startsWith(actualPage + '/index.')
               )
               const pageRuntime = pagePath
-                ? await getPageRuntime(join(pagesDir, pagePath), config)
+                ? (await getPageStaticInfo(join(pagesDir, pagePath), config))
+                    .runtime
                 : undefined
 
               if (hasServerComponents && pagePath) {
@@ -1520,6 +1569,10 @@ export default async function build(
         {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/nextScriptWorkers',
+          invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
         },
         {
           featureName: 'optimizeFonts',

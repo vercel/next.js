@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
@@ -135,6 +136,7 @@ export interface ExperimentalConfig {
     }
   >
   swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
 }
 
 /**
@@ -505,6 +507,7 @@ export const defaultConfig: NextConfig = {
       layoutRaw: false,
       remotePatterns: [],
     },
+    forceSwcTransforms: false,
   },
 }
 
