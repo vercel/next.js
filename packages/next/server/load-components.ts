@@ -3,6 +3,12 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
+import type {
+  PageConfig,
+  GetStaticPaths,
+  GetServerSideProps,
+  GetStaticProps,
+} from 'next/types'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
@@ -12,12 +18,7 @@ import { join } from 'path'
 import { requirePage, getPagePath } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
-import {
-  PageConfig,
-  GetStaticPaths,
-  GetServerSideProps,
-  GetStaticProps,
-} from 'next/types'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -129,6 +130,20 @@ export async function loadComponents(
         ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
         : null,
     ])
+
+  if (serverComponents) {
+    try {
+      // Make sure to also load the client entry in cache.
+      await requirePage(
+        normalizePagePath(pathname) + '.__sc_client__',
+        distDir,
+        serverless
+      )
+    } catch (_) {
+      // This page might not be a server component page, so there is no __sc_client__
+      // bundle to load.
+    }
+  }
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
