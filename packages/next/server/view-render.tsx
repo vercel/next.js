@@ -16,10 +16,8 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
-import DefaultRootLayout from '../lib/views-layout'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -216,16 +214,21 @@ export async function renderToHTML(
     ComponentMod,
   } = renderOpts
 
+  const isFlight = query.__flight__ !== undefined
+  const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
+  delete query.__flight__
+  delete query.__flight_router_path__
+
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const components = Object.keys(ComponentMod.components)
+  const componentPaths = Object.keys(ComponentMod.components)
+  const components = componentPaths
     .filter((path) => {
-      const { __flight__, __flight_router_path__: routerPath } = query
       // Rendering part of the page is only allowed for flight data
-      if (__flight__ !== undefined && routerPath) {
+      if (flightRouterPath) {
         // TODO: check the actual path
         const pathLength = path.length
-        return pathLength >= routerPath.length
+        return pathLength >= flightRouterPath.length
       }
       return true
     })
@@ -236,6 +239,8 @@ export async function renderToHTML(
       return mod
     })
 
+  const isSubtreeRender = components.length < componentPaths.length
+
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
   // invoke, where we'd have to consider server & serverless.
@@ -245,22 +250,12 @@ export async function renderToHTML(
     (renderOpts as any).previewProps
   )
   const isPreview = previewData !== false
-
-  let WrappedComponent: any
-  let RootLayout: any
-
   const dataCache = new Map<string, Record>()
+  let WrappedComponent: any
 
   for (let i = components.length - 1; i >= 0; i--) {
     const dataCacheKey = i.toString()
     const layout = components[i]
-
-    if (i === 0) {
-      // top-most layout is the root layout that renders
-      // the html/body tags
-      RootLayout = layout.Component
-      continue
-    }
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
@@ -311,8 +306,7 @@ export async function renderToHTML(
 
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
-    WrappedComponent = () => {
-      let props: any
+    WrappedComponent = (props: any) => {
       if (fetcher) {
         // The data fetching was kicked off before rendering (see above)
         // if the data was not resolved yet the layout rendering will be suspended
@@ -323,7 +317,24 @@ export async function renderToHTML(
         )
         // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
         const recordValue = readRecordValue(record)
-        props = recordValue.props
+
+        if (props) {
+          props = Object.assign({}, props, recordValue.props)
+        } else {
+          props = recordValue.props
+        }
+      }
+
+      // if this is the root layout pass children as children prop
+      if (!isSubtreeRender && i === 0) {
+        return React.createElement(layout.Component, {
+          ...props,
+          children: React.createElement(
+            lastComponent || React.Fragment,
+            {},
+            null
+          ),
+        })
       }
 
       return React.createElement(
@@ -343,15 +354,9 @@ export async function renderToHTML(
     // }
   }
 
-  if (!RootLayout) {
-    // TODO: fallback to our own root layout?
-    // throw new Error('invariant RootLayout not loaded')
-    RootLayout = DefaultRootLayout
-  }
-
-  const headChildren = buildManifest.rootMainFiles.map((src) => (
-    <script src={'/_next/' + src} async key={src} />
-  ))
+  const bootstrapScripts = !isSubtreeRender
+    ? buildManifest.rootMainFiles.map((src) => '/_next/' + src)
+    : undefined
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -361,11 +366,15 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
-  const Component = createServerComponentRenderer(RootLayout, ComponentMod, {
-    cachePrefix: pathname + (search ? `?${search}` : ''),
-    transformStream: serverComponentsInlinedTransformStream,
-    serverComponentManifest,
-  })
+  const Component = createServerComponentRenderer(
+    WrappedComponent,
+    ComponentMod,
+    {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      transformStream: serverComponentsInlinedTransformStream,
+      serverComponentManifest,
+    }
+  )
 
   // const serverComponentProps = query.__props__
   //   ? JSON.parse(query.__props__ as string)
@@ -379,47 +388,15 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  let flushEffects: Array<() => React.ReactNode> | null = null
-  function FlushEffectContainer({ children }: { children: JSX.Element }) {
-    // If the client tree suspends, this component will be rendered multiple
-    // times before we flush. To ensure we don't call old callbacks corresponding
-    // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffects = null
-
-    const flushEffectsImpl = React.useCallback(
-      (callbacks: Array<() => React.ReactNode>) => {
-        if (flushEffects) {
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.' +
-              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
-          )
-        }
-        flushEffects = callbacks
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={flushEffectsImpl}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <FlushEffectContainer>
-      <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-    </FlushEffectContainer>
+    <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   )
 
-  const renderServerComponentData = query.__flight__ !== undefined
+  const renderServerComponentData = isFlight
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        <RootLayout
-          headChildren={headChildren}
-          bodyChildren={<WrappedComponent />}
-        />,
+        <WrappedComponent />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -442,27 +419,20 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <AppContainer>
-        <Component
-          headChildren={headChildren}
-          bodyChildren={<WrappedComponent />}
-        />
+        <Component />
       </AppContainer>
     )
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
       element: content,
+      streamOptions: {
+        bootstrapScripts,
+      },
     })
 
     const flushEffectHandler = (): string => {
-      const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
-      const flushed = ReactDOMServer.renderToString(
-        <>
-          {allFlushEffects.map((flushEffect, i) => (
-            <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-          ))}
-        </>
-      )
+      const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
       return flushed
     }
 
@@ -499,8 +469,7 @@ export async function renderToHTML(
     // Do not use `await` here.
     // generateStaticFlightDataIfNeeded()
 
-    return await continueFromInitialStream({
-      renderStream,
+    return await continueFromInitialStream(renderStream, {
       suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,

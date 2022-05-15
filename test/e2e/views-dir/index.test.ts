@@ -26,6 +26,12 @@ describe('views dir', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should pass props from getServerSideProps in root layout', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard')
+    const $ = cheerio.load(html)
+    expect($('title').text()).toBe('hello world')
+  })
+
   it('should serve from pages', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello from pages/index')
@@ -55,14 +61,16 @@ describe('views dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
-  // TODO: why is this routable but /should-not-serve-server.server.js
   it('should not include parent when not in parent directory with route in directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
-    // Should be nested in /root.js
-    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
-    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect(html).toContain('<html>')
+    expect(html).toContain('<body>')
+    expect($('html').hasClass('this-is-the-document-html')).toBeFalsy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeFalsy()
 
     // Should not be nested in dashboard
     expect($('h1').text()).toBeFalsy()
@@ -71,11 +79,48 @@ describe('views dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/rootonly/hello')
   })
 
+  it('should use new root layout when provided', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/another')
+    const $ = cheerio.load(html)
+
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect($('html').hasClass('this-is-another-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-another-document-body')).toBeTruthy()
+
+    // Should not be nested in dashboard
+    expect($('h1').text()).toBeFalsy()
+
+    // Should render the page text
+    expect($('p').text()).toBe('hello from newroot/dashboard/another')
+  })
+
+  it('should not create new root layout when nested (optional)', async () => {
+    const html = await renderViaHTTP(
+      next.url,
+      '/dashboard/deployments/breakdown'
+    )
+    const $ = cheerio.load(html)
+
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+
+    // Should be nested in dashboard
+    expect($('h1').text()).toBe('Dashboard')
+    expect($('h2').text()).toBe('Custom dashboard')
+
+    // Should render the page text
+    expect($('p').text()).toBe(
+      'hello from root/dashboard/(custom)/deployments/breakdown'
+    )
+  })
+
   it('should include parent document when no direct parent layout', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
 
-    // Root has to provide it's own document
     expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
     expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
   })
