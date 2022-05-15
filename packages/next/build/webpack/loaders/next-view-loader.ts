@@ -119,10 +119,6 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
     export const components = {
         ${componentsCode.join(',\n')}
     };
-
-    export const __next_rsc__ = {
-      __webpack_require__
-    };
   `
   return result
 }
