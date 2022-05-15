@@ -131,12 +131,7 @@ if (process.versions.pnp === '3') {
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
 if (!process.env.NEXT_MANUAL_SIGTERM) {
-  process.on('SIGTERM', () =>
-    setTimeout(
-      () => process.exit(0),
-      parseInt(process.env.NEXT_GRACEFUL_SHUTDOWN_TIMEOUT_MS || '0', 10)
-    )
-  )
+  process.on('SIGTERM', () => process.exit(0))
 }
 
 process.on('SIGINT', () => process.exit(0))
