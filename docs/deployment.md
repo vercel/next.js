@@ -96,6 +96,8 @@ When you deploy your Next.js application, you want to see the latest version wit
 
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
+**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+
 ## Manual Graceful shutdowns
 
 Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
