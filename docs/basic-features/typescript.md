@@ -101,25 +101,30 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 The following is an example of how to use the built-in types for API routes:
 
 ```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default (req: NextApiRequest, res: NextApiResponse) => {
-  res.status(200).json({ name: 'John Doe' })
-}
+const Profile = (req: NextApiRequest, res: NextApiResponse) => {
+  res.status(200).json({ name: "John Doe" });
+};
+
+export default Profile;
+
 ```
 
 You can also type the response data:
 
 ```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 type Data = {
-  name: string
-}
+  name:string;
+};
 
-export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
-  res.status(200).json({ name: 'John Doe' })
-}
+const Profile = (req: NextApiRequest, res: NextApiResponse<Data>) => {
+  res.status(200).json({ name: "John Doe" });
+};
+
+export default Profile;
 ```
 
 ## Custom `App`
@@ -127,11 +132,13 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 If you have a [custom `App`](/docs/advanced-features/custom-app.md), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
-import type { AppProps } from 'next/app'
+import type { AppProps } from "next/app";
 
-export default function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
-}
+const MyApp = ({ Component, pageProps }: AppProps) => {
+  return <Component {...pageProps} />;
+};
+
+export default MyApp;
 ```
 
 ## Path aliases and baseUrl
