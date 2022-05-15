@@ -12,7 +12,7 @@
     "carbon-icons": "^7.0.7",
     "next": "latest",
     "sass": "^1.32.4",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

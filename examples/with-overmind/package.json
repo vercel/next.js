@@ -8,8 +8,8 @@
   "dependencies": {
     "next": "latest",
     "overmind": "^17.0.0-1551262265873",
-    "overmind-react": "^18.0.0-1551262265873",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "overmind-react": "^18.1.0-1551262265873",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

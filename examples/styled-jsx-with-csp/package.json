@@ -8,7 +8,7 @@
   "dependencies": {
     "nanoid": "3.1.21",
     "next": "^12.0.7",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

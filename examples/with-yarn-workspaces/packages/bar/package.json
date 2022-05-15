@@ -1,6 +1,6 @@
 {
   "private": true,
   "peerDependencies": {
-    "react": "^18.0.0"
+    "react": "^18.1.0"
   }
 }

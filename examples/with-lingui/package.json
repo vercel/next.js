@@ -10,8 +10,8 @@
   "dependencies": {
     "@lingui/react": "^3.10.2",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "@babel/core": "7.14.5",

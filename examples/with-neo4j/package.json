@@ -8,8 +8,8 @@
   "dependencies": {
     "neo4j-driver": "^4.3.1",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "swr": "0.3.9"
   }
 }

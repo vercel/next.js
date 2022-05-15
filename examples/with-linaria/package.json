@@ -9,8 +9,8 @@
     "linaria": "^2.1.0",
     "next": "latest",
     "next-linaria": "^0.11.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.13.10"

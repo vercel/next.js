@@ -9,7 +9,7 @@
     "firebase": "9.1.1",
     "firebase-admin": "9.12.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

@@ -15,8 +15,8 @@
     "apollo-server-micro": "^2.16.1",
     "graphql": "15.3.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^2.2.1",

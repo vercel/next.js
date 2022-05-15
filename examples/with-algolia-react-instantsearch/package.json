@@ -12,8 +12,8 @@
     "next": "latest",
     "prop-types": "^15.5.10",
     "qs": "^6.4.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-instantsearch-dom": "6.6.0",
     "style-loader": "^0.17.0"
   }

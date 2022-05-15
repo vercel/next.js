@@ -8,8 +8,8 @@
   "dependencies": {
     "@emotion/react": "^11.1.5",
     "@emotion/styled": "11.3.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "tailwindcss-filters": "3.0.0"
   },
   "devDependencies": {

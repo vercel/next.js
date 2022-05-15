@@ -11,8 +11,8 @@
     "jss": "^9.8.7",
     "mobile-detect": "^1.4.3",
     "next": "^9.3.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-jss": "^8.6.1",
     "react-multi-carousel": "^1.2.5"
   }

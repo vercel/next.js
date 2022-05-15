@@ -9,8 +9,8 @@
   "dependencies": {
     "next": "canary",
     "next-offline": "4.0.6",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "cross-env": "6.0.3"

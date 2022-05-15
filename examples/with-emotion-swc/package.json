@@ -9,7 +9,7 @@
     "@emotion/react": "11.8.1",
     "@emotion/styled": "11.8.1",
     "next": "latest",
-    "react": "18.0.0",
-    "react-dom": "18.0.0"
+    "react": "18.1.0",
+    "react-dom": "18.1.0"
   }
 }

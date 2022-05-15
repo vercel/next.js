@@ -9,8 +9,8 @@
     "@hapi/hapi": "^20.2.1",
     "cross-env": "^7.0.3",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "@types/hapi__hapi": "^20.0.10",

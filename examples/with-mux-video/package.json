@@ -10,8 +10,8 @@
     "@mux/upchunk": "^2.0.0",
     "hls.js": "^0.13.2",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "swr": "^0.2.0"
   }
 }

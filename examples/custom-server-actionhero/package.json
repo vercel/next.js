@@ -7,8 +7,8 @@
     "actionhero": "^18.1.2",
     "ioredis": "^3.2.2",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "ws": "^4.1.0"
   },
   "scripts": {

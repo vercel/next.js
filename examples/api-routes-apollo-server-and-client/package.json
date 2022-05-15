@@ -11,7 +11,7 @@
     "graphql": "^14.0.2",
     "next": "latest",
     "prop-types": "^15.6.2",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

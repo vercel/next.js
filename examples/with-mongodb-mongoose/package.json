@@ -8,8 +8,8 @@
   "dependencies": {
     "mongoose": "^6.0.11",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "swr": "^1.0.1"
   }
 }

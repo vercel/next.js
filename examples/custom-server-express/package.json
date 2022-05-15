@@ -9,7 +9,7 @@
     "cross-env": "^7.0.2",
     "express": "^4.17.1",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

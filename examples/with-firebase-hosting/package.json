@@ -14,8 +14,8 @@
     "firebase-admin": "^9.4.2",
     "firebase-functions": "^3.13.1",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "firebase-functions-test": "^0.2.3",

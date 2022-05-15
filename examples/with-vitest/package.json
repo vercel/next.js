@@ -8,12 +8,12 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "18.0.0",
-    "react-dom": "18.0.0"
+    "react": "18.1.0",
+    "react-dom": "18.1.0"
   },
   "devDependencies": {
     "@testing-library/react": "^12.1.4",
-    "@types/node": "18.0.03",
+    "@types/node": "18.1.03",
     "@types/react": "17.0.43",
     "@vitejs/plugin-react": "1.3.0",
     "jsdom": "^19.0.0",

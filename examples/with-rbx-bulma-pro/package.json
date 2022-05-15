@@ -9,8 +9,8 @@
     "bulma-pro": "^0.1.7",
     "next": "latest",
     "rbx": "^2.2.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "tslib": "2.3.0"

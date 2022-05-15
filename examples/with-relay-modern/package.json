@@ -10,8 +10,8 @@
   "dependencies": {
     "graphql": "^14.6.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-relay": "^9.0.0"
   },
   "devDependencies": {

@@ -11,8 +11,8 @@
     "ioredis": "^4.23.0",
     "next": "latest",
     "postcss": "^8.1.10",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-hot-toast": "^1.0.2",
     "swr": "^0.5.1",
     "tailwindcss": "^2.0.2",
@@ -22,7 +22,7 @@
     "@tailwindcss/jit": "0.1.1",
     "@types/ioredis": "4.28.8",
     "@types/node": "^16.11.25",
-    "@types/react": "^18.0.0",
+    "@types/react": "^18.1.0",
     "@types/uuid": "8.3.4",
     "typescript": "^4.5.5"
   }

@@ -10,8 +10,8 @@
     "lost": "8.2.0",
     "postcss-nested": "5.0.5",
     "postcss": "8.2.9",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "styled-jsx-plugin-postcss": "4.0.1"
   },
   "postcss": {

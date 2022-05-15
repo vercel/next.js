@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "next": "11.1.0",
-    "react": "18.0.0",
-    "react-dom": "18.0.0",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
     "react-intl": "5.20.9"
   },
   "devDependencies": {

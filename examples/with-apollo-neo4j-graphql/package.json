@@ -13,7 +13,7 @@
     "neo4j-driver": "^4.2.1",
     "neo4j-graphql-js": "^2.17.1",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

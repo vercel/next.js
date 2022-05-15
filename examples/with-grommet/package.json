@@ -8,8 +8,8 @@
   "dependencies": {
     "grommet": "^2.5.5",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "styled-components": "^5.3.0"
   },
   "devDependencies": {

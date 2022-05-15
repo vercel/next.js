@@ -10,7 +10,7 @@
     "apollo-server-micro": "2.13.1",
     "graphql": "15.0.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

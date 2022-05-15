@@ -7,8 +7,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "typestyle": "^2.0.1"
   }
 }

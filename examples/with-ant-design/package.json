@@ -14,8 +14,8 @@
     "esm": "^3.2.25",
     "next": "latest",
     "postcss-preset-env": "^6.7.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "browser": {
     "fs": false,

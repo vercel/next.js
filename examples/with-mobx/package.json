@@ -9,8 +9,8 @@
     "mobx": "^6.0.1",
     "mobx-react": "^7.0.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "@babel/core": "7.14.5",

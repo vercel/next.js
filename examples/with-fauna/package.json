@@ -13,8 +13,8 @@
     "graphql": "15.5.1",
     "graphql-request": "3.5.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "request": "2.88.2",
     "swr": "0.5.6"
   },

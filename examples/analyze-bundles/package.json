@@ -12,8 +12,8 @@
     "cross-env": "^6.0.3",
     "faker": "^4.1.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "devDependencies": {
     "serve": "^11.3.2"

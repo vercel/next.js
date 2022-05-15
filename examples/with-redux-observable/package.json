@@ -7,8 +7,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-redux": "7.2.0",
     "redux": "4.0.5",
     "redux-logger": "3.0.6",

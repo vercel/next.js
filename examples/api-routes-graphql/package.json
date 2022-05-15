@@ -10,8 +10,8 @@
     "graphql": "^15.5.1",
     "micro": "^9.3.4",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "swr": "^0.5.6"
   }
 }

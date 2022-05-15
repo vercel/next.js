@@ -4,8 +4,8 @@
     "graphql-react": "^11.0.1",
     "next": "latest",
     "next-graphql-react": "^8.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   },
   "scripts": {
     "dev": "next",

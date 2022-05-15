@@ -11,8 +11,8 @@
     "next-plugin-preact": "^3.0.6",
     "preact": "^10.5.15",
     "preact-render-to-string": "^5.1.19",
-    "react": "npm:@preact/compat@^18.0.0",
-    "react-dom": "npm:@preact/compat@^18.0.0",
+    "react": "npm:@preact/compat@^18.1.0",
+    "react-dom": "npm:@preact/compat@^18.1.0",
     "react-ssr-prepass": "npm:preact-ssr-prepass@^1.2.0"
   }
 }

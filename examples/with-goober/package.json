@@ -9,7 +9,7 @@
     "goober": "^2.0.2",
     "goober-autoprefixer": "^1.2.0",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
   }
 }

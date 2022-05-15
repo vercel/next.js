@@ -8,8 +8,8 @@
   "dependencies": {
     "gsap": "^3.0.1",
     "next": "latest",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
     "react-transition-group": "^4.3.0",
     "sass": "1.29.0"
   }

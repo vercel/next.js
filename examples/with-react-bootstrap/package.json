@@ -8,8 +8,8 @@
   "dependencies": {
     "bootstrap": "^4.4.1",
     "next": "latest",
-    "react": "^18.0.0",
+    "react": "^18.1.0",
     "react-bootstrap": "^1.0.1",
-    "react-dom": "^18.0.0"
+    "react-dom": "^18.1.0"
   }
 }
