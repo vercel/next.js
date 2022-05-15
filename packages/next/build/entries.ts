@@ -313,7 +313,10 @@ export function getViewsEntry(opts: {
   viewsDir: string
   pageExtensions: string[]
 }) {
-  return `next-view-loader?${stringify(opts)}!`
+  return {
+    import: `next-view-loader?${stringify(opts)}!`,
+    layer: 'sc_server',
+  }
 }
 
 export function getServerlessEntry(opts: {
