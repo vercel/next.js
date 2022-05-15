@@ -130,11 +130,10 @@ if (process.versions.pnp === '3') {
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIGTERM) {
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
 }
-
-process.on('SIGINT', () => process.exit(0))
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))
