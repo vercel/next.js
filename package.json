@@ -64,6 +64,7 @@
     "@types/selenium-webdriver": "4.0.15",
     "@types/sharp": "0.29.3",
     "@types/string-hash": "1.1.1",
+    "@types/trusted-types": "2.0.2",
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
     "@vercel/fetch": "6.1.1",
@@ -180,25 +181,5 @@
   },
   "engines": {
     "node": ">=12.22.0"
-  },
-  "turbo": {
-    "pipeline": {
-      "build-native": {
-        "dependsOn": [
-          "^build-native"
-        ],
-        "outputs": [
-          "native/*.node"
-        ]
-      },
-      "build-wasm": {
-        "dependsOn": [
-          "^build-wasm"
-        ],
-        "outputs": [
-          "crates/wasm/pkg/*"
-        ]
-      }
-    }
   }
 }

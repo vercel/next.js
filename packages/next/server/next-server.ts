@@ -31,6 +31,7 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
+  VIEW_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -45,6 +46,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
+import { renderToHTML as viewRenderToHTML } from './view-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -55,7 +57,7 @@ import BaseServer, {
   stringifyQuery,
 } from './base-server'
 import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
@@ -124,7 +126,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    if (!this.renderOpts.dev) {
+    if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents(this.distDir, '/_document', this._isLikeServerless).catch(
@@ -155,6 +157,16 @@ export default class NextNodeServer extends BaseServer {
 
   protected getPagesManifest(): PagesManifest | undefined {
     return require(join(this.serverDistDir, PAGES_MANIFEST))
+  }
+
+  protected getViewPathsManifest(): PagesManifest | undefined {
+    if (this.nextConfig.experimental.viewsDir) {
+      const viewPathsManifestPath = join(
+        this.serverDistDir,
+        VIEW_PATHS_MANIFEST
+      )
+      return require(viewPathsManifestPath)
+    }
   }
 
   protected getBuildId(): string {
@@ -572,6 +584,16 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
+    if (renderOpts.isViewPath) {
+      return viewRenderToHTML(
+        req.originalRequest,
+        res.originalResponse,
+        pathname,
+        query,
+        renderOpts
+      )
+    }
+
     return renderToHTML(
       req.originalRequest,
       res.originalResponse,
@@ -619,7 +641,8 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       this._isLikeServerless,
       this.renderOpts.dev,
-      locales
+      locales,
+      this.nextConfig.experimental.viewsDir
     )
   }
 
@@ -649,7 +672,8 @@ export default class NextNodeServer extends BaseServer {
           this.distDir,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
-          this.renderOpts.serverComponents
+          this.renderOpts.serverComponents,
+          this.nextConfig.experimental.viewsDir
         )
 
         if (

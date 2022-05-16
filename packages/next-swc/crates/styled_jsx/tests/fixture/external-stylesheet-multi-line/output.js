@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 import styles from './styles';
 export default (()=><div className={`jsx-${styles.__hash}`}>
 

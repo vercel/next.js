@@ -3,7 +3,12 @@ module.exports = phase => {
     images: {
       formats: ['image/avif', 'image/webp'],
       imageSizes: [64, 128, 256, 512, 1024],
-      domains: ['example.com'],
+      domains: ['example.com', 'another.com'],
+    },
+    experimental: {
+      images: {
+        remotePatterns: [{ protocol: 'https', hostname: '**.example.com' }],
+      },
     },
     i18n: {
       locales: ['en','nl','fr'],

@@ -15,10 +15,6 @@ import {
 import webdriver from 'next-webdriver'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
-const nodeArgs = [
-  '-r',
-  join(__dirname, '../../../lib/react-17-require-hook.js'),
-]
 
 const fsExists = (file) =>
   fs
@@ -229,9 +225,7 @@ describe('Font Optimization', () => {
 
         // Re-run build to check if it works when build is cached
         it('should work when build is cached', async () => {
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           const testJson = JSON.parse(
             await fs.readFile(builtPage('font-manifest.json'), {
               encoding: 'utf-8',
@@ -246,13 +240,9 @@ describe('Font Optimization', () => {
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
+          app = await nextStart(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -266,19 +256,12 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `
-            const path = require('path')
-            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'serverless', cleanDistDir: false })
-            `,
+            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
             'utf8'
           )
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
+          app = await nextStart(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -295,19 +278,12 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `
-            const path = require('path')
-            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'experimental-serverless-trace', cleanDistDir: false })
-            `,
+            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
             'utf8'
           )
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort, {
-            nodeArgs,
-          })
+          app = await startServerlessEmulator(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -320,18 +296,14 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
             '[]',
             'utf8'
           )
           appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
+          app = await nextStart(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })

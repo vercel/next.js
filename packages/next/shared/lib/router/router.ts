@@ -18,7 +18,7 @@ import {
 } from '../../../client/route-loader'
 import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
-import { denormalizePagePath } from '../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
@@ -205,12 +205,23 @@ export function hasBasePath(path: string): boolean {
   return hasPathPrefix(path, basePath)
 }
 
-export function addBasePath(path: string): string {
+export function addBasePath(path: string, required?: boolean): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!required) {
+      return path
+    }
+  }
   // we only add the basepath on relative urls
   return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!hasBasePath(path)) {
+      return path
+    }
+  }
+
   path = path.slice(basePath.length)
   if (!path.startsWith('/')) path = `/${path}`
   return path
@@ -1120,7 +1131,7 @@ export default class Router implements BaseRouter {
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
-          addBasePath(addLocale(cleanedAs, nextState.locale)),
+          addBasePath(addLocale(cleanedAs, nextState.locale), true),
           pages,
           rewrites,
           query,
@@ -1747,7 +1758,7 @@ export default class Router implements BaseRouter {
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
 
       const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(asPath, this.locale)),
+        addBasePath(addLocale(asPath, this.locale), true),
         pages,
         rewrites,
         parsed.query,

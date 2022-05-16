@@ -75,12 +75,12 @@ describe.skip('Production Usage with swcMinify', () => {
     expect(serverTrace.version).toBe(1)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/send-payload/index.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
