@@ -12,6 +12,7 @@ const statusCodes: { [code: number]: string } = {
 export type ErrorProps = {
   statusCode: number
   title?: string
+  withDarkMode?: boolean
 }
 
 function _getInitialProps({
@@ -33,7 +34,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static origGetInitialProps = _getInitialProps
 
   render() {
-    const { statusCode } = this.props
+    const { statusCode, withDarkMode = true } = this.props
     const title =
       this.props.title ||
       statusCodes[statusCode] ||
@@ -49,9 +50,10 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           </title>
         </Head>
         <div>
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
+          {withDarkMode ? (
+            <style
+              dangerouslySetInnerHTML={{
+                __html: `
                 body { margin: 0; color: #000; background: #fff; }
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
@@ -62,8 +64,11 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                     border-right: 1px solid rgba(255, 255, 255, .3);
                   }
                 }`,
-            }}
-          />
+              }}
+            />
+          ) : (
+            <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
+          )}
           {statusCode ? (
             <h1 className="next-error-h1" style={styles.h1}>
               {statusCode}
