@@ -83,6 +83,7 @@ import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
+import { htmlEscapeJsonString } from './htmlescape'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -355,7 +356,7 @@ function createFlightHook() {
             bootstrapped = true
             inlinedDataWriter.write(
               encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
                   [0, id]
                 )})</script>`
               )
@@ -370,7 +371,7 @@ function createFlightHook() {
           } else {
             inlinedDataWriter.write(
               encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
                   [1, id, decodeText(value)]
                 )})</script>`
               )
@@ -386,6 +387,10 @@ function createFlightHook() {
     }
     return entry
   }
+}
+
+function escapeJSONForFlightScript(input: mixed): string {
+  return htmlEscapeJsonString(JSON.stringify(input))
 }
 
 const useFlightResponse = createFlightHook()
