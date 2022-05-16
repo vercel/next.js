@@ -13,6 +13,11 @@ describe('legacyBrowsers: true', () => {
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
       },
+      nextConfig: {
+        experimental: {
+          browsersListForSwc: true,
+        },
+      },
       dependencies: {},
     })
   })

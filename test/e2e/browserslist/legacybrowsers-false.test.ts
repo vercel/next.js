@@ -12,13 +12,12 @@ describe('legacyBrowsers: false', () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
-        'next.config.js': `
-          module.exports = {
-            experimental: {
-              legacyBrowsers: false
-            }
-          }
-        `,
+      },
+      nextConfig: {
+        experimental: {
+          legacyBrowsers: false,
+          browsersListForSwc: true,
+        },
       },
       dependencies: {},
     })

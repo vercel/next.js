@@ -79,7 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  legacyBrowsers?: true
+  legacyBrowsers?: boolean
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
