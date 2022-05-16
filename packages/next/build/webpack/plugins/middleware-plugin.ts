@@ -26,12 +26,14 @@ export interface MiddlewareManifest {
       page: string
       regexp: string
       wasm?: WasmBinding[]
+      generalPurpose: boolean
     }
   }
 }
 
 interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
+  edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
@@ -310,6 +312,8 @@ function getExtractMetadata(params: {
           entryMetadata.edgeSSR = buildInfo.nextEdgeSSR
         } else if (buildInfo?.nextEdgeMiddleware) {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
+        } else if (buildInfo?.nextEdgeApiFunction) {
+          entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
         }
 
         /**
@@ -386,13 +390,16 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
-      const page = metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
 
       middlewareManifest.middleware[page] = {
@@ -402,13 +409,19 @@ function getCreateAssets(params: {
         page: page,
         regexp: namedRegex,
         wasm: Array.from(metadata.wasmBindings),
+        generalPurpose: Boolean(
+          metadata.edgeApiFunction /* || metadata.edgeSSR */
+        ),
       }
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
-      Object.keys(middlewareManifest.middleware)
+      Object.entries(middlewareManifest.middleware)
+        .filter(([, value]) => !value.generalPurpose)
+        .map(([key]) => key)
     )
 
+    // TODO(gal): figure out what is that thing
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => [
         key,

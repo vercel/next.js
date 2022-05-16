@@ -94,7 +94,6 @@ import {
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
   isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
@@ -1255,10 +1254,7 @@ export default async function build(
                 isHybridAmp,
                 ssgPageRoutes,
                 initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
+                runtime: pageRuntime,
                 pageDuration: undefined,
                 ssgPageDurations: undefined,
               })

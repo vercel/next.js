@@ -174,6 +174,12 @@ describe('Switchable runtime (prod)', () => {
     })
   })
 
+  it('should build /api/hello as an api route with edge runtime', async () => {
+    const response = await fetchViaHTTP(context.appPort, '/api/hello')
+    const text = await response.text()
+    expect(text).toMatch(/Hello from .+\/api\/hello/)
+  })
+
   it('should display correct tree view with page types in terminal', async () => {
     const stdoutLines = splitLines(context.stdout).filter((line) =>
       /^[┌├└/]/.test(line)
@@ -181,6 +187,8 @@ describe('Switchable runtime (prod)', () => {
     const expectedOutputLines = splitLines(`
   ┌   /_app
   ├ ○ /404
+  ├ ℇ /api/hello
+  ├ λ /api/node
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -192,12 +200,16 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-    const isMatched = expectedOutputLines.every((line, index) => {
-      const matched = stdoutLines[index].startsWith(line)
-      return matched
+
+    const mappedOutputLines = expectedOutputLines.map((_line, index) => {
+      /** @type {string} */
+      const str = stdoutLines[index]
+      const beginningOfPath = str.indexOf('/')
+      const endOfPath = str.indexOf(' ', beginningOfPath)
+      return str.slice(0, endOfPath)
     })
 
-    expect(isMatched).toBe(true)
+    expect(mappedOutputLines).toEqual(expectedOutputLines)
   })
 
   it('should prefetch data for static pages', async () => {
