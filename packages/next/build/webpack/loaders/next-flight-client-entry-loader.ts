@@ -1,15 +1,25 @@
+import { isNextBuiltinClientComponent } from './utils'
+
 export default async function transformSource(this: any): Promise<string> {
-  let { modules, runtime, ssr } = this.getOptions()
-  if (!Array.isArray(modules)) {
-    modules = modules ? [modules] : []
-  }
+  const { modules, runtime, ssr } = this.getOptions()
+  const requests: string[] = !Array.isArray(modules)
+    ? modules
+      ? [modules]
+      : []
+    : modules
 
   return (
-    modules
-      .map(
-        (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
-      )
-      .join(';') +
+    requests
+      .map((request: string) => {
+        const isClientSource =
+          !isNextBuiltinClientComponent(request) &&
+          request.endsWith('.client.js')
+        const webpackMode = isClientSource ? 'lazy' : 'eager'
+        return `import(/* webpackMode: "${webpackMode}" */ ${JSON.stringify(
+          request
+        )})`
+      })
+      .join(';\n') +
     `
     export const __next_rsc__ = {
       server: false,
