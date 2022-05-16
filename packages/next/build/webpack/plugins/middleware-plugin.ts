@@ -423,6 +423,14 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(
+        ...entryFiles
+          .filter(
+            (file) =>
+              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+          )
+          .map((file) => 'server/' + file.replace('.js', '.__sc_client__.js'))
+      )
     }
 
     files.push(

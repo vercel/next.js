@@ -16,7 +16,6 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 
@@ -326,12 +325,11 @@ export async function renderToHTML(
         }
       }
 
-      // if this is the root layout pass children as bodyChildren prop
+      // if this is the root layout pass children as children prop
       if (!isSubtreeRender && i === 0) {
         return React.createElement(layout.Component, {
           ...props,
-          headChildren: props.headChildren,
-          bodyChildren: React.createElement(
+          children: React.createElement(
             lastComponent || React.Fragment,
             {},
             null
@@ -356,10 +354,8 @@ export async function renderToHTML(
     // }
   }
 
-  const headChildren = !isSubtreeRender
-    ? buildManifest.rootMainFiles.map((src) => (
-        <script src={'/_next/' + src} async key={src} />
-      ))
+  const bootstrapScripts = !isSubtreeRender
+    ? buildManifest.rootMainFiles.map((src) => '/_next/' + src)
     : undefined
 
   let serverComponentsInlinedTransformStream: TransformStream<
@@ -392,44 +388,15 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  let flushEffects: Array<() => React.ReactNode> | null = null
-  function FlushEffectContainer({ children }: { children: JSX.Element }) {
-    // If the client tree suspends, this component will be rendered multiple
-    // times before we flush. To ensure we don't call old callbacks corresponding
-    // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffects = null
-
-    const flushEffectsImpl = React.useCallback(
-      (callbacks: Array<() => React.ReactNode>) => {
-        if (flushEffects) {
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.' +
-              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
-          )
-        }
-        flushEffects = callbacks
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={flushEffectsImpl}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <FlushEffectContainer>
-      <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-    </FlushEffectContainer>
+    <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   )
 
   const renderServerComponentData = isFlight
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        <WrappedComponent headChildren={headChildren} />,
+        <WrappedComponent />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -452,24 +419,20 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <AppContainer>
-        <Component headChildren={headChildren} />
+        <Component />
       </AppContainer>
     )
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
       element: content,
+      streamOptions: {
+        bootstrapScripts,
+      },
     })
 
     const flushEffectHandler = (): string => {
-      const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
-      const flushed = ReactDOMServer.renderToString(
-        <>
-          {allFlushEffects.map((flushEffect, i) => (
-            <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-          ))}
-        </>
-      )
+      const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
       return flushed
     }
 
