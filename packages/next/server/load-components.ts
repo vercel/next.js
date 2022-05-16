@@ -137,7 +137,8 @@ export async function loadComponents(
       await requirePage(
         normalizePagePath(pathname) + '.__sc_client__',
         distDir,
-        serverless
+        serverless,
+        rootEnabled
       )
     } catch (_) {
       // This page might not be a server component page, so there is no __sc_client__

@@ -2,17 +2,14 @@ use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
 use swc_atoms::js_word;
+use swc_common::errors::HANDLER;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
     ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-    ExprOrSpread, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, MemberProp,
-    Null, ObjectLit, Prop, PropName, PropOrSpread, Str,
+    ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
+    MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str,
 };
 use swc_ecmascript::utils::ExprFactory;
-use swc_ecmascript::utils::{
-    ident::{Id, IdentLike},
-    HANDLER,
-};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn next_dynamic(
