@@ -165,10 +165,10 @@ function createServerComponentRenderer(
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.webpackRequire || ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_view_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__webpack_require__ = ComponentMod.webpackRequire
-      ? ComponentMod.webpackRequire
+    globalThis.__webpack_require__ = ComponentMod.__next_view_webpack_require__
+      ? ComponentMod.__next_view_webpack_require__
       : ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore

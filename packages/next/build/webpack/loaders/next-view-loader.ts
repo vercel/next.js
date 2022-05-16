@@ -120,7 +120,7 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
         ${componentsCode.join(',\n')}
     };
 
-    export const webpackRequire = __webpack_require__
+    export const __next_view_webpack_require__ = __webpack_require__
   `
   return result
 }
