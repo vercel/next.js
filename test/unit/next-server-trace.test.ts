@@ -33,6 +33,7 @@ describe('Tracer', () => {
 
     configureTracer({
       serviceName,
+      provider,
     })
   })
 
@@ -118,6 +119,26 @@ describe('Tracer', () => {
             })
           )
           res(0)
+        })
+      )
+    })
+
+    it('should automatically set current context span as parent', async () => {
+      expect.assertions(2)
+
+      const tracer = getTracer()
+
+      await new Promise((res) =>
+        tracer.trace('parentTraceDummy', (parentSpan: Span) => {
+          tracer.trace('childTraceDummy', (childSpan: Span) => {
+            expect(tracer.getContext().active()).toBeDefined()
+            expect(childSpan).toEqual(
+              expect.objectContaining({
+                parentSpanId: parentSpan.spanContext().spanId,
+              })
+            )
+            res(0)
+          })
         })
       )
     })
@@ -278,5 +299,188 @@ describe('Tracer', () => {
     })
   })
 
-  describe('wrap', () => {})
+  describe('wrap', () => {
+    it('should return a new function that automatically calls tracer.trace()', () => {
+      const tracer = getTracer()
+      const it = {}
+
+      const traceMock = jest.spyOn(tracer, 'trace')
+
+      const callback = jest.fn(function (foo: any) {
+        expect(tracer.getContext().active()).toBeDefined()
+        expect(this).toEqual(it)
+        expect(foo).toEqual('foo')
+        return 'test'
+      })
+
+      const fn = tracer.wrap('name', {}, callback)
+
+      const result = fn.call(it, 'foo')
+
+      expect(traceMock).toHaveBeenCalledWith('name', {}, expect.any(Function))
+      expect(callback).toHaveBeenCalled()
+      expect(result).toEqual('test')
+    })
+
+    // eslint-disable-next-line jest/no-done-callback
+    it('should wait for the callback to be called before finishing the span', (done) => {
+      expect.assertions(2)
+
+      const tracer = getTracer()
+      const fn = tracer.wrap(
+        'name',
+        {},
+        jest.fn(function (cb) {
+          const span = tracer.getActiveScopeSpan()
+
+          setImmediate(() => {
+            expect(span.isRecording()).toEqual(true)
+          })
+
+          setImmediate(() => cb())
+
+          setImmediate(() => {
+            expect(span.isRecording()).toEqual(false)
+            done()
+          })
+        })
+      )
+
+      fn(() => {})
+    })
+
+    it('should handle rejected promises', () => {
+      expect.assertions(1)
+
+      const tracer = getTracer()
+      const fn = tracer.wrap('name', {}, (cb: Function) => cb())
+
+      return fn(() => Promise.reject(new Error('boom'))).catch((err: any) => {
+        expect(err.message).toEqual('boom')
+      })
+    })
+
+    it('should accept a function without option', () => {
+      const tracer = getTracer()
+      jest.spyOn(tracer, 'trace')
+
+      const fn = tracer.wrap('name', function (arg1: string, arg2: string) {
+        return `${arg1}-${arg2}`
+      })
+
+      const result = fn('hello', 'goodbye')
+      expect(result).toEqual('hello-goodbye')
+    })
+
+    it('should accept an options object', () => {
+      const tracer = getTracer()
+      jest.spyOn(tracer, 'trace')
+      const options = { attributes: { sometag: 'somevalue' } }
+
+      const fn = tracer.wrap(
+        'name',
+        options,
+        function (..._args: Array<any>) {}
+      )
+
+      fn('hello', 'goodbye')
+
+      expect(tracer.trace).toHaveBeenCalledWith(
+        'name',
+        options,
+        expect.any(Function)
+      )
+    })
+
+    it('should accept an options function, invoked on every invocation of the wrapped function', () => {
+      const tracer = getTracer()
+      const it = {}
+
+      jest.spyOn(tracer, 'trace')
+
+      let invocations = 0
+
+      function options(foo: any, bar: any) {
+        invocations++
+        expect(this).toEqual(it)
+        expect(foo).toEqual('hello')
+        expect(bar).toEqual('goodbye')
+        return { attributes: { sometag: 'somevalue', invocations } }
+      }
+
+      const fn = tracer.wrap('name', options, function () {})
+
+      fn.call(it, 'hello', 'goodbye')
+
+      expect(tracer.trace).toHaveBeenLastCalledWith(
+        'name',
+        {
+          attributes: { sometag: 'somevalue', invocations: 1 },
+        },
+        expect.any(Function)
+      )
+
+      fn.call(it, 'hello', 'goodbye')
+
+      expect(tracer.trace).toHaveBeenLastCalledWith(
+        'name',
+        {
+          attributes: { sometag: 'somevalue', invocations: 2 },
+        },
+        expect.any(Function)
+      )
+    })
+
+    it('should automatically set current context span as parent', async () => {
+      expect.assertions(3)
+
+      const tracer = getTracer()
+      let parentSpan: Span
+
+      const callback = jest.fn(function (foo: any) {
+        const currentSpan = tracer.getActiveScopeSpan()
+
+        expect(currentSpan).toEqual(
+          expect.objectContaining({
+            parentSpanId: parentSpan.spanContext().spanId,
+          })
+        )
+
+        expect(tracer.getContext().active()).toBeDefined()
+        expect(foo).toEqual('foo')
+        return 'test'
+      })
+
+      const fn = tracer.wrap('child', {}, callback)
+
+      await new Promise((res) =>
+        tracer.trace('parentTraceDummy', (span) => {
+          parentSpan = span
+          // call wrapped fn inside of trace context, without explicitly setting current span as active context
+          res(fn('foo'))
+        })
+      )
+    })
+
+    describe('when the options object is a function returning a falsy value', () => {
+      it('should trace', () => {
+        const tracer = getTracer()
+        const fn = tracer.wrap(
+          'falsy',
+          (_args: any) => false as any,
+          () => {}
+        )
+
+        jest.spyOn(tracer, 'trace')
+
+        fn()
+
+        expect(tracer.trace).toHaveBeenCalledWith(
+          'falsy',
+          false,
+          expect.any(Function)
+        )
+      })
+    })
+  })
 })
