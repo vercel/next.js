@@ -77,7 +77,7 @@ export const initializeTraceOnce = (() => {
     )
 
     provider.register()
-    configureTracer(config)
+    configureTracer({ provider, ...config })
 
     Array.from(['SIGTERM', 'SIGINT'] as const).forEach((sig) => {
       process.on(sig, () => {
