@@ -1299,6 +1299,11 @@ export default class Router implements BaseRouter {
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
         if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          if (this.isFallback) {
+            // Use the destination from getStaticProps without adding locale
+            options.locale = false
+          }
+
           const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
