@@ -483,7 +483,9 @@ export default async function getBaseWebpackConfig(
             fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
-            supportedBrowsers,
+            supportedBrowsers: config.experimental.browsersListForSwc
+              ? supportedBrowsers
+              : undefined,
           },
         }
       : {

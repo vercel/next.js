@@ -14,6 +14,11 @@ describe('Browserslist', () => {
         pages: new FileRef(path.join(appDir, 'pages')),
         '.browserslistrc': 'Chrome 73',
       },
+      nextConfig: {
+        experimental: {
+          browsersListForSwc: true,
+        },
+      },
       dependencies: {},
     })
   })

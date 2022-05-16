@@ -79,7 +79,8 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  legacyBrowsers?: boolean
+  legacyBrowsers?: true
+  browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
@@ -476,6 +477,7 @@ export const defaultConfig: NextConfig = {
   experimental: {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
+    browsersListForSwc: false,
     // TODO: change default in next major release (current v12.1.5)
     newNextLinkBehavior: false,
     cpus: Math.max(
