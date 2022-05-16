@@ -4,10 +4,7 @@ use regex::{Captures, Regex};
 use std::{borrow::Cow, cell::RefCell};
 use swc_atoms::js_word;
 use swc_common::{collections::AHashMap, SyntaxContext};
-use swc_ecmascript::{
-    ast::*,
-    utils::{ident::IdentLike, Id},
-};
+use swc_ecmascript::ast::*;
 
 mod analyzer;
 

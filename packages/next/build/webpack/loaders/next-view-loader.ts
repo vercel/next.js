@@ -119,6 +119,8 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
     export const components = {
         ${componentsCode.join(',\n')}
     };
+
+    export const __next_view_webpack_require__ = __webpack_require__
   `
   return result
 }
