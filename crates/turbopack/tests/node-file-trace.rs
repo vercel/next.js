@@ -122,7 +122,7 @@ use turbopack::{
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
 fn node_file_trace(
-    #[values("memory", "rocksdb")] mode: &str,
+    #[values("memory"/*, "rocksdb"*/)] mode: &str,
     #[case] input: String,
     #[case] should_succeed: bool,
 ) {
