@@ -290,6 +290,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             self.decrement_active_parents(task, 1, false, turbo_tasks);
         }
         if memory_only {
+            // This must be delayed until the "task" is persisted
             if self.pg_add_external_incoming(task, 1, turbo_tasks) {
                 self.activate_persisted(task, turbo_tasks)
             }
@@ -388,7 +389,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                 self.activate_persisted(task, turbo_tasks);
             }
         }
-        if call_graph_state & IN_MEMORY != 0 && call_graph_state | ACTIVE_PARENTS_MASK == 0 {
+        if call_graph_state & IN_MEMORY != 0 && call_graph_state & ACTIVE_PARENTS_MASK == 0 {
             // only the connect() call that increases from 0 is responsible for activating
             let state = if force {
                 child.task_state.lock().unwrap()
