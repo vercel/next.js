@@ -67,3 +67,33 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 ]
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+
+export const EDGE_UNSUPPORTED_NODE_APIS = [
+  'clearImmediate',
+  'setImmediate',
+  'structuredClone',
+  'queueMicrotask', // TODO allow that one?
+  'BroadcastChannel',
+  'ByteLengthQueuingStrategy',
+  'CompressionStream',
+  'CountQueuingStrategy',
+  'CryptoKey',
+  'DecompressionStream',
+  'DomException',
+  'Event',
+  'EventTarget',
+  'MessageChannel',
+  'MessageEvent',
+  'MessagePort',
+  'ReadableByteStreamController',
+  'ReadableStreamBYOBReader',
+  'ReadableStreamBYOBRequest',
+  'ReadableStreamDefaultController',
+  'ReadableStreamDefaultReader',
+  'SubtleCrypto',
+  'TextDecoderStream',
+  'TextEncoderStream',
+  'TransformStreamDefaultController',
+  'WritableStreamDefaultController',
+  'WritableStreamDefaultWriter',
+]
