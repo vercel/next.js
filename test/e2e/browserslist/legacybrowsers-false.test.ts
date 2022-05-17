@@ -24,7 +24,7 @@ describe('legacyBrowsers: false', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should apply legacyBrowsers: true by default', async () => {
+  it('should apply with legacyBrowsers: false correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
