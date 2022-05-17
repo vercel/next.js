@@ -467,8 +467,7 @@ export default function Image({
       rootMargin: lazyBoundary || '200px',
       disabled: !isLazy,
     })
-  const isVisible =
-    !isLazy || isIntersected || (layout === 'raw' && placeholder !== 'blur')
+  const isVisible = !isLazy || isIntersected || layout === 'raw'
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -923,9 +922,7 @@ const ImageElement = ({
         data-nimg={layout}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={
-          layout === 'raw' && placeholder !== 'blur' ? loading : undefined
-        }
+        loading={layout === 'raw' ? loading : undefined}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
