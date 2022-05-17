@@ -18,7 +18,7 @@ import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 
-import { execOnce } from '../shared/lib/utils'
+import { execOnce, DecodeError } from '../shared/lib/utils'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -1253,11 +1253,17 @@ export default class NextNodeServer extends BaseServer {
       page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(normalizedPathname)
-        if (matchParams) {
-          page.name = dynamicRoute.page
-          page.params = matchParams
-          break
+        try {
+          const matchParams = dynamicRoute.match(normalizedPathname)
+          if (matchParams) {
+            page.name = dynamicRoute.page
+            page.params = matchParams
+            break
+          }
+        } catch (err) {
+          if (err instanceof DecodeError === false) {
+            throw err
+          }
         }
       }
     }
