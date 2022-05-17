@@ -51,7 +51,7 @@ It is intended for use cases like:
       }
     }
 
-    return NextResponse.redirec(`/login?from=${req.nextUrl.pathname}`)
+    return NextResponse.redirect(`/login?from=${req.nextUrl.pathname}`)
   }
   ```
 
