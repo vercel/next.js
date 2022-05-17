@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use json::JsonValue;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     glob::GlobVc,
@@ -40,7 +41,7 @@ pub mod parse;
 pub mod pattern;
 mod prefix_tree;
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs)]
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub enum SpecialType {
     OriginalReferenceExternal,
     OriginalRefernceTypeExternal(String),
@@ -881,6 +882,7 @@ impl AffectingResolvingAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for AffectingResolvingAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new()).into()
     }

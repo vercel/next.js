@@ -20,7 +20,7 @@ use crate::{
 
 use crate::ecmascript::parse::{parse, ParseResult};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization: none)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum WebpackRuntime {
     Webpack5 {

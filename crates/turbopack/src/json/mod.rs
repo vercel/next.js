@@ -21,12 +21,15 @@ impl ModuleAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
+    #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+    #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         Vc::default()
     }

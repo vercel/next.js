@@ -23,7 +23,7 @@ use crate::asset::AssetVc;
 
 use super::ModuleAssetType;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization: none)]
 pub enum ParseResult {
     Ok {
         #[trace_ignore]

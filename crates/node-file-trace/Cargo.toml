@@ -14,11 +14,13 @@ bench = false
 "clap" = { version = "3.1.3", features = ["derive"] }
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
+"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
 "turbopack" = { path = "../turbopack" }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 anyhow = "1.0.47"
 async-std = "1.10.0"
 json = "0.12.4"
+serde = "1.0.136"
 
 [build-dependencies]
 "turbo-tasks-build" = { path = "../turbo-tasks-build" }

@@ -138,8 +138,40 @@ impl Parse for IntoMode {
     }
 }
 
+enum SerializationMode {
+    None,
+    Auto,
+    AutoForInput,
+    Custom,
+    CustomForInput,
+}
+
+impl Parse for SerializationMode {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ident = input.parse::<Ident>()?;
+        match ident.to_string().as_str() {
+            "none" => Ok(SerializationMode::None),
+            "auto" => Ok(SerializationMode::Auto),
+            "auto_for_input" => Ok(SerializationMode::AutoForInput),
+            "custom" => Ok(SerializationMode::Custom),
+            "custom_for_input" => Ok(SerializationMode::CustomForInput),
+            _ => {
+                return Err(Error::new_spanned(
+                    &ident,
+                    format!(
+                        "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \
+                         \"custom\", \"custom_for_input\"",
+                        ident.to_string()
+                    ),
+                ))
+            }
+        }
+    }
+}
+
 struct ValueArguments {
     traits: Vec<Ident>,
+    serialization_mode: SerializationMode,
     into_mode: IntoMode,
     slot_mode: IntoMode,
 }
@@ -148,6 +180,7 @@ impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut result = ValueArguments {
             traits: Vec::new(),
+            serialization_mode: SerializationMode::Auto,
             into_mode: IntoMode::None,
             slot_mode: IntoMode::Shared,
         };
@@ -164,6 +197,10 @@ impl Parse for ValueArguments {
                 "into" => {
                     input.parse::<Token![:]>()?;
                     result.into_mode = input.parse::<IntoMode>()?;
+                }
+                "serialization" => {
+                    input.parse::<Token![:]>()?;
+                    result.serialization_mode = input.parse::<SerializationMode>()?;
                 }
                 "slot" => {
                     input.parse::<Token![:]>()?;
@@ -213,6 +250,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
         traits,
+        serialization_mode,
         into_mode,
         slot_mode,
     } = parse_macro_input!(args as ValueArguments);
@@ -293,7 +331,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
             >(key: K, content: #ident) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
                 slot.update_shared(content);
@@ -318,7 +356,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
             fn keyed_slot<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + Send + Sync + 'static,
+                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
             >(key: K, content: #ident) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
                 slot.compare_and_update_shared(content);
@@ -336,13 +374,48 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         })
         .collect();
+
+    let derive = match serialization_mode {
+        SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
+            quote! {
+                #[derive(turbo_tasks::trace::TraceRawVcs)]
+            }
+        }
+        SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
+            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
+        },
+    };
+
+    let new_value_type = match serialization_mode {
+        SerializationMode::None => quote! {
+            turbo_tasks::ValueType::new::<#ident>()
+        },
+        SerializationMode::Auto | SerializationMode::Custom => {
+            quote! {
+                turbo_tasks::ValueType::new_with_any_serialization::<#ident>()
+            }
+        }
+        SerializationMode::AutoForInput | SerializationMode::CustomForInput => {
+            quote! {
+                turbo_tasks::ValueType::new_with_magic_serialization::<#ident>()
+            }
+        }
+    };
+
+    let for_input_marker = match serialization_mode {
+        SerializationMode::None | SerializationMode::Auto | SerializationMode::Custom => quote! {},
+        SerializationMode::AutoForInput | SerializationMode::CustomForInput => quote! {
+            impl turbo_tasks::TypedForInput for #ident {}
+        },
+    };
+
     let expanded = quote! {
-        #[derive(turbo_tasks::trace::TraceRawVcs)]
+        #derive
         #item
 
         turbo_tasks::lazy_static! {
             pub(crate) static ref #value_type_ident: turbo_tasks::ValueType = {
-                let mut value_type = turbo_tasks::ValueType::new(std::any::type_name::<#ident>().to_string());
+                let mut value_type = #new_value_type;
                 #(#trait_registrations)*
                 value_type
             };
@@ -350,6 +423,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_tasks::registry::get_value_type_id(&#value_type_ident)
             };
         }
+
+        impl turbo_tasks::Typed for #ident {
+            fn get_value_type_id() -> turbo_tasks::ValueTypeId {
+                *#value_type_id_ident
+            }
+        }
+        #for_input_marker
 
         /// A reference to a value created by a turbo-tasks function.
         /// The type can either point to a slot in a [turbo_tasks::Task] or to the output of
@@ -360,7 +440,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         /// This is useful when storing the reference somewhere or when comparing it with other references.
         ///
         /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
-        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
+        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
@@ -656,7 +736,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         #[allow(non_upper_case_globals)]
         #vis static #ident: #mod_ident = #mod_ident { __private: () };
 
-        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq)]
+        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
@@ -832,6 +912,20 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 ImplItem::Method(ImplItemMethod {
                     sig, attrs, block, ..
                 }) => {
+                    let function_attr = attrs.iter().find(|attr| is_attribute(attr, "function"));
+                    let attrs = if function_attr.is_none() {
+                        item.span()
+                            .unwrap()
+                            .error("#[turbo_tasks::function] attribute missing")
+                            .emit();
+                        attrs.clone()
+                    } else {
+                        attrs
+                            .iter()
+                            .filter(|attr| !is_attribute(attr, "function"))
+                            .cloned()
+                            .collect()
+                    };
                     let Signature {
                         ident,
                         inputs,

@@ -37,12 +37,15 @@ impl ModuleAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
+    #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+    #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+    #[turbo_tasks::function]
     async fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         module_references(self.source, self.runtime)
     }
@@ -58,6 +61,7 @@ pub struct WebpackChunkAssetReference {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackChunkAssetReference {
+    #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let runtime = self.runtime.await?;
         Ok(match &*runtime {
@@ -91,6 +95,7 @@ pub struct WebpackEntryAssetReference {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackEntryAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
             ModuleAssetVc::new(self.source, self.runtime).into(),
@@ -110,6 +115,7 @@ pub struct WebpackRuntimeAssetReference {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for WebpackRuntimeAssetReference {
+    #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 

@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{anyhow, bail, Context, Result};
 use json::JsonValue;
+use serde::{Deserialize, Serialize};
 
 use super::{
     options::ConditionValue,
     prefix_tree::{PrefixTree, PrefixTreeIterator, WildcardReplacable},
 };
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum ExportsValue {
     Alternatives(Vec<ExportsValue>),
     Conditional(Vec<(String, ExportsValue)>),
@@ -173,10 +174,10 @@ impl TryFrom<&JsonValue> for ExportsValue {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportsField(PrefixTree<ExportsValue>);
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportsField(PrefixTree<ExportsValue>);
 
 impl TryFrom<&JsonValue> for ExportsField {

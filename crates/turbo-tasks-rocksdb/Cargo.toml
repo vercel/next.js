@@ -1,5 +1,5 @@
 [package]
-name = "turbo-tasks-memory"
+name = "turbo-tasks-rocksdb"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,10 +14,18 @@ anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
 event-listener = "2.5.2"
 async-std = "1.10.0"
+rocksdb = { version = "0.18.0", features = [] }
+serde = "1.0.136"
+bincode = "1.3.3"
+owning_ref = "0.4.1"
+byteorder = "1.4.3"
 flurry = "0.4.0"
-concurrent-queue = "1.2.2"
 num_cpus = "1.13.1"
+concurrent-queue = "1.2.2"
 
 [features]
+default = []
+log_db = []
+log_backend = []
+log_running_tasks = []
 unsafe_once_map = []
-

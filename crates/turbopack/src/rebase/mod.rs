@@ -32,14 +32,17 @@ impl RebasedAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for RebasedAsset {
+    #[turbo_tasks::function]
     async fn path(&self) -> FileSystemPathVc {
         FileSystemPathVc::rebase(self.source.path(), self.input_dir, self.output_dir)
     }
 
+    #[turbo_tasks::function]
     async fn content(&self) -> FileContentVc {
         self.source.content()
     }
 
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let input_references = self.source.references().await?;
         let mut references = Vec::new();
@@ -67,6 +70,7 @@ struct RebasedAssetReference {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for RebasedAssetReference {
+    #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let result = self.reference.resolve_reference().await?;
         Ok(result

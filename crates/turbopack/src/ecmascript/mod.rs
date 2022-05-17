@@ -12,12 +12,13 @@ use crate::{
     target::CompileTarget,
 };
 use anyhow::Result;
-use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use self::references::module_references;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[turbo_tasks::value(serialization: auto_for_input)]
 pub enum ModuleAssetType {
     Ecmascript,
     Typescript,
@@ -46,12 +47,15 @@ impl ModuleAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
+    #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+    #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+    #[turbo_tasks::function]
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
         module_references(self.source, Value::new(self.ty), Value::new(self.target))
     }

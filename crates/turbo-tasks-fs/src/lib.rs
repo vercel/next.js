@@ -10,6 +10,7 @@ pub mod util;
 
 use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
+use serde::{Deserialize, Serialize};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -45,6 +46,78 @@ pub trait FileSystem {
     fn to_string(&self) -> Vc<String>;
 }
 
+const POOL_THREAD_COUNT: usize = 30;
+
+mod pool_ser {
+    use serde::{de::Visitor, Deserializer, Serializer};
+
+    use super::*;
+
+    pub fn serialize<S>(_: &Mutex<ThreadPool>, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ser.serialize_unit()
+    }
+
+    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<ThreadPool>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = Mutex<ThreadPool>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "a ThreadPool")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Mutex::new(ThreadPool::new(POOL_THREAD_COUNT)))
+            }
+        }
+        de.deserialize_unit(V)
+    }
+}
+
+mod watcher_ser {
+    use serde::{de::Visitor, Deserializer, Serializer};
+
+    use super::*;
+
+    pub fn serialize<S>(_: &Mutex<Option<RecommendedWatcher>>, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        ser.serialize_unit()
+    }
+
+    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<Option<RecommendedWatcher>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = Mutex<Option<RecommendedWatcher>>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "a ThreadPool")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Mutex::new(None))
+            }
+        }
+        de.deserialize_unit(V)
+    }
+}
+
 #[turbo_tasks::value(slot: new, FileSystem)]
 pub struct DiskFileSystem {
     pub name: String,
@@ -54,13 +127,23 @@ pub struct DiskFileSystem {
     #[trace_ignore]
     dir_invalidators: Arc<InvalidatorMap>,
     #[trace_ignore]
-    #[allow(dead_code)] // it's never read, but reference is kept for Drop
+    #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
     #[trace_ignore]
+    #[serde(with = "pool_ser")]
     pool: Mutex<ThreadPool>,
 }
 
 impl DiskFileSystem {
+    pub fn invalidate(&self) {
+        for (_, invalidator) in take(&mut *self.invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+        for (_, invalidator) in take(&mut *self.dir_invalidators.lock().unwrap()).into_iter() {
+            invalidator.invalidate();
+        }
+    }
+
     pub fn start_watching(&self) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -221,7 +304,7 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystemVc {
     #[turbo_tasks::function]
     pub fn new(name: String, root: String) -> Result<Self> {
-        let pool = Mutex::new(ThreadPool::new(30));
+        let pool = Mutex::new(ThreadPool::new(POOL_THREAD_COUNT));
         // create the directory for the filesystem on disk, if it doesn't exist
         create_dir_all(&root)?;
 
@@ -285,6 +368,7 @@ impl fmt::Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
+    #[turbo_tasks::function]
     async fn read(&self, fs_path: FileSystemPathVc) -> Result<FileContentVc> {
         let full_path = Path::new(&self.root).join(
             &fs_path
@@ -306,6 +390,7 @@ impl FileSystem for DiskFileSystem {
         }
         .into())
     }
+    #[turbo_tasks::function]
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
         let full_path =
@@ -362,6 +447,7 @@ impl FileSystem for DiskFileSystem {
             Err(_) => DirectoryContentVc::not_found(),
         })
     }
+    #[turbo_tasks::function]
     #[allow(unreachable_code)]
     async fn write(
         &self,
@@ -423,6 +509,7 @@ impl FileSystem for DiskFileSystem {
         }
         Ok(CompletionVc::new())
     }
+    #[turbo_tasks::function]
     async fn parent_path(&self, fs_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
         let fs_path_value = fs_path.await?;
         if fs_path_value.path.is_empty() {
@@ -435,6 +522,7 @@ impl FileSystem for DiskFileSystem {
         }
         Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
     }
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(self.name.clone())
     }
@@ -678,6 +766,7 @@ impl FileSystemPathVc {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
+    #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
         Ok(Vc::slot(format!(
             "[{}]/{}",
@@ -933,7 +1022,7 @@ impl FileContentVc {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization: none)]
 #[derive(PartialEq, Eq)]
 pub enum FileJsonContent {
     Content(#[trace_ignore] JsonValue),
@@ -941,7 +1030,7 @@ pub enum FileJsonContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum DirectoryEntry {
     File(FileSystemPathVc),
     Directory(FileSystemPathVc),
@@ -949,7 +1038,7 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum FileSystemEntryType {
     NotFound,
     File,
@@ -1003,22 +1092,27 @@ pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
 impl FileSystem for NullFileSystem {
+    #[turbo_tasks::function]
     fn read(&self, _fs_path: FileSystemPathVc) -> FileContentVc {
         FileContent::NotFound.into()
     }
 
+    #[turbo_tasks::function]
     fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
         DirectoryContentVc::not_found()
     }
 
+    #[turbo_tasks::function]
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc {
         FileSystemPathVc::new_normalized(fs_path.fs(), "".to_string())
     }
 
+    #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
         CompletionVc::new()
     }
 
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(String::from("null"))
     }

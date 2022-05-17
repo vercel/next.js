@@ -13,7 +13,8 @@ use difference::{Changeset, Difference};
 use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_tasks_memory::{MemoryBackend, MemoryBackendWithPersistedGraph};
+use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
     source_asset::SourceAssetVc,
@@ -120,7 +121,11 @@ use turbopack::{
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
-fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
+fn node_file_trace(
+    #[values("memory"/*, "rocksdb"*/)] mode: &str,
+    #[case] input: String,
+    #[case] should_succeed: bool,
+) {
     register();
     include!(concat!(
         env!("OUT_DIR"),
@@ -134,7 +139,8 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
     tests_output_root.push("tests_output");
     let tests_root = tests_root.to_string_lossy().to_string();
     let input = format!("node-file-trace/{input}");
-    let directory = tests_output_root.join(&input).to_string_lossy().to_string();
+    let directory_path = tests_output_root.join(&format!("{mode}_{input}"));
+    let directory = directory_path.to_string_lossy().to_string();
 
     remove_dir_all(&directory)
         .or_else(|err| {
@@ -146,16 +152,20 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
         })
         .unwrap();
 
-    let tt = TurboTasks::new(MemoryBackend::new());
-    let output = block_on(timeout(
-        Duration::from_secs(120),
-        tt.run_once(async move {
+    let run_count = if mode != "memory" { 1 } else { 1 };
+    let timeout_len = if mode != "memory" { 240 } else { 120 };
+
+    for _ in 0..run_count {
+        let tests_root = tests_root.clone();
+        let input = input.clone();
+        let directory = directory.clone();
+        let task = async move {
             let input_fs: FileSystemVc =
                 DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
             let input = FileSystemPathVc::new(input_fs, &input);
             let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
-            let original_output = exec_node(tests_root.clone(), input.clone());
+            let original_output = exec_node(tests_root, input.clone());
 
             let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
             let output_dir = FileSystemPathVc::new(output_fs.into(), "");
@@ -172,35 +182,65 @@ fn node_file_trace(#[case] input: String, #[case] should_succeed: bool) {
             let output = assert_output(original_output, output);
 
             Ok(output.await?)
-        }),
-    ));
-
-    match output {
-        Ok(Ok(output)) => {
-            if should_succeed {
-                assert!(
-                    output.is_empty(),
-                    "emitted files behave differently when executed via node.js\n{output}"
-                );
-            } else {
-                assert!(!output.is_empty(), "test case works now! enable it");
-            }
-        }
-        Ok(Err(err)) => {
-            panic!("Execution crashed {err}");
-        }
-        Err(err) => {
-            let mut pending_tasks = 0_usize;
-            let b = tt.backend();
-            b.with_all_cached_tasks(|task| {
-                b.with_task(task, |task| {
-                    if task.is_pending() {
-                        println!("PENDING: {task}");
-                        pending_tasks += 1;
+        };
+        let handle_result =
+            |result: Result<turbo_tasks::RawVcReadResult<CommandOutput>>| match result {
+                Ok(output) => {
+                    if should_succeed {
+                        assert!(
+                            output.is_empty(),
+                            "emitted files behave differently when executed via node.js\n{output}"
+                        );
+                    } else {
+                        assert!(!output.is_empty(), "test case works now! enable it");
                     }
-                })
-            });
-            panic!("Execution is hanging (for > 120s, {pending_tasks} pending tasks): {err}");
+                }
+                Err(err) => {
+                    panic!("Execution crashed {err}");
+                }
+            };
+
+        match mode {
+            "memory" => {
+                let tt = TurboTasks::new(MemoryBackend::new());
+                let output = block_on(timeout(Duration::from_secs(timeout_len), tt.run_once(task)));
+                match output {
+                    Ok(result) => handle_result(result),
+                    Err(err) => {
+                        let mut pending_tasks = 0_usize;
+                        let b = tt.backend();
+                        b.with_all_cached_tasks(|task| {
+                            b.with_task(task, |task| {
+                                if task.is_pending() {
+                                    println!("PENDING: {task}");
+                                    pending_tasks += 1;
+                                }
+                            })
+                        });
+                        panic!(
+                            "Execution is hanging (for > {timeout_len}s, {pending_tasks} pending \
+                             tasks): {err}"
+                        );
+                    }
+                }
+            }
+            "rocksdb" => {
+                let tt = TurboTasks::new(MemoryBackendWithPersistedGraph::new(
+                    RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
+                ));
+                let output = block_on(timeout(Duration::from_secs(timeout_len), tt.run_once(task)));
+                let stop = block_on(timeout(Duration::from_secs(60), tt.stop_and_wait()));
+                match (output, stop) {
+                    (Ok(result), Ok(_)) => handle_result(result),
+                    (Err(err), _) => {
+                        panic!("Execution is hanging (for > {timeout_len}s): {err}");
+                    }
+                    (_, Err(err)) => {
+                        panic!("Stopping is hanging (for > 60s): {err}");
+                    }
+                }
+            }
+            _ => unreachable!(),
         }
     }
 }

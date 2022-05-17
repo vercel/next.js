@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use turbo_tasks::TurboTasksApi;
+use turbo_tasks::TurboTasksBackendApi;
 
 use turbo_tasks::{backend::SlotContent, TaskId};
 
@@ -14,7 +14,7 @@ pub struct Slot {
 impl Slot {
     pub fn new() -> Self {
         Self {
-            content: SlotContent::Empty,
+            content: SlotContent(None),
             updates: 0,
             dependent_tasks: HashSet::new(),
         }
@@ -29,10 +29,16 @@ impl Slot {
         self.content.clone()
     }
 
-    pub fn assign(&mut self, content: SlotContent, turbo_tasks: &dyn TurboTasksApi) {
+    pub fn track_read(&mut self, reader: TaskId) {
+        self.dependent_tasks.insert(reader);
+    }
+
+    pub fn assign(&mut self, content: SlotContent, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = content;
         self.updates += 1;
         // notify
-        turbo_tasks.schedule_notify_tasks(&self.dependent_tasks);
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
     }
 }

@@ -937,6 +937,7 @@ impl PackageJsonReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for PackageJsonReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
     }
@@ -958,6 +959,7 @@ impl TsConfigReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsConfigReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
             TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig).into()).into(),
@@ -989,6 +991,7 @@ impl EsmAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for EsmAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
@@ -1023,6 +1026,7 @@ impl CjsAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for CjsAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
@@ -1052,6 +1056,7 @@ impl TsReferencePathAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsReferencePathAssetReference {
+    #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
         Ok(if let Some(path) = &*context.try_join(&self.path).await? {
@@ -1080,6 +1085,7 @@ impl TsReferenceTypeAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsReferenceTypeAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
         let options = typescript_types_resolve_options(context);
@@ -1108,6 +1114,7 @@ impl SourceAssetReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for SourceAssetReference {
+    #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
 

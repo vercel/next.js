@@ -216,6 +216,7 @@ impl RequestVc {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for Request {
+    #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<String>> {
         Ok(Vc::slot(match self {
             Request::Raw {

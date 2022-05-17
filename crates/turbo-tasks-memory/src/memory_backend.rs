@@ -9,7 +9,7 @@ use turbo_tasks::{
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},
-    RawVc, TaskId, TurboTasksApi,
+    RawVc, TaskId, TurboTasksBackendApi,
 };
 
 use crate::{output::Output, task::Task};
@@ -31,7 +31,12 @@ impl MemoryBackend {
         }
     }
 
-    fn connect_task_child(&self, parent: TaskId, child: TaskId, turbo_tasks: &dyn TurboTasksApi) {
+    fn connect_task_child(
+        &self,
+        parent: TaskId,
+        child: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         self.with_task(parent, |parent| {
             parent.connect_child(child, self, turbo_tasks)
         });
@@ -46,11 +51,11 @@ impl MemoryBackend {
         id
     }
 
-    fn try_get_output<T, F: FnOnce(&mut Output) -> T>(
+    fn try_get_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         id: TaskId,
         func: F,
-    ) -> Result<T, EventListener> {
+    ) -> Result<Result<T, EventListener>> {
         self.with_task(id, |task| task.get_or_wait_output(func))
     }
 
@@ -66,14 +71,14 @@ impl MemoryBackend {
 }
 
 impl Backend for MemoryBackend {
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksApi) {
+    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
 
-    fn notify_slot_change(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksApi) {
+    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
         for task in tasks.into_iter() {
             self.with_task(task, |task| {
-                task.dependent_slot_updated(self, turbo_tasks);
+                task.invalidate(self, turbo_tasks);
             });
         }
     }
@@ -81,7 +86,7 @@ impl Backend for MemoryBackend {
     fn try_start_task_execution(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec> {
         self.with_task(task, |task| {
             if task.execution_started(self, turbo_tasks) {
@@ -101,7 +106,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         slot_mappings: Option<SlotMappings>,
         result: anyhow::Result<RawVc>,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
             task.execution_result(result, turbo_tasks);
@@ -113,7 +118,8 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
-    ) -> Result<Result<RawVc>, EventListener> {
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, |output| {
             Task::add_dependency_to_current(RawVc::TaskOutput(task));
             output.read(reader)
@@ -123,24 +129,63 @@ impl Backend for MemoryBackend {
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-    ) -> Result<Result<RawVc>, EventListener> {
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, |output| unsafe { output.read_untracked() })
     }
 
-    fn read_task_slot(&self, task: TaskId, index: usize, reader: TaskId) -> SlotContent {
+    fn track_read_task_output(
+        &self,
+        task: TaskId,
+        reader: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task(task, |t| {
+            t.with_output_mut(|output| {
+                Task::add_dependency_to_current(RawVc::TaskOutput(task));
+                output.track_read(reader);
+            })
+        })
+    }
+
+    fn try_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent, EventListener>> {
+        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
+        Ok(Ok(self.with_task(task, |task| {
+            task.with_slot_mut(index, |slot| slot.read_content(reader))
+        })))
+    }
+
+    unsafe fn try_read_task_slot_untracked(
+        &self,
+        task: TaskId,
+        index: usize,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<SlotContent, EventListener>> {
+        Ok(Ok(self.with_task(task, |task| {
+            task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
+        })))
+    }
+
+    fn track_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+        reader: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
         self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.read_content(reader))
-        })
+            task.with_slot_mut(index, |slot| slot.track_read(reader))
+        });
     }
 
-    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent {
-        self.with_task(task, |task| {
-            task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
-        })
-    }
-
-    fn get_fresh_slot(&self, task: TaskId) -> usize {
+    fn get_fresh_slot(&self, task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
         self.with_task(task, |task| task.get_fresh_slot())
     }
 
@@ -149,7 +194,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         index: usize,
         content: SlotContent,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |task| {
             task.with_slot_mut(index, |slot| slot.assign(content, turbo_tasks))
@@ -160,7 +205,7 @@ impl Backend for MemoryBackend {
     fn run_background_job<'a>(
         &'a self,
         id: BackgroundJobId,
-        turbo_tasks: &'a dyn TurboTasksApi,
+        turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         // SAFETY: id will not be reused until with job is done
         if let Some(job) = unsafe { self.background_jobs.take(*id) } {
@@ -179,9 +224,8 @@ impl Backend for MemoryBackend {
     fn get_or_create_persistent_task(
         &self,
         task_type: PersistentTaskType,
-        id_factory: &IdFactory<TaskId>,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let map = self.task_cache.pin();
         let result = if let Some(task) = map.get(&task_type).map(|guard| *guard) {
@@ -193,7 +237,7 @@ impl Backend for MemoryBackend {
             task
         } else {
             // slow pass with key lock
-            let id = id_factory.get();
+            let id = turbo_tasks.get_fresh_task_id();
             let task = match &task_type {
                 PersistentTaskType::Native(fn_id, inputs) => {
                     Task::new_native(id, inputs.clone(), *fn_id)
@@ -218,7 +262,7 @@ impl Backend for MemoryBackend {
                     // SAFETY: We have a fresh task id where nobody knows about yet
                     unsafe {
                         self.memory_tasks.remove(*id);
-                        id_factory.reuse(id);
+                        turbo_tasks.reuse_task_id(id);
                     }
                     *r.current
                 }
@@ -235,10 +279,9 @@ impl Backend for MemoryBackend {
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        id_factory: &IdFactory<TaskId>,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
-        let id = id_factory.get();
+        let id = turbo_tasks.get_fresh_task_id();
         let task = match task_type {
             TransientTaskType::Root(f) => Task::new_root(id, f),
             TransientTaskType::Once(f) => Task::new_once(id, f),
@@ -247,7 +290,6 @@ impl Backend for MemoryBackend {
         unsafe {
             self.memory_tasks.insert(*id, task);
         }
-        turbo_tasks.schedule(id);
         id
     }
 }
@@ -258,7 +300,7 @@ pub(crate) enum BackgroundJob {
 }
 
 impl BackgroundJob {
-    async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksApi) {
+    async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
             BackgroundJob::RemoveTasks(tasks) => {
                 for id in tasks {

@@ -226,6 +226,7 @@ pub struct TypescriptTypesAssetReference {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TypescriptTypesAssetReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let options = apply_typescript_types_options(self.options);
         type_resolve(self.request, self.context, options)

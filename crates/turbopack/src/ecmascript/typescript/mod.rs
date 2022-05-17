@@ -33,12 +33,15 @@ impl TsConfigModuleAssetVc {
 
 #[turbo_tasks::value_impl]
 impl Asset for TsConfigModuleAsset {
+    #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+    #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
@@ -138,6 +141,7 @@ impl CompilerReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for CompilerReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
@@ -162,6 +166,7 @@ impl TsExtendsReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsExtendsReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.config, Vec::new()).into()
     }
@@ -184,6 +189,7 @@ impl TsNodeRequireReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsNodeRequireReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 
@@ -209,6 +215,7 @@ impl TsConfigTypesReferenceVc {
 
 #[turbo_tasks::value_impl]
 impl AssetReference for TsConfigTypesReference {
+    #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         let context = self.source.path().parent();
 

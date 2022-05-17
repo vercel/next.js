@@ -5,7 +5,9 @@ use std::{future::Future, pin::Pin, task::Poll};
 use anyhow::Error;
 
 pub use super::id_factory::IdFactory;
+pub use super::infinite_vec::InfiniteVec;
 pub use super::no_move_vec::NoMoveVec;
+pub use super::once_map::*;
 
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]
@@ -34,6 +36,12 @@ impl std::error::Error for SharedError {
 impl Display for SharedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&*self.inner, f)
+    }
+}
+
+impl From<Error> for SharedError {
+    fn from(e: Error) -> Self {
+        Self::new(e)
     }
 }
 

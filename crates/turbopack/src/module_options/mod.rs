@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPathVc;
@@ -59,7 +60,7 @@ pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Serialize, Deserialize)]
 pub struct ModuleRule {
     pub conditions: Vec<ModuleRuleCondition>,
     pub effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
@@ -74,20 +75,24 @@ impl ModuleRule {
     }
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Serialize, Deserialize)]
 pub enum ModuleRuleCondition {
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
-    ResourcePathRegex(#[trace_ignore] Regex),
+    ResourcePathRegex(
+        #[trace_ignore]
+        #[serde(with = "serde_regex")]
+        Regex,
+    ),
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Serialize, Deserialize)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     Custom,
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Serialize, Deserialize)]
 pub enum ModuleType {
     Ecmascript,
     Typescript,
@@ -108,7 +113,7 @@ impl ModuleRuleEffect {
     }
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, Hash)]
+#[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ModuleRuleEffectKey {
     ModuleType,
     Custom,

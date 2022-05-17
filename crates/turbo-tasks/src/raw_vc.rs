@@ -10,9 +10,13 @@ use std::{
 
 use anyhow::Result;
 use event_listener::EventListener;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    manager::{read_task_output, read_task_output_untracked, TurboTasksApi},
+    manager::{
+        read_task_output, read_task_output_untracked, read_task_slot, read_task_slot_untracked,
+        TurboTasksApi,
+    },
     turbo_tasks, TaskId,
 };
 
@@ -24,18 +28,12 @@ use crate::{
 /// Instead the data or an [Arc] to the data is cloned out of the slot
 /// and hold by this type.
 pub struct RawVcReadResult<T: Any + Send + Sync> {
-    inner: RawVcReadResultInner<T>,
-}
-
-pub enum RawVcReadResultInner<T: Any + Send + Sync> {
-    SharedReference(Arc<T>),
+    inner: Arc<T>,
 }
 
 impl<T: Any + Send + Sync> RawVcReadResult<T> {
-    pub(crate) fn shared_reference(shared_ref: Arc<T>) -> Self {
-        Self {
-            inner: RawVcReadResultInner::SharedReference(shared_ref),
-        }
+    pub(crate) fn new(shared_ref: Arc<T>) -> Self {
+        Self { inner: shared_ref }
     }
 }
 
@@ -43,9 +41,7 @@ impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match &self.inner {
-            RawVcReadResultInner::SharedReference(a) => a,
-        }
+        &*self.inner
     }
 }
 
@@ -61,7 +57,7 @@ impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskSlot(TaskId, usize),
@@ -87,7 +83,9 @@ impl RawVc {
                 }
                 RawVc::TaskSlot(task, index) => {
                     return Ok(
-                        unsafe { turbo_tasks.read_task_slot_untracked(task, index) }.cast::<T>()?
+                        unsafe { read_task_slot_untracked(turbo_tasks, task, index) }
+                            .await?
+                            .cast::<T>()?,
                     );
                 }
             }
@@ -168,7 +166,7 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
     ) -> std::task::Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
         let this = self.get_mut();
-        loop {
+        'outer: loop {
             if let Some(listener) = &mut this.listener {
                 let listener = unsafe { Pin::new_unchecked(listener) };
                 if let std::task::Poll::Pending = listener.poll(cx) {
@@ -176,29 +174,32 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                 }
                 this.listener = None;
             }
-            match this.current {
-                RawVc::TaskOutput(task) => loop {
-                    match this.turbo_tasks.try_read_task_output(task) {
-                        Ok(Ok(vc)) => {
-                            this.current = vc;
-                            break;
-                        }
-                        Ok(Err(err)) => return std::task::Poll::Ready(Err(err)),
-                        Err(mut listener) => match Pin::new(&mut listener).poll(cx) {
-                            std::task::Poll::Ready(_) => continue,
-                            std::task::Poll::Pending => {
-                                this.listener = Some(listener);
-                                return std::task::Poll::Pending;
-                            }
-                        },
+            let mut listener = match this.current {
+                RawVc::TaskOutput(task) => match this.turbo_tasks.try_read_task_output(task) {
+                    Ok(Ok(vc)) => {
+                        this.current = vc;
+                        continue 'outer;
                     }
+                    Ok(Err(listener)) => listener,
+                    Err(err) => return std::task::Poll::Ready(Err(err)),
                 },
                 RawVc::TaskSlot(task, index) => {
-                    return std::task::Poll::Ready(
-                        this.turbo_tasks.read_task_slot(task, index).cast::<T>(),
-                    );
+                    match this.turbo_tasks.try_read_task_slot(task, index) {
+                        Ok(Ok(content)) => {
+                            return std::task::Poll::Ready(content.cast::<T>());
+                        }
+                        Ok(Err(listener)) => listener,
+                        Err(err) => return std::task::Poll::Ready(Err(err)),
+                    }
                 }
-            }
+            };
+            match Pin::new(&mut listener).poll(cx) {
+                std::task::Poll::Ready(_) => continue,
+                std::task::Poll::Pending => {
+                    this.listener = Some(listener);
+                    return std::task::Poll::Pending;
+                }
+            };
         }
     }
 }

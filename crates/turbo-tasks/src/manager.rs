@@ -6,7 +6,7 @@ use std::{
     hash::Hash,
     pin::Pin,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex, Weak,
     },
     time::{Duration, Instant},
@@ -18,19 +18,19 @@ use async_std::{
     task_local,
 };
 use event_listener::{Event, EventListener};
+use serde::{de::Visitor, Deserialize, Serialize};
 
 use crate::{
     backend::{Backend, PersistentTaskType, SlotContent, SlotMappings, TransientTaskType},
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
-    task_input::{SharedReference, TaskInput},
+    task_input::{SharedReference, SharedValue, TaskInput},
     trace::TraceRawVcs,
-    TaskId, ValueTypeId, Vc,
+    TaskId, Typed, TypedForInput, ValueTypeId, Vc,
 };
 
-pub trait TurboTasksApi: Sync + Send {
-    fn pin(&self) -> Arc<dyn TurboTasksApi>;
+pub trait TurboTasksCallApi: Sync + Send {
     fn dynamic_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc;
     fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc;
     fn trait_call(
@@ -39,42 +39,104 @@ pub trait TurboTasksApi: Sync + Send {
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
     ) -> RawVc;
+}
+
+pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
-    fn schedule(&self, task: TaskId);
 
     /// Eagerly notifies all tasks that were scheduled for notifications via
-    /// `schedule_notify_tasks()`
+    /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc>, EventListener>;
+    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-    ) -> Result<Result<RawVc>, EventListener>;
+    ) -> Result<Result<RawVc, EventListener>>;
 
-    fn read_task_slot(&self, task: TaskId, index: usize) -> SlotContent;
-    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent;
+    fn try_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+    ) -> Result<Result<SlotContent, EventListener>>;
+    unsafe fn try_read_task_slot_untracked(
+        &self,
+        task: TaskId,
+        index: usize,
+    ) -> Result<Result<SlotContent, EventListener>>;
+    unsafe fn try_read_own_task_slot(
+        &self,
+        current_task: TaskId,
+        index: usize,
+    ) -> Result<SlotContent>;
 
     fn get_fresh_slot(&self, task: TaskId) -> usize;
-    fn read_current_task_slot(&self, index: usize) -> SlotContent;
+    fn read_current_task_slot(&self, index: usize) -> Result<SlotContent>;
     fn update_current_task_slot(&self, index: usize, content: SlotContent);
+}
+
+pub trait TaskIdProvider {
+    fn get_fresh_task_id(&self) -> TaskId;
+    unsafe fn reuse_task_id(&self, id: TaskId);
+}
+
+impl TaskIdProvider for IdFactory<TaskId> {
+    fn get_fresh_task_id(&self) -> TaskId {
+        self.get()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { self.reuse(id) }
+    }
+}
+
+pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send {
+    fn pin(&self) -> Arc<dyn TurboTasksBackendApi>;
+
+    fn schedule(&self, task: TaskId);
+    fn schedule_backend_background_job(&self, id: BackgroundJobId);
 
     /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `notify_slot_change()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>);
+    /// eventually call `invalidate_tasks()` on all tasks.
+    fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>);
 
-    fn schedule_backend_background_job(&self, id: BackgroundJobId);
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `invalidate_tasks()` on all tasks.
+    fn schedule_notify_tasks_set(&self, tasks: &HashSet<TaskId>);
+}
+
+impl TaskIdProvider for &dyn TurboTasksBackendApi {
+    fn get_fresh_task_id(&self) -> TaskId {
+        (*self).get_fresh_task_id()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { (*self).reuse_task_id(id) }
+    }
+}
+
+impl TaskIdProvider for &dyn TaskIdProvider {
+    fn get_fresh_task_id(&self) -> TaskId {
+        (*self).get_fresh_task_id()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { (*self).reuse_task_id(id) }
+    }
 }
 
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
     task_id_factory: IdFactory<TaskId>,
+    stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
+    currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
     last_update: Mutex<Option<(Duration, usize)>>,
     event: Event,
+    event_background: Event,
 }
 
 // TODO implement our own thread pool and make these thread locals instead
@@ -98,17 +160,24 @@ impl<B: Backend> TurboTasks<B> {
     // that should be safe as long tasks can't outlife turbo task
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
-    pub fn new(backend: B) -> Arc<Self> {
-        Arc::new_cyclic(|this| Self {
+    pub fn new(mut backend: B) -> Arc<Self> {
+        let task_id_factory = IdFactory::new();
+        backend.initialize(&task_id_factory);
+        let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
-            task_id_factory: IdFactory::new(),
+            task_id_factory,
+            stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
+            currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             last_update: Default::default(),
             event: Event::new(),
-        })
+            event_background: Event::new(),
+        });
+        this.backend.startup(&*this);
+        this
     }
 
     pub fn pin(&self) -> Arc<Self> {
@@ -123,11 +192,11 @@ impl<B: Backend> TurboTasks<B> {
             + Send
             + 'static,
     ) -> TaskId {
-        self.backend.create_transient_task(
-            TransientTaskType::Root(Box::new(functor)),
-            &self.task_id_factory,
-            self,
-        )
+        let id = self
+            .backend
+            .create_transient_task(TransientTaskType::Root(Box::new(functor)), self);
+        self.schedule(id);
+        id
     }
 
     // TODO make sure that all dependencies settle before reading them
@@ -137,11 +206,11 @@ impl<B: Backend> TurboTasks<B> {
         &self,
         future: impl Future<Output = Result<RawVc>> + Send + 'static,
     ) -> TaskId {
-        self.backend.create_transient_task(
-            TransientTaskType::Once(Box::pin(future)),
-            &self.task_id_factory,
-            self,
-        )
+        let id = self
+            .backend
+            .create_transient_task(TransientTaskType::Once(Box::pin(future)), self);
+        self.schedule(id);
+        id
     }
 
     pub async fn run_once<T: TraceRawVcs + Sync + Send + 'static>(
@@ -168,7 +237,6 @@ impl<B: Backend> TurboTasks<B> {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
             PersistentTaskType::Native(func, inputs.clone()),
-            &self.task_id_factory,
             current_task("turbo_function calls"),
             self,
         ))
@@ -182,7 +250,6 @@ impl<B: Backend> TurboTasks<B> {
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                 PersistentTaskType::ResolveNative(func, inputs.clone()),
-                &self.task_id_factory,
                 current_task("turbo_function calls"),
                 self,
             ))
@@ -199,7 +266,6 @@ impl<B: Backend> TurboTasks<B> {
     ) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
             PersistentTaskType::ResolveTrait(trait_type, trait_fn_name.clone(), inputs.clone()),
-            &self.task_id_factory,
             current_task("turbo_function calls"),
             self,
         ))
@@ -219,11 +285,14 @@ impl<B: Backend> TurboTasks<B> {
             // that's expensive
             // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
             .spawn(async move {
+                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
                 loop {
+                    if this.stopped.load(Ordering::Acquire) {
+                        break;
+                    }
                     if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this)
                     {
                         // Setup thread locals
-                        TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
                         let has_slot_mappings = execution.slot_mappings.is_some();
                         PREVIOUS_SLOTS
                             .with(|cell| cell.set(execution.slot_mappings.unwrap_or_default()));
@@ -247,6 +316,8 @@ impl<B: Backend> TurboTasks<B> {
                         if !reexecute {
                             break;
                         }
+                    } else {
+                        break;
                     }
                 }
                 if this
@@ -268,8 +339,42 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {
-        self.event.listen().await;
+        let listener = self.event.listen();
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            listener.await;
+        }
         self.last_update.lock().unwrap().unwrap()
+    }
+
+    pub async fn wait_background_done(&self) {
+        let listener = self.event_background.listen();
+        if self
+            .currently_scheduled_background_jobs
+            .load(Ordering::Acquire)
+            != 0
+        {
+            listener.await;
+        }
+    }
+
+    pub async fn stop_and_wait(&self) {
+        self.stopped.store(true, Ordering::Release);
+        {
+            let listener = self.event.listen();
+            if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                listener.await;
+            }
+        }
+        {
+            let listener = self.event_background.listen();
+            if self
+                .currently_scheduled_background_jobs
+                .load(Ordering::Acquire)
+                != 0
+            {
+                listener.await;
+            }
+        }
     }
 
     pub(crate) fn schedule_background_job<
@@ -280,6 +385,8 @@ impl<B: Backend> TurboTasks<B> {
         func: T,
     ) {
         let this = self.pin();
+        self.currently_scheduled_background_jobs
+            .fetch_add(1, Ordering::AcqRel);
         Builder::new()
             .spawn(async move {
                 TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
@@ -289,7 +396,17 @@ impl<B: Backend> TurboTasks<B> {
                         listener.await;
                     }
                 }
-                func(this).await;
+                let this2 = this.clone();
+                if !this.stopped.load(Ordering::Acquire) {
+                    func(this).await;
+                }
+                if this2
+                    .currently_scheduled_background_jobs
+                    .fetch_sub(1, Ordering::AcqRel)
+                    == 1
+                {
+                    this2.event_background.notify(usize::MAX);
+                }
             })
             .unwrap();
     }
@@ -300,7 +417,7 @@ impl<B: Backend> TurboTasks<B> {
             if tasks.is_empty() {
                 return;
             }
-            self.backend.notify_slot_change(tasks, self);
+            self.backend.invalidate_tasks(tasks, self);
         });
     }
 
@@ -309,7 +426,7 @@ impl<B: Backend> TurboTasks<B> {
     }
 }
 
-impl<B: Backend> TurboTasksApi for TurboTasks<B> {
+impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
     fn dynamic_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         self.dynamic_call(func, inputs)
     }
@@ -324,11 +441,11 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     ) -> RawVc {
         self.trait_call(trait_type, trait_fn_name, inputs)
     }
+}
+
+impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     fn invalidate(&self, task: TaskId) {
         self.backend.invalidate_task(task, self);
-    }
-    fn schedule(&self, task: TaskId) {
-        self.schedule(task);
     }
 
     fn notify_scheduled_tasks(&self) {
@@ -337,37 +454,56 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             if tasks.is_empty() {
                 return;
             }
-            self.backend.notify_slot_change(tasks, self);
+            self.backend.invalidate_tasks(tasks, self);
         });
     }
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc>, EventListener> {
+    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>> {
         self.backend
-            .try_read_task_output(task, current_task("reading Vcs"))
+            .try_read_task_output(task, current_task("reading Vcs"), self)
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-    ) -> Result<Result<RawVc>, EventListener> {
-        unsafe { self.backend.try_read_task_output_untracked(task) }
+    ) -> Result<Result<RawVc, EventListener>> {
+        unsafe { self.backend.try_read_task_output_untracked(task, self) }
     }
 
-    fn read_task_slot(&self, task: TaskId, index: usize) -> SlotContent {
+    fn try_read_task_slot(
+        &self,
+        task: TaskId,
+        index: usize,
+    ) -> Result<Result<SlotContent, EventListener>> {
         self.backend
-            .read_task_slot(task, index, current_task("reading Vcs"))
+            .try_read_task_slot(task, index, current_task("reading Vcs"), self)
     }
 
-    unsafe fn read_task_slot_untracked(&self, task: TaskId, index: usize) -> SlotContent {
-        unsafe { self.backend.read_task_slot_untracked(task, index) }
+    unsafe fn try_read_task_slot_untracked(
+        &self,
+        task: TaskId,
+        index: usize,
+    ) -> Result<Result<SlotContent, EventListener>> {
+        unsafe { self.backend.try_read_task_slot_untracked(task, index, self) }
+    }
+
+    unsafe fn try_read_own_task_slot(
+        &self,
+        current_task: TaskId,
+        index: usize,
+    ) -> Result<SlotContent> {
+        unsafe {
+            self.backend
+                .try_read_own_task_slot(current_task, index, self)
+        }
     }
 
     fn get_fresh_slot(&self, task: TaskId) -> usize {
-        self.backend.get_fresh_slot(task)
+        self.backend.get_fresh_slot(task, self)
     }
 
-    fn read_current_task_slot(&self, index: usize) -> SlotContent {
-        unsafe { self.read_task_slot_untracked(current_task("reading Vcs"), index) }
+    fn read_current_task_slot(&self, index: usize) -> Result<SlotContent> {
+        unsafe { Ok(self.try_read_own_task_slot(current_task("reading Vcs"), index)?) }
     }
 
     fn update_current_task_slot(&self, index: usize, content: SlotContent) {
@@ -378,11 +514,12 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
             self,
         );
     }
+}
 
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
+impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
+    fn pin(&self) -> Arc<dyn TurboTasksBackendApi> {
         self.pin()
     }
-
     fn schedule_backend_background_job(&self, id: BackgroundJobId) {
         self.schedule_background_job(move |this| async move {
             this.backend.run_background_job(id, &*this).await;
@@ -391,11 +528,34 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_slot_updated()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &HashSet<TaskId>) {
+    fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>) {
         TASKS_TO_NOTIFY.with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
             list.extend(tasks.iter());
         });
+    }
+
+    /// Enqueues tasks for notification of changed dependencies. This will
+    /// eventually call `dependent_slot_updated()` on all tasks.
+    fn schedule_notify_tasks_set(&self, tasks: &HashSet<TaskId>) {
+        TASKS_TO_NOTIFY.with(|tasks_list| {
+            let mut list = tasks_list.borrow_mut();
+            list.extend(tasks.iter());
+        });
+    }
+
+    fn schedule(&self, task: TaskId) {
+        self.schedule(task);
+    }
+}
+
+impl<B: Backend> TaskIdProvider for TurboTasks<B> {
+    fn get_fresh_task_id(&self) -> TaskId {
+        self.task_id_factory.get()
+    }
+
+    unsafe fn reuse_task_id(&self, id: TaskId) {
+        unsafe { self.task_id_factory.reuse(id) }
     }
 }
 
@@ -421,6 +581,43 @@ impl Invalidator {
         if let Some(turbo_tasks) = turbo_tasks.upgrade() {
             turbo_tasks.invalidate(task);
         }
+    }
+}
+
+impl Serialize for Invalidator {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_newtype_struct("Invalidator", &self.task)
+    }
+}
+
+impl<'de> Deserialize<'de> for Invalidator {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct V;
+
+        impl<'de> Visitor<'de> for V {
+            type Value = Invalidator;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "an Invalidator")
+            }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                Ok(Invalidator {
+                    task: TaskId::deserialize(deserializer)?,
+                    turbo_tasks: weak_turbo_tasks(),
+                })
+            }
+        }
+        deserializer.deserialize_newtype_struct("Invalidator", V)
     }
 }
 
@@ -463,8 +660,8 @@ pub fn get_invalidator() -> Invalidator {
 
 pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id) {
-            Ok(result) => return result,
+        match this.try_read_task_output(id)? {
+            Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
     }
@@ -475,8 +672,34 @@ pub(crate) async unsafe fn read_task_output_untracked(
     id: TaskId,
 ) -> Result<RawVc> {
     loop {
-        match unsafe { this.try_read_task_output_untracked(id) } {
-            Ok(result) => return result,
+        match unsafe { this.try_read_task_output_untracked(id) }? {
+            Ok(result) => return Ok(result),
+            Err(listener) => listener.await,
+        }
+    }
+}
+
+pub(crate) async fn read_task_slot(
+    this: &dyn TurboTasksApi,
+    id: TaskId,
+    index: usize,
+) -> Result<SlotContent> {
+    loop {
+        match this.try_read_task_slot(id, index)? {
+            Ok(result) => return Ok(result),
+            Err(listener) => listener.await,
+        }
+    }
+}
+
+pub(crate) async unsafe fn read_task_slot_untracked(
+    this: &dyn TurboTasksApi,
+    id: TaskId,
+    index: usize,
+) -> Result<SlotContent> {
+    loop {
+        match unsafe { this.try_read_task_slot_untracked(id, index) }? {
+            Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
     }
@@ -497,12 +720,15 @@ impl CurrentSlotRef {
         functor: F,
     ) {
         let tt = turbo_tasks();
-        let content = tt.read_current_task_slot(self.index).try_cast::<T>();
+        let content = tt
+            .read_current_task_slot(self.index)
+            .ok()
+            .and_then(|v| v.try_cast::<T>());
         let update = functor(content.as_ref().map(|read| &**read));
         if let Some(update) = update {
             tt.update_current_task_slot(
                 self.index,
-                SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(update))),
+                SlotContent(Some(SharedReference(Some(self.type_id), Arc::new(update)))),
             )
         }
     }
@@ -522,7 +748,10 @@ impl CurrentSlotRef {
         let tt = turbo_tasks();
         tt.update_current_task_slot(
             self.index,
-            SlotContent::SharedReference(self.type_id, SharedReference(Arc::new(new_content))),
+            SlotContent(Some(SharedReference(
+                Some(self.type_id),
+                Arc::new(new_content),
+            ))),
         )
     }
 }
@@ -533,7 +762,9 @@ impl From<CurrentSlotRef> for RawVc {
     }
 }
 
-pub fn find_slot_by_key<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
+pub fn find_slot_by_key<
+    K: Debug + Eq + Ord + Hash + Typed + TypedForInput + Send + Sync + 'static,
+>(
     type_id: ValueTypeId,
     key: K,
 ) -> CurrentSlotRef {
@@ -542,7 +773,10 @@ pub fn find_slot_by_key<K: Debug + Eq + Ord + Hash + Send + Sync + 'static>(
         let mut map = cell.take();
         let index = *map
             .by_key
-            .entry((type_id, Box::new(key)))
+            .entry((
+                type_id,
+                SharedValue(Some(K::get_value_type_id()), Arc::new(key)),
+            ))
             .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_slot(current_task)));
         cell.set(map);
         CurrentSlotRef {

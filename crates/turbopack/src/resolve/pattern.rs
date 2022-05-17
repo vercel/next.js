@@ -6,7 +6,7 @@ use regex::Regex;
 use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
-#[turbo_tasks::value(shared, ValueToString)]
+#[turbo_tasks::value(shared, serialization: auto_for_input, ValueToString)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Pattern {
     Constant(String),
@@ -613,6 +613,7 @@ impl Display for Pattern {
 
 #[turbo_tasks::value_impl]
 impl ValueToString for Pattern {
+    #[turbo_tasks::function]
     fn to_string(&self) -> Vc<String> {
         Vc::slot(self.to_string())
     }
