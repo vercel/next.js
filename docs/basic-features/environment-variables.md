@@ -152,7 +152,15 @@ export default async () => {
 
 ## Environment Variable Load Order
 
-Depending on the environment (as set by `NODE_ENV`), Environment Variables are defined from the following sources. The sources are ordered in descending priority, so environment variables from source (4) are loaded first, then 3 will override, then 2 will override, and finally 1 has the highest priority and will override all others. In all environments, the existing system `env` has the highest priority and is not overridden.
+Environment variables are looked up in the following places, in order, stopping once the variable is found.
+
+1. `process.env`
+1. `.env.$(NODE_ENV).local` (Not in 
+1. `.env.local` (Not checked when `NODE_ENV` is `test`.
+1. `.env.$(NODE_ENV)`
+1. `.env`
+
+For example, if you define a variable in both `.env.local` and `.env`, the value in `.env.local` will be used.
 
 `NODE_ENV=production`
 
