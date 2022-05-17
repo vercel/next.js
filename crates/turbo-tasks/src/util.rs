@@ -7,6 +7,7 @@ use anyhow::Error;
 pub use super::id_factory::IdFactory;
 pub use super::infinite_vec::InfiniteVec;
 pub use super::no_move_vec::NoMoveVec;
+pub use super::once_map::*;
 
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]

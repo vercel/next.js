@@ -1,6 +1,6 @@
 use std::env;
 
-use turbo_tasks_rocksdb::new_version::private::{CFStats, Database};
+use turbo_tasks_rocksdb::private::{CFStats, Database};
 
 fn main() {
     let mut args = env::args_os();

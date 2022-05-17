@@ -25,8 +25,6 @@ use turbo_tasks::{
     RawVc, TaskId, TurboTasksBackendApi,
 };
 
-use super::once_map::*;
-
 enum TaskType {
     Persistent(PersistentTaskType),
     Root(Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>),
@@ -102,7 +100,7 @@ enum BackgroundJob {
     DeactivatePersisted(TaskId),
 }
 
-pub struct MemoryBackend<P: PersistedGraph> {
+pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph> {
     pub pg: P,
     tasks: InfiniteVec<Option<Task>>,
     cache: flurry::HashMap<PersistentTaskType, TaskId>,
@@ -116,15 +114,15 @@ pub struct MemoryBackend<P: PersistedGraph> {
     persist_job: BackgroundJobId,
     partial_lookups: flurry::HashMap<PersistentTaskType, bool>,
     #[cfg(feature = "unsafe_once_map")]
-    partial_lookup: OnceConcurrentlyMap<PersistentTaskType, bool>,
+    partial_lookup: turbo_tasks::util::OnceConcurrentlyMap<PersistentTaskType, bool>,
     #[cfg(not(feature = "unsafe_once_map"))]
-    partial_lookup: SafeOnceConcurrentlyMap<PersistentTaskType, bool>,
+    partial_lookup: turbo_tasks::util::SafeOnceConcurrentlyMap<PersistentTaskType, bool>,
 
     #[cfg(feature = "log_running_tasks")]
     in_progress_tasks: Mutex<HashSet<TaskId>>,
 }
 
-impl<P: PersistedGraph> MemoryBackend<P> {
+impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     pub fn new(pg: P) -> Self {
         let background_job_id_factory = IdFactory::new();
         let persist_job = background_job_id_factory.get();
@@ -140,9 +138,9 @@ impl<P: PersistedGraph> MemoryBackend<P> {
             persist_job,
             partial_lookups: flurry::HashMap::new(),
             #[cfg(feature = "unsafe_once_map")]
-            partial_lookup: OnceConcurrentlyMap::new(),
+            partial_lookup: turbo_tasks::util::OnceConcurrentlyMap::new(),
             #[cfg(not(feature = "unsafe_once_map"))]
-            partial_lookup: SafeOnceConcurrentlyMap::new(),
+            partial_lookup: turbo_tasks::util::SafeOnceConcurrentlyMap::new(),
             #[cfg(feature = "log_running_tasks")]
             in_progress_tasks: Mutex::new(HashSet::new()),
         }
@@ -727,7 +725,7 @@ impl<P: PersistedGraph> MemoryBackend<P> {
     }
 }
 
-impl<P: PersistedGraph> Backend for MemoryBackend<P> {
+impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
         let (mut state, task_info) = self.state_mut(task, turbo_tasks);
         println!("invalidate_task({task}) type = {:?}", task_info.task_type);
@@ -1254,7 +1252,7 @@ impl<P: PersistedGraph> Backend for MemoryBackend<P> {
 }
 
 struct MemoryBackendPersistedGraphApi<'a, P: PersistedGraph> {
-    backend: &'a MemoryBackend<P>,
+    backend: &'a MemoryBackendWithPersistedGraph<P>,
     turbo_tasks: &'a dyn TurboTasksBackendApi,
 }
 
@@ -1293,7 +1291,7 @@ impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi
     }
 }
 
-impl<P: PersistedGraph> MemoryBackend<P> {
+impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_read(
         &self,
         task: TaskId,

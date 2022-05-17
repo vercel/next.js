@@ -15,4 +15,9 @@ anyhow = "1.0.47"
 event-listener = "2.5.2"
 async-std = "1.10.0"
 flurry = "0.4.0"
+concurrent-queue = "1.2.2"
+num_cpus = "1.13.1"
+
+[features]
+unsafe_once_map = []
 

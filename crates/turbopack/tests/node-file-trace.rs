@@ -13,8 +13,8 @@ use difference::{Changeset, Difference};
 use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
-use turbo_tasks_memory::MemoryBackend;
-use turbo_tasks_rocksdb::RocksDbBackend;
+use turbo_tasks_memory::{MemoryBackend, MemoryBackendWithPersistedGraph};
+use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 use turbopack::{
     asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
     source_asset::SourceAssetVc,
@@ -153,6 +153,7 @@ fn node_file_trace(
         .unwrap();
 
     let run_count = if mode != "memory" { 1 } else { 1 };
+    let timeout_len = if mode != "memory" { 240 } else { 120 };
 
     for _ in 0..run_count {
         let tests_root = tests_root.clone();
@@ -202,7 +203,7 @@ fn node_file_trace(
         match mode {
             "memory" => {
                 let tt = TurboTasks::new(MemoryBackend::new());
-                let output = block_on(timeout(Duration::from_secs(120), tt.run_once(task)));
+                let output = block_on(timeout(Duration::from_secs(timeout_len), tt.run_once(task)));
                 match output {
                     Ok(result) => handle_result(result),
                     Err(err) => {
@@ -217,25 +218,25 @@ fn node_file_trace(
                             })
                         });
                         panic!(
-                            "Execution is hanging (for > 120s, {pending_tasks} pending tasks): \
-                             {err}"
+                            "Execution is hanging (for > {timeout_len}s, {pending_tasks} pending \
+                             tasks): {err}"
                         );
                     }
                 }
             }
             "rocksdb" => {
-                let tt = TurboTasks::new(
-                    RocksDbBackend::new(directory_path.join(".db"), "test").unwrap(),
-                );
-                let output = block_on(timeout(Duration::from_secs(120), tt.run_once(task)));
-                match output {
-                    Ok(result) => handle_result(result),
-                    Err(err) => {
-                        let r: &dyn turbo_tasks::TurboTasksBackendApi = &*tt;
-                        tt.backend().with_task_id_mapping(r, || {
-                            println!("{:#?}", tt.backend());
-                        });
-                        panic!("Execution is hanging (for > 120s): {err}");
+                let tt = TurboTasks::new(MemoryBackendWithPersistedGraph::new(
+                    RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
+                ));
+                let output = block_on(timeout(Duration::from_secs(timeout_len), tt.run_once(task)));
+                let stop = block_on(timeout(Duration::from_secs(60), tt.stop_and_wait()));
+                match (output, stop) {
+                    (Ok(result), Ok(_)) => handle_result(result),
+                    (Err(err), _) => {
+                        panic!("Execution is hanging (for > {timeout_len}s): {err}");
+                    }
+                    (_, Err(err)) => {
+                        panic!("Stopping is hanging (for > 60s): {err}");
                     }
                 }
             }

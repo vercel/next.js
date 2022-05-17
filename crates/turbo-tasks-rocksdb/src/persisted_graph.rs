@@ -18,7 +18,6 @@ use turbo_tasks::{
 
 use super::{
     db::{Database, PartialTaskData, TaskState, TaskStateChange},
-    once_map::*,
 };
 
 fn task_type_to_bytes(ty: &PersistentTaskType) -> Result<Vec<u8>, bincode::Error> {
@@ -54,9 +53,9 @@ pub struct RocksDbPersistedGraph {
     task_id_backward_mapping: HashMap<TaskId, TaskId>,
     next_task_id: AtomicUsize,
     #[cfg(feature = "unsafe_once_map")]
-    cache_once: OnceConcurrentlyMap<[u8], Result<usize, SharedError>>,
+    cache_once: turbo_tasks::util::OnceConcurrentlyMap<[u8], Result<usize, SharedError>>,
     #[cfg(not(feature = "unsafe_once_map"))]
-    cache_once: SafeOnceConcurrentlyMap<Vec<u8>, Result<usize, SharedError>>,
+    cache_once: turbo_tasks::util::SafeOnceConcurrentlyMap<Vec<u8>, Result<usize, SharedError>>,
 }
 
 impl RocksDbPersistedGraph {
@@ -79,9 +78,9 @@ impl RocksDbPersistedGraph {
             task_id_backward_mapping: HashMap::new(),
             next_task_id: AtomicUsize::new(next_id),
             #[cfg(feature = "unsafe_once_map")]
-            cache_once: OnceConcurrentlyMap::new(),
+            cache_once: turbo_tasks::util::OnceConcurrentlyMap::new(),
             #[cfg(not(feature = "unsafe_once_map"))]
-            cache_once: SafeOnceConcurrentlyMap::new(),
+            cache_once: turbo_tasks::util::SafeOnceConcurrentlyMap::new(),
         })
     }
 

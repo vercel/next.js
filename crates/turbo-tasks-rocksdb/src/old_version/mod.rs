@@ -1,14 +1,16 @@
 #![feature(hash_drain_filter)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+mod backend;
 mod db;
-mod persisted_graph;
+pub mod new_version;
+mod sortable_index;
 mod table;
 
-pub use persisted_graph::RocksDbPersistedGraph;
+pub use backend::RocksDbBackend;
 
 #[doc(hidden)]
 pub mod private {
     pub use super::db::Database;
-    pub use crate::table::CFStats;
+    pub use super::table::CFStats;
 }

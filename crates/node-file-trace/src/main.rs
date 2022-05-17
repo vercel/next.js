@@ -14,7 +14,6 @@ use std::{
     path::PathBuf,
     pin::Pin,
     sync::Arc,
-    thread,
     time::{Duration, Instant},
 };
 use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
@@ -22,9 +21,8 @@ use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
-use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
-use turbo_tasks_memory_cache::MemoryCacheBackend;
-use turbo_tasks_rocksdb::{new_version::RocksDbPersistedGraph, RocksDbBackend};
+use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend, MemoryBackendWithPersistedGraph};
+use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 use turbopack::{
     all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
 };
@@ -187,15 +185,7 @@ fn main() {
     if let Some(cache) = cache {
         run(
             &args,
-            || {
-                turbo_tasks_rocksdb::new_version::MemoryBackend::new(
-                    RocksDbPersistedGraph::new(cache).unwrap(),
-                )
-
-                // MemoryCacheBackend::new(
-                //     RocksDbBackend::new(cache, (input,
-                // context_directory)).unwrap(), )
-            },
+            || MemoryBackendWithPersistedGraph::new(RocksDbPersistedGraph::new(cache).unwrap()),
             |tt, _, duration| {
                 let mut start = Instant::now();
                 let background_timeout = std::cmp::max(duration / 10, Duration::from_millis(100));
