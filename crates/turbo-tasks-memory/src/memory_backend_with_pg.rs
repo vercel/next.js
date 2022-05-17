@@ -246,8 +246,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             let partial = task_type.partial(i);
             let complete_cached = self.partial_lookups.pin().get(&partial).map(|v| *v);
             let complete = complete_cached.unwrap_or_else(|| {
-                self.partial_lookup
-                    .action(&partial, || self.pg_lookup(&partial, turbo_tasks))
+                self.partial_lookup.action(&partial, || {
+                    let complete = self.pg_lookup(&partial, turbo_tasks);
+                    self.partial_lookups.pin().insert(partial.clone(), complete);
+                    complete
+                })
             });
             if complete {
                 return cache.get(&task_type).map(|v| *v);
