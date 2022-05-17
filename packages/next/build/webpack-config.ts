@@ -55,6 +55,7 @@ import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 import { loadBindings } from './swc'
+import { FlightIdHashPlugin } from './webpack/plugins/flight-id-hash-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -999,8 +1000,8 @@ export default async function getBaseWebpackConfig(
       nodeEnv: false,
       ...(hasServerComponents
         ? {
-            // We have to use the names here instead of hashes to ensure the consistency between compilers.
-            moduleIds: 'named',
+            // We have to use the hash of file paths here instead of hashes to ensure the consistency between compilers.
+            moduleIds: false,
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
@@ -1395,12 +1396,12 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      ...(!dev &&
-      isEdgeServer &&
-      !!config.experimental.middlewareSourceMaps &&
-      !config.productionBrowserSourceMaps
-        ? getMiddlewareSourceMapPlugins()
-        : []),
+      hasServerComponents && new FlightIdHashPlugin(),
+      !dev &&
+        isEdgeServer &&
+        !!config.experimental.middlewareSourceMaps &&
+        !config.productionBrowserSourceMaps &&
+        getMiddlewareSourceMapPlugins(),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&

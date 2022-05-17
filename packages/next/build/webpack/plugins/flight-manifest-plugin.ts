@@ -230,11 +230,7 @@ export class FlightManifestPlugin {
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (
-          !resource ||
-          !clientComponentRegex.test(resource) ||
-          !clientComponentRegex.test(id)
-        ) {
+        if (!resource || !clientComponentRegex.test(resource)) {
           return
         }
 
@@ -255,7 +251,7 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, ''),
+              id,
               name,
               chunks: [],
             }
@@ -268,14 +264,10 @@ export class FlightManifestPlugin {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId = compilation.chunkGraph.getModuleId(mod)
+          let modId = '' + compilation.chunkGraph.getModuleId(mod)
 
-          if (typeof modId !== 'string') continue
-
-          // Remove resource queries.
-          modId = modId.split('?')[0]
-          // Remove the loader prefix.
-          modId = modId.split('next-flight-client-loader.js!')[1] || modId
+          // Remove the special query added in flight-id-hash-plugin.
+          modId = modId.replace(/\?sc_client$/, '')
 
           recordModule(modId, chunk, mod)
           // If this is a concatenation, register each child to the parent ID.
