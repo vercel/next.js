@@ -389,7 +389,7 @@ function createFlightHook() {
   }
 }
 
-function escapeJSONForFlightScript(input: mixed): string {
+function escapeJSONForFlightScript(input: unknown): string {
   return htmlEscapeJsonString(JSON.stringify(input))
 }
 
