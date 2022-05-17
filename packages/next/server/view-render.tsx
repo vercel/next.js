@@ -98,56 +98,54 @@ function preloadDataFetchingRecord(
   return record
 }
 
-function createFlightHook() {
-  return (
-    writable: WritableStream<Uint8Array>,
-    id: string,
-    req: ReadableStream<Uint8Array>,
-    bootstrap: boolean
-  ) => {
-    let entry = rscCache.get(id)
-    if (!entry) {
-      const [renderStream, forwardStream] = readableStreamTee(req)
-      entry = createFromReadableStream(renderStream)
-      rscCache.set(id, entry)
+function useFlightResponse(
+  writable: WritableStream<Uint8Array>,
+  id: string,
+  req: ReadableStream<Uint8Array>
+) {
+  let entry = rscCache.get(id)
+  if (!entry) {
+    const [renderStream, forwardStream] = readableStreamTee(req)
+    entry = createFromReadableStream(renderStream)
+    rscCache.set(id, entry)
 
-      let bootstrapped = false
-      const forwardReader = forwardStream.getReader()
-      const writer = writable.getWriter()
-      function process() {
-        forwardReader.read().then(({ done, value }) => {
-          if (bootstrap && !bootstrapped) {
-            bootstrapped = true
-            writer.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [0, id]
-                )})</script>`
-              )
+    let bootstrapped = false
+    const forwardReader = forwardStream.getReader()
+    const writer = writable.getWriter()
+    function process() {
+      forwardReader.read().then(({ done, value }) => {
+        if (!bootstrapped) {
+          bootstrapped = true
+          writer.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                0,
+                id,
+              ])})</script>`
             )
-          }
-          if (done) {
-            rscCache.delete(id)
-            writer.close()
-          } else {
-            writer.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [1, id, decodeText(value)]
-                )})</script>`
-              )
+          )
+        }
+        if (done) {
+          rscCache.delete(id)
+          writer.close()
+        } else {
+          writer.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                1,
+                id,
+                decodeText(value),
+              ])})</script>`
             )
-            process()
-          }
-        })
-      }
-      process()
+          )
+          process()
+        }
+      })
     }
-    return entry
+    process()
   }
+  return entry
 }
-
-const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -186,8 +184,7 @@ function createServerComponentRenderer(
     const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
-      reqStream,
-      true
+      reqStream
     )
     const root = response.readRoot()
     rscCache.delete(id)
