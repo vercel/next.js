@@ -760,11 +760,15 @@ function runTests(mode) {
     const browser = await webdriver(appPort, '/layout-raw-placeholder-blur')
 
     // raw1
-    expect(await browser.elementById('raw1').getAttribute('src')).toMatch(
-      'data:image/'
+    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
     )
-    expect(await browser.elementById('raw1').getAttribute('srcset')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBeNull()
+    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
+    )
+    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+      'lazy'
+    )
     expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
     expect(await browser.elementById('raw1').getAttribute('style')).toMatch(
       'filter:blur(20px);background-size:cover;'
@@ -784,19 +788,25 @@ function runTests(mode) {
     expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
     )
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBeNull()
+    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+      'lazy'
+    )
     expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('style')).toBe('')
+    expect(await browser.elementById('raw1').getAttribute('style')).toMatch('')
     expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
     expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
 
     // raw2
-    expect(await browser.elementById('raw2').getAttribute('src')).toMatch(
-      'data:image/'
+    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
     )
-    expect(await browser.elementById('raw2').getAttribute('srcset')).toBeNull()
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBeNull()
-    expect(await browser.elementById('raw2').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
+    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+      'lazy'
+    )
     expect(await browser.elementById('raw2').getAttribute('style')).toMatch(
       'filter:blur(20px);background-size:cover;'
     )
@@ -816,7 +826,9 @@ function runTests(mode) {
       '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
     )
     expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBeNull()
+    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+      'lazy'
+    )
     expect(await browser.elementById('raw2').getAttribute('style')).toBe('')
     expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
     expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
