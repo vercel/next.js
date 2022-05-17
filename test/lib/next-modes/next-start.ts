@@ -39,6 +39,7 @@ export class NextStartInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
+    this._cliOutput = ''
     this.spawnOpts = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -69,6 +70,7 @@ export class NextStartInstance extends NextInstance {
       )
       this.handleStdio(this.childProcess)
       this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = null
         if (code || signal)
           reject(
             new Error(`next build failed with code/signal ${code || signal}`)
