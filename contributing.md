@@ -270,7 +270,7 @@ When you add an example to the [examples](examples) directory, don’t forget to
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
 - Examples should be TypeScript first, if possible.
-- You don’t need to add `name` or `version` in your `package.json`.
+- Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
 - Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.
@@ -306,3 +306,23 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Publishing
 
 Repository maintainers can use `yarn publish-canary` to publish a new version of all packages to npm.
+
+## Triaging
+
+Repository maintainers triage every issue and PR opened in the repository.
+
+Issues are opened with one of these labels:
+
+- `template: story` - a feature request, converted to an [💡 Ideas discussion](https://github.com/vercel/next.js/discussions/categories/ideas)
+- `template: bug` - unverified issue with Next.js itself, or one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
+- `template: documentation` - feedback for improvement or unverfied issue with the Next.js documentation
+
+In case of a bug report, a maintainer looks at the provided reproduction. If the reproduction is missing or insufficient, a `please add a complete reproduction` label is added. If a reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, the `please add a complete reproduction` label is removed and the issue will not become stale anymore.
+
+If the issue is specific to the project and not to Next.js itself, it might be converted to a [🎓️ Help discussion](https://github.com/vercel/next.js/discussions/categories/help)
+
+If the bug is verified, it will receive the `kind: bug` label and will be tracked by the maintainers. An `area:` label can be added to indicate which part of Next.js is affected.
+
+Confirmed issues never become stale or be closed before resolution.
+
+All **closed** PRs and Issues will be locked after 30 days of inactivity (eg.: comment, referencing from elsewhere).

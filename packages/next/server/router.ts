@@ -2,14 +2,12 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
-import pathMatch from '../shared/lib/router/utils/path-match'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
-
-export const route = pathMatch()
 
 export type Params = { [param: string]: any }
 
@@ -242,7 +240,7 @@ export default class Router {
                 type: 'route',
                 name: 'page checker',
                 requireBasePath: false,
-                match: route('/:path*'),
+                match: getPathMatch('/:path*'),
                 fn: async (
                   checkerReq,
                   checkerRes,
@@ -276,7 +274,7 @@ export default class Router {
                 type: 'route',
                 name: 'dynamic route/page check',
                 requireBasePath: false,
-                match: route('/:path*'),
+                match: getPathMatch('/:path*'),
                 fn: async (
                   _checkerReq,
                   _checkerRes,

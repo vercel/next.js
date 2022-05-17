@@ -1,20 +1,13 @@
 {
   "ban-element-innerhtml-assignments": [
     "packages/next/client/head-manager.ts",
-    "packages/next/client/script.tsx",
-    "packages/react-dev-overlay/src/internal/components/Overlay/maintain--tab-focus.ts"
+    "packages/next/client/script.tsx"
   ],
   "ban-element-setattribute": [
     "packages/next/client/head-manager.ts",
     "packages/next/client/script.tsx"
   ],
   "ban-script-content-assignments": ["packages/next/client/script.tsx"],
-  "ban-script-src-assignments": [
-    "packages/next/client/route-loader.ts",
-    "packages/next/client/script.tsx"
-  ],
-  "ban-window-stringfunctiondef": [
-    "packages/next/lib/recursive-delete.ts",
-    "packages/next/client/dev/fouc.ts"
-  ]
+  "ban-script-src-assignments": ["packages/next/client/script.tsx"],
+  "ban-trustedtypes-createpolicy": ["packages/next/client/trusted-types.ts"]
 }

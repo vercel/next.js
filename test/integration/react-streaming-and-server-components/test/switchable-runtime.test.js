@@ -22,6 +22,48 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should contain _app.server in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-server-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-server-root"`, 'g')
+        )
+      ).toBe(1)
+    })
+  })
+
+  it('should contain _app.server in flight response (edge)', async () => {
+    const html = await renderViaHTTP(context.appPort, '/edge-rsc')
+    const flightResponse = await renderViaHTTP(
+      context.appPort,
+      '/edge-rsc?__flight__=1'
+    )
+    expect(
+      getOccurrence(html, new RegExp(`class="app-server-root"`, 'g'))
+    ).toBe(1)
+    expect(
+      getOccurrence(
+        flightResponse,
+        new RegExp(`"className":\\s*"app-server-root"`, 'g')
+      )
+    ).toBe(1)
+  })
+}
+
 async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
   const html1 = await renderViaHTTP(appPort, url)
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
@@ -38,12 +80,15 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
   }
-  const customAppServerHtml = '<div class="app-server-root"'
-  if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
-  } else {
-    expect(html1).not.toContain(customAppServerHtml)
-  }
+  // If the page is using 1 root, it won't use the other.
+  // e.g. server component page won't have client app root.
+  const rootClasses = ['app-server-root', 'app-client-root']
+  const [rootClass, oppositeRootClass] = isRSC
+    ? [rootClasses[0], rootClasses[1]]
+    : [rootClasses[1], rootClasses[0]]
+
+  expect(getOccurrence(html1, new RegExp(`class="${rootClass}"`, 'g'))).toBe(1)
+  expect(html1).not.toContain(`"${oppositeRootClass}"`)
 }
 
 describe('Switchable runtime (prod)', () => {
@@ -62,6 +107,8 @@ describe('Switchable runtime (prod)', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  flight(context)
 
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
@@ -277,6 +324,7 @@ describe('Switchable runtime (dev)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
   it('should support client side navigation to ssr rsc pages', async () => {
     let flightRequest = null
 

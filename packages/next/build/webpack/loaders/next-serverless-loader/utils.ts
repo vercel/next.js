@@ -12,7 +12,7 @@ import type { BaseNextRequest } from '../../../../server/base-http'
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
-import pathMatch from '../../../../shared/lib/router/utils/path-match'
+import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
 import {
@@ -23,12 +23,10 @@ import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
-
-const getCustomRouteMatcher = pathMatch(true)
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -51,7 +49,11 @@ export type ServerlessHandlerCtx = {
   buildManifest?: BuildManifest
   reactLoadableManifest?: any
   basePath: string
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
   pageIsDynamic: boolean
   generateEtags: boolean
   distDir: string
@@ -92,9 +94,17 @@ export function getUtils({
     parsedUrl: UrlWithParsedQuery
   ) {
     const rewriteParams = {}
+    let fsPathname = parsedUrl.pathname
 
-    for (const rewrite of rewrites) {
-      const matcher = getCustomRouteMatcher(rewrite.source)
+    const matchesPage = () => {
+      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+    }
+
+    const checkRewrite = (rewrite: Rewrite): boolean => {
+      const matcher = getPathMatch(rewrite.source, {
+        removeUnnamedParams: true,
+        strict: true,
+      })
       let params = matcher(parsedUrl.pathname)
 
       if (rewrite.has && params) {
@@ -115,13 +125,18 @@ export function getUtils({
           query: parsedUrl.query,
         })
 
+        // if the rewrite destination is external break rewrite chain
+        if (parsedDestination.protocol) {
+          return true
+        }
+
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
         Object.assign(parsedUrl, parsedDestination)
 
-        let fsPathname = parsedUrl.pathname
+        fsPathname = parsedUrl.pathname
 
         if (basePath) {
           fsPathname =
@@ -139,7 +154,7 @@ export function getUtils({
         }
 
         if (fsPathname === page) {
-          break
+          return true
         }
 
         if (pageIsDynamic && dynamicRouteMatcher) {
@@ -149,12 +164,32 @@ export function getUtils({
               ...parsedUrl.query,
               ...dynamicParams,
             }
-            break
+            return true
           }
         }
       }
+      return false
     }
 
+    for (const rewrite of rewrites.beforeFiles || []) {
+      checkRewrite(rewrite)
+    }
+
+    if (fsPathname !== page) {
+      let finished = false
+
+      for (const rewrite of rewrites.afterFiles || []) {
+        finished = checkRewrite(rewrite)
+        if (finished) break
+      }
+
+      if (!finished && !matchesPage()) {
+        for (const rewrite of rewrites.fallback || []) {
+          finished = checkRewrite(rewrite)
+          if (finished) break
+        }
+      }
+    }
     return rewriteParams
   }
 

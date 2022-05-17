@@ -71,14 +71,3 @@ it('automatically parses and formats JSON', async () => {
     body: '',
   })
 })
-
-it('response.cookie does not modify options', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
-
-  const options = { maxAge: 10000 }
-  const response = NextResponse.json(null)
-  response.cookie('cookieName', 'cookieValue', options)
-  expect(options).toEqual({ maxAge: 10000 })
-})
