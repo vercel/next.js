@@ -49,7 +49,7 @@ export function blockUnallowedResponse(
       ? result.response
       : new Response(
           JSON.stringify({
-            message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+            message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
           }),
           {
             status: 500,

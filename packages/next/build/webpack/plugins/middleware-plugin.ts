@@ -192,7 +192,7 @@ function getCodeAnalizer(params: {
         !isUndefinedIdentifier(firstParameter)
       ) {
         const error = new wp.WebpackError(
-          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`
+          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
         error.name = NAME
         error.module = parser.state.current

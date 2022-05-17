@@ -607,7 +607,7 @@ function responseTests(locale = '') {
     expect(res.status).toBe(500)
     const json = await res.json()
     expect(json).toEqual({
-      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
     })
   })
 
@@ -619,7 +619,7 @@ function responseTests(locale = '') {
     expect(res.status).toBe(500)
     const json = await res.json()
     expect(json).toEqual({
-      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-_middleware`,
+      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
     })
   })
 

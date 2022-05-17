@@ -1,8 +1,8 @@
-# Returning response body in \_middleware
+# Returning response body in middleware
 
 #### Why This Error Occurred
 
-Your [`_middleware`](https://nextjs.org/docs/advanced-features/middleware) function returns a response body, which is not supported.
+Your [`middleware`](https://nextjs.org/docs/advanced-features/middleware) function returns a response body, which is not supported.
 
 Letting middleware respond to incoming requests would bypass Next.js routing mechanism, creating an unecessary escape hatch.
 
