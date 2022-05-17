@@ -192,6 +192,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  supportedBrowsers,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -242,6 +243,13 @@ export function getLoaderSWCOptions({
       isServer,
       pagesDir,
       isPageFile,
+      ...(supportedBrowsers && supportedBrowsers.length > 0
+        ? {
+            env: {
+              targets: supportedBrowsers,
+            },
+          }
+        : {}),
     }
   }
 }

@@ -25,6 +25,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  MODERN_BROWSERSLIST_TARGET,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -63,16 +64,31 @@ const watchOptions = Object.freeze({
 
 function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean
+  isDevelopment: boolean,
+  config: NextConfigComplete
 ): string[] | undefined {
   let browsers: any
   try {
-    browsers = browserslist.loadConfig({
+    const browsersListConfig = browserslist.loadConfig({
       path: dir,
       env: isDevelopment ? 'development' : 'production',
     })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    if (browsersListConfig && browsersListConfig.length > 0) {
+      browsers = browserslist(browsersListConfig)
+    }
   } catch {}
-  return browsers
+
+  // When user has browserslist use that target
+  if (browsers && browsers.length > 0) {
+    return browsers
+  }
+
+  // When user does not have browserslist use the default target
+  // When `experimental.legacyBrowsers: false` the modern default is used
+  return config.experimental.legacyBrowsers
+    ? undefined
+    : MODERN_BROWSERSLIST_TARGET
 }
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -339,7 +355,8 @@ export default async function getBaseWebpackConfig(
     dir,
     config
   )
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -466,6 +483,9 @@ export default async function getBaseWebpackConfig(
             fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
+            supportedBrowsers: config.experimental.browsersListForSwc
+              ? supportedBrowsers
+              : undefined,
           },
         }
       : {
@@ -1783,6 +1803,7 @@ export default async function getBaseWebpackConfig(
     relay: config.compiler?.relay,
     emotion: config.experimental?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
+    legacyBrowsers: config.experimental?.legacyBrowsers,
   })
 
   const cache: any = {
