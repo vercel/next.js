@@ -2,20 +2,23 @@ use std::{mem::take, sync::Arc};
 
 use url::Url;
 
+use crate::target::{CompileTarget, Target};
+
 use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
-pub fn replace_well_known(value: JsValue) -> (JsValue, bool) {
+pub fn replace_well_known(value: JsValue, target: CompileTarget) -> (JsValue, bool) {
     match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
             well_known_function_call(
                 kind,
-                JsValue::Unknown(None, "this is not analysed yet"),
+                JsValue::Unknown(None, "this is not analyzed yet"),
                 args,
+                &target,
             ),
             true,
         ),
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
-            (well_known_object_member(kind, prop), true)
+            (well_known_object_member(kind, prop, &target), true)
         }
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             (well_known_function_member(kind, prop), true)
@@ -28,6 +31,7 @@ pub fn well_known_function_call(
     kind: WellKnownFunctionKind,
     _this: JsValue,
     args: Vec<JsValue>,
+    target: &CompileTarget,
 ) -> JsValue {
     match kind {
         WellKnownFunctionKind::PathJoin => path_join(args),
@@ -48,6 +52,9 @@ pub fn well_known_function_call(
             "require.resolve() is not supported",
         ),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
+        WellKnownFunctionKind::OsArch => os_arch(target),
+        WellKnownFunctionKind::OsPlatform => os_platform(target),
+        WellKnownFunctionKind::OsEndianness => os_endianness(target),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -211,12 +218,18 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
     }
 }
 
-pub fn well_known_object_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+pub fn well_known_object_member(
+    kind: WellKnownObjectKind,
+    prop: JsValue,
+    target: &CompileTarget,
+) -> JsValue {
     match kind {
         WellKnownObjectKind::PathModule => path_module_member(prop),
         WellKnownObjectKind::FsModule => fs_module_member(prop),
         WellKnownObjectKind::UrlModule => url_module_member(prop),
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
+        WellKnownObjectKind::OsModule => os_module_member(prop),
+        WellKnownObjectKind::NodeProcess => node_process_member(prop, target),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -293,4 +306,123 @@ pub fn child_process_module_member(prop: JsValue) -> JsValue {
             "unsupported property on Node.js child_process module",
         ),
     }
+}
+
+fn os_module_member(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("platform") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsPlatform),
+        Some("arch") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsArch),
+        Some("endianness") => JsValue::WellKnownFunction(WellKnownFunctionKind::OsEndianness),
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+                box prop,
+            ))),
+            "unsupported property on Node.js os module",
+        ),
+    }
+}
+
+fn node_process_member(prop: JsValue, target: &CompileTarget) -> JsValue {
+    match prop.as_str() {
+        Some("arch") => os_arch(target),
+        Some("platform") => os_platform(target),
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                box prop,
+            ))),
+            "unsupported property on Node.js process object",
+        ),
+    }
+}
+
+fn os_endianness(target: &CompileTarget) -> JsValue {
+    if let CompileTarget::Target(Target { endianness, .. }) = target {
+        return endianness.to_str().into();
+    }
+    #[cfg(target_endian = "little")]
+    {
+        return "LE".into();
+    }
+    #[cfg(target_endian = "big")]
+    {
+        return "BE".into();
+    }
+}
+
+#[allow(unreachable_code)]
+fn os_arch(target: &CompileTarget) -> JsValue {
+    if let CompileTarget::Target(Target { arch, .. }) = target {
+        return arch.to_str().into();
+    }
+    #[cfg(target_arch = "x86")]
+    {
+        return "ia32".into();
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        return "x64".into();
+    }
+    #[cfg(target_arch = "arm")]
+    {
+        return "arm".into();
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        return "arm64".into();
+    }
+    #[cfg(target_arch = "mips")]
+    {
+        return "mips".into();
+    }
+    #[cfg(target_arch = "powerpc")]
+    {
+        return "ppc".into();
+    }
+    #[cfg(target_arch = "powerpc64")]
+    {
+        return "ppc64".into();
+    }
+    #[cfg(target_arch = "s390x")]
+    {
+        return "s390x".into();
+    }
+    return JsValue::Unknown(None, "Unknown architecture");
+}
+
+#[allow(unreachable_code)]
+fn os_platform(target: &CompileTarget) -> JsValue {
+    if let CompileTarget::Target(Target { platform, .. }) = target {
+        return platform.to_str().into();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return "win32".into();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        return "linux".into();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        return "darwin".into();
+    }
+    #[cfg(target_os = "android")]
+    {
+        return "android".into();
+    }
+    #[cfg(target_os = "freebsd")]
+    {
+        return "freebsd".into();
+    }
+    #[cfg(target_os = "openbsd")]
+    {
+        return "openbsd".into();
+    }
+    #[cfg(target_os = "solaris")]
+    {
+        return "sunos".into();
+    }
+    return JsValue::Unknown(None, "Unknown platform");
 }

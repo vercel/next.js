@@ -12,10 +12,10 @@ pub(crate) use self::imports::ImportMap;
 use indexmap::IndexSet;
 use num_bigint::BigInt;
 use swc_atoms::{js_word, JsWord};
-use swc_common::{collections::AHashSet, Mark};
+use swc_common::Mark;
 use swc_ecmascript::{
     ast::{Ident, Lit},
-    utils::{ident::IdentLike, Id},
+    utils::Id,
 };
 use url::Url;
 
@@ -805,6 +805,14 @@ impl JsValue {
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
+                    WellKnownObjectKind::OsModule => (
+                        "os",
+                        "The Node.js os module: https://nodejs.org/api/os.html",
+                    ),
+                    WellKnownObjectKind::NodeProcess => (
+                        "process",
+                        "The Node.js process module: https://nodejs.org/api/process.html",
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -845,6 +853,18 @@ impl JsValue {
                     WellKnownFunctionKind::ChildProcessFork => (
                         format!("child_process.fork"),
                         "The Node.js child_process.fork method: https://nodejs.org/api/child_process.html#child_processforkmodulepath-args-options",
+                    ),
+                    WellKnownFunctionKind::OsArch => (
+                        format!("os.arch"),
+                        "The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch",
+                    ),
+                    WellKnownFunctionKind::OsPlatform => (
+                        format!("os.process"),
+                        "The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process",
+                    ),
+                    WellKnownFunctionKind::OsEndianness => (
+                        format!("os.endianness"),
+                        "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
                     ),
                 };
                 if depth > 0 {
@@ -1326,7 +1346,7 @@ impl JsValue {
             | JsValue::Module(..)
             | JsValue::Function(..) => false,
 
-            JsValue::FreeVar(FreeVarKind::Dirname) => true,
+            JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::Filename) => true,
             JsValue::FreeVar(
                 FreeVarKind::Require | FreeVarKind::Import | FreeVarKind::RequireResolve,
             ) => false,
@@ -1714,6 +1734,9 @@ pub enum FreeVarKind {
     /// `__dirname`
     Dirname,
 
+    /// `__filename`
+    Filename,
+
     /// A reference to global `require`
     Require,
 
@@ -1733,6 +1756,8 @@ pub enum WellKnownObjectKind {
     FsModule,
     UrlModule,
     ChildProcess,
+    OsModule,
+    NodeProcess,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -1746,6 +1771,9 @@ pub enum WellKnownFunctionKind {
     PathToFileUrl,
     ChildProcessSpawnMethod(JsWord),
     ChildProcessFork,
+    OsArch,
+    OsPlatform,
+    OsEndianness,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
@@ -1760,10 +1788,10 @@ pub mod test_utils {
         well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     };
-    use crate::analyzer::builtin::replace_builtin;
+    use crate::{analyzer::builtin::replace_builtin, target::CompileTarget};
     use anyhow::Result;
 
-    pub async fn visitor(v: JsValue) -> Result<(JsValue, bool)> {
+    pub async fn visitor(v: JsValue, target: CompileTarget) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
             JsValue::Call(
                 _,
@@ -1777,15 +1805,17 @@ pub mod test_utils {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
             }
             JsValue::FreeVar(FreeVarKind::Dirname) => "__dirname".into(),
+            JsValue::FreeVar(FreeVarKind::Filename) => "__filename".into(),
             JsValue::FreeVar(kind) => {
                 JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
             }
-            JsValue::Module(ref name) => match &**name {
+            JsValue::Module(ref name) => match name.as_ref() {
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
+                "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 _ => return Ok((v, false)),
             },
             _ => {
-                let (mut v, m1) = replace_well_known(v);
+                let (mut v, m1) = replace_well_known(v, target);
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }
@@ -1804,6 +1834,8 @@ mod tests {
     use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
     use testing::NormalizedOutput;
+
+    use crate::target::{Arch, CompileTarget, Endianness, Platform, Target};
 
     use super::{
         graph::{create_graph, EvalContext},
@@ -1888,7 +1920,16 @@ mod tests {
                         let mut res = block_on(link(
                             &var_graph,
                             val,
-                            &(|val| Box::pin(super::test_utils::visitor(val))),
+                            &(|val| {
+                                Box::pin(super::test_utils::visitor(
+                                    val,
+                                    CompileTarget::Target(Target::new(
+                                        Arch::X64,
+                                        Platform::Linux,
+                                        Endianness::Little,
+                                    )),
+                                ))
+                            }),
                             &cache,
                         ))
                         .unwrap();

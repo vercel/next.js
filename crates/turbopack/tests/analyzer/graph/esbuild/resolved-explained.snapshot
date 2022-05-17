@@ -1,33 +1,12 @@
-*arrow function 2641* = (...) => (
+*arrow function 2665* = (...) => (
   | ["node", ["bin/esbuild"]]
   | [
         (
           | ???*0*
-          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(
-                  | ???*1*
-                  | "esbuild-windows-arm64"
-                  | "esbuild-windows-32"
-                  | "esbuild-windows-64"
-                  | ???*2*
-                  | "esbuild-android-arm64"
-                  | "esbuild-darwin-arm64"
-                  | "esbuild-darwin-64"
-                  | "esbuild-freebsd-arm64"
-                  | "esbuild-freebsd-64"
-                  | "esbuild-linux-arm"
-                  | "esbuild-linux-arm64"
-                  | "esbuild-linux-32"
-                  | "esbuild-linux-mips64le"
-                  | "esbuild-linux-ppc64le"
-                  | "esbuild-linux-s390x"
-                  | "esbuild-linux-64"
-                  | "esbuild-netbsd-64"
-                  | "esbuild-openbsd-64"
-                  | "esbuild-sunos-64"
-                )}-${???*11*}`
-          | ???*15*
-          | ???*16*
-          | ???*27*
+          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+          | ???*7*
+          | ???*8*
+          | ???*13*
         ),
         []
     ]
@@ -36,439 +15,122 @@
   ⚠️  unknown global
 - *1* pkg
   ⚠️  pattern without value
-- *2* {}[`${???*3*} ${???*5*} ${???*8*}`]
-  ⚠️  unknown object prototype methods or values
-- *3* ???*4*["platform"]
-  ⚠️  property on unknown
-- *4* FreeVar(process)
+- *2* FreeVar(undefined)
   ⚠️  unknown global
-- *5* ???*6*()
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *6* ???*7*["arch"]
-  ⚠️  property on unknown
-- *7* FreeVar(os)
-  ⚠️  unknown global
-- *8* ???*9*()
-  ⚠️  call of unknown function
-- *9* ???*10*["endianness"]
-  ⚠️  property on unknown
-- *10* FreeVar(os)
-  ⚠️  unknown global
-- *11* ???*12*((???*14* | "esbuild.exe" | "bin/esbuild"))
-  ⚠️  call of unknown function
-- *12* path*13*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *13* path: The Node.js path module: https://nodejs.org/api/path.html
-- *14* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *15* binPath
+- *7* binPath
   ⚠️  pattern without value
-- *16* require.resolve*17*(
-        `${(
-              | ???*18*
-              | "esbuild-windows-arm64"
-              | "esbuild-windows-32"
-              | "esbuild-windows-64"
-              | ???*19*
-              | "esbuild-android-arm64"
-              | "esbuild-darwin-arm64"
-              | "esbuild-darwin-64"
-              | "esbuild-freebsd-arm64"
-              | "esbuild-freebsd-64"
-              | "esbuild-linux-arm"
-              | "esbuild-linux-arm64"
-              | "esbuild-linux-32"
-              | "esbuild-linux-mips64le"
-              | "esbuild-linux-ppc64le"
-              | "esbuild-linux-s390x"
-              | "esbuild-linux-64"
-              | "esbuild-netbsd-64"
-              | "esbuild-openbsd-64"
-              | "esbuild-sunos-64"
-            )}/${(???*26* | "esbuild.exe" | "bin/esbuild")}`
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
     )
   ⚠️  resolve.resolve non constant
-- *17* require.resolve: The require.resolve method from CommonJS
-- *18* pkg
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
   ⚠️  pattern without value
-- *19* {}[`${???*20*} ${???*22*} ${???*24*}`]
-  ⚠️  unknown object prototype methods or values
-- *20* ???*21*["platform"]
-  ⚠️  property on unknown
-- *21* FreeVar(process)
+- *11* FreeVar(undefined)
   ⚠️  unknown global
-- *22* ???*23*()
-  ⚠️  call of unknown function
-- *23* ...[...]
-  ⚠️  property on unknown
-- *24* ???*25*()
-  ⚠️  call of unknown function
-- *25* ...[...]
-  ⚠️  property on unknown
-- *26* subpath
+- *12* subpath
   ⚠️  pattern without value
-- *27* ???*28*(
-        (
-          | ???*29*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*30*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        ),
-        (???*39* | "esbuild.exe" | "bin/esbuild")
-    )
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *28* FreeVar(downloadedBinPath)
+- *14* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *29* pkg
+- *15* pkg
   ⚠️  pattern without value
-- *30* {}[`${???*31*} ${???*33*} ${???*36*}`]
-  ⚠️  unknown object prototype methods or values
-- *31* ???*32*["platform"]
-  ⚠️  property on unknown
-- *32* FreeVar(process)
+- *16* FreeVar(undefined)
   ⚠️  unknown global
-- *33* ???*34*()
-  ⚠️  call of unknown function
-- *34* ???*35*["arch"]
-  ⚠️  property on unknown
-- *35* FreeVar(os)
-  ⚠️  unknown global
-- *36* ???*37*()
-  ⚠️  call of unknown function
-- *37* ???*38*["endianness"]
-  ⚠️  property on unknown
-- *38* FreeVar(os)
-  ⚠️  unknown global
-- *39* subpath
+- *17* subpath
   ⚠️  pattern without value
 
 args = (["bin/esbuild"] | [])
 
-binPath = (???*0* | ???*1* | ???*14*)
+binPath = (???*0* | ???*1* | ???*6*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(
-              | ???*3*
-              | "esbuild-windows-arm64"
-              | "esbuild-windows-32"
-              | "esbuild-windows-64"
-              | ???*4*
-              | "esbuild-android-arm64"
-              | "esbuild-darwin-arm64"
-              | "esbuild-darwin-64"
-              | "esbuild-freebsd-arm64"
-              | "esbuild-freebsd-64"
-              | "esbuild-linux-arm"
-              | "esbuild-linux-arm64"
-              | "esbuild-linux-32"
-              | "esbuild-linux-mips64le"
-              | "esbuild-linux-ppc64le"
-              | "esbuild-linux-s390x"
-              | "esbuild-linux-64"
-              | "esbuild-netbsd-64"
-              | "esbuild-openbsd-64"
-              | "esbuild-sunos-64"
-            )}/${(???*13* | "esbuild.exe" | "bin/esbuild")}`
+        `${(???*3* | ???*4* | "esbuild-linux-64")}/${(???*5* | "esbuild.exe" | "bin/esbuild")}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value
-- *4* {}[`${???*5*} ${???*7*} ${???*10*}`]
-  ⚠️  unknown object prototype methods or values
-- *5* ???*6*["platform"]
-  ⚠️  property on unknown
-- *6* FreeVar(process)
+- *4* FreeVar(undefined)
   ⚠️  unknown global
-- *7* ???*8*()
-  ⚠️  call of unknown function
-- *8* ???*9*["arch"]
-  ⚠️  property on unknown
-- *9* FreeVar(os)
-  ⚠️  unknown global
-- *10* ???*11*()
-  ⚠️  call of unknown function
-- *11* ???*12*["endianness"]
-  ⚠️  property on unknown
-- *12* FreeVar(os)
-  ⚠️  unknown global
-- *13* subpath
+- *5* subpath
   ⚠️  pattern without value
-- *14* ???*15*(
-        (
-          | ???*16*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*17*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        ),
-        (???*26* | "esbuild.exe" | "bin/esbuild")
-    )
+- *6* ???*7*((???*8* | ???*9* | "esbuild-linux-64"), (???*10* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *15* FreeVar(downloadedBinPath)
+- *7* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *16* pkg
+- *8* pkg
   ⚠️  pattern without value
-- *17* {}[`${???*18*} ${???*20*} ${???*23*}`]
-  ⚠️  unknown object prototype methods or values
-- *18* ???*19*["platform"]
-  ⚠️  property on unknown
-- *19* FreeVar(process)
+- *9* FreeVar(undefined)
   ⚠️  unknown global
-- *20* ???*21*()
-  ⚠️  call of unknown function
-- *21* ???*22*["arch"]
-  ⚠️  property on unknown
-- *22* FreeVar(os)
-  ⚠️  unknown global
-- *23* ???*24*()
-  ⚠️  call of unknown function
-- *24* ???*25*["endianness"]
-  ⚠️  property on unknown
-- *25* FreeVar(os)
-  ⚠️  unknown global
-- *26* subpath
+- *10* subpath
   ⚠️  pattern without value
 
-binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(
-      | ???*0*
-      | "esbuild-windows-arm64"
-      | "esbuild-windows-32"
-      | "esbuild-windows-64"
-      | ???*1*
-      | "esbuild-android-arm64"
-      | "esbuild-darwin-arm64"
-      | "esbuild-darwin-64"
-      | "esbuild-freebsd-arm64"
-      | "esbuild-freebsd-64"
-      | "esbuild-linux-arm"
-      | "esbuild-linux-arm64"
-      | "esbuild-linux-32"
-      | "esbuild-linux-mips64le"
-      | "esbuild-linux-ppc64le"
-      | "esbuild-linux-s390x"
-      | "esbuild-linux-64"
-      | "esbuild-netbsd-64"
-      | "esbuild-openbsd-64"
-      | "esbuild-sunos-64"
-    )}-${???*10*}`
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | "esbuild-linux-64")}-${???*2*}`
 - *0* pkg
   ⚠️  pattern without value
-- *1* {}[`${???*2*} ${???*4*} ${???*7*}`]
-  ⚠️  unknown object prototype methods or values
-- *2* ???*3*["platform"]
-  ⚠️  property on unknown
-- *3* FreeVar(process)
+- *1* FreeVar(undefined)
   ⚠️  unknown global
-- *4* ???*5*()
+- *2* ???*3*((???*5* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *5* ???*6*["arch"]
-  ⚠️  property on unknown
-- *6* FreeVar(os)
-  ⚠️  unknown global
-- *7* ???*8*()
-  ⚠️  call of unknown function
-- *8* ???*9*["endianness"]
-  ⚠️  property on unknown
-- *9* FreeVar(os)
-  ⚠️  unknown global
-- *10* ???*11*((???*13* | "esbuild.exe" | "bin/esbuild"))
-  ⚠️  call of unknown function
-- *11* path*12*["basename"]
+- *3* path*4*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *12* path: The Node.js path module: https://nodejs.org/api/path.html
-- *13* subpath
+- *4* path: The Node.js path module: https://nodejs.org/api/path.html
+- *5* subpath
   ⚠️  pattern without value
 
 command = (
   | "node"
   | ???*0*
-  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(
-          | ???*1*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*2*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        )}-${???*11*}`
-  | ???*15*
-  | ???*16*
-  | ???*29*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+  | ???*7*
+  | ???*8*
+  | ???*13*
 )
 - *0* FreeVar(ESBUILD_BINARY_PATH)
   ⚠️  unknown global
 - *1* pkg
   ⚠️  pattern without value
-- *2* {}[`${???*3*} ${???*5*} ${???*8*}`]
-  ⚠️  unknown object prototype methods or values
-- *3* ???*4*["platform"]
-  ⚠️  property on unknown
-- *4* FreeVar(process)
+- *2* FreeVar(undefined)
   ⚠️  unknown global
-- *5* ???*6*()
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *6* ???*7*["arch"]
-  ⚠️  property on unknown
-- *7* FreeVar(os)
-  ⚠️  unknown global
-- *8* ???*9*()
-  ⚠️  call of unknown function
-- *9* ???*10*["endianness"]
-  ⚠️  property on unknown
-- *10* FreeVar(os)
-  ⚠️  unknown global
-- *11* ???*12*((???*14* | "esbuild.exe" | "bin/esbuild"))
-  ⚠️  call of unknown function
-- *12* path*13*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *13* path: The Node.js path module: https://nodejs.org/api/path.html
-- *14* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *15* binPath
+- *7* binPath
   ⚠️  pattern without value
-- *16* require.resolve*17*(
-        `${(
-              | ???*18*
-              | "esbuild-windows-arm64"
-              | "esbuild-windows-32"
-              | "esbuild-windows-64"
-              | ???*19*
-              | "esbuild-android-arm64"
-              | "esbuild-darwin-arm64"
-              | "esbuild-darwin-64"
-              | "esbuild-freebsd-arm64"
-              | "esbuild-freebsd-64"
-              | "esbuild-linux-arm"
-              | "esbuild-linux-arm64"
-              | "esbuild-linux-32"
-              | "esbuild-linux-mips64le"
-              | "esbuild-linux-ppc64le"
-              | "esbuild-linux-s390x"
-              | "esbuild-linux-64"
-              | "esbuild-netbsd-64"
-              | "esbuild-openbsd-64"
-              | "esbuild-sunos-64"
-            )}/${(???*28* | "esbuild.exe" | "bin/esbuild")}`
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
     )
   ⚠️  resolve.resolve non constant
-- *17* require.resolve: The require.resolve method from CommonJS
-- *18* pkg
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
   ⚠️  pattern without value
-- *19* {}[`${???*20*} ${???*22*} ${???*25*}`]
-  ⚠️  unknown object prototype methods or values
-- *20* ???*21*["platform"]
-  ⚠️  property on unknown
-- *21* FreeVar(process)
+- *11* FreeVar(undefined)
   ⚠️  unknown global
-- *22* ???*23*()
-  ⚠️  call of unknown function
-- *23* ???*24*["arch"]
-  ⚠️  property on unknown
-- *24* FreeVar(os)
-  ⚠️  unknown global
-- *25* ???*26*()
-  ⚠️  call of unknown function
-- *26* ???*27*["endianness"]
-  ⚠️  property on unknown
-- *27* FreeVar(os)
-  ⚠️  unknown global
-- *28* subpath
+- *12* subpath
   ⚠️  pattern without value
-- *29* ???*30*(
-        (
-          | ???*31*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*32*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        ),
-        (???*41* | "esbuild.exe" | "bin/esbuild")
-    )
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *30* FreeVar(downloadedBinPath)
+- *14* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *31* pkg
+- *15* pkg
   ⚠️  pattern without value
-- *32* {}[`${???*33*} ${???*35*} ${???*38*}`]
-  ⚠️  unknown object prototype methods or values
-- *33* ???*34*["platform"]
-  ⚠️  property on unknown
-- *34* FreeVar(process)
+- *16* FreeVar(undefined)
   ⚠️  unknown global
-- *35* ???*36*()
-  ⚠️  call of unknown function
-- *36* ???*37*["arch"]
-  ⚠️  property on unknown
-- *37* FreeVar(os)
-  ⚠️  unknown global
-- *38* ???*39*()
-  ⚠️  call of unknown function
-- *39* ???*40*["endianness"]
-  ⚠️  property on unknown
-- *40* FreeVar(os)
-  ⚠️  unknown global
-- *41* subpath
+- *17* subpath
   ⚠️  pattern without value
 
 e#5 = ???*0*
@@ -484,31 +146,10 @@ esbuildCommandAndArgs = (...) => (
   | [
         (
           | ???*0*
-          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(
-                  | ???*1*
-                  | "esbuild-windows-arm64"
-                  | "esbuild-windows-32"
-                  | "esbuild-windows-64"
-                  | ???*2*
-                  | "esbuild-android-arm64"
-                  | "esbuild-darwin-arm64"
-                  | "esbuild-darwin-64"
-                  | "esbuild-freebsd-arm64"
-                  | "esbuild-freebsd-64"
-                  | "esbuild-linux-arm"
-                  | "esbuild-linux-arm64"
-                  | "esbuild-linux-32"
-                  | "esbuild-linux-mips64le"
-                  | "esbuild-linux-ppc64le"
-                  | "esbuild-linux-s390x"
-                  | "esbuild-linux-64"
-                  | "esbuild-netbsd-64"
-                  | "esbuild-openbsd-64"
-                  | "esbuild-sunos-64"
-                )}-${???*11*}`
-          | ???*15*
-          | ???*16*
-          | ???*27*
+          | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+          | ???*7*
+          | ???*8*
+          | ???*13*
         ),
         []
     ]
@@ -517,286 +158,83 @@ esbuildCommandAndArgs = (...) => (
   ⚠️  unknown global
 - *1* pkg
   ⚠️  pattern without value
-- *2* {}[`${???*3*} ${???*5*} ${???*8*}`]
-  ⚠️  unknown object prototype methods or values
-- *3* ???*4*["platform"]
-  ⚠️  property on unknown
-- *4* FreeVar(process)
+- *2* FreeVar(undefined)
   ⚠️  unknown global
-- *5* ???*6*()
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *6* ???*7*["arch"]
-  ⚠️  property on unknown
-- *7* FreeVar(os)
-  ⚠️  unknown global
-- *8* ???*9*()
-  ⚠️  call of unknown function
-- *9* ???*10*["endianness"]
-  ⚠️  property on unknown
-- *10* FreeVar(os)
-  ⚠️  unknown global
-- *11* ???*12*((???*14* | "esbuild.exe" | "bin/esbuild"))
-  ⚠️  call of unknown function
-- *12* path*13*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *13* path: The Node.js path module: https://nodejs.org/api/path.html
-- *14* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *15* binPath
+- *7* binPath
   ⚠️  pattern without value
-- *16* require.resolve*17*(
-        `${(
-              | ???*18*
-              | "esbuild-windows-arm64"
-              | "esbuild-windows-32"
-              | "esbuild-windows-64"
-              | ???*19*
-              | "esbuild-android-arm64"
-              | "esbuild-darwin-arm64"
-              | "esbuild-darwin-64"
-              | "esbuild-freebsd-arm64"
-              | "esbuild-freebsd-64"
-              | "esbuild-linux-arm"
-              | "esbuild-linux-arm64"
-              | "esbuild-linux-32"
-              | "esbuild-linux-mips64le"
-              | "esbuild-linux-ppc64le"
-              | "esbuild-linux-s390x"
-              | "esbuild-linux-64"
-              | "esbuild-netbsd-64"
-              | "esbuild-openbsd-64"
-              | "esbuild-sunos-64"
-            )}/${(???*26* | "esbuild.exe" | "bin/esbuild")}`
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
     )
   ⚠️  resolve.resolve non constant
-- *17* require.resolve: The require.resolve method from CommonJS
-- *18* pkg
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
   ⚠️  pattern without value
-- *19* {}[`${???*20*} ${???*22*} ${???*24*}`]
-  ⚠️  unknown object prototype methods or values
-- *20* ???*21*["platform"]
-  ⚠️  property on unknown
-- *21* FreeVar(process)
+- *11* FreeVar(undefined)
   ⚠️  unknown global
-- *22* ???*23*()
-  ⚠️  call of unknown function
-- *23* ...[...]
-  ⚠️  property on unknown
-- *24* ???*25*()
-  ⚠️  call of unknown function
-- *25* ...[...]
-  ⚠️  property on unknown
-- *26* subpath
+- *12* subpath
   ⚠️  pattern without value
-- *27* ???*28*(
-        (
-          | ???*29*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*30*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        ),
-        (???*39* | "esbuild.exe" | "bin/esbuild")
-    )
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *28* FreeVar(downloadedBinPath)
+- *14* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *29* pkg
+- *15* pkg
   ⚠️  pattern without value
-- *30* {}[`${???*31*} ${???*33*} ${???*36*}`]
-  ⚠️  unknown object prototype methods or values
-- *31* ???*32*["platform"]
-  ⚠️  property on unknown
-- *32* FreeVar(process)
+- *16* FreeVar(undefined)
   ⚠️  unknown global
-- *33* ???*34*()
-  ⚠️  call of unknown function
-- *34* ???*35*["arch"]
-  ⚠️  property on unknown
-- *35* FreeVar(os)
-  ⚠️  unknown global
-- *36* ???*37*()
-  ⚠️  call of unknown function
-- *37* ???*38*["endianness"]
-  ⚠️  property on unknown
-- *38* FreeVar(os)
-  ⚠️  unknown global
-- *39* subpath
+- *17* subpath
   ⚠️  pattern without value
 
 esbuildLibDir = ""esbuild"/resolved/lib"
 
 generateBinPath = (...) => (
   | ???*0*
-  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(
-          | ???*1*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*2*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        )}-${???*11*}`
-  | ???*15*
-  | ???*16*
-  | ???*29*
+  | `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+  | ???*7*
+  | ???*8*
+  | ???*13*
 )
 - *0* FreeVar(ESBUILD_BINARY_PATH)
   ⚠️  unknown global
 - *1* pkg
   ⚠️  pattern without value
-- *2* {}[`${???*3*} ${???*5*} ${???*8*}`]
-  ⚠️  unknown object prototype methods or values
-- *3* ???*4*["platform"]
-  ⚠️  property on unknown
-- *4* FreeVar(process)
+- *2* FreeVar(undefined)
   ⚠️  unknown global
-- *5* ???*6*()
+- *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *6* ???*7*["arch"]
-  ⚠️  property on unknown
-- *7* FreeVar(os)
-  ⚠️  unknown global
-- *8* ???*9*()
-  ⚠️  call of unknown function
-- *9* ???*10*["endianness"]
-  ⚠️  property on unknown
-- *10* FreeVar(os)
-  ⚠️  unknown global
-- *11* ???*12*((???*14* | "esbuild.exe" | "bin/esbuild"))
-  ⚠️  call of unknown function
-- *12* path*13*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *13* path: The Node.js path module: https://nodejs.org/api/path.html
-- *14* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *15* binPath
+- *7* binPath
   ⚠️  pattern without value
-- *16* require.resolve*17*(
-        `${(
-              | ???*18*
-              | "esbuild-windows-arm64"
-              | "esbuild-windows-32"
-              | "esbuild-windows-64"
-              | ???*19*
-              | "esbuild-android-arm64"
-              | "esbuild-darwin-arm64"
-              | "esbuild-darwin-64"
-              | "esbuild-freebsd-arm64"
-              | "esbuild-freebsd-64"
-              | "esbuild-linux-arm"
-              | "esbuild-linux-arm64"
-              | "esbuild-linux-32"
-              | "esbuild-linux-mips64le"
-              | "esbuild-linux-ppc64le"
-              | "esbuild-linux-s390x"
-              | "esbuild-linux-64"
-              | "esbuild-netbsd-64"
-              | "esbuild-openbsd-64"
-              | "esbuild-sunos-64"
-            )}/${(???*28* | "esbuild.exe" | "bin/esbuild")}`
+- *8* require.resolve*9*(
+        `${(???*10* | ???*11* | "esbuild-linux-64")}/${(???*12* | "esbuild.exe" | "bin/esbuild")}`
     )
   ⚠️  resolve.resolve non constant
-- *17* require.resolve: The require.resolve method from CommonJS
-- *18* pkg
+- *9* require.resolve: The require.resolve method from CommonJS
+- *10* pkg
   ⚠️  pattern without value
-- *19* {}[`${???*20*} ${???*22*} ${???*25*}`]
-  ⚠️  unknown object prototype methods or values
-- *20* ???*21*["platform"]
-  ⚠️  property on unknown
-- *21* FreeVar(process)
+- *11* FreeVar(undefined)
   ⚠️  unknown global
-- *22* ???*23*()
-  ⚠️  call of unknown function
-- *23* ???*24*["arch"]
-  ⚠️  property on unknown
-- *24* FreeVar(os)
-  ⚠️  unknown global
-- *25* ???*26*()
-  ⚠️  call of unknown function
-- *26* ???*27*["endianness"]
-  ⚠️  property on unknown
-- *27* FreeVar(os)
-  ⚠️  unknown global
-- *28* subpath
+- *12* subpath
   ⚠️  pattern without value
-- *29* ???*30*(
-        (
-          | ???*31*
-          | "esbuild-windows-arm64"
-          | "esbuild-windows-32"
-          | "esbuild-windows-64"
-          | ???*32*
-          | "esbuild-android-arm64"
-          | "esbuild-darwin-arm64"
-          | "esbuild-darwin-64"
-          | "esbuild-freebsd-arm64"
-          | "esbuild-freebsd-64"
-          | "esbuild-linux-arm"
-          | "esbuild-linux-arm64"
-          | "esbuild-linux-32"
-          | "esbuild-linux-mips64le"
-          | "esbuild-linux-ppc64le"
-          | "esbuild-linux-s390x"
-          | "esbuild-linux-64"
-          | "esbuild-netbsd-64"
-          | "esbuild-openbsd-64"
-          | "esbuild-sunos-64"
-        ),
-        (???*41* | "esbuild.exe" | "bin/esbuild")
-    )
+- *13* ???*14*((???*15* | ???*16* | "esbuild-linux-64"), (???*17* | "esbuild.exe" | "bin/esbuild"))
   ⚠️  call of unknown function
-- *30* FreeVar(downloadedBinPath)
+- *14* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *31* pkg
+- *15* pkg
   ⚠️  pattern without value
-- *32* {}[`${???*33*} ${???*35*} ${???*38*}`]
-  ⚠️  unknown object prototype methods or values
-- *33* ???*34*["platform"]
-  ⚠️  property on unknown
-- *34* FreeVar(process)
+- *16* FreeVar(undefined)
   ⚠️  unknown global
-- *35* ???*36*()
-  ⚠️  call of unknown function
-- *36* ???*37*["arch"]
-  ⚠️  property on unknown
-- *37* FreeVar(os)
-  ⚠️  unknown global
-- *38* ???*39*()
-  ⚠️  call of unknown function
-- *39* ???*40*["endianness"]
-  ⚠️  property on unknown
-- *40* FreeVar(os)
-  ⚠️  unknown global
-- *41* subpath
+- *17* subpath
   ⚠️  pattern without value
 
 isYarnPnP = (false | true)
@@ -825,163 +263,39 @@ knownWindowsPackages = {
     "win32 x64 LE": "esbuild-windows-64"
 }
 
+os = os*0*
+- *0* os: The Node.js os module: https://nodejs.org/api/os.html
+
 path = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
 path2 = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-pkg#3 = (
-  | ???*0*
-  | "esbuild-windows-arm64"
-  | "esbuild-windows-32"
-  | "esbuild-windows-64"
-  | ???*1*
-  | "esbuild-android-arm64"
-  | "esbuild-darwin-arm64"
-  | "esbuild-darwin-64"
-  | "esbuild-freebsd-arm64"
-  | "esbuild-freebsd-64"
-  | "esbuild-linux-arm"
-  | "esbuild-linux-arm64"
-  | "esbuild-linux-32"
-  | "esbuild-linux-mips64le"
-  | "esbuild-linux-ppc64le"
-  | "esbuild-linux-s390x"
-  | "esbuild-linux-64"
-  | "esbuild-netbsd-64"
-  | "esbuild-openbsd-64"
-  | "esbuild-sunos-64"
-)
+pkg#3 = (???*0* | ???*1* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
-- *1* {}[`${???*2*} ${???*4*} ${???*7*}`]
-  ⚠️  unknown object prototype methods or values
-- *2* ???*3*["platform"]
-  ⚠️  property on unknown
-- *3* FreeVar(process)
-  ⚠️  unknown global
-- *4* ???*5*()
-  ⚠️  call of unknown function
-- *5* ???*6*["arch"]
-  ⚠️  property on unknown
-- *6* FreeVar(os)
-  ⚠️  unknown global
-- *7* ???*8*()
-  ⚠️  call of unknown function
-- *8* ???*9*["endianness"]
-  ⚠️  property on unknown
-- *9* FreeVar(os)
+- *1* FreeVar(undefined)
   ⚠️  unknown global
 
-pkg#4 = (
-  | ???*0*
-  | "esbuild-windows-arm64"
-  | "esbuild-windows-32"
-  | "esbuild-windows-64"
-  | ???*1*
-  | "esbuild-android-arm64"
-  | "esbuild-darwin-arm64"
-  | "esbuild-darwin-64"
-  | "esbuild-freebsd-arm64"
-  | "esbuild-freebsd-64"
-  | "esbuild-linux-arm"
-  | "esbuild-linux-arm64"
-  | "esbuild-linux-32"
-  | "esbuild-linux-mips64le"
-  | "esbuild-linux-ppc64le"
-  | "esbuild-linux-s390x"
-  | "esbuild-linux-64"
-  | "esbuild-netbsd-64"
-  | "esbuild-openbsd-64"
-  | "esbuild-sunos-64"
-)
+pkg#4 = (???*0* | ???*1* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
-- *1* {}[`${???*2*} ${???*4*} ${???*7*}`]
-  ⚠️  unknown object prototype methods or values
-- *2* ???*3*["platform"]
-  ⚠️  property on unknown
-- *3* FreeVar(process)
-  ⚠️  unknown global
-- *4* ???*5*()
-  ⚠️  call of unknown function
-- *5* ???*6*["arch"]
-  ⚠️  property on unknown
-- *6* FreeVar(os)
-  ⚠️  unknown global
-- *7* ???*8*()
-  ⚠️  call of unknown function
-- *8* ???*9*["endianness"]
-  ⚠️  property on unknown
-- *9* FreeVar(os)
+- *1* FreeVar(undefined)
   ⚠️  unknown global
 
 pkgAndSubpathForCurrentPlatform = (...) => {
-    "pkg": (
-      | ???*0*
-      | "esbuild-windows-arm64"
-      | "esbuild-windows-32"
-      | "esbuild-windows-64"
-      | ???*1*
-      | "esbuild-android-arm64"
-      | "esbuild-darwin-arm64"
-      | "esbuild-darwin-64"
-      | "esbuild-freebsd-arm64"
-      | "esbuild-freebsd-64"
-      | "esbuild-linux-arm"
-      | "esbuild-linux-arm64"
-      | "esbuild-linux-32"
-      | "esbuild-linux-mips64le"
-      | "esbuild-linux-ppc64le"
-      | "esbuild-linux-s390x"
-      | "esbuild-linux-64"
-      | "esbuild-netbsd-64"
-      | "esbuild-openbsd-64"
-      | "esbuild-sunos-64"
-    ),
-    "subpath": (???*10* | "esbuild.exe" | "bin/esbuild")
+    "pkg": (???*0* | ???*1* | "esbuild-linux-64"),
+    "subpath": (???*2* | "esbuild.exe" | "bin/esbuild")
 }
 - *0* pkg
   ⚠️  pattern without value
-- *1* {}[`${???*2*} ${???*4*} ${???*7*}`]
-  ⚠️  unknown object prototype methods or values
-- *2* ???*3*["platform"]
-  ⚠️  property on unknown
-- *3* FreeVar(process)
+- *1* FreeVar(undefined)
   ⚠️  unknown global
-- *4* ???*5*()
-  ⚠️  call of unknown function
-- *5* ???*6*["arch"]
-  ⚠️  property on unknown
-- *6* FreeVar(os)
-  ⚠️  unknown global
-- *7* ???*8*()
-  ⚠️  call of unknown function
-- *8* ???*9*["endianness"]
-  ⚠️  property on unknown
-- *9* FreeVar(os)
-  ⚠️  unknown global
-- *10* subpath
+- *2* subpath
   ⚠️  pattern without value
 
-platformKey = `${???*0*} ${???*2*} ${???*5*}`
-- *0* ???*1*["platform"]
-  ⚠️  property on unknown
-- *1* FreeVar(process)
-  ⚠️  unknown global
-- *2* ???*3*()
-  ⚠️  call of unknown function
-- *3* ???*4*["arch"]
-  ⚠️  property on unknown
-- *4* FreeVar(os)
-  ⚠️  unknown global
-- *5* ???*6*()
-  ⚠️  call of unknown function
-- *6* ???*7*["endianness"]
-  ⚠️  property on unknown
-- *7* FreeVar(os)
-  ⚠️  unknown global
+platformKey = "linux x64 LE"
 
 subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath

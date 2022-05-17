@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
 use turbo_tasks::{NothingVc, TurboTasks, Vc};
-use turbo_tasks_memory::{MemoryBackend};
+use turbo_tasks_memory::MemoryBackend;
 
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc,
@@ -104,7 +104,7 @@ async fn hash_directory(directory: FileSystemPathVc) -> Result<Vc<String>> {
 async fn hash_file(file_path: FileSystemPathVc) -> Result<Vc<String>> {
     let content = file_path.read().await?;
     Ok(match &*content {
-        FileContent::Content(bytes) => hash_content(bytes),
+        FileContent::Content(file) => hash_content(file),
         FileContent::NotFound => {
             // report error
             Vc::slot("".to_string())

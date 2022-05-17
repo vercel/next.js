@@ -1,0 +1,397 @@
+[
+    (
+        "arch",
+        Member(
+            5,
+            Call(
+                3,
+                FreeVar(
+                    Require,
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom('os' type=inline),
+                        ),
+                    ),
+                ],
+            ),
+            Constant(
+                Str(
+                    Atom('arch' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
+        "binding1",
+        Call(
+            13,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    11,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            WellKnownObject(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('arch' type=inline),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('platform' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binding2",
+        Call(
+            12,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    10,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('arch' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('platform' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binding3",
+        Call(
+            13,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    11,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('arch' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            WellKnownObject(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('platform' type=dynamic),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binding4",
+        Call(
+            14,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    12,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            WellKnownObject(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('arch' type=inline),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            WellKnownObject(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('platform' type=dynamic),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "binding5",
+        Call(
+            14,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    12,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('arch' type=inline),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('platform' type=dynamic),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "endianness",
+        Member(
+            5,
+            Call(
+                3,
+                FreeVar(
+                    Require,
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom('os' type=inline),
+                        ),
+                    ),
+                ],
+            ),
+            Constant(
+                Str(
+                    Atom('endianness' type=dynamic),
+                ),
+            ),
+        ),
+    ),
+    (
+        "p",
+        WellKnownObject(
+            NodeProcess,
+        ),
+    ),
+    (
+        "platform",
+        Member(
+            5,
+            Call(
+                3,
+                FreeVar(
+                    Require,
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom('os' type=inline),
+                        ),
+                    ),
+                ],
+            ),
+            Constant(
+                Str(
+                    Atom('platform' type=dynamic),
+                ),
+            ),
+        ),
+    ),
+]

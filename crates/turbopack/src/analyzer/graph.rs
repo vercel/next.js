@@ -13,7 +13,7 @@ use crate::{
     ecmascript::utils::unparen,
 };
 
-use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart};
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind};
 
 #[derive(Debug, Clone)]
 pub enum Effect {
@@ -169,6 +169,10 @@ impl EvalContext {
                     match &*i.sym {
                         "require" => return JsValue::FreeVar(FreeVarKind::Require),
                         "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
+                        "__filename" => return JsValue::FreeVar(FreeVarKind::Filename),
+                        "process" => {
+                            return JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
+                        }
                         _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {

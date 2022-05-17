@@ -34,6 +34,7 @@ pub mod rebase;
 pub mod reference;
 pub mod resolve;
 pub mod source_asset;
+pub mod target;
 mod utils;
 
 #[turbo_tasks::function]
@@ -80,16 +81,19 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
             ModuleType::Ecmascript => ecmascript::ModuleAssetVc::new(
                 source,
                 Value::new(ecmascript::ModuleAssetType::Ecmascript),
+                Value::new(target::CompileTarget::Current),
             )
             .into(),
             ModuleType::Typescript => ecmascript::ModuleAssetVc::new(
                 source,
                 Value::new(ecmascript::ModuleAssetType::Typescript),
+                Value::new(target::CompileTarget::Current),
             )
             .into(),
             ModuleType::TypescriptDeclaration => ecmascript::ModuleAssetVc::new(
                 source,
                 Value::new(ecmascript::ModuleAssetType::TypescriptDeclaration),
+                Value::new(target::CompileTarget::Current),
             )
             .into(),
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),

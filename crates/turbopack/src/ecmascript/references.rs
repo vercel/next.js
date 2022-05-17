@@ -15,6 +15,7 @@ use crate::{
         resolve_raw, FindContextFileResult, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
+    target::CompileTarget,
 };
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -58,6 +59,7 @@ use super::{
 pub async fn module_references(
     source: AssetVc,
     ty: Value<ModuleAssetType>,
+    target: Value<CompileTarget>,
 ) -> Result<Vc<Vec<AssetReferenceVc>>> {
     let mut references = Vec::new();
     let path = source.path();
@@ -508,8 +510,8 @@ pub async fn module_references(
             }
 
             let cache = Mutex::new(LinkCache::new());
-
-            let linker = |value| value_visitor(&source, value);
+            let target = target.into_value();
+            let linker = |value| value_visitor(&source, value, target);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
             for effect in var_graph.effects.iter() {
@@ -584,13 +586,21 @@ async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
     Ok(format!("/ROOT/{}", path.await?.path.as_str()).into())
 }
 
-async fn value_visitor(source: &AssetVc, v: JsValue) -> Result<(JsValue, bool)> {
-    let (mut v, m) = value_visitor_inner(source, v).await?;
+async fn value_visitor(
+    source: &AssetVc,
+    v: JsValue,
+    target: CompileTarget,
+) -> Result<(JsValue, bool)> {
+    let (mut v, m) = value_visitor_inner(source, v, target).await?;
     v.normalize_shallow();
     Ok((v, m))
 }
 
-async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, bool)> {
+async fn value_visitor_inner(
+    source: &AssetVc,
+    v: JsValue,
+    target: CompileTarget,
+) -> Result<(JsValue, bool)> {
     Ok((
         match v {
             JsValue::Call(
@@ -631,9 +641,12 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                 }
             }
             JsValue::FreeVar(FreeVarKind::Dirname) => as_abs_path(source.path().parent()).await?,
+            JsValue::FreeVar(FreeVarKind::Filename) => as_abs_path(source.path()).await?,
+
             JsValue::FreeVar(FreeVarKind::Require) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
             }
+
             JsValue::FreeVar(FreeVarKind::Import) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
             }
@@ -644,6 +657,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                 "fs/promises" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
+                "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",
@@ -654,7 +668,7 @@ async fn value_visitor_inner(source: &AssetVc, v: JsValue) -> Result<(JsValue, b
                 "cross function analyzing is not yet supported",
             ),
             _ => {
-                let (mut v, m1) = replace_well_known(v);
+                let (mut v, m1) = replace_well_known(v, target);
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }

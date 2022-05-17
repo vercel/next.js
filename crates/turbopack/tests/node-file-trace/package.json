@@ -61,7 +61,6 @@
     "mongoose": "^5.7.5",
     "mysql": "^2.17.1",
     "npm": "^6.14.6",
-    "oracledb": "^4.2.0",
     "paraphrase": "1.8.0",
     "passport": "^0.4.0",
     "passport-google-oauth": "^2.0.0",
@@ -101,5 +100,8 @@
     "vue-server-renderer": "^2.6.10",
     "whatwg-url": "5.0.0",
     "when": "^3.7.8"
+  },
+  "optionalDependencies": {
+    "oracledb": "^4.2.0"
   }
 }

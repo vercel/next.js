@@ -10,10 +10,13 @@ use criterion::Criterion;
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver;
 use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
-use turbopack::analyzer::{
-    graph::{create_graph, EvalContext},
-    linker::{link, LinkCache},
-    test_utils::visitor,
+use turbopack::{
+    analyzer::{
+        graph::{create_graph, EvalContext},
+        linker::{link, LinkCache},
+        test_utils::visitor,
+    },
+    target::CompileTarget,
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -63,7 +66,7 @@ pub fn benchmark(c: &mut Criterion) {
                             block_on(link(
                                 &var_graph,
                                 val.clone(),
-                                &(|val| Box::pin(visitor(val))),
+                                &(|val| Box::pin(visitor(val, CompileTarget::Current))),
                                 &cache,
                             ))
                             .unwrap();

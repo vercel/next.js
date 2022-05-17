@@ -15,7 +15,7 @@ use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
-    io::ErrorKind,
+    io::{ErrorKind, Read, Write},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{
@@ -298,10 +298,10 @@ impl FileSystem for DiskFileSystem {
                 .insert(path_to_key(full_path.as_path()), invalidator);
         }
         Ok(match self
-            .execute(move || with_retry(move || fs::read(&full_path)))
+            .execute(move || with_retry(move || File::from_path(&full_path)))
             .await
         {
-            Ok(content) => FileContent::new(content),
+            Ok(file) => FileContent::new(file),
             Err(_) => FileContent::NotFound,
         }
         .into())
@@ -362,6 +362,7 @@ impl FileSystem for DiskFileSystem {
             Err(_) => DirectoryContentVc::not_found(),
         })
     }
+    #[allow(unreachable_code)]
     async fn write(
         &self,
         fs_path: FileSystemPathVc,
@@ -378,7 +379,7 @@ impl FileSystem for DiskFileSystem {
         if *content != *old_content {
             let create_directory = *old_content == FileContent::NotFound;
             self.execute(move || match &*content {
-                FileContent::Content(buffer) => {
+                FileContent::Content(file) => {
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
                             with_retry(move || fs::create_dir_all(parent)).with_context(|| {
@@ -391,8 +392,21 @@ impl FileSystem for DiskFileSystem {
                         }
                     }
                     // println!("write {} bytes to {}", buffer.len(), full_path.display());
-                    with_retry(|| fs::write(full_path.clone(), buffer))
-                        .with_context(|| format!("failed to write to {}", full_path.display()))
+                    with_retry(|| {
+                        fs::File::create(&full_path)
+                            .and_then(|mut f| f.write_all(&file.content))
+                            .and_then(|_| {
+                                #[cfg(target_family = "unix")]
+                                {
+                                    return fs::set_permissions(
+                                        &full_path,
+                                        file.meta.permissions.into(),
+                                    );
+                                }
+                                return Ok(());
+                            })
+                    })
+                    .with_context(|| format!("failed to write to {}", full_path.display()))
                 }
                 FileContent::NotFound => {
                     // println!("remove {}", full_path.display());
@@ -673,28 +687,129 @@ impl ValueToString for FileSystemPath {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[turbo_tasks::value(shared)]
+pub enum Permissions {
+    Readable,
+    Writable,
+    Executable,
+}
+
+impl Default for Permissions {
+    fn default() -> Self {
+        Self::Readable
+    }
+}
+
+#[cfg(target_family = "unix")]
+impl From<Permissions> for fs::Permissions {
+    fn from(perm: Permissions) -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        match perm {
+            Permissions::Readable => fs::Permissions::from_mode(0o444),
+            Permissions::Writable => fs::Permissions::from_mode(0o664),
+            Permissions::Executable => fs::Permissions::from_mode(0o755),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq)]
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
-    Content(Vec<u8>),
+    Content(File),
     NotFound,
 }
 
+#[derive(PartialEq, Eq)]
+#[turbo_tasks::value(shared)]
+pub struct File {
+    meta: FileMeta,
+    content: Vec<u8>,
+}
+
+impl File {
+    pub fn from_path(p: &PathBuf) -> Result<Self, std::io::Error> {
+        #[cfg(unix)]
+        {
+            fs::File::open(p).and_then(|mut f| {
+                f.metadata().and_then(|meta| {
+                    let mut output = Vec::with_capacity(meta.len() as usize);
+                    f.read_to_end(&mut output).map(move |_| File {
+                        meta: meta.into(),
+                        content: output,
+                    })
+                })
+            })
+        }
+        #[cfg(not(unix))]
+        {
+            fs::read(p).map(|output| File {
+                meta: Default::default(),
+                content: output,
+            })
+        }
+    }
+}
+
+impl File {
+    pub fn new(meta: FileMeta, content: Vec<u8>) -> Self {
+        Self { meta, content }
+    }
+
+    pub fn meta(&self) -> &FileMeta {
+        &self.meta
+    }
+
+    pub fn content(&self) -> &[u8] {
+        &self.content
+    }
+}
+
+impl AsRef<[u8]> for File {
+    fn as_ref(&self) -> &[u8] {
+        &self.content
+    }
+}
+
+#[derive(PartialEq, Eq, Default, Debug)]
+#[turbo_tasks::value(shared)]
+pub struct FileMeta {
+    permissions: Permissions,
+}
+
+#[cfg(target_family = "unix")]
+/// Only handle the permissions on unix platform for now
+impl From<fs::Metadata> for FileMeta {
+    fn from(meta: fs::Metadata) -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = meta.permissions();
+        let perm = if permissions.readonly() {
+            Permissions::Readable
+        } else {
+            // https://github.com/fitzgen/is_executable/blob/master/src/lib.rs#L96
+            (permissions.mode() & 0o111 != 0)
+                .then(|| Permissions::Executable)
+                .unwrap_or(Permissions::Writable)
+        };
+        Self { permissions: perm }
+    }
+}
+
 impl FileContent {
-    pub fn new(buffer: Vec<u8>) -> Self {
-        FileContent::Content(buffer)
+    pub fn new(file: File) -> Self {
+        FileContent::Content(file)
     }
 
     pub fn is_content(&self, buffer: &Vec<u8>) -> bool {
         match self {
-            FileContent::Content(buf) => buf == buffer,
+            FileContent::Content(file) => &file.content == buffer,
             _ => false,
         }
     }
 
     pub fn parse_json(&self) -> FileJsonContent {
         match self {
-            FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
+            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
                 Ok(string) => match parse(string) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(_) => FileJsonContent::Unparseable,
@@ -707,7 +822,7 @@ impl FileContent {
 
     pub fn parse_json_with_comments(&self) -> FileJsonContent {
         match self {
-            FileContent::Content(buffer) => match std::str::from_utf8(&buffer) {
+            FileContent::Content(file) => match std::str::from_utf8(&file.content) {
                 Ok(string) => match parse(&skip_json_comments(string)) {
                     Ok(data) => FileJsonContent::Content(data),
                     Err(_) => FileJsonContent::Unparseable,

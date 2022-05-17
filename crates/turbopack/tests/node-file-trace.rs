@@ -44,8 +44,7 @@ use turbopack::{
 #[case::empty("integration/empty.js", true)]
 #[case::env_var("integration/env-var.js", true)]
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
-#[cfg_attr(target_os = "windows", case::esbuild("integration/esbuild.js", true))]
-// #[cfg_attr(not(target_os = "windows"), case::esbuild("integration/esbuild.js", false))] // execution hanging
+#[case::esbuild("integration/esbuild.js", true)]
 #[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
 #[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
 #[case::express_template_engine("integration/express-template-engine.js", true)]
@@ -79,7 +78,11 @@ use turbopack::{
 #[case::mysql("integration/mysql.js", true)]
 #[case::npm("integration/npm.js", false)]
 // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
-#[case::oracledb("integration/oracledb.js", true)]
+// oracledb doesn't support non x86 architectures
+#[cfg_attr(
+    target_arch = "x86_64",
+    case::oracledb("integration/oracledb.js", true)
+)]
 #[case::paraphrase("integration/paraphrase.js", true)]
 #[case::passport_trakt("integration/passport-trakt.js", true)]
 #[case::passport("integration/passport.js", true)]
