@@ -695,7 +695,7 @@ export default function Image({
     }
   }
 
-  const imgStyle = layout === 'raw' ? {} : Object.assign({}, style, layoutStyle)
+  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
