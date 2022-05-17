@@ -372,7 +372,7 @@ export default function Image({
   priority = false,
   loading,
   lazyRoot = null,
-  lazyBoundary = '200px',
+  lazyBoundary,
   className,
   quality,
   width,
@@ -464,10 +464,11 @@ export default function Image({
   const [setIntersection, isIntersected, resetIntersected] =
     useIntersection<HTMLImageElement>({
       rootRef: lazyRoot,
-      rootMargin: lazyBoundary,
+      rootMargin: lazyBoundary || '200px',
       disabled: !isLazy,
     })
-  const isVisible = !isLazy || isIntersected || layout === 'raw'
+  const isVisible =
+    !isLazy || isIntersected || (layout === 'raw' && placeholder !== 'blur')
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -922,7 +923,9 @@ const ImageElement = ({
         data-nimg={layout}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={layout === 'raw' ? loading : undefined}
+        loading={
+          layout === 'raw' && placeholder !== 'blur' ? loading : undefined
+        }
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
