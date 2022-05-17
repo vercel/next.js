@@ -467,7 +467,7 @@ export default function Image({
       rootMargin: lazyBoundary,
       disabled: !isLazy,
     })
-  const isVisible = !isLazy || isIntersected
+  const isVisible = !isLazy || isIntersected || layout === 'raw'
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -569,6 +569,11 @@ export default function Image({
     if (layout === 'raw' && (objectFit || objectPosition)) {
       throw new Error(
         `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
+      )
+    }
+    if (layout === 'raw' && (lazyRoot || lazyBoundary)) {
+      throw new Error(
+        `Image with src "${src}" has "layout='raw'" and 'lazyRoot' or 'lazyBoundary'. For raw images, native lazy loading is used so lazyRoot and lazyBoundary cannot be used.`
       )
     }
     if (
@@ -677,7 +682,7 @@ export default function Image({
     }
   }
 
-  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
+  const imgStyle = layout === 'raw' ? {} : Object.assign({}, style, layoutStyle)
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
@@ -882,7 +887,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading,
+  loading = 'lazy',
   srcString,
   config,
   unoptimized,
@@ -904,6 +909,8 @@ const ImageElement = ({
         decoding="async"
         data-nimg={layout}
         className={className}
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading={layout === 'raw' ? loading : undefined}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
@@ -974,7 +981,7 @@ const ImageElement = ({
             style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading || 'lazy'}
+            loading={loading}
           />
         </noscript>
       )}
