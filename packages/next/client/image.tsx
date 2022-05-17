@@ -566,15 +566,27 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (layout === 'raw' && (objectFit || objectPosition)) {
-      throw new Error(
-        `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
-      )
-    }
-    if (layout === 'raw' && (lazyRoot || lazyBoundary)) {
-      throw new Error(
-        `Image with src "${src}" has "layout='raw'" and 'lazyRoot' or 'lazyBoundary'. For raw images, native lazy loading is used so lazyRoot and lazyBoundary cannot be used.`
-      )
+    if (layout === 'raw') {
+      if (objectFit) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "objectFit='${objectFit}'". For raw images, these and other styles should be specified using the "style" attribute.`
+        )
+      }
+      if (objectPosition) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "objectPosition='${objectPosition}'". For raw images, these and other styles should be specified using the "style" attribute.`
+        )
+      }
+      if (lazyRoot) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "lazyRoot='${lazyRoot}'". For raw images, native lazy loading is used so "lazyRoot" cannot be used.`
+        )
+      }
+      if (lazyBoundary) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "lazyBoundary='${lazyBoundary}'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
+        )
+      }
     }
     if (
       sizes &&

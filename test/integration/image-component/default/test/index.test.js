@@ -862,6 +862,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when layout=raw and lazyBoundary assigned', async () => {
+      const browser = await webdriver(appPort, '/invalid-raw-lazy-boundary')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has "layout='raw'" and "lazyBoundary='500px'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
+      )
+    })
+
     it('should warn when img with layout=responsive is inside flex container', async () => {
       const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
       await browser.eval(`document.getElementById("img").scrollIntoView()`)
