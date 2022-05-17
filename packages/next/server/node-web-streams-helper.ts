@@ -86,18 +86,18 @@ export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
     : new TextDecoder().decode(input)
 }
 
-export function createBufferedTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createBufferedTransformStream(
+  transform: (v: string) => string | Promise<string> = (v) => v
+): TransformStream<Uint8Array, Uint8Array> {
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(() => {
-          controller.enqueue(encodeText(bufferedString))
+        setTimeout(async () => {
+          const buffered = await transform(bufferedString)
+          controller.enqueue(encodeText(buffered))
           bufferedString = ''
           pendingFlush = null
           resolve()
@@ -139,11 +139,13 @@ export function createFlushEffectStream(
 export function renderToInitialStream({
   ReactDOMServer,
   element,
+  streamOptions,
 }: {
   ReactDOMServer: any
   element: React.ReactElement
+  streamOptions?: any
 }): Promise<ReactReadableStream> {
-  return ReactDOMServer.renderToReadableStream(element)
+  return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
 export async function continueFromInitialStream(
@@ -179,30 +181,6 @@ export async function continueFromInitialStream(
     (readable, transform) => readable.pipeThrough(transform),
     renderStream
   )
-}
-
-export async function renderToStream({
-  ReactDOMServer,
-  element,
-  suffix,
-  dataStream,
-  generateStaticHTML,
-  flushEffectHandler,
-}: {
-  ReactDOMServer: typeof import('react-dom/server')
-  element: React.ReactElement
-  suffix?: string
-  dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
-  flushEffectHandler?: () => string
-}): Promise<ReadableStream<Uint8Array>> {
-  const renderStream = await renderToInitialStream({ ReactDOMServer, element })
-  return continueFromInitialStream(renderStream, {
-    suffix,
-    dataStream,
-    generateStaticHTML,
-    flushEffectHandler,
-  })
 }
 
 export function createSuffixStream(

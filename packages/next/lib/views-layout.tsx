@@ -1,21 +1,17 @@
 import React from 'react'
 
 export type LayoutProps = {
-  headChildren: any
-  bodyChildren: any
+  children: any
 }
 
-export default function ViewsLayout({
-  headChildren,
-  bodyChildren,
-}: LayoutProps) {
+export default function ViewsLayout({ children }: LayoutProps) {
   return (
     <html>
       <head>
-        {headChildren}
+        {/* TODO: Remove <title> */}
         <title>Test</title>
       </head>
-      <body>{bodyChildren}</body>
+      <body>{children}</body>
     </html>
   )
 }
