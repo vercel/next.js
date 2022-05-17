@@ -152,7 +152,7 @@ export default async () => {
 
 ## Environment Variable Load Order
 
-Depending on the environment (as set by `NODE_ENV`), Environment Variables are defined from the following sources with descending priority. In all environments, the existing `env` has the highest priority and is not overridden.
+Depending on the environment (as set by `NODE_ENV`), Environment Variables are defined from the following sources with descending priority. In all environments, the existing system `env` has the highest priority and is not overridden.
 
 `NODE_ENV=production`
 
