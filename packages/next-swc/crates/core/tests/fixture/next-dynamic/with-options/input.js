@@ -9,3 +9,8 @@ const DynamicClientOnlyComponent = dynamic(
   () => import('../components/hello'),
   { ssr: false }
 )
+
+const DynamicClientOnlyComponentWithSuspense = dynamic(
+  () => import('../components/hello'),
+  { ssr: false, suspense: true }
+)

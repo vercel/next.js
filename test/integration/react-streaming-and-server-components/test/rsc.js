@@ -166,6 +166,12 @@ export default function (context, { runtime, env }) {
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
+  it('should escape streaming data correctly', async () => {
+    const browser = await webdriver(context.appPort, '/escaping-rsc')
+    const manipulated = await browser.eval(`window.__manipulated_by_injection`)
+    expect(manipulated).toBe(undefined)
+  })
+
   // Disable next/image for nodejs runtime temporarily
   if (runtime === 'edge') {
     it('should suspense next/image in server components', async () => {
