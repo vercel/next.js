@@ -1,12 +1,16 @@
+use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[turbo_tasks::value(shared, serialization: auto_for_input)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum CompileTarget {
     Current,
     Target(Target),
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
+)]
 pub struct Target {
     /// https://nodejs.org/api/os.html#osarch
     pub arch: Arch,
@@ -29,7 +33,9 @@ impl Target {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -62,7 +68,9 @@ impl Arch {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -91,7 +99,9 @@ impl Platform {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
+)]
 #[repr(u8)]
 pub enum Endianness {
     Big,
