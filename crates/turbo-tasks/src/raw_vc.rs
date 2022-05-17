@@ -175,25 +175,23 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                 this.listener = None;
             }
             let mut listener = match this.current {
-                RawVc::TaskOutput(task) => loop {
-                    match this.turbo_tasks.try_read_task_output(task) {
-                        Ok(Ok(vc)) => {
-                            this.current = vc;
-                            continue 'outer;
-                        }
-                        Ok(Err(listener)) => break listener,
-                        Err(err) => return std::task::Poll::Ready(Err(err)),
+                RawVc::TaskOutput(task) => match this.turbo_tasks.try_read_task_output(task) {
+                    Ok(Ok(vc)) => {
+                        this.current = vc;
+                        continue 'outer;
                     }
+                    Ok(Err(listener)) => listener,
+                    Err(err) => return std::task::Poll::Ready(Err(err)),
                 },
-                RawVc::TaskSlot(task, index) => loop {
+                RawVc::TaskSlot(task, index) => {
                     match this.turbo_tasks.try_read_task_slot(task, index) {
                         Ok(Ok(content)) => {
                             return std::task::Poll::Ready(content.cast::<T>());
                         }
-                        Ok(Err(listener)) => break listener,
+                        Ok(Err(listener)) => listener,
                         Err(err) => return std::task::Poll::Ready(Err(err)),
                     }
-                },
+                }
             };
             match Pin::new(&mut listener).poll(cx) {
                 std::task::Poll::Ready(_) => continue,

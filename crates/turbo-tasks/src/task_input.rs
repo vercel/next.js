@@ -160,7 +160,7 @@ impl<'de> Deserialize<'de> for SharedReference {
     }
 }
 
-#[derive(Debug, Hash, Clone, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct SharedValue(pub Option<ValueTypeId>, pub Arc<dyn MagicAny>);
 
 impl SharedValue {
@@ -175,6 +175,15 @@ impl SharedValue {
 impl PartialEq for SharedValue {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0 && &self.1 == &other.1
+    }
+}
+
+impl Eq for SharedValue {}
+
+impl Hash for SharedValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+        self.1.hash(state);
     }
 }
 

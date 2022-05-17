@@ -89,6 +89,7 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
 
     /// SAFETY: There must not be a concurrent operation to this idx
     /// Make sure to call "fence(Ordering::Release)" after writing
+    #[allow(clippy::mut_from_ref)]
     pub unsafe fn get_mut(&self, idx: usize) -> &mut T {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
