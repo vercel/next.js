@@ -2252,9 +2252,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.114.2"
+version = "0.114.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c081b070728a95156fdf4589257c2a8321df182432f5f23b395330a8462f3be8"
+checksum = "bd914b26110a782b362e97b2cbf697c18a637293b1cccb5d02dc335dca419609"
 dependencies = [
  "ahash",
  "arrayvec",
