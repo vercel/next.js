@@ -28,10 +28,15 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
         }
         break
       }
-      if (patternParts[i] === '*') {
-        // Single asterisk means "match this part" so we can
-        // continue to the next part of the loop
-        continue
+      const patternPart = patternParts[i] || ''
+      const actualPart = actualParts[i] || ''
+      if (patternPart.includes('*') && !patternPart.includes('**')) {
+        // Single asterisk means "zero or more matches" similar to regex
+        // so we can test for a match and continue to the next part of the loop
+        // TODO: Don't use regex since its not safe
+        if (new RegExp(patternPart.replaceAll('*', '.*')).test(actualPart)) {
+          continue
+        }
       }
       if (patternParts[i] !== actualParts[i]) {
         return false
@@ -59,10 +64,15 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
         }
         break
       }
-      if (patternParts[i] === '*') {
-        // Single asterisk means "match this subdomain" so we can
-        // continue to the next part of the loop
-        continue
+      const patternPart = patternParts[i] || ''
+      const actualPart = actualParts[i] || ''
+      if (patternPart.includes('*') && !patternPart.includes('**')) {
+        // Single asterisk means "zero or more matches" similar to regex
+        // so we can test for a match and continue to the next part of the loop
+        // TODO: Don't use regex since its not safe
+        if (new RegExp(patternPart.replaceAll('*', '.*')).test(actualPart)) {
+          continue
+        }
       }
       if (patternParts[i] !== actualParts[i]) {
         return false
