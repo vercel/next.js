@@ -109,7 +109,7 @@ export class NextCookies extends Cookies {
 
     return this
   }
-  delete = (key: any, options: CookieSerializeOptions = {}) => {
+  delete = (key: string, options: CookieSerializeOptions = {}) => {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
