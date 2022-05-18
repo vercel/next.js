@@ -12,7 +12,7 @@ import type {
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import { ScriptProps } from '../client/script'
+import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
 
 import { HtmlContext } from '../shared/lib/html-context'
@@ -605,7 +605,7 @@ export class Head extends Component<
     const filteredChildren: ReactNode[] = []
 
     React.Children.forEach(children, (child: any) => {
-      if (typeof child.type === 'function' && child.type.name === 'Script') {
+      if (child.type === Script) {
         if (child.props.strategy === 'beforeInteractive') {
           scriptLoader.beforeInteractive = (
             scriptLoader.beforeInteractive || []
