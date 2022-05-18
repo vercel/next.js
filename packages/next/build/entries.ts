@@ -13,7 +13,10 @@ import { stringify } from 'querystring'
 import {
   API_ROUTE,
   DOT_NEXT_ALIAS,
+  MIDDLEWARE_FILE,
+  MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
   VIEWS_DIR_ALIAS,
 } from '../lib/constants'
 import {
@@ -23,7 +26,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
@@ -57,18 +59,17 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
 export function createPagesMapping({
   hasServerComponents,
   isDev,
-  isViews,
   pageExtensions,
   pagePaths,
+  pagesType,
 }: {
   hasServerComponents: boolean
   isDev: boolean
-  isViews?: boolean
   pageExtensions: string[]
   pagePaths: string[]
+  pagesType: 'pages' | 'root' | 'views'
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
-  const pathAlias = isViews ? VIEWS_DIR_ALIAS : PAGES_DIR_ALIAS
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
       // Do not process .d.ts files inside the `pages` folder
@@ -97,13 +98,22 @@ export function createPagesMapping({
         previousPages[pageKey] = pagePath
       }
 
-      result[pageKey] = normalizePathSep(join(pathAlias, pagePath))
+      result[pageKey] = normalizePathSep(
+        join(
+          pagesType === 'pages'
+            ? PAGES_DIR_ALIAS
+            : pagesType === 'views'
+            ? VIEWS_DIR_ALIAS
+            : ROOT_DIR_ALIAS,
+          pagePath
+        )
+      )
       return result
     },
     {}
   )
 
-  if (isViews) {
+  if (pagesType !== 'pages') {
     return pages
   }
 
@@ -259,6 +269,8 @@ interface CreateEntrypointsParams {
   pages: { [page: string]: string }
   pagesDir: string
   previewMode: __ApiPreviewProps
+  rootDir: string
+  rootPaths?: Record<string, string>
   target: 'server' | 'serverless' | 'experimental-serverless-trace'
   viewsDir?: string
   viewPaths?: Record<string, string>
@@ -275,7 +287,7 @@ export function getEdgeServerEntry(opts: {
   page: string
   pages: { [page: string]: string }
 }) {
-  if (opts.page.match(MIDDLEWARE_ROUTE)) {
+  if (opts.page === MIDDLEWARE_FILE) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -388,6 +400,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     pages,
     pagesDir,
     isDev,
+    rootDir,
+    rootPaths,
     target,
     viewsDir,
     viewPaths,
@@ -398,14 +412,16 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const client: webpack5.EntryObject = {}
 
   const getEntryHandler =
-    (mappings: Record<string, string>, isViews: boolean) =>
+    (mappings: Record<string, string>, pagesType: 'views' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
-      const serverBundlePath = posix.join(
-        isViews ? 'views' : 'pages',
-        bundleFile
-      )
+      const serverBundlePath =
+        pagesType === 'pages'
+          ? posix.join('pages', bundleFile)
+          : pagesType === 'views'
+          ? posix.join('views', bundleFile)
+          : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
@@ -418,15 +434,22 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           return absolutePagePath.replace(VIEWS_DIR_ALIAS, viewsDir)
         }
 
+        if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
+          return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
+        }
+
         return require.resolve(absolutePagePath)
       })()
 
       /**
-       * When we find a middleware that is declared in the pages/ root we fail.
+       * When we find a middleware file that is not in the ROOT_DIR we fail.
        * There is no need to check on `dev` as this should only happen when
        * building for production.
        */
-      if (/[\\\\/]_middleware$/.test(page) && page !== '/_middleware') {
+      if (
+        !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
+        /[\\\\/]_middleware$/.test(page)
+      ) {
         throw new Error(
           `nested Middleware is deprecated (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
         )
@@ -450,7 +473,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onServer: () => {
-          if (isViews && viewsDir) {
+          if (pagesType === 'views' && viewsDir) {
             server[serverBundlePath] = getViewsEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
@@ -488,10 +511,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     }
 
   if (viewsDir && viewPaths) {
-    const entryHandler = getEntryHandler(viewPaths, true)
+    const entryHandler = getEntryHandler(viewPaths, 'views')
     await Promise.all(Object.keys(viewPaths).map(entryHandler))
   }
-  await Promise.all(Object.keys(pages).map(getEntryHandler(pages, false)))
+  if (rootPaths) {
+    await Promise.all(
+      Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+    )
+  }
+  await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   return {
     client,
@@ -507,7 +535,7 @@ export function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: PageRuntime
 }) {
-  if (params.page.match(MIDDLEWARE_ROUTE)) {
+  if (params.page === MIDDLEWARE_FILE) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
     return [params.onServer()]
@@ -556,7 +584,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: MIDDLEWARE_ROUTE.test(name) ? 'middleware' : undefined,
+      layer: name === MIDDLEWARE_FILENAME ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,

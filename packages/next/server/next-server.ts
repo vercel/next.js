@@ -70,7 +70,7 @@ import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { MIDDLEWARE_FILENAME } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
@@ -1029,7 +1029,7 @@ export default class NextNodeServer extends BaseServer {
     return manifest.sortedMiddleware.map((page) => ({
       match: getRouteMatcher(
         getMiddlewareRegex(page, {
-          catchAll: MIDDLEWARE_ROUTE.test(manifest?.middleware?.[page].name),
+          catchAll: manifest?.middleware?.[page].name === MIDDLEWARE_FILENAME,
         })
       ),
       page,

@@ -23,7 +23,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -1183,12 +1183,9 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const page of pageKeys) {
-    if (MIDDLEWARE_ROUTE.test(page)) {
-      const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
-
-      for (const file of files) {
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (middleware.name === MIDDLEWARE_FILENAME) {
+      for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
           outputPath,
@@ -1198,9 +1195,10 @@ export async function copyTracedFiles(
         await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
         await fs.copyFile(originalPath, fileOutputPath)
       }
-      continue
     }
+  }
 
+  for (const page of pageKeys) {
     const pageFile = path.join(
       distDir,
       'server',

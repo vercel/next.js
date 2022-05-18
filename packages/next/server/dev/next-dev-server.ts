@@ -70,6 +70,7 @@ import {
 } from '../../build/entries'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
+import { MIDDLEWARE_FILE } from '../../lib/constants'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -271,12 +272,14 @@ export default class DevServer extends Server {
       })
 
       let wp = (this.webpackWatcher = new Watchpack())
-      const toWatch = [this.pagesDir!]
+      const pages = [this.pagesDir]
+      const views = this.viewsDir ? [this.viewsDir] : []
+      const directories = [...pages, ...views]
+      const files = this.nextConfig.pageExtensions.map((extension) =>
+        pathJoin(this.dir, `_middleware.${extension}`)
+      )
 
-      if (this.viewsDir) {
-        toWatch.push(this.viewsDir)
-      }
-      wp.watch([], toWatch, 0)
+      wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
         const routedMiddleware: string[] = []
@@ -285,8 +288,11 @@ export default class DevServer extends Server {
         const viewPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
-        for (const [fileName, { accuracy, safeTime }] of knownFiles) {
-          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
+        for (const [fileName, meta] of knownFiles) {
+          if (
+            meta?.accuracy === undefined ||
+            !regexPageExtension.test(fileName)
+          ) {
             continue
           }
 
@@ -296,6 +302,16 @@ export default class DevServer extends Server {
                 normalizePathSep(this.viewsDir)
               )
           )
+
+          const rootFile = absolutePathToPage(fileName, {
+            pagesDir: this.dir,
+            extensions: this.nextConfig.pageExtensions,
+          })
+
+          if (rootFile === MIDDLEWARE_FILE) {
+            routedMiddleware.push(`/`)
+            continue
+          }
 
           let pageName = absolutePathToPage(fileName, {
             pagesDir: isViewPath ? this.viewsDir! : this.pagesDir,
@@ -317,11 +333,6 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
-          if (pageName === '/_middleware') {
-            routedMiddleware.push(`/`)
-            continue
-          }
-
           /**
            * If there is a middleware that is not declared in the root we will
            * warn without adding it so it doesn't make its way into the system.
@@ -333,12 +344,11 @@ export default class DevServer extends Server {
             continue
           }
 
-          invalidatePageRuntimeCache(fileName, safeTime)
+          invalidatePageRuntimeCache(fileName, meta.safeTime)
           runDependingOnPageType({
             page: pageName,
-            pageRuntime: (
-              await getPageStaticInfo(fileName, this.nextConfig)
-            ).runtime,
+            pageRuntime: (await getPageStaticInfo(fileName, this.nextConfig))
+              .runtime,
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
@@ -494,6 +504,14 @@ export default class DevServer extends Server {
       // so it doesn't exist so don't throw and return false
       // to ensure we return 404 instead of 500
       return false
+    }
+
+    if (normalizedPath === MIDDLEWARE_FILE) {
+      return findPageFile(
+        this.dir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      ).then(Boolean)
     }
 
     // check viewsDir first if enabled
