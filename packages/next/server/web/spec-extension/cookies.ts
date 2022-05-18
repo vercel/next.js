@@ -64,7 +64,7 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
-  get = (...args: Parameters<Cookies['get']>) => {
+  get = (...args: Parameters<Cookies['get']>): string | undefined => {
     const [value] = this.getWithOptions(...args)
     return value
   }
