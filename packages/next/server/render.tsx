@@ -487,7 +487,13 @@ export async function renderToHTML(
     globalThis.__webpack_require__ =
       ComponentMod.__next_rsc__.__webpack_require__
     // @ts-ignore
-    globalThis.__webpack_chunk_load__ = () => Promise.resolve()
+    globalThis.__webpack_chunk_load__ = () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(undefined)
+        }, 3000)
+      })
+    }
 
     Component = createServerComponentRenderer(Component, {
       cachePrefix: pathname + (search ? `?${search}` : ''),

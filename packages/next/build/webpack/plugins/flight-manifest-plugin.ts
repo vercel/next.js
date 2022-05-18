@@ -264,7 +264,7 @@ export class FlightManifestPlugin {
               ? []
               : chunkGroup.chunks.map((chunk) => chunk.id)
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, ''),
+              id,
               name,
               chunks: chunkIds,
             }
@@ -286,7 +286,11 @@ export class FlightManifestPlugin {
           // Remove the loader prefix.
           modId = modId.split('next-flight-client-loader.js!')[1] || modId
 
-          recordModule(modId.toString(), mod)
+          // modId = modId
+          // @ts-ignore
+          // const resourcePath = mod.resourceResolveData?.path || modId
+          // console.log('resourcePath', resourcePath, modId)
+          recordModule(modId.replace(/^\(sc_server\)\//, ''), mod)
           // If this is a concatenation, register each child to the parent ID.
           const anyMod = mod as any
           if (anyMod.modules) {

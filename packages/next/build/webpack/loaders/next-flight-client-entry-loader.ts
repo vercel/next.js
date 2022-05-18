@@ -8,16 +8,17 @@ export default async function transformSource(this: any): Promise<string> {
       : []
     : modules
 
-  return (
+  const source =
     requests
       .map((request: string) => {
         const isClientSource =
           !isNextBuiltinClientComponent(request) &&
           request.endsWith('.client.js')
         const webpackMode = isClientSource ? 'lazy' : 'eager'
-        return `import(/* webpackMode: "${webpackMode}" */ ${JSON.stringify(
-          request
-        )})`
+        return `import(
+          /* webpackMode: "${webpackMode}" */
+          ${JSON.stringify(request)}
+        )`
       })
       .join(';\n') +
     `
@@ -33,5 +34,6 @@ export default async function transformSource(this: any): Promise<string> {
       : ssr
       ? `export const __N_SSP = true;`
       : `export const __N_SSG = true;`)
-  )
+
+  return source
 }
