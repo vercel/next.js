@@ -18,7 +18,8 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Parser config: Es(EsConfig { jsx: true, fn_bind: false, decorators: false, decorators_before_export: false, export_default_from: false, import_assertions: true, private_in_object: false, allow_super_outside_method: false })
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
@@ -32,5 +33,6 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Parser config: Es(EsConfig { jsx: true, fn_bind: false, decorators: false, decorators_before_export: false, export_default_from: false, import_assertions: true, private_in_object: false, allow_super_outside_method: false })
+    2: Syntax Error"
 `;
