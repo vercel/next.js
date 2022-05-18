@@ -9,9 +9,9 @@ const Page = () => {
     <div id="container">
       <h1>Layout Raw with Placeholder Blur</h1>
       <p>Scroll down...</p>
-      <div style={{ height: '2000px' }} />
+      <div style={{ height: '1000vh' }} />
       <Image id="raw1" layout="raw" placeholder="blur" src={testJPG} />
-      <div style={{ height: '2000px' }} />
+      <div style={{ height: '1000vh' }} />
       <Image
         id="raw2"
         layout="raw"
