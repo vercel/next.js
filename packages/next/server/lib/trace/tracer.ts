@@ -7,6 +7,9 @@ import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 const {
   SpanStatusCode,
 }: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
+const {
+  SemanticAttributes,
+}: typeof import('@opentelemetry/semantic-conventions') = require('next/dist/compiled/@opentelemetry/semantic-conventions')
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
@@ -37,21 +40,21 @@ interface Tracer {
    */
   trace<T>(
     name: string,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
     name: string,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
+    fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
     name: string,
     options: SpanOptions & { parentSpan?: Span },
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
     name: string,
     options: SpanOptions & { parentSpan?: Span },
-    fn: (span?: Span, done?: (error?: Error) => any) => T
+    fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
 
   /**
@@ -83,10 +86,15 @@ interface Tracer {
   /**
    * Starts and returns a new Span representing a logical unit of work.
    *
-   * This method do NOT modify the current Context. If any inner span (startSpan, trace, wrap)
-   * need to inherit parent span context, manually need to set context later.
+   * This method do NOT modify the current Context by default. In result, any inner span will not
+   * automatically set its parent context to the span created by this method unless manually activate
+   * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
+   * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(name: string, parentSpan?: Span, options?: SpanOptions): Span
+  startSpan(name: string): Span
+  startSpan(name: string, options: SpanOptions): Span
+  startSpan(name: string, parentSpan: Span): Span
+  startSpan(name: string, parentSpan: Span, options: SpanOptions): Span
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
@@ -126,21 +134,21 @@ class NextTracer implements Tracer {
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
     name: string,
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
     name: string,
-    fn: (span?: Span, done?: (error?: Error) => any) => T
+    fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
     name: string,
     options: SpanOptions & { parentSpan?: Span },
-    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
     name: string,
     options: SpanOptions & { parentSpan?: Span },
-    fn: (span?: Span, done?: (error?: Error) => any) => T
+    fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
     const [name, fnOrOptions, fnOrEmpty] = args
@@ -254,15 +262,26 @@ class NextTracer implements Tracer {
     }
   }
 
-  public startSpan(
-    name: string,
-    parentSpan?: Span,
-    options?: SpanOptions
-  ): Span {
+  public startSpan(name: string): Span
+  public startSpan(name: string, options: SpanOptions): Span
+  public startSpan(name: string, parentSpan: Span): Span
+  public startSpan(name: string, parentSpan: Span, options: SpanOptions): Span
+  public startSpan(...args: Array<any>): Span {
+    const [name, optionsOrParentSpan, options] = args
+
+    const manualParentSpan = !!optionsOrParentSpan?.spanContext()
+      ? optionsOrParentSpan
+      : undefined
+    const spanOptions = options
+      ? options
+      : !!manualParentSpan
+      ? undefined
+      : optionsOrParentSpan
+
     const spanContext = this.getSpanContext(
-      parentSpan ?? this.getActiveScopeSpan()
+      manualParentSpan ?? this.getActiveScopeSpan()
     )
-    return this.tracerInstance.startSpan(name, options, spanContext)
+    return this.tracerInstance.startSpan(name, spanOptions, spanContext)
   }
 
   private getSpanContext(parentSpan?: Span) {
@@ -323,4 +342,5 @@ export {
   ContextAPI,
   SpanStatusCode,
   closeSpanWithError,
+  SemanticAttributes,
 }
