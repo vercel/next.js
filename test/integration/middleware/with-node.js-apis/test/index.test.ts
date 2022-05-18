@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import { remove } from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
@@ -15,8 +16,6 @@ jest.setTimeout(1000 * 60 * 2)
 const unsupportedFunctions = [
   'setImmediate',
   'clearImmediate',
-  'structuredClone',
-  'queueMicrotask',
   // no need to test all of the process methods
   'process.cwd',
   'process.getuid',
@@ -26,7 +25,6 @@ const unsupportedClasses = [
   'ByteLengthQueuingStrategy',
   'CompressionStream',
   'CountQueuingStrategy',
-  'CryptoKey',
   'DecompressionStream',
   'DomException',
   'Event',
@@ -35,16 +33,12 @@ const unsupportedClasses = [
   'MessageEvent',
   'MessagePort',
   'ReadableByteStreamController',
-  'ReadableStreamBYOBReader',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'ReadableStreamDefaultReader',
-  'SubtleCrypto',
   'TextDecoderStream',
   'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
-  'WritableStreamDefaultWriter',
 ]
 
 describe('Middleware using Node.js API', () => {
@@ -71,6 +65,10 @@ describe('Middleware using Node.js API', () => {
     afterAll(() => killApp(app))
 
     it.each([
+      {
+        api: 'Buffer',
+        error: `Cannot read properties of undefined (reading 'from')`,
+      },
       ...unsupportedFunctions.map((api) => ({
         api,
         error: `${api} is not a function`,
@@ -94,6 +92,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     let buildResult
 
     beforeAll(async () => {
+      await remove(join(appDir, '.next'))
       buildResult = await nextBuild(appDir, undefined, {
         stderr: true,
         stdout: true,
@@ -101,10 +100,12 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     })
 
     it.each(
-      [...unsupportedFunctions, ...unsupportedClasses].map((api, index) => ({
-        api,
-        line: 5 + index * 3,
-      }))
+      ['Buffer', ...unsupportedFunctions, ...unsupportedClasses].map(
+        (api, index) => ({
+          api,
+          line: 5 + index * 3,
+        })
+      )
     )(`warns for $api during build`, ({ api, line }) => {
       expect(buildResult.stderr)
         .toContain(`You're using a Node.js API (${api} at line: ${line}) which is not supported in the Edge Runtime that Middleware uses. 

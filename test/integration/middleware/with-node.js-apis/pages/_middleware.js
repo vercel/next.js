@@ -3,17 +3,14 @@ import { NextResponse } from 'next/server'
 
 export default function middleware({ nextUrl: { pathname } }) {
   let handle
+  if (pathname === '/Buffer') {
+    Buffer.from('')
+  }
   if (pathname === '/setImmediate') {
     handle = setImmediate(() => {})
   }
   if (pathname === '/clearImmediate') {
     clearImmediate(handle)
-  }
-  if (pathname === '/structuredClone') {
-    structuredClone({})
-  }
-  if (pathname === '/queueMicrotask') {
-    queueMicrotask(() => {})
   }
   if (pathname === '/process.cwd') {
     console.log(process.cwd())
@@ -32,9 +29,6 @@ export default function middleware({ nextUrl: { pathname } }) {
   }
   if (pathname === '/CountQueuingStrategy') {
     new CountQueuingStrategy()
-  }
-  if (pathname === '/CryptoKey') {
-    new CryptoKey()
   }
   if (pathname === '/DecompressionStream') {
     new DecompressionStream()
@@ -60,20 +54,11 @@ export default function middleware({ nextUrl: { pathname } }) {
   if (pathname === '/ReadableByteStreamController') {
     new ReadableByteStreamController()
   }
-  if (pathname === '/ReadableStreamBYOBReader') {
-    new ReadableStreamBYOBReader()
-  }
   if (pathname === '/ReadableStreamBYOBRequest') {
     new ReadableStreamBYOBRequest()
   }
   if (pathname === '/ReadableStreamDefaultController') {
     new ReadableStreamDefaultController()
-  }
-  if (pathname === '/ReadableStreamDefaultReader') {
-    new ReadableStreamDefaultReader()
-  }
-  if (pathname === '/SubtleCrypto') {
-    new SubtleCrypto()
   }
   if (pathname === '/TextDecoderStream') {
     new TextDecoderStream()
@@ -86,9 +71,6 @@ export default function middleware({ nextUrl: { pathname } }) {
   }
   if (pathname === '/WritableStreamDefaultController') {
     new WritableStreamDefaultController()
-  }
-  if (pathname === '/WritableStreamDefaultWriter') {
-    new WritableStreamDefaultWriter()
   }
   return NextResponse.next()
 }

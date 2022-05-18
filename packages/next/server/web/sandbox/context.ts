@@ -204,17 +204,20 @@ function createContext(
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
+    DataView,
     File,
     FormData,
     process: createProcessPolyfill(options),
     ReadableStream,
     setInterval,
     setTimeout,
+    queueMicrotask,
     TextDecoder,
     TextEncoder,
     TransformStream,
     URL,
     URLSearchParams,
+    WebAssembly,
 
     // Indexed collections
     Array,
@@ -239,6 +242,15 @@ function createContext(
     // Structured data
     ArrayBuffer,
     SharedArrayBuffer,
+
+    // These APIs are supported by the Edge runtime, but not by the version of Node.js we're using
+    // Since we'll soon replace this sandbox with the edge-runtime itself, it's not worth polyfilling.
+    // ReadableStreamBYOBReader,
+    // ReadableStreamDefaultReader,
+    // structuredClone,
+    // SubtleCrypto,
+    // WritableStream,
+    // WritableStreamDefaultWriter,
   }
   for (const name of EDGE_UNSUPPORTED_NODE_APIS) {
     addStub(context, name, options)

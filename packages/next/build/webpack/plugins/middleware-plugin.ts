@@ -426,14 +426,23 @@ function registerUnsupportedApiHooks(
 ) {
   const { WebpackError } = compilation.compiler.webpack
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
-    parser.hooks.expression.for(expression).tap(NAME, (node: any) => {
+    const warnForUnsupportedApi = (node: any) => {
       if (!isInMiddlewareLayer(parser)) {
         return
       }
       compilation.warnings.push(
-        makeUnsupportedApiError(WebpackError, parser, node.name, node.loc)
+        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
       )
-    })
+      return true
+    }
+    parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.callMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expressionMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
   }
 
   const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
@@ -448,6 +457,7 @@ function registerUnsupportedApiHooks(
         node.loc
       )
     )
+    return true
   }
 
   parser.hooks.callMemberChain

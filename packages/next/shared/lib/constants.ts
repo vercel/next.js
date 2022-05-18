@@ -68,16 +68,18 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
 
+// comparing
+// https://github.com/vercel/runtimes/blob/main/packages/edge-functions-bridge/src/runtime-primitives.ts
+// with
+// https://nodejs.org/docs/latest/api/globals.html
 export const EDGE_UNSUPPORTED_NODE_APIS = [
   'clearImmediate',
   'setImmediate',
-  'structuredClone',
-  'queueMicrotask', // TODO allow that one?
   'BroadcastChannel',
+  'Buffer',
   'ByteLengthQueuingStrategy',
   'CompressionStream',
   'CountQueuingStrategy',
-  'CryptoKey',
   'DecompressionStream',
   'DomException',
   'Event',
@@ -86,14 +88,10 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'MessageEvent',
   'MessagePort',
   'ReadableByteStreamController',
-  'ReadableStreamBYOBReader',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'ReadableStreamDefaultReader',
-  'SubtleCrypto',
   'TextDecoderStream',
   'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
-  'WritableStreamDefaultWriter',
 ]
