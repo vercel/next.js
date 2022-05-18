@@ -3,7 +3,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { getPageRuntime, runDependingOnPageType } from '../../build/entries'
+import { getPageStaticInfo, runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -12,6 +12,7 @@ import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-
 import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -34,6 +35,10 @@ export const entries: {
      */
     bundlePath: string
     /**
+     * Client entry loader and query parameters when RSC is enabled.
+     */
+    clientLoader?: string
+    /**
      * Tells if a page is scheduled to be disposed.
      */
     dispose?: boolean
@@ -48,12 +53,16 @@ export const entries: {
   }
 } = {}
 
+let invalidator: Invalidator
+export const getInvalidator = () => invalidator
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
   nextConfig,
   pagesBufferLength,
   pagesDir,
+  viewsDir,
   watcher,
 }: {
   maxInactiveAge: number
@@ -61,30 +70,32 @@ export function onDemandEntryHandler({
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir: string
+  viewsDir?: string
   watcher: any
 }) {
-  const invalidator = new Invalidator(watcher)
+  invalidator = new Invalidator(watcher)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
 
+  const startBuilding = (_compilation: webpack.Compilation) => {
+    invalidator.startBuilding()
+  }
   for (const compiler of multiCompiler.compilers) {
-    compiler.hooks.make.tap(
-      'NextJsOnDemandEntries',
-      (_compilation: webpack.Compilation) => {
-        invalidator.startBuilding()
-      }
-    )
+    compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
   }
 
   function getPagePathsFromEntrypoints(
     type: 'client' | 'server' | 'edge-server',
-    entrypoints: Map<string, { name?: string }>
+    entrypoints: Map<string, { name?: string }>,
+    root?: boolean
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!)
+      const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
+      } else if (root && entrypoint.name === 'root') {
+        pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
 
@@ -96,19 +107,23 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
+    const root = !!viewsDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
-        clientStats.compilation.entrypoints
+        clientStats.compilation.entrypoints,
+        root
       ),
       ...getPagePathsFromEntrypoints(
         'server',
-        serverStats.compilation.entrypoints
+        serverStats.compilation.entrypoints,
+        root
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             'edge-server',
-            edgeServerStats.compilation.entrypoints
+            edgeServerStats.compilation.entrypoints,
+            root
           )
         : []),
     ]
@@ -172,14 +187,20 @@ export function onDemandEntryHandler({
       const pagePathData = await findPagePathData(
         pagesDir,
         page,
-        nextConfig.pageExtensions
+        nextConfig.pageExtensions,
+        viewsDir
       )
 
       let entryAdded = false
 
       const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
         return new Promise<void>((resolve, reject) => {
+          const isServerComponent = serverComponentRegex.test(
+            pagePathData.absolutePagePath
+          )
+
           const pageKey = `${type}${pagePathData.page}`
+
           if (entries[pageKey]) {
             entries[pageKey].dispose = false
             entries[pageKey].lastActiveTime = Date.now()
@@ -188,13 +209,17 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            entryAdded = true
-            entries[pageKey] = {
-              absolutePagePath: pagePathData.absolutePagePath,
-              bundlePath: pagePathData.bundlePath,
-              dispose: false,
-              lastActiveTime: Date.now(),
-              status: ADDED,
+            if (type === 'client' && isServerComponent) {
+              // Skip adding the client entry here.
+            } else {
+              entryAdded = true
+              entries[pageKey] = {
+                absolutePagePath: pagePathData.absolutePagePath,
+                bundlePath: pagePathData.bundlePath,
+                dispose: false,
+                lastActiveTime: Date.now(),
+                status: ADDED,
+              }
             }
           }
 
@@ -207,10 +232,9 @@ export function onDemandEntryHandler({
 
       const promises = runDependingOnPageType({
         page: pagePathData.page,
-        pageRuntime: await getPageRuntime(
-          pagePathData.absolutePagePath,
-          nextConfig
-        ),
+        pageRuntime: (
+          await getPageStaticInfo(pagePathData.absolutePagePath, nextConfig)
+        ).runtime,
         onClient: () => addPageEntry('client'),
         onServer: () => addPageEntry('server'),
         onEdgeServer: () => addPageEntry('edge-server'),
@@ -329,18 +353,37 @@ class Invalidator {
 async function findPagePathData(
   pagesDir: string,
   page: string,
-  extensions: string[]
+  extensions: string[],
+  viewsDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
-  const pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  let pagePath: string | null = null
+  let isView = false
+
+  // check viewsDir first
+  if (viewsDir) {
+    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
+
+    if (pagePath) {
+      isView = true
+    }
+  }
+
+  if (!pagePath) {
+    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  }
+
   if (pagePath !== null) {
     const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions)
+      removePagePathTail(normalizePathSep(pagePath), extensions, !isView)
     )
+    const bundleFile = normalizePagePath(pageUrl)
+    const bundlePath = posix.join(isView ? 'views' : 'pages', bundleFile)
+    const absolutePagePath = join(isView ? viewsDir! : pagesDir, pagePath)
 
     return {
-      absolutePagePath: join(pagesDir, pagePath),
-      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+      absolutePagePath,
+      bundlePath,
       page: posix.normalize(pageUrl),
     }
   }

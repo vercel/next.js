@@ -35,7 +35,7 @@ The function can be a default export and as such, does **not** have to be named 
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookies` - Has the cookies from the `Request`
+- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
 - `ip` - Has the IP address of the `Request`
 - `ua` - Has the user agent
@@ -69,9 +69,7 @@ The `NextResponse` class extends the native [`Response`](https://developer.mozil
 
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
-- `cookies` - An object with the cookies in the `Response`
-- `cookie()` - Set a cookie in the `Response`
-- `clearCookie()` - Accepts a `cookie` and clears it
+- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with the cookies in the `Response`
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -82,13 +80,13 @@ export function middleware(request: NextRequest) {
   // you could use `redirect()` or `rewrite()` as well
   let response = NextResponse.next()
   // get the cookies from the request
-  let cookieFromRequest = request.cookies['my-cookie']
+  let cookieFromRequest = request.cookies.get('my-cookie')
   // set the `cookie`
-  response.cookie('hello', 'world')
+  response.cookies.set('hello', 'world')
   // set the `cookie` with options
-  const cookieWithOptions = response.cookie('hello', 'world', {
+  const cookieWithOptions = response.cookies.set('hello', 'world', {
     path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 7,
     httpOnly: true,
     sameSite: 'strict',
     domain: 'example.com',
@@ -146,7 +144,7 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
-  res.cookie('hello', 'world') // can be called on an instance
+  res.cookies.set('hello', 'world') // can be called on an instance
   return res
 }
 ```

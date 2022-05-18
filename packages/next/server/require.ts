@@ -6,6 +6,7 @@ import {
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
+  VIEW_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -25,12 +26,21 @@ export function getPagePath(
   distDir: string,
   serverless: boolean,
   dev?: boolean,
-  locales?: string[]
+  locales?: string[],
+  rootEnabled?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
     serverless && !dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
+  let rootPathsManifest: undefined | PagesManifest
+
+  if (rootEnabled) {
+    if (page === '/_root') {
+      return join(serverBuildPath, 'root.js')
+    }
+    rootPathsManifest = require(join(serverBuildPath, VIEW_PATHS_MANIFEST))
+  }
   const pagesManifest = require(join(
     serverBuildPath,
     PAGES_MANIFEST
@@ -42,31 +52,51 @@ export function getPagePath(
     console.error(err)
     throw pageNotFoundError(page)
   }
-  let pagePath = pagesManifest[page]
 
-  if (!pagesManifest[page] && locales) {
-    const manifestNoLocales: typeof pagesManifest = {}
+  const checkManifest = (manifest: PagesManifest) => {
+    let curPath = manifest[page]
 
-    for (const key of Object.keys(pagesManifest)) {
-      manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
-        pagesManifest[key]
+    if (!manifest[curPath] && locales) {
+      const manifestNoLocales: typeof pagesManifest = {}
+
+      for (const key of Object.keys(manifest)) {
+        manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
+          pagesManifest[key]
+      }
+      curPath = manifestNoLocales[page]
     }
-    pagePath = manifestNoLocales[page]
+    return curPath
+  }
+  let pagePath: string | undefined
+
+  if (rootPathsManifest) {
+    pagePath = checkManifest(rootPathsManifest)
+  }
+
+  if (!pagePath) {
+    pagePath = checkManifest(pagesManifest)
   }
 
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
-
   return join(serverBuildPath, pagePath)
 }
 
 export function requirePage(
   page: string,
   distDir: string,
-  serverless: boolean
+  serverless: boolean,
+  rootEnabled?: boolean
 ): any {
-  const pagePath = getPagePath(page, distDir, serverless)
+  const pagePath = getPagePath(
+    page,
+    distDir,
+    serverless,
+    false,
+    undefined,
+    rootEnabled
+  )
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }
