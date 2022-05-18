@@ -194,11 +194,58 @@ const RSCComponent = (props: any) => {
   )
 }
 
+const ViewRouterContext = React.createContext({})
+
+// TODO: move to client component when handling is implemented
+function ViewRouter({ initialUrl, children }: any) {
+  const initialState = {
+    url: initialUrl,
+  }
+  const previousUrlRef = React.useRef(initialState)
+  const [current, setCurrent] = React.useState(initialState)
+
+  const viewRouter = React.useMemo(() => {
+    return {
+      push: (url: string) => {
+        previousUrlRef.current = current
+        setCurrent({ ...current, url })
+        // TODO: update url eagerly or not?
+        window.history.pushState(current, '', url)
+      },
+      url: current.url,
+    }
+  }, [current])
+
+  // @ts-ignore TODO: for testing
+  window.viewRouter = viewRouter
+
+  console.log({
+    viewRouter,
+    previous: previousUrlRef.current,
+    current,
+  })
+
+  let root
+  if (current.url !== previousUrlRef.current?.url) {
+    // eslint-disable-next-line
+    const data = useServerResponse(current.url)
+    root = data.readRoot()
+  }
+
+  return (
+    <ViewRouterContext.Provider value={viewRouter}>
+      {root ? root : children}
+    </ViewRouterContext.Provider>
+  )
+}
+
 export function hydrate() {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
       <Root>
-        <RSCComponent />
+        <ViewRouter initialUrl={location.pathname}>
+          <RSCComponent />
+        </ViewRouter>
       </Root>
     </React.StrictMode>
   ))
