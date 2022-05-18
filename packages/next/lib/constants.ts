@@ -1,6 +1,4 @@
-import path from '../shared/lib/isomorphic/path'
-
-const { join } = path
+import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = join(NEXT_PROJECT_ROOT, 'dist')
@@ -27,6 +25,7 @@ export const MIDDLEWARE_ROUTE = /_middleware$/
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
+export const VIEWS_DIR_ALIAS = 'private-next-views-dir'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 

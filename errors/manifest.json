@@ -639,14 +639,6 @@
           "path": "/errors/opening-an-issue.md"
         },
         {
-          "title": "multiple-flush-effects",
-          "path": "/errors/multiple-flush-effects.md"
-        },
-        {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
-        },
-        {
           "title": "import-next",
           "path": "/errors/import-next.md"
         },
@@ -657,6 +649,10 @@
         {
           "title": "no-assign-module-variable",
           "path": "/errors/no-assign-module-variable.md"
+        },
+        {
+          "title": "invalid-script",
+          "path": "/errors/invalid-script.md"
         }
       ]
     }

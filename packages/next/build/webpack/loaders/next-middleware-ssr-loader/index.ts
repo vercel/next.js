@@ -1,4 +1,19 @@
+import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
+
+export type MiddlewareSSRLoaderQuery = {
+  absolute500Path: string
+  absoluteAppPath: string
+  absoluteAppServerPath: string
+  absoluteDocumentPath: string
+  absoluteErrorPath: string
+  absolutePagePath: string
+  buildId: string
+  dev: boolean
+  isServerComponent: boolean
+  page: string
+  stringifiedConfig: string
+}
 
 export default async function middlewareSSRLoader(this: any) {
   const {
@@ -14,6 +29,16 @@ export default async function middlewareSSRLoader(this: any) {
     isServerComponent,
     stringifiedConfig,
   } = this.getOptions()
+
+  const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextEdgeSSR = {
+    isServerComponent: isServerComponent === 'true',
+    page: page,
+  }
+  buildInfo.route = {
+    page,
+    absolutePagePath,
+  }
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
@@ -45,16 +70,9 @@ export default async function middlewareSSRLoader(this: any) {
       stringified500Path ? `require(${stringified500Path})` : 'null'
     }
 
-
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
-
-    // Set server context
-    self.__server_context = {
-      page: ${JSON.stringify(page)},
-      buildId: ${JSON.stringify(buildId)},
-    }
 
     const render = getRender({
       dev: ${dev},
