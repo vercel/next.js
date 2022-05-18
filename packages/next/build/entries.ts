@@ -451,7 +451,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         /[\\\\/]_middleware$/.test(page)
       ) {
         throw new Error(
-          `nested Middleware is deprecated (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
+          `nested Middleware is not allowed (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
         )
       }
 

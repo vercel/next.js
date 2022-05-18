@@ -1,13 +1,13 @@
-# Nested Middleware Deprecated
+# Nested Middleware
 
 #### Why This Error Occurred
 
-You are defining a middleware file in a location different from `<root>/middleware` which is _deprecated_.
+You are defining a middleware file in a location different from `<root>/middleware` which is not allowed.
 
-Declaring a middleware file under specific pages implied that it would _only_ be executed when pages below its declaration were matched.
+While in beta, a middleware file under specific pages implied that it would _only_ be executed when pages below its declaration were matched.
 This execution model allowed the nesting of multiple middleware, which is hard to reason about and led to consequences such as dragging effects between different middleware executions.
 
-The API has been _deprecated_ in favor of a simpler model with a single root middleware.
+The API has been removed in favor of a simpler model with a single root middleware.
 
 #### Possible Ways to Fix It
 

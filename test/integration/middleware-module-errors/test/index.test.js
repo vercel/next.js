@@ -156,13 +156,13 @@ describe('Middleware importing Node.js modules', () => {
       expect(text).not.toContain(escapeLF(msg))
     })
 
-    it('warns about nested middleware being deprecated', async () => {
+    it('warns about nested middleware being not allowed', async () => {
       const file = new File(join(__dirname, '../pages/about/_middleware.js'))
       file.write(`export function middleware() {}`)
       try {
         const res = await fetchViaHTTP(context.appPort, '/about')
         expect(context.logs.stderr).toContain(
-          'nested Middleware is deprecated (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+          'nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
         )
         expect(res.status).toBe(200)
       } finally {

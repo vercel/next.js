@@ -338,8 +338,8 @@ export default class DevServer extends Server {
            * warn without adding it so it doesn't make its way into the system.
            */
           if (/[\\\\/]_middleware$/.test(pageName)) {
-            Log.warn(
-              `nested Middleware is deprecated (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
+            Log.error(
+              `nested Middleware is not allowed (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
             )
             continue
           }
