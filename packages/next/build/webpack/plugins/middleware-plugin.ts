@@ -207,24 +207,22 @@ function getCodeAnalizer(params: {
 
     /**
      * A noop handler to skip analyzing some cases.
+     * Order matters: for it to work, it must be registered first
      */
-    const noop = () =>
+    const skip = () =>
       parser.state.module?.layer === 'middleware' ? true : undefined
 
-    hooks.call.for('eval').tap(NAME, handleWrapExpression)
-    hooks.call.for('global.eval').tap(NAME, handleWrapExpression)
-    hooks.call.for('Function').tap(NAME, handleWrapExpression)
-    hooks.call.for('global.Function').tap(NAME, handleWrapExpression)
-    hooks.new.for('Function').tap(NAME, handleWrapExpression)
-    hooks.new.for('global.Function').tap(NAME, handleWrapExpression)
+    for (const prefix of ['', 'global.']) {
+      hooks.expression.for(`${prefix}Function.prototype`).tap(NAME, skip)
+      hooks.expression.for(`${prefix}Function.bind`).tap(NAME, skip)
+      hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
+      hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
+      hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
+      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
+      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
+    }
     hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
-    hooks.expression.for('eval').tap(NAME, handleExpression)
-    hooks.expression.for('Function').tap(NAME, handleExpression)
-    hooks.expression.for('global.eval').tap(NAME, handleExpression)
-    hooks.expression.for('global.Function').tap(NAME, handleExpression)
-    hooks.expression.for('Function.prototype').tap(NAME, noop)
-    hooks.expression.for('global.Function.prototype').tap(NAME, noop)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
   }
