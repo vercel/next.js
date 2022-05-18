@@ -10,7 +10,7 @@ describe('Middleware validation during build', () => {
   beforeEach(() => fs.remove(join(appDir, '.next')))
 
   afterEach(() =>
-    fs.writeFile(middlewareFile, '// this will be populated by each test')
+    fs.writeFile(middlewareFile, '// this will be populated by each test\n')
   )
 
   describe.each([
