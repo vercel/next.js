@@ -19,15 +19,54 @@ describe('i18n-data-fetching-redirect', () => {
   afterAll(() => next.destroy())
 
   describe('Redirect to another locale', () => {
-    test.each([
-      ['getServerSideProps', '/sv/gssp-redirect'],
-      ['getStaticProps blocking', '/sv/gsp-blocking-redirect/1'],
-      ['getStaticProps fallback', '/sv/gsp-fallback-redirect/1'],
-    ])('%s', async (_, path) => {
-      const browser = await webdriver(next.url, path)
+    test.each`
+      path                       | fromLocale | toLocale
+      ${'gssp-redirect'}         | ${'en'}    | ${'sv'}
+      ${'gssp-redirect'}         | ${'sv'}    | ${'en'}
+      ${'gsp-blocking-redirect'} | ${'en'}    | ${'sv'}
+      ${'gsp-blocking-redirect'} | ${'sv'}    | ${'en'}
+      ${'gsp-fallback-redirect'} | ${'en'}    | ${'sv'}
+      ${'gsp-fallback-redirect'} | ${'sv'}    | ${'en'}
+    `(
+      '$path $fromLocale -> $toLocale',
+      async ({ path, fromLocale, toLocale }) => {
+        const browser = await webdriver(
+          next.url,
+          `/${fromLocale}/${path}/${toLocale}`
+        )
 
-      await check(() => browser.eval('window.location.pathname'), '/en/home')
-      expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+        await check(
+          () => browser.eval('window.location.pathname'),
+          `/${toLocale}/home`
+        )
+        expect(await browser.elementByCss('#router-locale').text()).toBe(
+          toLocale
+        )
+        expect(await browser.elementByCss('#router-pathname').text()).toBe(
+          '/home'
+        )
+        expect(await browser.elementByCss('#router-as-path').text()).toBe(
+          '/home'
+        )
+      }
+    )
+
+    test.each`
+      path                       | locale
+      ${'gssp-redirect'}         | ${'en'}
+      ${'gssp-redirect'}         | ${'sv'}
+      ${'gsp-blocking-redirect'} | ${'en'}
+      ${'gsp-blocking-redirect'} | ${'sv'}
+      ${'gsp-fallback-redirect'} | ${'en'}
+      ${'gsp-fallback-redirect'} | ${'sv'}
+    `('$path locale from context', async ({ path, locale }) => {
+      const browser = await webdriver(next.url, `/${locale}/${path}/from-ctx`)
+
+      await check(
+        () => browser.eval('window.location.pathname'),
+        `/${locale}/home`
+      )
+      expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
       expect(await browser.elementByCss('#router-pathname').text()).toBe(
         '/home'
       )

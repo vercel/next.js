@@ -1,7 +1,12 @@
-export async function getStaticProps() {
+export async function getStaticProps(ctx) {
+  let toLocale = ctx.params.locale
+  if (toLocale === 'from-ctx') {
+    toLocale = ctx.locale
+  }
+
   return {
     redirect: {
-      destination: '/en/home',
+      destination: `/${toLocale}/home`,
       permanent: false,
     },
   }
