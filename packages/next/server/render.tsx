@@ -79,11 +79,11 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
+import { htmlEscapeJsonString } from './htmlescape'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -356,7 +356,7 @@ function createFlightHook() {
             bootstrapped = true
             inlinedDataWriter.write(
               encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
                   [0, id]
                 )})</script>`
               )
@@ -371,7 +371,7 @@ function createFlightHook() {
           } else {
             inlinedDataWriter.write(
               encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
                   [1, id, decodeText(value)]
                 )})</script>`
               )
@@ -387,6 +387,10 @@ function createFlightHook() {
     }
     return entry
   }
+}
+
+function escapeJSONForFlightScript(input: unknown): string {
+  return htmlEscapeJsonString(JSON.stringify(input))
 }
 
 const useFlightResponse = createFlightHook()
@@ -794,62 +798,33 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  let flushEffects: Array<() => React.ReactNode> | null = null
-  function FlushEffectContainer({ children }: { children: JSX.Element }) {
-    // If the client tree suspends, this component will be rendered multiple
-    // times before we flush. To ensure we don't call old callbacks corresponding
-    // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffects = null
-
-    const flushEffectsImpl = React.useCallback(
-      (callbacks: Array<() => React.ReactNode>) => {
-        if (flushEffects) {
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.' +
-              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
-          )
-        }
-        flushEffects = callbacks
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={flushEffectsImpl}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <FlushEffectContainer>
-      <RouterContext.Provider value={router}>
-        <AmpStateContext.Provider value={ampState}>
-          <HeadManagerContext.Provider
-            value={{
-              updateHead: (state) => {
-                head = state
-              },
-              updateScripts: (scripts) => {
-                scriptLoader = scripts
-              },
-              scripts: initialScripts,
-              mountedInstances: new Set(),
-            }}
+    <RouterContext.Provider value={router}>
+      <AmpStateContext.Provider value={ampState}>
+        <HeadManagerContext.Provider
+          value={{
+            updateHead: (state) => {
+              head = state
+            },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: initialScripts,
+            mountedInstances: new Set(),
+          }}
+        >
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <StyleRegistry registry={jsxStyleRegistry}>
-                <ImageConfigContext.Provider value={images}>
-                  {children}
-                </ImageConfigContext.Provider>
-              </StyleRegistry>
-            </LoadableContext.Provider>
-          </HeadManagerContext.Provider>
-        </AmpStateContext.Provider>
-      </RouterContext.Provider>
-    </FlushEffectContainer>
+            <StyleRegistry registry={jsxStyleRegistry}>
+              <ImageConfigContext.Provider value={images}>
+                {children}
+              </ImageConfigContext.Provider>
+            </StyleRegistry>
+          </LoadableContext.Provider>
+        </HeadManagerContext.Provider>
+      </AmpStateContext.Provider>
+    </RouterContext.Provider>
   )
 
   // The `useId` API uses the path indexes to generate an ID for each node.
@@ -1480,17 +1455,7 @@ export async function renderToHTML(
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
         const flushEffectHandler = (): string => {
-          const allFlushEffects = [
-            styledJsxFlushEffect,
-            ...(flushEffects || []),
-          ]
-          const flushed = ReactDOMServer.renderToString(
-            <>
-              {allFlushEffects.map((flushEffect, i) => (
-                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-              ))}
-            </>
-          )
+          const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
           return flushed
         }
 

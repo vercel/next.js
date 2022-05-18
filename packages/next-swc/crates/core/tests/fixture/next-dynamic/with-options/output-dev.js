@@ -17,3 +17,13 @@ const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello')
     },
     ssr: false
 });
+const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello')
+, {
+    loadableGenerated: {
+        modules: [
+            "some-file.js -> " + "../components/hello"
+        ]
+    },
+    ssr: false,
+    suspense: true
+});

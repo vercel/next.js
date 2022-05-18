@@ -98,6 +98,29 @@ Next.js will automatically load the latest version of your application in the ba
 
 **Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
 
+## Manual Graceful shutdowns
+
+Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
+
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file.
+
+```js
+// pages/_document.js
+
+if (process.env.NEXT_MANUAL_SIG_HANDLE) {
+  // this should be added in your custom _document
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM: ', 'cleaning up')
+    process.exit(0)
+  })
+
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT: ', 'cleaning up')
+    process.exit(0)
+  })
+}
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
