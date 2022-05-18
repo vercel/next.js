@@ -307,24 +307,6 @@ export async function ncc_react_refresh_utils(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_use_subscription(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('use-subscription'))
-    )
-    .ncc({
-      packageName: 'use-subscription',
-      externals: {
-        ...externals,
-        react: 'react',
-        'react-dom': 'react-dom',
-      },
-      target: 'es5',
-    })
-    .target('compiled/use-subscription')
-}
-
-// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -1652,7 +1634,6 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
-        'ncc_use_subscription',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1782,6 +1763,7 @@ export async function compile(task, opts) {
       'bin',
       'server',
       'nextbuild',
+      'nextbuildjest',
       'nextbuildstatic',
       'pages',
       'lib',
@@ -1835,11 +1817,21 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
-      ignore: ['**/fixture/**', '**/tests/**'],
+      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
+}
+
+export async function nextbuildjest(task, opts) {
+  await task
+    .source(opts.src || 'build/jest/**/*.+(js|ts|tsx)', {
+      ignore: ['**/fixture/**', '**/tests/**'],
+    })
+    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/build/jest')
+  notify('Compiled build/jest files')
 }
 
 export async function client(task, opts) {
@@ -1887,21 +1879,9 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
-export async function pages_root(task, opts) {
-  await task
-    .source('pages/root.tsx')
-    .swc('server', { dev: opts.dev, keepImportAssertions: true })
-}
-
 export async function pages(task, opts) {
   await task.parallel(
-    [
-      'pages_app',
-      'pages_app_server',
-      'pages_error',
-      'pages_document',
-      'pages_root',
-    ],
+    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
     opts
   )
 }
@@ -1934,6 +1914,7 @@ export default async function (task) {
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
   await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
+  await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)

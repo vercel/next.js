@@ -64,9 +64,12 @@ import isError, { getProperError } from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import { getPageRuntime, invalidatePageRuntimeCache } from '../../build/entries'
+import {
+  getPageStaticInfo,
+  invalidatePageRuntimeCache,
+} from '../../build/entries'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizeRootPath } from '../../shared/lib/router/utils/root-paths'
+import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -98,7 +101,7 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir: string
-  private rootDir?: string
+  private viewsDir?: string
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -179,12 +182,12 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
     // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, root: rootDir } = findPagesDir(
+    const { pages: pagesDir, views: viewsDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.rootDir
+      this.nextConfig.experimental.viewsDir
     )
     this.pagesDir = pagesDir
-    this.rootDir = rootDir
+    this.viewsDir = viewsDir
   }
 
   protected getBuildId(): string {
@@ -267,8 +270,8 @@ export default class DevServer extends Server {
       let wp = (this.webpackWatcher = new Watchpack())
       const toWatch = [this.pagesDir!]
 
-      if (this.rootDir) {
-        toWatch.push(this.rootDir)
+      if (this.viewsDir) {
+        toWatch.push(this.viewsDir)
       }
       wp.watch([], toWatch, 0)
 
@@ -276,7 +279,7 @@ export default class DevServer extends Server {
         const routedMiddleware = []
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
-        const rootPaths: Record<string, string> = {}
+        const viewPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
         for (const [fileName, { accuracy, safeTime }] of knownFiles) {
@@ -284,17 +287,17 @@ export default class DevServer extends Server {
             continue
           }
           let pageName: string = ''
-          let isRootPath = false
+          let isViewPath = false
 
           if (
-            this.rootDir &&
+            this.viewsDir &&
             normalizePathSep(fileName).startsWith(
-              normalizePathSep(this.rootDir)
+              normalizePathSep(this.viewsDir)
             )
           ) {
-            isRootPath = true
+            isViewPath = true
             pageName = absolutePathToPage(
-              this.rootDir,
+              this.viewsDir,
               fileName,
               this.nextConfig.pageExtensions,
               false
@@ -307,11 +310,11 @@ export default class DevServer extends Server {
             )
           }
 
-          if (isRootPath) {
+          if (isViewPath) {
             // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeRootPath(pageName)
-            rootPaths[pageName] = originalPageName
+            pageName = normalizeViewPath(pageName)
+            viewPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
               continue
@@ -331,10 +334,9 @@ export default class DevServer extends Server {
           }
 
           invalidatePageRuntimeCache(fileName, safeTime)
-          const pageRuntimeConfig = await getPageRuntime(
-            fileName,
-            this.nextConfig
-          )
+          const pageRuntimeConfig = (
+            await getPageStaticInfo(fileName, this.nextConfig)
+          ).runtime
           const isEdgeRuntime = pageRuntimeConfig === 'edge'
 
           if (
@@ -348,7 +350,7 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        this.rootPathRoutes = rootPaths
+        this.viewPathRoutes = viewPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
             getMiddlewareRegex(page, !ssrMiddleware.has(page))
@@ -410,7 +412,7 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      [this.pagesDir!, this.rootDir].filter(Boolean) as string[],
+      [this.pagesDir!, this.viewsDir].filter(Boolean) as string[],
       false,
       this.nextConfig
     )
@@ -437,7 +439,7 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
-      rootDir: this.rootDir,
+      viewsDir: this.viewsDir,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -495,10 +497,10 @@ export default class DevServer extends Server {
       return false
     }
 
-    // check rootDir first if enabled
-    if (this.rootDir) {
+    // check viewsDir first if enabled
+    if (this.viewsDir) {
       const pageFile = await findPageFile(
-        this.rootDir,
+        this.viewsDir,
         normalizedPath,
         this.nextConfig.pageExtensions
       )
@@ -693,7 +695,7 @@ export default class DevServer extends Server {
   ) {
     let usedOriginalStack = false
 
-    if (isError(err) && err.name && err.stack && err.message) {
+    if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
         const frame = frames[0]
@@ -751,11 +753,11 @@ export default class DevServer extends Server {
 
     if (!usedOriginalStack) {
       if (type === 'warning') {
-        Log.warn(err + '')
+        Log.warn(err)
       } else if (type) {
-        Log.error(`${type}:`, err + '')
+        Log.error(`${type}:`, err)
       } else {
-        Log.error(err + '')
+        Log.error(err)
       }
     }
   }
@@ -786,7 +788,7 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getRootPathsManifest(): undefined {
+  protected getViewPathsManifest(): undefined {
     return undefined
   }
 

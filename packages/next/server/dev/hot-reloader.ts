@@ -11,11 +11,16 @@ import {
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
+  getViewsEntry,
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
+import {
+  API_ROUTE,
+  MIDDLEWARE_ROUTE,
+  VIEWS_DIR_ALIAS,
+} from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
@@ -38,7 +43,9 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
-import { getPageRuntime } from '../../build/entries'
+import { getPageStaticInfo } from '../../build/entries'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -168,7 +175,7 @@ export default class HotReloader {
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private rootDir?: string
+  private viewsDir?: string
 
   constructor(
     dir: string,
@@ -179,7 +186,7 @@ export default class HotReloader {
       buildId,
       previewProps,
       rewrites,
-      rootDir,
+      viewsDir,
     }: {
       config: NextConfigComplete
       pagesDir: string
@@ -187,14 +194,14 @@ export default class HotReloader {
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
-      rootDir?: string
+      viewsDir?: string
     }
   ) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
-    this.rootDir = rootDir
+    this.viewsDir = viewsDir
     this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
@@ -416,6 +423,7 @@ export default class HotReloader {
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
             target: 'server',
+            pageExtensions: this.config.pageExtensions,
           })
         )
 
@@ -427,7 +435,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
-        rootDir: this.rootDir,
+        viewsDir: this.viewsDir,
       }
 
       return webpackConfigSpan
@@ -483,6 +491,7 @@ export default class HotReloader {
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
           target: 'server',
+          pageExtensions: this.config.pageExtensions,
         })
       ).client,
       hasReactRoot: this.hasReactRoot,
@@ -534,6 +543,10 @@ export default class HotReloader {
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+
+            // @FIXME
+            const { clientLoader } = entries[pageKey] as any
+
             const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
             const [, key, page] = result! // this match should always happen
             if (key === 'client' && !isClientCompilation) return
@@ -547,29 +560,49 @@ export default class HotReloader {
               return
             }
 
+            const isServerComponent =
+              serverComponentRegex.test(absolutePagePath)
+
             runDependingOnPageType({
               page,
-              pageRuntime: await getPageRuntime(absolutePagePath, this.config),
+              pageRuntime: (
+                await getPageStaticInfo(absolutePagePath, this.config)
+              ).runtime,
               onEdgeServer: () => {
-                if (isEdgeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'edge-server',
-                    name: bundlePath,
-                    value: getEdgeServerEntry({
-                      absolutePagePath,
-                      buildId: this.buildId,
-                      bundlePath,
-                      config: this.config,
-                      isDev: true,
-                      page,
-                      pages: this.pagesMapping,
-                    }),
-                  })
-                }
+                if (!isEdgeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'edge-server',
+                  name: bundlePath,
+                  value: getEdgeServerEntry({
+                    absolutePagePath,
+                    buildId: this.buildId,
+                    bundlePath,
+                    config: this.config,
+                    isDev: true,
+                    page,
+                    pages: this.pagesMapping,
+                    isServerComponent,
+                  }),
+                })
               },
               onClient: () => {
-                if (isClientCompilation) {
+                if (!isClientCompilation) return
+                if (isServerComponent) {
+                  entries[pageKey].status = BUILDING
+                  entrypoints[bundlePath] = finalizeEntrypoint({
+                    name: bundlePath,
+                    compilerType: 'client',
+                    value:
+                      `next-client-pages-loader?${stringify({
+                        isServerComponent,
+                        page: denormalizePagePath(
+                          bundlePath.replace(/^pages/, '')
+                        ),
+                        absolutePagePath: clientLoader,
+                      })}!` + clientLoader,
+                  })
+                } else {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -582,19 +615,30 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (isNodeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  let request = relative(config.context!, absolutePagePath)
-                  if (!isAbsolute(request) && !request.startsWith('../')) {
-                    request = `./${request}`
-                  }
-
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'server',
-                    name: bundlePath,
-                    value: request,
-                  })
+                if (!isNodeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                let request = relative(config.context!, absolutePagePath)
+                if (!isAbsolute(request) && !request.startsWith('../')) {
+                  request = `./${request}`
                 }
+
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'server',
+                  name: bundlePath,
+                  isServerComponent,
+                  value:
+                    this.viewsDir && bundlePath.startsWith('views/')
+                      ? getViewsEntry({
+                          name: bundlePath,
+                          pagePath: join(
+                            VIEWS_DIR_ALIAS,
+                            relative(this.viewsDir!, absolutePagePath)
+                          ),
+                          viewsDir: this.viewsDir!,
+                          pageExtensions: this.config.pageExtensions,
+                        })
+                      : request,
+                })
               },
             })
           })
@@ -839,7 +883,7 @@ export default class HotReloader {
       multiCompiler,
       watcher: this.watcher,
       pagesDir: this.pagesDir,
-      rootDir: this.rootDir,
+      viewsDir: this.viewsDir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

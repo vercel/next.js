@@ -3,7 +3,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 // matches pages/:page*.js
 const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
 // matches root/:path*.js
-const ROOT_ROUTE_NAME_REGEX = /^root[/\\](.*)$/
+const ROOT_ROUTE_NAME_REGEX = /^views[/\\](.*)$/
 // matches static/pages/:page*.js
 const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 
