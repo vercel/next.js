@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -33,13 +32,13 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import {
-  flushBufferedVitalsMetrics,
-  trackWebVitalMetric,
-} from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -288,38 +287,38 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    const exportedReportWebVitals = mod && mod.reportWebVitals
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }: any): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      const webVitals: NextWebVitalsMetric = {
-        id: id || uniqueID,
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
         name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
       }
-      exportedReportWebVitals?.(webVitals)
-      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -549,8 +548,7 @@ function renderReactElement(
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      const ReactDOMClient = require('react-dom/client')
-      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -1031,8 +1029,6 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
