@@ -1,15 +1,10 @@
-import type {
-  NextMiddleware,
-  RequestData,
-  FetchEventResult,
-  NextMiddlewareResult,
-} from './types'
+import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { DeprecationError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
-import { NextResponse, RedirectHeader } from './spec-extension/response'
+import { NextResponse } from './spec-extension/response'
 import { waitUntilSymbol } from './spec-compliant/fetch-event'
 
 export async function adapter(params: {
@@ -45,9 +40,8 @@ export function blockUnallowedResponse(
 ): Promise<FetchEventResult> {
   return promise.then((result) => ({
     ...result,
-    response: isAllowed(result.response)
-      ? result.response
-      : new Response(
+    response: result.response?.body
+      ? new Response(
           JSON.stringify({
             message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
           }),
@@ -56,14 +50,9 @@ export function blockUnallowedResponse(
             statusText: 'Internal Server Error',
             headers: { 'content-type': 'application/json' },
           }
-        ),
+        )
+      : result.response,
   }))
-}
-
-function isAllowed(response: NextMiddlewareResult): boolean {
-  return (
-    !response?.body || !response.body || response.headers.has(RedirectHeader)
-  )
 }
 
 class NextRequestHint extends NextRequest {
