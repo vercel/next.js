@@ -21,9 +21,9 @@ swc_emotion = {path="../emotion"}
 styled_components = {path="../styled_components"}
 styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
-swc = "0.180.0"
+swc = "0.180.1"
 swc_atoms = "0.2.11"
-swc_common = { version = "0.18.2", features = ["concurrent", "sourcemap"] }
+swc_common = { version = "0.18.5", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.30.1", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.157.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_cached = "0.1.1"
