@@ -1,28 +1,23 @@
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeHeaders, validateURL } from '../utils'
-import cookie from 'next/dist/compiled/cookie'
-import { CookieSerializeOptions } from '../types'
+
+import { NextCookies } from './cookies'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
 
 export class NextResponse extends Response {
   [INTERNALS]: {
-    cookieParser(): { [key: string]: string }
+    cookies: NextCookies
     url?: NextURL
   }
 
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
     super(body, init)
 
-    const cookieParser = () => {
-      const value = this.headers.get('cookie')
-      return value ? cookie.parse(value) : {}
-    }
-
     this[INTERNALS] = {
-      cookieParser,
+      cookies: new NextCookies(this),
       url: init.url
         ? new NextURL(init.url, {
             basePath: init.nextConfig?.basePath,
@@ -35,36 +30,7 @@ export class NextResponse extends Response {
   }
 
   public get cookies() {
-    return this[INTERNALS].cookieParser()
-  }
-
-  public cookie(
-    name: string,
-    value: { [key: string]: any } | string,
-    opts: CookieSerializeOptions = {}
-  ) {
-    const val =
-      typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
-
-    const options = { ...opts }
-    if (options.maxAge) {
-      options.expires = new Date(Date.now() + options.maxAge)
-      options.maxAge /= 1000
-    }
-
-    if (options.path == null) {
-      options.path = '/'
-    }
-
-    this.headers.append(
-      'Set-Cookie',
-      cookie.serialize(name, String(val), options)
-    )
-    return this
-  }
-
-  public clearCookie(name: string, opts: CookieSerializeOptions = {}) {
-    return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
+    return this[INTERNALS].cookies
   }
 
   static json(body: any, init?: ResponseInit) {

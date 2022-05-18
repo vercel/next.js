@@ -657,14 +657,6 @@
           "path": "/errors/opening-an-issue.md"
         },
         {
-          "title": "multiple-flush-effects",
-          "path": "/errors/multiple-flush-effects.md"
-        },
-        {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
-        },
-        {
           "title": "import-next",
           "path": "/errors/import-next.md"
         },

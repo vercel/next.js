@@ -79,6 +79,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
+  browsersListForSwc?: boolean
+  manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
@@ -135,6 +138,7 @@ export interface ExperimentalConfig {
     }
   >
   swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
 }
 
 /**
@@ -472,6 +476,9 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   experimental: {
     // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
+    browsersListForSwc: false,
+    // TODO: change default in next major release (current v12.1.5)
     newNextLinkBehavior: false,
     cpus: Math.max(
       1,
@@ -505,6 +512,7 @@ export const defaultConfig: NextConfig = {
       layoutRaw: false,
       remotePatterns: [],
     },
+    forceSwcTransforms: false,
   },
 }
 

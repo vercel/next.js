@@ -647,6 +647,7 @@ describe('Telemetry CLI', () => {
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    regex.exec(stderr).pop() // nextScriptWorkers
     regex.exec(stderr).pop() // build-lint
     const optimizeFonts = regex.exec(stderr).pop()
     expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
@@ -704,6 +705,7 @@ describe('Telemetry CLI', () => {
 
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    regex.exec(stderr).pop() // nextScriptWorkers
     regex.exec(stderr).pop() // build-lint
     regex.exec(stderr).pop() // optimizeFonts
     const swcLoader = regex.exec(stderr).pop()
@@ -759,6 +761,32 @@ describe('Telemetry CLI', () => {
     const optimizeCss = regex.exec(stderr).pop()
     expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
     expect(optimizeCss).toContain(`"invocationCount": 1`)
+  })
+
+  it('emits telemetry for usage of `nextScriptWorkers`', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.next-script-workers'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.next-script-workers')
+    )
+
+    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    regex.exec(stderr).pop() // build-lint
+    regex.exec(stderr).pop() // optimizeCss
+    const nextScriptWorkers = regex.exec(stderr).pop()
+    expect(nextScriptWorkers).toContain(
+      `"featureName": "experimental/nextScriptWorkers"`
+    )
+    expect(nextScriptWorkers).toContain(`"invocationCount": 1`)
   })
 
   it('emits telemetry for usage of _middleware', async () => {

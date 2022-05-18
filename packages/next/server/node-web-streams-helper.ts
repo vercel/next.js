@@ -1,5 +1,9 @@
 import { nonNullable } from '../lib/non-nullable'
 
+export type ReactReadableStream = ReadableStream<Uint8Array> & {
+  allReady?: Promise<void> | undefined
+}
+
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
@@ -82,18 +86,18 @@ export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
     : new TextDecoder().decode(input)
 }
 
-export function createBufferedTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export function createBufferedTransformStream(
+  transform: (v: string) => string | Promise<string> = (v) => v
+): TransformStream<Uint8Array, Uint8Array> {
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
   const flushBuffer = (controller: TransformStreamDefaultController) => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) => {
-        setTimeout(() => {
-          controller.enqueue(encodeText(bufferedString))
+        setTimeout(async () => {
+          const buffered = await transform(bufferedString)
+          controller.enqueue(encodeText(buffered))
           bufferedString = ''
           pendingFlush = null
           resolve()
@@ -135,32 +139,29 @@ export function createFlushEffectStream(
 export function renderToInitialStream({
   ReactDOMServer,
   element,
+  streamOptions,
 }: {
   ReactDOMServer: any
   element: React.ReactElement
-}): Promise<
-  ReadableStream<Uint8Array> & {
-    allReady?: Promise<void>
-  }
-> {
-  return ReactDOMServer.renderToReadableStream(element)
+  streamOptions?: any
+}): Promise<ReactReadableStream> {
+  return ReactDOMServer.renderToReadableStream(element, streamOptions)
 }
 
-export async function continueFromInitialStream({
-  suffix,
-  dataStream,
-  generateStaticHTML,
-  flushEffectHandler,
-  renderStream,
-}: {
-  suffix?: string
-  dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
-  flushEffectHandler?: () => string
-  renderStream: ReadableStream<Uint8Array> & {
-    allReady?: Promise<void>
+export async function continueFromInitialStream(
+  renderStream: ReactReadableStream,
+  {
+    suffix,
+    dataStream,
+    generateStaticHTML,
+    flushEffectHandler,
+  }: {
+    suffix?: string
+    dataStream?: ReadableStream<Uint8Array>
+    generateStaticHTML: boolean
+    flushEffectHandler?: () => string
   }
-}): Promise<ReadableStream<Uint8Array>> {
+): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag)[0] : null
 
@@ -180,31 +181,6 @@ export async function continueFromInitialStream({
     (readable, transform) => readable.pipeThrough(transform),
     renderStream
   )
-}
-
-export async function renderToStream({
-  ReactDOMServer,
-  element,
-  suffix,
-  dataStream,
-  generateStaticHTML,
-  flushEffectHandler,
-}: {
-  ReactDOMServer: typeof import('react-dom/server')
-  element: React.ReactElement
-  suffix?: string
-  dataStream?: ReadableStream<Uint8Array>
-  generateStaticHTML: boolean
-  flushEffectHandler?: () => string
-}): Promise<ReadableStream<Uint8Array>> {
-  const renderStream = await renderToInitialStream({ ReactDOMServer, element })
-  return continueFromInitialStream({
-    suffix,
-    dataStream,
-    generateStaticHTML,
-    flushEffectHandler,
-    renderStream,
-  })
 }
 
 export function createSuffixStream(
