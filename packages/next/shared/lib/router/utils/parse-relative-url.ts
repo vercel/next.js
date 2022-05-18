@@ -8,19 +8,15 @@ import { searchParamsToUrlQuery } from './querystring'
  * the current origin will be parsed as relative
  */
 export function parseRelativeUrl(url: string, base?: string) {
-  const isNotPathRelative = url.charAt(0) === '.'
   const globalBase = new URL(
     typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
   )
 
-  let resolvedBase = globalBase // default to base
-  if (base) {
-    resolvedBase = new URL(base, globalBase)
-  } else if (isNotPathRelative) {
-    resolvedBase = new URL(
-      typeof window === 'undefined' ? 'http://n' : window.location.href
-    )
-  }
+  const resolvedBase = base
+    ? new URL(base, globalBase)
+    : url.startsWith('.')
+    ? new URL(typeof window === 'undefined' ? 'http://n' : window.location.href)
+    : globalBase
 
   const { pathname, searchParams, search, hash, href, origin } = new URL(
     url,
