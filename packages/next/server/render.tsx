@@ -83,6 +83,7 @@ import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
+import { htmlEscapeJsonString } from './htmlescape'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -349,10 +350,9 @@ function useFlightResponse({
           bootstrapped = true
           inlinedDataWriter.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
+                [0, id]
+              )})</script>`
             )
           )
         }
@@ -363,11 +363,9 @@ function useFlightResponse({
           const decodedValue = decodeText(value)
           inlinedDataWriter.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                1,
-                id,
-                decodedValue,
-              ])})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
+                [1, id, decodedValue]
+              )})</script>`
             )
           )
           if (pageData) {
@@ -380,6 +378,10 @@ function useFlightResponse({
     process()
   }
   return entry
+}
+
+function escapeJSONForFlightScript(input: unknown): string {
+  return htmlEscapeJsonString(JSON.stringify(input))
 }
 
 // Create the wrapper component for a Flight stream.
