@@ -350,8 +350,8 @@ function useFlightResponse({
           bootstrapped = true
           inlinedDataWriter.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
-                [0, id]
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, id])
               )})</script>`
             )
           )
@@ -363,8 +363,8 @@ function useFlightResponse({
           const decodedValue = decodeText(value)
           inlinedDataWriter.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${escapeJSONForFlightScript(
-                [1, id, decodedValue]
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, decodedValue])
               )})</script>`
             )
           )
@@ -378,10 +378,6 @@ function useFlightResponse({
     process()
   }
   return entry
-}
-
-function escapeJSONForFlightScript(input: unknown): string {
-  return htmlEscapeJsonString(JSON.stringify(input))
 }
 
 // Create the wrapper component for a Flight stream.

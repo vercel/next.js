@@ -18,6 +18,7 @@ import {
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
+import { htmlEscapeJsonString } from './htmlescape'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -118,10 +119,9 @@ function useFlightResponse(
           bootstrapped = true
           writer.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                0,
-                id,
-              ])})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, id])
+              )})</script>`
             )
           )
         }
@@ -131,11 +131,9 @@ function useFlightResponse(
         } else {
           writer.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
-                1,
-                id,
-                decodeText(value),
-              ])})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, decodeText(value)])
+              )})</script>`
             )
           )
           process()
