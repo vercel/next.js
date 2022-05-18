@@ -14,6 +14,7 @@ describe('should set-up next', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(appDir, 'pages')),
+        '_middleware.ts': new FileRef(join(appDir, '_middleware.ts')),
         'tsconfig.json': new FileRef(join(appDir, 'tsconfig.json')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },

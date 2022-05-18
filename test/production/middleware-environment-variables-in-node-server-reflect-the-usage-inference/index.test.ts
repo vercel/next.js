@@ -14,7 +14,10 @@ describe('middleware environment variables in node server reflect the usage infe
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_middleware.js': `
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        '_middleware.js': `
           export default function middleware() {
             return new Response(JSON.stringify({
               canBeInferred: process.env.CAN_BE_INFERRED,

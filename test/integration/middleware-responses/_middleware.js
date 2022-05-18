@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server.browser'
-import { getText } from '../lib/utils'
+import { getText } from './lib/utils'
 
 export async function middleware(request, ev) {
   // eslint-disable-next-line no-undef

@@ -1,4 +1,4 @@
-import { notUsingEval, usingEval } from '../lib/utils'
+import { notUsingEval, usingEval } from './lib/utils'
 
 export async function middleware(request) {
   if (request.nextUrl.pathname === '/using-eval') {

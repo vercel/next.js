@@ -8,8 +8,11 @@ describe('Middleware with Dynamic code invokations', () => {
     next = await createNext({
       files: {
         'lib/utils.js': '',
-        'pages/_middleware.js': `
-          import '../lib/utils'
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        '_middleware.js': `
+          import './lib/utils'
           export default function middleware() {
             return new Response()
           }
@@ -54,7 +57,7 @@ describe('Middleware with Dynamic code invokations', () => {
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/ts-invariant/lib/invariant.esm.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware pages/_middleware`)
+Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware _middleware`)
   })
 
   it('detects dynamic code nested in has', async () => {
@@ -68,10 +71,10 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/function-bind/implementation.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware pages/_middleware`)
+Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware _middleware`)
     expect(next.cliOutput).toContain(`
 ./node_modules/has/src/index.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware pages/_middleware`)
+Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware _middleware`)
   })
 
   it('detects dynamic code nested in qs', async () => {
@@ -85,7 +88,7 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/get-intrinsic/index.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware pages/_middleware`)
+Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware _middleware`)
   })
 
   it('does not detects dynamic code nested in @aws-sdk/client-s3 (legit Function.bind)', async () => {
@@ -101,7 +104,7 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
       `./node_modules/@aws-sdk/smithy-client/dist-es/lazy-json.js`
     )
     expect(next.cliOutput).not.toContain(
-      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware pages/_middleware`
+      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware _middleware`
     )
   })
 })

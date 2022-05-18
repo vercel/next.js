@@ -17,8 +17,11 @@ function baseNextConfig(): Parameters<typeof createNext>[0] {
             return exports.add_one(a);
           }
         `,
-      'pages/_middleware.js': `
-          import { increment } from '../src/add.js'
+      'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+      '_middleware.js': `
+          import { increment } from './src/add.js'
           export default async function middleware(request) {
             const input = Number(request.nextUrl.searchParams.get('input')) || 1;
             const value = await increment(input);

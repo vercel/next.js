@@ -20,7 +20,7 @@ const context = {
   appDir: join(__dirname, '../'),
   buildLogs: { output: '', stdout: '', stderr: '' },
   logs: { output: '', stdout: '', stderr: '' },
-  middleware: new File(join(__dirname, '../pages/_middleware.js')),
+  middleware: new File(join(__dirname, '../_middleware.js')),
   page: new File(join(__dirname, '../pages/index.js')),
 }
 
@@ -161,7 +161,6 @@ describe('Middleware importing Node.js modules', () => {
       file.write(`export function middleware() {}`)
       try {
         const res = await fetchViaHTTP(context.appPort, '/about')
-        console.log(context.logs.stderr)
         expect(context.logs.stderr).toContain(
           'nested Middleware is deprecated (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
         )
@@ -215,17 +214,16 @@ describe('Middleware importing Node.js modules', () => {
       )
     })
 
-    it('fails when there is a deprecated middleware', async () => {
+    it('fails when there is a not allowed middleware', async () => {
       const file = new File(join(__dirname, '../pages/about/_middleware.js'))
       file.write(`export function middleware() {}`)
       const buildResult = await nextBuild(context.appDir, undefined, {
         stderr: true,
         stdout: true,
       })
-      console.log(buildResult.stdout)
 
       expect(buildResult.stderr).toContain(
-        'nested Middleware is deprecated (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+        'Error: nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
       )
     })
   })

@@ -45,7 +45,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
       expect(json.value).toEqual(100)
       expect(output).toContain(DYNAMIC_CODE_ERROR)
       expect(output).toContain('DynamicCodeEvaluationWarning')
-      expect(output).toContain('pages/_middleware')
+      expect(output).toContain('./_middleware')
       // TODO check why that has a backslash on windows
       expect(output).toMatch(/lib[\\/]utils\.js/)
       expect(output).toContain('usingEval')
@@ -81,7 +81,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
     it('should have middleware warning during build', () => {
       expect(buildResult.stderr).toContain(`Failed to compile`)
       expect(buildResult.stderr).toContain(`Used by usingEval`)
-      expect(buildResult.stderr).toContain(`./pages/_middleware.js`)
+      expect(buildResult.stderr).toContain(`./_middleware.js`)
       expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
     })
   })

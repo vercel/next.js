@@ -25,8 +25,11 @@ describe('dependencies can use env vars in middlewares', () => {
           module.exports = () => process.env.MY_CUSTOM_PACKAGE_ENV_VAR;
         `,
 
-        // The actual middleware code
-        'pages/_middleware.js': `
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+
+        '_middleware.js': `
           import customPackage from 'my-custom-package';
           export default function middleware(_req) {
             return new Response(JSON.stringify({

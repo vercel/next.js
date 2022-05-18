@@ -30,6 +30,9 @@ describe('should set-up next', () => {
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        '_middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/_middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
@@ -159,7 +162,7 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+        join(next.testDir, 'standalone/.next/server/_middleware.js')
       )
     ).toBe(true)
   })

@@ -57,7 +57,7 @@ describe('Middleware Runtime', () => {
       const text = await browser.elementByCss('h1').text()
       expect(text).toEqual('AboutA')
 
-      const middlewarePath = join(context.appDir, '/pages/_middleware.js')
+      const middlewarePath = join(context.appDir, '/_middleware.js')
       const originalContent = fs.readFileSync(middlewarePath, 'utf-8')
       const editedContent = originalContent.replace('/about/a', '/about/b')
 
