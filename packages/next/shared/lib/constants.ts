@@ -69,7 +69,7 @@ export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
 
 // comparing
-// https://github.com/vercel/runtimes/blob/main/packages/edge-functions-bridge/src/runtime-primitives.ts
+// https://nextjs.org/docs/api-reference/edge-runtime
 // with
 // https://nodejs.org/docs/latest/api/globals.html
 export const EDGE_UNSUPPORTED_NODE_APIS = [
