@@ -38,21 +38,23 @@ export async function adapter(params: {
 export function blockUnallowedResponse(
   promise: Promise<FetchEventResult>
 ): Promise<FetchEventResult> {
-  return promise.then((result) => ({
-    ...result,
-    response: result.response?.body
-      ? new Response(
-          JSON.stringify({
-            message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
-          }),
-          {
-            status: 500,
-            statusText: 'Internal Server Error',
-            headers: { 'content-type': 'application/json' },
-          }
+  return promise.then((result) => {
+    if (result.response?.body) {
+      console.error(
+        new Error(
+          `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
-      : result.response,
-  }))
+      )
+      return {
+        ...result,
+        response: new Response('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+        }),
+      }
+    }
+    return result
+  })
 }
 
 class NextRequestHint extends NextRequest {

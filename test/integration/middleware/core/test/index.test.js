@@ -41,8 +41,8 @@ describe('Middleware base tests', () => {
     rewriteTests(log, '/fr')
     redirectTests()
     redirectTests('/fr')
-    responseTests()
-    responseTests('/fr')
+    responseTests(log)
+    responseTests(log, '/fr')
     interfaceTests()
     interfaceTests('/fr')
     urlTests(log)
@@ -81,8 +81,8 @@ describe('Middleware base tests', () => {
     rewriteTests(serverOutput, '/fr')
     redirectTests()
     redirectTests('/fr')
-    responseTests()
-    responseTests('/fr')
+    responseTests(serverOutput)
+    responseTests(serverOutput, '/fr')
     interfaceTests()
     interfaceTests('/fr')
     urlTests(serverOutput)
@@ -586,7 +586,7 @@ function redirectTests(locale = '') {
   })
 }
 
-function responseTests(locale = '') {
+function responseTests(log, locale = '') {
   it(`${locale} responds with multiple cookies`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -605,10 +605,10 @@ function responseTests(locale = '') {
       `${locale}/responses/stream-a-response`
     )
     expect(res.status).toBe(500)
-    const json = await res.json()
-    expect(json).toEqual({
-      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
-    })
+    expect(await res.text()).toEqual('Internal Server Error')
+    expect(log.output).toContain(
+      `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
+    )
   })
 
   it(`${locale} should fail when returning a text body`, async () => {
@@ -617,10 +617,10 @@ function responseTests(locale = '') {
       `${locale}/responses/send-response`
     )
     expect(res.status).toBe(500)
-    const json = await res.json()
-    expect(json).toEqual({
-      message: `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
-    })
+    expect(await res.text()).toEqual('Internal Server Error')
+    expect(log.output).toContain(
+      `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
+    )
   })
 
   it(`${locale} should respond with a 401 status code`, async () => {
