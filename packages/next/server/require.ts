@@ -100,7 +100,9 @@ export function requirePage(
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }
-  return require(pagePath)
+
+  // TODO Put CSS imports behind experimental flag
+  return safeRequire(pagePath)
 }
 
 export function requireFontManifest(distDir: string, serverless: boolean) {
@@ -154,5 +156,30 @@ export function getMiddlewareInfo(params: {
       ...binding,
       filePath: join(params.distDir, binding.filePath),
     })),
+  }
+}
+
+/**
+ * Safely load a module at the specified path, allowing for CSS imports by
+ * the requested module.
+ *
+ * @param path The path to the module to load.
+ * @param allowCssImports A flag to indicate that CSS imports are allowed.
+ */
+function safeRequire(path: string, allowCssImports: boolean = true): any {
+  let previous: any
+
+  if (allowCssImports) {
+    previous = require.extensions['.css']
+    // Make sure that we resolve CSS imports into empty objects on the server
+    require.extensions['.css'] = () => {}
+  }
+
+  try {
+    return require(path)
+  } finally {
+    if (allowCssImports) {
+      require.extensions['.css'] = previous
+    }
   }
 }
