@@ -13,6 +13,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage, getPagePath } from './require'
@@ -69,7 +70,7 @@ export async function loadComponents(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  serverComponents?: boolean,
+  hasServerComponents?: boolean,
   rootEnabled?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
@@ -115,7 +116,7 @@ export async function loadComponents(
     Promise.resolve().then(() =>
       requirePage(pathname, distDir, serverless, rootEnabled)
     ),
-    serverComponents
+    hasServerComponents
       ? Promise.resolve().then(() =>
           requirePage('/_app.server', distDir, serverless, rootEnabled)
         )
@@ -126,22 +127,23 @@ export async function loadComponents(
     await Promise.all([
       require(join(distDir, BUILD_MANIFEST)),
       require(join(distDir, REACT_LOADABLE_MANIFEST)),
-      serverComponents
+      hasServerComponents
         ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
         : null,
     ])
 
-  if (serverComponents) {
+  if (hasServerComponents) {
     try {
       // Make sure to also load the client entry in cache.
       await requirePage(
-        normalizePagePath(pathname) + '.__sc_client__',
+        normalizePagePath(pathname) + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
         distDir,
-        serverless
+        serverless,
+        rootEnabled
       )
     } catch (_) {
-      // This page might not be a server component page, so there is no __sc_client__
-      // bundle to load.
+      // This page might not be a server component page, so there is no
+      // client entry to load.
     }
   }
 
