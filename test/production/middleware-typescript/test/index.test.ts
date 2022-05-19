@@ -14,6 +14,7 @@ describe('should set-up next', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(appDir, 'pages')),
+        'middleware.ts': new FileRef(join(appDir, 'middleware.ts')),
         'tsconfig.json': new FileRef(join(appDir, 'tsconfig.json')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },
@@ -28,7 +29,7 @@ describe('should set-up next', () => {
   afterAll(() => next.destroy())
 
   it('should have built and started', async () => {
-    const response = await fetchViaHTTP(next.url, '/interface/static')
+    const response = await fetchViaHTTP(next.url, '/static')
     expect(response.headers.get('data')).toEqual('hello from middleware')
   })
 })

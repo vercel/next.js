@@ -2,8 +2,8 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { sandbox } from '../acceptance/helpers'
 
-const middlewarePath = 'pages/_middleware.js'
-const middlewareWarning = 'Your middleware is returning a response body'
+const middlewarePath = 'middleware.js'
+const middlewareWarning = `A middleware can not alter response's body`
 
 describe('middlewares', () => {
   let next: NextInstance

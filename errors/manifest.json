@@ -627,6 +627,10 @@
           "path": "/errors/middleware-relative-urls.md"
         },
         {
+          "title": "nested-middleware",
+          "path": "/errors/nested-middleware.md"
+        },
+        {
           "title": "deleting-query-params-in-middlewares",
           "path": "/errors/deleting-query-params-in-middlewares.md"
         },

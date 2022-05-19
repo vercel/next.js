@@ -8,7 +8,7 @@ describe('reading request body in middleware', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_middleware.js': `
+        'middleware.js': `
           const { NextResponse } = require('next/server');
 
           export default async function middleware(request) {
@@ -32,25 +32,6 @@ describe('reading request body in middleware', () => {
               status: 200,
               headers: {
                 data: JSON.stringify({ root: true, ...json }),
-              },
-            })
-          }
-        `,
-
-        'pages/nested/_middleware.js': `
-          const { NextResponse } = require('next/server');
-
-          export default async function middleware(request) {
-            if (!request.body) {
-              return new Response(null, { status: 400 });
-            }
-
-            const json = await request.json();
-
-            return new Response(null, {
-              status: 200,
-              headers: {
-                data: JSON.stringify({ root: false, ...json }),
               },
             })
           }
@@ -91,27 +72,6 @@ describe('reading request body in middleware', () => {
     expect(JSON.parse(response.headers.get('data'))).toEqual({
       foo: 'bar',
       root: true,
-    })
-  })
-
-  it('reads the same body on both middlewares', async () => {
-    const response = await fetchViaHTTP(
-      next.url,
-      '/nested/hello',
-      {
-        next: '1',
-      },
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          foo: 'bar',
-        }),
-      }
-    )
-    expect(response.status).toEqual(200)
-    expect(JSON.parse(response.headers.get('data'))).toEqual({
-      foo: 'bar',
-      root: false,
     })
   })
 
