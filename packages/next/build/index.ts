@@ -15,7 +15,8 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
+  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -54,11 +55,7 @@ import {
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
@@ -115,6 +112,8 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { flatReaddir } from '../lib/flat-readdir'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -326,6 +325,13 @@ export default async function build(
           )
       }
 
+      const rootPaths = await flatReaddir(
+        dir,
+        new RegExp(
+          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        )
+      )
+
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -345,11 +351,12 @@ export default async function build(
             hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths,
+            pagesType: 'pages',
+            pagePaths: pagePaths,
           })
         )
 
-      let mappedViewPaths: ReturnType<typeof createPagesMapping> | undefined
+      let mappedViewPaths: { [page: string]: string } | undefined
 
       if (viewPaths && viewsDir) {
         mappedViewPaths = nextBuildSpan
@@ -359,10 +366,21 @@ export default async function build(
               pagePaths: viewPaths!,
               hasServerComponents,
               isDev: false,
-              isViews: true,
+              pagesType: 'views',
               pageExtensions: config.pageExtensions,
             })
           )
+      }
+
+      let mappedRootPaths: { [page: string]: string } = {}
+      if (rootPaths.length > 0) {
+        mappedRootPaths = createPagesMapping({
+          hasServerComponents,
+          isDev: false,
+          pageExtensions: config.pageExtensions,
+          pagePaths: rootPaths,
+          pagesType: 'root',
+        })
       }
 
       const entrypoints = await nextBuildSpan
@@ -377,6 +395,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir: dir,
+            rootPaths: mappedRootPaths,
             viewsDir,
             viewPaths: mappedViewPaths,
             pageExtensions: config.pageExtensions,
@@ -389,7 +409,7 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))) {
+      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
         Log.warn(
           `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
         )
@@ -538,17 +558,10 @@ export default async function build(
         redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
         headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
         dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE)
-          )
+          .filter(isDynamicRoute)
           .map(pageToRoute),
         staticRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) =>
-              !isDynamicRoute(page) &&
-              !page.match(MIDDLEWARE_ROUTE) &&
-              !isReservedPage(page)
-          )
+          .filter((page) => !isDynamicRoute(page) && !isReservedPage(page))
           .map(pageToRoute),
         dataRoutes: [],
         i18n: config.i18n || undefined,
@@ -1069,7 +1082,6 @@ export default async function build(
               let isServerComponent = false
               let isHybridAmp = false
               let ssgPageRoutes: string[] | null = null
-              let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
               const pagePath = pagePaths.find(
                 (p) =>
@@ -1088,7 +1100,6 @@ export default async function build(
               }
 
               if (
-                !isMiddlewareRoute &&
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
                 pageRuntime !== 'edge'
@@ -1483,7 +1494,9 @@ export default async function build(
           let routeKeys: { [named: string]: string } | undefined
 
           if (isDynamicRoute(page)) {
-            const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+            const routeRegex = getNamedRouteRegex(
+              dataRoute.replace(/\.json$/, '')
+            )
 
             dataRouteRegex = normalizeRouteRegex(
               routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
@@ -2091,9 +2104,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: pageKeys.filter((page) =>
-            MIDDLEWARE_ROUTE.test(page)
-          ).length,
+          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
         })
       )
 
@@ -2114,7 +2125,9 @@ export default async function build(
           )
 
           finalDynamicRoutes[tbdRoute] = {
-            routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
+            routeRegex: normalizeRouteRegex(
+              getNamedRouteRegex(tbdRoute).re.source
+            ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2122,10 +2135,9 @@ export default async function build(
               ? `${normalizedRoute}.html`
               : false,
             dataRouteRegex: normalizeRouteRegex(
-              getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-                /\(\?:\\\/\)\?\$$/,
-                '\\.json$'
-              )
+              getNamedRouteRegex(
+                dataRoute.replace(/\.json$/, '')
+              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }
         })
@@ -2257,6 +2269,7 @@ export default async function build(
             useStatic404,
             pageExtensions: config.pageExtensions,
             buildManifest,
+            middlewareManifest,
             gzipSize: config.experimental.gzipSize,
           }
         )
@@ -2334,7 +2347,7 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getRouteRegex(page)
+  const routeRegex = getNamedRouteRegex(page)
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
