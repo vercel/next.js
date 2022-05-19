@@ -18,7 +18,7 @@ import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import {
   API_ROUTE,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
   VIEWS_DIR_ALIAS,
 } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
@@ -405,6 +405,7 @@ export default class HotReloader {
             hasServerComponents: this.hasServerComponents,
             isDev: true,
             pageExtensions: this.config.pageExtensions,
+            pagesType: 'pages',
             pagePaths: pagePaths.filter(
               (i): i is string => typeof i === 'string'
             ),
@@ -422,6 +423,7 @@ export default class HotReloader {
             pages: this.pagesMapping,
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
+            rootDir: this.dir,
             target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
@@ -490,6 +492,7 @@ export default class HotReloader {
           },
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
+          rootDir: this.dir,
           target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
@@ -674,7 +677,7 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/')) {
+            if (key.startsWith('pages/') || key === MIDDLEWARE_FILENAME) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -793,7 +796,7 @@ export default class HotReloader {
         changedClientPages
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => name.match(MIDDLEWARE_ROUTE)
+        (name) => name === MIDDLEWARE_FILENAME
       )
       changedClientPages.clear()
       changedServerPages.clear()
@@ -884,6 +887,7 @@ export default class HotReloader {
       watcher: this.watcher,
       pagesDir: this.pagesDir,
       viewsDir: this.viewsDir,
+      rootDir: this.dir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

@@ -13,6 +13,7 @@ import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { MIDDLEWARE_FILE, MIDDLEWARE_FILENAME } from '../../lib/constants'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -62,6 +63,7 @@ export function onDemandEntryHandler({
   nextConfig,
   pagesBufferLength,
   pagesDir,
+  rootDir,
   viewsDir,
   watcher,
 }: {
@@ -70,6 +72,7 @@ export function onDemandEntryHandler({
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir: string
+  rootDir: string
   viewsDir?: string
   watcher: any
 }) {
@@ -95,6 +98,8 @@ export function onDemandEntryHandler({
       if (page) {
         pagePaths.push(`${type}${page}`)
       } else if (root && entrypoint.name === 'root') {
+        pagePaths.push(`${type}/${entrypoint.name}`)
+      } else if (entrypoint.name === MIDDLEWARE_FILENAME) {
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
@@ -185,6 +190,7 @@ export function onDemandEntryHandler({
   return {
     async ensurePage(page: string, clientOnly: boolean) {
       const pagePathData = await findPagePathData(
+        rootDir,
         pagesDir,
         page,
         nextConfig.pageExtensions,
@@ -346,11 +352,13 @@ class Invalidator {
  * a page and allowed extensions. If the page can't be found it will throw an
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
+ * @param rootDir Absolute path to the project root.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param normalizedPagePath The page normalized (it will be denormalized).
  * @param pageExtensions Array of page extensions.
  */
 async function findPagePathData(
+  rootDir: string,
   pagesDir: string,
   page: string,
   extensions: string[],
@@ -358,14 +366,43 @@ async function findPagePathData(
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
-  let isView = false
 
-  // check viewsDir first
+  if (normalizedPagePath === MIDDLEWARE_FILE) {
+    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+
+    if (!pagePath) {
+      throw pageNotFoundError(normalizedPagePath)
+    }
+
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(rootDir, pagePath),
+      bundlePath: normalizedPagePath.slice(1),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  // Check viewsDir first falling back to pagesDir
   if (viewsDir) {
     pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
-
     if (pagePath) {
-      isView = true
+      const pageUrl = ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          keepIndex: true,
+          extensions,
+        })
+      )
+
+      return {
+        absolutePagePath: join(viewsDir, pagePath),
+        bundlePath: posix.join('views', normalizePagePath(pageUrl)),
+        page: posix.normalize(pageUrl),
+      }
     }
   }
 
@@ -375,15 +412,14 @@ async function findPagePathData(
 
   if (pagePath !== null) {
     const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), extensions, !isView)
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
     )
-    const bundleFile = normalizePagePath(pageUrl)
-    const bundlePath = posix.join(isView ? 'views' : 'pages', bundleFile)
-    const absolutePagePath = join(isView ? viewsDir! : pagesDir, pagePath)
 
     return {
-      absolutePagePath,
-      bundlePath,
+      absolutePagePath: join(pagesDir, pagePath),
+      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
     }
   }
