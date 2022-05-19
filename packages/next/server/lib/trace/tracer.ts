@@ -20,6 +20,11 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   span.end()
 }
 
+type TracerSpanOptions = SpanOptions & {
+  parentSpan?: Span
+  tracerName?: string
+}
+
 interface Tracer {
   getContext(): ContextAPI
 
@@ -48,12 +53,12 @@ interface Tracer {
   ): T
   trace<T>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
 
@@ -74,12 +79,12 @@ interface Tracer {
   wrap<T = (...args: Array<any>) => any>(name: string, fn: T): T
   wrap<T = (...args: Array<any>) => any>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: T
   ): T
   wrap<T = (...args: Array<any>) => any>(
     name: string,
-    options: (...args: any[]) => SpanOptions & { parentSpan?: Span },
+    options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
 
@@ -92,34 +97,74 @@ interface Tracer {
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
   startSpan(name: string): Span
-  startSpan(name: string, options: SpanOptions): Span
-  startSpan(name: string, parentSpan: Span): Span
-  startSpan(name: string, parentSpan: Span, options: SpanOptions): Span
+  startSpan(name: string, options: TracerSpanOptions): Span
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
    * Returns undefined otherwise.
    */
   getActiveScopeSpan(): Span | undefined
+
+  /**
+   * Configure tracer with specified options. Any new tracers will inherit this configuration options.
+   * This'll be allowed once only, returns false if there's subsequent attempt without changing existing values.
+   *
+   * Tracer can call any traces without configuration, tries to use default value as possible.
+   * In result, most cases trace prior to initializing collector will be silently ignored. This allows
+   * to ensure eager calls to trace / wrap does not cause accidental, unexpected errors.
+   */
+  setTraceConfig(
+    options: TraceConfig & { provider: BasicTracerProvider }
+  ): boolean
 }
 
+const NOOP_TRACER = 'noop_tracer'
+
 class NextTracer implements Tracer {
-  private readonly tracerInstance: import('@opentelemetry/api').Tracer
   private readonly traceApi: typeof import('@opentelemetry/api').trace
   /**
    * Singleton object which represents the entry point to the OpenTelemetry Context API
    */
   private readonly context: typeof import('@opentelemetry/api').context
 
-  constructor(
-    tracerName: string,
-    private readonly traceConfig?: TraceConfig & {
-      provider: BasicTracerProvider
-    }
-  ) {
+  private traceConfig:
+    | (TraceConfig & { provider: BasicTracerProvider })
+    | undefined
+
+  constructor() {
     this.traceApi = require('next/dist/compiled/@opentelemetry/api').trace
-    this.tracerInstance = this.traceApi.getTracer(tracerName)
     this.context = require('next/dist/compiled/@opentelemetry/api').context
+  }
+
+  /**
+   * Returns an instance to the trace with configured name.
+   * Since wrap / trace can be defined in any place prior to actual trace subscriber initialization,
+   * This should be lazily evaluated.
+   */
+  private getTracerInstance(
+    overriddenName?: string
+  ): import('@opentelemetry/api').Tracer {
+    const tracerName =
+      overriddenName ??
+      this.traceConfig?.defaultTracerName ??
+      this.traceConfig?.serviceName ??
+      NOOP_TRACER
+
+    return this.traceApi.getTracer(tracerName)
+  }
+
+  public setTraceConfig(
+    options: TraceConfig & { provider: BasicTracerProvider }
+  ): boolean {
+    if (!!this.traceConfig) {
+      warn(
+        `Cannot configure tracers multiple times, new configuration will be ignored`
+      )
+      return false
+    }
+
+    this.traceConfig = options
+    return true
   }
 
   public getContext(): ContextAPI {
@@ -142,12 +187,12 @@ class NextTracer implements Tracer {
   ): T
   public trace<T>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
@@ -159,7 +204,7 @@ class NextTracer implements Tracer {
       options,
     }: {
       fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
-      options: SpanOptions & { parentSpan?: Span }
+      options: TracerSpanOptions
     } =
       typeof fnOrOptions === 'function'
         ? {
@@ -178,13 +223,17 @@ class NextTracer implements Tracer {
 
     const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
       spanContext
-        ? this.tracerInstance.startActiveSpan(
+        ? this.getTracerInstance(options?.tracerName).startActiveSpan(
             name,
             options,
             spanContext,
             actualFn
           )
-        : this.tracerInstance.startActiveSpan(name, options, actualFn)
+        : this.getTracerInstance(options?.tracerName).startActiveSpan(
+            name,
+            options,
+            actualFn
+          )
 
     return runWithContext((span: Span) => {
       try {
@@ -214,12 +263,12 @@ class NextTracer implements Tracer {
   public wrap<T = (...args: Array<any>) => any>(name: string, fn: T): T
   public wrap<T = (...args: Array<any>) => any>(
     name: string,
-    options: SpanOptions & { parentSpan?: Span },
+    options: TracerSpanOptions,
     fn: T
   ): T
   public wrap<T = (...args: Array<any>) => any>(
     name: string,
-    options: (...args: any[]) => SpanOptions & { parentSpan?: Span },
+    options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
   public wrap(...args: Array<any>) {
@@ -263,25 +312,14 @@ class NextTracer implements Tracer {
   }
 
   public startSpan(name: string): Span
-  public startSpan(name: string, options: SpanOptions): Span
-  public startSpan(name: string, parentSpan: Span): Span
-  public startSpan(name: string, parentSpan: Span, options: SpanOptions): Span
+  public startSpan(name: string, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
-    const [name, optionsOrParentSpan, options] = args
-
-    const manualParentSpan = !!optionsOrParentSpan?.spanContext()
-      ? optionsOrParentSpan
-      : undefined
-    const spanOptions = options
-      ? options
-      : !!manualParentSpan
-      ? undefined
-      : optionsOrParentSpan
+    const [name, options]: [string, TracerSpanOptions | undefined] = args as any
 
     const spanContext = this.getSpanContext(
-      manualParentSpan ?? this.getActiveScopeSpan()
+      options?.parentSpan ?? this.getActiveScopeSpan()
     )
-    return this.tracerInstance.startSpan(name, spanOptions, spanContext)
+    return this.getTracerInstance().startSpan(name, options, spanContext)
   }
 
   private getSpanContext(parentSpan?: Span) {
@@ -298,9 +336,7 @@ class NextTracer implements Tracer {
 }
 
 const { configureTracer, getTracer } = (() => {
-  const NOOP_TRACER = 'noop_tracer'
-  const tracerMap: Record<string, Tracer> = {}
-  let traceConfig: (TraceConfig & { provider: BasicTracerProvider }) | undefined
+  const tracer = new NextTracer()
 
   return {
     /**
@@ -309,27 +345,8 @@ const { configureTracer, getTracer } = (() => {
      */
     configureTracer: (
       options: TraceConfig & { provider: BasicTracerProvider }
-    ) => {
-      if (!traceConfig) {
-        traceConfig = options
-      } else {
-        warn(
-          `Cannot configure tracers multiple times, new configuration will be ignored`
-        )
-      }
-    },
-    getTracer: (name?: string): Tracer => {
-      const tracerName =
-        name ??
-        traceConfig?.defaultTracerName ??
-        traceConfig?.serviceName ??
-        NOOP_TRACER
-      if (tracerMap[tracerName]) {
-        return tracerMap[tracerName]
-      }
-
-      return (tracerMap[tracerName] = new NextTracer(tracerName, traceConfig))
-    },
+    ) => tracer.setTraceConfig(options),
+    getTracer: () => tracer,
   }
 })()
 
@@ -341,6 +358,6 @@ export {
   SpanOptions,
   ContextAPI,
   SpanStatusCode,
-  closeSpanWithError,
+  TracerSpanOptions,
   SemanticAttributes,
 }
