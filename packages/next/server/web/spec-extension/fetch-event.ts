@@ -10,13 +10,22 @@ export class NextFetchEvent extends FetchEvent {
     this.sourcePage = params.page
   }
 
-  // @ts-ignore
+  /**
+   * @deprecated The `request` is now the first parameter and the API is now async.
+   *
+   * Read more: https://nextjs.org/docs/messages/middleware-new-signature
+   */
   get request() {
     throw new DeprecationError({
       page: this.sourcePage,
     })
   }
 
+  /**
+   * @deprecated Using `respondWith` is no longer needed.
+   *
+   * Read more: https://nextjs.org/docs/messages/middleware-new-signature
+   */
   respondWith() {
     throw new DeprecationError({
       page: this.sourcePage,

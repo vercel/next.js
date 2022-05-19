@@ -35,15 +35,15 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 ## When does getStaticPaths run
 
-`getStaticPaths` always runs on the server and never on the client. You can validate code written inside `getStaticPaths` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
+`getStaticPaths` will only run during build in production, it will not be called during runtime. You can validate code written inside `getStaticPaths` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
 
-- `getStaticPaths` runs during `next build` for Pages included in `paths`
-- `getStaticPaths` runs on-demand in the background when using `fallback: true`
-- `getStaticPaths` runs on-demand blocking rendering when using `fallback: blocking`
+- `getStaticProps` runs during `next build` for any `paths` returned during build
+- `getStaticProps` runs in the background when using `fallback: true`
+- `getStaticProps` is called before initial render when using `fallback: blocking`
 
 ## Where can I use getStaticPaths
 
-`getStaticPaths` can only be exported from a **page**. You **cannot** export it from non-page files.
+`getStaticPaths` can only be exported from a [dynamic route](/docs/routing/dynamic-routes.md) that also uses `getStaticProps`. You **cannot** export it from non-page files e.g. from your `components` folder.
 
 Note that you must use export `getStaticPaths` as a standalone function — it will **not** work if you add `getStaticPaths` as a property of the page component.
 

@@ -15,7 +15,7 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
-const commands: { [command: string]: () => Promise<cliCommand> } = {
+export const commands: { [command: string]: () => Promise<cliCommand> } = {
   build: () => Promise.resolve(require('../cli/next-build').nextBuild),
   start: () => Promise.resolve(require('../cli/next-start').nextStart),
   export: () => Promise.resolve(require('../cli/next-export').nextExport),
@@ -41,6 +41,9 @@ const args = arg(
     permissive: true,
   }
 )
+
+// Detect if react-dom is enabled streaming rendering mode
+const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
@@ -104,10 +107,33 @@ if (process.env.NODE_ENV) {
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+;(process.env as any).NEXT_RUNTIME = 'nodejs'
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
+
+// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
+if (process.versions.pnp === '3') {
+  const nodeVersionParts = process.versions.node
+    .split('.')
+    .map((v) => Number(v))
+
+  if (
+    nodeVersionParts[0] < 16 ||
+    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
+  ) {
+    log.warn(
+      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
+    )
+  }
+}
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT', () => process.exit(0))
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))

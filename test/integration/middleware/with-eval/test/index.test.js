@@ -62,7 +62,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
 
     it('does not has problems with eval in page or server code', async () => {
       const html = await renderViaHTTP(context.appPort, `/`)
-      expect(html).toMatch(/>100<!-- --> and <!-- -->100<\//)
+      expect(html).toMatch(/>.*?100.*?and.*?100.*?<\//)
       await waitFor(500)
       expect(output).not.toContain(DYNAMIC_CODE_ERROR)
     })

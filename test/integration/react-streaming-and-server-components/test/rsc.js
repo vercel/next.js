@@ -1,18 +1,18 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
-
-import { distDir } from './utils'
-
-function getNodeBySelector(html, selector) {
-  const $ = cheerio.load(html)
-  return $(selector)
-}
+import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
+  const distDir = join(context.appDir, '.next')
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -20,14 +20,16 @@ export default function (context, { runtime, env }) {
       },
     })
 
+    const browser = await webdriver(context.appPort, '/')
+    const scriptTagContent = await browser.elementById('client-script').text()
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-
+    expect(homeHTML).toMatch('<meta name="rsc-title" content="index"/>')
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
-    expect(homeHTML).toContain('path:/')
-    expect(homeHTML).toContain('foo.client')
+    expect(homeHTML).toMatch(/<\/body><\/html>$/)
+    expect(scriptTagContent).toBe(';')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -55,14 +57,45 @@ export default function (context, { runtime, env }) {
     expect(html).toContain('foo.client')
   })
 
+  it('should resolve different kinds of components correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/shared')
+    const main = getNodeBySelector(html, '#main').html()
+
+    // Should have 5 occurrences of "client_component".
+    expect([...main.matchAll(/client_component/g)].length).toBe(5)
+
+    // Should have 2 occurrences of "shared:server", and 2 occurrences of
+    // "shared:client".
+    const sharedServerModule = [...main.matchAll(/shared:server:(\d+)/g)]
+    const sharedClientModule = [...main.matchAll(/shared:client:(\d+)/g)]
+    expect(sharedServerModule.length).toBe(2)
+    expect(sharedClientModule.length).toBe(2)
+
+    // Should have 2 modules created for the shared component.
+    expect(sharedServerModule[0][1]).toBe(sharedServerModule[1][1])
+    expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
+    expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
+
+    // Note: This is currently unsupported because packages from another layer
+    // will not be re-initialized by webpack.
+    // Should import 2 module instances for node_modules too.
+    // const modFromClient = main.match(
+    //   /node_modules instance from \.client\.js:(\d+)/
+    // )
+    // const modFromServer = main.match(
+    //   /node_modules instance from \.server\.js:(\d+)/
+    // )
+    // expect(modFromClient[1]).not.toBe(modFromServer[1])
+  })
+
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
     const linkText = getNodeBySelector(
       linkHTML,
-      'div[hidden] > a[href="/"]'
+      '#__next > div > a[href="/"]'
     ).text()
 
-    expect(linkText).toContain('go home')
+    expect(linkText).toContain('home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
 
@@ -82,13 +115,70 @@ export default function (context, { runtime, env }) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should render dynamic routes correctly', async () => {
+    const dynamicRoute1HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic1'
+    )
+    const dynamicRoute2HTML = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic2'
+    )
+
+    expect(dynamicRoute1HTML).toContain('query: dynamic1')
+    expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute2HTML).toContain('query: dynamic2')
+    expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+  })
+
+  it('should be able to navigate between rsc pages', async () => {
+    let content
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.waitForElementByCss('#goto-next-link').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/next-api/link`
+    )
+    await browser.waitForElementByCss('#goto-home').click()
+    await new Promise((res) => setTimeout(res, 1000))
+    expect(await browser.url()).toBe(`http://localhost:${context.appPort}/`)
+    content = await browser.elementByCss('#__next').text()
+    expect(content).toContain('component:index.server')
+
+    await browser.waitForElementByCss('#goto-streaming-rsc').click()
+
+    // Wait for navigation and streaming to finish.
+    await check(
+      () => browser.elementByCss('#content').text(),
+      'next_streaming_data'
+    )
+    expect(await browser.url()).toBe(
+      `http://localhost:${context.appPort}/streaming-rsc`
+    )
+  })
+
+  it('should handle streaming server components correctly', async () => {
+    const browser = await webdriver(context.appPort, '/streaming-rsc')
+    const content = await browser.eval(
+      `document.querySelector('#content').innerText`
+    )
+    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should escape streaming data correctly', async () => {
+    const browser = await webdriver(context.appPort, '/escaping-rsc')
+    const manipulated = await browser.eval(`window.__manipulated_by_injection`)
+    expect(manipulated).toBe(undefined)
+  })
+
   // Disable next/image for nodejs runtime temporarily
   if (runtime === 'edge') {
     it('should suspense next/image in server components', async () => {
       const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
       const imageTag = getNodeBySelector(
         imageHTML,
-        'div[hidden] > span > span > img'
+        '#__next > span > span > img'
       )
 
       expect(imageTag.attr('src')).toContain('data:image')
@@ -97,7 +187,7 @@ export default function (context, { runtime, env }) {
 
   it('should refresh correctly with next/link', async () => {
     // Select the button which is not hidden but rendered
-    const selector = '#__next #refresh'
+    const selector = '#__next #goto-next-link'
     let hasFlightRequest = false
     const browser = await webdriver(context.appPort, '/', {
       beforePageLoad(page) {
@@ -122,7 +212,7 @@ export default function (context, { runtime, env }) {
       expect(hasFlightRequest).toBe(true)
     }
     const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('refresh')
+    expect(refreshText).toBe('next link')
   })
 
   if (env === 'dev') {
@@ -137,38 +227,47 @@ export default function (context, { runtime, env }) {
         .readFileSync(join(distServerDir, 'external-imports.js'))
         .toString()
 
-      expect(bundle).not.toContain('moment')
+      expect(bundle).not.toContain('non-isomorphic-text')
     })
   }
 
-  it('should handle multiple named exports correctly', async () => {
-    const clientExportsHTML = await renderViaHTTP(
-      context.appPort,
-      '/client-exports'
-    )
+  it('should not pick browser field from package.json for external libraries', async () => {
+    const html = await renderViaHTTP(context.appPort, '/external-imports')
+    expect(html).toContain('isomorphic-export')
+  })
 
-    expect(
-      getNodeBySelector(
-        clientExportsHTML,
-        'div[hidden] > div > #named-exports'
-      ).text()
-    ).toBe('abcde')
-    expect(
-      getNodeBySelector(
-        clientExportsHTML,
-        'div[hidden] > div > #default-exports-arrow'
-      ).text()
-    ).toBe('client-default-export-arrow')
+  it('should handle various kinds of exports correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/various-exports')
+    const content = getNodeBySelector(html, '#__next').text()
 
-    const browser = await webdriver(context.appPort, '/client-exports')
-    const textNamedExports = await browser
-      .waitForElementByCss('#named-exports')
-      .text()
-    const textDefaultExportsArrow = await browser
-      .waitForElementByCss('#default-exports-arrow')
-      .text()
-    expect(textNamedExports).toBe('abcde')
-    expect(textDefaultExportsArrow).toBe('client-default-export-arrow')
+    expect(content).toContain('abcde')
+    expect(content).toContain('default-export-arrow.client')
+    expect(content).toContain('named.client')
+
+    const browser = await webdriver(context.appPort, '/various-exports')
+    const hydratedContent = await browser.waitForElementByCss('#__next').text()
+
+    expect(hydratedContent).toContain('abcde')
+    expect(hydratedContent).toContain('default-export-arrow.client')
+    expect(hydratedContent).toContain('named.client')
+    expect(hydratedContent).toContain('cjs-shared')
+    expect(hydratedContent).toContain('cjs-client')
+    expect(hydratedContent).toContain('Export All: one, two, two')
+  })
+
+  it('should support native modules in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/native-module')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('fs: function')
+    expect(content).toContain('foo.client')
+  })
+
+  it('should support the re-export syntax in server component', async () => {
+    const html = await renderViaHTTP(context.appPort, '/re-export')
+    const content = getNodeBySelector(html, '#__next').text()
+
+    expect(content).toContain('This should be in red')
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

@@ -143,8 +143,11 @@
           ]
         },
         {
-          "title": "Middleware",
-          "path": "/docs/middleware.md"
+          "path": "/docs/middleware",
+          "redirect": {
+            "destination": "/docs/advanced-features/middleware",
+            "permanent": true
+          }
         },
         {
           "title": "Going to Production",
@@ -256,6 +259,10 @@
               "path": "/docs/advanced-features/src-directory.md"
             },
             {
+              "title": "CI Build Caching",
+              "path": "/docs/advanced-features/ci-build-caching.md"
+            },
+            {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
             },
@@ -264,8 +271,16 @@
               "path": "/docs/advanced-features/measuring-performance.md"
             },
             {
+              "title": "Middleware (Beta)",
+              "path": "/docs/advanced-features/middleware.md"
+            },
+            {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Error Handling",
+              "path": "/docs/advanced-features/error-handling.md"
             },
             {
               "title": "Source Maps",
@@ -307,6 +322,10 @@
                 {
                   "title": "React Server Components",
                   "path": "/docs/advanced-features/react-18/server-components.md"
+                },
+                {
+                  "title": "Switchable Runtime",
+                  "path": "/docs/advanced-features/react-18/switchable-runtime.md"
                 }
               ]
             }

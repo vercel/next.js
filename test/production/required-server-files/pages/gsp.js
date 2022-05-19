@@ -1,11 +1,14 @@
 import fs from 'fs'
 import path from 'path'
 
+let gspCalls = 0
+
 export async function getStaticProps() {
   const data = await fs.promises.readFile(
     path.join(process.cwd(), 'data.txt'),
     'utf8'
   )
+  gspCalls += 1
 
   if (data.trim() === 'hide') {
     return {
@@ -18,6 +21,7 @@ export async function getStaticProps() {
     props: {
       hello: 'world',
       data,
+      gspCalls,
     },
     revalidate: 1,
   }

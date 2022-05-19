@@ -39,6 +39,7 @@ export interface RequestData {
     params?: { [key: string]: string }
   }
   url: string
+  body?: ReadableStream<Uint8Array>
 }
 
 export interface FetchEventResult {

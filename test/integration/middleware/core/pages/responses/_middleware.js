@@ -32,6 +32,15 @@ export async function middleware(request, ev) {
     return next
   }
 
+  if (url.pathname === '/responses/two-cookies') {
+    const headers = new Headers()
+    headers.append('set-cookie', 'foo=chocochip')
+    headers.append('set-cookie', 'bar=chocochip')
+    return new Response('cookies set', {
+      headers,
+    })
+  }
+
   // Streams a basic response
   if (url.pathname === '/responses/stream-a-response') {
     ev.waitUntil(

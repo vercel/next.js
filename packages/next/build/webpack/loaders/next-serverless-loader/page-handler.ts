@@ -6,7 +6,7 @@ import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
 import { tryGetPreviewData } from '../../../../server/api-utils/node'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
@@ -65,7 +65,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     _params?: any
   ) {
     let Component
-    let App
+    let AppMod
     let config
     let Document
     let Error
@@ -78,7 +78,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       getServerSideProps,
       getStaticPaths,
       Component,
-      App,
+      AppMod,
       config,
       { default: Document },
       { default: Error },
@@ -103,8 +103,9 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
-      App,
+      AppMod,
       Document,
+      ComponentMod: { default: Component },
       buildManifest,
       getStaticProps,
       getServerSideProps,
@@ -138,7 +139,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(req, parsedUrl)
+      handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export
@@ -192,6 +193,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           defaultLocale,
           domainLocales: i18n?.domains,
           optimizeCss: process.env.__NEXT_OPTIMIZE_CSS,
+          nextScriptWorkers: process.env.__NEXT_SCRIPT_WORKERS,
           crossOrigin: process.env.__NEXT_CROSS_ORIGIN,
         },
         options

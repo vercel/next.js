@@ -38,6 +38,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-prismic cms-prismic-app
 # or
 yarn create next-app --example cms-prismic cms-prismic-app
+# or
+pnpm create next-app -- --example cms-prismic cms-prismic-app
 ```
 
 ## Configuration

@@ -1,5 +1,5 @@
 import type { BuildManifest } from '../../server/get-page-files'
-import type { NEXT_DATA, MaybeDeferContentHook } from './utils'
+import type { NEXT_DATA } from './utils'
 
 import { createContext } from 'react'
 
@@ -24,16 +24,21 @@ export type HtmlProps = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
+  scriptLoader: {
+    afterInteractive?: string[]
+    beforeInteractive?: any[]
+    worker?: any[]
+  }
   locale?: string
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
-  useMaybeDeferContent: MaybeDeferContentHook
   crossOrigin?: string
   optimizeCss?: boolean
   optimizeFonts?: boolean
+  nextScriptWorkers?: boolean
   runtime?: 'edge' | 'nodejs'
+  hasConcurrentFeatures?: boolean
 }
 
 export const HtmlContext = createContext<HtmlProps>(null as any)
