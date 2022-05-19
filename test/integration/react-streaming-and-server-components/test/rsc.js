@@ -270,6 +270,13 @@ export default function (context, { runtime, env }) {
     expect(content).toContain('This should be in red')
   })
 
+  it('should SSR styled-jsx correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/styled-jsx')
+    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+
+    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
+  })
+
   it('should handle 404 requests and missing routes correctly', async () => {
     const id = '#text'
     const content = 'custom-404-page'
