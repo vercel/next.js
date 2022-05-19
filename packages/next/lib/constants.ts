@@ -19,8 +19,8 @@ export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
 export const API_ROUTE = /^\/api(?:\/|$)/
 
 // Regex for middleware
-export const MIDDLEWARE_ROUTE = /_middleware$/
-export const MIDDLEWARE_FILENAME = '_middleware'
+export const MIDDLEWARE_ROUTE = /middleware$/
+export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_FILE = `/${MIDDLEWARE_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
