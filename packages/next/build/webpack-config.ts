@@ -10,6 +10,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
   VIEWS_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -671,6 +672,7 @@ export default async function getBaseWebpackConfig(
             [VIEWS_DIR_ALIAS]: viewsDir,
           }
         : {}),
+      [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
@@ -816,7 +818,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic|script)$)|string-hash$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1033,7 +1035,7 @@ export default async function getBaseWebpackConfig(
                 enforce: true,
                 name: 'rsc-runtime-deps',
                 filename: 'rsc-runtime-deps.js',
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
               },
             }
           : undefined
@@ -1278,7 +1280,7 @@ export default async function getBaseWebpackConfig(
               // Move shared dependencies from sc_server and sc_client into the
               // same layer.
               {
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js)/,
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
                 layer: 'rsc_shared_deps',
               },
             ]

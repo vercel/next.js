@@ -1,6 +1,6 @@
 import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
-import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
+import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -10,6 +10,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
 export interface MiddlewareManifest {
@@ -357,12 +358,16 @@ function getCreateAssets(params: {
         continue
       }
 
+      const { namedRegex } = getNamedMiddlewareRegex(page, {
+        catchAll: !metadata.edgeSSR,
+      })
+
       middlewareManifest.middleware[page] = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp: getMiddlewareRegex(page, !metadata.edgeSSR).namedRegex!,
+        regexp: namedRegex,
         wasm: Array.from(metadata.wasmBindings),
       }
     }
@@ -395,7 +400,11 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
             (file) =>
               file.startsWith('pages/') && !file.endsWith('.hot-update.js')
           )
-          .map((file) => 'server/' + file.replace('.js', '.__sc_client__.js'))
+          .map(
+            (file) =>
+              'server/' +
+              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+          )
       )
     }
 

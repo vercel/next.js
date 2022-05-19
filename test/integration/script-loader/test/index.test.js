@@ -203,6 +203,24 @@ describe('Next.js Script - Primary Strategies', () => {
     ).toBeGreaterThan(0)
   })
 
+  it('priority beforeInteractive with inline script should execute', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page7')
+
+      await waitFor(1000)
+
+      const logs = await browser.log()
+      expect(
+        logs.some((log) =>
+          log.message.includes('beforeInteractive inline script run')
+        )
+      ).toBe(true)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('Does not duplicate inline scripts', async () => {
     let browser
     try {
