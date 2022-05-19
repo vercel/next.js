@@ -22,6 +22,7 @@ import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
+import { MIDDLEWARE_FILENAME } from '../../lib/constants'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -276,7 +277,7 @@ export default class DevServer extends Server {
       const views = this.viewsDir ? [this.viewsDir] : []
       const directories = [...pages, ...views]
       const files = this.nextConfig.pageExtensions.map((extension) =>
-        pathJoin(this.dir, `_middleware.${extension}`)
+        pathJoin(this.dir, `${MIDDLEWARE_FILENAME}.${extension}`)
       )
 
       wp.watch(files, directories, 0)
@@ -821,13 +822,11 @@ export default class DevServer extends Server {
     pathname: string,
     isSSR?: boolean
   ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : getMiddlewareFilepath(pathname))
+    return this.hasPage(isSSR ? pathname : MIDDLEWARE_FILE)
   }
 
   protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
-    return this.hotReloader!.ensurePage(
-      isSSR ? pathname : getMiddlewareFilepath(pathname)
-    )
+    return this.hotReloader!.ensurePage(isSSR ? pathname : MIDDLEWARE_FILE)
   }
 
   generateRoutes() {
@@ -1114,10 +1113,4 @@ export default class DevServer extends Server {
 
     return false
   }
-}
-
-function getMiddlewareFilepath(pathname: string) {
-  return pathname.endsWith('/')
-    ? `${pathname}_middleware`
-    : `${pathname}/_middleware`
 }
