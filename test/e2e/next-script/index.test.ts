@@ -4,6 +4,69 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { waitFor } from 'next-test-utils'
 
+describe('beforeInteractive', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+          
+          export default function Document() {
+            return (
+              <Html>
+                <Head>
+                  <Script
+                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                    strategy="beforeInteractive"
+                  ></Script>
+                </Head>
+                <body>
+                  <Main />
+                  <NextScript />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          import Script from 'next/script'
+        
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+      dependencies: {
+        react: '17.0.2',
+        'react-dom': '17.0.2',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: BrowserInterface
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="beforeInteractive"]')`
+      )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
 describe('experimental.nextScriptWorkers: false with no Partytown dependency', () => {
   let next: NextInstance
 

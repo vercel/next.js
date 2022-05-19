@@ -13,7 +13,7 @@ use swc_common::{
 };
 use swc_ecmascript::{
     ast::*,
-    utils::{ident::IdentLike, prepend, private_ident, quote_ident, ExprExt, ExprFactory, Id},
+    utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
     visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
@@ -140,7 +140,12 @@ impl VisitMut for TranspileCssProp {
                                     ..
                                 }) => match &mut **v {
                                     Expr::Tpl(..) => *v.take(),
-                                    Expr::TaggedTpl(v) if v.tag.is_ident_ref_to("css".into()) => {
+                                    Expr::TaggedTpl(v)
+                                        if match &*v.tag {
+                                            Expr::Ident(i) => &*i.sym == "css",
+                                            _ => false,
+                                        } =>
+                                    {
                                         Expr::Tpl(v.tpl.take())
                                     }
                                     Expr::Object(..) => *v.take(),
@@ -348,7 +353,7 @@ impl VisitMut for TranspileCssProp {
                 span: DUMMY_SP,
                 local: import_name,
             });
-            prepend(
+            prepend_stmt(
                 &mut n.body,
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
