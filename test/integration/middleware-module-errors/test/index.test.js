@@ -20,7 +20,7 @@ const context = {
   appDir: join(__dirname, '../'),
   buildLogs: { output: '', stdout: '', stderr: '' },
   logs: { output: '', stdout: '', stderr: '' },
-  middleware: new File(join(__dirname, '../_middleware.js')),
+  middleware: new File(join(__dirname, '../middleware.js')),
   page: new File(join(__dirname, '../pages/index.js')),
 }
 

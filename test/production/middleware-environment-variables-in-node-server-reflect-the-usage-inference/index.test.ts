@@ -17,7 +17,7 @@ describe('middleware environment variables in node server reflect the usage infe
         'pages/index.js': `
           export default function () { return <div>Hello, world!</div> }
         `,
-        '_middleware.js': `
+        'middleware.js': `
           export default function middleware() {
             return new Response(JSON.stringify({
               canBeInferred: process.env.CAN_BE_INFERRED,

@@ -29,7 +29,7 @@ describe('dependencies can use env vars in middlewares', () => {
           export default function () { return <div>Hello, world!</div> }
         `,
 
-        '_middleware.js': `
+        'middleware.js': `
           import customPackage from 'my-custom-package';
           export default function middleware(_req) {
             return new Response(JSON.stringify({

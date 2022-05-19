@@ -8,7 +8,7 @@ describe('reading request body in middleware', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        '_middleware.js': `
+        'middleware.js': `
           const { NextResponse } = require('next/server');
 
           export default async function middleware(request) {

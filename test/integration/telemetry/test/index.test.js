@@ -789,9 +789,9 @@ describe('Telemetry CLI', () => {
     expect(nextScriptWorkers).toContain(`"invocationCount": 1`)
   })
 
-  it('emits telemetry for usage of _middleware', async () => {
+  it('emits telemetry for usage of middleware', async () => {
     await fs.writeFile(
-      path.join(appDir, '_middleware.js'),
+      path.join(appDir, 'middleware.js'),
       `export function middleware () { }`
     )
 
@@ -800,7 +800,7 @@ describe('Telemetry CLI', () => {
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 
-    await fs.remove(path.join(appDir, '_middleware.js'))
+    await fs.remove(path.join(appDir, 'middleware.js'))
 
     const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
     const optimizedEvt = regex.exec(stderr).pop()
