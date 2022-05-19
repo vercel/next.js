@@ -3,7 +3,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
 
@@ -29,7 +29,7 @@ describe('should set-up next', () => {
   afterAll(() => next.destroy())
 
   it('should have built and started', async () => {
-    const html = await renderViaHTTP(next.url, '/static')
-    expect(html).toContain('hello from middleware')
+    const response = await fetchViaHTTP(next.url, '/static')
+    expect(response.headers.get('data')).toEqual('hello from middleware')
   })
 })

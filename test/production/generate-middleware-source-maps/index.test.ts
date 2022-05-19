@@ -18,8 +18,9 @@ describe('experimental.middlewareSourceMaps: true', () => {
           export default function () { return <div>Hello, world!</div> }
         `,
         'middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() { 
-            return new Response("Hello, world!");
+            return NextResponse.next();
           } 
         `,
       },
@@ -48,8 +49,9 @@ describe('experimental.middlewareSourceMaps: false', () => {
           export default function () { return <div>Hello, world!</div> }
         `,
         'middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() {
-            return new Response("Hello, world!");
+            return NextResponse.next();
           }
         `,
       },

@@ -54,11 +54,14 @@ export default class MiddlewarePlugin {
   apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
-
       /**
        * This is the static code analysis phase.
        */
-      const codeAnalyzer = getCodeAnalizer({ dev: this.dev, compiler })
+      const codeAnalyzer = getCodeAnalizer({
+        dev: this.dev,
+        compiler,
+        compilation,
+      })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
@@ -94,11 +97,13 @@ export default class MiddlewarePlugin {
 function getCodeAnalizer(params: {
   dev: boolean
   compiler: webpack5.Compiler
+  compilation: webpack5.Compilation
 }) {
   return (parser: webpack5.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
+      compilation,
     } = params
     const { hooks } = parser
 
@@ -177,6 +182,31 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * A handler for calls to `new Response()` so we can fail if user is setting the response's body.
+     */
+    const handleNewResponseExpression = (node: any) => {
+      const firstParameter = node?.arguments?.[0]
+      if (
+        isUserMiddlewareUserFile(parser.state.current) &&
+        firstParameter &&
+        !isNullLiteral(firstParameter) &&
+        !isUndefinedIdentifier(firstParameter)
+      ) {
+        const error = new wp.WebpackError(
+          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
+        )
+        error.name = NAME
+        error.module = parser.state.current
+        error.loc = node.loc
+        if (dev) {
+          compilation.warnings.push(error)
+        } else {
+          compilation.errors.push(error)
+        }
+      }
+    }
+
+    /**
      * A noop handler to skip analyzing some cases.
      * Order matters: for it to work, it must be registered first
      */
@@ -192,6 +222,8 @@ function getCodeAnalizer(params: {
       hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
       hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
     }
+    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
   }
@@ -420,4 +452,18 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
       .map((file) => 'server/' + file)
   )
   return files
+}
+
+function isUserMiddlewareUserFile(module: any) {
+  return (
+    module.layer === 'middleware' && /middleware\.\w+$/.test(module.rawRequest)
+  )
+}
+
+function isNullLiteral(expr: any) {
+  return expr.value === null
+}
+
+function isUndefinedIdentifier(expr: any) {
+  return expr.name === 'undefined'
 }
