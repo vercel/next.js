@@ -31,10 +31,14 @@ npm install next@latest
 ```jsx
 // middleware.ts
 
-import type { NextFetchEvent, NextRequest } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
+import { areCredentialsValid } from '../lib'
 
-export function middleware(req: NextRequest, ev: NextFetchEvent) {
-  return new Response('Hello, world!')
+export function middleware(req: NextRequest) {
+  if (areCredentialsValid(req.headers.get('authorization')) {
+    return NextResponse.next()
+  }
+  return NextResponse.redirect(`/login?from=${req.nextUrl.pathname}`)
 }
 ```
 

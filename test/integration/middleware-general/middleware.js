@@ -10,19 +10,9 @@ export async function middleware(request) {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
       const res = await fetch(apiRoute)
-      return new Response(await res.text(), {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeData(await res.text())
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeError(err)
     }
   }
 
@@ -35,19 +25,9 @@ export async function middleware(request) {
           'user-agent': 'custom-agent',
         },
       })
-      return new Response(await res.text(), {
-        status: 200,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeData(await res.text())
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message }), {
-        status: 500,
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
+      return serializeError(err)
     }
   }
 
@@ -55,19 +35,11 @@ export async function middleware(request) {
     // The next line is required to allow to find the env variable
     // eslint-disable-next-line no-unused-expressions
     process.env.MIDDLEWARE_TEST
-    return NextResponse.json({
-      process: {
-        env: process.env,
-      },
-    })
+    return serializeData(JSON.stringify({ process: { env: process.env } }))
   }
 
   if (url.pathname.endsWith('/globalthis')) {
-    return new NextResponse(JSON.stringify(Object.keys(globalThis)), {
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-      },
-    })
+    return serializeData(JSON.stringify(Object.keys(globalThis)))
   }
 
   if (url.pathname.endsWith('/webcrypto')) {
@@ -84,11 +56,7 @@ export async function middleware(request) {
     } catch (err) {
       response.error = true
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
   }
 
@@ -102,11 +70,7 @@ export async function middleware(request) {
         message: err.message,
       }
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
   }
 
@@ -125,11 +89,7 @@ export async function middleware(request) {
         message: err.message,
       }
     } finally {
-      return new NextResponse(JSON.stringify(response), {
-        headers: {
-          'content-type': 'application/json; charset=utf-8',
-        },
-      })
+      return serializeData(JSON.stringify(response))
     }
   }
 
@@ -147,11 +107,13 @@ export async function middleware(request) {
   if (url.pathname.startsWith('/url')) {
     try {
       if (request.nextUrl.pathname === '/url/relative-url') {
-        return NextResponse.json({ message: String(new URL('/relative')) })
+        new URL('/relative')
+        return Response.next()
       }
 
       if (request.nextUrl.pathname === '/url/relative-request') {
-        return fetch(new Request('/urls-b'))
+        await fetch(new Request('/urls-b'))
+        return Response.next()
       }
 
       if (request.nextUrl.pathname === '/url/relative-redirect') {
@@ -167,14 +129,11 @@ export async function middleware(request) {
       }
 
       if (request.nextUrl.pathname === '/url/relative-next-request') {
-        return fetch(new NextRequest('/urls-b'))
+        await fetch(new NextRequest('/urls-b'))
+        return NextResponse.next()
       }
     } catch (error) {
-      return NextResponse.json({
-        error: {
-          message: error.message,
-        },
-      })
+      return new NextResponse(null, { headers: { error: error.message } })
     }
   }
 
@@ -189,4 +148,12 @@ export async function middleware(request) {
       'req-url-locale': request.nextUrl.locale,
     },
   })
+}
+
+function serializeData(data) {
+  return new NextResponse(null, { headers: { data } })
+}
+
+function serializeError(error) {
+  return new NextResponse(null, { headers: { error: error.message } })
 }

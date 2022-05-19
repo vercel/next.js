@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createElement } from 'react'
-import { renderToString } from 'react-dom/server.browser'
-import { getText } from './lib/utils'
+
+// we use this trick to fool static analysis at build time, so we can build a
+// middleware that will return a body at run time, and check it is disallowed.
+class MyResponse extends Response {}
 
 export async function middleware(request, ev) {
   // eslint-disable-next-line no-undef
@@ -36,9 +37,7 @@ export async function middleware(request, ev) {
     const headers = new Headers()
     headers.append('set-cookie', 'foo=chocochip')
     headers.append('set-cookie', 'bar=chocochip')
-    return new Response('cookies set', {
-      headers,
-    })
+    return new Response(null, { headers })
   }
 
   // Streams a basic response
@@ -47,84 +46,24 @@ export async function middleware(request, ev) {
       (async () => {
         writer.write(encoder.encode('this is a streamed '))
         writer.write(encoder.encode('response '))
-        writer.write(encoder.encode(getText()))
         writer.close()
       })()
     )
 
-    return new Response(readable)
+    return new MyResponse(readable)
   }
 
   if (url.pathname === '/bad-status') {
-    return new Response('Auth required', {
+    return new Response(null, {
       headers: { 'WWW-Authenticate': 'Basic realm="Secure Area"' },
       status: 401,
     })
   }
 
-  if (url.pathname === '/stream-long') {
-    ev.waitUntil(
-      (async () => {
-        writer.write(encoder.encode('this is a streamed '.repeat(10)))
-        await sleep(200)
-        writer.write(encoder.encode('after 2 seconds '.repeat(10)))
-        await sleep(200)
-        writer.write(encoder.encode('after 4 seconds '.repeat(10)))
-        await sleep(200)
-        writer.close()
-      })()
-    )
-
-    return new Response(readable)
-  }
-
   // Sends response
   if (url.pathname === '/send-response') {
-    return new Response(JSON.stringify({ message: 'hi!' }))
-  }
-
-  // Render React component
-  if (url.pathname === '/react') {
-    return new Response(
-      renderToString(
-        createElement(
-          'h1',
-          {},
-          'SSR with React! Hello, ' + url.searchParams.get('name')
-        )
-      )
-    )
-  }
-
-  // Stream React component
-  if (url.pathname === '/react-stream') {
-    ev.waitUntil(
-      (async () => {
-        writer.write(
-          encoder.encode(
-            renderToString(createElement('h1', {}, 'I am a stream'))
-          )
-        )
-        await sleep(500)
-        writer.write(
-          encoder.encode(
-            renderToString(createElement('p', {}, 'I am another stream'))
-          )
-        )
-        writer.close()
-      })()
-    )
-
-    return new Response(readable)
+    return new MyResponse(JSON.stringify({ message: 'hi!' }))
   }
 
   return next
-}
-
-function sleep(time) {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve()
-    }, time)
-  })
 }

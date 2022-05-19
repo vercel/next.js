@@ -157,7 +157,9 @@ it('response.cookie does not modify options', async () => {
   )
 
   const options = { maxAge: 10000 }
-  const response = NextResponse.json(null)
+  const response = new NextResponse(null, {
+    headers: { 'content-type': 'application/json' },
+  })
   response.cookies.set('cookieName', 'cookieValue', options)
   expect(options).toEqual({ maxAge: 10000 })
 })
