@@ -10,6 +10,7 @@ import {
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
 export interface MiddlewareManifest {
@@ -427,7 +428,11 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
             (file) =>
               file.startsWith('pages/') && !file.endsWith('.hot-update.js')
           )
-          .map((file) => 'server/' + file.replace('.js', '.__sc_client__.js'))
+          .map(
+            (file) =>
+              'server/' +
+              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+          )
       )
     }
 
