@@ -40,7 +40,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
 
     it('shows a warning when running code with eval', async () => {
       const res = await fetchViaHTTP(context.appPort, `/using-eval`)
-      const json = await res.json()
+      const json = JSON.parse(res.headers.get('data'))
       await waitFor(500)
       expect(json.value).toEqual(100)
       expect(output).toContain(DYNAMIC_CODE_ERROR)
@@ -54,7 +54,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
 
     it('does not show warning when no code uses eval', async () => {
       const res = await fetchViaHTTP(context.appPort, `/not-using-eval`)
-      const json = await res.json()
+      const json = JSON.parse(res.headers.get('data'))
       await waitFor(500)
       expect(json.value).toEqual(100)
       expect(output).not.toContain(DYNAMIC_CODE_ERROR)

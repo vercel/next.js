@@ -13,7 +13,7 @@ describe('reading request body in middleware', () => {
 
           export default async function middleware(request) {
             if (!request.body) {
-              return new Response('No body', { status: 400 });
+              return new Response(null, { status: 400 });
             }
 
             let json;
@@ -28,13 +28,10 @@ describe('reading request body in middleware', () => {
               return res;
             }
 
-            return new Response(JSON.stringify({
-              root: true,
-              ...json,
-            }), {
+            return new Response(null, {
               status: 200,
               headers: {
-                'content-type': 'application/json',
+                data: JSON.stringify({ root: true, ...json }),
               },
             })
           }
@@ -72,7 +69,7 @@ describe('reading request body in middleware', () => {
       }
     )
     expect(response.status).toEqual(200)
-    expect(await response.json()).toEqual({
+    expect(JSON.parse(response.headers.get('data'))).toEqual({
       foo: 'bar',
       root: true,
     })
@@ -101,6 +98,7 @@ describe('reading request body in middleware', () => {
       api: true,
     })
     expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
   })
 
   it('passes the body to the api endpoint when no body is consumed on middleware', async () => {
@@ -127,5 +125,6 @@ describe('reading request body in middleware', () => {
       api: true,
     })
     expect(response.headers.get('x-from-root-middleware')).toEqual('1')
+    expect(response.headers.has('data')).toBe(false)
   })
 })

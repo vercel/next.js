@@ -138,19 +138,20 @@ function tests(context, locale = '') {
       context.appPort,
       `${locale}/fetch-user-agent-default`
     )
-    expect((await res.json()).headers['user-agent']).toBe('Next.js Middleware')
+    expect(readMiddlewareJSON(res).headers['user-agent']).toBe(
+      'Next.js Middleware'
+    )
 
     const res2 = await fetchViaHTTP(
       context.appPort,
       `${locale}/fetch-user-agent-crypto`
     )
-    expect((await res2.json()).headers['user-agent']).toBe('custom-agent')
+    expect(readMiddlewareJSON(res2).headers['user-agent']).toBe('custom-agent')
   })
 
   it('should contain process polyfill', async () => {
     const res = await fetchViaHTTP(context.appPort, `/global`)
-    const json = await res.json()
-    expect(json).toEqual({
+    expect(readMiddlewareJSON(res)).toEqual({
       process: {
         env: {
           MIDDLEWARE_TEST: 'asdf',
@@ -162,26 +163,24 @@ function tests(context, locale = '') {
 
   it(`should contain \`globalThis\``, async () => {
     const res = await fetchViaHTTP(context.appPort, '/globalthis')
-    const globals = await res.json()
-    expect(globals.length > 0).toBe(true)
+    expect(readMiddlewareJSON(res).length > 0).toBe(true)
   })
 
   it(`should contain crypto APIs`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/webcrypto')
-    const response = await res.json()
-    expect('error' in response).toBe(false)
+    expect('error' in readMiddlewareJSON(res)).toBe(false)
   })
 
   it(`should accept a URL instance for fetch`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/fetch-url')
-    const response = await res.json()
-    expect('error' in response).toBe(true)
+    const response = readMiddlewareJSON(res)
+    expect(response).toHaveProperty('error.name')
     expect(response.error.name).not.toBe('TypeError')
   })
 
   it(`should allow to abort a fetch request`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/abort-controller')
-    const response = await res.json()
+    const response = readMiddlewareJSON(res)
     expect('error' in response).toBe(true)
     expect(response.error.name).toBe('AbortError')
     expect(response.error.message).toBe('The user aborted a request.')
@@ -228,27 +227,14 @@ function tests(context, locale = '') {
     expect(res.headers.get('req-url-locale')).toBe('en')
   })
 
-  it(`should render correctly rewriting with a root subrequest`, async () => {
-    const browser = await webdriver(context.appPort, '/root-subrequest')
-    const element = await browser.elementByCss('.title')
-    expect(await element.text()).toEqual('Dynamic route')
-  })
-
-  it(`should allow subrequests without infinite loops`, async () => {
-    const res = await fetchViaHTTP(context.appPort, `/root-subrequest`)
-    expect(res.headers.get('x-dynamic-path')).toBe('true')
-  })
-
   it('should throw when using URL with a relative URL', async () => {
     const res = await fetchViaHTTP(context.appPort, `/url/relative-url`)
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
+    expect(readMiddlewareError(res)).toContain('Invalid URL')
   })
 
   it('should throw when using Request with a relative URL', async () => {
     const res = await fetchViaHTTP(context.appPort, `/url/relative-request`)
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
+    expect(readMiddlewareError(res)).toContain('Invalid URL')
   })
 
   it('should throw when using NextRequest with a relative URL', async () => {
@@ -256,8 +242,7 @@ function tests(context, locale = '') {
       context.appPort,
       `/url/relative-next-request`
     )
-    const json = await res.json()
-    expect(json.error.message).toContain('Invalid URL')
+    expect(readMiddlewareError(res)).toContain('Invalid URL')
   })
 
   it('should warn when using Response.redirect with a relative URL', async () => {
@@ -265,11 +250,7 @@ function tests(context, locale = '') {
       context.appPort,
       `/url/relative-redirect`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should warn when using NextResponse.redirect with a relative URL', async () => {
@@ -277,11 +258,7 @@ function tests(context, locale = '') {
       context.appPort,
       `/url/relative-next-redirect`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should throw when using NextResponse.rewrite with a relative URL', async () => {
@@ -289,10 +266,14 @@ function tests(context, locale = '') {
       context.appPort,
       `/url/relative-next-rewrite`
     )
-    expect(await response.json()).toEqual({
-      error: {
-        message: expect.stringContaining(urlsError),
-      },
-    })
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
+}
+
+function readMiddlewareJSON(response) {
+  return JSON.parse(response.headers.get('data'))
+}
+
+function readMiddlewareError(response) {
+  return response.headers.get('error')
 }
