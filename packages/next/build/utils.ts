@@ -90,6 +90,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    middlewareManifest,
     useStatic404,
     gzipSize = true,
   }: {
@@ -98,6 +99,7 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
@@ -195,8 +197,6 @@ export async function printTreeView(
     const symbol =
       item === '/_app' || item === '/_app.server'
         ? ' '
-        : item.endsWith('/_middleware')
-        ? 'ƒ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
@@ -352,6 +352,18 @@ export async function printTreeView(
     ])
   })
 
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const sizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
+    )
+
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+  }
+
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
@@ -363,11 +375,6 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        usedSymbols.has('ƒ') && [
-          'ƒ',
-          '(Middleware)',
-          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
-        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',

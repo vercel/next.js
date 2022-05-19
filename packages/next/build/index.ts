@@ -2269,6 +2269,7 @@ export default async function build(
             useStatic404,
             pageExtensions: config.pageExtensions,
             buildManifest,
+            middlewareManifest,
             gzipSize: config.experimental.gzipSize,
           }
         )
