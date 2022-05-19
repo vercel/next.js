@@ -1336,7 +1336,7 @@ export async function renderToHTML(
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
             {renderPageTree(EnhancedApp, EnhancedComponent, {
-              ...(isServerComponent ? props.pageProps : props),
+              ...props,
               router,
             })}
           </AppContainerWithIsomorphicFiberStructure>
