@@ -1,10 +1,10 @@
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
-type GetWithOptionsOutput = [
-  value: string | undefined,
-  options: { [key: string]: string } | undefined
-]
+type GetWithOptionsOutput = {
+  value: string | undefined
+  options: { [key: string]: string }
+}
 
 const normalizeCookieOptions = (options: CookieSerializeOptions) => {
   options = Object.assign({}, options)
@@ -64,17 +64,16 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
-  get = (...args: Parameters<Cookies['get']>): string | undefined => {
-    const [value] = this.getWithOptions(...args)
-    return value
+  get = (...args: Parameters<Cookies['get']>) => {
+    return this.getWithOptions(...args).value
   }
   getWithOptions = (
     ...args: Parameters<Cookies['get']>
   ): GetWithOptionsOutput => {
     const raw = super.get(...args)
-    if (typeof raw !== 'string') return [raw, undefined]
-    const { [args[0]]: value, ...opts } = cookie.parse(raw)
-    return [value, opts]
+    if (typeof raw !== 'string') return { value: raw, options: {} }
+    const { [args[0]]: value, ...options } = cookie.parse(raw)
+    return { value, options }
   }
   set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])

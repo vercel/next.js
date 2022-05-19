@@ -35,7 +35,10 @@ it('reflect .set into `set-cookie`', async () => {
   const response = new NextResponse()
 
   expect(response.cookies.get('foo')).toBe(undefined)
-  expect(response.cookies.getWithOptions('foo')).toEqual([undefined, undefined])
+  expect(response.cookies.getWithOptions('foo')).toEqual({
+    value: undefined,
+    options: {},
+  })
 
   response.cookies
     .set('foo', 'bar', { path: '/test' })
@@ -44,14 +47,14 @@ it('reflect .set into `set-cookie`', async () => {
   expect(response.cookies.get('foo')).toBe('bar')
   expect(response.cookies.get('fooz')).toBe('barz')
 
-  expect(response.cookies.getWithOptions('foo')).toEqual([
-    'bar',
-    { Path: '/test' },
-  ])
-  expect(response.cookies.getWithOptions('fooz')).toEqual([
-    'barz',
-    { Path: '/test2' },
-  ])
+  expect(response.cookies.getWithOptions('foo')).toEqual({
+    value: 'bar',
+    options: { Path: '/test' },
+  })
+  expect(response.cookies.getWithOptions('fooz')).toEqual({
+    value: 'barz',
+    options: { Path: '/test2' },
+  })
 
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
     'foo=bar; Path=/test, fooz=barz; Path=/test2'
@@ -71,7 +74,10 @@ it('reflect .delete into `set-cookie`', async () => {
   )
 
   expect(response.cookies.get('foo')).toBe('bar')
-  expect(response.cookies.getWithOptions('foo')).toEqual(['bar', { Path: '/' }])
+  expect(response.cookies.getWithOptions('foo')).toEqual({
+    value: 'bar',
+    options: { Path: '/' },
+  })
 
   response.cookies.set('fooz', 'barz')
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
@@ -79,10 +85,10 @@ it('reflect .delete into `set-cookie`', async () => {
   )
 
   expect(response.cookies.get('fooz')).toBe('barz')
-  expect(response.cookies.getWithOptions('fooz')).toEqual([
-    'barz',
-    { Path: '/' },
-  ])
+  expect(response.cookies.getWithOptions('fooz')).toEqual({
+    value: 'barz',
+    options: { Path: '/' },
+  })
 
   const firstDelete = response.cookies.delete('foo')
   expect(firstDelete).toBe(true)
@@ -91,7 +97,10 @@ it('reflect .delete into `set-cookie`', async () => {
   )
 
   expect(response.cookies.get('foo')).toBe(undefined)
-  expect(response.cookies.getWithOptions('foo')).toEqual([undefined, undefined])
+  expect(response.cookies.getWithOptions('foo')).toEqual({
+    value: undefined,
+    options: {},
+  })
 
   const secondDelete = response.cookies.delete('fooz')
   expect(secondDelete).toBe(true)
@@ -101,10 +110,10 @@ it('reflect .delete into `set-cookie`', async () => {
   )
 
   expect(response.cookies.get('fooz')).toBe(undefined)
-  expect(response.cookies.getWithOptions('fooz')).toEqual([
-    undefined,
-    undefined,
-  ])
+  expect(response.cookies.getWithOptions('fooz')).toEqual({
+    value: undefined,
+    options: {},
+  })
   expect(response.cookies.size).toBe(0)
 })
 
@@ -126,7 +135,10 @@ it('reflect .clear into `set-cookie`', async () => {
   )
 
   expect(response.cookies.get('foo')).toBe('bar')
-  expect(response.cookies.getWithOptions('foo')).toEqual(['bar', { Path: '/' }])
+  expect(response.cookies.getWithOptions('foo')).toEqual({
+    value: 'bar',
+    options: { Path: '/' },
+  })
 
   response.cookies.set('fooz', 'barz')
   expect(Object.fromEntries(response.headers.entries())['set-cookie']).toBe(
