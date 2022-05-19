@@ -1,5 +1,6 @@
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
+import { MIDDLEWARE_FILE } from '../../../lib/constants'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
@@ -11,7 +12,7 @@ export default function middlewareLoader(this: any) {
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeMiddleware = {
-    page: page.replace(/\/_middleware$/, '') || '/',
+    page: page.replace(new RegExp(`${MIDDLEWARE_FILE}$`), '') || '/',
   }
 
   return `

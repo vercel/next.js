@@ -10,6 +10,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
   VIEWS_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -671,6 +672,7 @@ export default async function getBaseWebpackConfig(
             [VIEWS_DIR_ALIAS]: viewsDir,
           }
         : {}),
+      [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
