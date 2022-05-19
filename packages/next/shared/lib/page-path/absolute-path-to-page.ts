@@ -9,19 +9,24 @@ import { removePagePathTail } from './remove-page-path-tail'
  * relative to the pages folder. It doesn't consider index tail. Example:
  *  - `/Users/rick/my-project/pages/foo/bar/baz.js` -> `/foo/bar/baz`
  *
- * @param pagesDir Absolute path to the pages folder.
  * @param filepath Absolute path to the page.
- * @param extensions Extensions allowed for the page.
+ * @param opts.pagesDir Absolute path to the pages folder.
+ * @param opts.extensions Extensions allowed for the page.
+ * @param opts.keepIndex When true the trailing `index` kept in the path.
  */
 export function absolutePathToPage(
-  pagesDir: string,
   pagePath: string,
-  extensions: string[],
-  stripIndex = true
+  options: {
+    extensions: string[]
+    keepIndex?: boolean
+    pagesDir: string
+  }
 ) {
   return removePagePathTail(
-    normalizePathSep(ensureLeadingSlash(relative(pagesDir, pagePath))),
-    extensions,
-    stripIndex
+    normalizePathSep(ensureLeadingSlash(relative(options.pagesDir, pagePath))),
+    {
+      extensions: options.extensions,
+      keepIndex: options.keepIndex,
+    }
   )
 }
