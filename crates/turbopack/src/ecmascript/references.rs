@@ -650,6 +650,9 @@ async fn value_visitor_inner(
             JsValue::FreeVar(FreeVarKind::Import) => {
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
             }
+            JsValue::FreeVar(FreeVarKind::NodeProcess) => {
+                JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
+            }
             JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
             JsValue::Module(ref name) => match &**name {
                 // TODO check externals
@@ -658,6 +661,7 @@ async fn value_visitor_inner(
                 "fs" => JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",

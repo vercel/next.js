@@ -76,8 +76,7 @@ pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
-platformKey = `${process*0*["platform"]} ${os["arch"]()} ${os["endianness"]()}`
-- *0* process: The Node.js process module: https://nodejs.org/api/process.html
+platformKey = `${FreeVar(NodeProcess)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
 
 subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath

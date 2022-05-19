@@ -41,7 +41,7 @@
                         ),
                         Member(
                             3,
-                            WellKnownObject(
+                            FreeVar(
                                 NodeProcess,
                             ),
                             Constant(
@@ -179,7 +179,7 @@
                         ),
                         Member(
                             3,
-                            WellKnownObject(
+                            FreeVar(
                                 NodeProcess,
                             ),
                             Constant(
@@ -226,7 +226,7 @@
                         ),
                         Member(
                             3,
-                            WellKnownObject(
+                            FreeVar(
                                 NodeProcess,
                             ),
                             Constant(
@@ -242,7 +242,7 @@
                         ),
                         Member(
                             3,
-                            WellKnownObject(
+                            FreeVar(
                                 NodeProcess,
                             ),
                             Constant(
@@ -341,6 +341,67 @@
         ),
     ),
     (
+        "binding6",
+        Call(
+            12,
+            FreeVar(
+                Require,
+            ),
+            [
+                Concat(
+                    10,
+                    [
+                        Constant(
+                            Str(
+                                Atom('esbuild-' type=dynamic),
+                            ),
+                        ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('arch' type=inline),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('processPlatform' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('-' type=inline),
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
         "endianness",
         Member(
             5,
@@ -366,7 +427,7 @@
     ),
     (
         "p",
-        WellKnownObject(
+        FreeVar(
             NodeProcess,
         ),
     ),
@@ -383,6 +444,30 @@
                     Constant(
                         Str(
                             Atom('os' type=inline),
+                        ),
+                    ),
+                ],
+            ),
+            Constant(
+                Str(
+                    Atom('platform' type=dynamic),
+                ),
+            ),
+        ),
+    ),
+    (
+        "processPlatform",
+        Member(
+            5,
+            Call(
+                3,
+                FreeVar(
+                    Require,
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom('process' type=static),
                         ),
                     ),
                 ],
