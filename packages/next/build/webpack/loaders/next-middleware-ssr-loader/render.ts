@@ -48,7 +48,6 @@ export function getRender({
     reactLoadableManifest,
     Document,
     App: appMod.default as AppType,
-    AppMod: appMod,
   }
 
   const server = new WebServer({

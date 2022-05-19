@@ -40,7 +40,6 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  AppMod: any
   isViewPath?: boolean
 }
 
@@ -59,7 +58,6 @@ export async function loadDefaultErrorComponents(distDir: string) {
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
     reactLoadableManifest: {},
     ComponentMod,
-    AppMod,
   }
 }
 
@@ -167,7 +165,6 @@ export async function loadComponents(
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
-    AppMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
