@@ -27,7 +27,6 @@ export function getRender({
   serverComponentManifest,
   config,
   buildId,
-  appServerMod,
 }: {
   dev: boolean
   page: string

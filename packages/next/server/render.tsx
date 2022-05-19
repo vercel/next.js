@@ -79,7 +79,6 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
@@ -199,9 +198,9 @@ function enhanceComponents(
 function renderPageTree(
   App: AppType,
   Component: NextComponentType,
-  { router, ...props }: any
+  props: any
 ) {
-  return <App Component={Component} router={router} pageProps={props} />
+  return <App Component={Component} {...props} />
 }
 
 export type RenderOptsPartial = {
@@ -372,7 +371,6 @@ function useFlightResponse({
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: any,
   Component: any,
   {
     cachePrefix,
@@ -489,7 +487,7 @@ export async function renderToHTML(
     globalThis.__webpack_require__ =
       ComponentMod.__next_rsc__.__webpack_require__
 
-    Component = createServerComponentRenderer(App, Component, {
+    Component = createServerComponentRenderer(Component, {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       inlinedTransformStream: serverComponentsInlinedTransformStream,
       pageData: serverComponentsStaticPageData,
