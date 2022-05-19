@@ -41,7 +41,6 @@ export type LoadComponentsReturnType = {
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
   AppMod: any
-  AppServerMod: any
   isViewPath?: boolean
 }
 
@@ -61,8 +60,6 @@ export async function loadDefaultErrorComponents(distDir: string) {
     reactLoadableManifest: {},
     ComponentMod,
     AppMod,
-    // Use App for fallback
-    AppServerMod: AppMod,
   }
 }
 
@@ -106,7 +103,7 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod, AppServerMod] = await Promise.all([
+  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
     Promise.resolve().then(() =>
       requirePage('/_document', distDir, serverless, rootEnabled)
     ),
@@ -116,11 +113,6 @@ export async function loadComponents(
     Promise.resolve().then(() =>
       requirePage(pathname, distDir, serverless, rootEnabled)
     ),
-    hasServerComponents
-      ? Promise.resolve().then(() =>
-          requirePage('/_app.server', distDir, serverless, rootEnabled)
-        )
-      : null,
   ])
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
@@ -176,7 +168,6 @@ export async function loadComponents(
     pageConfig: ComponentMod.config || {},
     ComponentMod,
     AppMod,
-    AppServerMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,

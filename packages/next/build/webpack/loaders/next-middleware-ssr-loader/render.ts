@@ -50,7 +50,6 @@ export function getRender({
     Document,
     App: appMod.default as AppType,
     AppMod: appMod,
-    AppServerMod: appServerMod,
   }
 
   const server = new WebServer({

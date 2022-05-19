@@ -197,21 +197,11 @@ function enhanceComponents(
 }
 
 function renderPageTree(
-  App: any,
-  Component: any,
-  props: any,
-  isServerComponent: boolean
+  App: AppType,
+  Component: NextComponentType,
+  { router, ...props }: any
 ) {
-  const { router: _, ...rest } = props
-  if (isServerComponent) {
-    return (
-      <App>
-        <Component {...rest} />
-      </App>
-    )
-  }
-
-  return <App Component={Component} {...props} />
+  return <App Component={Component} router={router} pageProps={props} />
 }
 
 export type RenderOptsPartial = {
@@ -400,9 +390,7 @@ function createServerComponentRenderer(
     const id = (React as any).useId()
 
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <App>
-        <Component {...props} />
-      </App>,
+      <Component {...props} />,
       serverComponentManifest
     )
 
@@ -466,8 +454,7 @@ export async function renderToHTML(
     images,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod,
-    AppServerMod,
+    App,
   } = renderOpts
 
   let Document = renderOpts.Document
@@ -482,8 +469,6 @@ export async function renderToHTML(
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
-
-  const App = interopDefault(isServerComponent ? AppServerMod : AppMod)
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -722,12 +707,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(
-            App,
-            OriginComponent,
-            { ...props, router },
-            isServerComponent
-          )}
+          {renderPageTree(App, OriginComponent, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1191,15 +1171,7 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        renderPageTree(
-          App,
-          OriginComponent,
-          {
-            ...props.pageProps,
-            ...serverComponentProps,
-          },
-          true
-        ),
+        <OriginComponent {...props.pageProps} {...serverComponentProps} />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -1327,12 +1299,10 @@ export async function renderToHTML(
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(
-                EnhancedApp,
-                EnhancedComponent,
-                { ...props, router },
-                false
-              )}
+              {renderPageTree(EnhancedApp, EnhancedComponent, {
+                ...props,
+                router,
+              })}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1367,13 +1337,10 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {renderPageTree(
-              // AppServer is included in the EnhancedComponent in ServerComponentWrapper
-              isServerComponent ? React.Fragment : EnhancedApp,
-              EnhancedComponent,
-              { ...(isServerComponent ? props.pageProps : props), router },
-              isServerComponent
-            )}
+            {renderPageTree(EnhancedApp, EnhancedComponent, {
+              ...(isServerComponent ? props.pageProps : props),
+              router,
+            })}
           </AppContainerWithIsomorphicFiberStructure>
         </Body>
       )
