@@ -47,7 +47,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getPageStaticInfo } from './entries'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 
 const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -1302,9 +1302,14 @@ export async function isEdgeRuntimeCompiled(
     }
   }
 
+  const staticInfo = await getPageStaticInfo({
+    pageFilePath: module.resource,
+    nextConfig: config,
+  })
+
   // Check the page runtime as well since we cannot detect the runtime from
   // compilation when it's for the client part of edge function
-  return (await getPageStaticInfo(module.resource, config)).runtime === 'edge'
+  return staticInfo.runtime === 'edge'
 }
 
 export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
