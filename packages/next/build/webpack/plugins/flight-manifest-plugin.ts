@@ -96,8 +96,6 @@ export class FlightManifestPlugin {
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     for (const [name, entry] of compilation.entries.entries()) {
-      if (name === 'pages/_app.server') continue
-
       // Check if the page entry is a server component or not.
       const entryDependency = entry.dependencies?.[0]
       const request = entryDependency?.request

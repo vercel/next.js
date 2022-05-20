@@ -28,8 +28,8 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
+import { isServerComponentPage } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { isServerComponentPage, withoutRSCExtensions } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
@@ -37,17 +37,11 @@ import { serverComponentRegex } from './webpack/loaders/utils'
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
 /**
- * For a given page path removes the provided extensions. `/_app.server` is a
- * special case because it is the only page where we want to preserve the RSC
- * server extension.
+ * For a given page path removes the provided extensions.
  */
 export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
-  const extensions = pagePath.includes('/_app.server.')
-    ? withoutRSCExtensions(pageExtensions)
-    : pageExtensions
-
   let page = normalizePathSep(
-    pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+    pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
 
   page = page.replace(/\/index$/, '')
@@ -118,7 +112,6 @@ export function createPagesMapping({
 
   if (isDev) {
     delete pages['/_app']
-    delete pages['/_app.server']
     delete pages['/_error']
     delete pages['/_document']
   }
@@ -132,7 +125,6 @@ export function createPagesMapping({
     '/_app': `${root}/_app`,
     '/_error': `${root}/_error`,
     '/_document': `${root}/_document`,
-    ...(hasServerComponents ? { '/_app.server': `${root}/_app.server` } : {}),
     ...pages,
   }
 }
@@ -175,7 +167,6 @@ export function getEdgeServerEntry(opts: {
   const loaderParams: MiddlewareSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
@@ -219,7 +210,6 @@ export function getServerlessEntry(opts: {
   const loaderParams: ServerlessLoaderQuery = {
     absolute404Path: opts.pages['/404'] || '',
     absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
