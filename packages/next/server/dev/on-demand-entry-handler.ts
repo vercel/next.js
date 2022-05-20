@@ -3,7 +3,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import { getPageStaticInfo, runDependingOnPageType } from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -14,6 +14,7 @@ import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { MIDDLEWARE_FILE, MIDDLEWARE_FILENAME } from '../../lib/constants'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -236,11 +237,14 @@ export function onDemandEntryHandler({
         })
       }
 
+      const staticInfo = await getPageStaticInfo({
+        pageFilePath: pagePathData.absolutePagePath,
+        nextConfig,
+      })
+
       const promises = runDependingOnPageType({
         page: pagePathData.page,
-        pageRuntime: (
-          await getPageStaticInfo(pagePathData.absolutePagePath, nextConfig)
-        ).runtime,
+        pageRuntime: staticInfo.runtime,
         onClient: () => addPageEntry('client'),
         onServer: () => addPageEntry('server'),
         onEdgeServer: () => addPageEntry('edge-server'),

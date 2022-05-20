@@ -65,10 +65,7 @@ import {
 import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import {
-  getPageStaticInfo,
-  invalidatePageRuntimeCache,
-} from '../../build/entries'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
@@ -345,11 +342,14 @@ export default class DevServer extends Server {
             continue
           }
 
-          invalidatePageRuntimeCache(fileName, meta.safeTime)
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: this.nextConfig,
+          })
+
           runDependingOnPageType({
             page: pageName,
-            pageRuntime: (await getPageStaticInfo(fileName, this.nextConfig))
-              .runtime,
+            pageRuntime: staticInfo.runtime,
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {

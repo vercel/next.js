@@ -19,7 +19,7 @@ import {
   getInvalidator,
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
-import { getPageStaticInfo } from '../../entries'
+import { getPageStaticInfo } from '../../analysis/get-page-static-info'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -96,8 +96,6 @@ export class FlightManifestPlugin {
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     for (const [name, entry] of compilation.entries.entries()) {
-      if (name === 'pages/_app.server') continue
-
       // Check if the page entry is a server component or not.
       const entryDependency = entry.dependencies?.[0]
       const request = entryDependency?.request
@@ -137,7 +135,11 @@ export class FlightManifestPlugin {
         // Parse gSSP and gSP exports from the page source.
         const pageStaticInfo = this.isEdgeServer
           ? {}
-          : await getPageStaticInfo(routeInfo.absolutePagePath, {}, this.dev)
+          : await getPageStaticInfo({
+              pageFilePath: routeInfo.absolutePagePath,
+              nextConfig: {},
+              isDev: this.dev,
+            })
 
         const clientLoader = `next-flight-client-entry-loader?${stringify({
           modules: clientComponentImports,
