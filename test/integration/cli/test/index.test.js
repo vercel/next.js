@@ -491,12 +491,8 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
 
-      // when a stable release is done the non-latest canary
-      // warning will show so skip this check for the stable release
-      if (pkg.version.includes('-canary')) {
-        expect(info.stderr || '').toBe('')
-      }
       expect(info.stdout).toMatch(
         new RegExp(`
     Operating System:
