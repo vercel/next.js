@@ -23,11 +23,12 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
@@ -89,6 +90,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    middlewareManifest,
     useStatic404,
     gzipSize = true,
   }: {
@@ -97,6 +99,7 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
@@ -194,8 +197,6 @@ export async function printTreeView(
     const symbol =
       item === '/_app' || item === '/_app.server'
         ? ' '
-        : item.endsWith('/_middleware')
-        ? 'ƒ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
@@ -351,6 +352,18 @@ export async function printTreeView(
     ])
   })
 
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const sizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
+    )
+
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+  }
+
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
@@ -362,11 +375,6 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        usedSymbols.has('ƒ') && [
-          'ƒ',
-          '(Middleware)',
-          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
-        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',
@@ -1182,12 +1190,9 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const page of pageKeys) {
-    if (MIDDLEWARE_ROUTE.test(page)) {
-      const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
-
-      for (const file of files) {
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (middleware.name === MIDDLEWARE_FILENAME) {
+      for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
           outputPath,
@@ -1197,9 +1202,10 @@ export async function copyTracedFiles(
         await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
         await fs.copyFile(originalPath, fileOutputPath)
       }
-      continue
     }
+  }
 
+  for (const page of pageKeys) {
     const pageFile = path.join(
       distDir,
       'server',

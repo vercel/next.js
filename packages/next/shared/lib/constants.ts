@@ -34,6 +34,7 @@ export const MODERN_BROWSERSLIST_TARGET = [
   'safari 11',
 ]
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
+export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
 // server/middleware-flight-manifest.js
 export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'

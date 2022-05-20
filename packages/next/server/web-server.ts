@@ -2,7 +2,7 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Params } from './router'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { Options } from './base-server'
@@ -71,9 +71,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getHasStaticDir() {
     return false
   }
-  protected async hasMiddleware() {
-    return false
-  }
   protected generateImageRoutes() {
     return []
   }
@@ -86,16 +83,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected generatePublicRoutes() {
     return []
   }
-  protected getMiddleware() {
-    return []
-  }
   protected generateCatchAllMiddlewareRoute() {
     return undefined
   }
   protected getFontManifest() {
-    return undefined
-  }
-  protected getMiddlewareManifest() {
     return undefined
   }
   protected getPagesManifest() {
