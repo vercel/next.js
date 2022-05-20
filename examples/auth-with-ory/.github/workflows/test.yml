@@ -1,0 +1,45 @@
+name: Run Tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  test-cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run build
+      - run: |
+          npm run start &
+          npm run test
+        env:
+          ORY_KRATOS_URL: https://playground.projects.oryapis.com/
+
+  test-self:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run build
+      - run: |
+          git clone --depth 1 --branch master https://github.com/ory/kratos.git ../kratos
+          cd ../kratos
+          git checkout master
+          docker-compose -f quickstart.yml -f contrib/quickstart/kratos/cloud/quickstart.yml up --build --force-recreate -d
+      - run: |
+          npm run start &
+          npm run test
+        env:
+          ORY_KRATOS_URL: http://localhost:4455

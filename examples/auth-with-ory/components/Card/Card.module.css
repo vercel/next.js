@@ -1,0 +1,115 @@
+.card {
+  box-shadow: rgb(0 0 0 / 25%) 0px 0px 4px;
+  background-color: rgb(255, 255, 255);
+  padding: 8px;
+  border-radius: 6px;
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.imageContainer {
+  display: flex;
+  position: relative;
+  height: 140px;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.imageFooter {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 6px;
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: cover;
+  aspect-ratio: 16 / 9;
+}
+
+.category {
+  width: 32px;
+  height: 32px;
+  background: white;
+  padding: 3px;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 6px;
+  color: white;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.title {
+  font-weight: 400;
+  line-height: 1.4rem;
+  font-weight: 400;
+  margin: 0;
+  max-height: 48px;
+  color: inherit;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  width: fit-content;
+  font-size: 14px;
+}
+
+.contentType,
+.richType {
+  height: 24px;
+}
+
+.contentType .tag {
+  background-color: rgb(250, 249, 255);
+  color: rgb(68, 32, 129);
+  border-radius: 6px;
+}
+
+.richType .tag {
+  background-color: rgb(244, 255, 252);
+  color: rgb(34, 70, 61);
+  border-radius: 6px;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #666;
+}
+
+.avatar {
+  border-radius: 9999px;
+  width: 28px;
+  height: 28px;
+}

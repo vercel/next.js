@@ -1,0 +1,19 @@
+name: Run Tests on Production
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+      - run: npm ci
+      - run: npm run test
+        env:
+          CYPRESS_BASE_URL: https://kratos-nextjs-react-example.vercel.app
