@@ -54,6 +54,7 @@ function getBaseSWCOptions({
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
+        plugins: nextConfig.experimental.swcPlugins
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs

@@ -86,6 +86,7 @@ export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
+  swcPlugins?: Array<[string, Record<string, any>]>
   cpus?: number
   sharedPool?: boolean
   plugins?: boolean
