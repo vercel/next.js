@@ -22,3 +22,10 @@ swc_ecmascript = { version = "0.157.0", features = ["codegen", "minifier", "opti
 tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"
+
+# The following are only declared to enable features of transitive dependencies that we need in order to use the plugin feature of swc.
+# This abuses the additive nature of Rust features and is a hack, actually swc should make sure all necessary features for plugins are enabled.
+
+getrandom = { version = "0.2.6", features = ["js"] }
+wasmer-wasi = { version = "2.2.1", default-features = false, features = ["js-default"] }
+swc_plugin_runner = { version = "0.55.0", default-features = false, features = ["memory_cache"] }
