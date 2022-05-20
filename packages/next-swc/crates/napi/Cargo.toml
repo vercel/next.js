@@ -30,5 +30,13 @@ tracing-subscriber = "0.3.9"
 
 tracing-chrome = "0.5.0"
 
+# The following are only declared to enable features of transitive dependencies that we need in order to use the plugin feature of swc.
+# This abuses the additive nature of Rust features and is a hack, actually swc should make sure all necessary features for plugins are enabled.
+
+# The default feature here enables sys-default, which in turn enables host-fs and sys
+wasmer-wasi = { version = "2.2.1" }
+# The default here sets filesystem_cache
+swc_plugin_runner = { version = "0.55.0" }
+
 [build-dependencies]
 napi-build = "1"
