@@ -43,7 +43,7 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
-import { getPageStaticInfo } from '../../build/entries'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { stringify } from 'querystring'
 
@@ -566,11 +566,14 @@ export default class HotReloader {
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
 
+            const staticInfo = await getPageStaticInfo({
+              pageFilePath: absolutePagePath,
+              nextConfig: this.config,
+            })
+
             runDependingOnPageType({
               page,
-              pageRuntime: (
-                await getPageStaticInfo(absolutePagePath, this.config)
-              ).runtime,
+              pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
                 if (!isEdgeServerCompilation) return
                 entries[pageKey].status = BUILDING
