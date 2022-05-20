@@ -121,4 +121,36 @@ describe('views dir rendering', () => {
       expect(pageNow).not.toBe(pageNowRevalidated)
     })
   })
+
+  // TODO: implement
+  describe.skip('getStaticProps and getServerSideProps without ISR', () => {
+    it('should generate getStaticProps data during build an use it', async () => {
+      const getPage = async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          'getstaticprops-getserversideprops-combined/nested'
+        )
+
+        return {
+          $: cheerio.load(html),
+        }
+      }
+      const { $ } = await getPage()
+      expect($('#layout-message').text()).toBe('hello from layout')
+      expect($('#page-message').text()).toBe('hello from page')
+
+      const layoutNow = $('#layout-now').text()
+      const pageNow = $('#page-now').text()
+
+      const { $: $second } = await getPage()
+
+      const layoutNowSecond = $second('#layout-now').text()
+      const pageNowSecond = $second('#page-now').text()
+
+      // Expect that the `Date.now()` is different as it came from getServerSideProps
+      expect(layoutNow).not.toBe(layoutNowSecond)
+      // Expect that the `Date.now()` is the same as it came from getStaticProps
+      expect(pageNow).toBe(pageNowSecond)
+    })
+  })
 })
