@@ -94,7 +94,7 @@ type PreflightEffect =
   | { type: 'refresh' }
   | { type: 'next' }
 
-type HistoryState =
+export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; idx: number } & NextHistoryState)
@@ -641,6 +641,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[]
   isReady: boolean
   isLocaleDomain: boolean
+  asPathInFirstPopStateEvent: string | null
 
   private state: Readonly<{
     route: string
@@ -692,6 +693,7 @@ export default class Router implements BaseRouter {
       isRsc?: boolean
     }
   ) {
+    this.asPathInFirstPopStateEvent = as
     // represents the current component key
     const route = removePathTrailingSlash(pathname)
 
@@ -796,6 +798,9 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
+    const { asPathInFirstPopStateEvent } = this
+    this.asPathInFirstPopStateEvent = null
+
     const state = e.state as HistoryState
 
     if (!state) {
@@ -818,6 +823,11 @@ export default class Router implements BaseRouter {
     }
 
     if (!state.__N) {
+      return
+    }
+
+    // Safari fires popstateevent when reopening the browser.
+    if (state.as === asPathInFirstPopStateEvent) {
       return
     }
 
