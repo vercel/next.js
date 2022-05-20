@@ -9,7 +9,7 @@ name: Build, test, and deploy
 env:
   NAPI_CLI_VERSION: 2.7.0
   TURBO_VERSION: 1.2.9
-  RUST_TOOLCHAIN: nightly-2022-02-23
+  RUST_TOOLCHAIN: nightly-2022-04-23
 
 jobs:
   check-examples:
