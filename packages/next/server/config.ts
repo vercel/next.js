@@ -457,6 +457,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     ).styledComponents
   }
 
+  if (result.experimental && 'emotion' in (result.experimental as any)) {
+    Log.warn(
+      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.emotion = (result.experimental as any).emotion
+  }
+
   if (
     result.experimental &&
     'reactRemoveProperties' in (result.experimental as any)
