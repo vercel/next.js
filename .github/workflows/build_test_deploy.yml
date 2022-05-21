@@ -931,6 +931,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
