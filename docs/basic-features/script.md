@@ -85,14 +85,15 @@ import Script from 'next/script'
 export default function Document() {
   return (
     <Html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
+      <Head>
         <Script
           src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
           strategy="beforeInteractive"
-        ></Script>
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />        
       </body>
     </Html>
   )
