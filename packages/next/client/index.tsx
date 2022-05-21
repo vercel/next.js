@@ -86,7 +86,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isRSCPage: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -331,7 +330,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
-    isRSCPage = !!pageEntrypoint.exports.__next_rsc__
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -647,12 +645,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isRSCPage) {
-    const { Component, err: _, router: __, ...props } = appProps
-    return <Component {...props} />
-  } else {
-    return <App {...appProps} />
-  }
+  return <App {...appProps} />
 }
 
 const wrapApp =
