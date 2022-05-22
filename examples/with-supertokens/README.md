@@ -10,6 +10,8 @@ This is a simple set up for applications protected by SuperTokens.
 npx create-next-app --example with-supertokens with-supertokens-app
 # or
 yarn create next-app --example with-supertokens with-supertokens-app
+# or
+pnpm create next-app -- --example with-supertokens with-supertokens-app
 ```
 
 - Run `yarn install`
