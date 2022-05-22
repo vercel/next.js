@@ -555,18 +555,6 @@ export async function renderToHTML(
     !getServerSideProps &&
     !isServerComponent
 
-  for (const methodName of [
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
-    if ((Component as any)?.[methodName]) {
-      throw new Error(
-        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
-      )
-    }
-  }
-
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
   }
@@ -648,6 +636,18 @@ export async function renderToHTML(
     ) {
       throw new Error(
         `\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+      )
+    }
+  }
+
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)?.[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
     }
   }
