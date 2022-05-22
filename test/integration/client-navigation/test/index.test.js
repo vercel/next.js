@@ -626,6 +626,13 @@ describe('Client Navigation', () => {
           )
 
           expect(scrollPositionAfterTopHash).toBe(0)
+
+          // Scrolls to cjk anchor on the page
+          await browser.elementByCss('#scroll-to-cjk-anchor').click()
+
+          const scrollPositionCJKHash = await browser.eval('window.pageYOffset')
+
+          expect(scrollPositionCJKHash).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -684,6 +691,26 @@ describe('Client Navigation', () => {
 
           const scrollPosition = await browser.eval('window.pageYOffset')
           expect(scrollPosition).toBe(7258)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('should scroll to the specified CJK position to a new page', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+
+          // Scrolls to CJK anchor on the page
+          await browser
+            .elementByCss('#scroll-to-cjk-hash')
+            .click()
+            .waitForElementByCss('#hash-changes-page')
+
+          const scrollPosition = await browser.eval('window.pageYOffset')
+          expect(scrollPosition).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()

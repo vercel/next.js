@@ -37,8 +37,7 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 
 declare global {
@@ -1299,6 +1298,9 @@ export default class Router implements BaseRouter {
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
         if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          // Use the destination from redirect without adding locale
+          options.locale = false
+
           const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
@@ -1399,6 +1401,12 @@ export default class Router implements BaseRouter {
         }
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
+
+      // A hash mark # is the optional last part of a URL
+      const hashRegex = /#.+$/
+      if (shouldScroll && hashRegex.test(as)) {
+        this.scrollToHash(as)
+      }
 
       return true
     } catch (err) {
@@ -1700,15 +1708,17 @@ export default class Router implements BaseRouter {
       return
     }
 
+    // Decode hash to make non-latin anchor works.
+    const rawHash = decodeURIComponent(hash)
     // First we check if the element by id is found
-    const idEl = document.getElementById(hash)
+    const idEl = document.getElementById(rawHash)
     if (idEl) {
       idEl.scrollIntoView()
       return
     }
     // If there's no element with the id, we check the `name` property
     // To mirror browsers
-    const nameEl = document.getElementsByName(hash)[0]
+    const nameEl = document.getElementsByName(rawHash)[0]
     if (nameEl) {
       nameEl.scrollIntoView()
     }
@@ -1917,7 +1927,11 @@ export default class Router implements BaseRouter {
 
     const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+      return getRouteMatcher(
+        getMiddlewareRegex(middleware, {
+          catchAll: !isSSR,
+        })
+      )(cleanedAs)
     })
 
     if (!requiresPreflight) {

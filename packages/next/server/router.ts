@@ -1,5 +1,9 @@
 import type { ParsedUrlQuery } from 'querystring'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type {
+  RouteMatch,
+  Params,
+} from '../shared/lib/router/utils/route-matcher'
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -8,10 +12,6 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
 import { getRequestMeta } from './request-meta'
-
-export type Params = { [param: string]: any }
-
-export type RouteMatch = (pathname: string | null | undefined) => false | Params
 
 type RouteResult = {
   finished: boolean
