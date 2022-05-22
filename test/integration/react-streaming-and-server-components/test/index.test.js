@@ -5,7 +5,6 @@ import fs from 'fs-extra'
 
 import {
   fetchViaHTTP,
-  renderViaHTTP,
   nextBuild,
   runDevSuite,
   runProdSuite,
@@ -15,7 +14,6 @@ import {
   appDir,
   nativeModuleTestAppDir,
   appPage,
-  appServerPage,
   error500Page,
   nextConfig,
 } from './utils'
@@ -24,14 +22,7 @@ import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
-import runtime from './runtime'
-
-const rscAppPage = `
-import Container from '../components/container.server'
-export default function App({children}) {
-  return <Container>{children}</Container>
-}
-`
+import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
 const appWithGlobalCss = `
 import '../styles.css'
@@ -52,7 +43,7 @@ export default function Page500() {
 describe('Edge runtime - errors', () => {
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime. Found `dns` imported.'
+      getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('dns')
     const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
       stderr: true,
     })
@@ -67,7 +58,6 @@ const edgeRuntimeBasicSuite = {
     basic(context, options)
     streaming(context, options)
     rsc(context, options)
-    runtime(context, options)
 
     if (env === 'dev') {
       it('should have content-type and content-encoding headers', async () => {
@@ -183,19 +173,6 @@ const nodejsRuntimeBasicSuite = {
   },
 }
 
-const customAppPageSuite = {
-  runTests: (context) => {
-    it('should render container in app', async () => {
-      const indexHtml = await renderViaHTTP(context.appPort, '/')
-      const indexFlight = await renderViaHTTP(context.appPort, '/?__flight__=1')
-      expect(indexHtml).toContain('container-server')
-      expect(indexFlight).toContain('container-server')
-    })
-  },
-  beforeAll: () => appServerPage.write(rscAppPage),
-  afterAll: () => appServerPage.delete(),
-}
-
 const cssSuite = {
   runTests: css,
   beforeAll: () => appPage.write(appWithGlobalCss),
@@ -206,9 +183,6 @@ runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
 runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-
-runDevSuite('Custom App', appDir, customAppPageSuite)
-runProdSuite('Custom App', appDir, customAppPageSuite)
 
 runDevSuite('CSS', appDir, cssSuite)
 runProdSuite('CSS', appDir, cssSuite)

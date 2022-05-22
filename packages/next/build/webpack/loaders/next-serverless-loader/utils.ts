@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Rewrite } from '../../../../lib/load-custom-routes'
 import type { BuildManifest } from '../../../../server/get-page-files'
+import type { RouteMatch } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../../server/config'
 import type {
   GetServerSideProps,
@@ -13,7 +14,7 @@ import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
+import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
 import {
   matchHas,
@@ -23,7 +24,7 @@ import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
@@ -79,12 +80,12 @@ export function getUtils({
   rewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
 }) {
-  let defaultRouteRegex: ReturnType<typeof getRouteRegex> | undefined
-  let dynamicRouteMatcher: ReturnType<typeof getRouteMatcher> | undefined
+  let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  let dynamicRouteMatcher: RouteMatch | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getRouteRegex(page)
+    defaultRouteRegex = getNamedRouteRegex(page)
     dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
