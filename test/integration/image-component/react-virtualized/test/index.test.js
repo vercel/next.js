@@ -62,7 +62,9 @@ describe('react-virtualized wrapping next/image', () => {
 
     it('should not cancel requests for images', async () => {
       // TODO: this test doesnt work unless we can set `disableCache: true`
-      let browser = await webdriver(appPort, '/', undefined, undefined, true)
+      let browser = await webdriver(appPort, '/', {
+        disableCache: true,
+      })
       expect(cancelCount).toBe(0)
       await browser.eval('window.scrollTo({ top: 100, behavior: "smooth" })')
       await waitFor(100)

@@ -53,6 +53,7 @@ export function addRequestMeta<K extends keyof RequestMeta>(
 }
 
 type NextQueryMetadata = {
+  __nextNotFoundSrcPage?: string
   __nextDefaultLocale?: string
   __nextFallback?: 'true'
   __nextLocale?: string

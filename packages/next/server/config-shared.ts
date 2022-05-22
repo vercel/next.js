@@ -5,7 +5,10 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+  RemotePattern,
+} from '../shared/lib/image-config'
+
+export type PageRuntime = 'nodejs' | 'edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -63,6 +66,8 @@ export interface WebpackConfigContext {
   totalPages: number
   /** The webpack configuration */
   webpack: any
+  /** The current server runtime */
+  nextRuntime?: 'nodejs' | 'edge'
 }
 
 export interface NextJsWebpackConfig {
@@ -74,6 +79,10 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
+  browsersListForSwc?: boolean
+  manualClientBasePath?: boolean
+  newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -85,11 +94,12 @@ export interface ExperimentalConfig {
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeImages?: boolean
   optimizeCss?: boolean
+  nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
+  viewsDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -101,12 +111,27 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: 'nodejs' | 'edge'
+  runtime?: Exclude<PageRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputStandalone?: boolean
+  images?: {
+    layoutRaw: boolean
+    remotePatterns: RemotePattern[]
+  }
+  middlewareSourceMaps?: boolean
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
+  swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
 }
 
 /**
@@ -382,6 +407,13 @@ export interface NextConfig extends Record<string, any> {
           exclude?: string[]
         }
     styledComponents?: boolean
+    emotion?:
+      | boolean
+      | {
+          sourceMap?: boolean
+          autoLabel?: 'dev-only' | 'always' | 'never'
+          labelFormat?: string
+        }
   }
 
   /**
@@ -443,6 +475,11 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
+    // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
+    browsersListForSwc: false,
+    // TODO: change default in next major release (current v12.1.5)
+    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -454,8 +491,8 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeImages: false,
     optimizeCss: false,
+    nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
@@ -464,12 +501,18 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
+    viewsDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
+    images: {
+      layoutRaw: false,
+      remotePatterns: [],
+    },
+    forceSwcTransforms: false,
   },
 }
 

@@ -1,4 +1,4 @@
-import type { BuildManifest } from '../../server/get-page-files'
+import type { HtmlProps } from './html-context'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
@@ -6,9 +6,6 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import type { UrlObject } from 'url'
-import { createContext } from 'react'
-import { formatUrl } from './router/utils/format-url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -107,6 +104,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  notFoundSrcPage?: string
   rsc?: boolean
 }
 
@@ -180,7 +178,10 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -188,45 +189,6 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
-
-export type MaybeDeferContentHook = (
-  name: string,
-  contentFn: () => JSX.Element
-) => [boolean, JSX.Element]
-
-export type HtmlProps = {
-  __NEXT_DATA__: NEXT_DATA
-  dangerousAsPath: string
-  docComponentsRendered: {
-    Html?: boolean
-    Main?: boolean
-    Head?: boolean
-    NextScript?: boolean
-  }
-  buildManifest: BuildManifest
-  ampPath: string
-  inAmpMode: boolean
-  hybridAmp: boolean
-  isDevelopment: boolean
-  dynamicImports: string[]
-  assetPrefix?: string
-  canonicalBase: string
-  headTags: any[]
-  unstable_runtimeJS?: false
-  unstable_JsPreload?: false
-  devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
-  locale?: string
-  disableOptimizedLoading?: boolean
-  styles?: React.ReactElement[] | React.ReactFragment
-  head?: Array<JSX.Element | null>
-  useMaybeDeferContent: MaybeDeferContentHook
-  crossOrigin?: string
-  optimizeCss?: boolean
-  optimizeFonts?: boolean
-  optimizeImages?: boolean
-  runtime?: 'edge' | 'nodejs'
-}
 
 /**
  * Next `API` route request
@@ -294,7 +256,12 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (urlPath: string) => Promise<void>
+  unstable_revalidate: (
+    urlPath: string,
+    opts?: {
+      unstable_onlyGenerated?: boolean
+    }
+  ) => Promise<void>
 }
 
 /**
@@ -303,7 +270,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void | Promise<void>
+) => unknown | Promise<unknown>
 
 /**
  * Utils
@@ -322,6 +289,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
     return result
   }) as T
 }
+
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
@@ -410,36 +382,18 @@ export async function loadGetInitialProps<
   return props
 }
 
-export const urlObjectKeys = [
-  'auth',
-  'hash',
-  'host',
-  'hostname',
-  'href',
-  'path',
-  'pathname',
-  'port',
-  'protocol',
-  'query',
-  'search',
-  'slashes',
-]
-
-export function formatWithValidation(url: UrlObject): string {
-  if (process.env.NODE_ENV === 'development') {
-    if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach((key) => {
-        if (urlObjectKeys.indexOf(key) === -1) {
-          console.warn(
-            `Unknown key passed via urlObject into url.format: ${key}`
-          )
-        }
-      })
+let warnOnce = (_: string) => {}
+if (process.env.NODE_ENV !== 'production') {
+  const warnings = new Set<string>()
+  warnOnce = (msg: string) => {
+    if (!warnings.has(msg)) {
+      console.warn(msg)
     }
+    warnings.add(msg)
   }
-
-  return formatUrl(url)
 }
+
+export { warnOnce }
 
 export const SP = typeof performance !== 'undefined'
 export const ST =
@@ -448,11 +402,7 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
-
-export const HtmlContext = createContext<HtmlProps>(null as any)
-if (process.env.NODE_ENV !== 'production') {
-  HtmlContext.displayName = 'HtmlContext'
-}
+export class NormalizeError extends Error {}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

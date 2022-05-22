@@ -10,6 +10,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 
@@ -232,7 +233,7 @@ Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another 
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
@@ -262,10 +263,10 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
-To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom`:
+To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest @testing-library/react @testing-library/jest-dom
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
 Create a `jest.config.js` file in your project's root directory and add the following:
@@ -325,7 +326,7 @@ module.exports = {
 
     // Handle image imports
     // https://jestjs.io/docs/webpack#handling-static-assets
-    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': `<rootDir>/__mocks__/fileMock.js`,
+    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i': `<rootDir>/__mocks__/fileMock.js`,
 
     // Handle module aliases
     '^@/components/(.*)$': '<rootDir>/components/$1',
@@ -354,19 +355,17 @@ Stylesheets and images aren't used in the tests but importing them may cause err
 
 ```js
 // __mocks__/fileMock.js
-module.exports = 'test-file-stub'
+module.exports = {
+  src: '/img.jpg',
+  height: 24,
+  width: 24,
+  blurDataURL: 'data:image/png;base64,imagedata',
+}
 ```
 
 ```js
 // __mocks__/styleMock.js
 module.exports = {}
-```
-
-If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
-
-```js
-// __mocks__/fileMock.js
-module.exports = '/test-file-stub'
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
@@ -440,6 +439,7 @@ For example, we can add a test to check if the `<Home />` component successfully
 
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {

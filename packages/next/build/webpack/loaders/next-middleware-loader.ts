@@ -1,4 +1,6 @@
+import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
+import { MIDDLEWARE_FILE } from '../../../lib/constants'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
@@ -8,9 +10,20 @@ export type MiddlewareLoaderOptions = {
 export default function middlewareLoader(this: any) {
   const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
+  const buildInfo = getModuleBuildInfo(this._module)
+  buildInfo.nextEdgeMiddleware = {
+    page: page.replace(new RegExp(`${MIDDLEWARE_FILE}$`), '') || '/',
+  }
 
   return `
-        import { adapter } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse } from 'next/dist/server/web/adapter'
+
+        // The condition is true when the "process" module is provided
+        if (process !== global.process) {
+          // prefer local process but global.process has correct "env"
+          process.env = global.process.env;
+          global.process = process;
+        }
 
         var mod = require(${stringifiedPagePath})
         var handler = mod.middleware || mod.default;
@@ -20,11 +33,11 @@ export default function middlewareLoader(this: any) {
         }
 
         export default function (opts) {
-          return adapter({
+          return blockUnallowedResponse(adapter({
               ...opts,
               page: ${JSON.stringify(page)},
               handler,
-          })
+          }))
         }
     `
 }

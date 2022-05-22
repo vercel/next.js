@@ -27,9 +27,14 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
+const WEBPACK_BREAKING_CHANGE_POLYFILLS =
+  '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
+
 function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
+
+let hadMissingSassError = false
 
 // Cleans up webpack error messages.
 function formatMessage(message, verbose) {
@@ -43,10 +48,17 @@ function formatMessage(message, verbose) {
             trace.originName
           )
       )
+
+    let body = message.message
+    const breakingChangeIndex = body.indexOf(WEBPACK_BREAKING_CHANGE_POLYFILLS)
+    if (breakingChangeIndex >= 0) {
+      body = body.slice(0, breakingChangeIndex)
+    }
+
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +
-      message.message +
+      body +
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
         ? '\n\nImport trace for requested module:' +
@@ -111,14 +123,25 @@ function formatMessage(message, verbose) {
   }
 
   // Add helpful message for users trying to use Sass for the first time
-  if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+  if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
     // ./file.module.scss (<<loader info>>) => ./file.module.scss
-    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+    const firstLine = lines[0].split('!')
+    lines[0] = firstLine[firstLine.length - 1]
 
     lines[1] =
       "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
     lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+
+    // dispose of unhelpful stack trace
+    lines = lines.slice(0, 2)
+    hadMissingSassError = true
+  } else if (
+    hadMissingSassError &&
+    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+  ) {
+    // dispose of unhelpful stack trace following missing sass module
+    lines = []
   }
 
   if (!verbose) {
@@ -153,7 +176,11 @@ function formatWebpackMessages(json, verbose) {
   const formattedWarnings = json.warnings.map(function (message) {
     return formatMessage(message, verbose)
   })
-  const result = { errors: formattedErrors, warnings: formattedWarnings }
+  const result = {
+    ...json,
+    errors: formattedErrors,
+    warnings: formattedWarnings,
+  }
   if (!verbose && result.errors.some(isLikelyASyntaxError)) {
     // If there are any syntax errors, show just them.
     result.errors = result.errors.filter(isLikelyASyntaxError)

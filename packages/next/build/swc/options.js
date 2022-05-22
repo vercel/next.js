@@ -5,7 +5,24 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
-export function getBaseSWCOptions({
+export function getParserOptions({ filename, jsConfig, ...rest }) {
+  const isTSFile = filename.endsWith('.ts')
+  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
+  return {
+    ...rest,
+    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    dynamicImport: true,
+    decorators: enableDecorators,
+    // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    importAssertions: true,
+  }
+}
+
+function getBaseSWCOptions({
   filename,
   jest,
   development,
@@ -15,14 +32,16 @@ export function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
 }) {
-  const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
+  )
+  const useDefineForClassFields = Boolean(
+    jsConfig?.compilerOptions?.useDefineForClassFields
   )
   return {
     jsc: {
@@ -32,14 +51,10 @@ export function getBaseSWCOptions({
             paths,
           }
         : {}),
-      parser: {
-        syntax: isTypeScript ? 'typescript' : 'ecmascript',
-        dynamicImport: true,
-        decorators: enableDecorators,
-        // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-        [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+      parser: parserConfig,
+      experimental: {
+        keepImportAssertions: true,
       },
-
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
         ...(jest
@@ -51,8 +66,11 @@ export function getBaseSWCOptions({
           : {}),
         legacyDecorator: enableDecorators,
         decoratorMetadata: emitDecoratorMetadata,
+        useDefineForClassFields: useDefineForClassFields,
         react: {
-          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
+          importSource:
+            jsConfig?.compilerOptions?.jsxImportSource ??
+            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -87,8 +105,41 @@ export function getBaseSWCOptions({
         }
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
-    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    // disable "reactRemoveProperties" when "jest" is true
+    // otherwise the setting from next.config.js will be used
+    reactRemoveProperties: jest
+      ? false
+      : nextConfig?.compiler?.reactRemoveProperties,
+    modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
+    emotion: getEmotionOptions(nextConfig, development),
+  }
+}
+
+function getEmotionOptions(nextConfig, development) {
+  if (!nextConfig?.compiler?.emotion) {
+    return null
+  }
+  let autoLabel = false
+  switch (nextConfig?.compiler?.emotion?.autoLabel) {
+    case 'never':
+      autoLabel = false
+      break
+    case 'always':
+      autoLabel = true
+      break
+    case 'dev-only':
+    default:
+      autoLabel = !!development
+      break
+  }
+  return {
+    enabled: true,
+    autoLabel,
+    labelFormat: nextConfig?.experimental?.emotion?.labelFormat,
+    sourcemap: development
+      ? nextConfig?.experimental?.emotion?.sourceMap ?? true
+      : false,
   }
 }
 
@@ -98,6 +149,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  pagesDir,
   // This is not passed yet as "paths" resolving needs a test first
   // resolvedBaseUrl,
 }) {
@@ -121,19 +173,13 @@ export function getJestSWCOptions({
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-      // we always transpile optional chaining and nullish coalescing
-      // since it can cause issues with webpack even if the node target
-      // supports them
-      include: [
-        'proposal-optional-chaining',
-        'proposal-nullish-coalescing-operator',
-      ],
     },
     module: {
       type: esm && !isNextDist ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
+    pagesDir,
   }
 }
 
@@ -146,6 +192,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  supportedBrowsers,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -176,13 +223,6 @@ export function getLoaderSWCOptions({
           // Targets the current version of Node.js
           node: process.versions.node,
         },
-        // we always transpile optional chaining and nullish coalescing
-        // since it can cause issues with webpack even if the node target
-        // supports them
-        include: [
-          'proposal-optional-chaining',
-          'proposal-nullish-coalescing-operator',
-        ],
       },
     }
   } else {
@@ -203,6 +243,13 @@ export function getLoaderSWCOptions({
       isServer,
       pagesDir,
       isPageFile,
+      ...(supportedBrowsers && supportedBrowsers.length > 0
+        ? {
+            env: {
+              targets: supportedBrowsers,
+            },
+          }
+        : {}),
     }
   }
 }

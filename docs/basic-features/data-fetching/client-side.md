@@ -21,7 +21,7 @@ function Profile() {
 
   useEffect(() => {
     setLoading(true)
-    fetch('api/profile-data')
+    fetch('/api/profile-data')
       .then((res) => res.json())
       .then((data) => {
         setData(data)
@@ -68,3 +68,14 @@ function Profile() {
   )
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

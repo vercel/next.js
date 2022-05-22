@@ -9,7 +9,7 @@ const imagePageData = fs.readFileSync(
 
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',

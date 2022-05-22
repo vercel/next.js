@@ -18,7 +18,7 @@ export class BrowserInterface {
     return this
   }
 
-  async setup(browserName: string): Promise<void> {}
+  async setup(browserName: string, locale?: string): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -72,7 +72,10 @@ export class BrowserInterface {
   }
   on(event: Event, cb: (...args: any[]) => void) {}
   off(event: Event, cb: (...args: any[]) => void) {}
-  async loadPage(url: string, { disableCache: boolean }): Promise<any> {}
+  async loadPage(
+    url: string,
+    { disableCache: boolean, beforePageLoad: Function }
+  ): Promise<void> {}
   async get(url: string): Promise<void> {}
 
   async getValue(): Promise<any> {}

@@ -6,12 +6,17 @@ on:
 
 name: Build, test, and deploy
 
+env:
+  NAPI_CLI_VERSION: 2.7.0
+  TURBO_VERSION: 1.2.9
+  RUST_TOOLCHAIN: nightly-2022-02-23
+
 jobs:
   check-examples:
     name: Check examples
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install moreutils
         run: sudo apt install moreutils
       - name: Check examples
@@ -30,12 +35,13 @@ jobs:
       weekNum: ${{ steps.get-week.outputs.WEEK }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 25
 
@@ -64,29 +70,70 @@ jobs:
       - id: get-week
         run: echo ::set-output name=WEEK::$(date +%U)
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
   lint:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
       - run: ./scripts/check-manifests.js
       - run: yarn lint
+
+  rust-check:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          profile: minimal
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          path: ~/.cargo/registry
+          key: stable-ubuntu-clippy-cargo-registry
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          path: ~/.cargo/git
+          key: stable-ubuntu-clippy-cargo-index
+
+      - uses: actions/cache@v3
+        id: restore-build
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - name: Check
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: |
+          cargo fmt -- --check
+          cargo clippy --all -- -D warnings
+        working-directory: packages/next-swc
 
   checkPrecompiled:
     name: Check Pre-compiled
@@ -96,28 +143,29 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: mv .git .git-bak
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
       - run: rm -rf .git && mv .git-bak .git
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -134,28 +182,29 @@ jobs:
   testUnit:
     name: Test Unit
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: node run-tests.js --type unit
@@ -164,16 +213,21 @@ jobs:
   testDev:
     name: Test Development
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
+          check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -181,17 +235,17 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -201,13 +255,168 @@ jobs:
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevReact17:
+    name: Test Development (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type development
+        name: Run test/development
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevE2E:
+    name: Test Development (E2E)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevE2EReact17:
+    name: Test Development (E2E) (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
           name: test-trace
           if-no-files-found: ignore
@@ -218,16 +427,21 @@ jobs:
   testProd:
     name: Test Production
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: ${{ matrix.node }}
+          check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -235,17 +449,17 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -255,28 +469,21 @@ jobs:
         name: Run test/production
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
-        name: Run test/e2e (production)
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-  testIntegration:
-    name: Test Integration
+  testProdReact17:
+    name: Test Production (react v17)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2, 3, 4, 5, 6]
+      NEXT_TEST_REACT_VERSION: ^17
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
@@ -284,28 +491,169 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
+      - run: node run-tests.js --type production
+        name: Run test/production
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProdE2E:
+    name: Test Production (E2E)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProdE2EReact17:
+    name: Test Production (E2E) (react v17)
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testIntegration:
+    name: Test Integration
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: pnpm/action-setup@v2.2.1
+        with:
+          version: 6.32.2
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: test-trace
           if-no-files-found: ignore
@@ -316,29 +664,30 @@ jobs:
   testElectron:
     name: Test Electron
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       TEST_ELECTRON: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: cd test/integration/with-electron/app && yarn
@@ -367,37 +716,41 @@ jobs:
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
-      - uses: actions/download-artifact@v2
+          key: ${{ github.sha }}-${{ github.run_number }}
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      # test rsc hydration on firefox due to limited support of TransformStream api
+      - run: xvfb-run yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
-    needs: [build, build-native-dev]
+    needs: [build, build-native-test]
     env:
       BROWSERSTACK: true
       BROWSER_NAME: 'safari'
@@ -408,26 +761,27 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       # TODO: use macos runner so that we can use playwright to test against
@@ -441,7 +795,7 @@ jobs:
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari, build-native-dev]
+    needs: [build, testSafari, build-native-test]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -452,26 +806,27 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
@@ -480,30 +835,30 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-  testFirefoxNode17:
-    name: Test Firefox Node.js 17
+  testFirefoxNode18:
+    name: Test Firefox Node.js 18
     runs-on: ubuntu-latest
-    needs: [build, testFirefox, build-native-dev]
+    needs: [build, testFirefox, build-native-test]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 17
+          node-version: 18
           check-latest: true
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
-      - uses: actions/download-artifact@v2
+          key: ${{ github.sha }}-${{ github.run_number }}
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -518,38 +873,33 @@ jobs:
       - build
       - build-wasm
       - build-native
-      - build-windows-i686
-      - build-windows-aarch64
-      - build-linux-musl
-      - build-linux-arm7
-      - build-linux-aarch64-gnu
-      - build-android-aarch64
-      - build-linux-aarch64-musl
+      - build-native-freebsd
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: next-swc-binaries
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         with:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm
@@ -558,26 +908,67 @@ jobs:
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
 
-  releaseStats:
-    name: Release Stats
+  testDeployE2E:
+    name: E2E (deploy)
     runs-on: ubuntu-latest
-    needs: [publishRelease, build-native-dev]
+    needs: [publishRelease]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
     steps:
       - name: Setup node
-        uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v2
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        name: Install playwright dependencies
+
+      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
+        name: Reset test project
+
+      - run: NEXT_TEST_MODE=deploy node run-tests.js --type e2e
+        name: Run test/e2e (deploy)
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
         with:
-          name: next-swc-dev-binary
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  releaseStats:
+    name: Release Stats
+    runs-on: ubuntu-latest
+    needs: [publishRelease, build-native-test]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
+
+      - uses: actions/cache@v3
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
@@ -587,15 +978,15 @@ jobs:
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
-  build-native-dev:
-    name: Build dev binary for tests
+  build-native-test:
+    name: Build native binary for tests and metrics
     runs-on: ubuntu-18.04
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 25
 
@@ -603,10 +994,10 @@ jobs:
         id: docs-change
 
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          node-version: 14
+          node-version: 16
           check-latest: true
 
       - name: Install
@@ -614,21 +1005,21 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: ~/.cargo/registry
-          key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: stable-ubuntu-18.04-cargo-registry
 
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: ~/.cargo/git
-          key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+          key: stable-ubuntu-18.04-cargo-index
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
@@ -636,7 +1027,7 @@ jobs:
 
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: .turbo
@@ -651,7 +1042,7 @@ jobs:
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-dev-ubuntu-18.04-${{ hashFiles('**/Cargo.lock') }}
@@ -660,19 +1051,17 @@ jobs:
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-
+      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }}
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: turbo run build-native --cache-dir=".turbo"
+        run: turbo run build-native --cache-dir=".turbo" -- --release
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v3
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       - name: Clear the cargo caches
@@ -686,7 +1075,7 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 25
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
@@ -695,7 +1084,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-11-15
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -703,17 +1092,17 @@ jobs:
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-18.04
-    needs: [build, build-native-dev, build-wasm-dev]
+    needs: [build, build-native-test, build-wasm-dev]
 
     steps:
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: wasm-dev-binary
@@ -722,16 +1111,16 @@ jobs:
       - run: ls packages/next-swc/crates/wasm
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
-          name: next-swc-dev-binary
+          name: next-swc-test-binary
           path: packages/next-swc/native
 
       # node version needs to be 16+ to use --no-addons option
       - name: Setup node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 16
           check-latest: true
@@ -745,518 +1134,276 @@ jobs:
       - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/production/react-18-streaming-ssr/index.test.ts
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   # Build binaries for publishing
   build-native:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-18.04, macos-latest, windows-latest]
-        description: [default]
-        include:
-          - os: ubuntu-18.04
-            target: x86_64-unknown-linux-gnu
-            name: linux-x64-gnu
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            name: win32-x64-msvc
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            name: darwin-x64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            name: darwin-arm64
-            description: m1
-
-    name: next-swc - ${{ matrix.os }} - ${{ matrix.target }} - node@14
-    runs-on: ${{ matrix.os }}
-
+        settings:
+          - host: macos-latest
+            target: 'x86_64-apple-darwin'
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release
+              strip -x packages/next-swc/native/next-swc.*.node
+          - host: windows-latest
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release
+            target: 'x86_64-pc-windows-msvc'
+          - host: windows-latest
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
+            target: 'i686-pc-windows-msvc'
+          - host: ubuntu-latest
+            target: 'x86_64-unknown-linux-gnu'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            # Node.js in Baidu need to compatible with `GLIBC_2.12`
+            build: >-
+              set -e &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              llvm-strip -x packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'x86_64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: >-
+              set -e &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add x86_64-unknown-linux-musl &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
+              strip packages/next-swc/native/next-swc.*.node
+          - host: macos-latest
+            target: 'aarch64-apple-darwin'
+            build: |
+              sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+              export CC=$(xcrun -f clang);
+              export CXX=$(xcrun -f clang++);
+              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
+              strip -x packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'aarch64-unknown-linux-gnu'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            build: >-
+              set -e &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-gnu &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              llvm-strip -x packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-18.04
+            target: 'armv7-unknown-linux-gnueabihf'
+            setup: |
+              sudo apt-get update
+              sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
+              arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: aarch64-linux-android
+            build: |
+              export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+              export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+              export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
+              export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
+              ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: armv7-linux-androideabi
+            build: |
+              export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+              export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+              export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
+              export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
+              ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip packages/next-swc/native/next-swc.*.node
+          - host: ubuntu-latest
+            target: 'aarch64-unknown-linux-musl'
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: >-
+              set -e &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              rustup toolchain install "${RUST_TOOLCHAIN}" &&
+              rustup default "${RUST_TOOLCHAIN}" &&
+              rustup target add aarch64-unknown-linux-musl &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl &&
+              llvm-strip -x packages/next-swc/native/next-swc.*.node
+          - host: windows-latest
+            target: 'aarch64-pc-windows-msvc'
+            build: |
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    needs: build
+    name: stable - ${{ matrix.settings.target }} - node@16
+    runs-on: ${{ matrix.settings.host }}
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.os == 'ubuntu-18.04' }}
+        if: ${{ matrix.settings.host == 'ubuntu-18.04' }}
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
       - name: tune windows network
         run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.settings.host == 'windows-latest' }}
       - name: tune mac network
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
-        if: ${{ matrix.os == 'macos-latest' }}
-
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-          check-latest: true
-
+        if: ${{ matrix.settings.host == 'macos-latest' }}
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          target: ${{ matrix.target }}
-
-      - name: Cache cargo registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: stable-${{ matrix.os }}-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Turbo cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-${{ matrix.name }}-
-            turbo-${{ github.job }}-${{ matrix.name }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-${{ matrix.name }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Cross build aarch64 setup
-        if: ${{ matrix.target == 'aarch64-apple-darwin' }}
-        run: |
-          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
-          export CC=$(xcrun -f clang);
-          export CXX=$(xcrun -f clang++);
-          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+      - uses: actions/checkout@v3
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-${{ matrix.os }}
+            next-swc-cargo-cache-${{ matrix.settings.target }}
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v3
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
+            turbo-${{ github.job }}-canary-${{ matrix.settings.target }}-${{ needs.build.outputs.weekNum }}-
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{ !matrix.settings.docker }}
+        with:
+          node-version: 16
+          check-latest: true
+          cache: yarn
+
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{ !matrix.settings.docker }}
+        with:
+          profile: minimal
+          override: true
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          target: ${{ matrix.settings.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ matrix.settings.target }}-cargo-registry
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ matrix.settings.target }}-cargo-index
+
+      - name: Setup toolchain
+        run: ${{ matrix.settings.setup }}
+        if: ${{ matrix.settings.setup }}
+        shell: bash
+
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
+        if: ${{ matrix.settings.docker }}
+        with:
+          image: ${{ matrix.settings.docker }}
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: ${{ matrix.settings.build }}
 
       - name: 'Build'
+        run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker }}
         shell: bash
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native/next-swc.*.node
+
+  build-native-freebsd:
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    needs: build
+    name: stable - x86_64-unknown-freebsd - node@16
+    runs-on: macos-10.15
+    steps:
+      - name: tune mac network
+        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
+      - uses: actions/checkout@v3
+      - name: Delete useless files
+        run: |
+          rm -rf bench
+          rm -rf docs
+          rm -rf errors
+          rm -rf examples
+          rm -rf scripts
+          rm -rf test
+      - name: Build
+        id: build
+        uses: vmactions/freebsd-vm@v0.1.6
         env:
-          MACOSX_DEPLOYMENT_TARGET: '10.13'
-
+          DEBUG: napi:*
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+          # Disable LTO, or the lld may crash with OOM
+          CARGO_PROFILE_RELEASE_LTO: false
+        with:
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN
+          usesh: true
+          mem: 6000
+          prepare: |
+            pkg install -y curl node14
+            curl -qL https://www.npmjs.com/install.sh | sh
+            npm install -g yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain stable
+            export PATH="/usr/local/cargo/bin:$PATH"
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+          run: |
+            export PATH="/usr/local/cargo/bin:$PATH"
+            pwd
+            ls -lah
+            whoami
+            env
+            freebsd-version
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+            yarn --cwd packages/next-swc build-native --release --target x86_64-unknown-freebsd
+            rm -rf node_modules
+            rm -rf packages/next-swc/target
       - name: Upload artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.${{ matrix.name }}.node
-
-      - name: Clear the cargo caches
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache
-
-  build-windows-i686:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - windows-i686 - node@14
-    runs-on: windows-latest
-    env:
-      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 32
-      CARGO_PROFILE_RELEASE_LTO: 'false'
-    steps:
-      - name: Install node x86
-        run: |
-          choco install nodejs-lts --x86 -y --force
-          refreshenv
-
-      - name: Set 32bit Node.js path
-        run: |
-          echo "C:\\Program Files (x86)\\nodejs" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Node.js arch
-        run: node -e "console.log(process.arch)"
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: i686-pc-windows-msvc
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Build
-        shell: bash
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.win32-ia32-msvc.node
-
-  build-windows-aarch64:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - windows-aarch64 - node@14
-    runs-on: windows-latest
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: aarch64-pc-windows-msvc
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Build
-        shell: bash
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.win32-arm64-msvc.node
-
-  build-linux-musl:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - linux-musl - node@lts
-    runs-on: ubuntu-latest
-    steps:
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      - name: Login to registry
-        run: |
-          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
-        env:
-          DOCKER_REGISTRY_URL: ghcr.io
-          DOCKER_USERNAME: ${{ github.actor }}
-          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            target/
-          key: linux-musl-publish-integration
-
-      - name: Pull docker image
-        run: |
-          docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-          docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: 'Build'
-        run: |
-          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd):/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.28 && turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.linux-x64-musl.node
-
-  build-linux-aarch64-gnu:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - aarch64-unknown-linux-gnu - node@14
-    runs-on: ubuntu-18.04
-    steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: aarch64-unknown-linux-gnu
-
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            target/
-          key: aarch64-linux-gnu-publish-integration
-
-      - name: Install cross compile toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Cross build aarch64
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.linux-arm64-gnu.node
-
-  build-linux-aarch64-musl:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - aarch64-unknown-linux-musl - node@14
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: aarch64-unknown-linux-musl
-
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            target/
-          key: aarch64-linux-musl-publish-integration
-
-      - name: Install cross compile toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-aarch64-linux-gnu -y
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Cross build aarch64
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.linux-arm64-musl.node
-
-  build-linux-arm7:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - arm7-unknown-linux-gnu - node@14
-    runs-on: ubuntu-18.04
-    steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: armv7-unknown-linux-gnueabihf
-
-      - name: Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            target/
-          key: arm7-linux-gnu-publish-integration
-
-      - name: Install cross compile toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install gcc-arm-linux-gnueabihf -y
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Cross build aarch64
-        run: turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.linux-arm-gnueabihf.node
-
-  build-android-aarch64:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - Android - aarch64
-    runs-on: macos-latest
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      # we use checkout here instead of the build cache since
-      # it can fail to restore in different OS'
-      - uses: actions/checkout@v2
-
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@1.2.1
-      - run: npm i -g turbo@1.0.28
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2021-11-15
-          override: true
-          target: aarch64-linux-android
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v2
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-
-            turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
-
-      - name: Build
-        shell: bash
-        run: |
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
-          turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next-swc/native/next-swc.android-arm64.node
+          path: packages/next-swc/native/next-swc.*.node
+          if-no-files-found: error
 
   build-wasm:
     needs: build
@@ -1266,30 +1413,31 @@ jobs:
         target: [web, nodejs]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           target: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@1.0.28
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
 
       - name: Turbo cache
         id: turbo-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ needs.build.outputs.weekNum }}-${{ github.sha }}
@@ -1308,7 +1456,7 @@ jobs:
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm/pkg-*
@@ -1317,33 +1465,34 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          key: ${{ github.sha }}-${{ github.run_number }}
 
       - name: Setup node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 16
+          check-latest: true
 
-      - run: npm i -g turbo@1.0.28
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
 
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-11-15
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
           override: true
           target: wasm32-unknown-unknown
 
       - name: Turbo Cache
         id: turbo-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: .turbo
@@ -1367,7 +1516,71 @@ jobs:
 
       - name: Upload artifact
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: wasm-dev-binary
           path: packages/next-swc/crates/wasm/pkg-nodejs
+
+  check-trace-secrests:
+    runs-on: ubuntu-latest
+    outputs:
+      trace-api-key: ${{ steps.trace-api-key.outputs.defined }}
+    steps:
+      - id: trace-api-key
+        env:
+          TRACE_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+        if: "${{ env.TRACE_API_KEY != '' }}"
+        run: echo "::set-output name=defined::true"
+  build-performance-metrics:
+    name: Performance Metrics for Release Build
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test, check-trace-secrests]
+    if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          node-version: 16
+          check-latest: true
+
+      - uses: actions/cache@v3
+        id: restore-build
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - name: Set Git Short sha Env
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: echo "GIT_SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: Check Git Short sha Env
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: echo ${GIT_SHORT_SHA}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - name: Generate metrics data
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: |
+          yarn --cwd bench/nested-deps install
+          node bench/nested-deps/bench.mjs build
+      - uses: datadog/agent-github-action@v1
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          api_key: ${{ secrets.DATA_DOG_API_KEY }}
+      - name: Sending metrics data to Datadog
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: |
+          node scripts/trace-dd.mjs bench/nested-deps/.next/trace build ${GIT_SHORT_SHA} ./bench/nested-deps/next.config.js
+        env:
+          DATA_DOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+          DD_TRACE_PARTIAL_FLUSH_MIN_SPANS: 10
+          DD_ENV: canary
+          DD_SERVICE: nextjs-dev-build
+          DD_TRACE_DEBUG: true

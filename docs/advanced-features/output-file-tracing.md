@@ -34,7 +34,7 @@ module.exports = {
 
 This will create a folder at `.next/standalone` which can then be deployed on it's own without installing `node_modules`.
 
-Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `.next/static` directory by default as this should ideally be handled by a CDN instead, although it can be copied to the `standalone` folder manually and the `server.js` file will serve it automatically.
+Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
 ## Caveats
 

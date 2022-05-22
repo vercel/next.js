@@ -143,6 +143,10 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
+declare module 'next/dist/compiled/bytes' {
+  import m from 'bytes'
+  export = m
+}
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
@@ -289,6 +293,12 @@ declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
+
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export = m
+}
+
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -328,6 +338,11 @@ declare module 'next/dist/compiled/ws' {
 
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
+  export = m
+}
+
+declare module 'next/dist/compiled/process' {
+  import m from 'process'
   export = m
 }
 

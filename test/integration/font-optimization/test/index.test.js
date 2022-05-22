@@ -26,14 +26,14 @@ async function getBuildId(appDir) {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 }
 
-const startServerlessEmulator = async (dir, port) => {
+const startServerlessEmulator = async (dir, port, opts = {}) => {
   const scriptPath = join(dir, 'server.js')
   const env = Object.assign(
     {},
     { ...process.env },
     { PORT: port, BUILD_ID: await getBuildId(dir) }
   )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, {})
+  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
 }
 
 describe('Font Optimization', () => {
@@ -204,13 +204,20 @@ describe('Font Optimization', () => {
               encoding: 'utf-8',
             })
           )
+          const normalizeContent = (content) => {
+            return content.replace(/\/v[\d]{1,}\//g, '/v0/')
+          }
           const testCss = {}
           testJson.forEach((fontDefinition) => {
-            testCss[fontDefinition.url] = fontDefinition.content
+            testCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
           const snapshotCss = {}
           snapshotJson.forEach((fontDefinition) => {
-            snapshotCss[fontDefinition.url] = fontDefinition.content
+            snapshotCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
 
           expect(testCss).toStrictEqual(snapshotCss)
@@ -230,12 +237,6 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
-
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
@@ -250,10 +251,12 @@ describe('Font Optimization', () => {
       })
 
       describe('Font optimization for serverless apps', () => {
+        const origNextConfig = fs.readFileSync(nextConfig)
+
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless', cleanDistDir: false }`,
+            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -262,15 +265,20 @@ describe('Font Optimization', () => {
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
-        afterAll(() => killApp(app))
+        afterAll(async () => {
+          await fs.writeFile(nextConfig, origNextConfig)
+          await killApp(app)
+        })
         runTests()
       })
 
       describe('Font optimization for emulated serverless apps', () => {
+        const origNextConfig = fs.readFileSync(nextConfig)
+
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
+            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -280,7 +288,7 @@ describe('Font Optimization', () => {
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(async () => {
-          await fs.remove(nextConfig)
+          await fs.writeFile(nextConfig, origNextConfig)
           await killApp(app)
         })
         runTests()
@@ -288,11 +296,6 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
           await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
