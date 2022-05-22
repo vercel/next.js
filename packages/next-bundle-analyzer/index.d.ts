@@ -1,3 +1,7 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
 
-export default (options?: { enabled?: boolean }) => (config?: NextConfig) => NextConfig;
+const NextBundleAnalyzer =
+  (options?: { enabled?: boolean }) => (config?: NextConfig) =>
+    NextConfig
+
+export = NextBundleAnalyzer
