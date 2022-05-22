@@ -13,6 +13,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
+import nodeFetch from 'node-fetch'
 
 describe('should set-up next', () => {
   let next: NextInstance
@@ -22,6 +23,22 @@ describe('should set-up next', () => {
   let requiredFilesManifest
 
   beforeAll(async () => {
+    let wasmPkgIsAvailable = false
+
+    const res = await nodeFetch(
+      `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
+        require('next/package.json').version
+      }.tgz`,
+      {
+        method: 'HEAD',
+      }
+    )
+
+    if (res.status === 200) {
+      wasmPkgIsAvailable = true
+      console.warn(`Testing wasm fallback handling`)
+    }
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
@@ -30,6 +47,14 @@ describe('should set-up next', () => {
           join(__dirname, 'required-server-files/data.txt')
         ),
       },
+      packageJson: {
+        scripts: {
+          build: wasmPkgIsAvailable
+            ? 'rm -rfv node_modules/@next/swc && yarn next build'
+            : 'yarn next build',
+        },
+      },
+      buildCommand: 'yarn build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],

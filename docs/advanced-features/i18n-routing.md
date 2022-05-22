@@ -164,16 +164,11 @@ module.exports = {
 Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
 
 ```js
-// pages/_middleware.ts
+// middleware.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_FILE = /\.(.*)$/
-
-const stripDefaultLocale = (str: string): string => {
-  const stripped = str.replace('/default', '')
-  return stripped
-}
 
 export function middleware(request: NextRequest) {
   const shouldHandleLocale =
@@ -181,13 +176,13 @@ export function middleware(request: NextRequest) {
     !request.nextUrl.pathname.includes('/api/') &&
     request.nextUrl.locale === 'default'
 
-  return shouldHandleLocale
-    ? NextResponse.redirect(
-        `/en${stripDefaultLocale(request.nextUrl.pathname)}${
-          request.nextUrl.search
-        }`
-      )
-    : undefined
+  if (shouldHandleLocale) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/en${request.nextUrl.pathname}`
+    return NextResponse.redirect(url)
+  }
+
+  return undefined
 }
 ```
 
