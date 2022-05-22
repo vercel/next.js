@@ -8,7 +8,6 @@ export const nativeModuleTestAppDir = join(
   '../unsupported-native-module'
 )
 export const appPage = new File(join(appDir, 'pages/_app.js'))
-export const appServerPage = new File(join(appDir, 'pages/_app.server.js'))
 export const error500Page = new File(join(appDir, 'pages/500.js'))
 export const nextConfig = new File(join(appDir, 'next.config.js'))
 

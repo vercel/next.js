@@ -171,7 +171,8 @@ async function lint(
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    // TODO: should we apply these rules to "root" dir as well?
+    const pagesDir = findPagesDir(baseDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
