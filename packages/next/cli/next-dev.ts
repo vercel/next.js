@@ -11,19 +11,18 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 
-const validArgs: arg.Spec = {
-  // Types
-  '--help': Boolean,
-  '--port': Number,
-  '--hostname': String,
-
-  // Aliases
-  '-h': '--help',
-  '-p': '--port',
-  '-H': '--hostname',
-}
-
 const nextDev: cliCommand = (argv) => {
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
+
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
   let args: arg.Result<arg.Spec>
   try {
     args = arg(validArgs, { argv })
@@ -143,4 +142,4 @@ const nextDev: cliCommand = (argv) => {
   }
 }
 
-export { nextDev, validArgs }
+export { nextDev }
