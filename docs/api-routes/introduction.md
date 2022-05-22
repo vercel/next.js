@@ -27,7 +27,7 @@ export default function handler(req, res) {
 }
 ```
 
-> **Note**: API Routes will be affected by `pageExtensions` configuration in `next.config.js`.
+> **Note**: API Routes will be affected by [`pageExtensions` configuration](/docs/api-reference/next.config.js/custom-page-extensions.md) in `next.config.js`.
 
 For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
