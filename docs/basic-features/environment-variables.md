@@ -93,7 +93,8 @@ This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment a
 // pages/index.js
 import setupAnalyticsService from '../lib/my-analytics-service'
 
-// NEXT_PUBLIC_ANALYTICS_ID can be used here as it's prefixed by NEXT_PUBLIC_
+// 'NEXT_PUBLIC_ANALYTICS_ID' can be used here as it's prefixed by 'NEXT_PUBLIC_'.
+// It will be transformed at build time to `setupAnalyticsService('abcdefghijk')`.
 setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID)
 
 function HomePage() {
@@ -101,6 +102,18 @@ function HomePage() {
 }
 
 export default HomePage
+```
+
+Note that dynamic lookups will _not_ be inlined, such as:
+
+```js
+// This will NOT be inlined, because it uses a variable
+const varName = 'NEXT_PUBLIC_ANALYTICS_ID'
+setupAnalyticsService(process.env[varName])
+
+// This will NOT be inlined, because it uses a variable
+const env = process.env
+setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
 ## Default Environment Variables
