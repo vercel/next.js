@@ -44,7 +44,7 @@ export class NextResponse extends Response {
     })
   }
 
-  static redirect(url: string | NextURL | URL, status = 307) {
+  static redirect(url: string | NextURL | URL, status = 307, init: ResponseInit = {} ) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
@@ -52,15 +52,28 @@ export class NextResponse extends Response {
     }
 
     return new NextResponse(null, {
-      headers: { Location: validateURL(url) },
+      ...init,
+      headers: {
+        ...init.headers,
+        Location: validateURL(url)
+      },
       status,
     })
   }
 
-  static rewrite(destination: string | NextURL | URL) {
-    return new NextResponse(null, {
-      headers: { 'x-middleware-rewrite': validateURL(destination) },
-    })
+  static rewrite(destination: string | NextURL | URL, init: ResponseInit = {}) {
+    if ( init.headers ) {
+      init.headers = {
+        ...init.headers,
+        'x-middleware-rewrite': validateURL(destination),
+      }
+    } else {
+      init.headers = {
+        'x-middleware-rewrite': validateURL(destination),
+      }
+    }
+
+    return new NextResponse(null, init)
   }
 
   static next() {
