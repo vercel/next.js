@@ -254,7 +254,7 @@ export default async function build(
             config.experimental.workerThreads
           ).then((resolved) => {
             const checkEnd = process.hrtime(typeCheckStart)
-            typeCheckingSpinner?.stop()
+            typeCheckingSpinner?.stopAndPersist()
             return [resolved, checkEnd] as const
           })
         ),
@@ -2321,8 +2321,8 @@ export default async function build(
  * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
  *
  * Since it is impossible to pass a function from main thread to a worker,
- * we will run entire "next/lib/verifyTypeScriptSetup" in the worker
- * during build instead.
+ * instead of running "next/lib/typescript/runTypeCheck" in a worker,
+ * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
  */
 function validiteTypeScriptTypes(
   dir: string,
