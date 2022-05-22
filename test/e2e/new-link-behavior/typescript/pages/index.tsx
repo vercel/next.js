@@ -73,6 +73,7 @@ export const ButtonLink: React.FC<ButtonLinkProps> = ({
       shallow={shallow}
       // Always passHref to the <a> component if it's defined.
       passHref={!!href}
+      legacyBehavior
     >
       <a>{children}</a>
     </NextLink>

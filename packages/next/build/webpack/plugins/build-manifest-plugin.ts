@@ -5,6 +5,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -95,12 +96,14 @@ export default class BuildManifestPlugin {
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private exportRuntime: boolean
+  private rootEnabled: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     exportRuntime?: boolean
+    rootEnabled: boolean
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -109,6 +112,7 @@ export default class BuildManifestPlugin {
       afterFiles: [],
       fallback: [],
     }
+    this.rootEnabled = options.rootEnabled
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
@@ -127,6 +131,7 @@ export default class BuildManifestPlugin {
         devFiles: [],
         ampDevFiles: [],
         lowPriorityFiles: [],
+        rootMainFiles: [],
         pages: { '/_app': [] },
         ampFirstPages: [],
       }
@@ -146,6 +151,16 @@ export default class BuildManifestPlugin {
       const mainFiles = new Set(
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
+
+      if (this.rootEnabled) {
+        assetMap.rootMainFiles = [
+          ...new Set(
+            getEntrypointFiles(
+              entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT)
+            )
+          ),
+        ]
+      }
 
       const compilationAssets: {
         name: string
@@ -178,6 +193,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
+        ...(this.rootEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {

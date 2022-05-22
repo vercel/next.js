@@ -9,6 +9,6 @@
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "zustand": "^3.5.4"
+    "zustand": "^3.7.1"
   }
 }

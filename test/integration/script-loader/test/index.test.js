@@ -190,6 +190,37 @@ describe('Next.js Script - Primary Strategies', () => {
     }
   })
 
+  it('priority beforeInteractive with inline script', async () => {
+    const html = await renderViaHTTP(appPort, '/page5')
+    const $ = cheerio.load(html)
+
+    const script = $('#inline-before')
+    expect(script.length).toBe(1)
+
+    // Script is inserted before CSS
+    expect(
+      $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+    ).toBeGreaterThan(0)
+  })
+
+  it('priority beforeInteractive with inline script should execute', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page7')
+
+      await waitFor(1000)
+
+      const logs = await browser.log()
+      expect(
+        logs.some((log) =>
+          log.message.includes('beforeInteractive inline script run')
+        )
+      ).toBe(true)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('Does not duplicate inline scripts', async () => {
     let browser
     try {
