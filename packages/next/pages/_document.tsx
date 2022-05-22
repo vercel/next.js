@@ -556,8 +556,13 @@ export class Head extends Component<HeadProps> {
           !script.src && (script.dangerouslySetInnerHTML || script.children)
       )
       .map((file: ScriptProps, index: number) => {
-        const { strategy, children, dangerouslySetInnerHTML, ...scriptProps } =
-          file
+        const {
+          strategy,
+          children,
+          dangerouslySetInnerHTML,
+          src,
+          ...scriptProps
+        } = file
         let html = ''
 
         if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
