@@ -1,6 +1,4 @@
-const withReact18 = require('../../react-18/test/with-react-18')
-
-module.exports = withReact18({
+module.exports = {
   reactStrictMode: true,
   onDemandEntries: {
     maxInactiveAge: 1000 * 60 * 60,
@@ -10,4 +8,4 @@ module.exports = withReact18({
     serverComponents: true,
     runtime: 'edge',
   },
-})
+}

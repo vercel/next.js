@@ -2,17 +2,19 @@
 
 exports[`ReactRefreshLogBox _app syntax error shows logbox 1`] = `
 "./pages/_app.js
-Error: error: Expression expected
- 
-  |
-3 |               return <<Component {...pageProps} />;
-  |                       ^
+Error: 
+  x Expression expected
+   ,----
+ 3 | return <<Component {...pageProps} />;
+   :         ^
+   \`----
 
-error: Unexpected token \`jsx name (Component)\`. Expected this, import, async, function, [ for array literal, { for object literal, @ for decorator, function, class, null, true, false, number, bigint, string, regexp, \` for template literal, (, or an identifier
- 
-  |
-3 |               return <<Component {...pageProps} />;
-  |                        ^^^^^^^^^
+  x Unexpected token \`jsx name (Component)\`. Expected this, import, async, function, [ for array literal, { for object literal, @ for decorator, function, class, null, true, false, number, bigint,
+  | string, regexp, \` for template literal, (, or an identifier
+   ,----
+ 3 | return <<Component {...pageProps} />;
+   :          ^^^^^^^^^
+   \`----
 
 Caused by:
     0: failed to process input file
@@ -21,11 +23,12 @@ Caused by:
 
 exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
 "./pages/_document.js
-Error: error: Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
- 
-  |
-4 |             class MyDocument extends Document {{
-  |                                                ^
+Error: 
+  x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+   ,----
+ 4 | class MyDocument extends Document {{
+   :                                    ^
+   \`----
 
 Caused by:
     0: failed to process input file

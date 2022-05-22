@@ -58,9 +58,18 @@ export const Combined = styled.div`
   }
 `
 
-export const Pink = styled.div(basicStyles, {
+export const Pink = styled(Basic)({
   color: 'hotpink',
 })
+
+export const BasicExtended = styled(Basic)``
+
+export const ComponentSelectorsExtended = styled.div`
+  ${BasicExtended} {
+    color: green;
+  }
+  box-shadow: -5px -5px 0 0 green;
+`
 
 export const Animated = styled.div`
   ${basicStyles};

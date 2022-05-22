@@ -178,7 +178,10 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -253,7 +256,12 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (urlPath: string) => Promise<void>
+  unstable_revalidate: (
+    urlPath: string,
+    opts?: {
+      unstable_onlyGenerated?: boolean
+    }
+  ) => Promise<void>
 }
 
 /**
@@ -262,7 +270,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void | Promise<void>
+) => unknown | Promise<unknown>
 
 /**
  * Utils
@@ -389,6 +397,7 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

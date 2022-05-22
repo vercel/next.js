@@ -129,7 +129,7 @@ async function run(): Promise<void> {
     ? 'npm'
     : !!program.usePnpm
     ? 'pnpm'
-    : 'yarn'
+    : getPkgManager()
 
   const example = typeof program.example === 'string' && program.example.trim()
   try {

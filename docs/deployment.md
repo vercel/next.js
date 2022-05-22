@@ -84,6 +84,8 @@ Next.js can be deployed to any hosting provider that supports [Docker](https://w
 1. Build your container: `docker build -t nextjs-docker .`
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`
 
+If you need to use different Environment Variables across multiple environments, check out our [with-docker-multi-env](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) example.
+
 ### Static HTML Export
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Export documentation](/docs/advanced-features/static-html-export.md).
@@ -95,6 +97,29 @@ When you deploy your Next.js application, you want to see the latest version wit
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
 **Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+
+## Manual Graceful shutdowns
+
+Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
+
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file.
+
+```js
+// pages/_document.js
+
+if (process.env.NEXT_MANUAL_SIG_HANDLE) {
+  // this should be added in your custom _document
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM: ', 'cleaning up')
+    process.exit(0)
+  })
+
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT: ', 'cleaning up')
+    process.exit(0)
+  })
+}
+```
 
 ## Related
 

@@ -69,7 +69,12 @@ export async function getServerSideProps({ req, res }) {
 }
 ```
 
-> **Note:** Your deployment provider must support edge caching for dynamic responses. If you are self-hosting, you will need to add this logic to the edge yourself using a key/value store. If you are using Vercel, [edge caching works without configuration](https://vercel.com/docs/edge-network/caching).
+By default, `Cache-Control` headers will be set differently depending on how your page fetches data.
+
+- If the page uses `getServerSideProps` or `getInitialProps`, it will use the default `Cache-Control` header set by `next start` in order to prevent accidental caching of responses that cannot be cached. If you want a different cache behavior while using `getServerSideProps`, use `res.setHeader('Cache-Control', 'value_you_prefer')` inside of the function as shown above.
+- If the page is using `getStaticProps`, it will have a `Cache-Control` header of `s-maxage=REVALIDATE_SECONDS, stale-while-revalidate`, or if `revalidate` is _not_ used , `s-maxage=31536000, stale-while-revalidate` to cache for the maximum age possible.
+
+> **Note:** Your deployment provider must support caching for dynamic responses. If you are self-hosting, you will need to add this logic yourself using a key/value store like Redis. If you are using Vercel, [Edge Caching works without configuration](https://vercel.com/docs/edge-network/caching).
 
 ## Reducing JavaScript Size
 
