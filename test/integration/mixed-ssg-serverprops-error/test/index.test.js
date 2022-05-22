@@ -10,7 +10,7 @@ const indexPage = join(appDir, 'pages/index.js')
 const indexPageBak = `${indexPage}.bak`
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
-  it.only('should error with getStaticProps but no default export', async () => {
+  it('should error with getStaticProps but no default export', async () => {
     // TODO: remove after investigating why dev swc build fails here
     await fs.writeFile(
       join(appDir, '.babelrc'),
