@@ -43,8 +43,7 @@ const args = arg(
 )
 
 // Detect if react-dom is enabled streaming rendering mode
-const shouldUseReactRoot = !!require('react-dom/server.browser')
-  .renderToReadableStream
+const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
@@ -130,8 +129,11 @@ if (process.versions.pnp === '3') {
 }
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT', () => process.exit(0))
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))

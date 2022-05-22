@@ -17,6 +17,7 @@ import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -75,6 +76,7 @@ export class ImageOptimizerCache {
       minimumCacheTTL = 60,
       formats = ['image/webp'],
     } = imageData
+    const remotePatterns = nextConfig.experimental.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
 
@@ -104,7 +106,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!domains || !domains.includes(hrefParsed.hostname)) {
+      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -621,6 +623,7 @@ export function sendResponse(
     contentSecurityPolicy
   )
   if (!result.finished) {
+    res.setHeader('Content-Length', Buffer.byteLength(buffer))
     res.end(buffer)
   }
 }
