@@ -632,6 +632,9 @@ export default class DevServer extends Server {
       )
       return result
     } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
       this.logErrorWithOriginalStack(error, undefined, 'edge-server')
 
       const preflight =
