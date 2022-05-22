@@ -61,7 +61,13 @@ export async function verifyPartytownSetup(
   try {
     const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      [{ file: '@builder.io/partytown', pkg: '@builder.io/partytown' }]
+      [
+        {
+          file: '@builder.io/partytown',
+          pkg: '@builder.io/partytown',
+          exportsRestrict: false,
+        },
+      ]
     )
 
     if (partytownDeps.missing?.length > 0) {

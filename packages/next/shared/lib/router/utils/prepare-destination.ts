@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
-import type { Params } from '../../../../server/router'
+import type { Params } from './route-matcher'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
@@ -217,6 +217,7 @@ export function prepareDestination(args: {
 
   return {
     newUrl,
+    destQuery,
     parsedDestination,
   }
 }

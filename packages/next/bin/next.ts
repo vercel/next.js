@@ -42,6 +42,9 @@ const args = arg(
   }
 )
 
+// Detect if react-dom is enabled streaming rendering mode
+const shouldUseReactRoot = !!require('react-dom/server').renderToPipeableStream
+
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
   console.log(`Next.js v${process.env.__NEXT_VERSION}`)
@@ -104,6 +107,10 @@ if (process.env.NODE_ENV) {
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+;(process.env as any).NEXT_RUNTIME = 'nodejs'
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {
@@ -122,8 +129,11 @@ if (process.versions.pnp === '3') {
 }
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT', () => process.exit(0))
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))

@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -33,13 +32,13 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import {
-  flushBufferedVitalsMetrics,
-  trackWebVitalMetric,
-} from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -87,7 +86,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isAppRSC: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -288,39 +286,38 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    isAppRSC = !!mod.__next_rsc__
-    const exportedReportWebVitals = mod && mod.reportWebVitals
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }: any): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      const webVitals: NextWebVitalsMetric = {
-        id: id || uniqueID,
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
         name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
       }
-      exportedReportWebVitals?.(webVitals)
-      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -547,14 +544,16 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
-    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
-      reactRoot.render(reactEl)
+      const startTransition = (React as any).startTransition
+      startTransition(() => {
+        reactRoot.render(reactEl)
+      })
     }
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
@@ -646,12 +645,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isAppRSC) {
-    const { Component, err: _, router: __, ...props } = appProps
-    return <Component {...props} />
-  } else {
-    return <App {...appProps} />
-  }
+  return <App {...appProps} />
 }
 
 const wrapApp =
@@ -675,6 +669,7 @@ if (process.env.__NEXT_RSC) {
 
   const {
     createFromFetch,
+    createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
 
   const encoder = new TextEncoder()
@@ -769,20 +764,19 @@ if (process.env.__NEXT_RSC) {
           nextServerDataRegisterWriter(controller)
         },
       })
-      response = createFromFetch(Promise.resolve({ body: readable }))
+      response = createFromReadableStream(readable)
     } else {
-      const fetchPromise = serialized
-        ? (() => {
-            const readable = new ReadableStream({
-              start(controller) {
-                controller.enqueue(new TextEncoder().encode(serialized))
-                controller.close()
-              },
-            })
-            return Promise.resolve({ body: readable })
-          })()
-        : fetchFlight(getCacheKey())
-      response = createFromFetch(fetchPromise)
+      if (serialized) {
+        const readable = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(serialized))
+            controller.close()
+          },
+        })
+        response = createFromReadableStream(readable)
+      } else {
+        response = createFromFetch(fetchFlight(getCacheKey()))
+      }
     }
 
     rscCache.set(cacheKey, response)
@@ -800,16 +794,16 @@ if (process.env.__NEXT_RSC) {
       rscCache.delete(cacheKey)
     })
     const response = useServerResponse(cacheKey, serialized)
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__ } = props
+    const { __flight__ } = props
     const [, dispatch] = useState({})
     const startTransition = (React as any).startTransition
     const rerender = () => dispatch({})
+
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps?: any) {
       startTransition(() => {
@@ -825,7 +819,7 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
+        <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
       </RefreshContext.Provider>
     )
   }
@@ -1028,8 +1022,6 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {

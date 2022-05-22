@@ -14,9 +14,13 @@ describe('experimental.middlewareSourceMaps: true', () => {
         },
       },
       files: {
-        'pages/_middleware.js': `
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        'middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() { 
-            return new Response("Hello, world!");
+            return NextResponse.next();
           } 
         `,
       },
@@ -28,7 +32,7 @@ describe('experimental.middlewareSourceMaps: true', () => {
   it('generates a source map', async () => {
     const middlewarePath = path.resolve(
       next.testDir,
-      '.next/server/pages/_middleware.js'
+      '.next/server/middleware.js'
     )
     expect(await fs.pathExists(middlewarePath)).toEqual(true)
     expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
@@ -41,9 +45,13 @@ describe('experimental.middlewareSourceMaps: false', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/_middleware.js': `
+        'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+        'middleware.js': `
+          import { NextResponse } from "next/server";
           export default function middleware() {
-            return new Response("Hello, world!");
+            return NextResponse.next();
           }
         `,
       },
@@ -55,7 +63,7 @@ describe('experimental.middlewareSourceMaps: false', () => {
   it('does not generate a source map', async () => {
     const middlewarePath = path.resolve(
       next.testDir,
-      '.next/server/pages/_middleware.js'
+      '.next/server/middleware.js'
     )
     expect(await fs.pathExists(middlewarePath)).toEqual(true)
     expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(false)

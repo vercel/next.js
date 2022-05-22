@@ -123,6 +123,8 @@ impl Task for BundleTask {
                     None,
                     false,
                     Some(&comments),
+                    true,
+                    false,
                 )?;
 
                 Ok(code)
@@ -132,7 +134,7 @@ impl Task for BundleTask {
     }
 
     fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output)
+        complete_output(&env, output, Default::default())
     }
 }
 

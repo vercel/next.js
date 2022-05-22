@@ -1,7 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig } from 'next/types'
-import type { __ApiPreviewProps } from '.'
+import {
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+  __ApiPreviewProps,
+} from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
@@ -233,8 +236,12 @@ export async function apiResolver(
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
-    apiRes.unstable_revalidate = (urlPath: string) =>
-      unstable_revalidate(urlPath, req, apiContext)
+    apiRes.unstable_revalidate = (
+      urlPath: string,
+      opts?: {
+        unstable_onlyGenerated?: boolean
+      }
+    ) => unstable_revalidate(urlPath, opts || {}, req, apiContext)
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -279,6 +286,9 @@ export async function apiResolver(
 
 async function unstable_revalidate(
   urlPath: string,
+  opts: {
+    unstable_onlyGenerated?: boolean
+  },
   req: IncomingMessage,
   context: ApiContext
 ) {
@@ -287,12 +297,20 @@ async function unstable_revalidate(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
+  const revalidateHeaders = {
+    [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+    ...(opts.unstable_onlyGenerated
+      ? {
+          [PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]: '1',
+        }
+      : {}),
+  }
 
   try {
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         headers: {
-          [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
+          ...revalidateHeaders,
           cookie: req.headers.cookie || '',
         },
       })
@@ -302,7 +320,10 @@ async function unstable_revalidate(
       const cacheHeader =
         res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
 
-      if (cacheHeader?.toUpperCase() !== 'REVALIDATED') {
+      if (
+        cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        !(res.status === 404 && opts.unstable_onlyGenerated)
+      ) {
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
@@ -310,18 +331,15 @@ async function unstable_revalidate(
         req: mockReq,
         res: mockRes,
         streamPromise,
-      } = mockRequest(
-        urlPath,
-        {
-          [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
-        },
-        'GET'
-      )
+      } = mockRequest(urlPath, revalidateHeaders, 'GET')
       await context.revalidate(mockReq, mockRes)
       await streamPromise
 
-      if (mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED') {
-        throw new Error(`Invalid response ${mockRes.status}`)
+      if (
+        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
+      ) {
+        throw new Error(`Invalid response ${mockRes.statusCode}`)
       }
     } else {
       throw new Error(
@@ -424,7 +442,7 @@ function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
   // Use send to handle request
-  res.send(jsonBody)
+  res.send(JSON.stringify(jsonBody))
 }
 
 function isNotValidData(str: string): boolean {
