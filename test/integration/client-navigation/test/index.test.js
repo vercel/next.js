@@ -1714,6 +1714,26 @@ describe('Client Navigation', () => {
     expect(value).toBe(false)
   })
 
+  it('should emit routeChangeError on hash change cancel', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.routeErrors = []
+      
+      window.next.router.events.on('routeChangeError', function (err) {
+        window.routeErrors.push(err)
+      })
+      window.next.router.push('#first')
+      window.next.router.push('#second')
+      window.next.router.push('#third')
+    })()`)
+
+    await check(async () => {
+      const errorCount = await browser.eval('window.routeErrors.length')
+      return errorCount > 1 ? 'success' : errorCount
+    }, 'success')
+  })
+
   it('should navigate to paths relative to the current page', async () => {
     const browser = await webdriver(context.appPort, '/nav/relative')
     let page

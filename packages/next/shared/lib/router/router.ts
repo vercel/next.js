@@ -1085,7 +1085,6 @@ export default class Router implements BaseRouter {
       } catch (err) {
         if (isError(err) && err.cancelled) {
           Router.events.emit('routeChangeError', err, cleanedAs, routeProps)
-          return false
         }
         throw err
       }
