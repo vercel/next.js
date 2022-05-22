@@ -17,12 +17,15 @@ function baseNextConfig(): Parameters<typeof createNext>[0] {
             return exports.add_one(a);
           }
         `,
-      'pages/_middleware.js': `
-          import { increment } from '../src/add.js'
+      'pages/index.js': `
+          export default function () { return <div>Hello, world!</div> }
+        `,
+      'middleware.js': `
+          import { increment } from './src/add.js'
           export default async function middleware(request) {
             const input = Number(request.nextUrl.searchParams.get('input')) || 1;
             const value = await increment(input);
-            return new Response(JSON.stringify({ input, value }));
+            return new Response(null, { headers: { data: JSON.stringify({ input, value }) } });
           }
         `,
     },
@@ -40,7 +43,7 @@ describe('middleware can use wasm files', () => {
 
   it('uses the wasm file', async () => {
     const response = await fetchViaHTTP(next.url, '/')
-    expect(await response.json()).toEqual({
+    expect(extractJSON(response)).toEqual({
       input: 1,
       value: 2,
     })
@@ -48,28 +51,30 @@ describe('middleware can use wasm files', () => {
 
   it('can be called twice', async () => {
     const response = await fetchViaHTTP(next.url, '/', { input: 2 })
-    expect(await response.json()).toEqual({
+    expect(extractJSON(response)).toEqual({
       input: 2,
       value: 3,
     })
   })
 
-  it('lists the necessary wasm bindings in the manifest', async () => {
-    const manifestPath = path.join(
-      next.testDir,
-      '.next/server/middleware-manifest.json'
-    )
-    const manifest = await fs.readJSON(manifestPath)
-    expect(manifest.middleware['/']).toMatchObject({
-      wasm: [
-        {
-          filePath:
-            'server/middleware-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
-          name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
-        },
-      ],
+  if (!(global as any).isNextDeploy) {
+    it('lists the necessary wasm bindings in the manifest', async () => {
+      const manifestPath = path.join(
+        next.testDir,
+        '.next/server/middleware-manifest.json'
+      )
+      const manifest = await fs.readJSON(manifestPath)
+      expect(manifest.middleware['/']).toMatchObject({
+        wasm: [
+          {
+            filePath:
+              'server/edge-chunks/wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d.wasm',
+            name: 'wasm_58ccff8b2b94b5dac6ef8957082ecd8f6d34186d',
+          },
+        ],
+      })
     })
-  })
+  }
 })
 
 describe('middleware can use wasm files with the experimental modes on', () => {
@@ -95,9 +100,13 @@ describe('middleware can use wasm files with the experimental modes on', () => {
 
   it('uses the wasm file', async () => {
     const response = await fetchViaHTTP(next.url, '/')
-    expect(await response.json()).toEqual({
+    expect(extractJSON(response)).toEqual({
       input: 1,
       value: 2,
     })
   })
 })
+
+function extractJSON(response) {
+  return JSON.parse(response.headers.get('data') ?? '{}')
+}

@@ -4,7 +4,7 @@ import { parseUrl } from './parse-url'
 import type { NextConfig, DomainLocale } from '../../../../server/config-shared'
 import type { ParsedUrl } from './parse-url'
 import type { PathLocale } from '../../i18n/normalize-locale-path'
-import { hasBasePath, replaceBasePath } from '../../../../server/router'
+import { hasBasePath, replaceBasePath } from '../../../../server/router-utils'
 
 interface Params {
   headers?: { [key: string]: string | string[] | undefined }

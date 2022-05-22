@@ -18,6 +18,11 @@ app.prepare().then(() => {
       return app.render(req, res, '/no-query')
     }
 
+    if (req.url === '/unhandled-rejection') {
+      Promise.reject(new Error('unhandled rejection'))
+      return res.end('ok')
+    }
+
     if (/setAssetPrefix/.test(req.url)) {
       app.setAssetPrefix(`http://127.0.0.1:${port}`)
     } else if (/setEmptyAssetPrefix/.test(req.url)) {

@@ -7,49 +7,59 @@ import { NextInstance } from 'test/lib/next-modes/base'
 jest.setTimeout(2 * 60 * 1000)
 
 export function runTests(example = '') {
-  let next: NextInstance
+  const versionParts = process.versions.node.split('.').map((i) => Number(i))
 
-  beforeAll(async () => {
-    const srcDir = join(__dirname, '../../../../examples', example)
-    const srcFiles = await fs.readdir(srcDir)
+  if ((global as any).isNextDeploy) {
+    it('should not run for next deploy', () => {})
+    return
+  }
 
-    const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+  if (
+    versionParts[0] > 16 ||
+    (versionParts[0] === 16 && versionParts[1] >= 14)
+  ) {
+    let next: NextInstance
 
-    next = await createNext({
-      files: srcFiles.reduce((prev, file) => {
-        if (file !== 'package.json') {
-          prev[file] = new FileRef(join(srcDir, file))
-        }
-        return prev
-      }, {} as { [key: string]: FileRef }),
-      dependencies: {
-        ...packageJson.dependencies,
-        ...packageJson.devDependencies,
-      },
-      installCommand: ({ dependencies }) => {
-        const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
-          prev.push(`${cur}@${dependencies[cur]}`)
+    beforeAll(async () => {
+      const srcDir = join(__dirname, '../../../../examples', example)
+      const srcFiles = await fs.readdir(srcDir)
+
+      const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+
+      next = await createNext({
+        files: srcFiles.reduce((prev, file) => {
+          if (file !== 'package.json') {
+            prev[file] = new FileRef(join(srcDir, file))
+          }
           return prev
-        }, [] as string[])
-        return `yarn set version 3.1.1 && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
-          ' '
-        )}`
-      },
-      buildCommand: `yarn next build --no-lint`,
-      startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,
+        }, {} as { [key: string]: FileRef }),
+        dependencies: {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies,
+        },
+        installCommand: ({ dependencies }) => {
+          const pkgs = Object.keys(dependencies).reduce((prev, cur) => {
+            prev.push(`${cur}@${dependencies[cur]}`)
+            return prev
+          }, [] as string[])
+          return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
+            ' '
+          )}`
+        },
+        buildCommand: `yarn next build --no-lint`,
+        startCommand: (global as any).isNextDev
+          ? `yarn next`
+          : `yarn next start`,
+      })
     })
-  })
-  afterAll(() => next?.destroy())
+    afterAll(() => next?.destroy())
 
-  it('should warn on not fully supported node versions', async () => {
-    expect(next.cliOutput).toContain(
-      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info'
-    )
-  })
-
-  it(`should compile and serve the index page correctly ${example}`, async () => {
-    const res = await fetchViaHTTP(next.url, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('<html')
-  })
+    it(`should compile and serve the index page correctly ${example}`, async () => {
+      const res = await fetchViaHTTP(next.url, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('<html')
+    })
+  } else {
+    it('should not run PnP test for older node versions', () => {})
+  }
 }

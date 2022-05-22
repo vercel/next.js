@@ -162,7 +162,7 @@ describe('Build Output', () => {
           / \/slow-static\/.+\/.+(?: \(\d+ ms\))?| \[\+\d+ more paths\]/g
         )
 
-        expect(matches).toEqual([
+        for (const check of [
           // summary
           expect.stringMatching(
             /\/\[propsDuration\]\/\[renderDuration\] \(\d+ ms\)/
@@ -178,7 +178,12 @@ describe('Build Output', () => {
           expect.stringMatching(/\/10\/10$/),
           // max of 7 preview paths
           ' [+2 more paths]',
-        ])
+        ]) {
+          // the order isn't guaranteed on the timing tests as while() is being
+          // used in the render so can block the thread of other renders sharing
+          // the same worker
+          expect(matches).toContainEqual(check)
+        }
       })
 
       it('should not emit extracted comments', async () => {

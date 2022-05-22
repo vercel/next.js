@@ -1,5 +1,9 @@
-import moment from 'moment'
+import nonIsomorphicText from 'non-isomorphic-text'
 
 export default function Page() {
-  return <div>date:{moment().toString()}</div>
+  return (
+    <div>
+      <div>date:{nonIsomorphicText()}</div>
+    </div>
+  )
 }

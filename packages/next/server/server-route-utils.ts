@@ -9,7 +9,7 @@ import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
-import pathMatch from '../shared/lib/router/utils/path-match'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import {
   compileNonPath,
   prepareDestination,
@@ -18,8 +18,6 @@ import { getRequestMeta } from './request-meta'
 import { stringify as stringifyQs } from 'querystring'
 import { format as formatUrl } from 'url'
 import { normalizeRepeatedSlashes } from '../shared/lib/utils'
-
-const getCustomRouteMatcher = pathMatch(true)
 
 export const getCustomRoute = ({
   type,
@@ -30,16 +28,17 @@ export const getCustomRoute = ({
   type: RouteType
   restrictedRedirectPaths: string[]
 }) => {
-  const match = getCustomRouteMatcher(
-    rule.source,
-    !(rule as any).internal
+  const match = getPathMatch(rule.source, {
+    strict: true,
+    removeUnnamedParams: true,
+    regexModifier: !(rule as any).internal
       ? (regex: string) =>
           modifyRouteRegex(
             regex,
             type === 'redirect' ? restrictedRedirectPaths : undefined
           )
-      : undefined
-  )
+      : undefined,
+  })
 
   return {
     ...rule,

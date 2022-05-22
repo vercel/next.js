@@ -39,6 +39,8 @@ NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
 
+> Note: Running `next` without a command is the same as running `next dev`
+
 ## Build
 
 `next build` creates an optimized production build of your application. The output displays information about each route.
