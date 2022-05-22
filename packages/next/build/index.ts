@@ -836,7 +836,7 @@ export default async function build(
         if (result.errors.length > 5) {
           result.errors.length = 5
         }
-        let error = result.errors.join('\n\n')
+        let error = result.errors.filter(Boolean).join('\n\n')
 
         console.error(chalk.red('Failed to compile.\n'))
 
@@ -893,7 +893,7 @@ export default async function build(
 
         if (result.warnings.length > 0) {
           Log.warn('Compiled with warnings\n')
-          console.warn(result.warnings.join('\n\n'))
+          console.warn(result.warnings.filter(Boolean).join('\n\n'))
           console.warn()
         } else {
           Log.info('Compiled successfully')
