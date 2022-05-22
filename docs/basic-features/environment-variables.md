@@ -152,26 +152,14 @@ export default async () => {
 
 ## Environment Variable Load Order
 
-Depending on the environment (as set by `NODE_ENV`), Environment Variables are loaded from the following sources in top-to-bottom order. In all environments, the existing `env` is not overridden by following sources:
+Environment variables are looked up in the following places, in order, stopping once the variable is found.
 
-`NODE_ENV=production`
-
-1. `.env.production.local`
-1. `.env.local`
-1. `.env.production`
+1. `process.env`
+1. `.env.$(NODE_ENV).local`
+1. `.env.local` (Not checked when `NODE_ENV` is `test`.)
+1. `.env.$(NODE_ENV)`
 1. `.env`
 
-`NODE_ENV=development`
+For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
 
-1. `.env.development.local`
-1. `.env.local`
-1. `.env.development`
-1. `.env`
-
-`NODE_ENV=test`
-
-1. `.env.test.local`
-1. `.env.test`
-1. `.env`
-
-> **Note:** `.env.local` is not loaded when `NODE_ENV=test`.
+> **Note:** The allowed values for `NODE_ENV` are `production`, `development` and `test`.

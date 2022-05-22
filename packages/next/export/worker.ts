@@ -221,8 +221,13 @@ export default async function exportPage({
       // extension of `.slug]`
       const pageExt = isDynamic ? '' : extname(page)
       const pathExt = isDynamic ? '' : extname(path)
+
+      // force output 404.html for backwards compat
+      if (path === '/404.html') {
+        htmlFilename = path
+      }
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-      if (pageExt !== pathExt && pathExt !== '') {
+      else if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
           (p) => p === path || p === path + '.html'
         )

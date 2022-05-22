@@ -22,7 +22,6 @@ import css from './css'
 import rsc from './rsc'
 import streaming from './streaming'
 import basic from './basic'
-import runtime from './runtime'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
 const appWithGlobalCss = `
@@ -59,7 +58,6 @@ const edgeRuntimeBasicSuite = {
     basic(context, options)
     streaming(context, options)
     rsc(context, options)
-    runtime(context, options)
 
     if (env === 'dev') {
       it('should have content-type and content-encoding headers', async () => {
