@@ -1,6 +1,6 @@
 # Example app with analytics
 
-This example shows how to use Next.js along with [Segment Analytics](https://segment.com). A custom document is used in inject the [Segment snippet](https://github.com/segmentio/snippet) into the `<head>`. Page views are tracked on both the server and client side and components fire ["track"](https://segment.com/docs/spec/track/) events based on user actions (see `contact.js` for example).
+This example shows how to use Next.js along with [Segment Analytics](https://segment.com). A [custom app](https://nextjs.org/docs/advanced-features/custom-app) is used to inject the [Segment Analytics.js snippet](https://github.com/segmentio/snippet). The server and client-side call the [Page API](https://segment.com/docs/connections/spec/page/), while components call the [Track API](https://segment.com/docs/connections/spec/track/) on user actions (Refer to [`contact.js`](https://github.com/vercel/next.js/blob/canary/examples/with-segment-analytics/pages/contact.js)).
 
 ## Deploy your own
 

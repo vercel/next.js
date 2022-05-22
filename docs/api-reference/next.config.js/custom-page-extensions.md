@@ -16,7 +16,7 @@ module.exports = {
 
 > **Note**: The default value of `pageExtensions` is [`['tsx', 'ts', 'jsx', 'js']`](https://github.com/vercel/next.js/blob/f1dbc9260d48c7995f6c52f8fbcc65f08e627992/packages/next/server/config-shared.ts#L161).
 
-> **Note**: configuring `pageExtensions` also affects `_document.js`, `_app.js`, `_middleware.js` as well as files under `pages/api/`. For example, setting `pageExtensions: ['page.tsx', 'page.ts']` means the following files: `_document.tsx`, `_app.tsx`, `_middleware.ts`, `pages/users.tsx` and `pages/api/users.ts` will have to be renamed to `_document.page.tsx`, `_app.page.tsx`, `_middleware.page.ts`, `pages/users.page.tsx` and `pages/api/users.page.ts` respectively.
+> **Note**: configuring `pageExtensions` also affects `_document.js`, `_app.js`, `middleware.js` as well as files under `pages/api/`. For example, setting `pageExtensions: ['page.tsx', 'page.ts']` means the following files: `_document.tsx`, `_app.tsx`, `middleware.ts`, `pages/users.tsx` and `pages/api/users.ts` will have to be renamed to `_document.page.tsx`, `_app.page.tsx`, `middleware.page.ts`, `pages/users.page.tsx` and `pages/api/users.page.ts` respectively.
 
 ## Including non-page files in the `pages` directory
 
@@ -32,7 +32,7 @@ module.exports = {
 
 Then rename your pages to have a file extension that includes `.page` (ex. rename `MyPage.tsx` to `MyPage.page.tsx`).
 
-> **Note**: Make sure you also rename `_document.js`, `_app.js`, `_middleware.js`, as well as files under `pages/api/`.
+> **Note**: Make sure you also rename `_document.js`, `_app.js`, `middleware.js`, as well as files under `pages/api/`.
 
 Without this config, Next.js assumes every tsx/ts/jsx/js file in the `pages` directory is a page or API route, and may expose unintended routes vulnerable to denial of service attacks, or throw an error like the following when building the production bundle:
 
