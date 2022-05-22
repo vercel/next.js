@@ -30,14 +30,14 @@ import {
   NextPageContext,
   ST,
   NEXT_DATA,
+  isAbsoluteUrl,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 
 declare global {
@@ -205,12 +205,23 @@ export function hasBasePath(path: string): boolean {
   return hasPathPrefix(path, basePath)
 }
 
-export function addBasePath(path: string): string {
+export function addBasePath(path: string, required?: boolean): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!required) {
+      return path
+    }
+  }
   // we only add the basepath on relative urls
   return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!hasBasePath(path)) {
+      return path
+    }
+  }
+
   path = path.slice(basePath.length)
   if (!path.startsWith('/')) path = `/${path}`
   return path
@@ -221,8 +232,7 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
-    return true
+  if (!isAbsoluteUrl(url)) return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
@@ -1120,7 +1130,7 @@ export default class Router implements BaseRouter {
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
-          addBasePath(addLocale(cleanedAs, nextState.locale)),
+          addBasePath(addLocale(cleanedAs, nextState.locale), true),
           pages,
           rewrites,
           query,
@@ -1288,6 +1298,9 @@ export default class Router implements BaseRouter {
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
         if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          // Use the destination from redirect without adding locale
+          options.locale = false
+
           const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
@@ -1388,6 +1401,12 @@ export default class Router implements BaseRouter {
         }
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
+
+      // A hash mark # is the optional last part of a URL
+      const hashRegex = /#.+$/
+      if (shouldScroll && hashRegex.test(as)) {
+        this.scrollToHash(as)
+      }
 
       return true
     } catch (err) {
@@ -1689,15 +1708,17 @@ export default class Router implements BaseRouter {
       return
     }
 
+    // Decode hash to make non-latin anchor works.
+    const rawHash = decodeURIComponent(hash)
     // First we check if the element by id is found
-    const idEl = document.getElementById(hash)
+    const idEl = document.getElementById(rawHash)
     if (idEl) {
       idEl.scrollIntoView()
       return
     }
     // If there's no element with the id, we check the `name` property
     // To mirror browsers
-    const nameEl = document.getElementsByName(hash)[0]
+    const nameEl = document.getElementsByName(rawHash)[0]
     if (nameEl) {
       nameEl.scrollIntoView()
     }
@@ -1747,7 +1768,7 @@ export default class Router implements BaseRouter {
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
 
       const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(asPath, this.locale)),
+        addBasePath(addLocale(asPath, this.locale), true),
         pages,
         rewrites,
         parsed.query,
@@ -1906,7 +1927,11 @@ export default class Router implements BaseRouter {
 
     const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+      return getRouteMatcher(
+        getMiddlewareRegex(middleware, {
+          catchAll: !isSSR,
+        })
+      )(cleanedAs)
     })
 
     if (!requiresPreflight) {

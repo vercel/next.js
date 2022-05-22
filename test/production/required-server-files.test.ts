@@ -30,6 +30,9 @@ describe('should set-up next', () => {
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
@@ -54,6 +57,10 @@ describe('should set-up next', () => {
             fallback: [
               {
                 source: '/an-ssg-path',
+                destination: '/hello.txt',
+              },
+              {
+                source: '/fallback-false/:path',
                 destination: '/hello.txt',
               },
             ],
@@ -155,15 +162,7 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(
-          next.testDir,
-          'standalone/.next/server/pages/middleware/_middleware.js'
-        )
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+        join(next.testDir, 'standalone/.next/server/middleware.js')
       )
     ).toBe(true)
   })
@@ -184,6 +183,7 @@ describe('should set-up next', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
+    expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
     const $ = cheerio.load(await res.text())
     const props = JSON.parse($('#props').text())
     expect(props.gspCalls).toBeDefined()
@@ -197,6 +197,7 @@ describe('should set-up next', () => {
       }
     )
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('x-nextjs-cache')).toBeFalsy()
     const { pageProps: props2 } = await res2.json()
     expect(props2.gspCalls).toBe(props.gspCalls)
 
@@ -978,6 +979,35 @@ describe('should set-up next', () => {
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
     expect(JSON.parse($('#router').text()).asPath).toBe('/an-ssg-path')
+  })
+
+  it('should have correct asPath on dynamic SSG page fallback correctly', async () => {
+    const toCheck = [
+      {
+        pathname: '/fallback-false/first',
+        matchedPath: '/fallback-false/first',
+      },
+      {
+        pathname: '/fallback-false/first',
+        matchedPath: `/_next/data/${next.buildId}/fallback-false/first.json`,
+      },
+    ]
+    for (const check of toCheck) {
+      console.warn('checking', check)
+      const res = await fetchViaHTTP(appPort, check.pathname, undefined, {
+        headers: {
+          'x-matched-path': check.matchedPath,
+        },
+        redirect: 'manual',
+      })
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('#page').text()).toBe('blog slug')
+      expect($('#asPath').text()).toBe('/fallback-false/first')
+      expect($('#pathname').text()).toBe('/fallback-false/[slug]')
+      expect(JSON.parse($('#query').text())).toEqual({ slug: 'first' })
+    }
   })
 
   it('should copy and read .env file', async () => {

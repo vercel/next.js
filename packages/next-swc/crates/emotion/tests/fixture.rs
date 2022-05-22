@@ -27,12 +27,12 @@ fn next_emotion_fixture(input: PathBuf) {
                 tr.cm.clone(),
                 Some(tr.comments.as_ref().clone()),
                 swc_ecmascript::transforms::react::Options {
-                    next: false,
+                    next: false.into(),
                     runtime: Some(Runtime::Automatic),
-                    throw_if_namespace: false,
-                    development: false,
-                    use_builtins: true,
-                    use_spread: true,
+                    throw_if_namespace: false.into(),
+                    development: false.into(),
+                    use_builtins: true.into(),
+                    use_spread: true.into(),
                     ..Default::default()
                 },
                 top_level_mark,

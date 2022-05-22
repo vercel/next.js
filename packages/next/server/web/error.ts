@@ -3,7 +3,7 @@ export class DeprecationError extends Error {
     super(`The middleware "${page}" accepts an async API directly with the form:
   
   export function middleware(request, event) {
-    return new Response("Hello " + request.url)
+    return NextResponse.redirect('/new-location')
   }
   
   Read more: https://nextjs.org/docs/messages/middleware-new-signature

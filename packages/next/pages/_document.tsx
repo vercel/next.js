@@ -1,9 +1,13 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
+import {
+  OPTIMIZED_FONT_PROVIDERS,
+  NEXT_BUILTIN_DOCUMENT,
+} from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
+  DocumentType,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
@@ -27,6 +31,13 @@ type DocumentFiles = {
   pageFiles: readonly string[]
   allFiles: readonly string[]
 }
+
+type HeadHTMLProps = React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLHeadElement>,
+  HTMLHeadElement
+>
+
+type HeadProps = OriginProps & HeadHTMLProps
 
 function getDocumentFiles(
   buildManifest: BuildManifest,
@@ -309,7 +320,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
 
 // Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
-;(Document as any).__next_internal_document =
+const InternalFunctionDocument: DocumentType =
   function InternalFunctionDocument() {
     return (
       <Html>
@@ -321,6 +332,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       </Html>
     )
   }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
 
 export function Html(
   props: React.DetailedHTMLProps<
@@ -388,13 +400,7 @@ function AmpStyles({
   )
 }
 
-export class Head extends Component<
-  OriginProps &
-    React.DetailedHTMLProps<
-      React.HTMLAttributes<HTMLHeadElement>,
-      HTMLHeadElement
-    >
-> {
+export class Head extends Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -550,8 +556,13 @@ export class Head extends Component<
           !script.src && (script.dangerouslySetInnerHTML || script.children)
       )
       .map((file: ScriptProps, index: number) => {
-        const { strategy, children, dangerouslySetInnerHTML, ...scriptProps } =
-          file
+        const {
+          strategy,
+          children,
+          dangerouslySetInnerHTML,
+          src,
+          ...scriptProps
+        } = file
         let html = ''
 
         if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
@@ -785,7 +796,7 @@ export class Head extends Component<
     )
 
     return (
-      <head {...this.props}>
+      <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
           <>
             <style
@@ -1069,4 +1080,15 @@ export class NextScript extends Component<OriginProps> {
 
 function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
+
+function getHeadHTMLProps(props: HeadProps) {
+  const { crossOrigin, nonce, ...restProps } = props
+
+  // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
+  const headProps: HeadHTMLProps & {
+    [P in Exclude<keyof HeadProps, keyof HeadHTMLProps>]?: never
+  } = restProps
+
+  return headProps
 }
