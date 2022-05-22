@@ -27,6 +27,7 @@ describe('Middleware Runtime', () => {
   describe('dev mode', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
+      context.dev = true
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
@@ -87,6 +88,7 @@ describe('Middleware Runtime', () => {
         stderr: build.stderr,
         stdout: build.stdout,
       }
+      context.dev = false
 
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort, {
@@ -133,6 +135,15 @@ describe('Middleware Runtime', () => {
 })
 
 function tests(context, locale = '') {
+  it('should respond with 400 on decode failure', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/%2`)
+    expect(res.status).toBe(400)
+
+    if (!context.dev) {
+      expect(await res.text()).toContain('Bad Request')
+    }
+  })
+
   it('should set fetch user agent correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
