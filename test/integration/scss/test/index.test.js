@@ -46,6 +46,8 @@ describe('SCSS Support', () => {
       expect(code).toBe(1)
       expect(stderr).toContain('Failed to compile.')
       expect(stderr).toContain(cleanScssErrMsg)
+      expect(stderr).not.toContain('css-loader')
+      expect(stderr).not.toContain('sass-loader')
     })
   })
 

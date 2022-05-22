@@ -31,6 +31,8 @@ function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
+let hadMissingSassError = false
+
 // Cleans up webpack error messages.
 function formatMessage(message, verbose) {
   // TODO: Replace this once webpack 5 is stable
@@ -123,6 +125,13 @@ function formatMessage(message, verbose) {
 
     // dispose of unhelpful stack trace
     lines = lines.slice(0, 2)
+    hadMissingSassError = true
+  } else if (
+    hadMissingSassError &&
+    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+  ) {
+    // dispose of unhelpful stack trace following missing sass module
+    lines = []
   }
 
   if (!verbose) {
