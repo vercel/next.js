@@ -1,23 +1,18 @@
 {
-  "name": "with-react-multi-carousel",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@material-ui/core": "^3.9.2",
     "@material-ui/icons": "^3.0.2",
     "jss": "^9.8.7",
     "mobile-detect": "^1.4.3",
     "next": "^9.3.0",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-jss": "^8.6.1",
     "react-multi-carousel": "^1.2.5"
   }

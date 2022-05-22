@@ -1,8 +1,5 @@
 {
-  "name": "with-typescript-graphql",
-  "version": "0.1.0",
-  "author": "",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "codegen": "graphql-let",
     "dev": "yarn codegen && next",
@@ -18,25 +15,28 @@
     "apollo-server-micro": "^2.16.1",
     "graphql": "15.3.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "@graphql-codegen/cli": "^1.17.8",
-    "@graphql-codegen/plugin-helpers": "^1.17.8",
-    "@graphql-codegen/typescript": "^1.17.8",
-    "@graphql-codegen/typescript-operations": "^1.17.8",
-    "@graphql-codegen/typescript-react-apollo": "^2.0.6",
-    "@graphql-codegen/typescript-resolvers": "^1.17.8",
+    "@graphql-codegen/cli": "^2.2.1",
+    "@graphql-codegen/import-types-preset": "^2.1.6",
+    "@graphql-codegen/plugin-helpers": "^2.2.0",
+    "@graphql-codegen/typescript": "^2.2.4",
+    "@graphql-codegen/typescript-operations": "^2.1.8",
+    "@graphql-codegen/typescript-react-apollo": "^3.1.6",
+    "@graphql-codegen/typescript-resolvers": "^2.3.2",
     "@types/react": "^16.9.46",
     "@types/react-dom": "^16.9.8",
-    "@types/react-test-renderer": "16.9.3",
-    "babel-jest": "26.3.0",
-    "graphql-let": "0.x",
+    "@types/react-test-renderer": "^17.0.1",
+    "@types/jest": "^27.0.2",
+    "@types/mocha": "^9.0.0",
+    "babel-jest": "27.2.5",
+    "graphql-let": "^0.18.6",
     "graphql-tag": "2.11.0",
-    "jest": "26.4.0",
-    "react-test-renderer": "16.13.1",
-    "typescript": "^3.9.7",
+    "jest": "^27.2.5",
+    "react-test-renderer": "^17.0.1",
+    "typescript": "^4.5.4",
     "yaml-loader": "0.6.0"
   }
 }

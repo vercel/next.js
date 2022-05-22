@@ -2,11 +2,11 @@
 
 ### Why This Error Occurred
 
-`next/document` was imported in a page outside of `pages/_document.js`. This can cause unexpected issues in your application.
+`next/document` was imported in a page outside of `pages/_document.js` (or `pages/_document.tsx` if you are using TypeScript). This can cause unexpected issues in your application.
 
 ### Possible Ways to Fix It
 
-Only import and use `next/document` within `pages/_document.js` to override the default `Document` component:
+Only import and use `next/document` within `pages/_document.js` (or `pages/_document.tsx`) to override the default `Document` component:
 
 ```jsx
 // pages/_document.js

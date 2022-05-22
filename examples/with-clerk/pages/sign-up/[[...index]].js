@@ -1,7 +1,7 @@
-import { SignUp } from '@clerk/clerk-react'
+import { SignUp } from '@clerk/nextjs'
 
 const SignUpPage = () => (
-  <SignUp path="/sign-up" routing="path" signInURL="/sign-in" />
+  <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" />
 )
 
 export default SignUpPage

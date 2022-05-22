@@ -18,20 +18,20 @@ import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
-import { shouldUseYarn } from './helpers/should-use-yarn'
 import { isWriteable } from './helpers/is-writeable'
+import type { PackageManager } from './helpers/get-pkg-manager'
 
 export class DownloadError extends Error {}
 
 export async function createApp({
   appPath,
-  useNpm,
+  packageManager,
   example,
   examplePath,
   typescript,
 }: {
   appPath: string
-  useNpm: boolean
+  packageManager: PackageManager
   example?: string
   examplePath?: string
   typescript?: boolean
@@ -44,7 +44,7 @@ export async function createApp({
 
     try {
       repoUrl = new URL(example)
-    } catch (error) {
+    } catch (error: any) {
       if (error.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
@@ -89,7 +89,11 @@ export async function createApp({
         console.error(
           `Could not locate an example named ${chalk.red(
             `"${example}"`
-          )}. Please check your spelling and try again.`
+          )}. It could be due to the following:\n`,
+          `1. Your spelling of example ${chalk.red(
+            `"${example}"`
+          )} might be incorrect.\n`,
+          `2. You might not be connected to the internet or you are behind a proxy.`
         )
         process.exit(1)
       }
@@ -115,15 +119,13 @@ export async function createApp({
     process.exit(1)
   }
 
-  const useYarn = useNpm ? false : shouldUseYarn()
+  const useYarn = packageManager === 'yarn'
   const isOnline = !useYarn || (await getOnline())
   const originalDirectory = process.cwd()
 
-  const displayedCommand = useYarn ? 'yarn' : 'npm'
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
-  await makeDir(root)
   process.chdir(root)
 
   if (example) {
@@ -154,7 +156,16 @@ export async function createApp({
         })
       }
     } catch (reason) {
-      throw new DownloadError(reason)
+      function isErrorLike(err: unknown): err is { message: string } {
+        return (
+          typeof err === 'object' &&
+          err !== null &&
+          typeof (err as { message?: unknown }).message === 'string'
+        )
+      }
+      throw new DownloadError(
+        isErrorLike(reason) ? reason.message : reason + ''
+      )
     }
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
@@ -165,17 +176,26 @@ export async function createApp({
       )
     }
 
+    // Copy default `next-env.d.ts` to any example that is typescript
+    const tsconfigPath = path.join(root, 'tsconfig.json')
+    if (fs.existsSync(tsconfigPath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
+        path.join(root, 'next-env.d.ts')
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
-    await install(root, null, { useYarn, isOnline })
+    await install(root, null, { packageManager, isOnline })
     console.log()
   } else {
     /**
      * Otherwise, if an example repository is not provided for cloning, proceed
      * by installing from a template.
      */
-    console.log(chalk.bold(`Using ${displayedCommand}.`))
+    console.log(chalk.bold(`Using ${packageManager}.`))
     /**
      * Create a package.json for the new project.
      */
@@ -187,6 +207,7 @@ export async function createApp({
         dev: 'next dev',
         build: 'next build',
         start: 'next start',
+        lint: 'next lint',
       },
     }
     /**
@@ -199,7 +220,7 @@ export async function createApp({
     /**
      * These flags will be passed to `install()`.
      */
-    const installFlags = { useYarn, isOnline }
+    const installFlags = { packageManager, isOnline }
     /**
      * Default dependencies.
      */
@@ -207,12 +228,17 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = []
+    const devDependencies = ['eslint', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react')
+      devDependencies.push(
+        'typescript',
+        '@types/react',
+        '@types/node',
+        '@types/react-dom'
+      )
     }
     /**
      * Install package.json dependencies if they exist.
@@ -250,11 +276,12 @@ export async function createApp({
       cwd: path.join(__dirname, 'templates', template),
       rename: (name) => {
         switch (name) {
-          case 'gitignore': {
+          case 'gitignore':
+          case 'eslintrc.json': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
           case 'README-template.md': {
             return 'README.md'
           }
@@ -281,20 +308,20 @@ export async function createApp({
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
   console.log('Inside that directory, you can run several commands:')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}dev`))
+  console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
   console.log('    Starts the development server.')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}build`))
+  console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
   console.log('    Builds the app for production.')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} start`))
+  console.log(chalk.cyan(`  ${packageManager} start`))
   console.log('    Runs the built app in production mode.')
   console.log()
   console.log('We suggest that you begin by typing:')
   console.log()
   console.log(chalk.cyan('  cd'), cdpath)
   console.log(
-    `  ${chalk.cyan(`${displayedCommand} ${useYarn ? '' : 'run '}dev`)}`
+    `  ${chalk.cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`
   )
   console.log()
 }

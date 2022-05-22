@@ -1,6 +1,5 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import { findConfig } from '../../../../../lib/find-config'
-import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -10,7 +9,7 @@ type CssPluginCollection =
   | CssPluginCollection_Array
   | CssPluginCollection_Object
 
-type CssPluginShape = [string, object | boolean]
+type CssPluginShape = [string, object | boolean | string]
 
 const genericErrorText = 'Malformed PostCSS Configuration'
 
@@ -25,7 +24,8 @@ function getError_NullConfig(pluginName: string) {
 }
 
 function isIgnoredPlugin(pluginPath: string): boolean {
-  const ignoredRegex = /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
+  const ignoredRegex =
+    /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
   const match = ignoredRegex.exec(pluginPath)
   if (match == null) {
     return false
@@ -62,7 +62,7 @@ const createLazyPostCssPlugin = (
 async function loadPlugin(
   dir: string,
   pluginName: string,
-  options: boolean | object
+  options: boolean | object | string
 ): Promise<import('postcss').AcceptedPlugin | false> {
   if (options === false || isIgnoredPlugin(pluginName)) {
     return false
@@ -79,8 +79,7 @@ async function loadPlugin(
   } else if (options === true) {
     return createLazyPostCssPlugin(() => require(pluginPath))
   } else {
-    const keys = Object.keys(options)
-    if (keys.length === 0) {
+    if (typeof options === 'object' && Object.keys(options).length === 0) {
       return createLazyPostCssPlugin(() => require(pluginPath))
     }
     return createLazyPostCssPlugin(() => require(pluginPath)(options))
@@ -88,49 +87,46 @@ async function loadPlugin(
 }
 
 function getDefaultPlugins(
-  baseDirectory: string,
-  isProduction: boolean
-): CssPluginCollection {
-  let browsers: any
-  try {
-    browsers = browserslist.loadConfig({
-      path: baseDirectory,
-      env: isProduction ? 'production' : 'development',
-    })
-  } catch {}
-
+  supportedBrowsers: string[] | undefined,
+  disablePostcssPresetEnv: boolean
+): any[] {
   return [
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
-    [
-      require.resolve('next/dist/compiled/postcss-preset-env'),
-      {
-        browsers: browsers ?? ['defaults'],
-        autoprefixer: {
-          // Disable legacy flexbox support
-          flexbox: 'no-2009',
-        },
-        // Enable CSS features that have shipped to the
-        // web platform, i.e. in 2+ browsers unflagged.
-        stage: 3,
-        features: {
-          'custom-properties': false,
-        },
-      },
-    ],
-  ]
+    disablePostcssPresetEnv
+      ? false
+      : [
+          require.resolve('next/dist/compiled/postcss-preset-env'),
+          {
+            browsers: supportedBrowsers ?? ['defaults'],
+            autoprefixer: {
+              // Disable legacy flexbox support
+              flexbox: 'no-2009',
+            },
+            // Enable CSS features that have shipped to the
+            // web platform, i.e. in 2+ browsers unflagged.
+            stage: 3,
+            features: {
+              'custom-properties': false,
+            },
+          },
+        ],
+  ].filter(Boolean)
 }
 
 export async function getPostCssPlugins(
   dir: string,
-  isProduction: boolean,
-  defaults: boolean = false
+  supportedBrowsers: string[] | undefined,
+  disablePostcssPresetEnv: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = defaults
-    ? null
-    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins(dir, isProduction) }
+    config = {
+      plugins: getDefaultPlugins(supportedBrowsers, disablePostcssPresetEnv),
+    }
   }
 
   if (typeof config === 'function') {
@@ -190,7 +186,9 @@ export async function getPostCssPlugins(
       const pluginConfig = plugin[1]
       if (
         typeof pluginName === 'string' &&
-        (typeof pluginConfig === 'boolean' || typeof pluginConfig === 'object')
+        (typeof pluginConfig === 'boolean' ||
+          typeof pluginConfig === 'object' ||
+          typeof pluginConfig === 'string')
       ) {
         parsed.push([pluginName, pluginConfig])
       } else {

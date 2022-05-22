@@ -12,7 +12,7 @@ This example uses [next-intl](https://github.com/amannn/next-intl), a minimal, b
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-next-intl)
 
@@ -24,6 +24,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-i18n-next-intl
 # or
 yarn create next-app --example with-i18n-next-intl
+# or
+pnpm create next-app -- --example with-i18n-next-intl
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -76,9 +76,8 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          const callExpression_ = callExpression as NodePath<
-            BabelTypes.CallExpression
-          >
+          const callExpression_ =
+            callExpression as NodePath<BabelTypes.CallExpression>
 
           let args = callExpression_.get('arguments')
           if (args.length > 2) {
@@ -169,29 +168,35 @@ export default function ({
           options.node.properties.push(
             t.objectProperty(
               t.identifier('loadableGenerated'),
-              t.objectExpression([
-                t.objectProperty(
-                  t.identifier('webpack'),
-                  t.arrowFunctionExpression(
-                    [],
-                    t.arrayExpression(
-                      dynamicImports.map((dynamicImport) => {
-                        return t.callExpression(
-                          t.memberExpression(
-                            t.identifier('require'),
-                            t.identifier('resolveWeak')
-                          ),
-                          [dynamicImport]
+              t.objectExpression(
+                state.file.opts.caller?.isDev ||
+                  state.file.opts.caller?.isServer
+                  ? [
+                      t.objectProperty(
+                        t.identifier('modules'),
+                        t.arrayExpression(dynamicKeys)
+                      ),
+                    ]
+                  : [
+                      t.objectProperty(
+                        t.identifier('webpack'),
+                        t.arrowFunctionExpression(
+                          [],
+                          t.arrayExpression(
+                            dynamicImports.map((dynamicImport) => {
+                              return t.callExpression(
+                                t.memberExpression(
+                                  t.identifier('require'),
+                                  t.identifier('resolveWeak')
+                                ),
+                                [dynamicImport]
+                              )
+                            })
+                          )
                         )
-                      })
-                    )
-                  )
-                ),
-                t.objectProperty(
-                  t.identifier('modules'),
-                  t.arrayExpression(dynamicKeys)
-                ),
-              ])
+                      ),
+                    ]
+              )
             )
           )
 

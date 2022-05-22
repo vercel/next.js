@@ -20,6 +20,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-mdx-remote with-mdx-remote-app
 # or
 yarn create next-app --example with-mdx-remote with-mdx-remote-app
+# or
+pnpm create next-app -- --example with-mdx-remote with-mdx-remote-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
@@ -34,10 +36,12 @@ For example, here's how you can change `getStaticProps` to pass a list of compon
 
 ```js
 import dynamic from 'next/dynamic'
+import Test from '../components/test'
 
 const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
 
-// ...
+const defaultComponents = { Test }
+
 export function SomePage({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
@@ -46,10 +50,17 @@ export function SomePage({ mdxSource, componentNames }) {
       : null,
   }
 
-  return <MDXRemote {...mdxSource} />
+  return <MDXRemote {...mdxSource} components={components} />
 }
 
 export async function getStaticProps() {
+  const source = `---
+  title: Conditional custom components
+  ---
+
+  Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
+  `
+
   const { content, data } = matter(source)
 
   const componentNames = [

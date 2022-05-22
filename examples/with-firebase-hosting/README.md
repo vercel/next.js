@@ -21,6 +21,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
 # or
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
+# or
+pnpm create next-app -- --example with-firebase-hosting with-firebase-hosting-app
 ```
 
 **Important:** Update `.firebaserc` and add your firebase project ID.
@@ -41,9 +43,9 @@ npm run deploy
 yarn deploy
 ```
 
-## Typescript
+## TypeScript
 
-To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
+To use TypeScript, simply follow [TypeScript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
 
 i.e: `npm install --save-dev typescript @types/react @types/node`
 

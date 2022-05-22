@@ -10,8 +10,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 
 let appPort
@@ -30,9 +28,11 @@ const runTests = () => {
       .click()
       .waitForElementByCss('#index')
 
-    await browser.back()
+    await browser.back().waitForElementByCss('#another')
 
-    expect(await browser.elementByCss('#another').text()).toBe('another page')
+    expect(await browser.waitForElementByCss('#another').text()).toBe(
+      'another page'
+    )
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })

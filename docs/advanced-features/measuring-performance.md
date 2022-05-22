@@ -159,12 +159,12 @@ export function reportWebVitals(metric) {
 
 > **Note**: If you use [Google Analytics](https://analytics.google.com/analytics/web/), using the
 > `id` value can allow you to construct metric distributions manually (to calculate percentiles,
-> etc...).
+> etc.)
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
 >   // Use `window.gtag` if you initialized Google Analytics as this example:
->   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
+>   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_app.js
 >   window.gtag('event', name, {
 >     event_category:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
@@ -175,7 +175,7 @@ export function reportWebVitals(metric) {
 > }
 > ```
 >
-> Read more about sending results to Google Analytics [here](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
+> Read more about [sending results to Google Analytics](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
 
 ## TypeScript
 

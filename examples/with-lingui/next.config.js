@@ -1,13 +1,16 @@
+const { locales, sourceLocale } = require('./lingui.config.js')
+
 module.exports = {
-  webpack: (config, options) => {
+  i18n: {
+    locales,
+    defaultLocale: sourceLocale,
+  },
+  webpack: (config) => {
     config.module.rules.push({
       test: /\.po/,
-      use: [
-        {
-          loader: '@lingui/loader',
-        },
-      ],
+      use: ['@lingui/loader'],
     })
+
     return config
   },
 }

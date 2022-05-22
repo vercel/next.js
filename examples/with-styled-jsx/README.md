@@ -4,7 +4,7 @@ Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing y
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-styled-jsx)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx&project-name=with-styled-jsx&repository-name=with-styled-jsx)
 
@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-styled-jsx with-styled-jsx-app
 # or
 yarn create next-app --example with-styled-jsx with-styled-jsx-app
+# or
+pnpm create next-app -- --example with-styled-jsx with-styled-jsx-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

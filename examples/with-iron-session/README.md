@@ -1,31 +1,29 @@
-# Example application using [`next-iron-session`](https://github.com/vvo/next-iron-session)
+# Example application using [`iron-session`](https://github.com/vvo/iron-session)
 
-This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session).
-
-It uses current best practices for authentication in the Next.js ecosystem.
-
-**Features:**
-
-- [Static Generation](https://nextjs.org/docs/basic-features/pages#static-generation-recommended) (SG), recommended example
-- [Server-side Rendering](https://nextjs.org/docs/basic-features/pages#server-side-rendering) (SSR) example in case you need it
-- Logged in status synchronized between browser windows/tabs using **`useUser`** hook and [`swr`](https://swr.vercel.app/) module
-- Layout based on the user's logged-in/out status
-- Session data is signed and encrypted in a cookie
-
-[`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
-
-- Express / Connect middlewares
-- Multiple encryption keys (password) to allow for seamless updates or just password rotation
+<p align="center"><b>👀 Online demo at <a href="https://iron-session-example.vercel.app/">https://iron-session-example.vercel.app</a></b></p>
 
 ---
 
-<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
+This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`iron-session`](https://github.com/vvo/iron-session).
 
----
+It uses current best practices for authentication in the Next.js ecosystem and replicates parts of how the Vercel dashboard is built.
+
+**Features of the example:**
+
+- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props) examples.
+- The logged in status is synchronized between browser windows/tabs using **`useUser`** hook and the [`swr`](https://swr.vercel.app/).
+- The layout is based on the user's logged-in/out status.
+- The session data is signed and encrypted in a cookie (this is done automatically by `iron-session`).
+
+[`iron-session`](https://github.com/vvo/iron-session) also provides:
+
+- An Express middleware, which can be used in any Node.js HTTP framework.
+- Multiple encryption keys (passwords) to allow for seamless updates or just password rotation.
+- Full TypeScript support, including session data.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session&project-name=with-iron-session&repository-name=with-iron-session)
 
@@ -37,6 +35,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-iron-session with-iron-session-app
 # or
 yarn create next-app --example with-iron-session with-iron-session-app
+# or
+pnpm create next-app -- --example with-iron-session with-iron-session-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

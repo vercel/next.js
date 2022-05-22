@@ -11,9 +11,9 @@ A synchronous script was used which can impact your webpage's performance.
 Use the Script component with the right loading strategy to defer loading of the script until necessary.
 
 ```jsx
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <Script src="https://third-party-script.js"></Script>
@@ -24,8 +24,6 @@ const Home = () => {
 
 export default Home
 ```
-
-Note: This is still an experimental feature and needs to be enabled via the `experimental.scriptLoader` flag in `next.config.js`.
 
 ### Useful Links
 

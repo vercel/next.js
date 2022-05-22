@@ -26,7 +26,7 @@ Place any server-only runtime config under `serverRuntimeConfig`.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
-> A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md). Runtime configuration won't be available to any page (or component in a page) without `getInitialProps`.
+> A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` or `getServerSideProps` or your application must have a [Custom App](/docs/advanced-features/custom-app.md) with `getInitialProps` to opt-out of [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md). Runtime configuration won't be available to any page (or component in a page) without being server-side rendered.
 
 To get access to the runtime configs in your app use `next/config`, like so:
 

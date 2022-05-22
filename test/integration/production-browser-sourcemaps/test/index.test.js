@@ -4,8 +4,6 @@ import { join } from 'path'
 import { nextBuild, getPageFileFromBuildManifest } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let nextConfigContent
