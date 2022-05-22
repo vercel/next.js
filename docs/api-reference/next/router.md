@@ -53,6 +53,8 @@ The following is the definition of the `router` object returned by both [`useRou
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server. See related docs for use case with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization.md)
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
+> Using the `asPath` field may lead to a mismatch between client and server if the page is rendered using server-side rendering or [automatic static optimization](/docs/advanced-features/automatic-static-optimization.md). Avoid using `asPath` until the `isReady` field is `true`.
+
 The following methods are included inside `router`:
 
 ### router.push
@@ -466,7 +468,7 @@ export default function MyApp({ Component, pageProps }) {
 
 ## Potential ESLint errors
 
-Certain methods accessible on the `router` object return a Promise. If you have the ESLint rule, [no-floating-promises](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-floating-promises.md) enabled, consider disabling it either globally, or for the affected line.
+Certain methods accessible on the `router` object return a Promise. If you have the ESLint rule, [no-floating-promises](https://typescript-eslint.io/rules/no-floating-promises) enabled, consider disabling it either globally, or for the affected line.
 
 If your application needs this rule, you should either `void` the promise – or use an `async` function, `await` the Promise, then void the function call. **This is not applicable when the method is called from inside an `onClick` handler**.
 

@@ -8,7 +8,7 @@ name: Build, test, and deploy
 
 env:
   NAPI_CLI_VERSION: 2.7.0
-  TURBO_VERSION: 1.2.6
+  TURBO_VERSION: 1.2.9
   RUST_TOOLCHAIN: nightly-2022-02-23
 
 jobs:
@@ -873,6 +873,7 @@ jobs:
       - build
       - build-wasm
       - build-native
+      - build-native-freebsd
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
@@ -906,6 +907,47 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
+
+  testDeployE2E:
+    name: E2E (deploy)
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
+
+      - uses: actions/cache@v3
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        name: Install playwright dependencies
+
+      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
+        name: Reset test project
+
+      - run: NEXT_TEST_MODE=deploy node run-tests.js --type e2e
+        name: Run test/e2e (deploy)
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
 
   releaseStats:
     name: Release Stats
@@ -1302,6 +1344,66 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.*.node
+
+  build-native-freebsd:
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    needs: build
+    name: stable - x86_64-unknown-freebsd - node@16
+    runs-on: macos-10.15
+    steps:
+      - name: tune mac network
+        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
+      - uses: actions/checkout@v3
+      - name: Delete useless files
+        run: |
+          rm -rf bench
+          rm -rf docs
+          rm -rf errors
+          rm -rf examples
+          rm -rf scripts
+          rm -rf test
+      - name: Build
+        id: build
+        uses: vmactions/freebsd-vm@v0.1.6
+        env:
+          DEBUG: napi:*
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+          # Disable LTO, or the lld may crash with OOM
+          CARGO_PROFILE_RELEASE_LTO: false
+        with:
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION TURBO_VERSION RUST_TOOLCHAIN
+          usesh: true
+          mem: 6000
+          prepare: |
+            pkg install -y curl node14
+            curl -qL https://www.npmjs.com/install.sh | sh
+            npm install -g yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain stable
+            export PATH="/usr/local/cargo/bin:$PATH"
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+          run: |
+            export PATH="/usr/local/cargo/bin:$PATH"
+            pwd
+            ls -lah
+            whoami
+            env
+            freebsd-version
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+            yarn --cwd packages/next-swc build-native --release --target x86_64-unknown-freebsd
+            rm -rf node_modules
+            rm -rf packages/next-swc/target
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binaries
+          path: packages/next-swc/native/next-swc.*.node
+          if-no-files-found: error
 
   build-wasm:
     needs: build

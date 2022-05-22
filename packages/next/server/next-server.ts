@@ -1,8 +1,8 @@
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
-import type { Params, Route } from './router'
-import type { CacheFs } from '../shared/lib/utils'
+import type { Route } from './router'
+import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -13,12 +13,11 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
-
-import { execOnce } from '../shared/lib/utils'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -55,8 +54,10 @@ import BaseServer, {
   FindComponentsResult,
   prepareServerlessUrl,
   stringifyQuery,
+  RoutingItem,
 } from './base-server'
-import { getMiddlewareInfo, getPagePath, requireFontManifest } from './require'
+import { getPagePath, requireFontManifest, pageNotFoundError } from './require'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
@@ -66,14 +67,15 @@ import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getMiddlewareRegex, getRouteMatcher } from '../shared/lib/router/utils'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { MIDDLEWARE_FILENAME } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
+import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
 
 export * from './base-server'
 
@@ -90,6 +92,12 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
+
+const middlewareBetaWarning = execOnce(() => {
+  Log.warn(
+    `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+  )
+})
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -830,24 +838,6 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected async hasMiddleware(
-    pathname: string,
-    _isSSR?: boolean
-  ): Promise<boolean> {
-    try {
-      return (
-        getMiddlewareInfo({
-          dev: this.renderOpts.dev,
-          distDir: this.distDir,
-          page: pathname,
-          serverless: this._isLikeServerless,
-        }).paths.length > 0
-      )
-    } catch (_) {}
-
-    return false
-  }
-
   public async serveStatic(
     req: BaseNextRequest | IncomingMessage,
     res: BaseNextResponse | ServerResponse,
@@ -946,21 +936,6 @@ export default class NextNodeServer extends BaseServer {
     return filesystemUrls.has(resolved)
   }
 
-  protected getMiddlewareInfo(page: string) {
-    return getMiddlewareInfo({
-      dev: this.renderOpts.dev,
-      page,
-      distDir: this.distDir,
-      serverless: this._isLikeServerless,
-    })
-  }
-
-  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
-    return !this.minimalMode
-      ? require(join(this.serverDistDir, MIDDLEWARE_MANIFEST))
-      : undefined
-  }
-
   protected generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -1034,6 +1009,203 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  /**
+   * Return a list of middleware routing items. This method exists to be later
+   * overridden by the development server in order to use a different source
+   * to get the list.
+   */
+  protected getMiddleware(): RoutingItem[] {
+    if (this.minimalMode) {
+      return []
+    }
+
+    const manifest: MiddlewareManifest = require(join(
+      this.serverDistDir,
+      MIDDLEWARE_MANIFEST
+    ))
+
+    return manifest.sortedMiddleware.map((page) => ({
+      match: getRouteMatcher(
+        getMiddlewareRegex(page, {
+          catchAll: manifest?.middleware?.[page].name === MIDDLEWARE_FILENAME,
+        })
+      ),
+      page,
+    }))
+  }
+
+  /**
+   * Get information for the middleware located in the provided page
+   * folder. If the middleware info can't be found it will throw
+   * an error.
+   */
+  protected getMiddlewareInfo(page: string) {
+    const manifest: MiddlewareManifest = require(join(
+      this.serverDistDir,
+      MIDDLEWARE_MANIFEST
+    ))
+
+    let foundPage: string
+
+    try {
+      foundPage = denormalizePagePath(normalizePagePath(page))
+    } catch (err) {
+      throw pageNotFoundError(page)
+    }
+
+    let pageInfo = manifest.middleware[foundPage]
+    if (!pageInfo) {
+      throw pageNotFoundError(foundPage)
+    }
+
+    return {
+      name: pageInfo.name,
+      paths: pageInfo.files.map((file) => join(this.distDir, file)),
+      env: pageInfo.env ?? [],
+      wasm: (pageInfo.wasm ?? []).map((binding) => ({
+        ...binding,
+        filePath: join(this.distDir, binding.filePath),
+      })),
+    }
+  }
+
+  /**
+   * Checks if a middleware exists. This method is useful for the development
+   * server where we need to check the filesystem. Here we just check the
+   * middleware manifest.
+   */
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
+    try {
+      return this.getMiddlewareInfo(pathname).paths.length > 0
+    } catch (_) {}
+
+    return false
+  }
+
+  /**
+   * A placeholder for a function to be defined in the development server.
+   * It will make sure that the middleware has been compiled so that we
+   * can run it.
+   */
+  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
+
+  /**
+   * This method gets all middleware matchers and execute them when the request
+   * matches. It will make sure that each middleware exists and is compiled and
+   * ready to be invoked. The development server will decorate it to add warns
+   * and errors with rich traces.
+   */
+  protected async runMiddleware(params: {
+    request: BaseNextRequest
+    response: BaseNextResponse
+    parsedUrl: ParsedNextUrl
+    parsed: UrlWithParsedQuery
+    onWarning?: (warning: Error) => void
+  }): Promise<FetchEventResult | null> {
+    middlewareBetaWarning()
+    const normalizedPathname = removePathTrailingSlash(
+      params.parsedUrl.pathname
+    )
+
+    // For middleware to "fetch" we must always provide an absolute URL
+    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    if (!url.startsWith('http')) {
+      throw new Error(
+        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
+      )
+    }
+
+    const page: { name?: string; params?: { [key: string]: string } } = {}
+    if (await this.hasPage(normalizedPathname)) {
+      page.name = params.parsedUrl.pathname
+    } else if (this.dynamicRoutes) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        const matchParams = dynamicRoute.match(normalizedPathname)
+        if (matchParams) {
+          page.name = dynamicRoute.page
+          page.params = matchParams
+          break
+        }
+      }
+    }
+
+    const allHeaders = new Headers()
+    let result: FetchEventResult | null = null
+    const method = (params.request.method || 'GET').toUpperCase()
+    let originalBody =
+      method !== 'GET' && method !== 'HEAD'
+        ? clonableBodyForRequest(params.request.body)
+        : undefined
+
+    for (const middleware of this.getMiddleware()) {
+      if (middleware.match(normalizedPathname)) {
+        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
+          console.warn(`The Edge Function for ${middleware.page} was not found`)
+          continue
+        }
+
+        await this.ensureMiddleware(middleware.page, middleware.ssr)
+        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
+
+        result = await run({
+          name: middlewareInfo.name,
+          paths: middlewareInfo.paths,
+          env: middlewareInfo.env,
+          wasm: middlewareInfo.wasm,
+          request: {
+            headers: params.request.headers,
+            method,
+            nextConfig: {
+              basePath: this.nextConfig.basePath,
+              i18n: this.nextConfig.i18n,
+              trailingSlash: this.nextConfig.trailingSlash,
+            },
+            url: url,
+            page: page,
+            body: originalBody?.cloneBodyStream(),
+          },
+          useCache: !this.nextConfig.experimental.runtime,
+          onWarning: (warning: Error) => {
+            if (params.onWarning) {
+              warning.message += ` "./${middlewareInfo.name}"`
+              params.onWarning(warning)
+            }
+          },
+        })
+
+        for (let [key, value] of result.response.headers) {
+          if (key !== 'x-middleware-next') {
+            allHeaders.append(key, value)
+          }
+        }
+
+        if (!this.renderOpts.dev) {
+          result.waitUntil.catch((error) => {
+            console.error(`Uncaught: middleware waitUntil errored`, error)
+          })
+        }
+
+        if (!result.response.headers.has('x-middleware-next')) {
+          break
+        }
+      }
+    }
+
+    if (!result) {
+      this.render404(params.request, params.response, params.parsed)
+    } else {
+      for (let [key, value] of allHeaders) {
+        result.response.headers.set(key, value)
+      }
+    }
+
+    await originalBody?.finalize()
+    return result
+  }
+
   protected generateCatchAllMiddlewareRoute(): Route | undefined {
     if (this.minimalMode) return undefined
 
@@ -1042,7 +1214,8 @@ export default class NextNodeServer extends BaseServer {
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
-        if (!this.middleware?.length) {
+        const middleware = this.getMiddleware()
+        if (!middleware.length) {
           return { finished: false }
         }
 
@@ -1058,7 +1231,7 @@ export default class NextNodeServer extends BaseServer {
         })
 
         const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
-        if (!this.middleware?.some((m) => m.match(normalizedPathname))) {
+        if (!middleware.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
 
@@ -1074,6 +1247,12 @@ export default class NextNodeServer extends BaseServer {
         } catch (err) {
           if (isError(err) && err.code === 'ENOENT') {
             await this.render404(req, res, parsed)
+            return { finished: true }
+          }
+
+          if (err instanceof DecodeError) {
+            res.statusCode = 400
+            this.renderError(err, req, res, parsed.pathname || '')
             return { finished: true }
           }
 
@@ -1208,133 +1387,6 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     }
-  }
-
-  protected getMiddleware() {
-    const middleware = this.middlewareManifest?.middleware || {}
-    return (
-      this.middlewareManifest?.sortedMiddleware.map((page) => ({
-        match: getRouteMatcher(
-          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-        ),
-        page,
-      })) || []
-    )
-  }
-
-  private middlewareBetaWarning = execOnce(() => {
-    Log.warn(
-      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-    )
-  })
-
-  protected async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
-    parsed: UrlWithParsedQuery
-    onWarning?: (warning: Error) => void
-  }): Promise<FetchEventResult | null> {
-    this.middlewareBetaWarning()
-    const normalizedPathname = removePathTrailingSlash(
-      params.parsedUrl.pathname
-    )
-
-    // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
-    if (!url.startsWith('http')) {
-      throw new Error(
-        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
-      )
-    }
-
-    const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(normalizedPathname)) {
-      page.name = params.parsedUrl.pathname
-    } else if (this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(normalizedPathname)
-        if (matchParams) {
-          page.name = dynamicRoute.page
-          page.params = matchParams
-          break
-        }
-      }
-    }
-
-    const allHeaders = new Headers()
-    let result: FetchEventResult | null = null
-    const method = (params.request.method || 'GET').toUpperCase()
-    let originalBody =
-      method !== 'GET' && method !== 'HEAD'
-        ? clonableBodyForRequest(params.request.body)
-        : undefined
-
-    for (const middleware of this.middleware || []) {
-      if (middleware.match(normalizedPathname)) {
-        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
-          console.warn(`The Edge Function for ${middleware.page} was not found`)
-          continue
-        }
-
-        await this.ensureMiddleware(middleware.page, middleware.ssr)
-        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
-
-        result = await run({
-          name: middlewareInfo.name,
-          paths: middlewareInfo.paths,
-          env: middlewareInfo.env,
-          wasm: middlewareInfo.wasm,
-          request: {
-            headers: params.request.headers,
-            method,
-            nextConfig: {
-              basePath: this.nextConfig.basePath,
-              i18n: this.nextConfig.i18n,
-              trailingSlash: this.nextConfig.trailingSlash,
-            },
-            url: url,
-            page: page,
-            body: originalBody?.cloneBodyStream(),
-          },
-          useCache: !this.nextConfig.experimental.runtime,
-          onWarning: (warning: Error) => {
-            if (params.onWarning) {
-              warning.message += ` "./${middlewareInfo.name}"`
-              params.onWarning(warning)
-            }
-          },
-        })
-
-        for (let [key, value] of result.response.headers) {
-          if (key !== 'x-middleware-next') {
-            allHeaders.append(key, value)
-          }
-        }
-
-        if (!this.renderOpts.dev) {
-          result.waitUntil.catch((error) => {
-            console.error(`Uncaught: middleware waitUntil errored`, error)
-          })
-        }
-
-        if (!result.response.headers.has('x-middleware-next')) {
-          break
-        }
-      }
-    }
-
-    if (!result) {
-      this.render404(params.request, params.response, params.parsed)
-    } else {
-      for (let [key, value] of allHeaders) {
-        result.response.headers.set(key, value)
-      }
-    }
-
-    await originalBody?.finalize()
-
-    return result
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined

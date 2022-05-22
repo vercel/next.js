@@ -2,6 +2,8 @@
 
 By default, Next.js uses Node.js as the runtime for page rendering, including pre-rendering and server-side rendering.
 
+> Note: `runtime` option only effects pages but not middleware
+
 If you have [React 18](/docs/advanced-features/react-18/overview) installed, there is a new experimental feature that lets you switch the page runtime between Node.js and the [Edge Runtime](/docs/api-reference/edge-runtime). Changing the runtime affects [SSR streaming](/docs/advanced-features/react-18/streaming) and [Server Components](/docs/advanced-features/react-18/server-components) features, as well.
 
 ## Global Runtime Option
