@@ -659,6 +659,10 @@
           "path": "/errors/invalid-script.md"
         },
         {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
+        },
+        {
           "title": "returning-response-body-in-middleware",
           "path": "/errors/returning-response-body-in-middleware.md"
         }
