@@ -105,7 +105,7 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
@@ -377,7 +377,9 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
-    it('should allow etag header support with getServerSideProps', async () => {
+    // TODO: should we generate weak etags for streaming getServerSideProps?
+    // this is currently not expected to work with react-18
+    it.skip('should allow etag header support with getServerSideProps', async () => {
       const url = `http://localhost:${appPort}`
       const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
         'ETag'

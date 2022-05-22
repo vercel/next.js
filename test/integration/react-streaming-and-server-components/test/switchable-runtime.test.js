@@ -1,8 +1,17 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, findPort, killApp, renderViaHTTP } from 'next-test-utils'
-import { nextBuild, nextDev, nextStart } from './utils'
+import {
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  fetchViaHTTP,
+  renderViaHTTP,
+  waitFor,
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -11,6 +20,31 @@ function splitLines(text) {
     .split(/\r?\n/g)
     .map((str) => str.trim())
     .filter(Boolean)
+}
+
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should not contain _app.js in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-client-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-client-root"`, 'g')
+        )
+      ).toBe(0)
+    })
+  })
 }
 
 async function testRoute(appPort, url, { isStatic, isEdge }) {
@@ -36,7 +70,10 @@ describe('Switchable runtime (prod)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stdout, stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
     context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
@@ -44,6 +81,8 @@ describe('Switchable runtime (prod)', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  flight(context)
 
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
@@ -78,6 +117,9 @@ describe('Switchable runtime (prod)', () => {
       isStatic: true,
       isEdge: false,
     })
+
+    const html = await renderViaHTTP(context.appPort, '/node-rsc')
+    expect(html).toContain('data-title="node-rsc"')
   })
 
   it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
@@ -106,7 +148,7 @@ describe('Switchable runtime (prod)', () => {
     expect(renderedAt1).toBe(renderedAt2)
 
     // Trigger a revalidation after 3s.
-    await new Promise((resolve) => setTimeout(resolve, 4000))
+    await waitFor(4000)
     await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
     await check(async () => {
@@ -137,7 +179,8 @@ describe('Switchable runtime (prod)', () => {
       /^[┌├└/]/.test(line)
     )
     const expectedOutputLines = splitLines(`
-  ┌ ○ /404
+  ┌   /_app
+  ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -149,9 +192,11 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-    const isMatched = expectedOutputLines.every((line, index) =>
-      stdoutLines[index].startsWith(line)
-    )
+    const isMatched = expectedOutputLines.every((line, index) => {
+      const matched = stdoutLines[index].startsWith(line)
+      return matched
+    })
+
     expect(isMatched).toBe(true)
   })
 
@@ -220,6 +265,16 @@ describe('Switchable runtime (prod)', () => {
       'This is a static RSC page.'
     )
   })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
+  })
 })
 
 describe('Switchable runtime (dev)', () => {
@@ -227,12 +282,13 @@ describe('Switchable runtime (dev)', () => {
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
+    context.server = await launchApp(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)
   })
 
+  flight(context)
   it('should support client side navigation to ssr rsc pages', async () => {
     let flightRequest = null
 

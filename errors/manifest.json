@@ -563,6 +563,10 @@
           "path": "/errors/no-script-in-document-page.md"
         },
         {
+          "title": "before-interactive-script-outside-document",
+          "path": "/errors/no-before-interactive-script-outside-document.md"
+        },
+        {
           "title": "script-component-in-head-component",
           "path": "/errors/no-script-component-in-head-component.md"
         },
@@ -623,6 +627,10 @@
           "path": "/errors/middleware-relative-urls.md"
         },
         {
+          "title": "nested-middleware",
+          "path": "/errors/nested-middleware.md"
+        },
+        {
           "title": "deleting-query-params-in-middlewares",
           "path": "/errors/deleting-query-params-in-middlewares.md"
         },
@@ -635,16 +643,24 @@
           "path": "/errors/opening-an-issue.md"
         },
         {
-          "title": "multiple-flush-effects",
-          "path": "/errors/multiple-flush-effects.md"
-        },
-        {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
-        },
-        {
           "title": "import-next",
           "path": "/errors/import-next.md"
+        },
+        {
+          "title": "invalid-getserversideprops-return-value",
+          "path": "/errors/invalid-getserversideprops-return-value.md"
+        },
+        {
+          "title": "no-assign-module-variable",
+          "path": "/errors/no-assign-module-variable.md"
+        },
+        {
+          "title": "invalid-script",
+          "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "returning-response-body-in-middleware",
+          "path": "/errors/returning-response-body-in-middleware.md"
         }
       ]
     }

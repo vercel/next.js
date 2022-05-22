@@ -29,6 +29,7 @@ test/tmp/**
 # Editors
 **/.idea
 **/.#*
+.nvmrc
 
 # examples
 examples/**/out
