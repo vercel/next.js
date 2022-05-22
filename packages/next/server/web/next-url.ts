@@ -102,7 +102,8 @@ export class NextURL {
 
     if (
       this[Internal].locale?.locale &&
-      i18n?.defaultLocale !== this[Internal].locale?.locale
+      i18n?.defaultLocale !== this[Internal].locale?.locale &&
+      !this.hasPathPrefix('/api')
     ) {
       pathname = `/${this[Internal].locale?.locale}${pathname}`
     }
@@ -112,6 +113,11 @@ export class NextURL {
     }
 
     return pathname
+  }
+
+  private hasPathPrefix(prefix: string) {
+    const pathname = this[Internal].url.pathname
+    return pathname === prefix || pathname.startsWith(prefix + '/')
   }
 
   public get locale() {

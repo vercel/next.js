@@ -38,10 +38,9 @@ interface Node {
 
 """
 interface Document {
-  sys: SystemInfo
   id: ID!
-  form: JSON!
-  values: JSON!
+  _sys: SystemInfo
+  _values: JSON!
 }
 
 """
@@ -49,36 +48,32 @@ A relay-compliant pagination connection
 """
 interface Connection {
   totalCount: Float!
+  pageInfo: PageInfo!
 }
 
 type Query {
-  getCollection(collection: String): Collection!
-  getCollections: [Collection!]!
+  getOptimizedQuery(queryString: String!): String
+  collection(collection: String): Collection!
+  collections: [Collection!]!
   node(id: String): Node!
-  getDocument(collection: String, relativePath: String): DocumentNode!
-  getDocumentList(
+  document(collection: String, relativePath: String): DocumentNode!
+  posts(relativePath: String): Posts!
+  postsConnection(
     before: String
     after: String
     first: Float
     last: Float
-  ): DocumentConnection!
-  getDocumentFields: JSON!
-  getPostsDocument(relativePath: String): PostsDocument!
-  getPostsList(
-    before: String
-    after: String
-    first: Float
-    last: Float
+    sort: String
   ): PostsConnection!
 }
 
 type DocumentConnectionEdges {
-  cursor: String
+  cursor: String!
   node: DocumentNode
 }
 
 type DocumentConnection implements Connection {
-  pageInfo: PageInfo
+  pageInfo: PageInfo!
   totalCount: Float!
   edges: [DocumentConnectionEdges]
 }
@@ -97,10 +92,11 @@ type Collection {
     after: String
     first: Float
     last: Float
+    sort: String
   ): DocumentConnection!
 }
 
-union DocumentNode = PostsDocument
+union DocumentNode = Posts
 
 type PostsAuthor {
   name: String
@@ -111,7 +107,7 @@ type PostsOgImage {
   url: String
 }
 
-type Posts {
+type Posts implements Node & Document {
   title: String
   excerpt: String
   coverImage: String
@@ -119,24 +115,18 @@ type Posts {
   author: PostsAuthor
   ogImage: PostsOgImage
   body: String
-}
-
-type PostsDocument implements Node & Document {
   id: ID!
-  sys: SystemInfo!
-  data: Posts!
-  form: JSON!
-  values: JSON!
-  dataJSON: JSON!
+  _sys: SystemInfo!
+  _values: JSON!
 }
 
 type PostsConnectionEdges {
-  cursor: String
-  node: PostsDocument
+  cursor: String!
+  node: Posts
 }
 
 type PostsConnection implements Connection {
-  pageInfo: PageInfo
+  pageInfo: PageInfo!
   totalCount: Float!
   edges: [PostsConnectionEdges]
 }
@@ -152,19 +142,14 @@ type Mutation {
     relativePath: String!
     params: DocumentMutation!
   ): DocumentNode!
+  deleteDocument(collection: String, relativePath: String!): DocumentNode!
   createDocument(
     collection: String
     relativePath: String!
     params: DocumentMutation!
   ): DocumentNode!
-  updatePostsDocument(
-    relativePath: String!
-    params: PostsMutation!
-  ): PostsDocument!
-  createPostsDocument(
-    relativePath: String!
-    params: PostsMutation!
-  ): PostsDocument!
+  updatePosts(relativePath: String!, params: PostsMutation!): Posts!
+  createPosts(relativePath: String!, params: PostsMutation!): Posts!
 }
 
 input DocumentMutation {

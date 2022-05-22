@@ -6,54 +6,6 @@ description: Streaming related APIs to build Next.js apps in streaming SSR or wi
 
 The experimental `next/streaming` module provides streaming related APIs to port the existing functionality of Next.js apps to streaming scenarios and facilitate the usage of React Server Components.
 
-## unstable_useWebVitalsReport
-
-Next.js provides an `_app` component-level function, [`reportWebVitals`](docs/advanced-features/measuring-performance), for tracking performance metrics. With Server Components, you may have a pure server-side custom `_app` component (which doesn't run client effects) so the existing API won't work.
-
-With the new `unstable_useWebVitalsReport` API, you're able to track [Core Web Vitals](https://nextjs.org/learn/seo/web-performance) in client components:
-
-```jsx
-// pages/_app.js
-import { unstable_useWebVitalsReport } from 'next/streaming'
-
-export default function Home() {
-  unstable_useWebVitalsReport((data) => {
-    console.log(data)
-  })
-
-  return <div>Home Page</div>
-}
-```
-
-This method could also be used to replace statically exported `reportWebVitals` functions in your existing `_app`:
-
-```jsx
-// pages/_app.server.js
-import Layout from '../components/layout.client.js'
-
-export default function App({ children }) {
-  return <Layout>{children}</Layout>
-}
-```
-
-```jsx
-// components/layout.client.js
-import { unstable_useWebVitalsReport } from 'next/streaming'
-
-export default function Layout() {
-  unstable_useWebVitalsReport((data) => {
-    console.log(data)
-  })
-
-  return (
-    <div className="container">
-      <h1>Hello</h1>
-      <div className="main">{children}</div>
-    </div>
-  )
-}
-```
-
 ## unstable_useRefreshRoot
 
 Since Server Components are rendered on the server-side, in some cases you might need to partially refresh content from the server.
