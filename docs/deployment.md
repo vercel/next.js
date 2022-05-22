@@ -28,9 +28,9 @@ All JavaScript code inside `.next` has been **compiled** and browser bundles hav
 
 ## Managed Next.js with Vercel
 
-[Vercel](https://vercel.com/) is a frontend cloud platform from the creators of Next.js. It's the fastest way to deploy your managed Next.js application with zero configuration.
+[Vercel](https://vercel.com?utm_source=github.com&utm_medium=referral&utm_campaign=deployment) is the fastest way to deploy your Next.js application with zero configuration.
 
-When deploying to Vercel, the platform automatically detects Next.js, runs `next build`, and optimizes the build output for you, including:
+When deploying to Vercel, the platform [automatically detects Next.js](https://vercel.com/solutions/nextjs?utm_source=github.com&utm_medium=referral&utm_campaign=deployment), runs `next build`, and optimizes the build output for you, including:
 
 - Persisting cached assets across deployments if unchanged
 - [Immutable deployments](https://vercel.com/features/previews) with a unique URL for every commit
@@ -49,9 +49,7 @@ In addition, Vercel provides features like:
 - Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
 - Instant global deployments via `git push`
 
-You can start using Vercel (for free) through a personal hobby account, or create a team to start the next big thing. Learn more about [Next.js on Vercel](https://vercel.com/solutions/nextjs) or read the [Vercel Documentation](https://vercel.com/docs).
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment)
+[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment) for free to try it out.
 
 ## Self-Hosting
 
@@ -86,6 +84,8 @@ Next.js can be deployed to any hosting provider that supports [Docker](https://w
 1. Build your container: `docker build -t nextjs-docker .`
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`
 
+If you need to use different Environment Variables across multiple environments, check out our [with-docker-multi-env](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) example.
+
 ### Static HTML Export
 
 If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Export documentation](/docs/advanced-features/static-html-export.md).
@@ -97,6 +97,29 @@ When you deploy your Next.js application, you want to see the latest version wit
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
 **Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+
+## Manual Graceful shutdowns
+
+Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
+
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file.
+
+```js
+// pages/_document.js
+
+if (process.env.NEXT_MANUAL_SIG_HANDLE) {
+  // this should be added in your custom _document
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM: ', 'cleaning up')
+    process.exit(0)
+  })
+
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT: ', 'cleaning up')
+    process.exit(0)
+  })
+}
+```
 
 ## Related
 

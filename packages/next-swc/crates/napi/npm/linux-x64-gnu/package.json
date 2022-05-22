@@ -11,6 +11,7 @@
   "files": [
     "next-swc.linux-x64-gnu.node"
   ],
+  "libc": ["glibc"],
   "license": "MIT",
   "engines": {
     "node": ">= 10"

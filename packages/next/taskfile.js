@@ -4,7 +4,8 @@ const notifier = require('node-notifier')
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
-const fs = require('fs')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const fs = require('fs-extra')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -126,6 +127,15 @@ export async function copy_babel_runtime(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['node-fetch'] = 'next/dist/compiled/node-fetch'
+export async function ncc_node_fetch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
+    .ncc({ packageName: 'node-fetch', externals })
+    .target('compiled/node-fetch')
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -153,11 +163,12 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   await task
     .source(
@@ -168,23 +179,30 @@ export async function ncc_next__react_dev_overlay(task, opts) {
         )
     )
     .ncc({
+      precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay')
 
   const clientFile = join(
     __dirname,
-    'compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless mode
+  // be treated as commonjs in serverless/client mode
   fs.writeFileSync(
     clientFile,
     content.replace(
-      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=v;define((function(){return v}))}else ',
+      new RegExp(
+        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
+          /[|\\{}()[\]^$+*?.-]/g,
+          '\\$&'
+        ),
+        'g'
+      ),
       ''
     )
   )
@@ -200,6 +218,95 @@ export async function ncc_watchpack(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['jest-worker'] = 'next/dist/compiled/jest-worker'
+export async function ncc_jest_worker(task, opts) {
+  await fs.remove(join(__dirname, 'compiled/jest-worker'))
+  await fs.ensureDir(join(__dirname, 'compiled/jest-worker/workers'))
+
+  const workers = ['processChild.js', 'threadChild.js']
+
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('jest-worker')))
+    .ncc({ packageName: 'jest-worker', externals })
+    .target('compiled/jest-worker')
+
+  for (const worker of workers) {
+    const content = await fs.readFile(
+      join(
+        dirname(require.resolve('jest-worker/package.json')),
+        'build/workers',
+        worker
+      ),
+      'utf8'
+    )
+    await fs.writeFile(
+      join(
+        dirname(require.resolve('jest-worker/package.json')),
+        'build/workers',
+        worker + '.tmp.js'
+      ),
+      content.replace(/require\(file\)/g, '__non_webpack_require__(file)')
+    )
+    await task
+      .source(
+        opts.src ||
+          relative(
+            __dirname,
+            join(
+              dirname(require.resolve('jest-worker/package.json')),
+              'build/workers',
+              worker + '.tmp.js'
+            )
+          )
+      )
+      .ncc({ externals })
+      .target('compiled/jest-worker/out')
+
+    await fs.move(
+      join(__dirname, 'compiled/jest-worker/out', worker + '.tmp.js'),
+      join(__dirname, 'compiled/jest-worker', worker),
+      { overwrite: true }
+    )
+  }
+  await fs.remove(join(__dirname, 'compiled/jest-worker/workers'))
+  await fs.remove(join(__dirname, 'compiled/jest-worker/out'))
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_react_refresh_utils(task, opts) {
+  await fs.remove(join(__dirname, 'dist/compiled/react-refresh'))
+  await fs.copy(
+    dirname(require.resolve('react-refresh/package.json')),
+    join(__dirname, 'dist/compiled/react-refresh')
+  )
+
+  const srcDir = dirname(
+    require.resolve('@next/react-refresh-utils/package.json')
+  )
+  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('**/*.{js,json}', { cwd: srcDir })
+
+  for (const file of files) {
+    if (file === 'tsconfig.json') continue
+
+    const content = await fs.readFile(join(srcDir, file), 'utf8')
+    const outputFile = join(destDir, file)
+
+    await fs.ensureDir(dirname(outputFile))
+    await fs.writeFile(
+      outputFile,
+      content.replace(
+        /react-refresh\/runtime/g,
+        'next/dist/compiled/react-refresh/runtime'
+      )
+    )
+  }
+}
+
+// eslint-disable-next-line camelcase
 externals['chalk'] = 'next/dist/compiled/chalk'
 export async function ncc_chalk(task, opts) {
   await task
@@ -211,10 +318,26 @@ export async function ncc_chalk(task, opts) {
 // eslint-disable-next-line camelcase
 externals['browserslist'] = 'next/dist/compiled/browserslist'
 export async function ncc_browserslist(task, opts) {
+  const browserslistModule = require.resolve('browserslist')
+  const nodeFile = join(dirname(browserslistModule), 'node.js')
+
+  const content = await fs.readFile(nodeFile, 'utf8')
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    nodeFile,
+    content.replace(
+      /require\(require\.resolve\(/g,
+      `__non_webpack_require__(__non_webpack_require__.resolve(`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('browserslist')))
     .ncc({ packageName: 'browserslist', externals })
     .target('compiled/browserslist')
+
+  await fs.writeFile(nodeFile, content)
 }
 
 // eslint-disable-next-line camelcase
@@ -344,11 +467,18 @@ export async function ncc_buffer(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function copy_react_is(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
+    .target('compiled/react-is')
+}
+
+// eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
-  await fs.promises.mkdir(join(__dirname, 'compiled/constants-browserify'), {
+  await fs.mkdir(join(__dirname, 'compiled/constants-browserify'), {
     recursive: true,
   })
-  await fs.promises.writeFile(
+  await fs.writeFile(
     join(__dirname, 'compiled/constants-browserify/package.json'),
     JSON.stringify({ name: 'constants-browserify', main: './constants.json' })
   )
@@ -396,6 +526,33 @@ export async function ncc_events(task, opts) {
       target: 'es5',
     })
     .target('compiled/events')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_stream_browserify(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('stream-browserify/'))
+    )
+    .ncc({
+      packageName: 'stream-browserify',
+      mainFields: ['browser', 'main'],
+      target: 'es5',
+    })
+    .target('compiled/stream-browserify')
+
+  // while ncc'ing readable-stream the browser mapping does not replace the
+  // require('stream') with require('events').EventEmitter correctly so we
+  // patch this manually as leaving require('stream') causes a circular
+  // reference breaking the browser polyfill
+  const outputFile = join(__dirname, 'compiled/stream-browserify/index.js')
+
+  fs.writeFileSync(
+    outputFile,
+    fs
+      .readFileSync(outputFile, 'utf8')
+      .replace(`require("stream")`, `require("events").EventEmitter`)
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -630,6 +787,7 @@ const babelCorePackages = {
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/parser': 'next/dist/compiled/babel/parser',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
     'next/dist/compiled/babel/core-lib-normalize-config',
@@ -664,6 +822,20 @@ export async function ncc_babel_bundle(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle_packages(task, opts) {
+  const eslintParseFile = join(
+    dirname(require.resolve('@babel/eslint-parser')),
+    './parse.cjs'
+  )
+  const content = fs.readFileSync(eslintParseFile, 'utf-8')
+  // Let parser.cjs require @babel/parser directly
+  const replacedContent = content
+    .replace(
+      `const babelParser = require((`,
+      `function noop(){};\nconst babelParser = require('@babel/parser');noop((`
+    )
+    .replace(/require.resolve/g, 'noop')
+  await fs.writeFile(eslintParseFile, replacedContent)
+
   await task
     .source(opts.src || 'bundles/babel/packages-bundle.js')
     .ncc({
@@ -671,7 +843,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     })
     .target(`compiled/babel-packages`)
 
-  await fs.promises.writeFile(
+  await fs.writeFile(
     join(__dirname, 'compiled/babel-packages/package.json'),
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
@@ -681,6 +853,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target('compiled/babel')
 }
 
+// eslint-disable-next-line camelcase
+externals['bytes'] = 'next/dist/compiled/bytes'
+export async function ncc_bytes(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('bytes')))
+    .ncc({ packageName: 'bytes', externals })
+    .target('compiled/bytes')
+}
 // eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
@@ -1078,11 +1258,10 @@ export async function ncc_icss_utils(task, opts) {
 }
 // eslint-disable-next-line camelcase
 export async function copy_react_server_dom_webpack(task, opts) {
-  await fs.promises.mkdir(
-    join(__dirname, 'compiled/react-server-dom-webpack'),
-    { recursive: true }
-  )
-  await fs.promises.writeFile(
+  await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
+    recursive: true,
+  })
+  await fs.writeFile(
     join(__dirname, 'compiled/react-server-dom-webpack/package.json'),
     JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
   )
@@ -1213,6 +1392,16 @@ export async function ncc_nft(task, opts) {
     .ncc({ packageName: '@vercel/nft', externals })
     .target('compiled/@vercel/nft')
 }
+
+// eslint-disable-next-line camelcase
+externals['tar'] = 'next/dist/compiled/tar'
+export async function ncc_tar(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('tar')))
+    .ncc({ packageName: 'tar', externals })
+    .target('compiled/tar')
+}
+
 // eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
@@ -1445,7 +1634,6 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
-        'ncc_browserslist',
         'ncc_napirs_triples',
         'ncc_etag',
         'ncc_p_limit',
@@ -1454,6 +1642,7 @@ export async function ncc(task, opts) {
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
+        'ncc_node_fetch',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
@@ -1465,6 +1654,7 @@ export async function ncc(task, opts) {
         'ncc_crypto_browserify',
         'ncc_domain_browser',
         'ncc_events',
+        'ncc_stream_browserify',
         'ncc_stream_http',
         'ncc_https_browserify',
         'ncc_os_browserify',
@@ -1479,6 +1669,7 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
+        'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',
@@ -1529,6 +1720,7 @@ export async function ncc(task, opts) {
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_nft',
+        'ncc_tar',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
@@ -1552,11 +1744,13 @@ export async function ncc(task, opts) {
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
-      'ncc_next__react_dev_overlay',
+      'ncc_browserslist',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
       'copy_react_server_dom_webpack',
+      'copy_react_is',
+      'ncc_jest_worker',
     ],
     opts
   )
@@ -1569,6 +1763,7 @@ export async function compile(task, opts) {
       'bin',
       'server',
       'nextbuild',
+      'nextbuildjest',
       'nextbuildstatic',
       'pages',
       'lib',
@@ -1576,6 +1771,7 @@ export async function compile(task, opts) {
       'telemetry',
       'trace',
       'shared',
+      'shared_re_exported',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
@@ -1583,6 +1779,7 @@ export async function compile(task, opts) {
     ],
     opts
   )
+  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
 }
 
 export async function bin(task, opts) {
@@ -1620,17 +1817,27 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
-      ignore: ['**/fixture/**', '**/tests/**'],
+      ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
 }
 
+export async function nextbuildjest(task, opts) {
+  await task
+    .source(opts.src || 'build/jest/**/*.+(js|ts|tsx)', {
+      ignore: ['**/fixture/**', '**/tests/**'],
+    })
+    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/build/jest')
+  notify('Compiled build/jest files')
+}
+
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -1647,36 +1854,26 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages_document(task, opts) {
   await task
     .source('pages/_document.tsx')
-    .swc('server', { dev: opts.dev })
-    .target('dist/pages')
-}
-
-export async function pages_document_server(task, opts) {
-  await task
-    .source('pages/_document-web.tsx')
-    .swc('client', { dev: opts.dev })
+    .swc('server', { dev: opts.dev, keepImportAssertions: true })
     .target('dist/pages')
 }
 
 export async function pages(task, opts) {
-  await task.parallel(
-    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
-    opts
-  )
+  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
 }
 
 export async function telemetry(task, opts) {
@@ -1707,22 +1904,44 @@ export default async function (task) {
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
   await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
+  await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
-  await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
+  await task.watch(
+    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
+    'shared_re_exported',
+    opts
+  )
+  await task.watch(
+    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
+    'shared',
+    opts
+  )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
 
 export async function shared(task, opts) {
   await task
-    .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
+    .source(
+      opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
+    )
     .swc('server', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
+}
+
+export async function shared_re_exported(task, opts) {
+  await task
+    .source(
+      opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
+    )
+    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/shared')
+  notify('Compiled shared re-exported files')
 }
 
 export async function server_wasm(task, opts) {

@@ -58,8 +58,14 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   }
 }
 
+type ErrorType = 'runtime' | 'build' | 'full-refresh'
+
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
+  preventDisplay,
+}: {
+  children?: React.ReactNode
+  preventDisplay?: ErrorType[]
 }) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
@@ -90,6 +96,7 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   const isAboutToFullRefresh = state.isAboutToFullRefresh
 
   const isMounted = hasBuildError || hasRuntimeErrors || isAboutToFullRefresh
+
   return (
     <React.Fragment>
       <ErrorBoundary onError={onComponentError}>
@@ -101,7 +108,16 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
           <Base />
           <ComponentStyles />
 
-          {hasBuildError ? (
+          {shouldPreventDisplay(
+            hasBuildError
+              ? 'build'
+              : hasRuntimeErrors
+              ? 'runtime'
+              : isAboutToFullRefresh
+              ? 'full-refresh'
+              : null,
+            preventDisplay
+          ) ? null : hasBuildError ? (
             <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
@@ -112,6 +128,16 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
       ) : undefined}
     </React.Fragment>
   )
+}
+
+const shouldPreventDisplay = (
+  errorType?: ErrorType | null,
+  preventType?: ErrorType[] | null
+) => {
+  if (!preventType || !errorType) {
+    return false
+  }
+  return preventType.includes(errorType)
 }
 
 export default ReactDevOverlay

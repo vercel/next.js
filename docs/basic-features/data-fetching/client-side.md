@@ -21,7 +21,7 @@ function Profile() {
 
   useEffect(() => {
     setLoading(true)
-    fetch('api/profile-data')
+    fetch('/api/profile-data')
       .then((res) => res.json())
       .then((data) => {
         setData(data)
@@ -30,7 +30,7 @@ function Profile() {
   }, [])
 
   if (isLoading) return <p>Loading...</p>
-  if (!profileData) return <p>No profile data</p>
+  if (!data) return <p>No profile data</p>
 
   return (
     <div>
@@ -43,11 +43,11 @@ function Profile() {
 
 ## Client-side data fetching with SWR
 
-The team behind Next.js has created a React hook library for data fetching called [**SWR**](https://swr.vercel.app/). It is **highly recommend** if you are fetching data on the client-side. It handles caching, revalidation, focus tracking, refetching on intervals, and more.
+The team behind Next.js has created a React hook library for data fetching called [**SWR**](https://swr.vercel.app/). It is **highly recommended** if you are fetching data on the client-side. It handles caching, revalidation, focus tracking, refetching on intervals, and more.
 
 Using the same example as above, we can now use SWR to fetch the profile data. SWR will automatically cache the data for us and will revalidate the data if it becomes stale.
 
-For more information on using SWR, check out the [SWR docs](https://swr.vercel.app/docs).
+For more information on using SWR, check out the [SWR docs](https://swr.vercel.app/docs/getting-started).
 
 ```jsx
 import useSWR from 'swr'
@@ -68,3 +68,14 @@ function Profile() {
   )
 }
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

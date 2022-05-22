@@ -36,6 +36,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
     await fs.remove(process.env.NEXT_TEST_STARTER)
   }
+  console.log(`exiting with code ${code}`)
   process.exit(code)
 }
 
@@ -214,9 +215,10 @@ async function main() {
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log('Creating Next.js install for isolated tests')
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: 'latest',
-      'react-dom': 'latest',
+      react: reactVersion,
+      'react-dom': reactVersion,
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }

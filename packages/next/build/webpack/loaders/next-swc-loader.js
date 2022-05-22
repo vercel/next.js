@@ -36,8 +36,14 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = this.getOptions() || {}
 
-  const { isServer, pagesDir, hasReactRefresh, nextConfig, jsConfig } =
-    loaderOptions
+  const {
+    isServer,
+    pagesDir,
+    hasReactRefresh,
+    nextConfig,
+    jsConfig,
+    supportedBrowsers,
+  } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
   const swcOptions = getLoaderSWCOptions({
@@ -49,6 +55,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     hasReactRefresh,
     nextConfig,
     jsConfig,
+    supportedBrowsers,
   })
 
   const programmaticOptions = {
@@ -88,6 +95,11 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const swcSpan = parentTrace.traceChild('next-swc-transform')
   return swcSpan.traceAsyncFn(() =>
     transform(source, programmaticOptions).then((output) => {
+      if (output.eliminatedPackages && this.eliminatedPackages) {
+        for (const pkg of JSON.parse(output.eliminatedPackages)) {
+          this.eliminatedPackages.add(pkg)
+        }
+      }
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
@@ -101,6 +113,8 @@ export function pitch() {
   ;(async () => {
     let loaderOptions = this.getOptions() || {}
     if (
+      // TODO: investigate swc file reading in PnP mode?
+      !process.versions.pnp &&
       loaderOptions.fileReading &&
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&

@@ -1,4 +1,4 @@
-Invalid API Route Status/Body Response
+# Invalid API Route Status/Body Response
 
 #### Why This Error Occurred
 
@@ -22,7 +22,7 @@ After
 
 ```js
 export default function handler(req, res) {
-  res.status(204).send()
+  res.status(204).end()
 }
 ```
 

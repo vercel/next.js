@@ -1,33 +1,13 @@
-import LRUCache from 'next/dist/compiled/lru-cache'
-import path from 'path'
-import { PrerenderManifest } from '../build'
-import { PRERENDER_MANIFEST } from '../shared/lib/constants'
-import { normalizePagePath } from './normalize-page-path'
 import type { CacheFs } from '../shared/lib/utils'
+
+import LRUCache from 'next/dist/compiled/lru-cache'
+import path from '../shared/lib/isomorphic/path'
+import { PrerenderManifest } from '../build'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
-}
-
-interface CachedRedirectValue {
-  kind: 'REDIRECT'
-  props: Object
-}
-
-interface CachedPageValue {
-  kind: 'PAGE'
-  html: string
-  pageData: Object
-}
-
-export type IncrementalCacheValue = CachedRedirectValue | CachedPageValue
-
-type IncrementalCacheEntry = {
-  curRevalidate?: number | false
-  // milliseconds to revalidate after
-  revalidateAfter: number | false
-  isStale?: boolean
-  value: IncrementalCacheValue | null
 }
 
 export class IncrementalCache {
@@ -51,6 +31,7 @@ export class IncrementalCache {
     pagesDir,
     flushToDisk,
     locales,
+    getPrerenderManifest,
   }: {
     fs: CacheFs
     dev: boolean
@@ -59,6 +40,7 @@ export class IncrementalCache {
     pagesDir: string
     flushToDisk?: boolean
     locales?: string[]
+    getPrerenderManifest: () => PrerenderManifest
   }) {
     this.fs = fs
     this.incrementalOptions = {
@@ -69,21 +51,7 @@ export class IncrementalCache {
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
     this.locales = locales
-
-    if (dev) {
-      this.prerenderManifest = {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: null as any, // `preview` is special case read in next-dev-server
-      }
-    } else {
-      const manifestJson = this.fs.readFileSync(
-        path.join(distDir, PRERENDER_MANIFEST)
-      )
-      this.prerenderManifest = JSON.parse(manifestJson)
-    }
+    this.prerenderManifest = getPrerenderManifest()
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
       // Allow cache size to be overridden for testing purposes
@@ -94,7 +62,13 @@ export class IncrementalCache {
       this.cache = new LRUCache({
         max,
         length({ value }) {
-          if (!value || value.kind === 'REDIRECT') return 25
+          if (!value) {
+            return 25
+          } else if (value.kind === 'REDIRECT') {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === 'IMAGE') {
+            throw new Error('invariant image should not be incremental-cache')
+          }
           // rough estimate of size of cache value
           return value.html.length + JSON.stringify(value.pageData).length
         },

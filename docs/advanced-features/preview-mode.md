@@ -27,7 +27,7 @@ description: Next.js has the preview mode for statically generated pages. You ca
   </ul>
 </details>
 
-In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching/index.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
+In the [Pages documentation](/docs/basic-features/pages.md) and the [Data Fetching documentation](/docs/basic-features/data-fetching/overview.md), we talked about how to pre-render a page at build time (**Static Generation**) using `getStaticProps` and `getStaticPaths`.
 
 Static Generation is useful when your pages fetch data from a headless CMS. However, it’s not ideal when you’re writing a draft on your headless CMS and want to **preview** the draft immediately on your page. You’d want Next.js to render these pages at **request time** instead of build time and fetch the draft content instead of the published content. You’d want Next.js to bypass Static Generation only for this specific case.
 
@@ -171,22 +171,23 @@ https://<your-site>/api/preview?secret=<token>&slug=<path>
 
 ## More Details
 
-### Clear the preview mode cookies
+### Clear the Preview Mode cookies
 
-By default, no expiration date is set for the preview mode cookies, so the preview mode ends when the browser is closed.
+By default, no expiration date is set for Preview Mode cookies, so the preview session ends when the browser is closed.
 
-To clear the preview cookies manually, you can create an API route which calls `clearPreviewData` and then access this API route.
+To clear the Preview Mode cookies manually, create an API route that calls `clearPreviewData()`:
 
 ```js
+// pages/api/clear-preview-mode-cookies.js
+
 export default function handler(req, res) {
-  // Clears the preview mode cookies.
-  // This function accepts no arguments.
   res.clearPreviewData()
-  // ...
 }
 ```
 
-### Specify the preview mode duration
+Then, send a request to `/api/clear-preview-mode-cookies` to invoke the API Route. If calling this route using [`next/link`](/docs/api-reference/next/link.md), you must pass `prefetch={false}` to prevent calling `clearPreviewData` during link prefetching.
+
+### Specify the Preview Mode duration
 
 `setPreviewData` takes an optional second parameter which should be an options object. It accepts the following keys:
 
@@ -230,7 +231,7 @@ This ensures that the bypass cookie can’t be guessed.
 The following pages might also be useful.
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>

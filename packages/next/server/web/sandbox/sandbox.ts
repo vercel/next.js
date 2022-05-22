@@ -1,17 +1,22 @@
+import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import type { RequestData, FetchEventResult } from '../types'
 import { getModuleContext } from './context'
 
 export async function run(params: {
   name: string
+  env: string[]
   onWarning: (warn: Error) => void
   paths: string[]
   request: RequestData
   useCache: boolean
+  wasm: WasmBinding[]
 }): Promise<FetchEventResult> {
-  const { runInContext, context } = getModuleContext({
+  const { runInContext, context } = await getModuleContext({
     module: params.name,
     onWarning: params.onWarning,
     useCache: params.useCache !== false,
+    env: params.env,
+    wasm: params.wasm,
   })
 
   for (const paramPath of params.paths) {

@@ -4,15 +4,9 @@ The [`next-page-transitions`](https://github.com/illinois/next-page-transitions)
 
 This example includes two pages with links between them. The "About" page demonstrates how `next-page-transitions` makes it easy to add a loading state when navigating to a page: it will wait for the page to "load" its content (in this examples, that's simulated with a timeout) and then hide the loading indicator and animate in the page when it's done.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-next-page-transitions)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-next-page-transitions)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-page-transitions&project-name=with-next-page-transitions&repository-name=with-next-page-transitions)
 
@@ -24,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-next-page-transitions with-next-page-transitions-app
 # or
 yarn create next-app --example with-next-page-transitions with-next-page-transitions-app
+# or
+pnpm create next-app -- --example with-next-page-transitions with-next-page-transitions-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

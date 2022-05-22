@@ -2,9 +2,9 @@
 # https://help.github.com/en/articles/about-code-owners
 
 *          @timneutkens @ijjk @shuding @huozhi
-/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia
-/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @lfades @molebox
-/examples/ @timneutkens @ijjk @shuding @leerob @lfades @steven-tey
+/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @balazsorban44
+/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44
+/examples/ @timneutkens @ijjk @shuding @leerob @steven-tey @balazsorban44
 
 # SWC Build (@padmaia)
 
@@ -12,13 +12,9 @@
 
 # Image Component (@styfle)
 
-/examples/image-component/                                   @timneutkens @ijjk @shuding @styfle
-/packages/next/build/webpack/loaders/next-image-loader.js    @timneutkens @ijjk @shuding @styfle
-/packages/next/client/image.tsx                              @timneutkens @ijjk @shuding @styfle
-/packages/next/image-types/                                  @timneutkens @ijjk @shuding @styfle
-/packages/next/server/image-config.ts                        @timneutkens @ijjk @shuding @styfle
-/packages/next/server/image-optimizer.ts                     @timneutkens @ijjk @shuding @styfle
+/**/*image*                                                  @timneutkens @ijjk @shuding @styfle
+/**/*image*/**                                               @timneutkens @ijjk @shuding @styfle
+/packages/next/client/use-intersection.tsx                   @timneutkens @ijjk @shuding @styfle
+/packages/next/server/lib/squoosh/                           @timneutkens @ijjk @shuding @styfle
 /packages/next/server/serve-static.ts                        @timneutkens @ijjk @shuding @styfle
 /packages/next/server/config.ts                              @timneutkens @ijjk @shuding @styfle
-/test/integration/image-optimizer/                           @timneutkens @ijjk @shuding @styfle
-/test/integration/image-component/                           @timneutkens @ijjk @shuding @styfle

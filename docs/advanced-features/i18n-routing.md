@@ -164,7 +164,7 @@ module.exports = {
 Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
 
 ```js
-// pages/_middleware.ts
+// middleware.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -176,9 +176,13 @@ export function middleware(request: NextRequest) {
     !request.nextUrl.pathname.includes('/api/') &&
     request.nextUrl.locale === 'default'
 
-  return shouldHandleLocale
-    ? NextResponse.redirect(`/en${request.nextUrl.href}`)
-    : undefined
+  if (shouldHandleLocale) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/en${request.nextUrl.pathname}`
+    return NextResponse.redirect(url)
+  }
+
+  return undefined
 }
 ```
 
@@ -313,7 +317,7 @@ For [Automatically Statically Optimized](/docs/advanced-features/automatic-stati
 
 For example, if you have 50 locales configured with 10 non-dynamic pages using `getStaticProps`, this means `getStaticProps` will be called 500 times. 50 versions of the 10 pages will be generated during each build.
 
-To decrease the build time of dynamic pages with `getStaticProps`, use a [`fallback` mode](https://nextjs.org/docs/basic-features/data-fetching#fallback-true). This allows you to return only the most popular paths and locales from `getStaticPaths` for prerendering during the build. Then, Next.js will build the remaining pages at runtime as they are requested.
+To decrease the build time of dynamic pages with `getStaticProps`, use a [`fallback` mode](/docs/api-reference/data-fetching/get-static-paths#fallback-true). This allows you to return only the most popular paths and locales from `getStaticPaths` for prerendering during the build. Then, Next.js will build the remaining pages at runtime as they are requested.
 
 ### Automatically Statically Optimized Pages
 

@@ -159,7 +159,7 @@ export function reportWebVitals(metric) {
 
 > **Note**: If you use [Google Analytics](https://analytics.google.com/analytics/web/), using the
 > `id` value can allow you to construct metric distributions manually (to calculate percentiles,
-> etc...).
+> etc.)
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {

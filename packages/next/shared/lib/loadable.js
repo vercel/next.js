@@ -22,7 +22,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { useSubscription } from 'use-subscription'
+import { useSyncExternalStore } from 'use-sync-external-store/shim'
+
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []
@@ -75,6 +76,7 @@ function createLoadableComponent(loadFn, options) {
     opts.lazy = React.lazy(opts.loader)
   }
 
+  /** @type LoadableSubscription */
   let subscription = null
   function init() {
     if (!subscription) {
@@ -96,7 +98,11 @@ function createLoadableComponent(loadFn, options) {
 
   // Client only
   if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
-    const moduleIds = opts.webpack ? opts.webpack() : opts.modules
+    // require.resolveWeak check is needed for environments that don't have it available like Jest
+    const moduleIds =
+      opts.webpack && typeof require.resolveWeak === 'function'
+        ? opts.webpack()
+        : opts.modules
     if (moduleIds) {
       READY_INITIALIZERS.push((ids) => {
         for (const moduleId of moduleIds) {
@@ -112,7 +118,12 @@ function createLoadableComponent(loadFn, options) {
     init()
 
     const context = React.useContext(LoadableContext)
-    const state = useSubscription(subscription)
+    const state = useSyncExternalStore(
+      subscription.subscribe,
+      subscription.getCurrentValue,
+      subscription.getCurrentValue
+    )
+
     React.useImperativeHandle(
       ref,
       () => ({

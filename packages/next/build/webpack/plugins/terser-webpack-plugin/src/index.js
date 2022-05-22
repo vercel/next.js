@@ -6,7 +6,7 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'next/dist/compiled/p-limit'
-import { Worker } from 'jest-worker'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment) {
@@ -101,7 +101,7 @@ export class TerserPlugin {
             // and doesn't provide too much of a benefit as it's server-side
             if (
               name.match(
-                /(middleware-runtime\.js|middleware-chunks|_middleware\.js$)/
+                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
               )
             ) {
               return false

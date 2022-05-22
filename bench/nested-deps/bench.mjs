@@ -1,4 +1,6 @@
-import { spawn } from 'child_process'
+import { execSync, spawn } from 'child_process'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
 import fetch from 'node-fetch'
 import {
   existsSync,
@@ -7,7 +9,15 @@ import {
   unlinkSync,
   promises as fs,
 } from 'fs'
+import prettyMs from 'pretty-ms'
 import treeKill from 'tree-kill'
+
+const ROOT_DIR = join(fileURLToPath(import.meta.url), '..', '..', '..')
+const CWD = join(ROOT_DIR, 'bench', 'nested-deps')
+
+const NEXT_BIN = join(ROOT_DIR, 'packages', 'next', 'dist', 'bin', 'next')
+
+const [, , command = 'all'] = process.argv
 
 async function killApp(instance) {
   await new Promise((resolve, reject) => {
@@ -86,25 +96,20 @@ class File {
 }
 
 function runNextCommandDev(argv, opts = {}) {
-  const nextBin = '../../node_modules/.bin/next'
-  const cwd = process.cwd()
   const env = {
     ...process.env,
     NODE_ENV: undefined,
     __NEXT_TEST_MODE: 'true',
+    FORCE_COLOR: 3,
     ...opts.env,
   }
 
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
-      {
-        cwd,
-        env,
-      }
-    )
+    const instance = spawn(NEXT_BIN, [...nodeArgs, ...argv], {
+      cwd: CWD,
+      env,
+    })
     let didResolve = false
 
     function handleStdout(data) {
@@ -120,6 +125,7 @@ function runNextCommandDev(argv, opts = {}) {
         if (!didResolve) {
           didResolve = true
           resolve(instance)
+          instance.removeListener('data', handleStdout)
         }
       }
 
@@ -165,35 +171,83 @@ function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-async function main() {
-  await fs.rmDir('.next', { recursive: true })
-  const file = new File('pages/index.jsx')
-  try {
+await fs.rm('.next', { recursive: true }).catch(() => {})
+const file = new File(join(CWD, 'pages/index.jsx'))
+const results = []
+
+try {
+  if (command === 'dev' || command === 'all') {
     const instance = await runNextCommandDev(['dev', '--port', '3000'])
-    const res = await fetch('http://localhost:3000/')
+
+    function waitForCompiled() {
+      return new Promise((resolve) => {
+        function waitForOnData(data) {
+          const message = data.toString()
+          const compiledRegex =
+            /compiled client and server successfully in (\d*[.]?\d+)\s*(m?s) \((\d+) modules\)/gm
+          const matched = compiledRegex.exec(message)
+          if (matched) {
+            resolve({
+              'time (ms)': (matched[2] === 's' ? 1000 : 1) * Number(matched[1]),
+              modules: Number(matched[3]),
+            })
+            instance.stdout.removeListener('data', waitForOnData)
+          }
+        }
+        instance.stdout.on('data', waitForOnData)
+      })
+    }
+
+    const [res, initial] = await Promise.all([
+      fetch('http://localhost:3000/'),
+      waitForCompiled(),
+    ])
     if (res.status !== 200) {
       throw new Error('Fetching / failed')
     }
 
-    await waitFor(3000)
+    results.push(initial)
 
     file.prepend('// First edit')
 
-    await waitFor(5000)
+    results.push(await waitForCompiled())
+
+    await waitFor(1000)
 
     file.prepend('// Second edit')
 
-    await waitFor(5000)
+    results.push(await waitForCompiled())
+
+    await waitFor(1000)
 
     file.prepend('// Third edit')
 
-    await waitFor(5000)
+    results.push(await waitForCompiled())
+
+    console.table(results)
 
     await killApp(instance)
-    await fs.rmDir('.next', { recursive: true })
-  } finally {
-    file.restore()
   }
-}
+  if (command === 'build' || command === 'all') {
+    // ignore error
+    await fs.rm('.next', { recursive: true, force: true }).catch(() => {})
 
-main()
+    execSync(`node ${NEXT_BIN} build ./bench/nested-deps`, {
+      cwd: ROOT_DIR,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        TRACE_TARGET: 'jaeger',
+      },
+    })
+    const traceString = await fs.readFile(join(CWD, '.next', 'trace'), 'utf8')
+    const traces = traceString
+      .split('\n')
+      .filter((line) => line)
+      .map((line) => JSON.parse(line))
+    const { duration } = traces.pop().find(({ name }) => name === 'next-build')
+    console.info('next build duration: ', prettyMs(duration / 1000))
+  }
+} finally {
+  file.restore()
+}

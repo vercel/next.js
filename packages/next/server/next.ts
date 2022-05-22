@@ -1,6 +1,5 @@
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { RequestHandler } from './next-server'
+import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 
 import './node-polyfill-fetch'
@@ -11,6 +10,8 @@ import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import { IncomingMessage, ServerResponse } from 'http'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 let ServerImpl: typeof Server
 
@@ -22,10 +23,18 @@ const getServerImpl = async () => {
 
 export type NextServerOptions = Partial<DevServerOptions>
 
+export interface RequestHandler {
+  (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
+}
+
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
-  private reqHandlerPromise?: Promise<RequestHandler>
+  private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
   public options: NextServerOptions
 
@@ -116,12 +125,11 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+    return loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      resolve(this.options.dir || '.'),
+      this.options.conf
+    )
   }
 
   private async getServer() {
@@ -174,6 +182,14 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
+  // Make sure env of custom server is overridden.
+  // Use dynamic require to make sure it's executed in it's own context.
+  const ReactDOMServer = require('react-dom/server')
+  const shouldUseReactRoot = !!ReactDOMServer.renderToPipeableStream
+  if (shouldUseReactRoot) {
+    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+  }
+
   return new NextServer(options)
 }
 
@@ -183,4 +199,3 @@ exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer
-export type { RequestHandler }

@@ -13,8 +13,27 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
   export * from '@next/react-dev-overlay/lib/middleware'
 }
 
+declare module 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin' {
+  import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+  export = m
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/node-fetch' {
+  import m from 'node-fetch'
+  export default m
+  export * from 'node-fetch'
+}
+
+declare module 'next/dist/compiled/jest-worker' {
+  export * from 'jest-worker'
+}
+
+declare module 'next/dist/compiled/react-is' {
+  export * from 'react-is'
 }
 
 declare module 'next/dist/compiled/chalk' {
@@ -124,6 +143,10 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
+declare module 'next/dist/compiled/bytes' {
+  import m from 'bytes'
+  export = m
+}
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
@@ -270,6 +293,12 @@ declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
+
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export = m
+}
+
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -309,6 +338,11 @@ declare module 'next/dist/compiled/ws' {
 
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
+  export = m
+}
+
+declare module 'next/dist/compiled/process' {
+  import m from 'process'
   export = m
 }
 

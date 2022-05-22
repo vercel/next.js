@@ -26,6 +26,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Ghost](/examples/cms-ghost)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## Deploy your own
 
@@ -41,6 +42,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-graphcms cms-graphcms-app
 # or
 yarn create next-app --example cms-graphcms cms-graphcms-app
+# or
+pnpm create next-app -- --example cms-graphcms cms-graphcms-app
 ```
 
 ## Configuration

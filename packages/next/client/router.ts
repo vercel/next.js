@@ -142,7 +142,7 @@ export function useRouter(): NextRouter {
 // (do not use following exports inside the app)
 
 // Create a router and assign it as the singleton instance.
-// This is used in client side when we are initilizing the app.
+// This is used in client side when we are initializing the app.
 // This should **not** be used inside the server.
 export function createRouter(...args: RouterArgs): Router {
   singletonRouter.router = new Router(...args)

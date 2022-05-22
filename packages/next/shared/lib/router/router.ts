@@ -16,13 +16,13 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
-import { denormalizePagePath } from '../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
   AppContextType,
-  formatWithValidation,
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
@@ -30,14 +30,15 @@ import {
   NextPageContext,
   ST,
   NEXT_DATA,
+  isAbsoluteUrl,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
+import { formatWithValidation } from './utils/format-url'
 
 declare global {
   interface Window {
@@ -121,8 +122,13 @@ function addPathPrefix(path: string, prefix?: string) {
 
   return (
     normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.substr(pathname.length)
+    path.slice(pathname.length)
   )
+}
+
+function hasPathPrefix(path: string, prefix: string) {
+  path = pathNoQueryHash(path)
+  return path === prefix || path.startsWith(prefix + '/')
 }
 
 export function getDomainLocale(
@@ -153,16 +159,18 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathname = pathNoQueryHash(path)
-    const pathLower = pathname.toLowerCase()
-    const localeLower = locale && locale.toLowerCase()
+    if (locale && locale !== defaultLocale) {
+      const pathname = pathNoQueryHash(path)
+      const pathLower = pathname.toLowerCase()
+      const localeLower = locale.toLowerCase()
 
-    return locale &&
-      locale !== defaultLocale &&
-      !pathLower.startsWith('/' + localeLower + '/') &&
-      pathLower !== '/' + localeLower
-      ? addPathPrefix(path, '/' + locale)
-      : path
+      if (
+        !hasPathPrefix(pathLower, '/' + localeLower) &&
+        !hasPathPrefix(pathLower, '/api')
+      ) {
+        return addPathPrefix(path, '/' + locale)
+      }
+    }
   }
   return path
 }
@@ -177,7 +185,7 @@ export function delLocale(path: string, locale?: string) {
       (pathLower.startsWith('/' + localeLower + '/') ||
         pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.substr(locale.length + 1)
+          path.slice(locale.length + 1)
       : path
   }
   return path
@@ -194,16 +202,26 @@ function pathNoQueryHash(path: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  path = pathNoQueryHash(path)
-  return path === basePath || path.startsWith(basePath + '/')
+  return hasPathPrefix(path, basePath)
 }
 
-export function addBasePath(path: string): string {
+export function addBasePath(path: string, required?: boolean): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!required) {
+      return path
+    }
+  }
   // we only add the basepath on relative urls
   return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
+  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
+    if (!hasBasePath(path)) {
+      return path
+    }
+  }
+
   path = path.slice(basePath.length)
   if (!path.startsWith('/')) path = `/${path}`
   return path
@@ -214,8 +232,7 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
-    return true
+  if (!isAbsoluteUrl(url)) return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
@@ -320,7 +337,7 @@ export function resolveHref(
   // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.substr(urlProtoMatch[0].length)
+    ? urlAsString.slice(urlProtoMatch[0].length)
     : urlAsString
 
   const urlParts = urlAsStringNoProto.split('?')
@@ -596,10 +613,6 @@ interface NextDataCache {
 }
 
 export default class Router implements BaseRouter {
-  route: string
-  pathname: string
-  query: ParsedUrlQuery
-  asPath: string
   basePath: string
 
   /**
@@ -620,16 +633,23 @@ export default class Router implements BaseRouter {
   events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
-  isFallback: boolean
   _inFlightRoute?: string
   _shallow?: boolean
-  locale?: string
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   isReady: boolean
-  isPreview: boolean
   isLocaleDomain: boolean
+
+  private state: Readonly<{
+    route: string
+    pathname: string
+    query: ParsedUrlQuery
+    asPath: string
+    locale: string | undefined
+    isFallback: boolean
+    isPreview: boolean
+  }>
 
   private _idx: number = 0
 
@@ -653,6 +673,7 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
+      isRsc,
     }: {
       subscription: Subscription
       initialProps: any
@@ -667,10 +688,11 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: DomainLocale[]
       isPreview?: boolean
+      isRsc?: boolean
     }
   ) {
     // represents the current component key
-    this.route = removePathTrailingSlash(pathname)
+    const route = removePathTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -678,14 +700,14 @@ export default class Router implements BaseRouter {
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
     if (pathname !== '/_error') {
-      this.components[this.route] = {
+      this.components[route] = {
         Component,
         initial: true,
         props: initialProps,
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
-        __N_RSC: !!(Component as any)?.__next_rsc__,
+        __N_RSC: !!isRsc,
       }
     }
 
@@ -701,14 +723,11 @@ export default class Router implements BaseRouter {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.pathname = pathname
-    this.query = query
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.asPath = autoExportDynamic ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -716,9 +735,7 @@ export default class Router implements BaseRouter {
     // make sure to ignore extra popState in safari on navigating
     // back from external site
     this.isSsr = true
-
-    this.isFallback = isFallback
-
+    this.isLocaleDomain = false
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
@@ -727,11 +744,8 @@ export default class Router implements BaseRouter {
         !self.location.search &&
         !process.env.__NEXT_HAS_REWRITES)
     )
-    this.isPreview = !!isPreview
-    this.isLocaleDomain = false
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
       this.domainLocales = domainLocales
@@ -741,10 +755,20 @@ export default class Router implements BaseRouter {
       )
     }
 
+    this.state = {
+      route,
+      pathname,
+      query,
+      asPath: autoExportDynamic ? pathname : as,
+      isPreview: !!isPreview,
+      locale: process.env.__NEXT_I18N_SUPPORT ? locale : undefined,
+      isFallback,
+    }
+
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
-      if (as.substr(0, 2) !== '//') {
+      if (!as.startsWith('//')) {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }
@@ -913,22 +937,26 @@ export default class Router implements BaseRouter {
       (options as any)._shouldResolveHref ||
       pathNoQueryHash(url) === pathNoQueryHash(as)
 
+    const nextState = {
+      ...this.state,
+    }
+
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     if ((options as any)._h) {
       this.isReady = true
     }
 
-    const prevLocale = this.locale
+    const prevLocale = nextState.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      this.locale =
+      nextState.locale =
         options.locale === false
           ? this.defaultLocale
-          : options.locale || this.locale
+          : options.locale || nextState.locale
 
       if (typeof options.locale === 'undefined') {
-        options.locale = this.locale
+        options.locale = nextState.locale
       }
 
       const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
@@ -938,7 +966,7 @@ export default class Router implements BaseRouter {
       )
 
       if (localePathResult.detectedLocale) {
-        this.locale = localePathResult.detectedLocale
+        nextState.locale = localePathResult.detectedLocale
         parsedAs.pathname = addBasePath(parsedAs.pathname)
         as = formatWithValidation(parsedAs)
         url = addBasePath(
@@ -954,8 +982,8 @@ export default class Router implements BaseRouter {
       // moves this on its own due to the return
       if (process.env.__NEXT_I18N_SUPPORT) {
         // if the locale isn't configured hard navigate to show 404 page
-        if (!this.locales?.includes(this.locale!)) {
-          parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+        if (!this.locales?.includes(nextState.locale!)) {
+          parsedAs.pathname = addLocale(parsedAs.pathname, nextState.locale)
           window.location.href = formatWithValidation(parsedAs)
           // this was previously a return but was removed in favor
           // of better dead code elimination with regenerator runtime
@@ -966,7 +994,7 @@ export default class Router implements BaseRouter {
       const detectedDomain = detectDomainLocale(
         this.domainLocales,
         undefined,
-        this.locale
+        nextState.locale
       )
 
       // we need to wrap this in the env check again since regenerator runtime
@@ -985,9 +1013,9 @@ export default class Router implements BaseRouter {
             detectedDomain.domain
           }${addBasePath(
             `${
-              this.locale === detectedDomain.defaultLocale
+              nextState.locale === detectedDomain.defaultLocale
                 ? ''
-                : `/${this.locale}`
+                : `/${nextState.locale}`
             }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
           )}`
           // this was previously a return but was removed in favor
@@ -1009,7 +1037,7 @@ export default class Router implements BaseRouter {
       performance.mark('routeChange')
     }
 
-    const { shallow = false } = options
+    const { shallow = false, scroll = true } = options
     const routeProps = { shallow }
 
     if (this._inFlightRoute) {
@@ -1025,11 +1053,11 @@ export default class Router implements BaseRouter {
     )
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
-      this.locale
+      nextState.locale
     )
     this._inFlightRoute = as
 
-    let localeChange = prevLocale !== this.locale
+    let localeChange = prevLocale !== nextState.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -1042,12 +1070,25 @@ export default class Router implements BaseRouter {
       this.onlyAHashChange(cleanedAs) &&
       !localeChange
     ) {
-      this.asPath = cleanedAs
+      nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
-      this.changeState(method, url, as, options)
-      this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route], null)
+      this.changeState(method, url, as, {
+        ...options,
+        scroll: false,
+      })
+      if (scroll) {
+        this.scrollToHash(cleanedAs)
+      }
+      try {
+        await this.set(nextState, this.components[nextState.route], null)
+      } catch (err) {
+        if (isError(err) && err.cancelled) {
+          Router.events.emit('routeChangeError', err, cleanedAs, routeProps)
+        }
+        throw err
+      }
+
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
@@ -1097,13 +1138,18 @@ export default class Router implements BaseRouter {
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
-          addBasePath(addLocale(cleanedAs, this.locale)),
+          addBasePath(addLocale(cleanedAs, nextState.locale), true),
           pages,
           rewrites,
           query,
           (p: string) => resolveDynamicRoute(p, pages),
           this.locales
         )
+
+        if (rewritesResult.externalDest) {
+          location.href = as
+          return true
+        }
         resolvedAs = rewritesResult.asPath
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1136,7 +1182,7 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
+    resolvedAs = delLocale(delBasePath(resolvedAs), nextState.locale)
 
     /**
      * If the route update was triggered for client-side hydration and
@@ -1144,8 +1190,9 @@ export default class Router implements BaseRouter {
      * request as it is not necessary.
      */
     if (
-      (options as any)._h !== 1 ||
-      isDynamicRoute(removePathTrailingSlash(pathname))
+      (!options.shallow || (options as any)._h === 1) &&
+      ((options as any)._h !== 1 ||
+        isDynamicRoute(removePathTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1153,6 +1200,8 @@ export default class Router implements BaseRouter {
         pages,
         pathname,
         query,
+        locale: nextState.locale,
+        isPreview: nextState.isPreview,
       })
 
       if (effect.type === 'rewrite') {
@@ -1239,13 +1288,27 @@ export default class Router implements BaseRouter {
         query,
         as,
         resolvedAs,
-        routeProps
+        routeProps,
+        nextState.locale,
+        nextState.isPreview
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
+
+      const component: any = routeInfo.Component
+      if (component && component.unstable_scriptLoader) {
+        const scripts = [].concat(component.unstable_scriptLoader())
+
+        scripts.forEach((script: any) => {
+          handleClientScriptLoad(script.props)
+        })
+      }
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
         if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          // Use the destination from redirect without adding locale
+          options.locale = false
+
           const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
@@ -1273,7 +1336,7 @@ export default class Router implements BaseRouter {
           return new Promise(() => {})
         }
 
-        this.isPreview = !!props.__N_PREVIEW
+        nextState.isPreview = !!props.__N_PREVIEW
 
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
@@ -1292,7 +1355,9 @@ export default class Router implements BaseRouter {
             query,
             as,
             resolvedAs,
-            { shallow: false }
+            { shallow: false },
+            nextState.locale,
+            nextState.isPreview
           )
         }
       }
@@ -1312,15 +1377,20 @@ export default class Router implements BaseRouter {
       }
 
       // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && this.route === route
+      const isValidShallowRoute = options.shallow && nextState.route === route
 
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
+
       await this.set(
-        route,
-        pathname!,
-        query,
-        cleanedAs,
+        {
+          ...nextState,
+          route,
+          pathname,
+          query,
+          asPath: cleanedAs,
+          isFallback: false,
+        },
         routeInfo,
         forcedScroll ?? resetScroll
       ).catch((e) => {
@@ -1334,11 +1404,17 @@ export default class Router implements BaseRouter {
       }
 
       if (process.env.__NEXT_I18N_SUPPORT) {
-        if (this.locale) {
-          document.documentElement.lang = this.locale
+        if (nextState.locale) {
+          document.documentElement.lang = nextState.locale
         }
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
+
+      // A hash mark # is the optional last part of a URL
+      const hashRegex = /#.+$/
+      if (shouldScroll && hashRegex.test(as)) {
+        this.scrollToHash(as)
+      }
 
       return true
     } catch (err) {
@@ -1469,7 +1545,9 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     resolvedAs: string,
-    routeProps: RouteProperties
+    routeProps: RouteProperties,
+    locale: string | undefined,
+    isPreview: boolean
   ): Promise<PrivateRouteInfo> {
     try {
       const existingRouteInfo: PrivateRouteInfo | undefined =
@@ -1495,13 +1573,13 @@ export default class Router implements BaseRouter {
           styleSheets: res.styleSheets,
           __N_SSG: res.mod.__N_SSG,
           __N_SSP: res.mod.__N_SSP,
-          __N_RSC: !!(res.page as any).__next_rsc__,
+          __N_RSC: !!res.mod.__next_rsc__,
         })))
 
       const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('react-is')
+        const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
@@ -1511,24 +1589,31 @@ export default class Router implements BaseRouter {
 
       let dataHref: string | undefined
 
+      // For server components, non-SSR pages will have statically optimized
+      // flight data in a production build.
+      // So only development and SSR pages will always have the real-time
+      // generated and streamed flight data.
+      const useStreamedFlightData =
+        (process.env.NODE_ENV !== 'production' || __N_SSP) && __N_RSC
+
       if (__N_SSG || __N_SSP || __N_RSC) {
         dataHref = this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           asPath: resolvedAs,
           ssg: __N_SSG,
-          rsc: __N_RSC,
-          locale: this.locale,
+          flight: useStreamedFlightData,
+          locale,
         })
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG || __N_SSP
+        (__N_SSG || __N_SSP || __N_RSC) && !useStreamedFlightData
           ? fetchNextData(
               dataHref!,
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !this.isPreview
+              !!__N_SSG && !isPreview
             )
           : this.getInitialProps(
               Component,
@@ -1537,7 +1622,7 @@ export default class Router implements BaseRouter {
                 pathname,
                 query,
                 asPath: as,
-                locale: this.locale,
+                locale,
                 locales: this.locales,
                 defaultLocale: this.defaultLocale,
               } as any
@@ -1545,13 +1630,23 @@ export default class Router implements BaseRouter {
       )
 
       if (__N_RSC) {
-        const { fresh, data } = (await this._getData(() =>
-          this._getFlightData(dataHref!)
-        )) as { fresh: boolean; data: string }
-        ;(props as any).pageProps = Object.assign((props as any).pageProps, {
-          __flight_serialized__: data,
-          __flight_fresh__: fresh,
-        })
+        if (useStreamedFlightData) {
+          const { data } = (await this._getData(() =>
+            this._getFlightData(dataHref!)
+          )) as { data: string }
+          ;(props as any).pageProps = Object.assign((props as any).pageProps, {
+            __flight__: data,
+          })
+        } else {
+          const { __flight__ } = props as any
+          ;(props as any).pageProps = Object.assign(
+            {},
+            (props as any).pageProps,
+            {
+              __flight__,
+            }
+          )
+        }
       }
 
       routeInfo.props = props
@@ -1568,21 +1663,18 @@ export default class Router implements BaseRouter {
     }
   }
 
-  set(
-    route: string,
-    pathname: string,
-    query: ParsedUrlQuery,
-    as: string,
+  private set(
+    state: typeof this.state,
     data: PrivateRouteInfo,
     resetScroll: { x: number; y: number } | null
   ): Promise<void> {
-    this.isFallback = false
+    this.state = state
 
-    this.route = route
-    this.pathname = pathname
-    this.query = query
-    this.asPath = as
-    return this.notify(data, resetScroll)
+    return this.sub(
+      data,
+      this.components['/_app'].Component as AppComponent,
+      resetScroll
+    )
   }
 
   /**
@@ -1624,15 +1716,17 @@ export default class Router implements BaseRouter {
       return
     }
 
+    // Decode hash to make non-latin anchor works.
+    const rawHash = decodeURIComponent(hash)
     // First we check if the element by id is found
-    const idEl = document.getElementById(hash)
+    const idEl = document.getElementById(rawHash)
     if (idEl) {
       idEl.scrollIntoView()
       return
     }
     // If there's no element with the id, we check the `name` property
     // To mirror browsers
-    const nameEl = document.getElementsByName(hash)[0]
+    const nameEl = document.getElementsByName(rawHash)[0]
     if (nameEl) {
       nameEl.scrollIntoView()
     }
@@ -1682,13 +1776,17 @@ export default class Router implements BaseRouter {
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
 
       const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(asPath, this.locale)),
+        addBasePath(addLocale(asPath, this.locale), true),
         pages,
         rewrites,
         parsed.query,
         (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
+
+      if (rewritesResult.externalDest) {
+        return
+      }
       resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
@@ -1719,6 +1817,8 @@ export default class Router implements BaseRouter {
       pages,
       pathname,
       query,
+      locale: this.locale,
+      isPreview: this.isPreview,
     })
 
     if (effects.type === 'rewrite') {
@@ -1813,7 +1913,7 @@ export default class Router implements BaseRouter {
     // Do not cache RSC flight response since it's not a static resource
     return fetchNextData(dataHref, true, true, this.sdc, false).then(
       (serialized) => {
-        return { fresh: true, data: serialized }
+        return { data: serialized }
       }
     )
   }
@@ -1824,27 +1924,54 @@ export default class Router implements BaseRouter {
     pages: string[]
     pathname: string
     query: ParsedUrlQuery
+    locale: string | undefined
+    isPreview: boolean
   }): Promise<PreflightEffect> {
+    const asPathname = pathNoQueryHash(options.as)
     const cleanedAs = delLocale(
-      hasBasePath(options.as) ? delBasePath(options.as) : options.as,
-      this.locale
+      hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
+      options.locale
     )
 
     const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+      return getRouteMatcher(
+        getMiddlewareRegex(middleware, {
+          catchAll: !isSSR,
+        })
+      )(cleanedAs)
     })
 
     if (!requiresPreflight) {
       return { type: 'next' }
     }
 
-    const preflight = await this._getPreflightData({
-      preflightHref: options.as,
-      shouldCache: options.cache,
-    })
+    const preflightHref = addLocale(options.as, options.locale)
 
-    if (preflight.rewrite?.startsWith('/')) {
+    let preflight: PreflightData | undefined
+    try {
+      preflight = await this._getPreflightData({
+        preflightHref,
+        shouldCache: options.cache,
+        isPreview: options.isPreview,
+      })
+    } catch (err) {
+      // If preflight request fails, we need to do a hard-navigation.
+      return {
+        type: 'redirect',
+        destination: options.as,
+      }
+    }
+
+    if (preflight.rewrite) {
+      // for external rewrites we need to do a hard navigation
+      // to the resource
+      if (!preflight.rewrite.startsWith('/')) {
+        return {
+          type: 'redirect',
+          destination: options.as,
+        }
+      }
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)
@@ -1927,13 +2054,14 @@ export default class Router implements BaseRouter {
   _getPreflightData(params: {
     preflightHref: string
     shouldCache?: boolean
+    isPreview: boolean
   }): Promise<PreflightData> {
-    const { preflightHref, shouldCache = false } = params
+    const { preflightHref, shouldCache = false, isPreview } = params
     const { href: cacheKey } = new URL(preflightHref, window.location.href)
 
     if (
       process.env.NODE_ENV === 'production' &&
-      !this.isPreview &&
+      !isPreview &&
       shouldCache &&
       this.sde[cacheKey]
     ) {
@@ -1999,14 +2127,31 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(
-    data: PrivateRouteInfo,
-    resetScroll: { x: number; y: number } | null
-  ): Promise<void> {
-    return this.sub(
-      data,
-      this.components['/_app'].Component as AppComponent,
-      resetScroll
-    )
+  get route(): string {
+    return this.state.route
+  }
+
+  get pathname(): string {
+    return this.state.pathname
+  }
+
+  get query(): ParsedUrlQuery {
+    return this.state.query
+  }
+
+  get asPath(): string {
+    return this.state.asPath
+  }
+
+  get locale(): string | undefined {
+    return this.state.locale
+  }
+
+  get isFallback(): boolean {
+    return this.state.isFallback
+  }
+
+  get isPreview(): boolean {
+    return this.state.isPreview
   }
 }

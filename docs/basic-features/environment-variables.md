@@ -30,7 +30,7 @@ DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching/index.md) and [API routes](/docs/api-routes/introduction.md).
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching/overview.md) and [API routes](/docs/api-routes/introduction.md).
 
 For example, using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md):
 
@@ -46,8 +46,7 @@ export async function getStaticProps() {
 }
 ```
 
-> **Note**: In order to keep server-only secrets safe, Next.js replaces `process.env.*` with the correct values
-> at build time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
+> **Note**: In order to keep server-only secrets safe, environment variables are evaluated at build time, so only environment variables _actually_ used will be included. This means that `process.env` is not a standard JavaScript object, so you’re not able to
 > use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
 > Environment variables must be referenced as e.g. `process.env.PUBLISHABLE_KEY`, _not_ `const { PUBLISHABLE_KEY } = process.env`.
 
@@ -162,3 +161,17 @@ export default async () => {
   loadEnvConfig(projectDir)
 }
 ```
+
+## Environment Variable Load Order
+
+Environment variables are looked up in the following places, in order, stopping once the variable is found.
+
+1. `process.env`
+1. `.env.$(NODE_ENV).local`
+1. `.env.local` (Not checked when `NODE_ENV` is `test`.)
+1. `.env.$(NODE_ENV)`
+1. `.env`
+
+For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
+
+> **Note:** The allowed values for `NODE_ENV` are `production`, `development` and `test`.

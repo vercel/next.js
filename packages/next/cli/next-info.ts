@@ -4,6 +4,7 @@ import childProcess from 'child_process'
 
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
+import fetch from 'next/dist/compiled/node-fetch'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
@@ -41,6 +42,8 @@ const nextInfo: cliCommand = async (argv) => {
     return
   }
 
+  const installedRelease = getPackageVersion('next')
+
   console.log(`
     Operating System:
       Platform: ${os.platform()}
@@ -52,9 +55,39 @@ const nextInfo: cliCommand = async (argv) => {
       Yarn: ${getBinaryVersion('yarn')}
       pnpm: ${getBinaryVersion('pnpm')}
     Relevant packages:
-      next: ${getPackageVersion('next')}
+      next: ${installedRelease}
       react: ${getPackageVersion('react')}
-      react-dom: ${getPackageVersion('react-dom')}`)
+      react-dom: ${getPackageVersion('react-dom')}
+`)
+
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/vercel/next.js/releases'
+    )
+    const releases = await res.json()
+    const newestRelease = releases[0].tag_name.replace(/^v/, '')
+
+    if (installedRelease !== newestRelease) {
+      console.warn(
+        `${chalk.yellow(
+          chalk.bold('warn')
+        )}  - Latest canary version not detected, detected: "${installedRelease}", newest: "${newestRelease}".
+        Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+        Read more - https://nextjs.org/docs/messages/opening-an-issue`
+      )
+    }
+  } catch (e) {
+    console.warn(
+      `${chalk.yellow(
+        chalk.bold('warn')
+      )}  - Failed to fetch latest canary version. (Reason: ${
+        (e as Error).message
+      }.)
+      Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
+      Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+      Read more - https://nextjs.org/docs/messages/opening-an-issue`
+    )
+  }
 }
 
 export { nextInfo }
@@ -69,7 +102,10 @@ function getPackageVersion(packageName: string) {
 
 function getBinaryVersion(binaryName: string) {
   try {
-    return childProcess.execSync(`${binaryName} --version`).toString().trim()
+    return childProcess
+      .execFileSync(binaryName, ['--version'])
+      .toString()
+      .trim()
   } catch {
     return 'N/A'
   }

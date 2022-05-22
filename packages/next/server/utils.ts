@@ -20,3 +20,9 @@ export function isBot(userAgent: string): boolean {
     userAgent
   )
 }
+
+export function isTargetLikeServerless(target: string) {
+  const isServerless = target === 'serverless'
+  const isServerlessTrace = target === 'experimental-serverless-trace'
+  return isServerless || isServerlessTrace
+}

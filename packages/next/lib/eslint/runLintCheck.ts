@@ -25,9 +25,21 @@ type Config = {
   rules: { [key: string]: Array<number | string> }
 }
 
+// 0 is off, 1 is warn, 2 is error. See https://eslint.org/docs/user-guide/configuring/rules#configuring-rules
+const VALID_SEVERITY = ['off', 'warn', 'error'] as const
+type Severity = typeof VALID_SEVERITY[number]
+
+function isValidSeverity(severity: string): severity is Severity {
+  return VALID_SEVERITY.includes(severity as Severity)
+}
+
 const requiredPackages = [
-  { file: 'eslint', pkg: 'eslint' },
-  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+  { file: 'eslint', pkg: 'eslint', exportsRestrict: false },
+  {
+    file: 'eslint-config-next',
+    pkg: 'eslint-config-next',
+    exportsRestrict: false,
+  },
 ]
 
 async function cliPrompt() {
@@ -126,6 +138,7 @@ async function lint(
     let eslint = new ESLint(options)
 
     let nextEslintPluginIsEnabled = false
+    const nextRulesEnabled = new Map<string, Severity>()
     const pagesDirRules = ['@next/next/no-html-link-for-pages']
 
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
@@ -137,11 +150,29 @@ async function lint(
 
       if (completeConfig.plugins?.includes('@next/next')) {
         nextEslintPluginIsEnabled = true
+        for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
+          if (!name.startsWith('@next/next/')) {
+            continue
+          }
+          if (
+            typeof severity === 'number' &&
+            severity >= 0 &&
+            severity < VALID_SEVERITY.length
+          ) {
+            nextRulesEnabled.set(name, VALID_SEVERITY[severity])
+          } else if (
+            typeof severity === 'string' &&
+            isValidSeverity(severity)
+          ) {
+            nextRulesEnabled.set(name, severity)
+          }
+        }
         break
       }
     }
 
-    const pagesDir = findPagesDir(baseDir)
+    // TODO: should we apply these rules to "root" dir as well?
+    const pagesDir = findPagesDir(baseDir).pages
 
     if (nextEslintPluginIsEnabled) {
       let updatedPagesDir = false
@@ -210,6 +241,7 @@ async function lint(
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
           formattedResult.totalNextPluginWarningCount,
+        nextRulesEnabled: Object.fromEntries(nextRulesEnabled),
       },
     }
   } catch (err) {
@@ -238,10 +270,12 @@ export async function runLintCheck(
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
+    // See: https://eslint.org/docs/user-guide/configuring/configuration-files#configuration-file-formats
     const eslintrcFile =
       (await findUp(
         [
           '.eslintrc.js',
+          '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',

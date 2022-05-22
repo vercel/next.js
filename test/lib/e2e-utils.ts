@@ -1,20 +1,38 @@
 import path from 'path'
 import assert from 'assert'
 import { NextConfig } from 'next'
-import { NextInstance } from './next-modes/base'
+import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
+import { NextDeployInstance } from './next-modes/next-deploy'
 
-const testFile = module.parent.filename
+// increase timeout to account for yarn install time
+jest.setTimeout(240 * 1000)
+
 const testsFolder = path.join(__dirname, '..')
+
+let testFile
+const testFileRegex = /\.test\.(js|tsx?)/
+
+const visitedModules = new Set()
+const checkParent = (mod) => {
+  if (!mod?.parent || visitedModules.has(mod)) return
+  testFile = mod.parent.filename || ''
+  visitedModules.add(mod)
+
+  if (!testFileRegex.test(testFile)) {
+    checkParent(mod.parent)
+  }
+}
+checkParent(module)
 
 process.env.TEST_FILE_PATH = testFile
 
 let testMode = process.env.NEXT_TEST_MODE
 
-if (!testFile.match(/\.test\.(js|tsx?)/)) {
+if (!testFileRegex.test(testFile)) {
   throw new Error(
-    'e2e-utils imported from non-test file (must end with .test.(js,ts,tsx)'
+    `e2e-utils imported from non-test file ${testFile} (must end with .test.(js,ts,tsx)`
   )
 }
 
@@ -97,6 +115,11 @@ export async function createNext(opts: {
   }
   nextConfig?: NextConfig
   skipStart?: boolean
+  installCommand?: InstallCommand
+  buildCommand?: string
+  packageJson?: PackageJson
+  startCommand?: string
+  packageLockPath?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {
@@ -108,7 +131,7 @@ export async function createNext(opts: {
       nextInstance = new NextDevInstance(opts)
     } else if (testMode === 'deploy') {
       // Vercel
-      throw new Error('to-implement')
+      nextInstance = new NextDeployInstance(opts)
     } else {
       // next build + next start
       nextInstance = new NextStartInstance(opts)
@@ -125,9 +148,9 @@ export async function createNext(opts: {
     }
     return nextInstance!
   } catch (err) {
-    console.error('Failed to create next instance', err)
+    require('console').error('Failed to create next instance', err)
     try {
-      await nextInstance.destroy()
+      nextInstance.destroy()
     } catch (_) {}
     process.exit(1)
   }

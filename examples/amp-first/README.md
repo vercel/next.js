@@ -21,6 +21,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example amp-first amp-first-app
 # or
 yarn create next-app --example amp-first amp-first-app
+# or
+pnpm create next-app -- --example amp-first amp-first-app
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view it in the browser. The page will reload if you make edits. You will also see AMP validation errors in the console.

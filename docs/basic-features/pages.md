@@ -63,6 +63,8 @@ You can also use **Client-side Rendering** along with Static Generation or Serve
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-builder-io">Builder.io Example</a> (<a href="https://cms-builder-io.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-tina">TinaCMS Example</a> (<a href="https://cms-tina-example.vercel.app/">Demo</a>)</li>
     <li><a href="https://static-tweet.vercel.app/">Static Tweet (Demo)</a></li>
   </ul>
 </details>
@@ -262,7 +264,7 @@ We've discussed two forms of pre-rendering for Next.js.
 We recommend you to read the following sections next:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>

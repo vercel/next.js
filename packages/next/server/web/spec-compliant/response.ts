@@ -1,5 +1,6 @@
 import { Body, BodyInit, cloneBody, extractContentType } from './body'
 import { NextURL } from '../next-url'
+import { validateURL } from '../utils'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -38,15 +39,15 @@ class BaseResponse extends Body implements Response {
     }
   }
 
-  static redirect(url: string, status = 302) {
+  static redirect(url: string, status = 307) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
 
-    return new Response(url, {
-      headers: { Location: url },
+    return new Response(null, {
+      headers: { Location: validateURL(url) },
       status,
     })
   }

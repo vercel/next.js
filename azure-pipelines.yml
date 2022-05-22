@@ -69,11 +69,9 @@ stages:
   - stage: Test
     dependsOn: Build
     jobs:
-      - job: test_ie11
+      - job: test_integration
         pool:
           vmImage: 'windows-2019'
-        variables:
-          BROWSER_NAME: internet explorer
         steps:
           - checkout: none
           - task: NodeTool@0
@@ -89,8 +87,7 @@ stages:
             displayName: Cache Build
 
           - script: |
-              npm i -g selenium-standalone@6.18.0
-            displayName: 'Install selenium node'
+              npx playwright install chromium
 
           - script: |
               node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js

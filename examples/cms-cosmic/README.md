@@ -29,6 +29,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Ghost](/examples/cms-ghost)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -38,6 +39,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-cosmic cms-cosmic-app
 # or
 yarn create next-app --example cms-cosmic cms-cosmic-app
+# or
+pnpm create next-app -- --example cms-cosmic cms-cosmic-app
 ```
 
 ## Configuration

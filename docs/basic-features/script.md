@@ -25,7 +25,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 
 </details>
 
-The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application without needing to append directly to `next/head`, saving developer time while improving loading performance.
+The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application, outside `next/head`, saving developer time while improving loading performance.
 
 ```jsx
 import Script from 'next/script'
@@ -67,18 +67,36 @@ With `next/script`, you decide when to load your third-party script by using the
 There are three different loading strategies that can be used:
 
 - `beforeInteractive`: Load before the page is interactive
-- `afterInteractive`: (**default**): Load immediately after the page becomes interactive
+- `afterInteractive`: (**default**) Load immediately after the page becomes interactive
 - `lazyOnload`: Load during idle time
+- `worker`: (experimental) Load in a web worker
 
 #### beforeInteractive
 
-Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before the page is interactive.
+Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. This strategy should be used for any critical scripts that need to be fetched and executed before any page becomes interactive. This strategy only works inside **\_document.js** and is designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+
+The reason `beforeInteractive` was designed to work only inside `\_document.js` is to support streaming and Suspense functionality. Outside of the `_document`, it's not possible to guarantee the timing or ordering of `beforeInteractive` scripts.
 
 ```jsx
-<Script
-  src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"
-  strategy="beforeInteractive"
-/>
+// In _document.js
+import { Html, Head, Main, NextScript } from 'next/document'
+import Script from 'next/script'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+        <Script
+          src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+          strategy="beforeInteractive"
+        ></Script>
+      </body>
+    </Html>
+  )
+}
 ```
 
 Examples of scripts that should be loaded as soon as possible with this strategy include:
@@ -123,6 +141,87 @@ Examples of scripts that do not need to load immediately and can be lazy-loaded 
 - Chat support plugins
 - Social media widgets
 
+### Off-loading Scripts To A Web Worker (experimental)
+
+> **Note: The `worker` strategy is not yet stable and can cause unexpected issues in your application. Use with caution.**
+
+Scripts that use the `worker` strategy are relocated and executed in a web worker with [Partytown](https://partytown.builder.io/). This can improve the performance of your site by dedicating the main thread to the rest of your application code.
+
+This strategy is still experimental and can only be used if the `nextScriptWorkers` flag is enabled in `next.config.js`:
+
+```js
+module.exports = {
+  experimental: {
+    nextScriptWorkers: true,
+  },
+}
+```
+
+Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
+
+```bash
+npm run dev
+
+# You'll see instructions like these:
+#
+# Please install Partytown by running:
+#
+#         npm install @builder.io/partytown
+#
+# ...
+```
+
+Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and off-load the script to a web worker.
+
+```jsx
+<Script src="https://example.com/analytics.js" strategy="worker" />
+```
+
+There are a number of trade-offs that need to be considered when loading a third-party script in a web worker. Please see Partytown's [Trade-Offs](https://partytown.builder.io/trade-offs) documentation for more information.
+
+#### Configuration
+
+Although the `worker` strategy does not require any additional configuration to work, Partytown supports the use of a config object to modify some of its settings, including enabling `debug` mode and forwarding events and triggers.
+
+If you would like to add additional configuration options, you can include it within the `<Head />` component used in a [custom `_document.js`](/docs/advanced-features/custom-document.md):
+
+```jsx
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head>
+        <script
+          data-partytown-config
+          dangerouslySetInnerHTML={{
+            __html: `
+              partytown = {
+                lib: "/_next/static/~partytown/",
+                debug: true
+              };
+            `,
+          }}
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+In order to modify Partytown's configuration, the following conditions must be met:
+
+1. The `data-partytown-config` attribute must be used in order to overwrite the default configuration used by Next.js
+2. Unless you decide to save Partytown's library files in a separate directory, the `lib: "/_next/static/~partytown/"` property and value must be included in the configuration object in order to let Partytown know where Next.js stores the necessary static files.
+
+> **Note**: If you are using an [asset prefix](/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md) and would like to modify Partytown's default configuration, you must include it as part of the `lib` path.
+
+Take a look at Partytown's [configuration options](https://partytown.builder.io/configuration) to see the full list of other properties that can be added.
+
 ### Inline Scripts
 
 Inline scripts, or scripts not loaded from an external file, are also supported by the Script component. They can be written by placing the JavaScript within curly braces:
@@ -144,14 +243,13 @@ Or by using the `dangerouslySetInnerHTML` property:
 />
 ```
 
-There are two limitations to be aware of when using the Script component for inline scripts:
-
-- Only the `afterInteractive` and `lazyOnload` strategies can be used. The `beforeInteractive` loading strategy injects the contents of an external script into the initial HTML response. Inline scripts already do this, which is why **the `beforeInteractive` strategy cannot be used with inline scripts.**
-- An `id` attribute must be defined in order for Next.js to track and optimize the script
+The `id` property is required for **inline scripts** in order for Next.js to track and optimize the script.
 
 ### Executing Code After Loading (`onLoad`)
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `beforeInteractive` or `afterInteractive` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+> **Note: `onLoad` and `onError` cannot be used with the `beforeInteractive` loading strategy.**
+
+Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `afterInteractive` or `lazyOnload` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
 ```jsx
 import { useState } from 'react'

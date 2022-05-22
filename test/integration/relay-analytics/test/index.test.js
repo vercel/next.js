@@ -2,18 +2,9 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  File,
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  check,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const customApp = new File(join(appDir, 'pages/_app.js'))
-const indexPage = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
@@ -33,31 +24,8 @@ async function killServer() {
 }
 
 describe('Analytics relayer with exported method', () => {
-  beforeAll(async () => {
-    // Keep app exported reporting and comment the hook one
-    indexPage.replace('///* unstable_useWebVitalsReport', '/*')
-    indexPage.replace('// unstable_useWebVitalsReport */', '*/')
-    await buildApp()
-  })
-  afterAll(async () => {
-    indexPage.restore()
-    await killServer()
-  })
-  runTest()
-})
-
-describe('Analytics relayer with hook', () => {
-  beforeAll(async () => {
-    // Keep hook reporting and comment the app exported one
-    customApp.replace('///* reportWebVitals', '/*')
-    customApp.replace('// reportWebVitals */', '*/')
-    await buildApp()
-  })
-
-  afterAll(async () => {
-    customApp.restore()
-    await killServer()
-  })
+  beforeAll(async () => await buildApp())
+  afterAll(async () => await killServer())
   runTest()
 })
 

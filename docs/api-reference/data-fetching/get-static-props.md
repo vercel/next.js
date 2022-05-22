@@ -2,17 +2,19 @@
 description: API reference for `getStaticProps`. Learn how to use `getStaticProps` to generate static pages with Next.js.
 ---
 
-# `getStaticProps`
+# getStaticProps
 
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                           |
-| --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
-| `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
-| `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
-| `v10.0.0` | `fallback: 'blocking'` return option added.                                                                       |
+| Version | Changes |
+| ------- | ------- |
+
+| `v12.1.0` | [On-demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
+| `v10.0.0` | `fallback: 'blocking'` return option added. |
+| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
+| `v9.3.0` | `getStaticProps` introduced. |
 
 </details>
 
@@ -39,9 +41,9 @@ The `context` parameter is an object containing the following keys:
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
 
-## `getStaticProps` return values
+## getStaticProps return values
 
-The `getStaticProps` function should return an object with the following **optional** properties:
+The `getStaticProps` function should return an object containing either `props`, `redirect`, or `notFound` followed by an **optional** `revalidate` property.
 
 ### `props`
 
@@ -81,9 +83,15 @@ export async function getStaticProps() {
 
 Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
 
+The cache status of a page leveraging ISR can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
+
+- `MISS` - the path is not in the cache (occurs at most once, on the first visit)
+- `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
+- `HIT` - the path is in the cache and has not exceeded the revalidate time
+
 ### `notFound`
 
-The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author.
+The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate)
 
 ```js
 export async function getStaticProps(context) {
@@ -192,7 +200,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-## `getStaticProps` with TypeScript
+## getStaticProps with TypeScript
 
 You can use the `GetStaticProps` type from `next` to type the function:
 
@@ -237,7 +245,7 @@ export default Blog
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/data-fetching/index.md">
+  <a href="/docs/basic-features/data-fetching/overview.md">
     <b>Data Fetching:</b>
     <small>Learn more about data fetching in Next.js.</small>
   </a>
