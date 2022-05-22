@@ -9,7 +9,7 @@
     "tina-start": "yarn tinacms server:start -c \"next start\""
   },
   "dependencies": {
-    "@tinacms/cli": "^0.60.8",
+    "@tinacms/cli": "^0.60.16",
     "classnames": "2.3.1",
     "date-fns": "2.28.0",
     "gray-matter": "4.0.3",
@@ -19,7 +19,7 @@
     "remark": "14.0.2",
     "remark-html": "15.0.1",
     "styled-components": "^5.3.3",
-    "tinacms": "^0.66.7"
+    "tinacms": "^0.68.4"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.2",

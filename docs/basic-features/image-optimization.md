@@ -66,7 +66,7 @@ function Home() {
 
 ### Remote Images
 
-To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](#domains). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
+To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](/docs/api-reference/next/image.md#domains). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
 
 ```jsx
 import Image from 'next/image'
@@ -93,15 +93,9 @@ export default function Home() {
 
 Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
 
-To protect your application from malicious users, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
+To protect your application from malicious users, you must define a list of remote hostnames you intend to allow remote access.
 
-```js
-module.exports = {
-  images: {
-    domains: ['example.com', 'example2.com'],
-  },
-}
-```
+> Learn more about [`domains`](/docs/api-reference/next/image.md#domains) configuration.
 
 ### Loaders
 
@@ -207,7 +201,7 @@ For examples of the Image component used with the various fill modes, see the [I
 
 ## Configuration
 
-The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote domains](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
+The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote images](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
 
 [**Read the full image configuration documentation for more information.**](/docs/api-reference/next/image.md#configuration-options)
 

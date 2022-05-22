@@ -1,14 +1,11 @@
 import type { NextConfig } from '../server/config'
+import type { Token } from 'next/dist/compiled/path-to-regexp'
 
 import chalk from './chalk'
-import { parse as parseUrl } from 'url'
-import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
-import {
-  PERMANENT_REDIRECT_STATUS,
-  TEMPORARY_REDIRECT_STATUS,
-} from '../shared/lib/constants'
-import isError from './is-error'
+import { PERMANENT_REDIRECT_STATUS } from '../shared/lib/constants'
+import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
+import { tryToParsePath } from './try-to-parse-path'
 
 export type RouteHas =
   | {
@@ -131,54 +128,6 @@ function checkHeader(route: Header): string[] {
     }
   }
   return invalidParts
-}
-
-type ParseAttemptResult = {
-  error?: boolean
-  tokens?: pathToRegexp.Token[]
-  regexStr?: string
-}
-
-function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
-  const result: ParseAttemptResult = {}
-  let routePath = route
-
-  try {
-    if (handleUrl) {
-      const parsedDestination = parseUrl(route, true)
-      routePath = `${parsedDestination.pathname!}${
-        parsedDestination.hash || ''
-      }`
-    }
-
-    // Make sure we can parse the source properly
-    result.tokens = pathToRegexp.parse(routePath)
-
-    const regex = pathToRegexp.tokensToRegexp(result.tokens)
-    result.regexStr = regex.source
-  } catch (err) {
-    // If there is an error show our error link but still show original error or a formatted one if we can
-    let errMatches
-
-    if (isError(err) && (errMatches = err.message.match(/at (\d{0,})/))) {
-      const position = parseInt(errMatches[1], 10)
-      console.error(
-        `\nError parsing \`${route}\` ` +
-          `https://nextjs.org/docs/messages/invalid-route-source\n` +
-          `Reason: ${err.message}\n\n` +
-          `  ${routePath}\n` +
-          `  ${new Array(position).fill(' ').join('')}^\n`
-      )
-    } else {
-      console.error(
-        `\nError parsing ${route} https://nextjs.org/docs/messages/invalid-route-source`,
-        err
-      )
-    }
-    result.error = true
-  }
-
-  return result
 }
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
@@ -331,12 +280,12 @@ function checkCustomRoutes(
       invalidParts.push(...result.invalidParts)
     }
 
-    let sourceTokens: pathToRegexp.Token[] | undefined
+    let sourceTokens: Token[] | undefined
 
     if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
-      const { tokens, error, regexStr } = tryParsePath(route.source)
+      const { tokens, error, regexStr } = tryToParsePath(route.source)
 
       if (error) {
         invalidParts.push('`source` parse failed')
@@ -399,7 +348,9 @@ function checkCustomRoutes(
             tokens: destTokens,
             regexStr: destRegexStr,
             error: destinationParseFailed,
-          } = tryParsePath((route as Rewrite).destination, true)
+          } = tryToParsePath((route as Rewrite).destination, {
+            handleUrl: true,
+          })
 
           if (destRegexStr && destRegexStr.length > 4096) {
             invalidParts.push('`destination` exceeds max built length of 4096')

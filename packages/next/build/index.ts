@@ -15,7 +15,8 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
+  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -54,16 +55,12 @@ import {
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
 import { BuildManifest } from '../server/get-page-files'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -78,12 +75,9 @@ import {
   eventPackageUsedInGetServerSideProps,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { CompilerResult, runCompiler } from './compiler'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  getPageRuntime,
-} from './entries'
+import { runCompiler } from './compiler'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -96,11 +90,12 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
   isCustomErrorPage,
-  isFlightPage,
+  isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -112,7 +107,10 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise } from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { flatReaddir } from '../lib/flat-readdir'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -133,6 +131,18 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
+}
+
+type CompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: (webpack.Stats | undefined)[]
+}
+
+type SingleCompilerResult = {
+  errors: webpack.StatsError[]
+  warnings: webpack.StatsError[]
+  stats: webpack.Stats | undefined
 }
 
 export default async function build(
@@ -164,7 +174,6 @@ export default async function build(
       // We enable concurrent features (Fizz-related rendering architecture) when
       // using React 18 or experimental.
       const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
-      const hasConcurrentFeatures = hasReactRoot
       const hasServerComponents =
         hasReactRoot && !!config.experimental.serverComponents
 
@@ -196,7 +205,11 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const pagesDir = findPagesDir(dir)
+      const { pages: pagesDir, views: viewsDir } = findPagesDir(
+        dir,
+        config.experimental.viewsDir
+      )
+
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
@@ -230,7 +243,7 @@ export default async function build(
         .traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            pagesDir,
+            [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
@@ -295,6 +308,27 @@ export default async function build(
             new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
           )
         )
+
+      let viewPaths: string[] | undefined
+
+      if (viewsDir) {
+        viewPaths = await nextBuildSpan
+          .traceChild('collect-view-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              viewsDir,
+              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
+            )
+          )
+      }
+
+      const rootPaths = await flatReaddir(
+        dir,
+        new RegExp(
+          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        )
+      )
+
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -314,9 +348,37 @@ export default async function build(
             hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths,
+            pagesType: 'pages',
+            pagePaths: pagePaths,
           })
         )
+
+      let mappedViewPaths: { [page: string]: string } | undefined
+
+      if (viewPaths && viewsDir) {
+        mappedViewPaths = nextBuildSpan
+          .traceChild('create-views-mapping')
+          .traceFn(() =>
+            createPagesMapping({
+              pagePaths: viewPaths!,
+              hasServerComponents,
+              isDev: false,
+              pagesType: 'views',
+              pageExtensions: config.pageExtensions,
+            })
+          )
+      }
+
+      let mappedRootPaths: { [page: string]: string } = {}
+      if (rootPaths.length > 0) {
+        mappedRootPaths = createPagesMapping({
+          hasServerComponents,
+          isDev: false,
+          pageExtensions: config.pageExtensions,
+          pagePaths: rootPaths,
+          pagesType: 'root',
+        })
+      }
 
       const entrypoints = await nextBuildSpan
         .traceChild('create-entrypoints')
@@ -330,6 +392,11 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir: dir,
+            rootPaths: mappedRootPaths,
+            viewsDir,
+            viewPaths: mappedViewPaths,
+            pageExtensions: config.pageExtensions,
           })
         )
 
@@ -339,7 +406,7 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))) {
+      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
         Log.warn(
           `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
         )
@@ -488,17 +555,10 @@ export default async function build(
         redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
         headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
         dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE)
-          )
+          .filter(isDynamicRoute)
           .map(pageToRoute),
         staticRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) =>
-              !isDynamicRoute(page) &&
-              !page.match(MIDDLEWARE_ROUTE) &&
-              !isReservedPage(page)
-          )
+          .filter((page) => !isDynamicRoute(page) && !isReservedPage(page))
           .map(pageToRoute),
         dataRoutes: [],
         i18n: config.i18n || undefined,
@@ -615,7 +675,11 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let result: CompilerResult = { warnings: [], errors: [] }
+      let result: CompilerResult = {
+        warnings: [],
+        errors: [],
+        stats: [],
+      }
       let webpackBuildStart
       let telemetryPlugin
       await (async () => {
@@ -631,6 +695,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
+          viewsDir,
         }
 
         const configs = await runWebpackSpan
@@ -672,35 +737,84 @@ export default async function build(
 
         // We run client and server compilation separately to optimize for memory usage
         await runWebpackSpan.traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig, {
-            runWebpackSpan,
-          })
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
+          // If we are under the serverless build, we will have to run the client
+          // compiler first because the server compiler depends on the manifest
+          // files that are created by the client compiler.
+          // Otherwise, we run the server compilers first and then the client
+          // compiler to track the boundary of server/client components.
+
+          let clientResult: SingleCompilerResult | null = null
+          let serverResult: SingleCompilerResult | null = null
+          let edgeServerResult: SingleCompilerResult | null = null
+
+          if (isLikeServerless) {
+            if (config.experimental.serverComponents) {
+              throw new Error(
+                'Server Components are not supported in serverless mode.'
+              )
             }
-          } else {
-            const serverResult = await runCompiler(configs[1], {
+
+            // Build client first
+            clientResult = await runCompiler(clientConfig, {
               runWebpackSpan,
             })
-            const edgeServerResult = configs[2]
+
+            // Only continue if there were no errors
+            if (!clientResult.errors.length) {
+              serverResult = await runCompiler(configs[1], {
+                runWebpackSpan,
+              })
+              edgeServerResult = configs[2]
+                ? await runCompiler(configs[2], { runWebpackSpan })
+                : null
+            }
+          } else {
+            // During the server compilations, entries of client components will be
+            // injected to this set and then will be consumed by the client compiler.
+            injectedClientEntries.clear()
+
+            serverResult = await runCompiler(configs[1], {
+              runWebpackSpan,
+            })
+            edgeServerResult = configs[2]
               ? await runCompiler(configs[2], { runWebpackSpan })
               : null
 
-            result = {
-              warnings: [
-                ...clientResult.warnings,
-                ...serverResult.warnings,
-                ...(edgeServerResult?.warnings || []),
-              ],
-              errors: [
-                ...clientResult.errors,
-                ...serverResult.errors,
-                ...(edgeServerResult?.errors || []),
-              ],
+            // Only continue if there were no errors
+            if (
+              !serverResult.errors.length &&
+              !edgeServerResult?.errors.length
+            ) {
+              injectedClientEntries.forEach((value, key) => {
+                ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              })
+
+              clientResult = await runCompiler(clientConfig, {
+                runWebpackSpan,
+              })
             }
+          }
+
+          result = {
+            warnings: ([] as any[])
+              .concat(
+                clientResult?.warnings,
+                serverResult?.warnings,
+                edgeServerResult?.warnings
+              )
+              .filter(nonNullable),
+            errors: ([] as any[])
+              .concat(
+                clientResult?.errors,
+                serverResult?.errors,
+                edgeServerResult?.errors
+              )
+              .filter(nonNullable),
+            stats: [
+              clientResult?.stats,
+              serverResult?.stats,
+              edgeServerResult?.stats,
+            ],
           }
         })
         result = nextBuildSpan
@@ -722,7 +836,7 @@ export default async function build(
         if (result.errors.length > 5) {
           result.errors.length = 5
         }
-        let error = result.errors.join('\n\n')
+        let error = result.errors.filter(Boolean).join('\n\n')
 
         console.error(chalk.red('Failed to compile.\n'))
 
@@ -741,14 +855,18 @@ export default async function build(
         console.error(error)
         console.error()
 
-        // When using the web runtime, common Node.js native APIs are not available.
-        const moduleName = getUnresolvedModuleFromError(error)
-        if (hasConcurrentFeatures && moduleName) {
-          const err = new Error(
-            `Native Node.js APIs are not supported in the Edge Runtime. Found \`${moduleName}\` imported.\n\n`
+        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
+
+        for (const err of edgeRuntimeErrors) {
+          // When using the web runtime, common Node.js native APIs are not available.
+          const moduleName = getUnresolvedModuleFromError(err.message)
+          if (!moduleName) continue
+
+          const e = new Error(
+            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
           ) as NextError
-          err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw err
+          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
+          throw e
         }
 
         if (
@@ -775,7 +893,7 @@ export default async function build(
 
         if (result.warnings.length > 0) {
           Log.warn('Compiled with warnings\n')
-          console.warn(result.warnings.join('\n\n'))
+          console.warn(result.warnings.filter(Boolean).join('\n\n'))
           console.warn()
         } else {
           Log.info('Compiled successfully')
@@ -961,25 +1079,29 @@ export default async function build(
               let isServerComponent = false
               let isHybridAmp = false
               let ssgPageRoutes: string[] | null = null
-              let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
               const pagePath = pagePaths.find(
                 (p) =>
                   p.startsWith(actualPage + '.') ||
                   p.startsWith(actualPage + '/index.')
               )
+
               const pageRuntime = pagePath
-                ? await getPageRuntime(join(pagesDir, pagePath), config)
+                ? (
+                    await getPageStaticInfo({
+                      pageFilePath: join(pagesDir, pagePath),
+                      nextConfig: config,
+                    })
+                  ).runtime
                 : undefined
 
               if (hasServerComponents && pagePath) {
-                if (isFlightPage(config, pagePath)) {
+                if (isServerComponentPage(config, pagePath)) {
                   isServerComponent = true
                 }
               }
 
               if (
-                !isMiddlewareRoute &&
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
                 pageRuntime !== 'edge'
@@ -1374,7 +1496,9 @@ export default async function build(
           let routeKeys: { [named: string]: string } | undefined
 
           if (isDynamicRoute(page)) {
-            const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+            const routeRegex = getNamedRouteRegex(
+              dataRoute.replace(/\.json$/, '')
+            )
 
             dataRouteRegex = normalizeRouteRegex(
               routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
@@ -1460,6 +1584,10 @@ export default async function build(
         {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
+        },
+        {
+          featureName: 'experimental/nextScriptWorkers',
+          invocationCount: config.experimental.nextScriptWorkers ? 1 : 0,
         },
         {
           featureName: 'optimizeFonts',
@@ -1978,9 +2106,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: pageKeys.filter((page) =>
-            MIDDLEWARE_ROUTE.test(page)
-          ).length,
+          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
         })
       )
 
@@ -2001,7 +2127,9 @@ export default async function build(
           )
 
           finalDynamicRoutes[tbdRoute] = {
-            routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
+            routeRegex: normalizeRouteRegex(
+              getNamedRouteRegex(tbdRoute).re.source
+            ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2009,10 +2137,9 @@ export default async function build(
               ? `${normalizedRoute}.html`
               : false,
             dataRouteRegex: normalizeRouteRegex(
-              getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-                /\(\?:\\\/\)\?\$$/,
-                '\\.json$'
-              )
+              getNamedRouteRegex(
+                dataRoute.replace(/\.json$/, '')
+              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }
         })
@@ -2064,6 +2191,8 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+      ;(images as any).remotePatterns =
+        config?.experimental?.images?.remotePatterns || []
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -2142,6 +2271,7 @@ export default async function build(
             useStatic404,
             pageExtensions: config.pageExtensions,
             buildManifest,
+            middlewareManifest,
             gzipSize: config.experimental.gzipSize,
           }
         )
@@ -2184,6 +2314,7 @@ export default async function build(
 
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
+    teardownTraceSubscriber()
   }
 }
 
@@ -2218,7 +2349,7 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getRouteRegex(page)
+  const routeRegex = getNamedRouteRegex(page)
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
