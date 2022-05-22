@@ -30,14 +30,14 @@ import {
   NextPageContext,
   ST,
   NEXT_DATA,
+  isAbsoluteUrl,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 
 declare global {
@@ -232,8 +232,7 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
-    return true
+  if (!isAbsoluteUrl(url)) return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
@@ -1412,6 +1411,12 @@ export default class Router implements BaseRouter {
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
 
+      // A hash mark # is the optional last part of a URL
+      const hashRegex = /#.+$/
+      if (shouldScroll && hashRegex.test(as)) {
+        this.scrollToHash(as)
+      }
+
       return true
     } catch (err) {
       if (isError(err) && err.cancelled) {
@@ -1712,15 +1717,17 @@ export default class Router implements BaseRouter {
       return
     }
 
+    // Decode hash to make non-latin anchor works.
+    const rawHash = decodeURIComponent(hash)
     // First we check if the element by id is found
-    const idEl = document.getElementById(hash)
+    const idEl = document.getElementById(rawHash)
     if (idEl) {
       idEl.scrollIntoView()
       return
     }
     // If there's no element with the id, we check the `name` property
     // To mirror browsers
-    const nameEl = document.getElementsByName(hash)[0]
+    const nameEl = document.getElementsByName(rawHash)[0]
     if (nameEl) {
       nameEl.scrollIntoView()
     }
@@ -1929,7 +1936,11 @@ export default class Router implements BaseRouter {
 
     const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
+      return getRouteMatcher(
+        getMiddlewareRegex(middleware, {
+          catchAll: !isSSR,
+        })
+      )(cleanedAs)
     })
 
     if (!requiresPreflight) {

@@ -35,7 +35,7 @@ If you want to start with a TypeScript project you can use the `--typescript` fl
 npx create-next-app@latest --typescript
 # or
 yarn create next-app --typescript
-# or
+# or (the extra '--' is expected and tells pnpm to pass the args down)
 pnpm create next-app -- --typescript
 ```
 
