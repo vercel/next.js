@@ -1,17 +1,19 @@
-import getRuntime from '../utils/runtime'
-import getTime from '../utils/time'
+import Runtime from '../utils/runtime'
+import Time from '../utils/time'
 
 export default function Page() {
   return (
-    <div>
+    <div className="node-rsc">
       This is a static RSC page.
       <br />
-      {'Runtime: ' + getRuntime()}
+      <Runtime />
       <br />
-      {'Time: ' + getTime()}
+      <Time />
     </div>
   )
 }
+
+Page.title = 'node-rsc'
 
 export const config = {
   runtime: 'nodejs',

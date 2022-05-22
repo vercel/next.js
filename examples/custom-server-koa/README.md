@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example custom-server-koa custom-server-koa-app
 # or
 yarn create next-app --example custom-server-koa custom-server-koa-app
+# or
+pnpm create next-app -- --example custom-server-koa custom-server-koa-app
 ```
 
 ## Side note: Enabling gzip compression

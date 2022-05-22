@@ -1,9 +1,13 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
+import {
+  OPTIMIZED_FONT_PROVIDERS,
+  NEXT_BUILTIN_DOCUMENT,
+} from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
+  DocumentType,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
@@ -19,7 +23,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 export type OriginProps = {
   nonce?: string
   crossOrigin?: string
-  children?: React.ReactElement
+  children?: React.ReactNode
 }
 
 type DocumentFiles = {
@@ -72,15 +76,21 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
+function hasComponentProps(child: any): child is React.ReactElement {
+  return !!child && !!child.props
+}
+
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   const { assetPrefix, scriptLoader, crossOrigin, nextScriptWorkers } = context
 
-  if (!nextScriptWorkers) return null
+  // disable `nextScriptWorkers` in edge runtime
+  if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
     let {
       partytownSnippet,
-    } = require(/* webpackIgnore: true */ '@builder.io/partytown/integration'!)
+      // @ts-ignore: Prevent webpack from processing this require
+    } = __non_webpack_require__('@builder.io/partytown/integration'!)
 
     const children = Array.isArray(props.children)
       ? props.children
@@ -88,7 +98,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
 
     // Check to see if the user has defined their own Partytown configuration
     const userDefinedConfig = children.find(
-      (child: React.ReactElement) =>
+      (child) =>
+        hasComponentProps(child) &&
         child?.props?.dangerouslySetInnerHTML?.__html.length &&
         'data-partytown-config' in child.props
     )
@@ -114,12 +125,54 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
           }}
         />
         {(scriptLoader.worker || []).map((file: ScriptProps, index: number) => {
-          const { strategy, ...scriptProps } = file
+          const {
+            strategy,
+            src,
+            children: scriptChildren,
+            dangerouslySetInnerHTML,
+            ...scriptProps
+          } = file
+
+          let srcProps: {
+            src?: string
+            dangerouslySetInnerHTML?: {
+              __html: string
+            }
+          } = {}
+
+          if (src) {
+            // Use external src if provided
+            srcProps.src = src
+          } else if (
+            dangerouslySetInnerHTML &&
+            dangerouslySetInnerHTML.__html
+          ) {
+            // Embed inline script if provided with dangerouslySetInnerHTML
+            srcProps.dangerouslySetInnerHTML = {
+              __html: dangerouslySetInnerHTML.__html,
+            }
+          } else if (scriptChildren) {
+            // Embed inline script if provided with children
+            srcProps.dangerouslySetInnerHTML = {
+              __html:
+                typeof scriptChildren === 'string'
+                  ? scriptChildren
+                  : Array.isArray(scriptChildren)
+                  ? scriptChildren.join('')
+                  : '',
+            }
+          } else {
+            throw new Error(
+              'Invalid usage of next/script. Did you forget to include a src attribute or an inline script? https://nextjs.org/docs/messages/invalid-script'
+            )
+          }
+
           return (
             <script
+              {...srcProps}
               {...scriptProps}
               type="text/partytown"
-              key={scriptProps.src || index}
+              key={src || index}
               nonce={props.nonce}
               data-nscript="worker"
               crossOrigin={props.crossOrigin || crossOrigin}
@@ -129,9 +182,9 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
       </>
     )
   } catch (err) {
-    console.warn(
-      `Warning: Partytown could not be instantiated in your application due to an error. ${err}`
-    )
+    if (isError(err) && err.code !== 'MODULE_NOT_FOUND') {
+      console.warn(`Warning: ${err.message}`)
+    }
     return null
   }
 }
@@ -141,8 +194,9 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
 
   const webWorkerScripts = getPreNextWorkerScripts(context, props)
 
-  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || []).map(
-    (file: ScriptProps, index: number) => {
+  const beforeInteractiveScripts = (scriptLoader.beforeInteractive || [])
+    .filter((script) => script.src)
+    .map((file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
         <script
@@ -154,8 +208,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           crossOrigin={props.crossOrigin || crossOrigin}
         />
       )
-    }
-  )
+    })
 
   return (
     <>
@@ -258,9 +311,9 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
   }
 }
 
-// Add a speical property to the built-in `Document` component so later we can
+// Add a special property to the built-in `Document` component so later we can
 // identify if a user customized `Document` is used or not.
-;(Document as any).__next_internal_document =
+const InternalFunctionDocument: DocumentType =
   function InternalFunctionDocument() {
     return (
       <Html>
@@ -272,6 +325,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
       </Html>
     )
   }
+;(Document as any)[NEXT_BUILTIN_DOCUMENT] = InternalFunctionDocument
 
 export function Html(
   props: React.DetailedHTMLProps<
@@ -491,6 +545,49 @@ export class Head extends Component<
     ]
   }
 
+  getBeforeInteractiveInlineScripts() {
+    const { scriptLoader } = this.context
+    const { nonce, crossOrigin } = this.props
+
+    return (scriptLoader.beforeInteractive || [])
+      .filter(
+        (script) =>
+          !script.src && (script.dangerouslySetInnerHTML || script.children)
+      )
+      .map((file: ScriptProps, index: number) => {
+        const {
+          strategy,
+          children,
+          dangerouslySetInnerHTML,
+          src,
+          ...scriptProps
+        } = file
+        let html = ''
+
+        if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+          html = dangerouslySetInnerHTML.__html
+        } else if (children) {
+          html =
+            typeof children === 'string'
+              ? children
+              : Array.isArray(children)
+              ? children.join('')
+              : ''
+        }
+
+        return (
+          <script
+            {...scriptProps}
+            dangerouslySetInnerHTML={{ __html: html }}
+            key={scriptProps.id || index}
+            nonce={nonce}
+            data-nscript="beforeInteractive"
+            crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+          />
+        )
+      })
+  }
+
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)
   }
@@ -585,7 +682,6 @@ export class Head extends Component<
       disableOptimizedLoading,
       optimizeCss,
       optimizeFonts,
-      hasConcurrentFeatures,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -700,7 +796,7 @@ export class Head extends Component<
 
     return (
       <head {...this.props}>
-        {!hasConcurrentFeatures && this.context.isDevelopment && (
+        {this.context.isDevelopment && (
           <>
             <style
               data-next-hide-fouc
@@ -774,6 +870,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getBeforeInteractiveInlineScripts()}
             {!optimizeCss && this.getCssLinks(files)}
             {!optimizeCss && <noscript data-n-css={this.props.nonce ?? ''} />}
 

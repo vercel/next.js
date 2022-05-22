@@ -19,6 +19,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-emotion-vanilla with-emotion-vanilla-app
 # or
 yarn create next-app --example with-emotion-vanilla with-emotion-vanilla-app
+# or
+pnpm create next-app -- --example with-emotion-vanilla with-emotion-vanilla-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

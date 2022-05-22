@@ -1,5 +1,5 @@
 import { acceptLanguage } from '../../../server/accept-header'
-import { denormalizePagePath } from '../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
 import { formatUrl } from '../router/utils/format-url'
 import { normalizeLocalePath } from './normalize-locale-path'
@@ -88,8 +88,8 @@ function getRedirect({
   nextConfig: { basePath?: string; i18n: I18NConfig; trailingSlash?: boolean }
   url: { hostname?: string | null; pathname: string }
 }) {
-  const isRootPath = denormalizePagePath(url.pathname) === '/'
-  if (nextConfig.i18n.localeDetection !== false && isRootPath) {
+  const isHomePage = denormalizePagePath(url.pathname) === '/'
+  if (nextConfig.i18n.localeDetection !== false && isHomePage) {
     const preferredDomain = detectDomainLocale(
       nextConfig.i18n.domains,
       undefined,

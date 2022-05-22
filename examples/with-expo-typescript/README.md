@@ -34,6 +34,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-expo-typescript with-expo-typescript-app
 # or
 yarn create next-app --example with-expo-typescript with-expo-typescript-app
+# or
+pnpm create next-app -- --example with-expo-typescript with-expo-typescript-app
 ```
 
 ### Running web

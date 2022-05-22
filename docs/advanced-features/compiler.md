@@ -187,8 +187,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
-## Experimental Features
-
 ### Emotion
 
 We're working to port `@emotion/babel-plugin` to the Next.js Compiler.
@@ -199,7 +197,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     emotion: boolean | {
       // default is true. It will be disabled when build type is production.
       sourceMap?: boolean,
@@ -219,6 +217,8 @@ module.exports = {
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
+## Experimental Features
+
 ### Minification
 
 You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
@@ -232,6 +232,89 @@ module.exports = {
 ```
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
+### Modularize Imports
+
+Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
+
+Transforms member style imports:
+
+```js
+import { Row, Grid as MyGrid } from 'react-bootstrap'
+import { merge } from 'lodash'
+```
+
+...into default style imports:
+
+```js
+import Row from 'react-bootstrap/lib/Row'
+import MyGrid from 'react-bootstrap/lib/Grid'
+import merge from 'lodash/merge'
+```
+
+Config for the above transform:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    modularizeImports: {
+      'react-bootstrap': {
+        transform: 'react-bootstrap/lib/{{member}}',
+      },
+      lodash: {
+        transform: 'lodash/{{member}}',
+      },
+    },
+  },
+}
+```
+
+Advanced transformations:
+
+- Using regular expressions
+
+Similar to `babel-plugin-transform-imports`, but the transform is templated with [handlebars](https://docs.rs/handlebars) and regular expressions are in Rust [regex](https://docs.rs/regex/latest/regex/) crate's syntax.
+
+The config:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    modularizeImports: {
+      'my-library/?(((\\w*)?/?)*)': {
+        transform: 'my-library/{{ matches.[1] }}/{{member}}',
+      },
+    },
+  },
+}
+```
+
+Cause this code:
+
+```js
+import { MyModule } from 'my-library'
+import { App } from 'my-library/components'
+import { Header, Footer } from 'my-library/components/App'
+```
+
+To become:
+
+```js
+import MyModule from 'my-library/MyModule'
+import App from 'my-library/components/App'
+import Header from 'my-library/components/App/Header'
+import Footer from 'my-library/components/App/Footer'
+```
+
+- Handlebars templating
+
+This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
+
+1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
+2. `member`: Has type `string`. The name of the member import.
+3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
 
 ## Unsupported Features
 

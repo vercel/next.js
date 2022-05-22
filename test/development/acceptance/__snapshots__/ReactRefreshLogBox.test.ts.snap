@@ -68,11 +68,12 @@ exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] =
 
 exports[`ReactRefreshLogBox logbox: can recover from a syntax error without losing state 1`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-1 | export default () => <div/
-  |                           ^
+Error: 
+  x Unexpected eof
+   ,----
+ 1 | export default () => <div/
+   :                           ^
+   \`----
 
 Caused by:
     0: failed to process input file
@@ -128,37 +129,42 @@ exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
 
 exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-8 |         export default function FunctionNamed() {
-  |                                                  ^
+Error: 
+  x Expected '}', got '<eof>'
+   ,----
+ 8 | export default function FunctionNamed() {
+   :                                         ^
+   \`----
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-8 |         export default function FunctionNamed() {
-  |                                                  ^
+Error: 
+  x Expected '}', got '<eof>'
+   ,----
+ 8 | export default function FunctionNamed() {
+   :                                         ^
+   \`----
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox unterminated JSX 1`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-9 |       
-  |       ^
+Error: 
+  x Unexpected eof
+   ,----
+ 9 |  
+   : ^
+   \`----
 
 Caused by:
     0: failed to process input file

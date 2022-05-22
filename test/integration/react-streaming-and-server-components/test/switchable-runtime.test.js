@@ -1,33 +1,49 @@
 /* eslint-env jest */
-
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
-  // File,
-  nextBuild as _nextBuild,
-  nextStart as _nextStart,
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  fetchViaHTTP,
+  renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
-import { findPort, killApp, renderViaHTTP } from 'next-test-utils'
-
-const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
-
 const appDir = join(__dirname, '../switchable-runtime')
-// const nextConfig = new File(join(appDir, 'next.config.js'))
 
-async function nextBuild(dir, options) {
-  return await _nextBuild(dir, [], {
-    ...options,
-    stdout: true,
-    stderr: true,
-    nodeArgs,
-  })
+function splitLines(text) {
+  return text
+    .split(/\r?\n/g)
+    .map((str) => str.trim())
+    .filter(Boolean)
 }
 
-async function nextStart(dir, port) {
-  return await _nextStart(dir, port, {
-    stdout: true,
-    stderr: true,
-    nodeArgs,
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should not contain _app.js in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-client-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-client-root"`, 'g')
+        )
+      ).toBe(0)
+    })
   })
 }
 
@@ -49,18 +65,24 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
   }
 }
 
-describe('Without global runtime configuration', () => {
+describe('Switchable runtime (prod)', () => {
   const context = { appDir }
 
   beforeAll(async () => {
     context.appPort = await findPort()
-    const { stderr } = await nextBuild(context.appDir)
+    const { stdout, stderr } = await nextBuild(context.appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
+    context.stdout = stdout
     context.stderr = stderr
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  flight(context)
 
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
@@ -95,6 +117,9 @@ describe('Without global runtime configuration', () => {
       isStatic: true,
       isEdge: false,
     })
+
+    const html = await renderViaHTTP(context.appPort, '/node-rsc')
+    expect(html).toContain('data-title="node-rsc"')
   })
 
   it('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
@@ -111,6 +136,30 @@ describe('Without global runtime configuration', () => {
     })
   })
 
+  it('should build /node-rsc-isr as an isr page with the nodejs runtime', async () => {
+    const html1 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
+    const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
+    expect(html1).toContain('Runtime: Node.js')
+
+    const html2 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
+    const renderedAt2 = +html2.match(/Time: (\d+)/)[1]
+    expect(html2).toContain('Runtime: Node.js')
+
+    expect(renderedAt1).toBe(renderedAt2)
+
+    // Trigger a revalidation after 3s.
+    await waitFor(4000)
+    await renderViaHTTP(context.appPort, '/node-rsc-isr')
+
+    await check(async () => {
+      const html3 = await renderViaHTTP(context.appPort, '/node-rsc-isr')
+      const renderedAt3 = +html3.match(/Time: (\d+)/)[1]
+      return renderedAt2 < renderedAt3
+        ? 'success'
+        : `${renderedAt2} should be less than ${renderedAt3}`
+    }, 'success')
+  })
+
   it('should build /edge as a dynamic page with the edge runtime', async () => {
     await testRoute(context.appPort, '/edge', {
       isStatic: false,
@@ -123,5 +172,171 @@ describe('Without global runtime configuration', () => {
       isStatic: false,
       isEdge: true,
     })
+  })
+
+  it('should display correct tree view with page types in terminal', async () => {
+    const stdoutLines = splitLines(context.stdout).filter((line) =>
+      /^[┌├└/]/.test(line)
+    )
+    const expectedOutputLines = splitLines(`
+  ┌   /_app
+  ├ ○ /404
+  ├ ℇ /edge
+  ├ ℇ /edge-rsc
+  ├ ○ /node
+  ├ ● /node-rsc
+  ├ ● /node-rsc-isr
+  ├ ● /node-rsc-ssg
+  ├ λ /node-rsc-ssr
+  ├ ● /node-ssg
+  ├ λ /node-ssr
+  └ ○ /static
+  `)
+    const isMatched = expectedOutputLines.every((line, index) => {
+      const matched = stdoutLines[index].startsWith(line)
+      return matched
+    })
+
+    expect(isMatched).toBe(true)
+  })
+
+  it('should prefetch data for static pages', async () => {
+    const dataRequests = []
+
+    const browser = await webdriver(context.appPort, '/node', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (/\.json$/.test(url)) {
+            dataRequests.push(url.split('/').pop())
+          }
+        })
+      },
+    })
+
+    await browser.eval('window.beforeNav = 1')
+
+    for (const data of [
+      'node-rsc.json',
+      'node-rsc-ssg.json',
+      'node-rsc-isr.json',
+      'node-ssg.json',
+    ]) {
+      expect(dataRequests).toContain(data)
+    }
+  })
+
+  it('should support client side navigation to ssr rsc pages', async () => {
+    let flightRequest = null
+
+    const browser = await webdriver(context.appPort, '/node', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (/\?__flight__=1/.test(url)) {
+            flightRequest = url
+          }
+        })
+      },
+    })
+
+    await browser.waitForElementByCss('#link-node-rsc-ssr').click()
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSR RSC page.'
+    )
+    expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
+  })
+
+  it('should support client side navigation to ssg rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser.waitForElementByCss('#link-node-rsc-ssg').click()
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSG RSC page.'
+    )
+  })
+
+  it('should support client side navigation to static rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser.waitForElementByCss('#link-node-rsc').click()
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a static RSC page.'
+    )
+  })
+
+  it('should support etag header in the web server', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/edge', '', {
+      headers: {
+        // Make sure the result is static so an etag can be generated.
+        'User-Agent': 'Googlebot',
+      },
+    })
+    expect(res.headers.get('ETag')).toBeDefined()
+  })
+})
+
+describe('Switchable runtime (dev)', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await launchApp(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  flight(context)
+  it('should support client side navigation to ssr rsc pages', async () => {
+    let flightRequest = null
+
+    const browser = await webdriver(context.appPort, '/node', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          const url = request.url()
+          if (/\?__flight__=1/.test(url)) {
+            flightRequest = url
+          }
+        })
+      },
+    })
+
+    await browser
+      .waitForElementByCss('#link-node-rsc-ssr')
+      .click()
+      .waitForElementByCss('.node-rsc-ssr')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSR RSC page.'
+    )
+    expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
+  })
+
+  it('should support client side navigation to ssg rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser
+      .waitForElementByCss('#link-node-rsc-ssg')
+      .click()
+      .waitForElementByCss('.node-rsc-ssg')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a SSG RSC page.'
+    )
+  })
+
+  it('should support client side navigation to static rsc pages', async () => {
+    const browser = await webdriver(context.appPort, '/node')
+
+    await browser
+      .waitForElementByCss('#link-node-rsc')
+      .click()
+      .waitForElementByCss('.node-rsc')
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This is a static RSC page.'
+    )
   })
 })

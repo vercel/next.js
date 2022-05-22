@@ -7,10 +7,10 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "slate": "^0.58.4",
-    "slate-history": "0.58.4",
-    "slate-react": "^0.58.4"
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "slate": "^0.76.1",
+    "slate-history": "0.66.0",
+    "slate-react": "^0.76.1"
   }
 }

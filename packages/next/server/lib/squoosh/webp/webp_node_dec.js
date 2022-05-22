@@ -996,7 +996,7 @@ var Module = (function () {
     }
     function replacePublicSymbol(name, value, numArguments) {
       if (!Module.hasOwnProperty(name)) {
-        throwInternalError('Replacing nonexistant public symbol')
+        throwInternalError('Replacing nonexistent public symbol')
       }
       if (
         undefined !== Module[name].overloadTable &&

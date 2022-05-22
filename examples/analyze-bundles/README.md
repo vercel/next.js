@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example analyze-bundles analyze-bundles-app
 # or
 yarn create next-app --example analyze-bundles analyze-bundles-app
+# or
+pnpm create next-app -- --example analyze-bundles analyze-bundles-app
 ```
 
 ### Analyze webpack output

@@ -1,14 +1,14 @@
-import getRuntime from '../utils/runtime'
-import getTime from '../utils/time'
+import Runtime from '../utils/runtime'
+import Time from '../utils/time'
 
 export default function Page({ type }) {
   return (
-    <div>
+    <div className="node-rsc-ssg">
       This is a {type} RSC page.
       <br />
-      {'Runtime: ' + getRuntime()}
+      <Runtime />
       <br />
-      {'Time: ' + getTime()}
+      <Time />
     </div>
   )
 }
