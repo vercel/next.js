@@ -46,10 +46,24 @@ export class NextResponse extends Response {
 
   static redirect(
     url: string | NextURL | URL,
-    status = 307,
-    init: ResponseInit = {}
+    init: 307 | 308 | 301 | 302 | ResponseInit = 307
   ) {
-    if (!REDIRECTS.has(status)) {
+    const responseInit = typeof init === 'number'
+      ? {
+        headers: {
+          Location: validateURL(URL),
+        },
+        status: init;
+      }
+      : {
+        ...init,
+        headers: {
+          ...init.headers,
+          Location: validateURL(URL),
+        }
+      }
+
+    if (!REDIRECTS.has(responseInit.status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
