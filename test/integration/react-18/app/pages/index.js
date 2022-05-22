@@ -5,6 +5,7 @@ export default function Index() {
   if (typeof window !== 'undefined') {
     window.didHydrate = true
   }
+  console.log('__render__')
   return (
     <div>
       <p id="react-dom-version">{ReactDOM.version}</p>
@@ -21,5 +22,5 @@ export default function Index() {
 }
 
 export const config = {
-  runtime: 'edge',
+  // runtime: 'edge'
 }

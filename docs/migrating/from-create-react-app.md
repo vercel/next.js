@@ -39,7 +39,7 @@ Here's an example `package.json`:
 
 ## Static Assets and Compiled Output
 
-Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder), whereas Next.js uses it for static assets. It's possible to add static assets here, but Create React App recommends importing them directly from JavaScript files.
+Create React App uses the `public` directory for the [entry HTML file](https://create-react-app.dev/docs/using-the-public-folder) as well as static assets, but Next.js only uses it for static assets. When migrating from Create React App, the location of the `public` directory remains the same.
 
 - Move any images, fonts, or other static assets to `public`.
 - Convert `index.html` (the entry point of your application) to Next.js. Any `<head>` code should be moved to a [custom `_document.js`](/docs/advanced-features/custom-document.md). Any shared layout between all pages should be moved to a [custom `_app.js`](/docs/advanced-features/custom-app.md).
@@ -50,7 +50,9 @@ Create React App uses the `public` directory for the [entry HTML file](https://c
 
 With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes its own [file-system based routing](/docs/routing/introduction.md).
 
-- Convert all `Route` components to new files in the `pages` directory.
+- Create a [`pages`](/docs/basic-features/pages.md) directory at the root of your project.
+- Then, move the `src/App.js` file to `pages/index.js`. This file is the [index page](https://nextjs.org/docs/routing/introduction#index-routes) of your Next.js application. Populate this file with code that is used to display the index route in your Create React App.
+- Convert all other `Route` components to new files in the `pages` directory.
 - For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching/get-static-paths.md)).
 
 For more information, see [Migrating from React Router](/docs/migrating/from-react-router.md).

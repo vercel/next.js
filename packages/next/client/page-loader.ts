@@ -133,13 +133,13 @@ export default class PageLoader {
     href,
     asPath,
     ssg,
-    rsc,
+    flight,
     locale,
   }: {
     href: string
     asPath: string
     ssg?: boolean
-    rsc?: boolean
+    flight?: boolean
     locale?: string | false
   }): string {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
@@ -147,7 +147,7 @@ export default class PageLoader {
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      if (rsc) {
+      if (flight) {
         return path + search + (search ? `&` : '?') + '__flight__=1'
       }
 
@@ -156,7 +156,8 @@ export default class PageLoader {
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`,
+        true
       )
     }
 

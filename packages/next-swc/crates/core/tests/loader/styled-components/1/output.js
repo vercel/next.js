@@ -17,7 +17,7 @@ function _templateObject() {
     };
     return data;
 }
-import styled from 'styled-components';
+import styled from "styled-components";
 export var foo = styled.input.withConfig({
     displayName: "input__foo",
     componentId: "sc-12c52e68-0"

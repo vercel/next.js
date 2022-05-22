@@ -21,6 +21,7 @@ const Button = styled.a`
 `
 
 export default function Home() {
+  console.log('__render__')
   return (
     <div>
       <Button
@@ -32,7 +33,9 @@ export default function Home() {
         GitHub
       </Button>
 
-      <Button href="/docs">Documentation</Button>
+      <Button id="btn" href="/docs">
+        Documentation
+      </Button>
     </div>
   )
 }
