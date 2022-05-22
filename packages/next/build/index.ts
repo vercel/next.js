@@ -76,11 +76,8 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { runCompiler } from './compiler'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  getPageStaticInfo,
-} from './entries'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -1088,9 +1085,14 @@ export default async function build(
                   p.startsWith(actualPage + '.') ||
                   p.startsWith(actualPage + '/index.')
               )
+
               const pageRuntime = pagePath
-                ? (await getPageStaticInfo(join(pagesDir, pagePath), config))
-                    .runtime
+                ? (
+                    await getPageStaticInfo({
+                      pageFilePath: join(pagesDir, pagePath),
+                      nextConfig: config,
+                    })
+                  ).runtime
                 : undefined
 
               if (hasServerComponents && pagePath) {

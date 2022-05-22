@@ -908,6 +908,47 @@ jobs:
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
 
+  testDeployE2E:
+    name: E2E (deploy)
+    runs-on: ubuntu-latest
+    needs: [publishRelease]
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
+
+      - uses: actions/cache@v3
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        name: Install playwright dependencies
+
+      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
+        name: Reset test project
+
+      - run: NEXT_TEST_MODE=deploy node run-tests.js --type e2e
+        name: Run test/e2e (deploy)
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
   releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest

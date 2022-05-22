@@ -27,7 +27,6 @@ export function getRender({
   serverComponentManifest,
   config,
   buildId,
-  appServerMod,
 }: {
   dev: boolean
   page: string
@@ -49,8 +48,6 @@ export function getRender({
     reactLoadableManifest,
     Document,
     App: appMod.default as AppType,
-    AppMod: appMod,
-    AppServerMod: appServerMod,
   }
 
   const server = new WebServer({
