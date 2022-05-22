@@ -80,18 +80,13 @@ export class NextResponse extends Response {
   }
 
   static rewrite(destination: string | NextURL | URL, init: ResponseInit = {}) {
-    if (init.headers) {
-      init.headers = {
+    return new NextResponse(null, {
+      ...init,
+      headers: {
         ...init.headers,
-        'x-middleware-rewrite': validateURL(destination),
-      }
-    } else {
-      init.headers = {
-        'x-middleware-rewrite': validateURL(destination),
-      }
-    }
-
-    return new NextResponse(null, init)
+        'x-middleware-rewrite': validateURL(destination)
+      },
+    })
   }
 
   static next() {
