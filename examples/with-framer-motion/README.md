@@ -1,4 +1,4 @@
-# framer-motion example
+# framer-motion with typescript example
 
 Framer [`Motion`](https://github.com/framer/motion) is a production-ready animation library. By using a custom [`<App>`](https://nextjs.org/docs/advanced-features/custom-app) along with Motion's [`AnimatePresence`](https://www.framer.com/api/motion/animate-presence/) component, transitions between Next pages becomes simple and declarative.
 
