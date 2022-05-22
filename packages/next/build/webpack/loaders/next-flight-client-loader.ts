@@ -103,7 +103,7 @@ async function collectExports(
         } = node
         // exports.xxx = xxx
         if (
-          left.object &&
+          left?.object &&
           left.type === 'MemberExpression' &&
           left.object.type === 'Identifier' &&
           left.object.value === 'exports'

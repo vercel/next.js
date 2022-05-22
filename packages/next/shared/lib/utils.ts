@@ -178,7 +178,10 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -287,6 +290,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
   }) as T
 }
 
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
+
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
   return `${protocol}//${hostname}${port ? ':' + port : ''}`
@@ -394,6 +402,7 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

@@ -10,6 +10,7 @@ export default function Index({ header }) {
     <div>
       <Head>
         <meta name="rsc-title" content="index" />
+        <title>hello, {envVar}</title>
       </Head>
       <h1>{`component:index.server`}</h1>
       <div>{'env:' + envVar}</div>

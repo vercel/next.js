@@ -18,8 +18,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const experimentalLayoutRaw = (process.env.__NEXT_IMAGE_OPTS as any)
-  ?.experimentalLayoutRaw
+const { experimentalLayoutRaw = false, experimentalRemotePatterns = [] } =
+  (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -329,6 +329,19 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
+      if (layout === 'raw') {
+        const heightModified =
+          img.height.toString() !== img.getAttribute('height')
+        const widthModified = img.width.toString() !== img.getAttribute('width')
+        if (
+          (heightModified && !widthModified) ||
+          (!heightModified && widthModified)
+        ) {
+          warnOnce(
+            `Image with src "${src}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
+          )
+        }
+      }
       if (img.parentElement?.parentElement) {
         const parent = getComputedStyle(img.parentElement.parentElement)
         if (!parent.position) {
@@ -359,7 +372,7 @@ export default function Image({
   priority = false,
   loading,
   lazyRoot = null,
-  lazyBoundary = '200px',
+  lazyBoundary,
   className,
   quality,
   width,
@@ -368,7 +381,6 @@ export default function Image({
   objectFit,
   objectPosition,
   onLoadingComplete,
-  onError,
   placeholder = 'empty',
   blurDataURL,
   ...all
@@ -452,10 +464,10 @@ export default function Image({
   const [setIntersection, isIntersected, resetIntersected] =
     useIntersection<HTMLImageElement>({
       rootRef: lazyRoot,
-      rootMargin: lazyBoundary,
+      rootMargin: lazyBoundary || '200px',
       disabled: !isLazy,
     })
-  const isVisible = !isLazy || isIntersected
+  const isVisible = !isLazy || isIntersected || layout === 'raw'
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -554,10 +566,27 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (layout === 'raw' && (objectFit || objectPosition)) {
-      throw new Error(
-        `Image with src "${src}" has "layout='raw'" and 'objectFit' or 'objectPosition'. For raw images, these and other styles should be specified using the 'style' attribute.`
-      )
+    if (layout === 'raw') {
+      if (objectFit) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "objectFit='${objectFit}'". For raw images, these and other styles should be specified using the "style" attribute.`
+        )
+      }
+      if (objectPosition) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "objectPosition='${objectPosition}'". For raw images, these and other styles should be specified using the "style" attribute.`
+        )
+      }
+      if (lazyRoot) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "lazyRoot='${lazyRoot}'". For raw images, native lazy loading is used so "lazyRoot" cannot be used.`
+        )
+      }
+      if (lazyBoundary) {
+        throw new Error(
+          `Image with src "${src}" has "layout='raw'" and "lazyBoundary='${lazyBoundary}'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
+        )
+      }
     }
     if (
       sizes &&
@@ -665,13 +694,7 @@ export default function Image({
     }
   }
 
-  const imgStyle = Object.assign(
-    {},
-    style,
-    layout === 'raw'
-      ? { aspectRatio: `${widthInt} / ${heightInt}` }
-      : layoutStyle
-  )
+  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
@@ -876,7 +899,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading,
+  loading = 'lazy',
   srcString,
   config,
   unoptimized,
@@ -894,12 +917,12 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(layout === 'raw' && !imgAttributes.sizes
-          ? { height: heightInt, width: widthInt }
-          : {})}
+        {...(layout === 'raw' ? { height: heightInt, width: widthInt } : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
+        // @ts-ignore - TODO: upgrade to `@types/react@17`
+        loading={layout === 'raw' ? loading : undefined}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
@@ -962,7 +985,7 @@ const ImageElement = ({
               sizes: imgAttributes.sizes,
               loader,
             })}
-            {...(layout === 'raw' && !imgAttributes.sizes
+            {...(layout === 'raw'
               ? { height: heightInt, width: widthInt }
               : {})}
             decoding="async"
@@ -970,7 +993,7 @@ const ImageElement = ({
             style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
-            loading={loading || 'lazy'}
+            loading={loading}
           />
         </noscript>
       )}
@@ -1059,7 +1082,10 @@ function defaultLoader({
       )
     }
 
-    if (!src.startsWith('/') && config.domains) {
+    if (
+      !src.startsWith('/') &&
+      (config.domains || experimentalRemotePatterns)
+    ) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
@@ -1070,14 +1096,15 @@ function defaultLoader({
         )
       }
 
-      if (
-        process.env.NODE_ENV !== 'test' &&
-        !config.domains.includes(parsedSrc.hostname)
-      ) {
-        throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
-        )
+      if (process.env.NODE_ENV !== 'test') {
+        // We use dynamic require because this should only error in development
+        const { hasMatch } = require('../shared/lib/match-remote-pattern')
+        if (!hasMatch(config.domains, experimentalRemotePatterns, parsedSrc)) {
+          throw new Error(
+            `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+              `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
+          )
+        }
       }
     }
   }

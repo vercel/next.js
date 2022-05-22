@@ -9,7 +9,8 @@ const { linkPackages } =
 async function createNextInstall(
   dependencies,
   installCommand,
-  packageJson = {}
+  packageJson = {},
+  packageLockPath = ''
 ) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
@@ -49,14 +50,18 @@ async function createNextInstall(
     })
   }
 
-  const pkgPaths = await linkPackages(tmpRepoDir)
-  const combinedDependencies = {
-    ...Object.keys(dependencies).reduce((prev, pkg) => {
-      const pkgPath = pkgPaths.get(pkg)
-      prev[pkg] = pkgPath || dependencies[pkg]
-      return prev
-    }, {}),
-    next: pkgPaths.get('next'),
+  let combinedDependencies = dependencies
+
+  if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
+    const pkgPaths = await linkPackages(tmpRepoDir)
+    combinedDependencies = {
+      ...Object.keys(dependencies).reduce((prev, pkg) => {
+        const pkgPath = pkgPaths.get(pkg)
+        prev[pkg] = pkgPath || dependencies[pkg]
+        return prev
+      }, {}),
+      next: pkgPaths.get('next'),
+    }
   }
 
   await fs.ensureDir(installDir)
@@ -72,6 +77,13 @@ async function createNextInstall(
       2
     )
   )
+
+  if (packageLockPath) {
+    await fs.copy(
+      packageLockPath,
+      path.join(installDir, path.basename(packageLockPath))
+    )
+  }
 
   if (installCommand) {
     const installString =

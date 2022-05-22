@@ -132,7 +132,17 @@ describe('Custom Server', () => {
       try {
         browser = await webdriver(context.appPort, '/test-index-hmr')
         const text = await browser.elementByCss('#go-asset').text()
+        const logs = await browser.log()
         expect(text).toBe('Asset')
+
+        // Hydrates with react 18 is correct as expected
+        expect(
+          logs.some((log) =>
+            log.message.includes(
+              'ReactDOM.hydrate is no longer supported in React 18'
+            )
+          )
+        ).toBe(false)
 
         indexPg.replace('Asset', 'Asset!!')
 
@@ -204,6 +214,28 @@ describe('Custom Server', () => {
     it('should serve internal file from render', async () => {
       const data = await renderViaHTTP(appPort, '/static/hello.txt')
       expect(data).toMatch(/hello world/)
+    })
+  })
+
+  describe('unhandled rejection', () => {
+    afterEach(() => killApp(server))
+
+    it('stderr should include error message and stack trace', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      await fetchViaHTTP(appPort, '/unhandled-rejection')
+      await check(() => stderr, /unhandledRejection/)
+      expect(stderr).toContain(
+        'error - unhandledRejection: Error: unhandled rejection'
+      )
+      expect(stderr).toContain('server.js:22:22')
     })
   })
 })

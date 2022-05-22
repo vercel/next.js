@@ -12,6 +12,7 @@
 
 # Image Component (@styfle)
 
+/**/*image*                                                  @timneutkens @ijjk @shuding @styfle
 /**/*image*/**                                               @timneutkens @ijjk @shuding @styfle
 /packages/next/client/use-intersection.tsx                   @timneutkens @ijjk @shuding @styfle
 /packages/next/server/lib/squoosh/                           @timneutkens @ijjk @shuding @styfle

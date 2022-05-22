@@ -187,8 +187,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
-## Experimental Features
-
 ### Emotion
 
 We're working to port `@emotion/babel-plugin` to the Next.js Compiler.
@@ -199,7 +197,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     emotion: boolean | {
       // default is true. It will be disabled when build type is production.
       sourceMap?: boolean,
@@ -218,6 +216,8 @@ module.exports = {
 ```
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
+
+## Experimental Features
 
 ### Minification
 

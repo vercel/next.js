@@ -134,7 +134,7 @@ function reduceComponents(
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode))
+    .concat(defaultHead(props.inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -164,7 +164,7 @@ function reduceComponents(
       }
       if (
         process.env.NODE_ENV === 'development' &&
-        process.env.__NEXT_CONCURRENT_FEATURES
+        process.env.__NEXT_REACT_ROOT
       ) {
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
