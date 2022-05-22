@@ -78,7 +78,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@2.7.0
-      - run: npm i -g turbo@1.2.6
+      - run: npm i -g turbo@1.2.9
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}

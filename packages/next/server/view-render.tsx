@@ -16,9 +16,9 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
 } from './node-web-streams-helper'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
+import { htmlEscapeJsonString } from './htmlescape'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -99,56 +99,51 @@ function preloadDataFetchingRecord(
   return record
 }
 
-function createFlightHook() {
-  return (
-    writable: WritableStream<Uint8Array>,
-    id: string,
-    req: ReadableStream<Uint8Array>,
-    bootstrap: boolean
-  ) => {
-    let entry = rscCache.get(id)
-    if (!entry) {
-      const [renderStream, forwardStream] = readableStreamTee(req)
-      entry = createFromReadableStream(renderStream)
-      rscCache.set(id, entry)
+function useFlightResponse(
+  writable: WritableStream<Uint8Array>,
+  id: string,
+  req: ReadableStream<Uint8Array>
+) {
+  let entry = rscCache.get(id)
+  if (!entry) {
+    const [renderStream, forwardStream] = readableStreamTee(req)
+    entry = createFromReadableStream(renderStream)
+    rscCache.set(id, entry)
 
-      let bootstrapped = false
-      const forwardReader = forwardStream.getReader()
-      const writer = writable.getWriter()
-      function process() {
-        forwardReader.read().then(({ done, value }) => {
-          if (bootstrap && !bootstrapped) {
-            bootstrapped = true
-            writer.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [0, id]
-                )})</script>`
-              )
+    let bootstrapped = false
+    const forwardReader = forwardStream.getReader()
+    const writer = writable.getWriter()
+    function process() {
+      forwardReader.read().then(({ done, value }) => {
+        if (!bootstrapped) {
+          bootstrapped = true
+          writer.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, id])
+              )})</script>`
             )
-          }
-          if (done) {
-            rscCache.delete(id)
-            writer.close()
-          } else {
-            writer.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [1, id, decodeText(value)]
-                )})</script>`
-              )
+          )
+        }
+        if (done) {
+          rscCache.delete(id)
+          writer.close()
+        } else {
+          writer.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, decodeText(value)])
+              )})</script>`
             )
-            process()
-          }
-        })
-      }
-      process()
+          )
+          process()
+        }
+      })
     }
-    return entry
+    process()
   }
+  return entry
 }
-
-const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
@@ -166,10 +161,11 @@ function createServerComponentRenderer(
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_view_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__webpack_require__ =
-      ComponentMod.__next_rsc__.__webpack_require__
+    globalThis.__webpack_require__ = ComponentMod.__next_view_webpack_require__
+      ? ComponentMod.__next_view_webpack_require__
+      : ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
     globalThis.__webpack_chunk_load__ = () => Promise.resolve()
@@ -186,8 +182,7 @@ function createServerComponentRenderer(
     const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
-      reqStream,
-      true
+      reqStream
     )
     const root = response.readRoot()
     rscCache.delete(id)
@@ -389,37 +384,8 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  let flushEffects: Array<() => React.ReactNode> | null = null
-  function FlushEffectContainer({ children }: { children: JSX.Element }) {
-    // If the client tree suspends, this component will be rendered multiple
-    // times before we flush. To ensure we don't call old callbacks corresponding
-    // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffects = null
-
-    const flushEffectsImpl = React.useCallback(
-      (callbacks: Array<() => React.ReactNode>) => {
-        if (flushEffects) {
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.' +
-              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
-          )
-        }
-        flushEffects = callbacks
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={flushEffectsImpl}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <FlushEffectContainer>
-      <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-    </FlushEffectContainer>
+    <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   )
 
   const renderServerComponentData = isFlight
@@ -462,14 +428,7 @@ export async function renderToHTML(
     })
 
     const flushEffectHandler = (): string => {
-      const allFlushEffects = [styledJsxFlushEffect, ...(flushEffects || [])]
-      const flushed = ReactDOMServer.renderToString(
-        <>
-          {allFlushEffects.map((flushEffect, i) => (
-            <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-          ))}
-        </>
-      )
+      const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
       return flushed
     }
 

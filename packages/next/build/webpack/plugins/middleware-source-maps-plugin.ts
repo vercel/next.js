@@ -1,4 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { MIDDLEWARE_FILENAME } from '../../../lib/constants'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 /**
@@ -9,12 +10,7 @@ export const getMiddlewareSourceMapPlugins = () => {
   return [
     new webpack.SourceMapDevToolPlugin({
       filename: '[file].map',
-      include: [
-        // Middlewares are the only ones who have `server/pages/[name]` as their filename
-        /^pages\//,
-        // All middleware chunks
-        /^edge-chunks\//,
-      ],
+      include: [new RegExp(`^${MIDDLEWARE_FILENAME}.`), /^edge-chunks\//],
     }),
     new MiddlewareSourceMapsPlugin(),
   ]
