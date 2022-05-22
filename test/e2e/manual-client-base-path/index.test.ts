@@ -8,6 +8,11 @@ import assert from 'assert'
 import { check, waitFor } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
+  if ((global as any).isNextDeploy) {
+    it('should skip deploy', () => {})
+    return
+  }
+
   let next: NextInstance
   let server: http.Server
   let appPort: string
