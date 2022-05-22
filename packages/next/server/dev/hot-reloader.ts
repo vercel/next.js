@@ -18,7 +18,7 @@ import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import {
   API_ROUTE,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
   VIEWS_DIR_ALIAS,
 } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
@@ -43,7 +43,7 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
-import { getPageStaticInfo } from '../../build/entries'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { stringify } from 'querystring'
 
@@ -405,6 +405,7 @@ export default class HotReloader {
             hasServerComponents: this.hasServerComponents,
             isDev: true,
             pageExtensions: this.config.pageExtensions,
+            pagesType: 'pages',
             pagePaths: pagePaths.filter(
               (i): i is string => typeof i === 'string'
             ),
@@ -422,6 +423,7 @@ export default class HotReloader {
             pages: this.pagesMapping,
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
+            rootDir: this.dir,
             target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
@@ -490,6 +492,7 @@ export default class HotReloader {
           },
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
+          rootDir: this.dir,
           target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
@@ -563,11 +566,14 @@ export default class HotReloader {
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
 
+            const staticInfo = await getPageStaticInfo({
+              pageFilePath: absolutePagePath,
+              nextConfig: this.config,
+            })
+
             runDependingOnPageType({
               page,
-              pageRuntime: (
-                await getPageStaticInfo(absolutePagePath, this.config)
-              ).runtime,
+              pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
                 if (!isEdgeServerCompilation) return
                 entries[pageKey].status = BUILDING
@@ -674,7 +680,7 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/')) {
+            if (key.startsWith('pages/') || key === MIDDLEWARE_FILENAME) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -793,7 +799,7 @@ export default class HotReloader {
         changedClientPages
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => name.match(MIDDLEWARE_ROUTE)
+        (name) => name === MIDDLEWARE_FILENAME
       )
       changedClientPages.clear()
       changedServerPages.clear()
@@ -884,6 +890,7 @@ export default class HotReloader {
       watcher: this.watcher,
       pagesDir: this.pagesDir,
       viewsDir: this.viewsDir,
+      rootDir: this.dir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

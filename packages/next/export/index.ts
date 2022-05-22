@@ -237,12 +237,7 @@ export default async function exportApp(
         continue
       }
 
-      if (
-        page === '/_document' ||
-        page === '/_app.server' ||
-        page === '/_app' ||
-        page === '/_error'
-      ) {
+      if (page === '/_document' || page === '/_app' || page === '/_error') {
         continue
       }
 
