@@ -4,6 +4,7 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
+import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -34,7 +35,6 @@ import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -244,12 +244,14 @@ export default async function build(
 
       const [[verifyResult, typeCheckEnd]] = await Promise.all([
         nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
-          verifyTypeScriptSetup(
+          validiteTypeScriptTypes(
             dir,
             [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
-            cacheDir
+            cacheDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads
           ).then((resolved) => {
             const checkEnd = process.hrtime(typeCheckStart)
             typeCheckingSpinner?.stop()
@@ -2312,6 +2314,50 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
   }
+}
+
+/**
+ * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ *
+ * Since it is impossible to pass a function from main thread to a worker,
+ * we will run entire "next/lib/verifyTypeScriptSetup" in the worker
+ * during build instead.
+ */
+function validiteTypeScriptTypes(
+  dir: string,
+  intentDirs: string[],
+  typeCheckPreflight: boolean,
+  config: NextConfigComplete,
+  cacheDir: string | undefined,
+  numWorkers: number | undefined,
+  enableWorkerThreads: boolean | undefined
+) {
+  const typeCheckWorker = new JestWorker(
+    require.resolve('../lib/verifyTypeScriptSetup'),
+    {
+      numWorkers,
+      enableWorkerThreads,
+    }
+  ) as JestWorker & {
+    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+  }
+
+  typeCheckWorker.getStdout().pipe(process.stdout)
+  typeCheckWorker.getStderr().pipe(process.stderr)
+
+  return typeCheckWorker
+    .verifyTypeScriptSetup(
+      dir,
+      intentDirs,
+      typeCheckPreflight,
+      config,
+      cacheDir
+    )
+    .then((result) => {
+      typeCheckWorker.end()
+      return result
+    })
 }
 
 function generateClientSsgManifest(
