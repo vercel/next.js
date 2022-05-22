@@ -1730,7 +1730,7 @@ describe('Client Navigation', () => {
 
     await check(async () => {
       const errorCount = await browser.eval('window.routeErrors.length')
-      return errorCount > 1 ? 'success' : errorCount
+      return errorCount > 0 ? 'success' : errorCount
     }, 'success')
   })
 
