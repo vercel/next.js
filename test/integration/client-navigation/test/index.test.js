@@ -1716,22 +1716,21 @@ describe('Client Navigation', () => {
 
   it('should navigate to paths relative to the current page', async () => {
     const browser = await webdriver(context.appPort, '/nav/relative')
-    await browser.waitForElementByCss('body', 500)
     let page
 
     await browser.elementByCss('a').click()
 
-    browser.waitForElementByCss('#relative-1', 500)
+    browser.waitForElementByCss('#relative-1')
     page = await browser.elementByCss('body').text()
     expect(page).toMatch(/On relative 1/)
     await browser.elementByCss('a').click()
 
-    browser.waitForElementByCss('#relative-2', 500)
+    browser.waitForElementByCss('#relative-2')
     page = await browser.elementByCss('body').text()
     expect(page).toMatch(/On relative 2/)
 
     await browser.elementByCss('button').click()
-    browser.waitForElementByCss('#relative', 500)
+    browser.waitForElementByCss('#relative')
     page = await browser.elementByCss('body').text()
     expect(page).toMatch(/On relative index/)
 
