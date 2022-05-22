@@ -659,10 +659,6 @@
           "path": "/errors/invalid-script.md"
         },
         {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
-        },
-        {
           "title": "nested-styled-jsx-tags",
           "path": "/errors/nested-styled-jsx-tags.md"
         },
