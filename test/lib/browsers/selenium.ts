@@ -45,7 +45,8 @@ export async function quit() {
 class Selenium extends BrowserInterface {
   private browserName: string
 
-  async setup(browserName: string) {
+  // TODO: support setting locale
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     this.browserName = browserName
 

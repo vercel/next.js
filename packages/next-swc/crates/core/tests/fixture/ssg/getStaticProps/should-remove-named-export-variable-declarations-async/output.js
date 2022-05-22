@@ -1,4 +1,4 @@
-export var __N_SSG = true
+export var __N_SSG = true;
 export default function Test() {
-  return __jsx('div', null)
-}
+    return __jsx("div", null);
+};

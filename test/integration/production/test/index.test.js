@@ -26,6 +26,7 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { promisify } from 'util'
+import { error } from 'console'
 
 const glob = promisify(globOriginal)
 
@@ -51,12 +52,16 @@ describe('Production Usage', () => {
 
     appPort = await findPort()
     context.appPort = appPort
-    app = await nextStart(appDir, appPort)
+    app = await nextStart(appDir, appPort, { cwd: appDir })
     output = (result.stderr || '') + (result.stdout || '')
-    console.log(output)
 
     if (result.code !== 0) {
+      error(output)
       throw new Error(`Failed to build, exited with code ${result.code}`)
+    } else {
+      // Note: jest captures calls to console and only emits when there's assertion fails,
+      // so this won't log anything for normal test execution path.
+      console.log(output)
     }
   })
   afterAll(async () => {
@@ -100,7 +105,7 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
@@ -215,6 +220,39 @@ describe('Production Usage', () => {
           /next\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
+      {
+        page: '/api',
+        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
+      {
+        page: '/api/readfile-dirname',
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
+      },
+      {
+        page: '/api/readfile-processcwd',
+        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -339,7 +377,9 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
-    it('should allow etag header support with getServerSideProps', async () => {
+    // TODO: should we generate weak etags for streaming getServerSideProps?
+    // this is currently not expected to work with react-18
+    it.skip('should allow etag header support with getServerSideProps', async () => {
       const url = `http://localhost:${appPort}`
       const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
         'ETag'
@@ -587,6 +627,22 @@ describe('Production Usage', () => {
       const res = await fetchViaHTTP(url, `/api/hello`)
       const body = await res.text()
       expect(body).toEqual('API hello works')
+    })
+
+    // Today, `__dirname` usage fails because Next.js moves the source file
+    // to .next/server/pages/api but it doesn't move the asset file.
+    // In the future, it would be nice to make `__dirname` work too.
+    it('does not work with pages/api/readfile-dirname.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-dirname`)
+      expect(res.status).toBe(500)
+    })
+
+    it('should work with pages/api/readfile-processcwd.js', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/readfile-processcwd`)
+      const body = await res.text()
+      expect(body).toBe('item')
     })
 
     it('should work with dynamic params and search string', async () => {

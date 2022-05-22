@@ -45,6 +45,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-sanity cms-sanity-app
 # or
 yarn create next-app --example cms-sanity cms-sanity-app
+# or
+pnpm create next-app -- --example cms-sanity cms-sanity-app
 ```
 
 ## Configuration

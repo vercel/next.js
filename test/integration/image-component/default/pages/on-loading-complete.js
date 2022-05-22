@@ -84,6 +84,16 @@ const Page = () => {
         idToCount={idToCount}
         setIdToCount={setIdToCount}
       />
+
+      <ImageWithMessage
+        id="9"
+        src={require('../public/test.png')}
+        placeholder="blur"
+        layout="raw"
+        idToCount={idToCount}
+        setIdToCount={setIdToCount}
+      />
+
       <button id="toggle" onClick={() => setClicked(!clicked)}>
         Toggle
       </button>
