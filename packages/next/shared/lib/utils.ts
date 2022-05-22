@@ -290,6 +290,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
   }) as T
 }
 
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
+
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
   return `${protocol}//${hostname}${port ? ':' + port : ''}`
