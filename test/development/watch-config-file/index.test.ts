@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { waitFor } from 'next-test-utils'
 
 describe('watch-config-file', () => {
   let next: NextInstance
@@ -41,10 +41,9 @@ describe('watch-config-file', () => {
       module.exports = nextConfig`
     )
 
-    await waitFor(6000) // wait for cli output.
-
-    expect(next.cliOutput).toContain(
-      `Found a change in next.config.js. Restart the server to see the changes in effect.`
+    await check(
+      () => next.cliOutput,
+      /Found a change in next.config.js. Restart the server to see the changes in effect./
     )
   })
 })
