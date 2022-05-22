@@ -238,21 +238,38 @@ export default async function build(
         }`,
       })
 
-      const verifyResult = await nextBuildSpan
-        .traceChild('verify-typescript-setup')
-        .traceAsyncFn(() =>
+      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+      const eslintCacheDir = path.join(cacheDir, 'eslint/')
+      const shouldLint = !ignoreESLint && runLint
+
+      const [[verifyResult, typeCheckEnd]] = await Promise.all([
+        nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
             [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
             cacheDir
-          )
-        )
+          ).then((resolved) => {
+            const checkEnd = process.hrtime(typeCheckStart)
+            typeCheckingSpinner?.stop()
+            return [resolved, checkEnd] as const
+          })
+        ),
+        shouldLint &&
+          nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
+            await verifyAndLint(
+              dir,
+              eslintCacheDir,
+              config.eslint?.dirs,
+              config.experimental.cpus,
+              config.experimental.workerThreads,
+              telemetry
+            )
+          }),
+      ])
 
-      const typeCheckEnd = process.hrtime(typeCheckStart)
-
-      if (!ignoreTypeScriptErrors) {
+      if (!ignoreTypeScriptErrors && verifyResult) {
         telemetry.record(
           eventTypeCheckCompleted({
             durationInSeconds: typeCheckEnd[0],
@@ -264,27 +281,6 @@ export default async function build(
         )
       }
 
-      if (typeCheckingSpinner) {
-        typeCheckingSpinner.stopAndPersist()
-      }
-
-      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const eslintCacheDir = path.join(cacheDir, 'eslint/')
-      const shouldLint = !ignoreESLint && runLint
-      if (shouldLint) {
-        await nextBuildSpan
-          .traceChild('verify-and-lint')
-          .traceAsyncFn(async () => {
-            await verifyAndLint(
-              dir,
-              eslintCacheDir,
-              config.eslint?.dirs,
-              config.experimental.cpus,
-              config.experimental.workerThreads,
-              telemetry
-            )
-          })
-      }
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
         invocationCount: shouldLint ? 1 : 0,
