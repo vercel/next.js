@@ -12,12 +12,13 @@ The included helpers are:
 - `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
+- `res.unstable_revalidate(urlPath)` - [Revalidate a page on demand](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) using `getStaticProps`. `urlPath` must be a `string`.
 
 ## Setting the status code of a response
 
 When sending a response back to the client, you can set the status code of the response.
 
-The following example sets the status code of the response to `200` (`OK`) and returns a `name` property with the value of `John Doe` as a JSON response:
+The following example sets the status code of the response to `200` (`OK`) and returns a `message` property with the value of `Hello from Next.js!` as a JSON response:
 
 ```js
 export default function handler(req, res) {
@@ -85,11 +86,14 @@ You can make your response handlers more type-safe by importing the `NextApiRequ
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-type ResponseData {
+type ResponseData = {
   message: string
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) => {
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
   res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```

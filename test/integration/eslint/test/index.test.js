@@ -25,10 +25,6 @@ const dirInvalidOlderEslintVersion = join(
   __dirname,
   '../invalid-eslint-version'
 )
-const dirInvalidNewerEslintVersion = join(
-  __dirname,
-  '../invalid-newer-eslint-version'
-)
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
@@ -112,24 +108,6 @@ describe('ESLint', () => {
       const output = stdout + stderr
       expect(output).toContain(
         'Your project has an older version of ESLint installed'
-      )
-    })
-
-    // TODO: Remove this test when ESLint v8 is supported https://github.com/vercel/next.js/pull/29865
-    test('invalid newer eslint version', async () => {
-      const { stdout, stderr } = await nextBuild(
-        dirInvalidNewerEslintVersion,
-        [],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-
-      const output = stdout + stderr
-      console.log(output)
-      expect(output).toContain(
-        'ESLint version 8.0.1 is not yet supported. Please downgrade to version 7 for the meantime'
       )
     })
 
@@ -276,7 +254,7 @@ describe('ESLint', () => {
       })
 
       test('shows a successful message when completed', async () => {
-        const { stdout, eslintrcJson } = await nextLintTemp()
+        const { stdout } = await nextLintTemp()
 
         expect(stdout).toContain(
           'ESLint has successfully been configured. Run next lint again to view warnings and errors'
@@ -354,7 +332,7 @@ describe('ESLint', () => {
 
     test('success message when no warnings or errors', async () => {
       const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }')
+      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }\n')
 
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,
@@ -370,6 +348,7 @@ describe('ESLint', () => {
         (await findUp(
           [
             '.eslintrc.js',
+            '.eslintrc.cjs',
             '.eslintrc.yaml',
             '.eslintrc.yml',
             '.eslintrc.json',
@@ -533,7 +512,50 @@ describe('ESLint', () => {
       await fs.remove(cacheFile)
       await nextLint(dirEslintCache, ['--cache-location', cacheFile])
 
-      expect(fs.existsSync(cacheFile)).toBe(true)
+      const hasCache = fs.existsSync(cacheFile)
+      await fs.remove(cacheFile) // remove after generate
+      expect(hasCache).toBe(true)
+    })
+
+    const getEslintCacheContent = async (cacheDir) => {
+      const eslintCacheDir = join(cacheDir, 'eslint/')
+      let files = await fs.readdir(eslintCacheDir)
+      let cacheFiles = files.filter((f) => /\.cache/.test(f))
+      expect(cacheFiles.length).toBe(1)
+      const cacheFile = join(eslintCacheDir, cacheFiles[0])
+      return await fs.readFile(cacheFile, 'utf8')
+    }
+
+    test('the default eslint caching strategy is metadata', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache)
+
+      const defaultStrategyCache = await getEslintCacheContent(cacheDir)
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, ['--cache-strategy', 'metadata'])
+
+      const metadataStrategyCache = await getEslintCacheContent(cacheDir)
+
+      expect(metadataStrategyCache).toBe(defaultStrategyCache)
+    })
+
+    test('cache with content strategy is different from the one with default strategy', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache)
+
+      const defaultStrategyCache = await getEslintCacheContent(cacheDir)
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, ['--cache-strategy', 'content'])
+
+      const contentStrategyCache = await getEslintCacheContent(cacheDir)
+
+      expect(contentStrategyCache).not.toBe(defaultStrategyCache)
     })
 
     test('file flag can selectively lint only a single file', async () => {

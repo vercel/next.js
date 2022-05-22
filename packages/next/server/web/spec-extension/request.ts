@@ -1,19 +1,20 @@
 import type { I18NConfig } from '../../config-shared'
-import type { IResult } from 'next/dist/compiled/ua-parser-js'
+import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
 import { toNodeHeaders } from '../utils'
-import cookie from 'next/dist/compiled/cookie'
 import parseua from 'next/dist/compiled/ua-parser-js'
+
+import { NextCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
 export class NextRequest extends Request {
   [INTERNALS]: {
-    cookieParser(): { [key: string]: string }
-    geo: { city?: string; country?: string; region?: string }
+    cookies: NextCookies
+    geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string } }
+    page?: { name?: string; params?: { [key: string]: string | string[] } }
     ua?: UserAgent | null
     url: NextURL
   }
@@ -21,13 +22,8 @@ export class NextRequest extends Request {
   constructor(input: Request | string, init: RequestInit = {}) {
     super(input, init)
 
-    const cookieParser = () => {
-      const value = this.headers.get('cookie')
-      return value ? cookie.parse(value) : {}
-    }
-
     this[INTERNALS] = {
-      cookieParser,
+      cookies: new NextCookies(this),
       geo: init.geo || {},
       ip: init.ip,
       page: init.page,
@@ -41,7 +37,7 @@ export class NextRequest extends Request {
   }
 
   public get cookies() {
-    return this[INTERNALS].cookieParser()
+    return this[INTERNALS].cookies
   }
 
   public get geo() {
@@ -105,10 +101,31 @@ export interface RequestInit extends globalThis.RequestInit {
   }
   page?: {
     name?: string
-    params?: { [key: string]: string }
+    params?: { [key: string]: string | string[] }
   }
 }
 
-interface UserAgent extends IResult {
+interface UserAgent {
   isBot: boolean
+  ua: string
+  browser: {
+    name?: string
+    version?: string
+  }
+  device: {
+    model?: string
+    type?: string
+    vendor?: string
+  }
+  engine: {
+    name?: string
+    version?: string
+  }
+  os: {
+    name?: string
+    version?: string
+  }
+  cpu: {
+    architecture?: string
+  }
 }

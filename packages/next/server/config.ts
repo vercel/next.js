@@ -1,9 +1,9 @@
-import chalk from 'chalk'
-import findUp from 'next/dist/compiled/find-up'
-import { basename, extname, relative } from 'path'
+import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
+import findUp from 'next/dist/compiled/find-up'
+import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -13,7 +13,11 @@ import {
   normalizeConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  VALID_LOADERS,
+} from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
@@ -66,8 +70,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (
         key === 'experimental' &&
-        value !== undefined &&
-        value !== defaultConfig[key]
+        value !== defaultConfig[key] &&
+        typeof value === 'object' &&
+        Object.keys(value).length > 0
       ) {
         experimentalWarning()
       }
@@ -182,6 +187,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  const hasReactRoot = process.env.__NEXT_REACT_ROOT
+  if (hasReactRoot) {
+    // users might not have the `experimental` key in their config
+    result.experimental = result.experimental || {}
+    result.experimental.reactRoot = true
+  }
+
   if (result?.images) {
     const images: ImageConfig = result.images
 
@@ -222,6 +234,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    const remotePatterns = result.experimental?.images?.remotePatterns
+    if (remotePatterns) {
+      if (!Array.isArray(remotePatterns)) {
+        throw new Error(
+          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      if (remotePatterns.length > 50) {
+        throw new Error(
+          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
+      const requiredProps = ['hostname']
+      const invalidPatterns = remotePatterns.filter(
+        (d: unknown) =>
+          !d ||
+          typeof d !== 'object' ||
+          Object.entries(d).some(
+            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
+          ) ||
+          requiredProps.some((k) => !(k in d))
+      )
+      if (invalidPatterns.length > 0) {
+        throw new Error(
+          `Invalid images.remotePatterns values:\n${invalidPatterns
+            .map((item) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
@@ -292,7 +341,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
-      !(images.path || '').startsWith('http')
+      images.path === imageConfigDefault.path
     ) {
       throw new Error(
         `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
@@ -350,6 +399,28 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    if (
+      typeof images.dangerouslyAllowSVG !== 'undefined' &&
+      typeof images.dangerouslyAllowSVG !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.dangerouslyAllowSVG should be a boolean
+          ', '
+        )}), received  (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (
+      typeof images.contentSecurityPolicy !== 'undefined' &&
+      typeof images.contentSecurityPolicy !== 'string'
+    ) {
+      throw new Error(
+        `Specified images.contentSecurityPolicy should be a string
+          ', '
+        )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
 
   if (result.webpack5 === false) {
@@ -365,10 +436,79 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.swcMinify = (result.experimental as any).swcMinify
   }
 
+  if (result.experimental && 'relay' in (result.experimental as any)) {
+    Log.warn(
+      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.relay = (result.experimental as any).relay
+  }
+
+  if (
+    result.experimental &&
+    'styledComponents' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.styledComponents = (
+      result.experimental as any
+    ).styledComponents
+  }
+
+  if (result.experimental && 'emotion' in (result.experimental as any)) {
+    Log.warn(
+      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.emotion = (result.experimental as any).emotion
+  }
+
+  if (
+    result.experimental &&
+    'reactRemoveProperties' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.reactRemoveProperties = (
+      result.experimental as any
+    ).reactRemoveProperties
+  }
+
+  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
+    Log.warn(
+      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.removeConsole = (result.experimental as any).removeConsole
+  }
+
   if (result.swcMinify) {
     Log.warn(
-      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+      'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
+  }
+
+  if (
+    result.experimental?.outputFileTracingRoot &&
+    !isAbsolute(result.experimental.outputFileTracingRoot)
+  ) {
+    result.experimental.outputFileTracingRoot = resolve(
+      result.experimental.outputFileTracingRoot
+    )
+    Log.warn(
+      `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+    )
+  }
+
+  if (result.experimental?.outputStandalone && !result.outputFileTracing) {
+    Log.warn(
+      `experimental.outputStandalone requires outputFileTracing not be disabled please enable it to leverage the standalone build`
+    )
+    result.experimental.outputStandalone = false
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
@@ -520,6 +660,24 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     result.pageExtensions = pageExtensions
   }
 
+  if (result.devIndicators?.buildActivityPosition) {
+    const { buildActivityPosition } = result.devIndicators
+    const allowedValues = [
+      'top-left',
+      'top-right',
+      'bottom-left',
+      'bottom-right',
+    ]
+
+    if (!allowedValues.includes(buildActivityPosition)) {
+      throw new Error(
+        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+          ', '
+        )}, received ${buildActivityPosition}`
+      )
+    }
+  }
+
   return result
 }
 
@@ -552,14 +710,21 @@ export default async function loadConfig(
       // `import()` expects url-encoded strings, so the path must be properly
       // escaped and (especially on Windows) absolute paths must pe prefixed
       // with the `file://` protocol
-      userConfigModule = await import(pathToFileURL(path).href)
+      if (process.env.__NEXT_TEST_MODE === 'jest') {
+        // dynamic import does not currently work inside of vm which
+        // jest relies on so we fall back to require for this case
+        // https://github.com/nodejs/node/issues/35889
+        userConfigModule = require(path)
+      } else {
+        userConfigModule = await import(pathToFileURL(path).href)
+      }
     } catch (err) {
       Log.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
     }
-    const userConfig = normalizeConfig(
+    const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
     )
@@ -624,16 +789,12 @@ export default async function loadConfig(
     }
   }
 
-  const completeConfig = defaultConfig as NextConfigComplete
+  // always call assignDefaults to ensure settings like
+  // reactRoot can be updated correctly even with no next.config.js
+  const completeConfig = assignDefaults(defaultConfig) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
-}
-
-export function isTargetLikeServerless(target: string) {
-  const isServerless = target === 'serverless'
-  const isServerlessTrace = target === 'experimental-serverless-trace'
-  return isServerless || isServerlessTrace
 }
 
 export function setHttpAgentOptions(

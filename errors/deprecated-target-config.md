@@ -10,4 +10,4 @@ For serverless cases, leverage the new output file traces or deploy your applica
 
 ### Useful Links
 
-- [Output File Tracing Documentation](https://nextjs.org/docs/messages/deprecated-target-config)
+- [Output File Tracing Documentation](https://nextjs.org/docs/advanced-features/output-file-tracing)

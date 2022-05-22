@@ -67,7 +67,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
         },
       ],
@@ -87,7 +87,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
         },
       ],
@@ -106,7 +106,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
         },
       ],

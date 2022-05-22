@@ -10,12 +10,15 @@ class BaseRequest extends Body implements Request {
     credentials: RequestCredentials
     headers: Headers
     method: string
+    referrer: string
     redirect: RequestRedirect
     url: NextURL
   }
 
   constructor(input: BaseRequest | string, init: RequestInit = {}) {
-    const method = init.method?.toUpperCase() ?? 'GET'
+    const method =
+      init.method?.toUpperCase() ??
+      (input instanceof BaseRequest ? input.method?.toUpperCase() : 'GET')
 
     if (
       (method === 'GET' || method === 'HEAD') &&
@@ -48,6 +51,7 @@ class BaseRequest extends Body implements Request {
         init.credentials || getProp(input, 'credentials') || 'same-origin',
       headers,
       method,
+      referrer: init.referrer || 'about:client',
       redirect: init.redirect || getProp(input, 'redirect') || 'follow',
       url: new NextURL(typeof input === 'string' ? input : input.url),
     }
@@ -63,6 +67,10 @@ class BaseRequest extends Body implements Request {
 
   get method() {
     return this[INTERNALS].method
+  }
+
+  get referrer() {
+    return this[INTERNALS].referrer
   }
 
   get headers() {
@@ -95,10 +103,6 @@ class BaseRequest extends Body implements Request {
 
   get destination() {
     return notImplemented('Request', 'destination')
-  }
-
-  get referrer() {
-    return notImplemented('Request', 'referrer')
   }
 
   get referrerPolicy() {

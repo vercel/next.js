@@ -9,6 +9,27 @@ const Index = () => (
       kinds of unhandled exceptions.
     </p>
     <p>
+      It also demonstrates the performance monitoring the SDK is able to do:
+      <ol>
+        <li>
+          A front-end transaction is recorded for each pageload or navigation.
+        </li>
+        <li>
+          A backend transaction is recorded for each API or page route. (Note
+          that currently only API routes are traced on Vercel.)
+        </li>
+        <li>
+          Errors which occur during transactions are linked to those
+          transactions in Sentry and can be found in the [trace
+          navigator](https://docs.sentry.io/product/sentry-basics/tracing/trace-view/).
+        </li>
+        <li>
+          Manual performance instrumentation is demonstrated in the final
+          example below (throwing an error from an event handler).
+        </li>
+      </ol>
+    </p>
+    <p>
       <strong>Important:</strong> exceptions in development mode take a
       different path than in production. These tests should be run on a
       production build (i.e. 'next build').{' '}
@@ -17,10 +38,8 @@ const Index = () => (
       </a>
     </p>
     <ol>
-      <li>
-        API route exceptions (note that 1 and 2 are not expected to work if
-        deployed to Vercel yet)
-      </li>
+      <li>API route exceptions/transactions</li>
+      Note that 1 and 2 are not expected to work if deployed to Vercel yet.
       <ol>
         <li>
           API has a top-of-module Promise that rejects, but its result is not
@@ -51,7 +70,11 @@ const Index = () => (
           </a>
         </li>
       </ol>
-      <li>SSR exceptions</li>
+      <li>SSR exceptions/transactions</li>
+      Note that there are currently two known bugs with respect to SSR
+      transactions: they don't get recorded on Vercel, and ones that are
+      recorded and have an error are grouped in the Sentry UI by the error page
+      name rather than the requested page name.
       <ol>
         <li>
           getServerSideProps throws an Error. This should cause _error.js to
@@ -89,7 +112,6 @@ const Index = () => (
           </a>
         </li>
       </ol>
-
       <li>Client exceptions</li>
       <ol>
         <li>
@@ -141,7 +163,8 @@ const Index = () => (
         </li>
         <li>
           An Error is thrown from an event handler. Sentry should record
-          Error('Client Test 5').{' '}
+          Error('Client Test 5'). (This page also demonstrates how to manually
+          instrument your code for performance monitoring.){' '}
           <Link href="/client/test5">
             <a>Perform client side navigation</a>
           </Link>{' '}

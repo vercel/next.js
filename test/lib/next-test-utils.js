@@ -10,6 +10,7 @@ import {
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
+import https from 'https'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -20,12 +21,6 @@ import treeKill from 'tree-kill'
 export const nextServer = server
 export const pkg = _pkg
 
-// polyfill Object.fromEntries for the test/integration/relay-analytics tests
-// on node 10, this can be removed after we no longer support node 10
-if (!Object.fromEntries) {
-  Object.fromEntries = require('core-js/features/object/from-entries')
-}
-
 export function initNextServerScript(
   scriptPath,
   successRegexp,
@@ -34,10 +29,20 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], {
-      env,
-      cwd: opts && opts.cwd,
-    })
+    const instance = spawn(
+      'node',
+      [
+        ...((opts && opts.nodeArgs) || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        scriptPath,
+      ],
+      {
+        env,
+        cwd: opts && opts.cwd,
+      }
+    )
 
     function handleStdout(data) {
       const message = data.toString()
@@ -90,6 +95,10 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
 
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
+
+    if (hostname && parsedUrl.hostname === 'localhost') {
+      parsedUrl.hostname = hostname
+    }
     fullUrl = parsedUrl.toString()
   }
   return fullUrl
@@ -108,7 +117,19 @@ export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(getFullUrl(appPort, url), opts)
+  return fetch(getFullUrl(appPort, url), {
+    // in node.js v17 fetch favors IPv6 but Next.js is
+    // listening on IPv4 by default so force IPv4 DNS resolving
+    agent: (parsedUrl) => {
+      if (parsedUrl.protocol === 'https:') {
+        return new https.Agent({ family: 4 })
+      }
+      if (parsedUrl.protocol === 'http:') {
+        return new http.Agent({ family: 4 })
+      }
+    },
+    ...opts,
+  })
 }
 
 export function findPort() {
@@ -122,16 +143,24 @@ export function runNextCommand(argv, options = {}) {
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
+    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
+    ...options.env,
   }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [
+        ...(options.nodeArgs || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         ...options.spawnOptions,
         cwd,
@@ -144,25 +173,37 @@ export function runNextCommand(argv, options = {}) {
       options.instance(instance)
     }
 
+    let mergedStdio = ''
+
     let stderrOutput = ''
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
         }
       })
+    } else {
+      instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
+      })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
         }
+      })
+    } else {
+      instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
       })
     }
 
@@ -173,7 +214,9 @@ export function runNextCommand(argv, options = {}) {
         !options.ignoreFail &&
         code !== 0
       ) {
-        return reject(new Error(`command failed with code ${code}`))
+        return reject(
+          new Error(`command failed with code ${code}\n${mergedStdio}`)
+        )
       }
 
       resolve({
@@ -207,7 +250,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      [
+        ...nodeArgs,
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         cwd,
         env,
@@ -218,7 +268,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled successfully/i,
+        dev: /compiled .*successfully/i,
         start: /started server/i,
       }
       if (
@@ -325,10 +375,9 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-// Kill a launched app
-export async function killApp(instance) {
+export async function killProcess(pid) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -351,7 +400,19 @@ export async function killApp(instance) {
   })
 }
 
+// Kill a launched app
+export async function killApp(instance) {
+  await killProcess(instance.pid)
+}
+
 export async function startApp(app) {
+  // force require usage instead of dynamic import in jest
+  // x-ref: https://github.com/nodejs/node/issues/35889
+  process.env.__NEXT_TEST_MODE = 'jest'
+
+  // TODO: tests that use this should be migrated to use
+  // the nextStart test function instead as it tests outside
+  // of jest's context
   await app.prepare()
   const handler = app.getRequestHandler()
   const server = http.createServer(handler)
@@ -680,4 +741,74 @@ export function getPageFileFromPagesManifest(dir, page) {
 export function readNextBuildServerPageFile(appDir, page) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {{env: 'prod' | 'dev', appDir: string}} context
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+function runSuite(suiteName, context, options) {
+  const { appDir, env } = context
+  describe(`${suiteName} ${env}`, () => {
+    beforeAll(async () => {
+      options.beforeAll?.(env)
+      context.stderr = ''
+      const onStderr = (msg) => {
+        context.stderr += msg
+      }
+      context.stdout = ''
+      const onStdout = (msg) => {
+        context.stdout += msg
+      }
+      if (env === 'prod') {
+        context.appPort = await findPort()
+        const { stdout, stderr, code } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+        context.stdout = stdout
+        context.stderr = stderr
+        context.code = code
+        context.server = await nextStart(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+        })
+      } else if (env === 'dev') {
+        context.appPort = await findPort()
+        context.server = await launchApp(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+        })
+      }
+    })
+    afterAll(async () => {
+      options.afterAll?.(env)
+      if (context.server) {
+        await killApp(context.server)
+      }
+    })
+    options.runTests(context, env)
+  })
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runDevSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'dev' }, options)
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runProdSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'prod' }, options)
 }

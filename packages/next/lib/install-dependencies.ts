@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 import { MissingDependency } from './has-necessary-dependencies'
@@ -15,7 +15,7 @@ export async function installDependencies(
   deps: any,
   dev: boolean = false
 ) {
-  const useYarn = shouldUseYarn()
+  const useYarn = shouldUseYarn(baseDir)
   const isOnline = !useYarn || (await getOnline())
 
   if (deps.length) {

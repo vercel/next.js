@@ -1,5 +1,5 @@
-import chalk from 'chalk'
-import { Worker } from 'jest-worker'
+import chalk from 'next/dist/compiled/chalk'
+import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'

@@ -34,17 +34,19 @@ describe('SCSS Support', () => {
         env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
         stderr: true,
       })
+      let cleanScssErrMsg =
+        '\n\n' +
+        './styles/global.scss\n' +
+        "To use Next.js' built-in Sass support, you first need to install `sass`.\n" +
+        'Run `npm i sass` or `yarn add sass` inside your workspace.\n' +
+        '\n' +
+        'Learn more: https://nextjs.org/docs/messages/install-sass\n'
+
       expect(code).toBe(1)
       expect(stderr).toContain('Failed to compile.')
-      expect(stderr).toContain(
-        "To use Next.js' built-in Sass support, you first need to install `sass`."
-      )
-      expect(stderr).toContain(
-        'Run `npm i sass` or `yarn add sass` inside your workspace.'
-      )
-      expect(stderr).toContain(
-        'Learn more: https://nextjs.org/docs/messages/install-sass'
-      )
+      expect(stderr).toContain(cleanScssErrMsg)
+      expect(stderr).not.toContain('css-loader')
+      expect(stderr).not.toContain('sass-loader')
     })
   })
 
@@ -659,6 +661,54 @@ describe('SCSS Support', () => {
     })
   })
 
+  describe('CSS URL via file-loader sass partial', () => {
+    const appDir = join(fixturesDir, 'url-global-partial')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        '".red-text{color:red;background-image:url(/_next/static/media/darka.6b01655b.svg),url(/_next/static/media/darkb.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}"'
+      )
+
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map((fileName) =>
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+        Array [
+          "darka.svg",
+          "darkb.svg",
+          "light.svg",
+        ]
+      `)
+    })
+  })
+
   describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
@@ -748,6 +798,64 @@ describe('SCSS Support', () => {
           "light.svg",
         ]
       `)
+    })
+  })
+
+  describe('Data Urls', () => {
+    const appDir = join(fixturesDir, 'data-url')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\("data:[^"]+"\)\}$/
+      )
+    })
+  })
+
+  describe('External imports', () => {
+    const appDir = join(fixturesDir, 'external-url')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^@import url\("https:\/\/fonts\.googleapis\.com\/css2\?family=Poppins:wght@400&display=swap"\);\.red-text\{color:red;font-family:Poppins;font-style:normal;font-weight:400\}$/
+      )
     })
   })
 

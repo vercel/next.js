@@ -10,11 +10,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 # or
 yarn create next-app --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
+# or
+pnpm create next-app -- --example with-firebase-cloud-messaging with-firebase-cloud-messaging-app
 ```
 
 ## Set your send id
 
-set your `messagingSenderId` in `static/firebase-messaging-sw.js` and `utils/webPush.js`
+set your `messagingSenderId` in `public/firebase-messaging-sw.js` and `utils/webPush.js`
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 

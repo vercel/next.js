@@ -23,7 +23,8 @@ describe('Handle ESM externals with esmExternals: true', () => {
   })
   afterAll(() => killApp(app))
 
-  const expected = /Hello <!-- -->World<!-- -->\+<!-- -->World/
+  const expected =
+    /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World\+World\+World/
 
   it('should render the static page', async () => {
     const html = await renderViaHTTP(appPort, '/static')

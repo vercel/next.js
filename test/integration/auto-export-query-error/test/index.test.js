@@ -20,7 +20,6 @@ const runTests = () => {
     expect(stderr).not.toContain('/amp')
     expect(stderr).not.toContain('/ssr')
     expect(stderr).not.toContain('/ssg')
-    expect(stderr).not.toContain('/hello')
   })
 }
 

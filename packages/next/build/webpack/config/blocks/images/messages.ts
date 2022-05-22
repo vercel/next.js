@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 export function getCustomDocumentImageError() {
   return `Images ${chalk.bold('cannot')} be imported within ${chalk.cyan(

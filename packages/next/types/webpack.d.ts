@@ -24,7 +24,7 @@
 /// <reference types="node" />
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils'
+declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'
@@ -35,6 +35,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export let sources: typeof webpackSources
+  export let StringXor: any
   // TODO change this to webpack5
   export { webpack4 as webpack, loader, webpack4, webpack5 }
 }

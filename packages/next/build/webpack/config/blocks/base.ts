@@ -7,9 +7,18 @@ export const base = curry(function base(
   config: webpack.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
-  config.name = ctx.isServer ? 'server' : 'client'
+  config.name = ctx.isServer
+    ? ctx.isEdgeRuntime
+      ? 'edge-server'
+      : 'server'
+    : 'client'
+
   // @ts-ignore TODO webpack 5 typings
-  config.target = ctx.isServer ? 'node12.22' : ['web', 'es5']
+  config.target = !ctx.targetWeb
+    ? 'node12.22'
+    : ctx.isEdgeRuntime
+    ? ['web', 'es6']
+    : ['web', 'es5']
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {

@@ -5,9 +5,9 @@ const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 // avoid generating __source annotations in JSX during testing:
 const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
+;(process.env as any).NODE_ENV = 'production'
 const plugin = require('next/dist/build/babel/plugins/next-ssg-transform')
-process.env.NODE_ENV = NODE_ENV
+;(process.env as any).NODE_ENV = NODE_ENV
 
 const babel = (code, esm = true, pluginOptions = {}) =>
   transform(code, {

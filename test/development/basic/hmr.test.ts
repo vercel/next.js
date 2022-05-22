@@ -26,6 +26,50 @@ describe('basic HMR', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should show hydration error correctly', async () => {
+    const browser = await webdriver(next.url, '/hydration-error')
+    await check(async () => {
+      const logs = await browser.log()
+      return logs.some((log) =>
+        log.message.includes('messages/react-hydration-error')
+      )
+        ? 'success'
+        : JSON.stringify(logs, null, 2)
+    }, 'success')
+  })
+
+  it('should have correct router.isReady for auto-export page', async () => {
+    let browser = await webdriver(next.url, '/auto-export-is-ready')
+
+    expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+
+    browser = await webdriver(next.url, '/auto-export-is-ready?hello=world')
+
+    await check(async () => {
+      return browser.elementByCss('#ready').text()
+    }, 'yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
+  it('should have correct router.isReady for getStaticProps page', async () => {
+    let browser = await webdriver(next.url, '/gsp-is-ready')
+
+    expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+
+    browser = await webdriver(next.url, '/gsp-is-ready?hello=world')
+
+    await check(async () => {
+      return browser.elementByCss('#ready').text()
+    }, 'yes')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
       it('should load the page properly', async () => {
@@ -57,9 +101,11 @@ describe('basic HMR', () => {
 
           expect(next.cliOutput.slice(start)).toContain('compiling...')
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/contact...'
+            'compiling /hmr/contact (client and server)...'
           )
-          expect(next.cliOutput).toContain('compiling /_error...')
+          expect(next.cliOutput).toContain(
+            'compiling /_error (client and server)...'
+          )
         } finally {
           if (browser) {
             await browser.close()
@@ -327,9 +373,11 @@ describe('basic HMR', () => {
         )
 
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/new-page...'
+          'compiling /hmr/new-page (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.deleteFile(newPage)
         throw err
@@ -358,9 +406,11 @@ describe('basic HMR', () => {
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/about2...'
+          'compiling /hmr/about2 (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {
@@ -547,6 +597,8 @@ describe('basic HMR', () => {
           )
         )
 
+        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -555,7 +607,9 @@ describe('basic HMR', () => {
             'Unknown'
           )
         ).toMatch(
-          'Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.'
+          `Objects are not valid as a React child (found: ${
+            isReact17 ? '/search/' : '[object RegExp]'
+          }). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -708,7 +762,10 @@ describe('basic HMR', () => {
             await waitFor(2000)
             throw new Error('waiting')
           }
-          return getRedboxSource(browser)
+
+          await waitFor(2000)
+          const source = await getRedboxSource(browser)
+          return source
         }, /an-expected-error-in-gip/)
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
@@ -720,5 +777,12 @@ describe('basic HMR', () => {
         }
       }
     })
+  })
+
+  it('should have client HMR events in trace file', async () => {
+    const traceData = await next.readFile('.next/trace')
+    expect(traceData).toContain('client-hmr-latency')
+    expect(traceData).toContain('client-error')
+    expect(traceData).toContain('client-success')
   })
 })

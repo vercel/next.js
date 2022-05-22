@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import arg from 'next/dist/compiled/arg/index.js'
-import startServer from '../server/lib/start-server'
+import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
@@ -58,12 +58,14 @@ const nextStart: cliCommand = (argv) => {
     port = 0
   }
 
-  startServer({ dir }, port, host)
-    .then(async ({ app, actualPort }) => {
-      const appUrl = `http://${
-        host === '0.0.0.0' ? 'localhost' : host
-      }:${actualPort}`
-      Log.ready(`started server on ${host}:${actualPort}, url: ${appUrl}`)
+  startServer({
+    dir,
+    hostname: host,
+    port,
+  })
+    .then(async (app) => {
+      const appUrl = `http://${app.hostname}:${app.port}`
+      Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {

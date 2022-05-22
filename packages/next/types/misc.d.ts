@@ -1,12 +1,85 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
-declare module 'browserslist'
-declare module 'cssnano-simple' {
+declare module 'next/dist/compiled/react-server-dom-webpack'
+declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+declare module 'next/dist/compiled/browserslist'
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
+  export * from '@next/react-dev-overlay/lib/client'
+}
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
+  export * from '@next/react-dev-overlay/lib/middleware'
+}
+
+declare module 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin' {
+  import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+  export = m
+}
+
+declare module 'next/dist/compiled/node-html-parser' {
+  export * from 'node-html-parser'
+}
+
+declare module 'next/dist/compiled/node-fetch' {
+  import m from 'node-fetch'
+  export default m
+  export * from 'node-fetch'
+}
+
+declare module 'next/dist/compiled/jest-worker' {
+  export * from 'jest-worker'
+}
+
+declare module 'next/dist/compiled/react-is' {
+  export * from 'react-is'
+}
+
+declare module 'next/dist/compiled/chalk' {
+  import m from 'chalk'
+  export = m
+}
+
+declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
 }
 
+declare module 'next/dist/compiled/etag' {
+  import m from 'etag'
+  export = m
+}
+
+declare module 'next/dist/compiled/p-limit' {
+  import m from 'p-limit'
+  export = m
+}
+
+declare module 'next/dist/compiled/raw-body' {
+  import m from 'raw-body'
+  export = m
+}
+
+declare module 'next/dist/compiled/image-size' {
+  import m from 'image-size'
+  export = m
+}
+
+declare module 'next/dist/compiled/@hapi/accept' {
+  import m from '@hapi/accept'
+  export = m
+}
+
+declare module 'next/dist/compiled/get-orientation' {
+  import m from 'get-orientation'
+  export = m
+}
+
+declare module 'next/dist/compiled/acorn' {
+  import m from 'acorn'
+  export = m
+}
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m
@@ -70,6 +143,10 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
 
+declare module 'next/dist/compiled/bytes' {
+  import m from 'bytes'
+  export = m
+}
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
@@ -84,6 +161,10 @@ declare module 'next/dist/compiled/compression' {
 }
 declare module 'next/dist/compiled/conf' {
   import m from 'conf'
+  export = m
+}
+declare module 'next/dist/compiled/content-disposition' {
+  import m from 'content-disposition'
   export = m
 }
 declare module 'next/dist/compiled/content-type' {
@@ -104,10 +185,6 @@ declare module 'next/dist/compiled/debug' {
 }
 declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
-  export = m
-}
-declare module 'next/dist/compiled/escape-string-regexp' {
-  import m from 'escape-string-regexp'
   export = m
 }
 declare module 'next/dist/compiled/find-up' {
@@ -186,6 +263,12 @@ declare module 'next/dist/compiled/web-streams-polyfill' {
   import m from 'web-streams-polyfill/ponyfill'
   export = m
 }
+declare module 'next/dist/compiled/abort-controller' {
+  type BaseAbortController = typeof AbortController
+  type BaseAbortSignal = typeof AbortSignal
+  export { BaseAbortController as AbortController }
+  export { BaseAbortSignal as AbortSignal }
+}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
   export = m
@@ -210,6 +293,12 @@ declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
+
+declare module 'next/dist/compiled/tar' {
+  import m from 'tar'
+  export = m
+}
+
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -252,6 +341,11 @@ declare module 'next/dist/compiled/comment-json' {
   export = m
 }
 
+declare module 'next/dist/compiled/process' {
+  import m from 'process'
+  export = m
+}
+
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 
@@ -269,7 +363,7 @@ declare module NodeJS {
   }
 }
 
-declare module 'watchpack' {
+declare module 'next/dist/compiled/watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {

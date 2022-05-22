@@ -118,7 +118,7 @@ module.exports = {
                 ', '
               )} ${
                 unwantedFeatures.length > 1 ? 'are' : 'is'
-              } already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.`,
+              } already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio`,
             })
           }
         }

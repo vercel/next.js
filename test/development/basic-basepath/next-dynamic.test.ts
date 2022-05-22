@@ -32,7 +32,7 @@ describe('basic next/dynamic usage', () => {
         const $ = await get$('/docs/dynamic/ssr')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          './components/hello1.js'
+          'dynamic/ssr.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -41,7 +41,7 @@ describe('basic next/dynamic usage', () => {
         const $ = await get$('/docs/dynamic/function')
         // Make sure the client side knows it has to wait for the bundle
         expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
-          './components/hello1.js'
+          'dynamic/function.js -> ../../components/hello1'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })

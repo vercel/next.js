@@ -2,7 +2,7 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { join } from 'path'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 import { cliCommand } from '../bin/next'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
@@ -30,6 +30,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     args['--report-unused-disable-directives'] || null,
   cache: !Boolean(args['--no-cache']),
   cacheLocation: args['--cache-location'] || defaultCacheLocation,
+  cacheStrategy: args['--cache-strategy'] || 'metadata',
   errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
     ? Boolean(args['--error-on-unmatched-pattern'])
     : false,
@@ -67,6 +68,7 @@ const nextLint: cliCommand = async (argv) => {
     '--cache': Boolean, // Although cache is enabled by default, this dummy flag still exists to not cause any breaking changes
     '--no-cache': Boolean,
     '--cache-location': String,
+    '--cache-strategy': String,
     '--error-on-unmatched-pattern': Boolean,
     '--format': String,
 
@@ -134,6 +136,7 @@ const nextLint: cliCommand = async (argv) => {
         Caching:
           --no-cache                     Disable caching
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
+          --cache-strategy String        Strategy to use for detecting changed files in the cache, either metadata or content - default: metadata
         
         Miscellaneous:
           --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false

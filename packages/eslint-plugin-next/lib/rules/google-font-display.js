@@ -48,7 +48,7 @@ module.exports = {
         if (message) {
           context.report({
             node,
-            message: `${message} See https://nextjs.org/docs/messages/google-font-display.`,
+            message: `${message} See: https://nextjs.org/docs/messages/google-font-display`,
           })
         }
       },

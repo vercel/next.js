@@ -4,7 +4,7 @@
 
 If you want to learn more about Elasticsearch, visit the following pages:
 
-- [Elastic Stack](https://https://www.elastic.co/products)
+- [Elastic Stack](https://www.elastic.co/products)
 - [Elastic Documentation](https://elastic.co/docs)
 
 ## Deploy your own
@@ -21,6 +21,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-elasticsearch with-elasticsearch-app
 # or
 yarn create next-app --example with-elasticsearch with-elasticsearch-app
+# or
+pnpm create next-app -- --example with-elasticsearch with-elasticsearch-app
 ```
 
 ## Configuration

@@ -9,7 +9,7 @@ const imagePageData = fs.readFileSync(
 
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -133,13 +133,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              swcMinify: ${
-                // TODO: remove after stable release > 11.1.2
-                process.env.STATS_IS_RELEASE ? 'false' : 'true'
-              },
-              experimental: {
-                swcLoader: true,
-              },
+              swcMinify: true,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -160,14 +154,7 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
-              swcMinify: ${
-                // TODO: remove after stable release > 11.1.2
-                process.env.STATS_IS_RELEASE ? 'false' : 'true'
-              },
-              experimental: {
-                swcLoader: true,
-                
-              },
+              swcMinify: true,
               generateBuildId: () => 'BUILD_ID'
             }
           `,

@@ -13,7 +13,7 @@ If you are using the [gtag.js](https://developers.google.com/analytics/devguides
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -44,7 +44,7 @@ If you are using the [analytics.js](https://developers.google.com/analytics/devg
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <Script id="google-analytics" strategy="afterInteractive">
@@ -70,7 +70,7 @@ If you are using the [alternative async variant](https://developers.google.com/a
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
     <div class="container">
       <Script id="google-analytics" strategy="afterInteractive">

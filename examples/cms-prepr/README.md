@@ -4,10 +4,10 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [https://next-blog-prepr.now.sh/](https://next-blog-prepr.now.sh/)
-- **Preview Mode**: [https://next-blog-prepr.now.sh/api/preview...](https://next-blog-prepr.now.sh/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
+- **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
+- **Preview Mode**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
 
-### [https://next-blog-prepr.now.sh/](https://next-blog-prepr.now.sh/)
+### [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
 
 ### Related examples
 
@@ -41,6 +41,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-prepr cms-prepr-app
 # or
 yarn create next-app --example cms-prepr cms-prepr-app
+# or
+pnpm create next-app -- --example cms-prepr cms-prepr-app
 ```
 
 ## Configuration

@@ -29,7 +29,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/document should not be imported outside of pages/_document.js. See https://nextjs.org/docs/messages/no-document-import-in-page.`,
+          message: `next/document should not be imported outside of pages/_document.js. See: https://nextjs.org/docs/messages/no-document-import-in-page`,
         })
       },
     }

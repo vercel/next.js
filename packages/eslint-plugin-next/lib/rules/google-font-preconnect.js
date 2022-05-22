@@ -33,7 +33,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `Preconnect is missing. See https://nextjs.org/docs/messages/google-font-preconnect.`,
+            message: `Preconnect is missing. See: https://nextjs.org/docs/messages/google-font-preconnect`,
           })
         }
       },
