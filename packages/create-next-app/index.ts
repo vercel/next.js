@@ -89,16 +89,13 @@ async function run(): Promise<void> {
 
   if (!projectPath) {
     console.log(
-      `
-      
-      Please specify the project directory:
-        ${chalk.cyan(program.name())} ${chalk.green('<project-directory>')}
-      
-      For example:
-        ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}
-      
-      Run ${chalk.cyan(`${program.name()} --help`)} to see all options.
-      `
+      '\nPlease specify the project directory:\n' +
+        `  ${chalk.cyan(program.name())} ${chalk.green(
+          '<project-directory>'
+        )}\n` +
+        'For example:\n' +
+        `  ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}\n\n` +
+        `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }
@@ -129,7 +126,7 @@ async function run(): Promise<void> {
     ? 'npm'
     : !!program.usePnpm
     ? 'pnpm'
-    : 'yarn'
+    : getPkgManager()
 
   const example = typeof program.example === 'string' && program.example.trim()
   try {
@@ -172,13 +169,16 @@ async function notifyUpdate(): Promise<void> {
     const res = await update
     if (res?.latest) {
       const pkgManager = getPkgManager()
-
       console.log(
-        `
-        chalk.yellow.bold('A new version of `create-next-app` is available!')
-        You can update by running: ${chalk.cyan(pkgManager === 'yarn' ? 'yarn global add create-next-app' : `${pkgManager} install --global create-next-app` )}
-        
-        `
+        chalk.yellow.bold('A new version of `create-next-app` is available!') +
+          '\n' +
+          'You can update by running: ' +
+          chalk.cyan(
+            pkgManager === 'yarn'
+              ? 'yarn global add create-next-app'
+              : `${pkgManager} install --global create-next-app`
+          ) +
+          '\n'
       )
     }
     process.exit()
@@ -196,10 +196,9 @@ run()
       console.log(`  ${chalk.cyan(reason.command)} has failed.`)
     } else {
       console.log(
-        `
-        ${chalk.red('Unexpected error. Please report it as a bug:')}
-        ${reason}
-        `
+        chalk.red('Unexpected error. Please report it as a bug:') + '\n',
+        reason
+      )
     }
     console.log()
 
