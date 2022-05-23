@@ -74,7 +74,7 @@ if (!testMode) {
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
   )
 }
-console.log(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
+console.warn(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
 
 /**
  * FileRef is wrapper around a file path that is meant be copied
