@@ -45,3 +45,14 @@ it('Request.referrer can be customized', async () => {
   const request = new Request('https://vercel.com', { referrer: 'client' })
   expect(request.referrer).toBe('client')
 })
+
+it('Request copies over method', async () => {
+  const request = new Request('https://vercel.com', {
+    method: 'POST',
+    body: 'hello',
+  })
+
+  const clonedRequest = new Request(request)
+
+  expect(clonedRequest.method).toBe(request.method)
+})
