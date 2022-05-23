@@ -912,7 +912,7 @@ jobs:
     name: E2E (deploy)
     runs-on: ubuntu-latest
     # todo revert after testing
-    needs: [build]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -944,7 +944,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: node run-tests.js --type e2e --debug
+      - run: node run-tests.js --type e2e
         name: Run test/e2e (deploy)
 
       - name: Upload test trace

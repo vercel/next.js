@@ -235,7 +235,6 @@ async function main() {
 
   const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
-      console.warn('TEST_MODE:', process.env.NEXT_TEST_MODE)
       const start = new Date().getTime()
       let outputChunks = []
       const child = spawn(
