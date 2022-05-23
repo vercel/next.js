@@ -1,10 +1,11 @@
 import { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
-import type { DynamicRoutes, PageChecker, Params, Route } from './router'
+import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
@@ -33,12 +34,7 @@ import {
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
-import {
-  getRouteMatcher,
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import {
   setLazyProp,
   getCookieParser,
@@ -64,22 +60,23 @@ import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError, { getProperError } from '../lib/is-error'
-import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
 import { normalizeViewPath } from '../shared/lib/router/utils/view-paths'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: NextParsedUrlQuery
 }
 
-interface RoutingItem {
+export interface RoutingItem {
   page: string
-  match: ReturnType<typeof getRouteMatcher>
+  match: RouteMatch
   ssr?: boolean
 }
 
@@ -184,8 +181,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected dynamicRoutes?: DynamicRoutes
   protected viewPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
-  protected middlewareManifest?: MiddlewareManifest
-  protected middleware?: RoutingItem[]
   protected serverComponentManifest?: any
   public readonly hostname?: string
   public readonly port?: number
@@ -210,26 +205,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fallback: Route[]
   }
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract getMiddleware(): {
-    match: (pathname: string | null | undefined) =>
-      | false
-      | {
-          [paramName: string]: string | string[]
-        }
-    page: string
-  }[]
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
     params?: Params | null
   ): Promise<FindComponentsResult | null>
-  protected abstract hasMiddleware(
-    pathname: string,
-    _isSSR?: boolean
-  ): Promise<boolean>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
-  protected abstract getMiddlewareManifest(): MiddlewareManifest | undefined
   protected abstract getRoutesManifest(): CustomRoutes
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
@@ -357,7 +339,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.pagesManifest = this.getPagesManifest()
     this.viewPathsManifest = this.getViewPathsManifest()
-    this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -488,7 +469,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           srcPathname = denormalizePagePath(srcPathname)
         }
 
-        if (!isDynamicRoute(srcPathname) && !this.hasPage(srcPathname)) {
+        if (
+          !isDynamicRoute(srcPathname) &&
+          !(await this.hasPage(srcPathname))
+        ) {
           for (const dynamicRoute of this.dynamicRoutes || []) {
             if (dynamicRoute.match(srcPathname)) {
               srcPathname = dynamicRoute.page
@@ -677,8 +661,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return this.getPrerenderManifest().preview
   }
 
-  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
-
   protected generateRoutes(): {
     basePath: string
     headers: Route[]
@@ -840,13 +822,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (pathname.match(MIDDLEWARE_ROUTE)) {
-          await this.render404(req, res, parsedUrl)
-          return {
-            finished: true,
-          }
-        }
-
         if (pathname === '/api' || pathname.startsWith('/api/')) {
           delete query._nextBubbleNoFallback
 
@@ -878,9 +853,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (useFileSystemPublicRoutes) {
       this.viewPathRoutes = this.getViewPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
-      if (!this.minimalMode) {
-        this.middleware = this.getMiddleware()
-      }
     }
 
     return {
@@ -1629,7 +1601,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isSSG) {
+    if (isSSG && !this.minimalMode) {
       // set x-nextjs-cache header to match the header
       // we set for the image-optimizer
       res.setHeader(

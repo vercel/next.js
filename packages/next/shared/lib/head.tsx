@@ -134,7 +134,7 @@ function reduceComponents(
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(props.inAmpMode))
+    .concat(defaultHead(props.inAmpMode).reverse())
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {

@@ -11,6 +11,12 @@ function onUnhandledError(ev: ErrorEvent) {
     return
   }
 
+  if (
+    error.message.match(/(hydration|content does not match|did not match)/i)
+  ) {
+    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+  }
+
   const e = error
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
