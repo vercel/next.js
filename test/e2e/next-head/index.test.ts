@@ -22,6 +22,19 @@ describe('should set-up next', () => {
   })
   afterAll(() => next.destroy())
 
+  it(`should place charset element at the top of <head>`, async () => {
+    const browser = await webdriver(next.url, '/')
+
+    const html = await browser.eval(() => {
+      const head = document.querySelector('head')
+      return head.innerHTML
+    })
+
+    expect(html).toContain(
+      `<meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="test-head-1" content="hello">`
+    )
+  })
+
   it('should have correct head tags in initial document', async () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
@@ -29,6 +42,13 @@ describe('should set-up next', () => {
     for (let i = 1; i < 5; i++) {
       expect($(`meta[name="test-head-${i}"]`).attr()['content']).toBe('hello')
     }
+  })
+
+  it('should have correct head tags from a fragment', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    const $ = cheerio.load(html)
+
+    expect($(`meta[name="test-in-fragment"]`).attr()['content']).toBe('hello')
   })
 
   it('should have correct head tags after hydration', async () => {

@@ -1,12 +1,11 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
-import type { NextConfigComplete, NextConfig } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import type { PageRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
-import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
@@ -29,8 +28,8 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { parse } from '../build/swc'
-import { isServerComponentPage, withoutRSCExtensions } from './utils'
+import { isServerComponentPage } from './utils'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { serverComponentRegex } from './webpack/loaders/utils'
@@ -38,17 +37,11 @@ import { serverComponentRegex } from './webpack/loaders/utils'
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
 /**
- * For a given page path removes the provided extensions. `/_app.server` is a
- * special case because it is the only page where we want to preserve the RSC
- * server extension.
+ * For a given page path removes the provided extensions.
  */
 export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
-  const extensions = pagePath.includes('/_app.server.')
-    ? withoutRSCExtensions(pageExtensions)
-    : pageExtensions
-
   let page = normalizePathSep(
-    pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
+    pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
 
   page = page.replace(/\/index$/, '')
@@ -119,7 +112,6 @@ export function createPagesMapping({
 
   if (isDev) {
     delete pages['/_app']
-    delete pages['/_app.server']
     delete pages['/_error']
     delete pages['/_document']
   }
@@ -133,131 +125,7 @@ export function createPagesMapping({
     '/_app': `${root}/_app`,
     '/_error': `${root}/_error`,
     '/_document': `${root}/_document`,
-    ...(hasServerComponents ? { '/_app.server': `${root}/_app.server` } : {}),
     ...pages,
-  }
-}
-
-type PageStaticInfo = { runtime?: PageRuntime; ssr?: boolean; ssg?: boolean }
-
-const cachedPageStaticInfo = new Map<string, [number, PageStaticInfo]>()
-
-// @TODO: We should limit the maximum concurrency of this function as there
-// could be thousands of pages existing.
-export async function getPageStaticInfo(
-  pageFilePath: string,
-  nextConfig: Partial<NextConfig>,
-  isDev?: boolean
-): Promise<PageStaticInfo> {
-  const globalRuntime = nextConfig.experimental?.runtime
-  const cached = cachedPageStaticInfo.get(pageFilePath)
-  if (cached) {
-    return cached[1]
-  }
-
-  let pageContent: string
-  try {
-    pageContent = await fs.promises.readFile(pageFilePath, {
-      encoding: 'utf8',
-    })
-  } catch (err) {
-    if (!isDev) throw err
-    return {}
-  }
-
-  // When gSSP or gSP is used, this page requires an execution runtime. If the
-  // page config is not present, we fallback to the global runtime. Related
-  // discussion:
-  // https://github.com/vercel/next.js/discussions/34179
-  let isRuntimeRequired: boolean = false
-  let pageRuntime: PageRuntime = undefined
-  let ssr = false
-  let ssg = false
-
-  // Since these configurations should always be static analyzable, we can
-  // skip these cases that "runtime" and "gSP", "gSSP" are not included in the
-  // source code.
-  if (/runtime|getStaticProps|getServerSideProps/.test(pageContent)) {
-    try {
-      const { body } = await parse(pageContent, {
-        filename: pageFilePath,
-        isModule: 'unknown',
-      })
-
-      for (const node of body) {
-        const { type, declaration } = node
-        if (type === 'ExportDeclaration') {
-          // Match `export const config`
-          const valueNode = declaration?.declarations?.[0]
-          if (valueNode?.id?.value === 'config') {
-            const props = valueNode.init.properties
-            const runtimeKeyValue = props.find(
-              (prop: any) => prop.key.value === 'runtime'
-            )
-            const runtime = runtimeKeyValue?.value?.value
-            pageRuntime =
-              runtime === 'edge' || runtime === 'nodejs' ? runtime : pageRuntime
-          } else if (declaration?.type === 'FunctionDeclaration') {
-            // Match `export function getStaticProps | getServerSideProps`
-            const identifier = declaration.identifier?.value
-            if (
-              identifier === 'getStaticProps' ||
-              identifier === 'getServerSideProps'
-            ) {
-              isRuntimeRequired = true
-              ssg = identifier === 'getStaticProps'
-              ssr = identifier === 'getServerSideProps'
-            }
-          }
-        } else if (type === 'ExportNamedDeclaration') {
-          // Match `export { getStaticProps | getServerSideProps } <from '../..'>`
-          const { specifiers } = node
-          for (const specifier of specifiers) {
-            const { orig } = specifier
-            const hasDataFetchingExports =
-              specifier.type === 'ExportSpecifier' &&
-              orig?.type === 'Identifier' &&
-              (orig?.value === 'getStaticProps' ||
-                orig?.value === 'getServerSideProps')
-            if (hasDataFetchingExports) {
-              isRuntimeRequired = true
-              ssg = orig.value === 'getStaticProps'
-              ssr = orig.value === 'getServerSideProps'
-              break
-            }
-          }
-        }
-      }
-    } catch (err) {}
-  }
-
-  if (!pageRuntime) {
-    if (isRuntimeRequired) {
-      pageRuntime = globalRuntime
-    }
-  } else {
-    // For Node.js runtime, we do static optimization.
-    if (!isRuntimeRequired && pageRuntime === 'nodejs') {
-      pageRuntime = undefined
-    }
-  }
-
-  const info = {
-    runtime: pageRuntime,
-    ssr,
-    ssg,
-  }
-  cachedPageStaticInfo.set(pageFilePath, [Date.now(), info])
-  return info
-}
-
-export function invalidatePageRuntimeCache(
-  pageFilePath: string,
-  safeTime: number
-) {
-  const cached = cachedPageStaticInfo.get(pageFilePath)
-  if (cached && cached[0] < safeTime) {
-    cachedPageStaticInfo.delete(pageFilePath)
   }
 }
 
@@ -299,7 +167,6 @@ export function getEdgeServerEntry(opts: {
   const loaderParams: MiddlewareSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
@@ -343,7 +210,6 @@ export function getServerlessEntry(opts: {
   const loaderParams: ServerlessLoaderQuery = {
     absolute404Path: opts.pages['/404'] || '',
     absoluteAppPath: opts.pages['/_app'],
-    absoluteAppServerPath: opts.pages['/_app.server'],
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
@@ -457,10 +323,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
 
+      const staticInfo = await getPageStaticInfo({
+        nextConfig: config,
+        pageFilePath,
+        isDev,
+      })
+
       runDependingOnPageType({
         page,
-        pageRuntime: (await getPageStaticInfo(pageFilePath, config, isDev))
-          .runtime,
+        pageRuntime: staticInfo.runtime,
         onClient: () => {
           if (isServerComponent) {
             // We skip the initial entries for server component pages and let the

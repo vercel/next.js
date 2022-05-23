@@ -469,7 +469,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           srcPathname = denormalizePagePath(srcPathname)
         }
 
-        if (!isDynamicRoute(srcPathname) && !this.hasPage(srcPathname)) {
+        if (
+          !isDynamicRoute(srcPathname) &&
+          !(await this.hasPage(srcPathname))
+        ) {
           for (const dynamicRoute of this.dynamicRoutes || []) {
             if (dynamicRoute.match(srcPathname)) {
               srcPathname = dynamicRoute.page
@@ -669,7 +672,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route
+    catchAllMiddleware?: Route | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined

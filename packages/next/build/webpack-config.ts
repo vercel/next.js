@@ -606,18 +606,11 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
+      ...config.pageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_app.js',
-    ]
-    customAppAliases[`${PAGES_DIR_ALIAS}/_app.server`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_app.server.${ext}`))
-        return prev
-      }, [] as string[]),
-      'next/dist/pages/_app.server.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...config.pageExtensions.reduce((prev, ext) => {
@@ -1673,7 +1666,7 @@ export default async function getBaseWebpackConfig(
               ],
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
-              ['swcEmotion', !!config.experimental.emotion],
+              ['swcEmotion', !!config.compiler?.emotion],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
@@ -1731,8 +1724,15 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  if (!webpack5Config.output) {
+    webpack5Config.output = {}
+  }
+  if (isClient) {
+    webpack5Config.output.trustedTypes = 'nextjs#bundler'
+  }
+
   if (isClient || isEdgeServer) {
-    webpack5Config.output!.enabledLibraryTypes = ['assign']
+    webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
   if (dev) {
@@ -1803,7 +1803,7 @@ export default async function getBaseWebpackConfig(
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
-    emotion: config.experimental?.emotion,
+    emotion: config.compiler?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
   })
