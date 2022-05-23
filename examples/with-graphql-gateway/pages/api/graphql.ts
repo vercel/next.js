@@ -6,7 +6,7 @@ import { getBuiltMesh } from '../../.mesh'
 
 async function buildServer() {
   // retrieve the mesh instance (with configured Envelop plugins)
-  const mesh = await getBuiltMesh();
+  const mesh = await getBuiltMesh()
   // pass the Mesh instance to Yoga and configure GraphiQL
   const server = createServer({
     plugins: mesh.plugins,
@@ -14,13 +14,16 @@ async function buildServer() {
       endpoint: '/api/graphql',
       title: 'GraphQL Gateway',
     },
-  });
+  })
 
-  return server;
+  return server
 }
 
-const server$ = buildServer();
+const server$ = buildServer()
 
-export default async function apiHandler(req: NextApiRequest, res: NextApiResponse) {
+export default async function apiHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   return (await server$).requestListener(req, res)
 }
