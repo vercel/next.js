@@ -1,6 +1,6 @@
-# SVG components example
+# SVG components example with SWC
 
-This example uses a custom `.babelrc` to add support for importing `.svg` files and rendering them as React components. [babel-plugin-inline-react-svg](https://www.npmjs.com/package/babel-plugin-inline-react-svg) is used to handle transpiling the SVGs.
+This example uses svg components without disabling SWC using @svgr/webpack to import `.svg` files and rendering them as React components. [@svgr/webpack](https://www.npmjs.com/package/@svgr/webpack).
 
 ## Deploy your own
 
