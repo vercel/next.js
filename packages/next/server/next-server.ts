@@ -2,7 +2,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import type { CacheFs } from '../shared/lib/utils'
+import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -18,8 +18,6 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
-
-import { execOnce } from '../shared/lib/utils'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -1249,6 +1247,12 @@ export default class NextNodeServer extends BaseServer {
         } catch (err) {
           if (isError(err) && err.code === 'ENOENT') {
             await this.render404(req, res, parsed)
+            return { finished: true }
+          }
+
+          if (err instanceof DecodeError) {
+            res.statusCode = 400
+            this.renderError(err, req, res, parsed.pathname || '')
             return { finished: true }
           }
 

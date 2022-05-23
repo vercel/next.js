@@ -399,6 +399,10 @@
           "path": "/errors/no-server-import-in-page.md"
         },
         {
+          "title": "no-styled-jsx-in-document",
+          "path": "/errors/no-styled-jsx-in-document.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
@@ -657,6 +661,10 @@
         {
           "title": "invalid-script",
           "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
         },
         {
           "title": "returning-response-body-in-middleware",

@@ -6,6 +6,11 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('views dir', () => {
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
     it('should skip for react v17', () => {})
     return
