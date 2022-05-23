@@ -18,7 +18,7 @@ import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import {
   API_ROUTE,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
   VIEWS_DIR_ALIAS,
 } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
@@ -43,7 +43,9 @@ import { Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
-import { getPageRuntime } from '../../build/entries'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { stringify } from 'querystring'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -403,6 +405,7 @@ export default class HotReloader {
             hasServerComponents: this.hasServerComponents,
             isDev: true,
             pageExtensions: this.config.pageExtensions,
+            pagesType: 'pages',
             pagePaths: pagePaths.filter(
               (i): i is string => typeof i === 'string'
             ),
@@ -420,6 +423,7 @@ export default class HotReloader {
             pages: this.pagesMapping,
             pagesDir: this.pagesDir,
             previewMode: this.previewProps,
+            rootDir: this.dir,
             target: 'server',
             pageExtensions: this.config.pageExtensions,
           })
@@ -488,6 +492,7 @@ export default class HotReloader {
           },
           pagesDir: this.pagesDir,
           previewMode: this.previewProps,
+          rootDir: this.dir,
           target: 'server',
           pageExtensions: this.config.pageExtensions,
         })
@@ -541,6 +546,10 @@ export default class HotReloader {
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+
+            // @FIXME
+            const { clientLoader } = entries[pageKey] as any
+
             const result = /^(client|server|edge-server)(.*)/g.exec(pageKey)
             const [, key, page] = result! // this match should always happen
             if (key === 'client' && !isClientCompilation) return
@@ -554,29 +563,52 @@ export default class HotReloader {
               return
             }
 
+            const isServerComponent =
+              serverComponentRegex.test(absolutePagePath)
+
+            const staticInfo = await getPageStaticInfo({
+              pageFilePath: absolutePagePath,
+              nextConfig: this.config,
+            })
+
             runDependingOnPageType({
               page,
-              pageRuntime: await getPageRuntime(absolutePagePath, this.config),
+              pageRuntime: staticInfo.runtime,
               onEdgeServer: () => {
-                if (isEdgeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'edge-server',
-                    name: bundlePath,
-                    value: getEdgeServerEntry({
-                      absolutePagePath,
-                      buildId: this.buildId,
-                      bundlePath,
-                      config: this.config,
-                      isDev: true,
-                      page,
-                      pages: this.pagesMapping,
-                    }),
-                  })
-                }
+                if (!isEdgeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'edge-server',
+                  name: bundlePath,
+                  value: getEdgeServerEntry({
+                    absolutePagePath,
+                    buildId: this.buildId,
+                    bundlePath,
+                    config: this.config,
+                    isDev: true,
+                    page,
+                    pages: this.pagesMapping,
+                    isServerComponent,
+                  }),
+                })
               },
               onClient: () => {
-                if (isClientCompilation) {
+                if (!isClientCompilation) return
+                if (isServerComponent) {
+                  entries[pageKey].status = BUILDING
+                  entrypoints[bundlePath] = finalizeEntrypoint({
+                    name: bundlePath,
+                    compilerType: 'client',
+                    value:
+                      `next-client-pages-loader?${stringify({
+                        isServerComponent,
+                        page: denormalizePagePath(
+                          bundlePath.replace(/^pages/, '')
+                        ),
+                        absolutePagePath: clientLoader,
+                      })}!` + clientLoader,
+                  })
+                } else {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -589,29 +621,30 @@ export default class HotReloader {
                 }
               },
               onServer: () => {
-                if (isNodeServerCompilation) {
-                  entries[pageKey].status = BUILDING
-                  let request = relative(config.context!, absolutePagePath)
-                  if (!isAbsolute(request) && !request.startsWith('../')) {
-                    request = `./${request}`
-                  }
-
-                  entrypoints[bundlePath] = finalizeEntrypoint({
-                    compilerType: 'server',
-                    name: bundlePath,
-                    value:
-                      this.viewsDir && bundlePath.startsWith('views/')
-                        ? getViewsEntry({
-                            pagePath: join(
-                              VIEWS_DIR_ALIAS,
-                              relative(this.viewsDir!, absolutePagePath)
-                            ),
-                            viewsDir: this.viewsDir!,
-                            pageExtensions: this.config.pageExtensions,
-                          })
-                        : request,
-                  })
+                if (!isNodeServerCompilation) return
+                entries[pageKey].status = BUILDING
+                let request = relative(config.context!, absolutePagePath)
+                if (!isAbsolute(request) && !request.startsWith('../')) {
+                  request = `./${request}`
                 }
+
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  compilerType: 'server',
+                  name: bundlePath,
+                  isServerComponent,
+                  value:
+                    this.viewsDir && bundlePath.startsWith('views/')
+                      ? getViewsEntry({
+                          name: bundlePath,
+                          pagePath: join(
+                            VIEWS_DIR_ALIAS,
+                            relative(this.viewsDir!, absolutePagePath)
+                          ),
+                          viewsDir: this.viewsDir!,
+                          pageExtensions: this.config.pageExtensions,
+                        })
+                      : request,
+                })
               },
             })
           })
@@ -647,7 +680,7 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/')) {
+            if (key.startsWith('pages/') || key === MIDDLEWARE_FILENAME) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -766,7 +799,7 @@ export default class HotReloader {
         changedClientPages
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => name.match(MIDDLEWARE_ROUTE)
+        (name) => name === MIDDLEWARE_FILENAME
       )
       changedClientPages.clear()
       changedServerPages.clear()
@@ -857,6 +890,7 @@ export default class HotReloader {
       watcher: this.watcher,
       pagesDir: this.pagesDir,
       viewsDir: this.viewsDir,
+      rootDir: this.dir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number

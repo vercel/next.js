@@ -1,6 +1,7 @@
 import path from 'path'
 import type webpack from 'webpack5'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
+import { getModuleBuildInfo } from './get-module-build-info'
 
 function pathToUrlPath(pathname: string) {
   let urlPath = pathname.replace(/^private-next-views-dir/, '')
@@ -54,11 +55,19 @@ async function resolveLayoutPathsByPage({
 }
 
 const nextViewLoader: webpack.LoaderDefinitionFunction<{
+  name: string
   pagePath: string
   viewsDir: string
   pageExtensions: string[]
 }> = async function nextViewLoader() {
-  const { viewsDir, pagePath, pageExtensions } = this.getOptions() || {}
+  const { name, viewsDir, pagePath, pageExtensions } = this.getOptions() || {}
+
+  const buildInfo = getModuleBuildInfo((this as any)._module)
+  buildInfo.route = {
+    page: name.replace(/^views/, ''),
+    absolutePagePath:
+      viewsDir + pagePath.replace(/^private-next-views-dir/, ''),
+  }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
   const resolveOptions: any = {
@@ -110,6 +119,8 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
     export const components = {
         ${componentsCode.join(',\n')}
     };
+
+    export const __next_view_webpack_require__ = __webpack_require__
   `
   return result
 }

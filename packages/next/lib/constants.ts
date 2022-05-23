@@ -19,12 +19,15 @@ export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
 export const API_ROUTE = /^\/api(?:\/|$)/
 
 // Regex for middleware
-export const MIDDLEWARE_ROUTE = /_middleware$/
+export const MIDDLEWARE_ROUTE = /middleware$/
+export const MIDDLEWARE_FILENAME = 'middleware'
+export const MIDDLEWARE_FILE = `/${MIDDLEWARE_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
+export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const VIEWS_DIR_ALIAS = 'private-next-views-dir'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`

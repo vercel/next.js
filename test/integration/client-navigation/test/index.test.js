@@ -626,6 +626,13 @@ describe('Client Navigation', () => {
           )
 
           expect(scrollPositionAfterTopHash).toBe(0)
+
+          // Scrolls to cjk anchor on the page
+          await browser.elementByCss('#scroll-to-cjk-anchor').click()
+
+          const scrollPositionCJKHash = await browser.eval('window.pageYOffset')
+
+          expect(scrollPositionCJKHash).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -684,6 +691,26 @@ describe('Client Navigation', () => {
 
           const scrollPosition = await browser.eval('window.pageYOffset')
           expect(scrollPosition).toBe(7258)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('should scroll to the specified CJK position to a new page', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+
+          // Scrolls to CJK anchor on the page
+          await browser
+            .elementByCss('#scroll-to-cjk-hash')
+            .click()
+            .waitForElementByCss('#hash-changes-page')
+
+          const scrollPosition = await browser.eval('window.pageYOffset')
+          expect(scrollPosition).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -1438,6 +1465,82 @@ describe('Client Navigation', () => {
       }
     })
 
+    it('should warn when stylesheets or scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let foundStyles = false
+        let foundScripts = false
+        const logs = []
+        browserLogs.forEach(({ message }) => {
+          if (message.includes('Do not add stylesheets using next/head')) {
+            foundStyles = true
+            logs.push(message)
+          }
+          if (message.includes('Do not add <script> tags using next/head')) {
+            foundScripts = true
+            logs.push(message)
+          }
+        })
+
+        expect(foundStyles).toEqual(true)
+        expect(foundScripts).toEqual(true)
+
+        // Warnings are unique
+        expect(logs.length).toEqual(new Set(logs).size)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(true)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should not warn when application/ld+json scripts are in head', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-with-json-ld-snippet')
+        await browser.waitForElementByCss('h1')
+        await waitFor(1000)
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          if (log.message.includes('Use next/script instead')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should update head during client routing', async () => {
       let browser
       try {
@@ -1609,6 +1712,49 @@ describe('Client Navigation', () => {
     )
 
     expect(value).toBe(false)
+  })
+
+  it('should emit routeChangeError on hash change cancel', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.routeErrors = []
+      
+      window.next.router.events.on('routeChangeError', function (err) {
+        window.routeErrors.push(err)
+      })
+      window.next.router.push('#first')
+      window.next.router.push('#second')
+      window.next.router.push('#third')
+    })()`)
+
+    await check(async () => {
+      const errorCount = await browser.eval('window.routeErrors.length')
+      return errorCount > 0 ? 'success' : errorCount
+    }, 'success')
+  })
+
+  it('should navigate to paths relative to the current page', async () => {
+    const browser = await webdriver(context.appPort, '/nav/relative')
+    let page
+
+    await browser.elementByCss('a').click()
+
+    browser.waitForElementByCss('#relative-1')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 1/)
+    await browser.elementByCss('a').click()
+
+    browser.waitForElementByCss('#relative-2')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 2/)
+
+    await browser.elementByCss('button').click()
+    browser.waitForElementByCss('#relative')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative index/)
+
+    await browser.close()
   })
 
   renderingSuite(
