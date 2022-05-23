@@ -1,7 +1,5 @@
-import { isNextBuiltinClientComponent } from './utils'
-
 export default async function transformSource(this: any): Promise<string> {
-  const { modules, runtime, ssr } = this.getOptions()
+  const { modules, runtime, ssr, isViews } = this.getOptions()
   const requests: string[] = !Array.isArray(modules)
     ? modules
       ? [modules]
@@ -11,11 +9,7 @@ export default async function transformSource(this: any): Promise<string> {
   const source =
     requests
       .map((request: string) => {
-        // TODO: only emit lazy chunks if it's under views/
-        const isClientSource =
-          !isNextBuiltinClientComponent(request) &&
-          request.endsWith('.client.js')
-        const webpackMode = isClientSource ? 'lazy' : 'eager'
+        const webpackMode = isViews ? 'lazy' : 'eager'
 
         return `import(
           /* webpackMode: "${webpackMode}" */

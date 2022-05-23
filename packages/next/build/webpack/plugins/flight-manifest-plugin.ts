@@ -149,6 +149,7 @@ export class FlightManifestPlugin {
           ssr: pageStaticInfo.ssr,
           // Adding name here to make the entry key unique.
           name,
+          isViews: request.startsWith('next-view-loader'),
         })}!`
 
         const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
@@ -227,7 +228,7 @@ export class FlightManifestPlugin {
   createAsset(assets: any, compilation: webpack5.Compilation) {
     const manifest: any = {}
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function recordModule(chunk_: any, id: string, mod: any) {
+      function recordModule(id: string, mod: any) {
         const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
@@ -289,14 +290,13 @@ export class FlightManifestPlugin {
           modId = modId.split('?')[0]
           // Remove the loader prefix.
           modId = modId.split('next-flight-client-loader.js!')[1] || modId
-          recordModule(chunk, modId.replace(/^\(sc_server\)\//, ''), mod)
-          // modId = modId.replace(/^\(sc_server\)\//, '')
-          recordModule(chunk, modId, mod)
+          recordModule(modId.replace(/^\(sc_server\)\//, ''), mod)
+
           // If this is a concatenation, register each child to the parent ID.
           const anyMod = mod as any
           if (anyMod.modules) {
             anyMod.modules.forEach((concatenatedMod: any) => {
-              recordModule(chunk, modId as string, concatenatedMod)
+              recordModule(modId as string, concatenatedMod)
             })
           }
         }
