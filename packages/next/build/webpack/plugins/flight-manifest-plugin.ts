@@ -56,10 +56,10 @@ export class FlightManifestPlugin {
     this.isEdgeServer = options.isEdgeServer
   }
 
-  apply(compiler: any) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
+      (compilation, { normalModuleFactory }) => {
         compilation.dependencyFactories.set(
           (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
@@ -149,7 +149,7 @@ export class FlightManifestPlugin {
           ssr: pageStaticInfo.ssr,
           // Adding name here to make the entry key unique.
           name,
-          isViews: request.startsWith('next-view-loader'),
+          isViews: request.startsWith('next-view-loader') ? '1' : undefined,
         })}!`
 
         const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
@@ -290,7 +290,8 @@ export class FlightManifestPlugin {
           modId = modId.split('?')[0]
           // Remove the loader prefix.
           modId = modId.split('next-flight-client-loader.js!')[1] || modId
-          recordModule(modId.replace(/^\(sc_server\)\//, ''), mod)
+          modId = modId.replace(/^\(sc_server\)\//, '')
+          recordModule(modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
           const anyMod = mod as any

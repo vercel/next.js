@@ -6,14 +6,14 @@ const NEXT_BUILT_IN_CLIENT_RSC_FILE_PATH_REGEX = new RegExp(
   `[\\\\/]next[\\\\/](${nextClientComponents.join('|')})\\.js$`
 )
 
-const NEXT_BUILT_IN_CLIENT_RSC_IMPORT_PATH_REGEX = new RegExp(
-  `next/${nextClientComponents.join('|')}`
+const NEXT_BUILT_IN_CLIENT_PATH_REGEX = new RegExp(
+  `^next/(${nextClientComponents.join('|')})`
 )
 
 export function isNextBuiltinClientComponent(resourcePath: string) {
   return (
     NEXT_BUILT_IN_CLIENT_RSC_FILE_PATH_REGEX.test(resourcePath) ||
-    NEXT_BUILT_IN_CLIENT_RSC_IMPORT_PATH_REGEX.test(resourcePath)
+    NEXT_BUILT_IN_CLIENT_PATH_REGEX.test(resourcePath)
   )
 }
 
