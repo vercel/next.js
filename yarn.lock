@@ -5684,10 +5684,10 @@
   resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.33.4.tgz#e44a87511f583b7ba88e4b9ae90eeb7ba252b872"
   integrity sha512-ln18hs7dMffelP47tpkaR+V5Tj6coykNyxJrlcmCormPqRQjB/Gv4cu2FfBG+PMzIfdZp2CLDsrrB1NPU22Qhg==
 
-"@vercel/nft@0.19.0":
-  version "0.19.0"
-  resolved "https://registry.yarnpkg.com/@vercel/nft/-/nft-0.19.0.tgz#56f2a17e0685b5c052158aafec3a9f31552de5b4"
-  integrity sha512-diHIP3/OHq/4wSkS4JJ7LqY6NAQOpCr83vpNZuKqx2PV7zrhwUH8CZ9QCu0SHkZh3LYaV0zcbGusVxTNw3DMvA==
+"@vercel/nft@0.19.1":
+  version "0.19.1"
+  resolved "https://registry.yarnpkg.com/@vercel/nft/-/nft-0.19.1.tgz#dcd3c20d7ef14d2050244e7d5edcfecc7303dd46"
+  integrity sha512-klR5oN7S3WJsZz0r6Xsq7o8YlFEyU3/00VmlpZzIPVFzKfbcEjXo/sVR5lQBUqNKuOzhcbxaFtzW9aOyHjmPYA==
   dependencies:
     "@mapbox/node-pre-gyp" "^1.0.5"
     acorn "^8.6.0"
