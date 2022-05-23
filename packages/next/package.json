@@ -96,7 +96,7 @@
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
-    "@babel/core": "7.15.0",
+    "@babel/core": "7.18.0",
     "@babel/eslint-parser": "7.15.0",
     "@babel/generator": "7.15.0",
     "@babel/plugin-proposal-class-properties": "7.14.5",
