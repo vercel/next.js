@@ -459,10 +459,10 @@ export type BaseRouter = {
   query: ParsedUrlQuery
   asPath: string
   basePath: string
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  locale?: string | undefined
+  locales?: string[] | undefined
+  defaultLocale?: string | undefined
+  domainLocales?: DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -637,11 +637,11 @@ export default class Router implements BaseRouter {
   events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
-  _inFlightRoute?: string
-  _shallow?: boolean
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  _inFlightRoute?: string | undefined
+  _shallow?: boolean | undefined
+  locales?: string[] | undefined
+  defaultLocale?: string | undefined
+  domainLocales?: DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
 
