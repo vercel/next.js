@@ -22,16 +22,6 @@ export class NextDeployInstance extends NextInstance {
 
   public async setup() {
     await super.createTestDir({ skipInstall: true })
-    let vcConfigDir
-
-    if (process.env.NEXT_TEST_JOB) {
-      vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-    }
 
     // ensure Vercel CLI is installed
     try {
@@ -43,10 +33,17 @@ export class NextDeployInstance extends NextInstance {
         stdio: 'inherit',
       })
     }
-    const vercelFlags = ['--scope', TEST_TEAM_NAME, '']
+    const vercelFlags = ['--scope', TEST_TEAM_NAME]
     const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
 
-    if (vcConfigDir) {
+    // create auth file in CI
+    if (process.env.NEXT_TEST_JOB) {
+      const vcConfigDir = path.join(os.homedir(), '.vercel')
+      await fs.ensureDir(vcConfigDir)
+      await fs.writeFile(
+        path.join(vcConfigDir, 'auth.json'),
+        JSON.stringify({ token: TEST_TOKEN })
+      )
       vercelFlags.push('--global-config', vcConfigDir)
     }
     require('console').log(`Linking project at ${this.testDir}`)
