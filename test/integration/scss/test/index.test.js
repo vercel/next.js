@@ -17,8 +17,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { quote as shellQuote } from 'shell-quote'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
 describe('SCSS Support', () => {
@@ -36,17 +34,19 @@ describe('SCSS Support', () => {
         env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
         stderr: true,
       })
+      let cleanScssErrMsg =
+        '\n\n' +
+        './styles/global.scss\n' +
+        "To use Next.js' built-in Sass support, you first need to install `sass`.\n" +
+        'Run `npm i sass` or `yarn add sass` inside your workspace.\n' +
+        '\n' +
+        'Learn more: https://nextjs.org/docs/messages/install-sass\n'
+
       expect(code).toBe(1)
       expect(stderr).toContain('Failed to compile.')
-      expect(stderr).toContain(
-        "To use Next.js' built-in Sass support, you first need to install `sass`."
-      )
-      expect(stderr).toContain(
-        'Run `npm i sass` or `yarn add sass` inside your workspace.'
-      )
-      expect(stderr).toContain(
-        'Learn more: https://nextjs.org/docs/messages/install-sass'
-      )
+      expect(stderr).toContain(cleanScssErrMsg)
+      expect(stderr).not.toContain('css-loader')
+      expect(stderr).not.toContain('sass-loader')
     })
   })
 
@@ -187,7 +187,7 @@ describe('SCSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:#00f}"`)
+      ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:blue}"`)
     })
   })
 
@@ -217,7 +217,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
       )
     })
   })
@@ -315,7 +315,7 @@ describe('SCSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".blue-text{color:#00f}.red-text{color:red}"`)
+      ).toMatchInlineSnapshot(`".blue-text{color:blue}.red-text{color:red}"`)
     })
   })
 
@@ -355,7 +355,7 @@ describe('SCSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.scss')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -376,7 +376,7 @@ describe('SCSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.scss')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -396,7 +396,7 @@ describe('SCSS Support', () => {
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.scss')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toContain('Please move all first-party global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
@@ -640,7 +640,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -648,13 +648,61 @@ describe('SCSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
         Array [
           "dark.svg",
           "dark2.svg",
+          "light.svg",
+        ]
+      `)
+    })
+  })
+
+  describe('CSS URL via file-loader sass partial', () => {
+    const appDir = join(fixturesDir, 'url-global-partial')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        '".red-text{color:red;background-image:url(/_next/static/media/darka.6b01655b.svg),url(/_next/static/media/darkb.6b01655b.svg)}.blue-text{color:orange;font-weight:bolder;background-image:url(/_next/static/media/light.2da1d3d6.svg);color:blue}"'
+      )
+
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map((fileName) =>
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+        Array [
+          "darka.svg",
+          "darkb.svg",
           "light.svg",
         ]
       `)
@@ -686,7 +734,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -694,7 +742,7 @@ describe('SCSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -732,7 +780,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -740,7 +788,7 @@ describe('SCSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -750,6 +798,64 @@ describe('SCSS Support', () => {
           "light.svg",
         ]
       `)
+    })
+  })
+
+  describe('Data Urls', () => {
+    const appDir = join(fixturesDir, 'data-url')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\("data:[^"]+"\)\}$/
+      )
+    })
+  })
+
+  describe('External imports', () => {
+    const appDir = join(fixturesDir, 'external-url')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^@import url\("https:\/\/fonts\.googleapis\.com\/css2\?family=Poppins:wght@400&display=swap"\);\.red-text\{color:red;font-family:Poppins;font-style:normal;font-weight:400\}$/
+      )
     })
   })
 
@@ -805,7 +911,7 @@ describe('SCSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
+      ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
     })
   })
 

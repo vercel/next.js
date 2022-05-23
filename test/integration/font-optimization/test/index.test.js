@@ -14,8 +14,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
 const fsExists = (file) =>
@@ -28,14 +26,14 @@ async function getBuildId(appDir) {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 }
 
-const startServerlessEmulator = async (dir, port) => {
+const startServerlessEmulator = async (dir, port, opts = {}) => {
   const scriptPath = join(dir, 'server.js')
   const env = Object.assign(
     {},
     { ...process.env },
     { PORT: port, BUILD_ID: await getBuildId(dir) }
   )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, {})
+  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
 }
 
 describe('Font Optimization', () => {
@@ -54,6 +52,7 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
         /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
+      'https://fonts.gstatic.com',
     ],
     [
       'typekit',
@@ -69,13 +68,15 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
+      'https://use.typekit.net',
     ],
   ])(
     'with-%s',
     (
       property,
       [staticFont, staticHeadFont, starsFont, withFont],
-      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern],
+      preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -93,12 +94,11 @@ describe('Font Optimization', () => {
           const link = $(
             `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
           )
-          const nonce = link.attr('nonce')
+
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
-          expect(link).toBeDefined()
-          expect(nonce).toBe('VmVyY2Vs')
+          expect(link.length).toBe(0)
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -108,17 +108,14 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
-            'stylesheet'
-          )
+          expect($(`link[data-href="${withFont}"]`).length).toBe(0)
 
           expect(html).toMatch(withFontPattern)
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
-
           const $2 = cheerio.load(htmlWithoutFont)
 
-          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
+          expect($2(`link[data-href="${withFont}"]`).length).toBe(0)
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
@@ -128,7 +125,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticPattern)
         })
 
@@ -138,7 +135,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticHeadPattern)
         })
 
@@ -148,8 +145,16 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(starsPattern)
+        })
+
+        it(`should add preconnect tag`, async () => {
+          const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
+          expect(
+            $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
+          ).toBe(1)
         })
 
         it('should skip this optimization for AMP pages', async () => {
@@ -199,13 +204,20 @@ describe('Font Optimization', () => {
               encoding: 'utf-8',
             })
           )
+          const normalizeContent = (content) => {
+            return content.replace(/\/v[\d]{1,}\//g, '/v0/')
+          }
           const testCss = {}
           testJson.forEach((fontDefinition) => {
-            testCss[fontDefinition.url] = fontDefinition.content
+            testCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
           const snapshotCss = {}
           snapshotJson.forEach((fontDefinition) => {
-            snapshotCss[fontDefinition.url] = fontDefinition.content
+            snapshotCss[fontDefinition.url] = normalizeContent(
+              fontDefinition.content
+            )
           })
 
           expect(testCss).toStrictEqual(snapshotCss)
@@ -225,8 +237,6 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
-
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
@@ -241,10 +251,12 @@ describe('Font Optimization', () => {
       })
 
       describe('Font optimization for serverless apps', () => {
+        const origNextConfig = fs.readFileSync(nextConfig)
+
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless' }`,
+            `module.exports = ({ target: 'serverless', cleanDistDir: false })`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -253,15 +265,20 @@ describe('Font Optimization', () => {
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
-        afterAll(() => killApp(app))
+        afterAll(async () => {
+          await fs.writeFile(nextConfig, origNextConfig)
+          await killApp(app)
+        })
         runTests()
       })
 
       describe('Font optimization for emulated serverless apps', () => {
+        const origNextConfig = fs.readFileSync(nextConfig)
+
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace' }`,
+            `module.exports = ({ target: 'experimental-serverless-trace', cleanDistDir: false })`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -271,7 +288,7 @@ describe('Font Optimization', () => {
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(async () => {
-          await fs.remove(nextConfig)
+          await fs.writeFile(nextConfig, origNextConfig)
           await killApp(app)
         })
         runTests()
@@ -279,7 +296,6 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
           await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
@@ -309,4 +325,16 @@ describe('Font Optimization', () => {
       })
     }
   )
+
+  test('Spread operator regression on <link>', async () => {
+    const appDir = join(fixturesDir, 'spread-operator-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
+
+  test('makeStylesheetInert regression', async () => {
+    const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
 })

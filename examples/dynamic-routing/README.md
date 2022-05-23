@@ -12,7 +12,7 @@ You can use `next/link` as displayed in this example to route to these pages cli
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/dynamic-routing)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing&project-name=dynamic-routing&repository-name=dynamic-routing)
 
@@ -24,6 +24,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example dynamic-routing dynamic-routing-app
 # or
 yarn create next-app --example dynamic-routing dynamic-routing-app
+# or
+pnpm create next-app -- --example dynamic-routing dynamic-routing-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

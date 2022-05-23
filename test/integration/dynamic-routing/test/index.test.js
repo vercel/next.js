@@ -21,32 +21,165 @@ import {
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let app
 let appPort
 let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests(dev) {
+function runTests({ dev, serverless }) {
+  if (dev) {
+    it('should not have error after pinging WebSocket', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(`(function() {
+        window.uncaughtErrs = []
+        window.addEventListener('uncaughtexception', function (err) {
+          window.uncaught.push(err)
+        })
+      })()`)
+      const curFrames = [...(await browser.websocketFrames())]
+      await check(async () => {
+        const frames = await browser.websocketFrames()
+        const newFrames = frames.slice(curFrames.length)
+        // console.error({newFrames, curFrames, frames});
+
+        return newFrames.some((frame) => {
+          try {
+            const data = JSON.parse(frame.payload)
+            return data.event === 'pong'
+          } catch (_) {}
+          return false
+        })
+          ? 'success'
+          : JSON.stringify(newFrames)
+      }, 'success')
+      expect(await browser.eval('window.uncaughtErrs.length')).toBe(0)
+    })
+  }
+
+  it('should support long URLs for dynamic routes', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/dash/a9btBxtHQALZ6cxfuj18X6OLGNSkJVzrOXz41HG4QwciZfn7ggRZzPx21dWqGiTBAqFRiWvVNm5ko2lpyso5jtVaXg88dC1jKfqI2qmIcdeyJat8xamrIh2LWnrYRrsBcoKfQU65KHod8DPANuzPS3fkVYWlmov05GQbc82HwR1exOvPVKUKb5gBRWiN0WOh7hN4QyezIuq3dJINAptFQ6m2bNGjYACBRk4MOSHdcQG58oq5Ch7luuqrl9EcbWSa'
+    )
+
+    const html = await res.text()
+    expect(res.status).toBe(200)
+    expect(html).toContain('hi')
+    expect(html).toContain('/dash/[hello-world]')
+  })
+
+  it('should handle only query on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+
+    for (const expectedValues of [
+      {
+        id: 'dynamic-route-only-query',
+        pathname: '/post-2',
+        query: {},
+        hash: '',
+        navQuery: { name: 'post-2' },
+      },
+      {
+        id: 'dynamic-route-only-query-extra',
+        pathname: '/post-3',
+        query: { another: 'value' },
+        hash: '',
+        navQuery: { name: 'post-3', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-only-query-obj',
+        pathname: '/post-4',
+        query: {},
+        hash: '',
+        navQuery: { name: 'post-4' },
+      },
+      {
+        id: 'dynamic-route-only-query-obj-extra',
+        pathname: '/post-5',
+        query: { another: 'value' },
+        hash: '',
+        navQuery: { name: 'post-5', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-query-hash',
+        pathname: '/post-2',
+        query: {},
+        hash: '#hash-too',
+        navQuery: { name: 'post-2' },
+      },
+      {
+        id: 'dynamic-route-query-extra-hash',
+        pathname: '/post-3',
+        query: { another: 'value' },
+        hash: '#hash-again',
+        navQuery: { name: 'post-3', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-query-hash-obj',
+        pathname: '/post-4',
+        query: {},
+        hash: '#hash-too',
+        navQuery: { name: 'post-4' },
+      },
+      {
+        id: 'dynamic-route-query-obj-extra-hash',
+        pathname: '/post-5',
+        query: { another: 'value' },
+        hash: '#hash-again',
+        navQuery: { name: 'post-5', another: 'value' },
+      },
+    ]) {
+      const { id, pathname, query, hash, navQuery } = expectedValues
+
+      const parsedHref = url.parse(
+        await browser.elementByCss(`#${id}`).getAttribute('href'),
+        true
+      )
+      expect(parsedHref.pathname).toBe(pathname)
+      expect(parsedHref.query || {}).toEqual(query)
+      expect(parsedHref.hash || '').toBe(hash)
+
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss(`#${id}`).click()
+      await check(() => browser.eval('window.location.pathname'), pathname)
+
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
+        navQuery
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(pathname)
+      expect(await browser.eval('window.location.hash')).toBe(hash)
+      expect(
+        Object.fromEntries(
+          new URLSearchParams(await browser.eval('window.location.search'))
+        )
+      ).toEqual(query)
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
+  })
+
   it('should handle only hash on dynamic route', async () => {
     const browser = await webdriver(appPort, '/post-1')
     const parsedHref = url.parse(
       await browser
         .elementByCss('#dynamic-route-only-hash')
-        .getAttribute('href')
+        .getAttribute('href'),
+      true
     )
     expect(parsedHref.pathname).toBe('/post-1')
     expect(parsedHref.hash).toBe('#only-hash')
+    expect(parsedHref.query || {}).toEqual({})
 
     const parsedHref2 = url.parse(
       await browser
         .elementByCss('#dynamic-route-only-hash-obj')
-        .getAttribute('href')
+        .getAttribute('href'),
+      true
     )
     expect(parsedHref2.pathname).toBe('/post-1')
     expect(parsedHref2.hash).toBe('#only-hash-obj')
+    expect(parsedHref2.query || {}).toEqual({})
+
     expect(await browser.eval('window.location.hash')).toBe('')
 
     await browser.elementByCss('#dynamic-route-only-hash').click()
@@ -253,6 +386,23 @@ function runTests(dev) {
       browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page with href with differing query and as correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-hidden-query').click()
       await browser.waitForElementByCss('#asdf')
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -755,8 +905,10 @@ function runTests(dev) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should not have placeholder query values for SSS', async () => {
@@ -766,16 +918,19 @@ function runTests(dev) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
 
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
-
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
     const scrollPosition = await browser.eval('window.pageYOffset')
     expect(scrollPosition).toBe(7232)
   })
@@ -856,20 +1011,6 @@ function runTests(dev) {
   it('should respond with bad request with invalid encoding', async () => {
     const res = await fetchViaHTTP(appPort, '/%')
     expect(res.status).toBe(400)
-  })
-
-  it('should preload buildManifest for auto-export dynamic pages', async () => {
-    const html = await renderViaHTTP(appPort, '/on-mount/hello')
-    const $ = cheerio.load(html)
-    let found = 0
-
-    for (const el of Array.from($('link[rel="preload"]'))) {
-      const { href } = el.attribs
-      if (href.includes('_buildManifest')) {
-        found++
-      }
-    }
-    expect(found).toBe(1)
   })
 
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
@@ -980,6 +1121,20 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
+        staticRoutes: [
+          {
+            namedRegex: '^/(?:/)?$',
+            page: '/',
+            regex: '^/(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/another(?:/)?$',
+            page: '/another',
+            regex: '^/another(?:/)?$',
+            routeKeys: {},
+          },
+        ],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {
@@ -1102,6 +1257,14 @@ function runTests(dev) {
             },
           },
           {
+            namedRegex: '^/index/(?<slug>.+?)(?:/)?$',
+            page: '/index/[...slug]',
+            regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
@@ -1183,6 +1346,43 @@ function runTests(dev) {
         ],
       })
     })
+
+    if (!serverless) {
+      it('should output a pages-manifest correctly', async () => {
+        const manifest = await fs.readJson(
+          join(appDir, '.next/server/pages-manifest.json')
+        )
+
+        expect(manifest).toEqual({
+          '/[name]/[comment]': 'pages/[name]/[comment].js',
+          '/[name]/comments': 'pages/[name]/comments.js',
+          '/[name]': 'pages/[name].js',
+          '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
+          '/another': 'pages/another.html',
+          '/b/[123]': 'pages/b/[123].js',
+          '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
+          '/c/[alongparamnameshouldbeallowedeventhoughweird]':
+            'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
+          '/catchall-dash/[...hello-world]':
+            'pages/catchall-dash/[...hello-world].html',
+          '/d/[id]': 'pages/d/[id].html',
+          '/dash/[hello-world]': 'pages/dash/[hello-world].html',
+          '/': 'pages/index.html',
+          '/index/[...slug]': 'pages/index/[...slug].html',
+          '/on-mount/[post]': 'pages/on-mount/[post].html',
+          '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
+          '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
+          '/p1/p2/nested-all-ssg/[...rest]':
+            'pages/p1/p2/nested-all-ssg/[...rest].js',
+          '/p1/p2/predefined-ssg/[...rest]':
+            'pages/p1/p2/predefined-ssg/[...rest].js',
+          '/_app': 'pages/_app.js',
+          '/_error': 'pages/_error.js',
+          '/_document': 'pages/_document.js',
+          '/404': 'pages/404.html',
+        })
+      })
+    }
   }
 }
 
@@ -1199,7 +1399,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests(true)
+    runTests({ dev: true, serverless: false })
   })
 
   describe('production mode', () => {
@@ -1214,7 +1414,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests({ dev: false, serverless: false })
   })
 
   describe('serverless mode', () => {
@@ -1234,6 +1434,6 @@ describe('Dynamic Routing', () => {
       await killApp(app)
       await fs.remove(nextConfig)
     })
-    runTests()
+    runTests({ dev: false, serverless: true })
   })
 })

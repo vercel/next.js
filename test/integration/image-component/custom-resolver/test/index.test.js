@@ -4,8 +4,6 @@ import { join } from 'path'
 import { killApp, findPort, nextStart, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 30)
-
 const appDir = join(__dirname, '../')
 let appPort
 let app

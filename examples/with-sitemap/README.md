@@ -4,7 +4,7 @@ This example shows how to generate a `sitemap.xml` file based on the pages in yo
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sitemap)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sitemap&project-name=with-sitemap&repository-name=with-sitemap)
 
@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-sitemap with-sitemap-app
 # or
 yarn create next-app --example with-sitemap with-sitemap-app
+# or
+pnpm create next-app -- --example with-sitemap with-sitemap-app
 ```
 
 Your app should be up and running on [http://localhost:3000](http://localhost:3000) and the sitemap should now be available in [http://localhost:3000/sitemap.xml](http://localhost:3000/sitemap.xml)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).

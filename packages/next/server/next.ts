@@ -1,46 +1,56 @@
-import '../next-server/server/node-polyfill-fetch'
-import {
-  default as Server,
-  ServerConstructor,
-} from '../next-server/server/next-server'
-import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import * as log from '../build/output/log'
-import loadConfig, { NextConfig } from '../next-server/server/config'
-import { resolve } from 'path'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../next-server/lib/constants'
-import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import type { Options as DevServerOptions } from './dev/next-dev-server'
+import type { NodeRequestHandler } from './next-server'
+import type { UrlWithParsedQuery } from 'url'
 
-type NextServerConstructor = ServerConstructor & {
-  /**
-   * Whether to launch Next.js in dev mode - @default false
-   */
-  dev?: boolean
-}
+import './node-polyfill-fetch'
+import { default as Server } from './next-server'
+import * as log from '../build/output/log'
+import loadConfig from './config'
+import { resolve } from 'path'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import { IncomingMessage, ServerResponse } from 'http'
+import { NextUrlWithParsedQuery } from './request-meta'
 
 let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined)
-    ServerImpl = (await import('../next-server/server/next-server')).default
+    ServerImpl = (await Promise.resolve(require('./next-server'))).default
   return ServerImpl
+}
+
+export type NextServerOptions = Partial<DevServerOptions>
+
+export interface RequestHandler {
+  (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
 }
 
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
-  private reqHandlerPromise?: Promise<any>
+  private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
-  options: NextServerConstructor
+  public options: NextServerOptions
 
-  constructor(options: NextServerConstructor) {
+  constructor(options: NextServerOptions) {
     this.options = options
   }
 
-  getRequestHandler() {
+  get hostname() {
+    return this.options.hostname
+  }
+
+  get port() {
+    return this.options.port
+  }
+
+  getRequestHandler(): RequestHandler {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
@@ -105,26 +115,21 @@ export class NextServer {
     return (server as any).close()
   }
 
-  private async createServer(
-    options: NextServerConstructor & {
-      conf: NextConfig
-      isNextDevCommand?: boolean
-    }
-  ): Promise<Server> {
+  private async createServer(options: DevServerOptions): Promise<Server> {
     if (options.dev) {
-      const DevServer = require('./next-dev-server').default
+      const DevServer = require('./dev/next-dev-server').default
       return new DevServer(options)
     }
-    return new (await getServerImpl())(options)
+    const ServerImplementation = await getServerImpl()
+    return new ServerImplementation(options)
   }
 
   private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+    return loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      resolve(this.options.dir || '.'),
+      this.options.conf
+    )
   }
 
   private async getServer() {
@@ -156,9 +161,7 @@ export class NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerConstructor): NextServer {
-  const standardEnv = ['production', 'development', 'test']
-
+function createServer(options: NextServerOptions): NextServer {
   if (options == null) {
     throw new Error(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
@@ -166,19 +169,25 @@ function createServer(options: NextServerConstructor): NextServer {
   }
 
   if (
-    !(options as any).isNextDevCommand &&
+    !('isNextDevCommand' in options) &&
     process.env.NODE_ENV &&
-    !standardEnv.includes(process.env.NODE_ENV)
+    !['production', 'development', 'test'].includes(process.env.NODE_ENV)
   ) {
     log.warn(NON_STANDARD_NODE_ENV)
   }
 
-  if (options.dev) {
-    if (typeof options.dev !== 'boolean') {
-      console.warn(
-        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
-      )
-    }
+  if (options.dev && typeof options.dev !== 'boolean') {
+    console.warn(
+      "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
+    )
+  }
+
+  // Make sure env of custom server is overridden.
+  // Use dynamic require to make sure it's executed in it's own context.
+  const ReactDOMServer = require('react-dom/server')
+  const shouldUseReactRoot = !!ReactDOMServer.renderToPipeableStream
+  if (shouldUseReactRoot) {
+    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
 
   return new NextServer(options)

@@ -1,4 +1,4 @@
-# AWS Amplify and Typescript with NextJS
+# AWS Amplify and TypeScript with NextJS
 
 [![amplifybutton](https://oneclick.amplifyapp.com/button.svg)](https://console.aws.amazon.com/amplify/home#/deploy?repo=https://github.com/vercel/next.js/tree/canary/examples/with-aws-amplify-typescript)
 
@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
 # or
 yarn create next-app --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
+# or
+pnpm create next-app -- --example with-aws-amplify-typescript nextjs-aws-amplify-typescript-app
 ```
 
 ### Initialize and deploy the Amplify project

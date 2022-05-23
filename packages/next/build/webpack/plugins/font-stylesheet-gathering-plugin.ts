@@ -1,28 +1,30 @@
 import {
   webpack,
   BasicEvaluatedExpression,
-  isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
-} from '../../../next-server/server/font-utils'
+} from '../../../server/font-utils'
 import postcss from 'postcss'
-import minifier from 'cssnano-simple'
+import minifier from 'next/dist/compiled/cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
+} from '../../../shared/lib/constants'
+import * as Log from '../../output/log'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
-    minifier({
-      excludeAll: true,
-      discardComments: true,
-      normalizeWhitespace: { exclude: false },
-    }),
+    minifier(
+      {
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      },
+      postcss
+    ),
   ])
     .process(css, { from: undefined })
     .then((res) => res.css)
@@ -58,7 +60,7 @@ export class FontStylesheetGatheringPlugin {
            */
           parser.hooks.evaluate
             .for('Identifier')
-            .tap(this.constructor.name, (node: namedTypes.Identifier) => {
+            .tap(this.constructor.name, (node: any) => {
               // We will only optimize fonts from first party code.
               if (parser?.state?.module?.resource.includes('node_modules')) {
                 return
@@ -71,15 +73,13 @@ export class FontStylesheetGatheringPlugin {
                 result.setExpression(node)
                 result.setIdentifier(node.name)
 
-                // This was added webpack 5.
-                if (isWebpack5) {
-                  result.getMembers = () => []
-                }
+                // This was added in webpack 5.
+                result.getMembers = () => []
               }
               return result
             })
 
-          const jsxNodeHandler = (node: namedTypes.CallExpression) => {
+          const jsxNodeHandler = (node: any) => {
             if (node.arguments.length !== 2) {
               // A font link tag has only two arguments rel=stylesheet and href='...'
               return
@@ -89,24 +89,30 @@ export class FontStylesheetGatheringPlugin {
             }
 
             // node.arguments[0] is the name of the tag and [1] are the props.
-            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+            const arg1 = node.arguments[1]
+
+            const propsNode =
+              arg1.type === 'ObjectExpression' ? (arg1 as any) : undefined
             const props: { [key: string]: string } = {}
-            propsNode.properties.forEach((prop) => {
-              if (prop.type !== 'Property') {
-                return
-              }
-              if (
-                prop.key.type === 'Identifier' &&
-                prop.value.type === 'Literal'
-              ) {
-                props[prop.key.name] = prop.value.value as string
-              }
-            })
+            if (propsNode) {
+              propsNode.properties.forEach((prop: any) => {
+                if (prop.type !== 'Property') {
+                  return
+                }
+                if (
+                  prop.key.type === 'Identifier' &&
+                  prop.value.type === 'Literal'
+                ) {
+                  props[prop.key.name] = prop.value.value as string
+                }
+              })
+            }
+
             if (
               !props.rel ||
               props.rel !== 'stylesheet' ||
               !props.href ||
-              !OPTIMIZED_FONT_PROVIDERS.some((url) =>
+              !OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
                 props.href.startsWith(url)
               )
             ) {
@@ -115,15 +121,13 @@ export class FontStylesheetGatheringPlugin {
 
             this.gatheredStylesheets.push(props.href)
 
-            if (isWebpack5) {
-              const buildInfo = parser?.state?.module?.buildInfo
+            const buildInfo = parser?.state?.module?.buildInfo
 
-              if (buildInfo) {
-                buildInfo.valueDependencies.set(
-                  FONT_MANIFEST,
-                  this.gatheredStylesheets
-                )
-              }
+            if (buildInfo) {
+              buildInfo.valueDependencies.set(
+                FONT_MANIFEST,
+                this.gatheredStylesheets
+              )
             }
           }
 
@@ -161,11 +165,9 @@ export class FontStylesheetGatheringPlugin {
           (source: string) => {
             return `${source}
                 // Font manifest declaration
-                ${
-                  isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
-                }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
-              this.manifestContent
-            )};
+                __webpack_require__.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+                  this.manifestContent
+                )};
             // Enable feature:
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
           }
@@ -176,19 +178,16 @@ export class FontStylesheetGatheringPlugin {
         async (modules: any, modulesFinished: Function) => {
           let fontStylesheets = this.gatheredStylesheets
 
-          if (isWebpack5) {
-            const fontUrls = new Set<string>()
-            modules.forEach((module: any) => {
-              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
-                FONT_MANIFEST
-              )
-              if (fontDependencies) {
-                fontDependencies.forEach((v: string) => fontUrls.add(v))
-              }
-            })
+          const fontUrls = new Set<string>()
+          modules.forEach((module: any) => {
+            const fontDependencies =
+              module?.buildInfo?.valueDependencies?.get(FONT_MANIFEST)
+            if (fontDependencies) {
+              fontDependencies.forEach((v: string) => fontUrls.add(v))
+            }
+          })
 
-            fontStylesheets = Array.from(fontUrls)
-          }
+          fontStylesheets = Array.from(fontUrls)
 
           const fontDefinitionPromises = fontStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
@@ -199,50 +198,55 @@ export class FontStylesheetGatheringPlugin {
             const css = await fontDefinitionPromises[promiseIndex]
 
             if (css) {
-              const content = await minifyCss(css)
-              this.manifestContent.push({
-                url: fontStylesheets[promiseIndex],
-                content,
-              })
+              try {
+                const content = await minifyCss(css)
+                this.manifestContent.push({
+                  url: fontStylesheets[promiseIndex],
+                  content,
+                })
+              } catch (err) {
+                Log.warn(
+                  `Failed to minify the stylesheet for ${fontStylesheets[promiseIndex]}. Skipped optimizing this font.`
+                )
+                console.error(err)
+              }
             }
           }
-          if (!isWebpack5) {
-            compilation.assets[FONT_MANIFEST] = new sources.RawSource(
-              JSON.stringify(this.manifestContent, null, '  ')
-            )
-          }
+
+          compilation.assets[FONT_MANIFEST] = new sources.RawSource(
+            JSON.stringify(this.manifestContent, null, '  ')
+          )
+
           modulesFinished()
         }
       )
       cb()
     })
 
-    if (isWebpack5) {
-      compiler.hooks.make.tap(this.constructor.name, (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: this.constructor.name,
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            assets['../' + FONT_MANIFEST] = new sources.RawSource(
-              JSON.stringify(this.manifestContent, null, '  ')
-            )
-          }
-        )
-      })
-    }
+    compiler.hooks.make.tap(this.constructor.name, (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: this.constructor.name,
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          assets['../' + FONT_MANIFEST] = new sources.RawSource(
+            JSON.stringify(this.manifestContent, null, '  ')
+          )
+        }
+      )
+    })
   }
 }
 
-function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
-  const callee = node.callee as namedTypes.Identifier
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee as any
   if (callee.type !== 'Identifier') {
     return false
   }
-  const componentNode = node.arguments[0] as namedTypes.Literal
+  const componentNode = node.arguments[0] as any
   if (componentNode.type !== 'Literal') {
     return false
   }

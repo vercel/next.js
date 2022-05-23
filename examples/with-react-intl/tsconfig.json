@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "jsx": "preserve",
+    "incremental": true,
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext", "ESNext.Intl", "ES2018.Intl"],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -12,7 +12,8 @@
     "module": "esnext",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "jsx": "preserve"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

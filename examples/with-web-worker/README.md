@@ -4,7 +4,7 @@ This example shows how to run code in WebWorkers by utilizing [webpack 5](https:
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/):
+Deploy the example using [Vercel](https://vercel.com/) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-web-worker)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-web-worker&project-name=with-web-worker&repository-name=with-web-worker)
 
@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-web-worker with-web-worker-app
 # or
 yarn create next-app --example with-web-worker with-web-worker-app
+# or
+pnpm create next-app -- --example with-web-worker with-web-worker-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

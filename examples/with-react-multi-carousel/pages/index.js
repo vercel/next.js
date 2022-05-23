@@ -59,7 +59,7 @@ class Index extends Component {
           deviceType={''}
         >
           {images.map((image) => {
-            return <Image url={image} alt={image} />
+            return <Image key={image} url={image} alt={image} />
           })}
         </Carousel>
       </div>

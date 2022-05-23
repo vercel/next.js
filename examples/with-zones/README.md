@@ -14,6 +14,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-zones with-zones-app
 # or
 yarn create next-app --example with-zones with-zones-app
+# or
+pnpm create next-app -- --example with-zones with-zones-app
 ```
 
 With multi zones you have multiple Next.js apps over a single app, therefore every app has its own dependencies and it runs independently.
@@ -41,6 +43,12 @@ yarn && yarn dev
 ```
 
 The `blog` app should be up and running in [http://localhost:4000](http://localhost:4000)!
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-zones)
 
 ### Deploy on Vercel
 
