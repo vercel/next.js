@@ -616,7 +616,7 @@ export async function ncc_path_browserify(task, opts) {
   const content = fs.readFileSync(filePath, 'utf8')
 
   // Remove process usage from path-browserify polyfill for edge-runtime
-  await fs.writeFile(filePath, content.replace(/process\.cwd\(\)/, '""'))
+  await fs.writeFile(filePath, content.replace(/process\.cwd\(\)/g, '""'))
 }
 
 // eslint-disable-next-line camelcase
