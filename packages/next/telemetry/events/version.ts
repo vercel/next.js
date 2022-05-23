@@ -21,8 +21,10 @@ type EventCliSessionStarted = {
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
+  imageRemotePatternsCount: number | null
   imageSizes: string | null
   imageLoader: string | null
+  imageFormats: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
   webpackVersion: number | null
@@ -64,8 +66,10 @@ export function eventCliSession(
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
+    | 'imageRemotePatternsCount'
     | 'imageSizes'
     | 'imageLoader'
+    | 'imageFormats'
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
   >
@@ -75,7 +79,7 @@ export function eventCliSession(
     return []
   }
 
-  const { images, i18n } = nextConfig || {}
+  const { images, i18n, experimental } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -95,8 +99,12 @@ export function eventCliSession(
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
+    imageRemotePatternsCount: experimental?.images?.remotePatterns
+      ? experimental.images.remotePatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
+    imageFormats: images?.formats ? images.formats.join(',') : null,
     trailingSlashEnabled: !!nextConfig?.trailingSlash,
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,

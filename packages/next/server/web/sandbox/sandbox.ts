@@ -1,4 +1,4 @@
-import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader'
+import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import type { RequestData, FetchEventResult } from '../types'
 import { getModuleContext } from './context'
 

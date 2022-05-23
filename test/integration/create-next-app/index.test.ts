@@ -305,7 +305,30 @@ describe('create next app', () => {
 
   it('should create a project in the current directory', async () => {
     await usingTempDir(async (cwd) => {
-      const res = await run(['.'], { cwd })
+      const env = { ...process.env }
+      const tmpBin = path.join(__dirname, 'bin')
+      const tmpYarn = path.join(tmpBin, 'yarn')
+
+      if (process.platform !== 'win32') {
+        // ensure install succeeds with invalid yarn binary
+        // which simulates no yarn binary being available as
+        // an alternative to removing the binary and reinstalling
+        await fs.remove(tmpBin)
+        await fs.mkdir(tmpBin)
+        await fs.writeFile(tmpYarn, '#!/bin/sh\nexit 1')
+        await fs.chmod(tmpYarn, '755')
+        env.PATH = `${tmpBin}:${env.PATH}`
+        delete env.npm_config_user_agent
+      }
+
+      const res = await run(['.'], {
+        cwd,
+        env,
+        extendEnv: false,
+        stdio: 'inherit',
+      })
+      await fs.remove(tmpBin)
+
       expect(res.exitCode).toBe(0)
 
       const files = [

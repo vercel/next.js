@@ -489,7 +489,10 @@ describe('CLI Usage', () => {
     test('should print output', async () => {
       const info = await runNextCommand(['info'], {
         stdout: true,
+        stderr: true,
       })
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
+
       expect(info.stdout).toMatch(
         new RegExp(`
     Operating System:

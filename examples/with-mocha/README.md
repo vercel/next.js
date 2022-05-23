@@ -2,11 +2,11 @@
 
 This example features an app with Mocha tests.
 
-## Preview
+## Deploy your own
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mocha)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mocha)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mocha)
 
 ## How to use
 
@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-mocha with-mocha-app
 # or
 yarn create next-app --example with-mocha with-mocha-app
+# or
+pnpm create next-app -- --example with-mocha with-mocha-app
 ```
 
 ## Run Mocha tests

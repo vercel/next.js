@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 
 describe('AMP Custom Optimizer', () => {
   it('should build and start for static page', async () => {
-    const { code } = await nextBuild(appDir, undefined)
+    const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
 
     appPort = await findPort()
@@ -34,7 +34,7 @@ describe('AMP Custom Optimizer', () => {
   })
 
   it('should build and start for dynamic page', async () => {
-    const { code } = await nextBuild(appDir, undefined)
+    const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
 
     appPort = await findPort()
