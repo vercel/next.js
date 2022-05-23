@@ -847,14 +847,6 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  getMiddlewareInfoOptional(page: string) {
-    try {
-      return this.getMiddlewareInfo(page)
-    } catch {
-      return null
-    }
-  }
-
   public async serveStatic(
     req: BaseNextRequest | IncomingMessage,
     res: BaseNextResponse | ServerResponse,
@@ -1052,11 +1044,15 @@ export default class NextNodeServer extends BaseServer {
   }
 
   /**
-   * Get information for the middleware located in the provided page
-   * folder. If the middleware info can't be found it will throw
+   * Get information for the edge function located in the provided page
+   * folder. If the edge function info can't be found it will throw
    * an error.
    */
-  protected getMiddlewareInfo(page: string) {
+  protected getEdgeFunctionInfo(params: {
+    page: string
+    /** Whether we should look for a middleware or not */
+    middleware: boolean
+  }) {
     const manifest: MiddlewareManifest = require(join(
       this.serverDistDir,
       MIDDLEWARE_MANIFEST
@@ -1065,12 +1061,14 @@ export default class NextNodeServer extends BaseServer {
     let foundPage: string
 
     try {
-      foundPage = denormalizePagePath(normalizePagePath(page))
+      foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
-      throw pageNotFoundError(page)
+      throw pageNotFoundError(params.page)
     }
 
-    let pageInfo = manifest.middleware[foundPage]
+    let pageInfo = params.middleware
+      ? manifest.middleware[foundPage]
+      : manifest.functions[foundPage]
     if (!pageInfo) {
       throw pageNotFoundError(foundPage)
     }
@@ -1096,7 +1094,10 @@ export default class NextNodeServer extends BaseServer {
     _isSSR?: boolean
   ): Promise<boolean> {
     try {
-      return this.getMiddlewareInfo(pathname).paths.length > 0
+      return (
+        this.getEdgeFunctionInfo({ page: pathname, middleware: true }).paths
+          .length > 0
+      )
     } catch (_) {}
 
     return false
@@ -1163,7 +1164,10 @@ export default class NextNodeServer extends BaseServer {
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
+        const middlewareInfo = this.getEdgeFunctionInfo({
+          page: middleware.page,
+          middleware: true,
+        })
 
         result = await run({
           name: middlewareInfo.name,
@@ -1441,8 +1445,14 @@ export default class NextNodeServer extends BaseServer {
     page: string
     builtPagePath: string
   }): Promise<boolean> {
-    const middlewareInfo = this.getMiddlewareInfoOptional(params.page)
-    if (!middlewareInfo) {
+    let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+
+    try {
+      middlewareInfo = this.getEdgeFunctionInfo({
+        page: params.page,
+        middleware: false,
+      })
+    } catch {
       return false
     }
 

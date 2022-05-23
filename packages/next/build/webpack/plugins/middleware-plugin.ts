@@ -14,21 +14,21 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
+interface EdgeFunctionDefinition {
+  env: string[]
+  files: string[]
+  name: string
+  page: string
+  regexp: string
+  wasm?: WasmBinding[]
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
   clientInfo: [location: string, isSSR: boolean][]
-  middleware: {
-    [page: string]: {
-      env: string[]
-      files: string[]
-      name: string
-      page: string
-      regexp: string
-      wasm?: WasmBinding[]
-      generalPurpose: boolean
-    }
-  }
+  middleware: { [page: string]: EdgeFunctionDefinition }
+  functions: { [page: string]: EdgeFunctionDefinition }
 }
 
 interface EntryMetadata {
@@ -44,6 +44,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   clientInfo: [],
   middleware: {},
+  functions: {},
   version: 1,
 }
 
@@ -402,26 +403,26 @@ function getCreateAssets(params: {
         catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
 
-      middlewareManifest.middleware[page] = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
         regexp: namedRegex,
         wasm: Array.from(metadata.wasmBindings),
-        generalPurpose: Boolean(
-          metadata.edgeApiFunction /* || metadata.edgeSSR */
-        ),
+      }
+
+      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
       }
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
-      Object.entries(middlewareManifest.middleware)
-        .filter(([, value]) => !value.generalPurpose)
-        .map(([key]) => key)
+      Object.keys(middlewareManifest.middleware)
     )
 
-    // TODO(gal): figure out what is that thing
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => [
         key,

@@ -12,6 +12,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
+import { readJson } from 'fs-extra'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -178,6 +179,25 @@ describe('Switchable runtime (prod)', () => {
     const response = await fetchViaHTTP(context.appPort, '/api/hello')
     const text = await response.text()
     expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+    const manifest = await readJson(
+      join(context.appDir, '.next/server/middleware-manifest.json')
+    )
+    expect(manifest).toMatchObject({
+      functions: {
+        '/api/hello': {
+          env: [],
+          files: [
+            'server/edge-runtime-webpack.js',
+            'server/pages/api/hello.js',
+          ],
+          name: 'pages/api/hello',
+          page: '/api/hello',
+          regexp: '^/api/hello$',
+          wasm: [],
+        },
+      },
+    })
   })
 
   it('should display correct tree view with page types in terminal', async () => {
@@ -350,5 +370,30 @@ describe('Switchable runtime (dev)', () => {
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
+  })
+
+  it('should build /api/hello as an api route with edge runtime', async () => {
+    const response = await fetchViaHTTP(context.appPort, '/api/hello')
+    const text = await response.text()
+    expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+    const manifest = await readJson(
+      join(context.appDir, '.next/server/middleware-manifest.json')
+    )
+    expect(manifest).toMatchObject({
+      functions: {
+        '/api/hello': {
+          env: [],
+          files: [
+            'server/edge-runtime-webpack.js',
+            'server/pages/api/hello.js',
+          ],
+          name: 'pages/api/hello',
+          page: '/api/hello',
+          regexp: '^/api/hello$',
+          wasm: [],
+        },
+      },
+    })
   })
 })
