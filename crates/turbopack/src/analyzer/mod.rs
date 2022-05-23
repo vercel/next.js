@@ -813,6 +813,11 @@ impl JsValue {
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
+                    #[cfg(feature = "node-native-binding")]
+                    WellKnownObjectKind::NodePreGyp => (
+                      "@mapbox/node-pre-gyp",
+                      "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
+                    )
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -831,6 +836,10 @@ impl JsValue {
                     WellKnownFunctionKind::PathDirname => (
                         format!("path.dirname"),
                         "The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath",
+                    ),
+                    WellKnownFunctionKind::PathResolve => (
+                        format!("path.resolve"),
+                        "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
                     WellKnownFunctionKind::Import => (
                         format!("import"),
@@ -866,6 +875,11 @@ impl JsValue {
                         format!("os.endianness"),
                         "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
                     ),
+                    #[cfg(feature = "node-native-binding")]
+                    WellKnownFunctionKind::NodePreGypFind => (
+                        format!("find"),
+                        "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
+                    )
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1764,12 +1778,15 @@ pub enum WellKnownObjectKind {
     ChildProcess,
     OsModule,
     NodeProcess,
+    #[cfg(feature = "node-native-binding")]
+    NodePreGyp,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
+    PathResolve,
     Import,
     Require,
     RequireResolve,
@@ -1780,6 +1797,8 @@ pub enum WellKnownFunctionKind {
     OsArch,
     OsPlatform,
     OsEndianness,
+    #[cfg(feature = "node-native-binding")]
+    NodePreGypFind,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
@@ -1822,10 +1841,12 @@ pub mod test_utils {
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                #[cfg(feature = "node-native-binding")]
+                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
                 _ => return Ok((v, false)),
             },
             _ => {
-                let (mut v, m1) = replace_well_known(v, target);
+                let (mut v, m1) = replace_well_known(v, &target);
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }

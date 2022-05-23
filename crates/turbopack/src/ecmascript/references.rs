@@ -504,6 +504,46 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    #[cfg(feature = "node-native-binding")]
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
+                        use crate::resolve::node_pre_gyp::NodePreGypConfigReferenceVc;
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            let pat = js_value_to_pattern(&first_arg);
+                            if !pat.has_constant_parts() {
+                                let (args, hints) = explain_args(&linked_args().await?);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
+                                            .to_string(),
+                                    ),
+                                );
+                                return Ok(());
+                            }
+                            references.push(
+                                NodePreGypConfigReferenceVc::new(
+                                    source.path().parent(),
+                                    pat.into(),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "node-pre-gyp.find({args}) is not statically analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
+                                    .to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -662,6 +702,8 @@ async fn value_visitor_inner(
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                #[cfg(feature = "node-native-binding")]
+                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",
@@ -672,7 +714,7 @@ async fn value_visitor_inner(
                 "cross function analyzing is not yet supported",
             ),
             _ => {
-                let (mut v, m1) = replace_well_known(v, target);
+                let (mut v, m1) = replace_well_known(v, &target);
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }

@@ -11,6 +11,7 @@ pub enum CompileTarget {
 #[derive(
     PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
 )]
+#[non_exhaustive]
 pub struct Target {
     /// https://nodejs.org/api/os.html#osarch
     pub arch: Arch,
@@ -18,8 +19,6 @@ pub struct Target {
     pub platform: Platform,
     /// https://nodejs.org/api/os.html#endianness
     pub endianness: Endianness,
-
-    __private: (),
 }
 
 impl Target {
@@ -28,7 +27,6 @@ impl Target {
             arch,
             platform,
             endianness,
-            __private: (),
         }
     }
 }

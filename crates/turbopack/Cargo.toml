@@ -9,6 +9,9 @@ bench = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+node-native-binding = ["serde_json"]
+
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
@@ -36,6 +39,10 @@ features = ["parser", "utils", "visit"]
 
 [dependencies.num-bigint]
 version = "0.4"
+
+[dependencies.serde_json]
+version = "1"
+optional = true
 
 [dev-dependencies]
 async-std = { version = "1.10.0", features = ["unstable"] }

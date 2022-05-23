@@ -6,19 +6,19 @@ use crate::target::{CompileTarget, Target};
 
 use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
-pub fn replace_well_known(value: JsValue, target: CompileTarget) -> (JsValue, bool) {
+pub fn replace_well_known(value: JsValue, target: &CompileTarget) -> (JsValue, bool) {
     match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
             well_known_function_call(
                 kind,
                 JsValue::Unknown(None, "this is not analyzed yet"),
                 args,
-                &target,
+                target,
             ),
             true,
         ),
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
-            (well_known_object_member(kind, prop, &target), true)
+            (well_known_object_member(kind, prop, target), true)
         }
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             (well_known_function_member(kind, prop), true)
@@ -36,6 +36,7 @@ pub fn well_known_function_call(
     match kind {
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
+        WellKnownFunctionKind::PathResolve => path_resolve(args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -55,6 +56,8 @@ pub fn well_known_function_call(
         WellKnownFunctionKind::OsArch => os_arch(target),
         WellKnownFunctionKind::OsPlatform => os_platform(target),
         WellKnownFunctionKind::OsEndianness => os_endianness(target),
+        #[cfg(feature = "node-native-binding")]
+        WellKnownFunctionKind::NodePreGypFind => node_pre_gyp_find(args),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -116,6 +119,23 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
         last_is_str = is_str;
     }
     JsValue::concat(results)
+}
+
+// TODO: support real path.join function logics
+//
+// Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
+// one parameter
+pub fn path_resolve(args: Vec<JsValue>) -> JsValue {
+    if args.len() == 1 {
+        return args[0].clone();
+    }
+    JsValue::Unknown(
+        Some(Arc::new(JsValue::call(
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
+            args,
+        ))),
+        "only a single argument is supported",
+    )
 }
 
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
@@ -203,6 +223,20 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
+#[cfg(feature = "node-native-binding")]
+fn node_pre_gyp_find(args: Vec<JsValue>) -> JsValue {
+    if args.len() == 1 {
+        return args[0].clone();
+    }
+    JsValue::Unknown(
+        Some(Arc::new(JsValue::call(
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+            args,
+        ))),
+        "only a single argument is supported in node-pre-gyp find",
+    )
+}
+
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
     match (&kind, prop.as_str()) {
         (WellKnownFunctionKind::Require, Some("resolve")) => {
@@ -230,6 +264,8 @@ pub fn well_known_object_member(
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         WellKnownObjectKind::OsModule => os_module_member(prop),
         WellKnownObjectKind::NodeProcess => node_process_member(prop, target),
+        #[cfg(feature = "node-native-binding")]
+        WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -245,6 +281,7 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
+        Some("resolve") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
@@ -425,4 +462,20 @@ fn os_platform(target: &CompileTarget) -> JsValue {
         return "sunos".into();
     }
     return JsValue::Unknown(None, "Unknown platform");
+}
+
+#[cfg(feature = "node-native-binding")]
+fn node_pre_gyp(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("find") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind),
+        _ => {
+            return JsValue::Unknown(
+                Some(Arc::new(JsValue::member(
+                    box JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+                    box prop,
+                ))),
+                "unsupported property on @mapbox/node-pre-gyp module",
+            )
+        }
+    }
 }

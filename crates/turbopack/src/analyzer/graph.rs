@@ -13,7 +13,7 @@ use crate::{
     ecmascript::utils::unparen,
 };
 
-use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind};
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart};
 
 #[derive(Debug, Clone)]
 pub enum Effect {

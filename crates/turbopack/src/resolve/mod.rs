@@ -36,6 +36,8 @@ use self::{
 };
 
 mod exports;
+#[cfg(feature = "node-native-binding")]
+pub mod node_pre_gyp;
 pub mod options;
 pub mod parse;
 pub mod pattern;

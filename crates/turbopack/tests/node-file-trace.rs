@@ -23,13 +23,13 @@ use turbopack::{
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
 #[case::apollo("integration/apollo.js", true)]
-#[case::argon2("integration/argon2.js", false)] // can't find *.node binding
+#[case::argon2("integration/argon2.js", true)]
 #[case::auth0("integration/auth0.js", true)]
 #[case::aws_sdk("integration/aws-sdk.js", true)]
 #[case::axios("integration/axios.js", true)]
 #[case::azure_cosmos("integration/azure-cosmos.js", true)]
 #[case::azure_storage("integration/azure-storage.js", true)]
-#[case::bcrypt("integration/bcrypt.js", false)] // can't find *.node binding
+#[case::bcrypt("integration/bcrypt.js", true)]
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
 #[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
