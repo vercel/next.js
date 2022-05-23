@@ -8,15 +8,9 @@ This example shows how to configure styled-jsx to use external plugins to modify
 
 More details about how plugins work can be found in the [styled-jsx readme](https://github.com/vercel/styled-jsx#css-preprocessing-via-plugins)
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-styled-jsx-scss)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-styled-jsx-scss)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx-scss&project-name=with-styled-jsx-scss&repository-name=with-styled-jsx-scss)
 
@@ -28,6 +22,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
 # or
 yarn create next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
+# or
+pnpm create next-app -- --example with-styled-jsx-scss with-styled-jsx-scss-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

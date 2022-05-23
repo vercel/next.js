@@ -10,22 +10,37 @@ export const existsSync = (f: string): boolean => {
   }
 }
 
-export function findPagesDir(dir: string): string {
-  // prioritize ./pages over ./src/pages
-  let curDir = path.join(dir, 'pages')
+function findDir(dir: string, name: 'pages' | 'views'): string | null {
+  // prioritize ./${name} over ./src/${name}
+  let curDir = path.join(dir, name)
   if (existsSync(curDir)) return curDir
 
-  curDir = path.join(dir, 'src/pages')
+  curDir = path.join(dir, 'src', name)
   if (existsSync(curDir)) return curDir
 
-  // Check one level up the tree to see if the pages directory might be there
-  if (existsSync(path.join(dir, '..', 'pages'))) {
+  return null
+}
+
+export function findPagesDir(
+  dir: string,
+  views?: boolean
+): { pages: string; views?: string } {
+  const pagesDir = findDir(dir, 'pages')
+  let viewsDir: undefined | string
+
+  if (views) {
+    viewsDir = findDir(dir, 'views') || undefined
+  }
+
+  // TODO: allow "root" dir without pages dir
+  if (pagesDir === null) {
     throw new Error(
-      '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?'
+      "> Couldn't find a `pages` directory. Please create one under the project root"
     )
   }
 
-  throw new Error(
-    "> Couldn't find a `pages` directory. Please create one under the project root"
-  )
+  return {
+    pages: pagesDir,
+    views: viewsDir,
+  }
 }

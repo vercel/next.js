@@ -30,7 +30,8 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
       // We need to trust the dynamic route params from the proxy
       // to ensure we are using the correct values
       const trustQuery = req.headers[vercelHeader]
-      const parsedUrl = handleRewrites(req, parseUrl(req.url!, true))
+      const parsedUrl = parseUrl(req.url!, true)
+      handleRewrites(req, parsedUrl)
 
       if (parsedUrl.query.nextInternalLocale) {
         delete parsedUrl.query.nextInternalLocale

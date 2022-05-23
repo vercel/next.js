@@ -203,7 +203,14 @@
     "no-octal-escape": "warn",
     "no-redeclare": ["warn", { "builtinGlobals": false }],
     "no-regex-spaces": "warn",
-    "no-restricted-syntax": ["warn", "WithStatement"],
+    "no-restricted-syntax": [
+      "warn",
+      "WithStatement",
+      {
+        "message": "substr() is deprecated, use slice() or substring() instead",
+        "selector": "MemberExpression > Identifier[name='substr']"
+      }
+    ],
     "no-script-url": "warn",
     "no-self-assign": "warn",
     "no-self-compare": "warn",

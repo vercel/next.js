@@ -73,3 +73,29 @@ export default function Home() {
   )
 }
 ```
+
+### onError
+
+A method that executes if the script fails to load.
+
+> **Note: `onError` can't be used with the `beforeInteractive` loading strategy.**
+
+The following is an example of how to use the `onError` property:
+
+```jsx
+import Script from 'next/script'
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="will-fail"
+        src="https://example.com/non-existant-script.js"
+        onError={(e) => {
+          console.error('Script failed to load', e)
+        }}
+      />
+    </>
+  )
+}
+```

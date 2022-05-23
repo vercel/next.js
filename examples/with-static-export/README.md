@@ -4,11 +4,11 @@ This example show how to export to static HTML files your Next.js application fe
 
 When trying to run `npm start` it will build and export your pages into the `out` folder and serve them on `localhost:5000`.
 
-## Preview
+## Deploy your own
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-static-export)
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-static-export)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-static-export)
 
 ## How to use
 
@@ -18,4 +18,6 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-static-export with-static-export-app
 # or
 yarn create next-app --example with-static-export with-static-export-app
+# or
+pnpm create next-app -- --example with-static-export with-static-export-app
 ```

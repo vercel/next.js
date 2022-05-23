@@ -1,7 +1,5 @@
 {
   "scripts": {
-    "next": "node -r ../test/require-hook.js ../../../../packages/next/dist/bin/next",
-    "debug": "NODE_OPTIONS='--inspect' node -r ../../react-18/test/require-hook.js ../../../../packages/next/dist/bin/next",
     "dev": "yarn next dev",
     "build": "yarn next build",
     "start": "yarn next start"
