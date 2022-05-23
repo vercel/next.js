@@ -6,6 +6,7 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   EDGE_RUNTIME_WEBPACK,
+  EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
@@ -113,7 +114,7 @@ function getCodeAnalizer(params: {
      * but actually execute the expression.
      */
     const handleWrapExpression = (expr: any) => {
-      if (parser.state.module?.layer !== 'middleware') {
+      if (!isInMiddlewareLayer(parser)) {
         return
       }
 
@@ -141,7 +142,7 @@ function getCodeAnalizer(params: {
      * module path that is using it.
      */
     const handleExpression = () => {
-      if (parser.state.module?.layer !== 'middleware') {
+      if (!isInMiddlewareLayer(parser)) {
         return
       }
 
@@ -175,7 +176,7 @@ function getCodeAnalizer(params: {
         }
 
         buildInfo.nextUsedEnvVars.add(members[1])
-        if (parser.state.module?.layer !== 'middleware') {
+        if (!isInMiddlewareLayer(parser)) {
           return true
         }
       }
@@ -187,7 +188,7 @@ function getCodeAnalizer(params: {
     const handleNewResponseExpression = (node: any) => {
       const firstParameter = node?.arguments?.[0]
       if (
-        isUserMiddlewareUserFile(parser.state.current) &&
+        isInMiddlewareFile(parser) &&
         firstParameter &&
         !isNullLiteral(firstParameter) &&
         !isUndefinedIdentifier(firstParameter)
@@ -210,8 +211,7 @@ function getCodeAnalizer(params: {
      * A noop handler to skip analyzing some cases.
      * Order matters: for it to work, it must be registered first
      */
-    const skip = () =>
-      parser.state.module?.layer === 'middleware' ? true : undefined
+    const skip = () => (isInMiddlewareLayer(parser) ? true : undefined)
 
     for (const prefix of ['', 'global.']) {
       hooks.expression.for(`${prefix}Function.prototype`).tap(NAME, skip)
@@ -226,6 +226,7 @@ function getCodeAnalizer(params: {
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+    registerUnsupportedApiHooks(parser, compilation)
   }
 }
 
@@ -454,9 +455,78 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   return files
 }
 
-function isUserMiddlewareUserFile(module: any) {
+function registerUnsupportedApiHooks(
+  parser: webpack5.javascript.JavascriptParser,
+  compilation: webpack5.Compilation
+) {
+  const { WebpackError } = compilation.compiler.webpack
+  for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
+    const warnForUnsupportedApi = (node: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+      compilation.warnings.push(
+        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
+      )
+      return true
+    }
+    parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.callMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expressionMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+  }
+
+  const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
+    if (!isInMiddlewareLayer(parser) || callee === 'env') {
+      return
+    }
+    compilation.warnings.push(
+      makeUnsupportedApiError(
+        WebpackError,
+        parser,
+        `process.${callee}`,
+        node.loc
+      )
+    )
+    return true
+  }
+
+  parser.hooks.callMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+  parser.hooks.expressionMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+}
+
+function makeUnsupportedApiError(
+  WebpackError: typeof webpack5.WebpackError,
+  parser: webpack5.javascript.JavascriptParser,
+  name: string,
+  loc: any
+) {
+  const error = new WebpackError(
+    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses. 
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
+  )
+  error.name = NAME
+  error.module = parser.state.current
+  error.loc = loc
+  return error
+}
+
+function isInMiddlewareLayer(parser: webpack5.javascript.JavascriptParser) {
+  return parser.state.module?.layer === 'middleware'
+}
+
+function isInMiddlewareFile(parser: webpack5.javascript.JavascriptParser) {
   return (
-    module.layer === 'middleware' && /middleware\.\w+$/.test(module.rawRequest)
+    parser.state.current?.layer === 'middleware' &&
+    /middleware\.\w+$/.test(parser.state.current?.rawRequest)
   )
 }
 

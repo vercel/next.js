@@ -1,6 +1,23 @@
 # API routes with GraphQL server
 
-Next.js ships with [API routes](https://nextjs.org/docs/api-routes/introduction), which provide an easy solution to build your own `API`. This example shows their usage alongside [apollo-server-micro](https://github.com/apollographql/apollo-server/tree/main/packages/apollo-server-micro) to provide simple GraphQL server consumed by Next.js app.
+Next.js ships with [API routes](https://nextjs.org/docs/api-routes/introduction), which provide an easy solution to build your own `API`.
+This example showcases how to build a lightweight and blazing fast GraphQL API with minimum configuration using GraphQL Yoga.
+
+GraphQL Yoga comes with strong defaults:
+
+- CORS is enabled by default
+- Automatically masking unexpected errors and preventing sensitive information from leaking to clients.
+- Shipped with GraphiQL
+
+Yoga also brings support (with no additional dependency) for subscriptions, file uploads, and your favorite schema-building library (GraphQL Tools, Pothos, Nexus, TypeGraphQL, SDL first schema-design approaches, graphql-js, Apollo Tools).
+
+More information on all available features are available [on the official documentation](https://www.graphql-yoga.com/docs/quick-start).
+
+Finally, GraphQL Yoga is built on top of Envelop. Envelop is a library that helps build GraphQL API faster and flexibly with plugin-based architecture.
+
+Similar to Express middlewares allowing you to customize requests' behavior, Envelop applies the same idea to GraphQL requests.
+
+More information on [Envelop documentation](https://www.envelop.dev/).
 
 ## Deploy your own
 
