@@ -213,7 +213,7 @@ async function main() {
   if (
     (testType &&
       testType !== 'unit' &&
-      !process.env.NEXT_TEST_MODE === 'deploy') ||
+      process.env.NEXT_TEST_MODE !== 'deploy') ||
     hasIsolatedTests
   ) {
     // for isolated next tests: e2e, dev, prod we create
