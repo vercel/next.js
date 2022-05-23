@@ -611,6 +611,12 @@ export async function ncc_path_browserify(task, opts) {
       target: 'es5',
     })
     .target('compiled/path-browserify')
+
+  const filePath = join(__dirname, 'compiled/path-browserify/index.js')
+  const content = fs.readFileSync(filePath, 'utf8')
+
+  // Remove process usage from path-browserify polyfill for edge-runtime
+  await fs.writeFile(filePath, content.replace(/process\.cwd\(\)/, '""'))
 }
 
 // eslint-disable-next-line camelcase
