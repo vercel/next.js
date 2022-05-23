@@ -14,7 +14,9 @@ const ruleTester = new RuleTester()
 
 ruleTester.run('no-styled-jsx-in-document', rule, {
   valid: [
-    `import Document, { Html, Head, Main, NextScript } from 'next/document'
+    {
+      filename: 'pages/_document.js',
+      code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         export class MyDocument extends Document {
           static async getInitialProps(ctx) {
@@ -34,7 +36,10 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
             )
           }
         }`,
-    `import Document, { Html, Head, Main, NextScript } from 'next/document'
+    },
+    {
+      filename: 'pages/_document.js',
+      code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         export class MyDocument extends Document {
           static async getInitialProps(ctx) {
@@ -51,6 +56,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
                     color:red;\
                   }\
                 "}</style>
+                <style {...{nonce: '123' }}></style>
                 <body>
                   <Main />
                   <NextScript />
@@ -59,10 +65,29 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
             )
           }
         }`,
+    },
+    {
+      filename: 'pages/index.js',
+      code: `
+          export default function Page() {
+            return (
+              <>
+                <p>Hello world</p>
+                <style jsx>{\`
+                  p {
+                    color: orange;
+                  }
+                \`}</style>
+              </>
+            )
+          }
+          `,
+    },
   ],
 
   invalid: [
     {
+      filename: 'pages/_document.js',
       code: `
             import Document, { Html, Head, Main, NextScript } from 'next/document'
 
