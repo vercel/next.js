@@ -52,7 +52,9 @@ export async function runTypeCheck(
   let incremental = false
   if ((options.incremental || options.composite) && cacheDir) {
     if (options.composite) {
-      warn('TypeScript project references are not fully supported. Attempting to build in incremental mode.')
+      warn(
+        'TypeScript project references are not fully supported. Attempting to build in incremental mode.'
+      )
     }
     incremental = true
     program = ts.createIncrementalProgram({
