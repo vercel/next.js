@@ -826,7 +826,11 @@ export default class Router implements BaseRouter {
     }
 
     // Safari fires popstateevent when reopening the browser.
-    if (state.as === this.asPath && isFirstPopStateEvent) {
+    if (
+      isFirstPopStateEvent &&
+      this.locale === state.options.locale &&
+      state.as === this.asPath
+    ) {
       return
     }
 
