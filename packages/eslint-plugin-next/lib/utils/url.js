@@ -42,7 +42,10 @@ function getUrlFromPagesDirectories(urlPrefix, directories) {
           (url) => `^${normalizeURL(url)}$`
         )
     )
-  ).map((urlReg) => new RegExp(urlReg))
+  ).map((urlReg) => {
+    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
+    return new RegExp(urlReg)
+  })
 }
 
 // Cache for fs.readdirSync lookup.
@@ -59,8 +62,9 @@ function parseUrlForPages(urlprefix, directory) {
     fsReadDirSyncCache[directory] || fs.readdirSync(directory)
   const res = []
   fsReadDirSyncCache[directory].forEach((fname) => {
+    // TODO: this should account for all page extensions
+    // not just js(x) and ts(x)
     if (/(\.(j|t)sx?)$/.test(fname)) {
-      fname = fname.replace(/\[.*\]/g, '.*')
       if (/^index(\.(j|t)sx?)$/.test(fname)) {
         res.push(`${urlprefix}${fname.replace(/^index(\.(j|t)sx?)$/, '')}`)
       }

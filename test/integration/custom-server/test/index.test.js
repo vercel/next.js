@@ -4,7 +4,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import getPort from 'get-port'
 import cheerio from 'cheerio'
-import clone from 'clone'
 import {
   initNextServerScript,
   killApp,
@@ -20,7 +19,6 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
@@ -28,9 +26,8 @@ const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
+    { ...process.env },
+    { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
     optEnv
   )
 
@@ -101,7 +98,10 @@ describe('Custom Server', () => {
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+    })
     afterAll(() => killApp(server))
 
     it('response includes etag header', async () => {
@@ -132,7 +132,17 @@ describe('Custom Server', () => {
       try {
         browser = await webdriver(context.appPort, '/test-index-hmr')
         const text = await browser.elementByCss('#go-asset').text()
+        const logs = await browser.log()
         expect(text).toBe('Asset')
+
+        // Hydrates with react 18 is correct as expected
+        expect(
+          logs.some((log) =>
+            log.message.includes(
+              'ReactDOM.hydrate is no longer supported in React 18'
+            )
+          )
+        ).toBe(false)
 
         indexPg.replace('Asset', 'Asset!!')
 
@@ -195,5 +205,37 @@ describe('Custom Server', () => {
         expect(response.headers.get('Content-Encoding')).toBe('gzip')
       }
     )
+  })
+
+  describe('with a custom fetch polyfill', () => {
+    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
+  })
+
+  describe('unhandled rejection', () => {
+    afterEach(() => killApp(server))
+
+    it('stderr should include error message and stack trace', async () => {
+      let stderr = ''
+      await startServer(
+        {},
+        {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        }
+      )
+      await fetchViaHTTP(appPort, '/unhandled-rejection')
+      await check(() => stderr, /unhandledRejection/)
+      expect(stderr).toContain(
+        'error - unhandledRejection: Error: unhandled rejection'
+      )
+      expect(stderr).toContain('server.js:22:22')
+    })
   })
 })

@@ -156,3 +156,25 @@ function Home() {
 
 export default Home
 ```
+
+## With suspense
+
+Option `suspense` allows you to lazy-load a component, similar to `React.lazy` and `<Suspense>` with React 18. Note that it only works on client-side or server-side with `fallback`. Full SSR support in concurrent mode is still a work-in-progress.
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicLazyComponent = dynamic(() => import('../components/hello4'), {
+  suspense: true,
+})
+
+function Home() {
+  return (
+    <div>
+      <Suspense fallback={`loading`}>
+        <DynamicLazyComponent />
+      </Suspense>
+    </div>
+  )
+}
+```

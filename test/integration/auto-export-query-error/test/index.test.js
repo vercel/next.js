@@ -4,7 +4,6 @@ import path from 'path'
 import fs from 'fs-extra'
 import { nextBuild, nextExport } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 const outdir = path.join(__dirname, 'out')
 const nextConfig = path.join(appDir, 'next.config.js')
@@ -21,7 +20,6 @@ const runTests = () => {
     expect(stderr).not.toContain('/amp')
     expect(stderr).not.toContain('/ssr')
     expect(stderr).not.toContain('/ssg')
-    expect(stderr).not.toContain('/hello')
   })
 }
 

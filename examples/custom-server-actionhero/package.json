@@ -13,6 +13,5 @@
   },
   "scripts": {
     "start": "actionhero start"
-  },
-  "license": "MIT"
+  }
 }

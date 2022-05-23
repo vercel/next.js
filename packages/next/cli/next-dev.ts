@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
-import { existsSync } from 'fs'
-import startServer from '../server/lib/start-server'
+import { existsSync, watchFile } from 'fs'
+import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
+import { CONFIG_FILES } from '../shared/lib/constants'
+import path from 'path'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -24,7 +27,7 @@ const nextDev: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -33,7 +36,7 @@ const nextDev: cliCommand = (argv) => {
     console.log(`
       Description
         Starts the application in development mode (hot-code reloading, error
-        reporting, etc)
+        reporting, etc.)
 
       Usage
         $ next dev <dir> -p <port number>
@@ -49,7 +52,7 @@ const nextDev: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
@@ -57,7 +60,9 @@ const nextDev: cliCommand = (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await import('../lib/get-package-version')
+    const { getPackageVersion } = await Promise.resolve(
+      require('../lib/get-package-version')
+    )
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -70,20 +75,32 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-
-  const port =
+  const allowRetry = !args['--port']
+  let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
+
+  // we allow the server to use a random port while testing
+  // instead of attempting to find a random port and then hope
+  // it doesn't become occupied before we leverage it
+  if (process.env.__NEXT_RAND_PORT) {
+    port = 0
+  }
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const appUrl = `http://${
-    !host || host === '0.0.0.0' ? 'localhost' : host
-  }:${port}`
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+  startServer({
+    allowRetry,
+    dev: true,
+    dir,
+    hostname: host,
+    isNextDevCommand: true,
+    port,
+  })
     .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${port}`)
+      const appUrl = `http://${app.hostname}:${app.port}`
+      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:
@@ -113,6 +130,16 @@ const nextDev: cliCommand = (argv) => {
       }
       process.nextTick(() => process.exit(1))
     })
+
+  for (const CONFIG_FILE of CONFIG_FILES) {
+    watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        console.log(
+          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
+        )
+      }
+    })
+  }
 }
 
 export { nextDev }

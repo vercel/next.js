@@ -1,5 +1,6 @@
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
+  window.__BEACONS_COUNT = new Map()
 
   navigator.sendBeacon = async function () {
     const args = await Promise.all(
@@ -16,6 +17,7 @@ if (typeof navigator !== 'undefined') {
 }
 
 export default () => {
+  // Below comment will be used for replacing exported report method with hook based one.
   return (
     <div>
       <h1>Foo!</h1>

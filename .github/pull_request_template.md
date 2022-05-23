@@ -21,4 +21,4 @@ Choose the right checklist for the change that you're making:
 
 ## Documentation / Examples
 
-- [ ] Make sure the linting passes
+- [ ] Make sure the linting passes by running `yarn lint`

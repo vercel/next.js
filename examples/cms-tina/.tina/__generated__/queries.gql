@@ -1,0 +1,34 @@
+query posts($relativePath: String!) {
+  posts(relativePath: $relativePath) {
+    _sys {
+      filename
+      basename
+      breadcrumbs
+      path
+      relativePath
+      extension
+    }
+    id
+    ...PostsParts
+  }
+}
+
+query postsConnection {
+  postsConnection {
+    totalCount
+    edges {
+      node {
+        id
+        _sys {
+          filename
+          basename
+          breadcrumbs
+          path
+          relativePath
+          extension
+        }
+        ...PostsParts
+      }
+    }
+  }
+}

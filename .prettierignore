@@ -3,6 +3,7 @@ node_modules
 **/_next/**
 **/dist/**
 packages/next/bundles/webpack/packages/*.runtime.js
+packages/next/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/compiled/**
 packages/react-refresh-utils/**/*.js
 packages/react-refresh-utils/**/*.d.ts
@@ -10,6 +11,7 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 lerna.json
 .github/actions/next-stats-action/.work
+packages/next-swc/crates/**/*
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js
@@ -17,3 +19,5 @@ packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 test-timings.json
 test/**/out/**
+bench/nested-deps/pages/**/*
+bench/nested-deps/components/**/*

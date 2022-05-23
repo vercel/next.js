@@ -1,5 +1,7 @@
+// @ts-check
 const path = require('path')
 const fs = require('fs')
+const getRootDir = require('../utils/get-root-dirs')
 const {
   getUrlFromPagesDirectories,
   normalizeURL,
@@ -20,9 +22,10 @@ const fsExistsSyncCache = {}
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit full page refresh for nextjs pages',
+      description: 'Prohibit full page refresh for Next.js pages',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-html-link-for-pages',
     },
     fixable: null, // or "code" or "whitespace"
     schema: [
@@ -43,14 +46,28 @@ module.exports = {
     ],
   },
 
+  /**
+   * Creates an ESLint rule listener.
+   *
+   * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
+   * @returns {import('eslint').Rule.RuleListener} An ESLint rule listener
+   */
   create: function (context) {
-    const [customPagesDirectory] = context.options
-    const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory].flat()
-      : [
-          path.join(context.getCwd(), 'pages'),
-          path.join(context.getCwd(), 'src', 'pages'),
-        ]
+    /** @type {(string|string[])[]} */
+    const ruleOptions = context.options
+    const [customPagesDirectory] = ruleOptions
+
+    const rootDirs = getRootDir(context)
+
+    const pagesDirs = (
+      customPagesDirectory
+        ? [customPagesDirectory]
+        : rootDirs.map((dir) => [
+            path.join(dir, 'pages'),
+            path.join(dir, 'src', 'pages'),
+          ])
+    ).flat()
+
     const foundPagesDirs = pagesDirs.filter((dir) => {
       if (fsExistsSyncCache[dir] === undefined) {
         fsExistsSyncCache[dir] = fs.existsSync(dir)
@@ -73,11 +90,28 @@ module.exports = {
           return
         }
 
+        const target = node.attributes.find(
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
+        )
+
+        if (target && target.value.value === '_blank') {
+          return
+        }
+
         const href = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
-        if (!href || href.value.type !== 'Literal') {
+        if (!href || (href.value && href.value.type !== 'Literal')) {
+          return
+        }
+
+        const hasDownloadAttr = node.attributes.find(
+          (attr) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+        )
+
+        if (hasDownloadAttr) {
           return
         }
 
@@ -91,7 +125,7 @@ module.exports = {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({
               node,
-              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages.`,
+              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages`,
             })
           }
         })

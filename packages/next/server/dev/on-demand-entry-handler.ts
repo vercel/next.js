@@ -1,64 +1,107 @@
+import type ws from 'ws'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete } from '../config-shared'
 import { EventEmitter } from 'events'
-import { IncomingMessage, ServerResponse } from 'http'
-import { join, posix } from 'path'
-import { parse } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import * as Log from '../../build/output/log'
-import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
-import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
+import { runDependingOnPageType } from '../../build/entries'
+import { join, posix } from 'path'
+import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
+import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
+import { pageNotFoundError } from '../require'
+import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { serverComponentRegex } from '../../build/webpack/loaders/utils'
+import { MIDDLEWARE_FILE, MIDDLEWARE_FILENAME } from '../../lib/constants'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
-export let entries: {
+export const entries: {
+  /**
+   * The key composed of the compiler name and the page. For example:
+   * `edge-server/about`
+   */
   [page: string]: {
-    serverBundlePath: string
-    clientBundlePath: string
+    /**
+     * The absolute page to the page file. For example:
+     * `/Users/Rick/project/pages/about/index.js`
+     */
     absolutePagePath: string
-    status?: typeof ADDED | typeof BUILDING | typeof BUILT
+    /**
+     * Path to the page file relative to the dist folder with no extension.
+     * For example: `pages/about/index`
+     */
+    bundlePath: string
+    /**
+     * Client entry loader and query parameters when RSC is enabled.
+     */
+    clientLoader?: string
+    /**
+     * Tells if a page is scheduled to be disposed.
+     */
+    dispose?: boolean
+    /**
+     * Timestamp with the last time the page was active.
+     */
     lastActiveTime?: number
+    /**
+     * Page build status.
+     */
+    status?: typeof ADDED | typeof BUILDING | typeof BUILT
   }
 } = {}
 
-export default function onDemandEntryHandler(
-  watcher: any,
-  multiCompiler: webpack.MultiCompiler,
-  {
-    pagesDir,
-    pageExtensions,
-    maxInactiveAge,
-    pagesBufferLength,
-  }: {
-    pagesDir: string
-    pageExtensions: string[]
-    maxInactiveAge: number
-    pagesBufferLength: number
+let invalidator: Invalidator
+export const getInvalidator = () => invalidator
+
+export function onDemandEntryHandler({
+  maxInactiveAge,
+  multiCompiler,
+  nextConfig,
+  pagesBufferLength,
+  pagesDir,
+  rootDir,
+  viewsDir,
+  watcher,
+}: {
+  maxInactiveAge: number
+  multiCompiler: webpack.MultiCompiler
+  nextConfig: NextConfigComplete
+  pagesBufferLength: number
+  pagesDir: string
+  rootDir: string
+  viewsDir?: string
+  watcher: any
+}) {
+  invalidator = new Invalidator(watcher)
+  const doneCallbacks: EventEmitter | null = new EventEmitter()
+  const lastClientAccessPages = ['']
+
+  const startBuilding = (_compilation: webpack.Compilation) => {
+    invalidator.startBuilding()
   }
-) {
-  const { compilers } = multiCompiler
-  const invalidator = new Invalidator(watcher, multiCompiler)
-
-  let lastAccessPages = ['']
-  let doneCallbacks: EventEmitter | null = new EventEmitter()
-
-  for (const compiler of compilers) {
-    compiler.hooks.make.tap(
-      'NextJsOnDemandEntries',
-      (_compilation: webpack.compilation.Compilation) => {
-        invalidator.startBuilding()
-      }
-    )
+  for (const compiler of multiCompiler.compilers) {
+    compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
   }
 
-  function getPagePathsFromEntrypoints(entrypoints: any): string[] {
-    const pagePaths = []
+  function getPagePathsFromEntrypoints(
+    type: 'client' | 'server' | 'edge-server',
+    entrypoints: Map<string, { name?: string }>,
+    root?: boolean
+  ) {
+    const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name)
+      const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
-        pagePaths.push(page)
+        pagePaths.push(`${type}${page}`)
+      } else if (root && entrypoint.name === 'root') {
+        pagePaths.push(`${type}/${entrypoint.name}`)
+      } else if (entrypoint.name === MIDDLEWARE_FILENAME) {
+        pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
 
@@ -66,11 +109,30 @@ export default function onDemandEntryHandler(
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
-    const [clientStats, serverStats] = multiStats.stats
-    const pagePaths = new Set([
-      ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
-      ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
-    ])
+    if (invalidator.rebuildAgain) {
+      return invalidator.doneBuilding()
+    }
+    const [clientStats, serverStats, edgeServerStats] = multiStats.stats
+    const root = !!viewsDir
+    const pagePaths = [
+      ...getPagePathsFromEntrypoints(
+        'client',
+        clientStats.compilation.entrypoints,
+        root
+      ),
+      ...getPagePathsFromEntrypoints(
+        'server',
+        serverStats.compilation.entrypoints,
+        root
+      ),
+      ...(edgeServerStats
+        ? getPagePathsFromEntrypoints(
+            'edge-server',
+            edgeServerStats.compilation.entrypoints,
+            root
+          )
+        : []),
+    ]
 
     for (const page of pagePaths) {
       const entry = entries[page]
@@ -83,23 +145,22 @@ export default function onDemandEntryHandler(
       }
 
       entry.status = BUILT
-      entry.lastActiveTime = Date.now()
       doneCallbacks!.emit(page)
     }
 
     invalidator.doneBuilding()
   })
 
-  const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
-  }, 5000)
+  const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
-  disposeHandler.unref()
+  setInterval(function () {
+    disposeInactiveEntries(lastClientAccessPages, maxInactiveAge)
+  }, pingIntervalTime + 1000).unref()
 
   function handlePing(pg: string) {
     const page = normalizePathSep(pg)
-    const entryInfo = entries[page]
-    let toSend
+    const pageKey = `client${page}`
+    const entryInfo = entries[pageKey]
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
@@ -108,137 +169,130 @@ export default function onDemandEntryHandler(
     }
 
     // 404 is an on demand entry but when a new page is added we have to refresh the page
-    if (page === '/_error') {
-      toSend = { invalid: true }
-    } else {
-      toSend = { success: true }
-    }
+    const toSend = page === '/_error' ? { invalid: true } : { success: true }
 
     // We don't need to maintain active state of anything other than BUILT entries
     if (entryInfo.status !== BUILT) return
 
     // If there's an entryInfo
-    if (!lastAccessPages.includes(page)) {
-      lastAccessPages.unshift(page)
+    if (!lastClientAccessPages.includes(pageKey)) {
+      lastClientAccessPages.unshift(pageKey)
 
       // Maintain the buffer max length
-      if (lastAccessPages.length > pagesBufferLength) {
-        lastAccessPages.pop()
+      if (lastClientAccessPages.length > pagesBufferLength) {
+        lastClientAccessPages.pop()
       }
     }
     entryInfo.lastActiveTime = Date.now()
+    entryInfo.dispose = false
     return toSend
   }
 
   return {
-    async ensurePage(page: string) {
-      let normalizedPagePath: string
-      try {
-        normalizedPagePath = normalizePagePath(page)
-      } catch (err) {
-        console.error(err)
-        throw pageNotFoundError(page)
-      }
-
-      let pagePath = await findPageFile(
+    async ensurePage(page: string, clientOnly: boolean) {
+      const pagePathData = await findPagePathData(
+        rootDir,
         pagesDir,
-        normalizedPagePath,
-        pageExtensions
+        page,
+        nextConfig.pageExtensions,
+        viewsDir
       )
 
-      // Default the /_error route to the Next.js provided default page
-      if (page === '/_error' && pagePath === null) {
-        pagePath = 'next/dist/pages/_error'
-      }
+      let entryAdded = false
 
-      if (pagePath === null) {
-        throw pageNotFoundError(normalizedPagePath)
-      }
+      const addPageEntry = (type: 'client' | 'server' | 'edge-server') => {
+        return new Promise<void>((resolve, reject) => {
+          const isServerComponent = serverComponentRegex.test(
+            pagePathData.absolutePagePath
+          )
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+          const pageKey = `${type}${pagePathData.page}`
 
-      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-        .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\/index$/, '')}`
+          if (entries[pageKey]) {
+            entries[pageKey].dispose = false
+            entries[pageKey].lastActiveTime = Date.now()
+            if (entries[pageKey].status === BUILT) {
+              resolve()
+              return
+            }
+          } else {
+            if (type === 'client' && isServerComponent) {
+              // Skip adding the client entry here.
+            } else {
+              entryAdded = true
+              entries[pageKey] = {
+                absolutePagePath: pagePathData.absolutePagePath,
+                bundlePath: pagePathData.bundlePath,
+                dispose: false,
+                lastActiveTime: Date.now(),
+                status: ADDED,
+              }
+            }
+          }
 
-      pageUrl = pageUrl === '' ? '/' : pageUrl
-
-      const bundleFile = normalizePagePath(pageUrl)
-      const serverBundlePath = posix.join('pages', bundleFile)
-      const clientBundlePath = posix.join('pages', bundleFile)
-      const absolutePagePath = pagePath.startsWith('next/dist/pages')
-        ? require.resolve(pagePath)
-        : join(pagesDir, pagePath)
-
-      page = posix.normalize(pageUrl)
-
-      return new Promise<void>((resolve, reject) => {
-        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePathSep(page)
-        const entryInfo = entries[normalizedPage]
-
-        if (entryInfo) {
-          if (entryInfo.status === BUILT) {
+          doneCallbacks!.once(pageKey, (err: Error) => {
+            if (err) return reject(err)
             resolve()
-            return
-          }
+          })
+        })
+      }
 
-          if (entryInfo.status === BUILDING) {
-            doneCallbacks!.once(normalizedPage, handleCallback)
-            return
-          }
-        }
-
-        Log.event(`build page: ${normalizedPage}`)
-
-        entries[normalizedPage] = {
-          serverBundlePath,
-          clientBundlePath,
-          absolutePagePath,
-          status: ADDED,
-        }
-        doneCallbacks!.once(normalizedPage, handleCallback)
-
-        invalidator.invalidate()
-
-        function handleCallback(err: Error) {
-          if (err) return reject(err)
-          resolve()
-        }
+      const staticInfo = await getPageStaticInfo({
+        pageFilePath: pagePathData.absolutePagePath,
+        nextConfig,
       })
+
+      const promises = runDependingOnPageType({
+        page: pagePathData.page,
+        pageRuntime: staticInfo.runtime,
+        onClient: () => addPageEntry('client'),
+        onServer: () => addPageEntry('server'),
+        onEdgeServer: () => addPageEntry('edge-server'),
+      })
+
+      if (entryAdded) {
+        reportTrigger(
+          !clientOnly && promises.length > 1
+            ? `${pagePathData.page} (client and server)`
+            : pagePathData.page
+        )
+        invalidator.invalidate()
+      }
+
+      return Promise.all(promises)
     },
 
-    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
-      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
+    onHMR(client: ws) {
+      client.addEventListener('message', ({ data }) => {
+        try {
+          const parsedData = JSON.parse(
+            typeof data !== 'string' ? data.toString() : data
+          )
 
-      const { query } = parse(req.url!, true)
-      const page = query.page
-      if (!page) return next()
-
-      const runPing = () => {
-        const data = handlePing(query.page as string)
-        if (!data) return
-        res.write('data: ' + JSON.stringify(data) + '\n\n')
-      }
-      const pingInterval = setInterval(() => runPing(), 5000)
-
-      req.on('close', () => {
-        clearInterval(pingInterval)
+          if (parsedData.event === 'ping') {
+            const result = handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                event: 'pong',
+              })
+            )
+          }
+        } catch (_) {}
       })
-      next()
     },
   }
 }
 
 function disposeInactiveEntries(
-  watcher: any,
-  lastAccessPages: any,
+  lastClientAccessPages: string[],
   maxInactiveAge: number
 ) {
-  const disposingPages: any = []
-
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status } = entries[page]
+    const { lastActiveTime, status, dispose } = entries[page]
+
+    // Skip pages already scheduled for disposing
+    if (dispose) return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -247,32 +301,22 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages.includes(page)) return
+    if (lastClientAccessPages.includes(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      disposingPages.push(page)
+      entries[page].dispose = true
     }
   })
-
-  if (disposingPages.length > 0) {
-    disposingPages.forEach((page: any) => {
-      delete entries[page]
-    })
-    // disposing inactive page(s)
-    watcher.invalidate()
-  }
 }
 
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  private multiCompiler: webpack.MultiCompiler
   private watcher: any
   private building: boolean
-  private rebuildAgain: boolean
+  public rebuildAgain: boolean
 
-  constructor(watcher: any, multiCompiler: webpack.MultiCompiler) {
-    this.multiCompiler = multiCompiler
+  constructor(watcher: any) {
     this.watcher = watcher
     // contains an array of types of compilers currently building
     this.building = false
@@ -290,14 +334,6 @@ class Invalidator {
     }
 
     this.building = true
-    if (!isWebpack5) {
-      // Work around a bug in webpack, calling `invalidate` on Watching.js
-      // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
-      for (const compiler of this.multiCompiler.compilers) {
-        compiler.hooks.invalid.call()
-      }
-    }
-
     this.watcher.invalidate()
   }
 
@@ -312,5 +348,102 @@ class Invalidator {
       this.rebuildAgain = false
       this.invalidate()
     }
+  }
+}
+
+/**
+ * Attempts to find a page file path from the given pages absolute directory,
+ * a page and allowed extensions. If the page can't be found it will throw an
+ * error. It defaults the `/_error` page to Next.js internal error page.
+ *
+ * @param rootDir Absolute path to the project root.
+ * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
+ * @param normalizedPagePath The page normalized (it will be denormalized).
+ * @param pageExtensions Array of page extensions.
+ */
+async function findPagePathData(
+  rootDir: string,
+  pagesDir: string,
+  page: string,
+  extensions: string[],
+  viewsDir?: string
+) {
+  const normalizedPagePath = tryToNormalizePagePath(page)
+  let pagePath: string | null = null
+
+  if (normalizedPagePath === MIDDLEWARE_FILE) {
+    pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
+
+    if (!pagePath) {
+      throw pageNotFoundError(normalizedPagePath)
+    }
+
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(rootDir, pagePath),
+      bundlePath: normalizedPagePath.slice(1),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  // Check viewsDir first falling back to pagesDir
+  if (viewsDir) {
+    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
+    if (pagePath) {
+      const pageUrl = ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          keepIndex: true,
+          extensions,
+        })
+      )
+
+      return {
+        absolutePagePath: join(viewsDir, pagePath),
+        bundlePath: posix.join('views', normalizePagePath(pageUrl)),
+        page: posix.normalize(pageUrl),
+      }
+    }
+  }
+
+  if (!pagePath) {
+    pagePath = await findPageFile(pagesDir, normalizedPagePath, extensions)
+  }
+
+  if (pagePath !== null) {
+    const pageUrl = ensureLeadingSlash(
+      removePagePathTail(normalizePathSep(pagePath), {
+        extensions,
+      })
+    )
+
+    return {
+      absolutePagePath: join(pagesDir, pagePath),
+      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+      page: posix.normalize(pageUrl),
+    }
+  }
+
+  if (page === '/_error') {
+    return {
+      absolutePagePath: require.resolve('next/dist/pages/_error'),
+      bundlePath: page,
+      page: normalizePathSep(page),
+    }
+  } else {
+    throw pageNotFoundError(normalizedPagePath)
+  }
+}
+
+function tryToNormalizePagePath(page: string) {
+  try {
+    return normalizePagePath(page)
+  } catch (err) {
+    console.error(err)
+    throw pageNotFoundError(page)
   }
 }

@@ -34,7 +34,9 @@ export const config = {
 
 The `api` object includes all configs available for API routes.
 
-`bodyParser` Enables body parsing, you can disable it if you want to consume it as a `Stream`:
+`bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
+
+One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
 ```js
 export const config = {
@@ -62,6 +64,29 @@ export const config = {
 export const config = {
   api: {
     externalResolver: true,
+  },
+}
+```
+
+`responseLimit` is automatically enabled, warning when an API routes' response body is over 4MB.
+
+If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
+
+```js
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+}
+```
+
+`responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+This value will be the maximum response size before a warning is displayed. Default is 4MB. (see above)
+
+```js
+export const config = {
+  api: {
+    responseLimit: '8mb',
   },
 }
 ```
@@ -140,12 +165,11 @@ export const setCookie = (
   const stringValue =
     typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
 
-  if ('maxAge' in options) {
-    options.expires = new Date(Date.now() + options.maxAge)
-    options.maxAge /= 1000
+  if (typeof options.maxAge === 'number') {
+    options.expires = new Date(Date.now() + options.maxAge * 1000)
   }
 
-  res.setHeader('Set-Cookie', serialize(name, String(stringValue), options))
+  res.setHeader('Set-Cookie', serialize(name, stringValue, options))
 }
 
 // pages/api/cookies.ts

@@ -18,7 +18,7 @@ export default function (context) {
         .elementByCss('#about-via-link')
         .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).toBe('/')
+      expect(link.slice(-1)).toBe('/')
     })
 
     it('should not add trailing slash on Link when disabled', async () => {
@@ -27,7 +27,7 @@ export default function (context) {
         .elementByCss('#about-via-link')
         .getAttribute('href')
 
-      expect(link.substr(link.length - 1)).not.toBe('/')
+      expect(link.slice(-1)).not.toBe('/')
     })
 
     it('should do navigations via Link', async () => {
@@ -99,7 +99,7 @@ export default function (context) {
       await browser.close()
     })
 
-    it('should support client side naviagtion', async () => {
+    it('should support client side navigation', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
         .elementByCss('#counter')

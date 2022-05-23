@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
-import Head from 'next/head'
 import { useRouter } from 'next/router'
 import NProgress from 'nprogress'
+import '../public/nprogress.css'
 
 export default function App({ Component, pageProps }) {
   const router = useRouter()
@@ -29,10 +29,6 @@ export default function App({ Component, pageProps }) {
 
   return (
     <>
-      <Head>
-        {/* Import CSS for nprogress */}
-        <link rel="stylesheet" type="text/css" href="/nprogress.css" />
-      </Head>
       <nav>
         <style jsx>{`
           a {

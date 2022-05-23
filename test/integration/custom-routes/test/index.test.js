@@ -22,9 +22,8 @@ import {
   initNextServerScript,
   nextExport,
   hasRedbox,
+  check,
 } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60 * 2)
 
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
@@ -80,6 +79,76 @@ const runTests = (isDev = false) => {
         })
       }
     }
+  })
+
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('Example Domain')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
+  })
+
+  it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should handle beforeFiles rewrite to partly dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic-again').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]\/test/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]/test'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should support long URLs for rewrites', async () => {
@@ -158,8 +227,10 @@ const runTests = (isDev = false) => {
 
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
-    const text = await browser.eval(() => document.documentElement.innerHTML)
-    expect(text).toContain('auto-export hello')
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /auto-export.*?hello/
+    )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
       slug: 'hello',
@@ -689,6 +760,26 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
+  it('should have correctly encoded query in location and refresh headers', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      // Query unencoded is ?テスト=あ
+      '/redirect4?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(308)
+
+    expect(res.headers.get('location').split('?')[1]).toBe(
+      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+    expect(res.headers.get('refresh')).toBe(
+      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+  })
+
   it('should handle basic api rewrite successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello')
     expect(JSON.parse(data)).toEqual({ query: {} })
@@ -1030,6 +1121,49 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should match has host redirect and insert in destination correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      redirect: 'manual',
+    })
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      headers: {
+        host: 'hello-test.example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.protocol).toBe('https:')
+    expect(parsed.hostname).toBe('hello.example.com')
+    expect(parsed.pathname).toBe('/some-path/end')
+    expect(parsed.query).toEqual({
+      a: 'b',
+    })
+  })
+
+  it('should match has query redirect with duplicate query key', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-7',
+      '?hello=world&hello=another',
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/somewhere')
+    expect(parsed.query).toEqual({
+      hello: ['world', 'another'],
+      value: 'another',
+    })
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -1362,6 +1496,31 @@ const runTests = (isDev = false) => {
             source: '/:path/has-redirect-5',
             statusCode: 307,
           },
+          {
+            destination: 'https://:subdomain.example.com/some-path/end?a=b',
+            has: [
+              {
+                type: 'host',
+                value: '(?<subdomain>.*)-test.example.com',
+              },
+            ],
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-6(?:\\/)?$'),
+            source: '/has-redirect-6',
+            statusCode: 307,
+          },
+          {
+            source: '/has-redirect-7',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-7(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'hello',
+                value: '(?<hello>.*)',
+              },
+            ],
+            destination: '/somewhere?value=:hello',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
@@ -1607,6 +1766,18 @@ const runTests = (isDev = false) => {
                 '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/old-blog/:path*',
+            },
+            {
+              destination: 'https://example.vercel.sh',
+              regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
+              source: '/overridden',
+            },
+            {
+              destination: '/_sport/nfl/:path*',
+              regex: normalizeRegEx(
+                '^\\/nfl(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
+              ),
+              source: '/nfl/:path*',
             },
           ],
           afterFiles: [
@@ -1862,6 +2033,22 @@ const runTests = (isDev = false) => {
         },
         dynamicRoutes: [
           {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            page: '/_sport/[slug]',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            page: '/_sport/[slug]/test',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
@@ -1900,6 +2087,62 @@ const runTests = (isDev = false) => {
             routeKeys: {
               slug: 'slug',
             },
+          },
+        ],
+        staticRoutes: [
+          {
+            namedRegex: '^/auto\\-export/another(?:/)?$',
+            page: '/auto-export/another',
+            regex: '^/auto\\-export/another(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            page: '/docs/v2/more/now-for-github',
+            regex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello(?:/)?$',
+            page: '/hello',
+            regex: '^/hello(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello\\-again(?:/)?$',
+            page: '/hello-again',
+            regex: '^/hello\\-again(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/multi\\-rewrites(?:/)?$',
+            page: '/multi-rewrites',
+            regex: '^/multi\\-rewrites(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/nav(?:/)?$',
+            page: '/nav',
+            regex: '^/nav(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/overridden(?:/)?$',
+            page: '/overridden',
+            regex: '^/overridden(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/redirect\\-override(?:/)?$',
+            page: '/redirect-override',
+            regex: '^/redirect\\-override(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/with\\-params(?:/)?$',
+            page: '/with-params',
+            regex: '^/with\\-params(?:/)?$',
+            routeKeys: {},
           },
         ],
       })
@@ -2011,8 +2254,10 @@ describe('Custom routes', () => {
 
     it('should not error for no-op rewrite and auto export dynamic route', async () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
-      const html = await browser.eval(() => document.documentElement.innerHTML)
-      expect(html).toContain(`auto-export my-slug`)
+      await check(
+        () => browser.eval(() => document.documentElement.innerHTML),
+        /auto-export.*?my-slug/
+      )
     })
   })
 

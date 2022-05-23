@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
 // eslint-disable-next-line no-shadow
@@ -24,9 +24,10 @@ export interface LintResult {
   source?: string
 }
 
-function pluginCount(
-  messages: LintMessage[]
-): { nextPluginErrorCount: number; nextPluginWarningCount: number } {
+function pluginCount(messages: LintMessage[]): {
+  nextPluginErrorCount: number
+  nextPluginWarningCount: number
+} {
   let nextPluginWarningCount = 0
   let nextPluginErrorCount = 0
 

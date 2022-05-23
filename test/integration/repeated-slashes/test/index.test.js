@@ -16,9 +16,8 @@ import {
   launchApp,
   fetchViaHTTP,
   check,
+  renderViaHTTP,
 } from 'next-test-utils'
-
-jest.setTimeout(60 * 1000)
 
 const appDir = join(__dirname, '../app')
 const outdir = join(appDir, 'out')
@@ -310,8 +309,6 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
   })
 
   it('should handle slashes in router push correctly', async () => {
-    const browser = await webdriver(appPort, '/')
-
     for (const item of [
       {
         page: '/another',
@@ -337,6 +334,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         hash: '#hello',
       },
     ]) {
+      const browser = await webdriver(appPort, '/')
       await browser.eval(
         `window.next.router.push("${item.href}"${
           item.as ? `, "${item.as}"` : ''
@@ -352,8 +350,6 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
   })
 
   it('should have no error from encoded slashes in router push', async () => {
-    const browser = await webdriver(appPort, '/')
-
     for (const item of [
       {
         page: '/another',
@@ -378,6 +374,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         hash: '#hello',
       },
     ]) {
+      const browser = await webdriver(appPort, '/')
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
@@ -398,9 +395,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       expect(await browser.eval('window.next.router.asPath')).toBe(
         item.as || item.href
       )
-      expect(await browser.eval('window.beforeNav')).toBe(
-        item.shouldHardNav !== false ? null : 1
-      )
+      if (item.shouldHardNav !== false) {
+        expect(await browser.eval('window.beforeNav')).toBeFalsy()
+      } else {
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+      }
     }
   })
 }
@@ -424,6 +423,10 @@ describe('404 handling', () => {
       beforeAll(async () => {
         appPort = await findPort()
         app = await launchApp(appDir, appPort, nextOpts)
+
+        // prebuild pages
+        await renderViaHTTP(appPort, '/')
+        await renderViaHTTP(appPort, '/another')
       })
       afterAll(() => killApp(app))
 

@@ -31,6 +31,5 @@
     },
     "output": "public",
     "javascript": "./theme.js"
-  },
-  "license": "MIT"
+  }
 }

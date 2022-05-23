@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-unsplash with-unsplash-app
 # or
 yarn create next-app --example with-unsplash with-unsplash-app
+# or
+pnpm create next-app -- --example with-unsplash with-unsplash-app
 ```
 
 ## Configuration

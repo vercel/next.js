@@ -23,7 +23,15 @@ export async function recursiveReadDir(
       const absolutePath = join(dir, part.name)
       if (ignore && ignore.test(part.name)) return
 
-      if (part.isDirectory()) {
+      // readdir does not follow symbolic links
+      // if part is a symbolic link, follow it using stat
+      let isDirectory = part.isDirectory()
+      if (part.isSymbolicLink()) {
+        const stats = await promises.stat(absolutePath)
+        isDirectory = stats.isDirectory()
+      }
+
+      if (isDirectory) {
         await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)
         return
       }
