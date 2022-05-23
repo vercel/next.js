@@ -918,6 +918,7 @@ jobs:
       NEXT_TEST_JOB: 1
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
       VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
+      NEXT_TEST_MODE: deploy
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -937,7 +938,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: NEXT_TEST_MODE=deploy node run-tests.js --type e2e
+      - run: node run-tests.js --type e2e
         name: Run test/e2e (deploy)
 
       - name: Upload test trace

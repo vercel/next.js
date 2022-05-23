@@ -211,10 +211,8 @@ async function main() {
   })
 
   if (
-    (testType &&
-      testType !== 'unit' &&
-      process.env.NEXT_TEST_MODE !== 'deploy') ||
-    hasIsolatedTests
+    process.env.NEXT_TEST_MODE !== 'deploy' &&
+    ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
