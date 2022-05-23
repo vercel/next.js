@@ -3,6 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import assert from 'assert'
 
 describe('reload-scroll-back-restoration', () => {
   let next: NextInstance
@@ -53,12 +54,17 @@ describe('reload-scroll-back-restoration', () => {
       /routeChangeComplete/
     )
 
-    expect(scrollPositionMemories[1].x).toBe(
-      Math.floor(await browser.eval(() => window.scrollX))
-    )
-    expect(scrollPositionMemories[1].y).toBe(
-      Math.floor(await browser.eval(() => window.scrollY))
-    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[1].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[1].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
+    }, 'success')
 
     await browser.refresh()
 
@@ -69,12 +75,17 @@ describe('reload-scroll-back-restoration', () => {
       /routeChangeComplete/
     )
 
-    expect(scrollPositionMemories[0].x).toBe(
-      Math.floor(await browser.eval(() => window.scrollX))
-    )
-    expect(scrollPositionMemories[0].y).toBe(
-      Math.floor(await browser.eval(() => window.scrollY))
-    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[0].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[0].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
+    }, 'success')
   })
 
   it('should restore the scroll position on navigating forward', async () => {
@@ -119,12 +130,17 @@ describe('reload-scroll-back-restoration', () => {
       /routeChangeComplete/
     )
 
-    expect(scrollPositionMemories[1].x).toBe(
-      Math.floor(await browser.eval(() => window.scrollX))
-    )
-    expect(scrollPositionMemories[1].y).toBe(
-      Math.floor(await browser.eval(() => window.scrollY))
-    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[1].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[1].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
+    }, 'success')
 
     await browser.refresh()
 
@@ -135,11 +151,16 @@ describe('reload-scroll-back-restoration', () => {
       /routeChangeComplete/
     )
 
-    expect(scrollPositionMemories[2].x).toBe(
-      Math.floor(await browser.eval(() => window.scrollX))
-    )
-    expect(scrollPositionMemories[2].y).toBe(
-      Math.floor(await browser.eval(() => window.scrollY))
-    )
+    await check(async () => {
+      assert.equal(
+        scrollPositionMemories[2].x,
+        Math.floor(await browser.eval(() => window.scrollX))
+      )
+      assert.equal(
+        scrollPositionMemories[2].y,
+        Math.floor(await browser.eval(() => window.scrollY))
+      )
+      return 'success'
+    }, 'success')
   })
 })
