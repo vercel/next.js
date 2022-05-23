@@ -86,6 +86,7 @@
     "sharp": "^0.30.0",
     "socket.io": "^2.4.0",
     "socket.io-client": "^2.2.0",
+    "sqlite3": "^5.0.8",
     "stripe": "^7.4.0",
     "swig": "^1.4.2",
     "tiny-json-http": "^7.1.2",

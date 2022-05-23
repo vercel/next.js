@@ -2,7 +2,7 @@ use std::{mem::take, sync::Arc};
 
 use url::Url;
 
-use crate::target::{CompileTarget, Target};
+use crate::target::CompileTarget;
 
 use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
@@ -53,9 +53,9 @@ pub fn well_known_function_call(
             "require.resolve() is not supported",
         ),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
-        WellKnownFunctionKind::OsArch => os_arch(target),
-        WellKnownFunctionKind::OsPlatform => os_platform(target),
-        WellKnownFunctionKind::OsEndianness => os_endianness(target),
+        WellKnownFunctionKind::OsArch => target.arch().into(),
+        WellKnownFunctionKind::OsPlatform => target.platform().into(),
+        WellKnownFunctionKind::OsEndianness => target.endianness().into(),
         #[cfg(feature = "node-native-binding")]
         WellKnownFunctionKind::NodePreGypFind => node_pre_gyp_find(args),
         _ => JsValue::Unknown(
@@ -362,8 +362,8 @@ fn os_module_member(prop: JsValue) -> JsValue {
 
 fn node_process_member(prop: JsValue, target: &CompileTarget) -> JsValue {
     match prop.as_str() {
-        Some("arch") => os_arch(target),
-        Some("platform") => os_platform(target),
+        Some("arch") => target.arch().into(),
+        Some("platform") => target.platform().into(),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
@@ -372,96 +372,6 @@ fn node_process_member(prop: JsValue, target: &CompileTarget) -> JsValue {
             "unsupported property on Node.js process object",
         ),
     }
-}
-
-fn os_endianness(target: &CompileTarget) -> JsValue {
-    if let CompileTarget::Target(Target { endianness, .. }) = target {
-        return endianness.to_str().into();
-    }
-    #[cfg(target_endian = "little")]
-    {
-        return "LE".into();
-    }
-    #[cfg(target_endian = "big")]
-    {
-        return "BE".into();
-    }
-}
-
-#[allow(unreachable_code)]
-fn os_arch(target: &CompileTarget) -> JsValue {
-    if let CompileTarget::Target(Target { arch, .. }) = target {
-        return arch.to_str().into();
-    }
-    #[cfg(target_arch = "x86")]
-    {
-        return "ia32".into();
-    }
-    #[cfg(target_arch = "x86_64")]
-    {
-        return "x64".into();
-    }
-    #[cfg(target_arch = "arm")]
-    {
-        return "arm".into();
-    }
-    #[cfg(target_arch = "aarch64")]
-    {
-        return "arm64".into();
-    }
-    #[cfg(target_arch = "mips")]
-    {
-        return "mips".into();
-    }
-    #[cfg(target_arch = "powerpc")]
-    {
-        return "ppc".into();
-    }
-    #[cfg(target_arch = "powerpc64")]
-    {
-        return "ppc64".into();
-    }
-    #[cfg(target_arch = "s390x")]
-    {
-        return "s390x".into();
-    }
-    return JsValue::Unknown(None, "Unknown architecture");
-}
-
-#[allow(unreachable_code)]
-fn os_platform(target: &CompileTarget) -> JsValue {
-    if let CompileTarget::Target(Target { platform, .. }) = target {
-        return platform.to_str().into();
-    }
-    #[cfg(target_os = "windows")]
-    {
-        return "win32".into();
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return "linux".into();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return "darwin".into();
-    }
-    #[cfg(target_os = "android")]
-    {
-        return "android".into();
-    }
-    #[cfg(target_os = "freebsd")]
-    {
-        return "freebsd".into();
-    }
-    #[cfg(target_os = "openbsd")]
-    {
-        return "openbsd".into();
-    }
-    #[cfg(target_os = "solaris")]
-    {
-        return "sunos".into();
-    }
-    return JsValue::Unknown(None, "Unknown platform");
 }
 
 #[cfg(feature = "node-native-binding")]

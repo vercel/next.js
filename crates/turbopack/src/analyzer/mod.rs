@@ -1866,7 +1866,7 @@ mod tests {
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
-    use crate::target::{Arch, CompileTarget, Endianness, Platform, Target};
+    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform, Target};
 
     use super::{
         graph::{create_graph, EvalContext},
@@ -1958,6 +1958,7 @@ mod tests {
                                         Arch::X64,
                                         Platform::Linux,
                                         Endianness::Little,
+                                        Libc::Glibc,
                                     )),
                                 ))
                             }),

@@ -215,6 +215,7 @@ pub async fn module_references(
                 link_value: &'a F,
                 is_typescript: bool,
                 references: &'a mut Vec<AssetReferenceVc>,
+                target: &'a CompileTarget,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
                     handler,
@@ -226,6 +227,7 @@ pub async fn module_references(
                     link_value,
                     is_typescript,
                     references,
+                    &target,
                 ))
             }
 
@@ -242,6 +244,7 @@ pub async fn module_references(
                 link_value: &F,
                 is_typescript: bool,
                 references: &mut Vec<AssetReferenceVc>,
+                target: &CompileTarget,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
                     JsValue::explain_args(&args, 10, 2)
@@ -260,6 +263,7 @@ pub async fn module_references(
                                 link_value,
                                 is_typescript,
                                 references,
+                                &target,
                             )
                             .await?;
                         }
@@ -527,6 +531,7 @@ pub async fn module_references(
                                 NodePreGypConfigReferenceVc::new(
                                     source.path().parent(),
                                     pat.into(),
+                                    Value::new(*target),
                                 )
                                 .into(),
                             );
@@ -574,6 +579,7 @@ pub async fn module_references(
                             &link_value,
                             is_typescript,
                             &mut references,
+                            &target,
                         )
                         .await?;
                     }
@@ -607,6 +613,7 @@ pub async fn module_references(
                             &link_value,
                             is_typescript,
                             &mut references,
+                            &target,
                         )
                         .await?;
                     }

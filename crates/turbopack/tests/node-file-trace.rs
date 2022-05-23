@@ -108,6 +108,7 @@ use turbopack::{
 #[case::simple("integration/simple.js", true)]
 #[case::socket_io("integration/socket.io.js", true)]
 #[case::sparql_builder("integration/sparql-builder.js", true)]
+#[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
 #[case::tensorflow("integration/tensorflow.js", false)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
