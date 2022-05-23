@@ -77,7 +77,7 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    console.log(`Creating test directory with isolated next...`)
+    require('console').log(`Creating test directory with isolated next...`)
 
     const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
     const tmpDir = skipIsolatedNext
@@ -141,7 +141,7 @@ export class NextInstance {
           this.packageLockPath
         )
       }
-      console.log('created next.js install, writing test files')
+      require('console').log('created next.js install, writing test files')
     }
 
     for (const filename of Object.keys(this.files)) {
@@ -219,7 +219,7 @@ export class NextInstance {
         `
       )
     }
-    console.log(`Test directory created at ${this.testDir}`)
+    require('console').log(`Test directory created at ${this.testDir}`)
   }
 
   public async clean() {
@@ -253,7 +253,7 @@ export class NextInstance {
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
-            console.error('tree-kill', err)
+            require('console').error('tree-kill', err)
           }
           resolve()
         })
@@ -261,7 +261,7 @@ export class NextInstance {
       this.childProcess.kill('SIGKILL')
       await exitPromise
       this.childProcess = undefined
-      console.log(`Stopped next server`)
+      require('console').log(`Stopped next server`)
     }
   }
 
@@ -295,7 +295,7 @@ export class NextInstance {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }
-    console.log(`destroyed next instance`)
+    require('console').log(`destroyed next instance`)
   }
 
   public get url() {

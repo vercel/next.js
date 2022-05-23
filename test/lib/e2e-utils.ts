@@ -46,7 +46,9 @@ if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
   if (!process.env.NEXT_TEST_JOB && !testMode) {
-    console.warn('Warn: no NEXT_TEST_MODE set, using default of start')
+    require('console').warn(
+      'Warn: no NEXT_TEST_MODE set, using default of start'
+    )
     testMode = 'start'
   }
   assert(
@@ -74,7 +76,9 @@ if (!testMode) {
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
   )
 }
-console.warn(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
+require('console').warn(
+  `Using test mode: ${testMode} in test folder ${testModeFromFile}`
+)
 
 /**
  * FileRef is wrapper around a file path that is meant be copied

@@ -36,9 +36,9 @@ export class NextDeployInstance extends NextInstance {
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
-      console.log(`Using Vercel CLI version:`, res.stdout)
+      require('console').log(`Using Vercel CLI version:`, res.stdout)
     } catch (_) {
-      console.log(`Installing Vercel CLI`)
+      require('console').log(`Installing Vercel CLI`)
       await execa('npm', ['i', '-g', 'vercel@latest'], {
         stdio: 'inherit',
       })
@@ -49,7 +49,7 @@ export class NextDeployInstance extends NextInstance {
     if (vcConfigDir) {
       vercelFlags.push('--global-config', vcConfigDir)
     }
-    console.log(`Linking project at ${this.testDir}`)
+    require('console').log(`Linking project at ${this.testDir}`)
 
     // link the project
     const linkRes = await execa(
@@ -66,7 +66,7 @@ export class NextDeployInstance extends NextInstance {
         `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
       )
     }
-    console.log(`Deploying project at ${this.testDir}`)
+    require('console').log(`Deploying project at ${this.testDir}`)
 
     const deployRes = await execa(
       'vercel',
@@ -96,7 +96,7 @@ export class NextDeployInstance extends NextInstance {
     this._url = deployRes.stdout
     this._parsedUrl = new URL(this._url)
 
-    console.log(`Deployment URL: ${this._url}`)
+    require('console').log(`Deployment URL: ${this._url}`)
     const buildIdUrl = `${this._url}${
       this.basePath || ''
     }/_next/static/__BUILD_ID`
@@ -104,13 +104,13 @@ export class NextDeployInstance extends NextInstance {
     const buildIdRes = await fetch(buildIdUrl)
 
     if (!buildIdRes.ok) {
-      console.error(
+      require('console').error(
         `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
       )
     }
     this._buildId = (await buildIdRes.text()).trim()
 
-    console.log(`Got buildId: ${this._buildId}`)
+    require('console').log(`Got buildId: ${this._buildId}`)
 
     const cliOutputRes = await fetch(
       `https://vercel.com/api/v1/deployments/${this._parsedUrl.hostname}/events?builds=1&direction=backward`,
