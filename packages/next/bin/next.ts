@@ -144,18 +144,3 @@ commands[command]()
       process.exit(0)
     }
   })
-
-if (command === 'dev') {
-  const { CONFIG_FILES } = require('../shared/lib/constants')
-  const { watchFile } = require('fs')
-
-  for (const CONFIG_FILE of CONFIG_FILES) {
-    watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
-      if (cur.size > 0 || prev.size > 0) {
-        console.log(
-          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-        )
-      }
-    })
-  }
-}

@@ -18,7 +18,6 @@ export type ServerlessLoaderQuery = {
   distDir: string
   absolutePagePath: string
   absoluteAppPath: string
-  absoluteAppServerPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolute404Path: string
