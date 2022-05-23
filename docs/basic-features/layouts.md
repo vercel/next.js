@@ -86,7 +86,7 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
-When navigating between pages, we want to *persist* page state (input values, scroll position, etc) for a Single-Page Application (SPA) experience.
+When navigating between pages, we want to *persist* page state (input values, scroll position, etc.) for a Single-Page Application (SPA) experience.
 
 This layout pattern enables state persistence because the React component tree is maintained between page transitions. With the component tree, React can understand which elements have changed to preserve state.
 
@@ -102,11 +102,10 @@ When using TypeScript, you must first create a new type for your pages which inc
 import type { ReactElement } from 'react'
 import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
+import type { NextPageWithLayout } from './_app'
 
-export default function Page() {
-  return {
-    /** Your content */
-  }
+const Page: NextPageWithLayout = () => {
+  return <p>hello world</p>
 }
 
 Page.getLayout = function getLayout(page: ReactElement) {
@@ -116,6 +115,8 @@ Page.getLayout = function getLayout(page: ReactElement) {
     </Layout>
   )
 }
+
+export default Page
 ```
 
 ```tsx
@@ -125,7 +126,7 @@ import type { ReactElement, ReactNode } from 'react'
 import type { NextPage } from 'next'
 import type { AppProps } from 'next/app'
 
-type NextPageWithLayout = NextPage & {
+export type NextPageWithLayout = NextPage & {
   getLayout?: (page: ReactElement) => ReactNode
 }
 

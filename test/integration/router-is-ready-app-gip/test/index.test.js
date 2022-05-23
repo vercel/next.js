@@ -9,6 +9,7 @@ import {
   nextStart,
   nextBuild,
   File,
+  check,
 } from 'next-test-utils'
 
 let app
@@ -16,25 +17,34 @@ let appPort
 const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
+const checkIsReadyValues = (browser, expected = []) => {
+  return check(async () => {
+    const values = JSON.stringify(
+      (await browser.eval('window.isReadyValues')).sort()
+    )
+    return JSON.stringify(expected.sort()) === values ? 'success' : values
+  }, 'success')
+}
+
 function runTests() {
   it('isReady should be true immediately for pages without getStaticProps', async () => {
     const browser = await webdriver(appPort, '/appGip')
-    expect(await browser.eval('window.isReadyValues')).toEqual([true])
+    await checkIsReadyValues(browser, [true])
   })
 
   it('isReady should be true immediately for pages without getStaticProps, with query', async () => {
     const browser = await webdriver(appPort, '/appGip?hello=world')
-    expect(await browser.eval('window.isReadyValues')).toEqual([true])
+    await checkIsReadyValues(browser, [true])
   })
 
   it('isReady should be true immediately for getStaticProps page without query', async () => {
     const browser = await webdriver(appPort, '/gsp')
-    expect(await browser.eval('window.isReadyValues')).toEqual([true])
+    await checkIsReadyValues(browser, [true])
   })
 
   it('isReady should be true after query update for getStaticProps page with query', async () => {
     const browser = await webdriver(appPort, '/gsp?hello=world')
-    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
+    await checkIsReadyValues(browser, [false, true])
   })
 }
 

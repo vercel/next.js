@@ -82,6 +82,50 @@ export class Blah extends Head {
 }
 `
 
+const validDownloadLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/static-file.csv' download>Download</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+const validTargetBlankLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a target="_blank" href='/new-tab'>New Tab</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validPublicFile = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/presentation.pdf'>View PDF</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidStaticCode = `
 import Link from 'next/link';
 
@@ -174,6 +218,27 @@ describe('no-html-link-for-pages', function () {
     assert.deepEqual(report, [])
   })
 
+  it('valid download link element', function () {
+    const report = linter.verify(validDownloadLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid target="_blank" link element', function () {
+    const report = linter.verify(validTargetBlankLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid public file link element', function () {
+    const report = linter.verify(validPublicFile, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
   it('invalid static route', function () {
     const [report] = linter.verify(invalidStaticCode, linterConfig, {
       filename: 'foo.js',
@@ -181,7 +246,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
     )
   })
 
@@ -192,7 +257,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /list/foo/bar/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /list/foo/bar/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
     )
     const [secondReport] = linter.verify(
       secondInvalidDynamicCode,
@@ -204,7 +269,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(secondReport, undefined, 'No lint errors found.')
     assert.equal(
       secondReport.message,
-      "Do not use the HTML <a> tag to navigate to /list/foo/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /list/foo/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
     )
     const [thirdReport] = linter.verify(thirdInvalidDynamicCode, linterConfig, {
       filename: 'foo.js',
@@ -212,7 +277,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(thirdReport, undefined, 'No lint errors found.')
     assert.equal(
       thirdReport.message,
-      "Do not use the HTML <a> tag to navigate to /list/lorem-ipsum/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /list/lorem-ipsum/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages"
     )
   })
 })

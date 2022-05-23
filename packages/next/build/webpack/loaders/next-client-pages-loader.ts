@@ -1,8 +1,9 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
+import { stringifyRequest } from '../stringify-request'
 
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
   page: string
+  isServerComponent?: boolean
 }
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
@@ -12,23 +13,21 @@ function nextClientPagesLoader(this: any) {
   )
 
   return pagesLoaderSpan.traceFn(() => {
-    const { absolutePagePath, page } = loaderUtils.getOptions(
-      this
-    ) as ClientPagesLoaderOptions
+    const { absolutePagePath, page, isServerComponent } =
+      this.getOptions() as ClientPagesLoaderOptions
 
     pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
 
-    const stringifiedPagePath = loaderUtils.stringifyRequest(
-      this,
-      absolutePagePath
-    )
+    const stringifiedPageRequest = isServerComponent
+      ? JSON.stringify(absolutePagePath + '!')
+      : stringifyRequest(this, absolutePagePath)
     const stringifiedPage = JSON.stringify(page)
 
     return `
     (window.__NEXT_P = window.__NEXT_P || []).push([
       ${stringifiedPage},
       function () {
-        return require(${stringifiedPagePath});
+        return require(${stringifiedPageRequest});
       }
     ]);
     if(module.hot) {

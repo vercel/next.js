@@ -23,8 +23,6 @@ description: Add redirects to your Next.js app.
 
 Redirects allow you to redirect an incoming request path to a different destination path.
 
-Redirects are only available on the Node.js environment and do not affect client-side routing.
-
 To use Redirects you can use the `redirects` key in `next.config.js`:
 
 ```js
@@ -46,6 +44,9 @@ module.exports = {
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.
 - `permanent` `true` or `false` - if `true` will use the 308 status code which instructs clients/search engines to cache the redirect forever, if `false` will use the 307 status code which is temporary and is not cached.
+
+> **Why does Next.js use 307 and 308?** Traditionally a 302 was used for a temporary redirect, and a 301 for a permanent redirect, but many browsers changed the request method of the redirect to `GET`, regardless of the original method. For example, if the browser made a request to `POST /v1/users` which returned status code `302` with location `/v2/users`, the subsequent request might be `GET /v2/users` instead of the expected `POST /v2/users`. Next.js uses the 307 temporary redirect, and 308 permanent redirect status codes to explicitly preserve the request method used.
+
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
@@ -292,4 +293,4 @@ In some rare cases, you might need to assign a custom status code for older HTTP
 ## Other Redirects
 
 - Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
-- Inside [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering), you can redirect specific pages at request-time.
+- Inside [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md), you can redirect specific pages at request-time.

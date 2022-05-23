@@ -192,6 +192,18 @@ export default function (render, fetch, ctx) {
       expect(html).toContain('<script src="/test-defer.js" defer="">')
     })
 
+    it('should place charset element at the top of <head>', async () => {
+      const html = await render('/head-priority')
+      const nextHeadElement =
+        '<meta charSet="iso-8859-5"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="title" content="head title"/>'
+      const nextHeadCountElement = '<meta name="next-head-count" content="3"/>'
+      const documentHeadElement =
+        '<meta name="keywords" content="document head test"/>'
+      expect(html).toContain(
+        `${nextHeadElement}${nextHeadCountElement}${documentHeadElement}`
+      )
+    })
+
     it('should render the page with custom extension', async () => {
       const html = await render('/custom-extension')
       expect(html).toContain('<div>Hello</div>')
@@ -425,7 +437,7 @@ export default function (render, fetch, ctx) {
       const text = await getRedboxHeader(browser)
 
       expect(text).toContain(
-        'An undefined error was thrown sometime during render...'
+        'An undefined error was thrown, see here for more info:'
       )
     })
   })

@@ -1,5 +1,5 @@
 ---
-description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest, and React Testing Library.
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Playwright, Jest, and React Testing Library.
 ---
 
 # Testing
@@ -10,10 +10,11 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 
-Learn how to set up Next.js with three commonly used testing tools: [Cypress](https://www.cypress.io/blog/2021/04/06/cypress-component-testing-react/), [Jest](https://jestjs.io/docs/tutorial-react), and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+Learn how to set up Next.js with commonly used testing tools: [Cypress](https://nextjs.org/docs/testing#cypress), [Playwright](https://nextjs.org/docs/testing#playwright), and [Jest with React Testing Library](https://nextjs.org/docs/testing#jest-and-react-testing-library).
 
 ## Cypress
 
@@ -114,7 +115,7 @@ Since Cypress is testing a real Next.js application, it requires the Next.js ser
 
 Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
 
-> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjuction with Cypress. Remember to rebuild your application after new changes.
+> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -136,7 +137,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 - [Cypress Continuous Integration Docs](https://docs.cypress.io/guides/continuous-integration/introduction)
 - [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
-- [Official Cypress Github Action](https://github.com/cypress-io/github-action)
+- [Official Cypress GitHub Action](https://github.com/cypress-io/github-action)
 
 ## Playwright
 
@@ -224,7 +225,7 @@ You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, i
 
 ### Running your Playwright tests
 
-Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommend to run your tests against your production code to more closely resemble how your application will behave.
+Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommended to run your tests against your production code to more closely resemble how your application will behave.
 
 Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
 
@@ -232,42 +233,83 @@ Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another 
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
 - [Getting started with Playwright](https://playwright.dev/docs/intro)
 - [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
-- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for **Unit Testing**.
+Jest and React Testing Library are frequently used together for **Unit Testing**. There are three ways you can start using Jest within your Next.js application:
+
+1. Using one of our [quickstart examples](https://nextjs.org/docs/testing#quickstart-2)
+2. With the [Next.js Rust Compiler](https://nextjs.org/docs/testing#setting-up-jest-with-the-rust-compiler)
+3. With [Babel](https://nextjs.org/docs/testing#setting-up-jest-with-babel)
+
+The following sections will go through how you can set up Jest with each of these options:
 
 ### Quickstart
 
-You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
+You can use `create-next-app` with the [with-jest](https://github.com/vercel/next.js/tree/canary/examples/with-jest) example to quickly get started with Jest and React Testing Library:
 
 ```bash
 npx create-next-app@latest --example with-jest with-jest-app
 ```
 
-### Manual setup
+### Setting up Jest (with the Rust Compiler)
 
-To manually set up Jest and React Testing Library, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` as well as some supporting packages:
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
+
+To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest babel-jest @testing-library/react @testing-library/jest-dom identity-obj-proxy react-test-renderer
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
-**Configuring Jest**
-
-Create a `jest.config.js` file in your project's root directory and add the following configuration options:
+Create a `jest.config.js` file in your project's root directory and add the following:
 
 ```jsx
 // jest.config.js
+const nextJest = require('next/jest')
 
+const createJestConfig = nextJest({
+  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
+  dir: './',
+})
+
+// Add any custom config to be passed to Jest
+const customJestConfig = {
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
+  moduleDirectories: ['node_modules', '<rootDir>/'],
+  testEnvironment: 'jest-environment-jsdom',
+}
+
+// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
+module.exports = createJestConfig(customJestConfig)
+```
+
+Under the hood, `next/jest` is automatically configuring Jest for you, including:
+
+- Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants) and image imports
+- Loading `.env` (and all variants) into `process.env`
+- Ignoring `node_modules` from test resolving and transforms
+- Ignoring `.next` from test resolving
+- Loading `next.config.js` for flags that enable SWC transforms
+
+### Setting up Jest (with Babel)
+
+If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+
+Here are the recommended options to configure Jest for Next.js:
+
+```jsx
+// jest.config.js
 module.exports = {
   collectCoverage: true,
   // on node 14.x coverage provider v8 offers good speed and more or less good report
@@ -282,23 +324,27 @@ module.exports = {
     '!<rootDir>/coverage/**',
   ],
   moduleNameMapper: {
-    /* Handle CSS imports (with CSS modules)
-    https://jestjs.io/docs/webpack#mocking-css-modules */
+    // Handle CSS imports (with CSS modules)
+    // https://jestjs.io/docs/webpack#mocking-css-modules
     '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
 
     // Handle CSS imports (without CSS modules)
     '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
 
-    /* Handle image imports
-    https://jestjs.io/docs/webpack#handling-static-assets */
-    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$':
-      '<rootDir>/__mocks__/fileMock.js',
+    // Handle image imports
+    // https://jestjs.io/docs/webpack#handling-static-assets
+    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i': `<rootDir>/__mocks__/fileMock.js`,
+
+    // Handle module aliases
+    '^@/components/(.*)$': '<rootDir>/components/$1',
   },
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   testEnvironment: 'jsdom',
   transform: {
-    /* Use babel-jest to transpile tests with the next/babel preset
-    https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object */
+    // Use babel-jest to transpile tests with the next/babel preset
+    // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
@@ -308,41 +354,35 @@ module.exports = {
 }
 ```
 
-You can learn more about each option above in the [Jest docs](https://jestjs.io/docs/configuration).
+You can learn more about each configuration option in the [Jest docs](https://jestjs.io/docs/configuration).
 
 **Handling stylesheets and image imports**
 
-These files aren't useful in tests but importing them may cause errors, so we will need to mock them. Create the mock files we referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
+Stylesheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
-```json
+```js
 // __mocks__/fileMock.js
-
-(module.exports = "test-file-stub")
+module.exports = {
+  src: '/img.jpg',
+  height: 24,
+  width: 24,
+  blurDataURL: 'data:image/png;base64,imagedata',
+}
 ```
 
-```json
+```js
 // __mocks__/styleMock.js
-
-module.exports = {};
-```
-
-If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
-
-```json
-// __mocks__/fileMock.js
-
-(module.exports = "/test-file-stub")
+module.exports = {}
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
 
-**Extend Jest with custom matchers**
+**Optional: Extend Jest with custom matchers**
 
 `@testing-library/jest-dom` includes a set of convenient [custom matchers](https://github.com/testing-library/jest-dom#custom-matchers) such as `.toBeInTheDocument()` making it easier to write tests. You can import the custom matchers for every test by adding the following option to the Jest configuration file:
 
-```json
+```js
 // jest.config.js
-
 setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
 
@@ -350,13 +390,12 @@ Then, inside `jest.setup.js`, add the following import:
 
 ```jsx
 // jest.setup.js
-
 import '@testing-library/jest-dom/extend-expect'
 ```
 
 If you need to add more setup options before each test, it's common to add them to the `jest.setup.js` file above.
 
-**Absolute Imports and Module Path Aliases**
+**Optional: Absolute Imports and Module Path Aliases**
 
 If your project is using [Module Path Aliases](https://nextjs.org/docs/advanced-features/module-path-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
@@ -379,6 +418,8 @@ moduleNameMapper: {
 }
 ```
 
+### Creating your tests:
+
 **Add a test script to package.json**
 
 Add the Jest executable in watch mode to the `package.json` scripts:
@@ -398,18 +439,14 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
 
-For example, we can add a test to check if the `<Index />` component successfully renders a heading:
+For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
 ```jsx
 // __tests__/index.test.jsx
 
-/**
- * @jest-environment jsdom
- */
-
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {
@@ -424,19 +461,17 @@ describe('Home', () => {
 })
 ```
 
-> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
-
-Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
+Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
 ```jsx
 // __tests__/snapshot.js
-import React from 'react'
-import renderer from 'react-test-renderer'
-import Index from '../pages/index'
+
+import { render } from '@testing-library/react'
+import Home from '../pages/index'
 
 it('renders homepage unchanged', () => {
-  const tree = renderer.create(<Index />).toJSON()
-  expect(tree).toMatchSnapshot()
+  const { container } = render(<Home />)
+  expect(container).toMatchSnapshot()
 })
 ```
 
@@ -463,7 +498,7 @@ The Next.js community has created packages and articles you may find helpful:
 For more information on what to read next, we recommend:
 
 <div class="card">
-  <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
+  <a href="/docs/basic-features/environment-variables#test-environment-variables.md">
     <b>Test Environment Variables</b>
     <small>Learn more about the test environment variables.</small>
   </a>

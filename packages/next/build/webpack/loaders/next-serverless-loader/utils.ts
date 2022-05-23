@@ -1,30 +1,33 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { Rewrite } from '../../../../lib/load-custom-routes'
-import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
-import pathMatch from '../../../../shared/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
-import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
-import prepareDestination, {
-  matchHas,
-} from '../../../../shared/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../server/api-utils'
-import { BuildManifest } from '../../../../server/get-page-files'
-import {
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { Rewrite } from '../../../../lib/load-custom-routes'
+import type { BuildManifest } from '../../../../server/get-page-files'
+import type { RouteMatch } from '../../../../shared/lib/router/utils/route-matcher'
+import type { NextConfig } from '../../../../server/config'
+import type {
   GetServerSideProps,
   GetStaticPaths,
   GetStaticProps,
 } from '../../../../types'
-import accept from '@hapi/accept'
+import type { BaseNextRequest } from '../../../../server/base-http'
+
+import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
+import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
+import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
+import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
+import {
+  matchHas,
+  prepareDestination,
+} from '../../../../shared/lib/router/utils/prepare-destination'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
+import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { NextConfig } from '../../../../server/config'
-
-const getCustomRouteMatcher = pathMatch(true)
+import { addRequestMeta } from '../../../../server/request-meta'
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -47,7 +50,11 @@ export type ServerlessHandlerCtx = {
   buildManifest?: BuildManifest
   reactLoadableManifest?: any
   basePath: string
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
   pageIsDynamic: boolean
   generateEtags: boolean
   distDir: string
@@ -73,19 +80,32 @@ export function getUtils({
   rewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
 }) {
-  let defaultRouteRegex: ReturnType<typeof getRouteRegex> | undefined
-  let dynamicRouteMatcher: ReturnType<typeof getRouteMatcher> | undefined
+  let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  let dynamicRouteMatcher: RouteMatch | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getRouteRegex(page)
+    defaultRouteRegex = getNamedRouteRegex(page)
     dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
-    for (const rewrite of rewrites) {
-      const matcher = getCustomRouteMatcher(rewrite.source)
+  function handleRewrites(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    const rewriteParams = {}
+    let fsPathname = parsedUrl.pathname
+
+    const matchesPage = () => {
+      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+    }
+
+    const checkRewrite = (rewrite: Rewrite): boolean => {
+      const matcher = getPathMatch(rewrite.source, {
+        removeUnnamedParams: true,
+        strict: true,
+      })
       let params = matcher(parsedUrl.pathname)
 
       if (rewrite.has && params) {
@@ -99,19 +119,25 @@ export function getUtils({
       }
 
       if (params) {
-        const { parsedDestination } = prepareDestination(
-          rewrite.destination,
-          params,
-          parsedUrl.query,
-          true
-        )
+        const { parsedDestination, destQuery } = prepareDestination({
+          appendParamsToQuery: true,
+          destination: rewrite.destination,
+          params: params,
+          query: parsedUrl.query,
+        })
 
+        // if the rewrite destination is external break rewrite chain
+        if (parsedDestination.protocol) {
+          return true
+        }
+
+        Object.assign(rewriteParams, destQuery, params)
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
         Object.assign(parsedUrl, parsedDestination)
 
-        let fsPathname = parsedUrl.pathname
+        fsPathname = parsedUrl.pathname
 
         if (basePath) {
           fsPathname =
@@ -129,7 +155,7 @@ export function getUtils({
         }
 
         if (fsPathname === page) {
-          break
+          return true
         }
 
         if (pageIsDynamic && dynamicRouteMatcher) {
@@ -139,16 +165,39 @@ export function getUtils({
               ...parsedUrl.query,
               ...dynamicParams,
             }
-            break
+            return true
           }
         }
       }
+      return false
     }
 
-    return parsedUrl
+    for (const rewrite of rewrites.beforeFiles || []) {
+      checkRewrite(rewrite)
+    }
+
+    if (fsPathname !== page) {
+      let finished = false
+
+      for (const rewrite of rewrites.afterFiles || []) {
+        finished = checkRewrite(rewrite)
+        if (finished) break
+      }
+
+      if (!finished && !matchesPage()) {
+        for (const rewrite of rewrites.fallback || []) {
+          finished = checkRewrite(rewrite)
+          if (finished) break
+        }
+      }
+    }
+    return rewriteParams
   }
 
-  function handleBasePath(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
+  function handleBasePath(
+    req: BaseNextRequest | IncomingMessage,
+    parsedUrl: UrlWithParsedQuery
+  ) {
     // always strip the basePath if configured since it is required
     req.url = req.url!.replace(new RegExp(`^${basePath}`), '') || '/'
     parsedUrl.pathname =
@@ -156,7 +205,7 @@ export function getUtils({
   }
 
   function getParamsFromRouteMatches(
-    req: IncomingMessage,
+    req: BaseNextRequest | IncomingMessage,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -169,10 +218,11 @@ export function getUtils({
             // Simulate a RegExp match from the \`req.url\` input
             exec: (str: string) => {
               const obj = parseQs(str)
+              const matchesHasLocale =
+                i18n && detectedLocale && obj['1'] === detectedLocale
 
               // favor named matches if available
               const routeKeyNames = Object.keys(routeKeys || {})
-
               const filterLocaleItem = (val: string | string[]) => {
                 if (i18n) {
                   // locale items can be included in route-matches
@@ -218,8 +268,13 @@ export function getUtils({
 
               return Object.keys(obj).reduce((prev, key) => {
                 if (!filterLocaleItem(obj[key])) {
+                  let normalizedKey = key
+
+                  if (matchesHasLocale) {
+                    normalizedKey = parseInt(key, 10) - 1 + ''
+                  }
                   return Object.assign(prev, {
-                    [key]: obj[key],
+                    [normalizedKey]: obj[key],
                   })
                 }
                 return prev
@@ -258,23 +313,27 @@ export function getUtils({
         }
 
         pathname =
-          pathname.substr(0, paramIdx) +
+          pathname.slice(0, paramIdx) +
           (paramValue || '') +
-          pathname.substr(paramIdx + builtParam.length)
+          pathname.slice(paramIdx + builtParam.length)
       }
     }
 
     return pathname
   }
 
-  function normalizeVercelUrl(req: IncomingMessage, trustQuery: boolean) {
+  function normalizeVercelUrl(
+    req: BaseNextRequest | IncomingMessage,
+    trustQuery: boolean,
+    paramKeys?: string[]
+  ) {
     // make sure to normalize req.url on Vercel to strip dynamic params
     // from the query which are added during routing
     if (pageIsDynamic && trustQuery && defaultRouteRegex) {
       const _parsedUrl = parseUrl(req.url!, true)
       delete (_parsedUrl as any).search
 
-      for (const param of Object.keys(defaultRouteRegex.groups)) {
+      for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
         delete _parsedUrl.query[param]
       }
       req.url = formatUrl(_parsedUrl)
@@ -358,7 +417,7 @@ export function getUtils({
     try {
       acceptPreferredLocale =
         i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
+          ? acceptLanguage(req.headers['accept-language'], i18n.locales)
           : detectedLocale
     } catch (_) {
       acceptPreferredLocale = detectedLocale
@@ -372,7 +431,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
-      ;(req as any).__nextIsLocaleDomain = true
+      addRequestMeta(req as any, '__nextIsLocaleDomain', true)
     }
 
     // if not domain specific locale use accept-language preferred
@@ -392,7 +451,7 @@ export function getUtils({
         ...parsedUrl,
         pathname: localePathResult.pathname,
       })
-      ;(req as any).__nextStrippedLocale = true
+      addRequestMeta(req as any, '__nextStrippedLocale', true)
       parsedUrl.pathname = localePathResult.pathname
     }
 

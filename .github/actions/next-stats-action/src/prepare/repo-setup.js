@@ -73,6 +73,10 @@ module.exports = (actionInfo) => {
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
+        if (!fs.existsSync(pkgDataPath)) {
+          console.log(`Skipping ${pkgDataPath}`)
+          continue
+        }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
         pkgDatas.set(name, {
@@ -94,8 +98,23 @@ module.exports = (actionInfo) => {
           pkgData.dependencies[pkg] = packedPkgPath
         }
         // make sure native binaries are included in local linking
-        if (pkg === 'next') {
+        if (pkg === '@next/swc') {
+          if (!pkgData.files) {
+            pkgData.files = []
+          }
           pkgData.files.push('native')
+          console.log(
+            'using swc binaries: ',
+            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+          )
+        }
+        if (pkg === 'next') {
+          if (pkgDatas.get('@next/swc')) {
+            pkgData.dependencies['@next/swc'] =
+              pkgDatas.get('@next/swc').packedPkgPath
+          } else {
+            pkgData.files.push('native')
+          }
         }
         await fs.writeFile(
           pkgDataPath,

@@ -1,3 +1,7 @@
+if (process.env.POLYFILL_FETCH) {
+  global.fetch = require('node-fetch').default
+}
+
 const http = require('http')
 const next = require('next')
 
@@ -12,6 +16,11 @@ app.prepare().then(() => {
   const server = new http.Server(async (req, res) => {
     if (req.url === '/no-query') {
       return app.render(req, res, '/no-query')
+    }
+
+    if (req.url === '/unhandled-rejection') {
+      Promise.reject(new Error('unhandled rejection'))
+      return res.end('ok')
     }
 
     if (/setAssetPrefix/.test(req.url)) {

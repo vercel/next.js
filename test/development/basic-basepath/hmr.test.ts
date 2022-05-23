@@ -264,8 +264,8 @@ describe('basic HMR', () => {
           )
 
           expect(editedFontSize).toBe('200px')
-          expect(browserHtml.includes('font-size:200px;')).toBe(true)
-          expect(browserHtml.includes('font-size:100px;')).toBe(false)
+          expect(browserHtml.includes('font-size:200px')).toBe(true)
+          expect(browserHtml.includes('font-size:100px')).toBe(false)
 
           const editedHtml = await renderViaHTTP(
             next.appPort,
@@ -341,9 +341,7 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
@@ -380,9 +378,7 @@ describe('basic HMR', () => {
         browser = await webdriver(next.appPort, '/docs/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
@@ -536,6 +532,8 @@ describe('basic HMR', () => {
           )
         )
 
+        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -544,7 +542,9 @@ describe('basic HMR', () => {
             'Unknown'
           )
         ).toMatch(
-          'Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.'
+          `Objects are not valid as a React child (found: ${
+            isReact17 ? '/search/' : '[object RegExp]'
+          }). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)

@@ -17,6 +17,8 @@ module.exports = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // limit of 50 domains values
     domains: [],
+    // limit of 50 objects
+    remotePatterns: [],
     // path prefix for Image Optimization API, useful with `loader`
     path: '/_next/image',
     // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
@@ -26,7 +28,11 @@ module.exports = {
     // minimumCacheTTL is in seconds, must be integer 0 or more
     minimumCacheTTL: 60,
     // ordered list of acceptable optimized image formats (mime types)
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/webp'],
+    // enable dangerous use of SVG images
+    dangerouslyAllowSVG: false,
+    // set the Content-Security-Policy header
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```

@@ -1,7 +1,13 @@
-import Chalk from 'chalk'
+import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
-import path from 'path'
+import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import {
+  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
+  getUnresolvedModuleFromError,
+  isEdgeRuntimeCompiled,
+} from '../../../utils'
+import { NextConfig } from '../../../../server/config-shared'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -46,9 +52,10 @@ function getModuleTrace(input: any, compilation: any) {
 }
 
 export async function getNotFoundError(
-  compilation: any,
+  compilation: webpack5.Compilation,
   input: any,
-  fileName: string
+  fileName: string,
+  config: NextConfig
 ) {
   if (input.name !== 'ModuleNotFoundError') {
     return false
@@ -64,7 +71,7 @@ export async function getNotFoundError(
       line: loc.start.line,
       column: loc.start.column,
       source: originalSource,
-      rootDirectory: compilation.options.context,
+      rootDirectory: compilation.options.context!,
       frame: {},
     })
 
@@ -78,26 +85,27 @@ export async function getNotFoundError(
       .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
     const importTrace = () => {
-      let importTraceLine = '\nImport trace for requested module:\n'
       const moduleTrace = getModuleTrace(input, compilation)
-
-      for (const { origin } of moduleTrace) {
-        if (!origin.resource) {
-          continue
-        }
-        const filePath = path.relative(
-          compilation.options.context,
-          origin.resource
+        .map(({ origin }) =>
+          origin.readableIdentifier(compilation.requestShortener)
         )
-        importTraceLine += `./${filePath}\n`
-      }
+        .filter(
+          (name) =>
+            name &&
+            !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
+              name
+            )
+        )
+      if (moduleTrace.length === 0) return ''
 
-      return importTraceLine + '\n'
+      return `\nImport trace for requested module:\n${moduleTrace.join(
+        '\n'
+      )}\n\n`
     }
 
     const frame = result.originalCodeFrame ?? ''
 
-    const message =
+    let message =
       chalk.red.bold('Module not found') +
       `: ${errorMessage}` +
       '\n' +
@@ -105,6 +113,15 @@ export async function getNotFoundError(
       (frame !== '' ? '\n' : '') +
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
+
+    const moduleName = getUnresolvedModuleFromError(input.message)
+    if (moduleName) {
+      if (await isEdgeRuntimeCompiled(compilation, input.module, config)) {
+        message +=
+          '\n\n' +
+          getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
+      }
+    }
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(

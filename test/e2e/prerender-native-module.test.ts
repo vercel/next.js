@@ -20,11 +20,6 @@ describe('prerender native module', () => {
         sqlite: '4.0.22',
         sqlite3: '5.0.2',
       },
-      nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -77,7 +72,7 @@ describe('prerender native module', () => {
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
           ],
-          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+          notTests: [],
         },
         {
           page: '/blog/[slug]',
@@ -89,9 +84,12 @@ describe('prerender native module', () => {
             /node_modules\/sqlite3\/.*?\.js/,
             /node_modules\/sqlite3\/.*?\.node/,
             /node_modules\/sqlite\/.*?\.js/,
+            /node_modules\/next/,
+            /next\/router\.js/,
+            /next\/dist\/client\/router\.js/,
             /\/data\.sqlite/,
           ],
-          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+          notTests: [],
         },
       ]
 

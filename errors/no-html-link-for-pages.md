@@ -53,7 +53,7 @@ In some cases, you may also need to configure this rule directly by providing a 
 ```json
 {
   "rules": {
-    "@next/next/no-html-link-for-pages": ["error", "/my-app/pages/"]
+    "@next/next/no-html-link-for-pages": ["error", "packages/my-app/pages/"]
   }
 }
 ```

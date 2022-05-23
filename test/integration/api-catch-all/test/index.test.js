@@ -29,6 +29,9 @@ function runTests() {
       redirect: 'manual',
     })
     expect(res.status).toBe(308)
+    const text = await res.text()
+    console.log('### ', text)
+    expect(text).toEqual('/api/users')
   })
 
   it('should return data when catch-all with index and trailing slash', async () => {

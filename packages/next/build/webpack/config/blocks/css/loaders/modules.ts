@@ -1,14 +1,12 @@
-import { AcceptedPlugin } from 'postcss'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
-import postcss from 'postcss'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: AcceptedPlugin[],
+  postcss: any,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -28,12 +26,14 @@ export function getCssModuleLoader(
   loaders.push({
     loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
+      postcss,
       importLoaders: 1 + preProcessors.length,
       // Use CJS mode for backwards compatibility:
       esModule: false,
-      url: cssFileResolve,
+      url: (url: string, resourcePath: string) =>
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath),
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       modules: {
         // Do not transform class names (CJS mode backwards compatibility):
         exportLocalsConvention: 'asIs',
@@ -56,7 +56,7 @@ export function getCssModuleLoader(
   loaders.push({
     loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcss: postcss(postCssPlugins),
+      postcss,
     },
   })
 

@@ -7,14 +7,18 @@ export const base = curry(function base(
   config: webpack.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
-  config.name = ctx.isServer ? 'server' : 'client'
-  // @ts-ignore TODO webpack 5 typings
-  config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']
+  config.name = ctx.isServer
+    ? ctx.isEdgeRuntime
+      ? 'edge-server'
+      : 'server'
+    : 'client'
 
-  // Stop compilation early in a production build when an error is encountered.
-  // This behavior isn't desirable in development due to how the HMR system
-  // works, but is a good default for production.
-  config.bail = ctx.isProduction
+  // @ts-ignore TODO webpack 5 typings
+  config.target = !ctx.targetWeb
+    ? 'node12.22'
+    : ctx.isEdgeRuntime
+    ? ['web', 'es6']
+    : ['web', 'es5']
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {

@@ -1,17 +1,17 @@
 import devalue from 'next/dist/compiled/devalue'
-import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
-import loaderUtils from 'next/dist/compiled/loader-utils'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { escapeStringRegexp } from '../../../../shared/lib/escape-regexp'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
 import {
   BUILD_MANIFEST,
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../shared/lib/constants'
+import { stringifyRequest } from '../../stringify-request'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -31,6 +31,7 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
+  reactRoot: string
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
@@ -52,8 +53,9 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
     previewProps,
     loadedEnvFiles,
     i18n,
+    reactRoot,
   }: ServerlessLoaderQuery =
-    typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+    typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
@@ -62,7 +64,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
 
-  const escapedBuildId = escapeRegexp(buildId)
+  const escapedBuildId = escapeStringRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
 
   const encodedPreviewProps = devalue(
@@ -102,22 +104,15 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
-        const combinedRewrites = Array.isArray(routesManifest.rewrites)
-          ? routesManifest.rewrites
-          : []
-
-        if (!Array.isArray(routesManifest.rewrites)) {
-          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-          combinedRewrites.push(...routesManifest.rewrites.fallback)
-        }
+        const rewrites = Array.isArray(routesManifest.rewrites)
+          ? {
+            afterFiles: routesManifest.rewrites
+          }
+          : routesManifest.rewrites
 
         const apiHandler = getApiHandler({
-          pageModule: require(${loaderUtils.stringifyRequest(
-            this,
-            absolutePagePath
-          )}),
-          rewrites: combinedRewrites,
+          pageModule: require(${stringifyRequest(this, absolutePagePath)}),
+          rewrites: rewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -141,21 +136,15 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
 
-      const documentModule = require(${loaderUtils.stringifyRequest(
+      const documentModule = require(${stringifyRequest(
         this,
         absoluteDocumentPath
       )})
 
-      const appMod = require(${loaderUtils.stringifyRequest(
-        this,
-        absoluteAppPath
-      )})
+      const appMod = require(${stringifyRequest(this, absoluteAppPath)})
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
-      const compMod = require(${loaderUtils.stringifyRequest(
-        this,
-        absolutePagePath
-      )})
+      const compMod = require(${stringifyRequest(this, absolutePagePath)})
 
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       export default Component
@@ -172,15 +161,11 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
-      const combinedRewrites = Array.isArray(routesManifest.rewrites)
-        ? routesManifest.rewrites
-        : []
-
-      if (!Array.isArray(routesManifest.rewrites)) {
-        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
-        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
-        combinedRewrites.push(...routesManifest.rewrites.fallback)
-      }
+      const rewrites = Array.isArray(routesManifest.rewrites)
+        ? {
+          afterFiles: routesManifest.rewrites
+        }
+        : routesManifest.rewrites
 
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
@@ -188,13 +173,10 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         pageConfig: config,
         appModule: App,
         documentModule: documentModule,
-        errorModule: require(${loaderUtils.stringifyRequest(
-          this,
-          absoluteErrorPath
-        )}),
+        errorModule: require(${stringifyRequest(this, absoluteErrorPath)}),
         notFoundModule: ${
           absolute404Path
-            ? `require(${loaderUtils.stringifyRequest(this, absolute404Path)})`
+            ? `require(${stringifyRequest(this, absolute404Path)})`
             : undefined
         },
         pageGetStaticProps: getStaticProps,
@@ -205,12 +187,13 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
+        reactRoot: ${reactRoot || 'false'},
 
         runtimeConfig,
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: combinedRewrites,
+        rewrites: rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

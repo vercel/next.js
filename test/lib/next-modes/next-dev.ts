@@ -1,5 +1,3 @@
-import path from 'path'
-import resolveFrom from 'resolve-from'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
@@ -18,48 +16,55 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start() {
+  public async start(useDirArg: boolean = false) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    // we don't use yarn next here as yarn detaches itself from the
-    // child process making it harder to kill all processes
-    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
+    let startArgs = ['yarn', 'next', useDirArg && this.testDir].filter(
+      Boolean
+    ) as string[]
 
-    this.childProcess = spawn('node', [path.join(nextDir, '/dist/bin/next')], {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        NODE_ENV: '',
-        __NEXT_TEST_MODE: '1',
-        __NEXT_RAND_PORT: '1',
-        __NEXT_TEST_WITH_DEVTOOL: '1',
-      },
-    })
-
-    this.childProcess.stdout.on('data', (chunk) => {
-      const msg = chunk.toString()
-      process.stdout.write(chunk)
-      this._cliOutput += msg
-      this.emit('stdout', [msg])
-    })
-    this.childProcess.stderr.on('data', (chunk) => {
-      const msg = chunk.toString()
-      process.stderr.write(chunk)
-      this._cliOutput += msg
-      this.emit('stderr', [msg])
-    })
-
-    this.childProcess.on('close', (code) => {
-      if (this.isStopping) return
-      if (code) {
-        throw new Error(`next dev exited unexpectedly with code ${code}`)
-      }
-    })
+    if (this.startCommand) {
+      startArgs = this.startCommand.split(' ')
+    }
 
     await new Promise<void>((resolve) => {
+      this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
+        cwd: useDirArg ? process.cwd() : this.testDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: false,
+        env: {
+          ...process.env,
+          NODE_ENV: '' as any,
+          __NEXT_TEST_MODE: '1',
+          __NEXT_RAND_PORT: '1',
+          __NEXT_TEST_WITH_DEVTOOL: '1',
+        },
+      })
+
+      this._cliOutput = ''
+
+      this.childProcess.stdout.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stdout.write(chunk)
+        this._cliOutput += msg
+        this.emit('stdout', [msg])
+      })
+      this.childProcess.stderr.on('data', (chunk) => {
+        const msg = chunk.toString()
+        process.stderr.write(chunk)
+        this._cliOutput += msg
+        this.emit('stderr', [msg])
+      })
+
+      this.childProcess.on('close', (code, signal) => {
+        if (this.isStopping) return
+        if (code || signal) {
+          throw new Error(
+            `next dev exited unexpectedly with code/signal ${code || signal}`
+          )
+        }
+      })
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()

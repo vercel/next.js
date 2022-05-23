@@ -84,7 +84,12 @@ const Index = () => (
         </li>
         <li>
           <Link href="/shimmer">
-            <a>placeholder="blur" with custom blurDataURL</a>
+            <a>placeholder="blur" with animated shimmer blurDataURL</a>
+          </Link>
+        </li>
+        <li>
+          <Link href="/color">
+            <a>placeholder="blur" with solid color blurDataURL</a>
           </Link>
         </li>
       </ul>

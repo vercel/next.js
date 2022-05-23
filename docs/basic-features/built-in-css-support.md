@@ -153,7 +153,7 @@ You can use component-level Sass via CSS Modules and the `.module.scss` or `.mod
 Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
 
 ```bash
-npm install sass
+npm install --save-dev sass
 ```
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
@@ -189,16 +189,16 @@ For example, using the exported `primaryColor` Sass variable:
 
 ```scss
 /* variables.module.scss */
-$primary-color: #64FF00
+$primary-color: #64ff00;
 
 :export {
-  primaryColor: $primary-color
+  primaryColor: $primary-color;
 }
 ```
 
 ```js
 // pages/_app.js
-import variables from '../styles/variables.module.css'
+import variables from '../styles/variables.module.scss'
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -220,7 +220,6 @@ export default function MyApp({ Component, pageProps }) {
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-linaria">Linaria</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion">Tailwind CSS + Emotion</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styletron">Styletron</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-glamor">Glamor</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cxs">Cxs</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-fela">Fela</a></li>

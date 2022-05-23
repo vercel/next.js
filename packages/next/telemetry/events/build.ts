@@ -1,4 +1,5 @@
 import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -34,6 +35,9 @@ export type EventLintCheckCompleted = {
   nextEslintPluginVersion?: string | null
   nextEslintPluginErrorsCount?: number
   nextEslintPluginWarningsCount?: number
+  nextRulesEnabled: {
+    [ruleName: `@next/next/${string}`]: 'off' | 'warn' | 'error'
+  }
 }
 
 export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
@@ -95,6 +99,7 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
 }
 
 export function eventBuildOptimize(
@@ -122,11 +127,27 @@ export function eventBuildOptimize(
 
 export const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
 export type EventBuildFeatureUsage = {
+  // NOTE: If you are adding features, make sure to update the `enum` field
+  // for `featureName` in https://github.com/vercel/next-telemetry/blob/master/events/v1/featureUsage.ts
+  // *before* you make changes here.
   featureName:
     | 'next/image'
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'experimental/nextScriptWorkers'
+    | 'optimizeFonts'
+    | 'swcLoader'
+    | 'swcMinify'
+    | 'swcRelay'
+    | 'swcStyledComponents'
+    | 'swcReactRemoveProperties'
+    | 'swcExperimentalDecorators'
+    | 'swcRemoveConsole'
+    | 'swcImportSource'
+    | 'swcEmotion'
+    | `swc/target/${SWC_TARGET_TRIPLE}`
+    | 'build-lint'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
@@ -137,6 +158,24 @@ export function eventBuildFeatureUsage(
     payload: {
       featureName,
       invocationCount,
+    },
+  }))
+}
+
+export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
+  'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
+
+export type EventPackageUsedInGetServerSideProps = {
+  package: string
+}
+
+export function eventPackageUsedInGetServerSideProps(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventPackageUsedInGetServerSideProps }> {
+  return telemetryPlugin.packagesUsedInServerSideProps().map((packageName) => ({
+    eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
+    payload: {
+      package: packageName,
     },
   }))
 }

@@ -1,4 +1,4 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 import {
   hasNecessaryDependencies,
@@ -17,14 +17,22 @@ import { missingDepsError } from './typescript/missingDependencyError'
 import { NextConfigComplete } from '../server/config-shared'
 
 const requiredPackages = [
-  { file: 'typescript', pkg: 'typescript' },
-  { file: '@types/react/index.d.ts', pkg: '@types/react' },
-  { file: '@types/node/index.d.ts', pkg: '@types/node' },
+  { file: 'typescript', pkg: 'typescript', exportsRestrict: false },
+  {
+    file: '@types/react/index.d.ts',
+    pkg: '@types/react',
+    exportsRestrict: true,
+  },
+  {
+    file: '@types/node/index.d.ts',
+    pkg: '@types/node',
+    exportsRestrict: false,
+  },
 ]
 
 export async function verifyTypeScriptSetup(
   dir: string,
-  pagesDir: string,
+  intentDirs: string[],
   typeCheckPreflight: boolean,
   config: NextConfigComplete,
   cacheDir?: string
@@ -33,7 +41,7 @@ export async function verifyTypeScriptSetup(
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir, config)
+    const intent = await getTypeScriptIntent(dir, intentDirs, config)
     if (!intent) {
       return { version: null }
     }
@@ -49,8 +57,8 @@ export async function verifyTypeScriptSetup(
     }
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(
-      deps.resolved.get('typescript')!
+    const ts = (await Promise.resolve(
+      require(deps.resolved.get('typescript')!)
     )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {
