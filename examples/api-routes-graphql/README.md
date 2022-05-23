@@ -4,9 +4,10 @@ Next.js ships with [API routes](https://nextjs.org/docs/api-routes/introduction)
 This example showcases how to build a lightweight and blazing fast GraphQL API with minimum configuration using GraphQL Yoga.
 
 GraphQL Yoga comes with strong defaults:
+
 - CORS is enabled by default
 - Automatically masking unexpected errors and preventing sensitive information from leaking to clients.
-- Shipped with GraphiQL 
+- Shipped with GraphiQL
 
 Yoga also brings support (with no additional dependency) for subscriptions, file uploads, and your favorite schema-building library (GraphQL Tools, Pothos, Nexus, TypeGraphQL, SDL first schema-design approaches, graphql-js, Apollo Tools).
 
@@ -16,9 +17,7 @@ Finally, GraphQL Yoga is built on top of Envelop. Envelop is a library that help
 
 Similar to Express middlewares allowing you to customize requests' behavior, Envelop applies the same idea to GraphQL requests.
 
-
 More information on [Envelop documentation](https://www.envelop.dev/).
-
 
 ## Deploy your own
 

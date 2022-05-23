@@ -1,6 +1,6 @@
 import { createServer } from '@graphql-yoga/node'
 
-const typeDefs = /* GraphQL */`
+const typeDefs = /* GraphQL */ `
   type Query {
     users: [User!]!
   }
@@ -17,11 +17,10 @@ const resolvers = {
   },
 }
 
-
 const server = createServer({
   schema: {
     typeDefs,
-    resolvers
+    resolvers,
   },
   endpoint: '/api/graphql',
   // graphiql: false // uncomment to disable GraphiQL
