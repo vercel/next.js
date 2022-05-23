@@ -229,22 +229,46 @@ export default async function build(
       const ignoreTypeScriptErrors = Boolean(
         config.typescript.ignoreBuildErrors
       )
-      const typeCheckStart = process.hrtime()
-      const typeCheckingSpinner = createSpinner({
-        prefixText: `${Log.prefixes.info} ${
-          ignoreTypeScriptErrors
-            ? 'Skipping validation of types'
-            : 'Checking validity of types'
-        }`,
-      })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const eslintCacheDir = path.join(cacheDir, 'eslint/')
       const shouldLint = !ignoreESLint && runLint
 
+      if (ignoreTypeScriptErrors) {
+        Log.info('Skipping validation of types')
+      }
+      if (runLint && ignoreESLint) {
+        // only print log when build requre lint while ignoreESLint is enabled
+        Log.info('Skipping linting')
+      }
+
+      let typeCheckingAndLintingSpinnerPrefixText: string | undefined
+      let typeCheckingAndLintingSpinner:
+        | ReturnType<typeof createSpinner>
+        | undefined
+
+      if (!ignoreTypeScriptErrors && shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText =
+          'Linting and checking validity of types'
+      } else if (!ignoreTypeScriptErrors) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+      } else if (shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+      }
+
+      // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
+      // enabled, but we will still verifying project's tsconfig and dependencies.
+      if (typeCheckingAndLintingSpinnerPrefixText) {
+        typeCheckingAndLintingSpinner = createSpinner({
+          prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
+        })
+      }
+
+      const typeCheckStart = process.hrtime()
+
       const [[verifyResult, typeCheckEnd]] = await Promise.all([
         nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
-          validiteTypeScriptTypes(
+          verifyTypeScriptSetup(
             dir,
             [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
@@ -254,7 +278,6 @@ export default async function build(
             config.experimental.workerThreads
           ).then((resolved) => {
             const checkEnd = process.hrtime(typeCheckStart)
-            typeCheckingSpinner?.stopAndPersist()
             return [resolved, checkEnd] as const
           })
         ),
@@ -270,6 +293,8 @@ export default async function build(
             )
           }),
       ])
+
+      typeCheckingAndLintingSpinner?.stopAndPersist()
 
       if (!ignoreTypeScriptErrors && verifyResult) {
         telemetry.record(
@@ -2324,7 +2349,7 @@ export default async function build(
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
  * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
  */
-function validiteTypeScriptTypes(
+function verifyTypeScriptSetup(
   dir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
