@@ -11,41 +11,20 @@ By default, Next.js will automatically inline font CSS at build time, eliminatin
 ```js
 // Before
 <link
-  href="https://fonts.googleapis.com/css2?family=Inter"
+  href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
   rel="stylesheet"
 />
 
 // After
-<style data-href="https://fonts.googleapis.com/css2?family=Inter">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<style data-href="https://fonts.googleapis.com/css2?family=Inter&display=optional">
   @font-face{font-family:'Inter';font-style:normal...
 </style>
 ```
 
 ## Usage
 
-To add a web font to your Next.js application, override `next/head`. For example, you can add a font to a specific page:
-
-```js
-// pages/index.js
-
-import Head from 'next/head'
-
-export default function IndexPage() {
-  return (
-    <div>
-      <Head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter"
-          rel="stylesheet"
-        />
-      </Head>
-      <p>Hello world!</p>
-    </div>
-  )
-}
-```
-
-or to your entire application with a [Custom `Document`](/docs/advanced-features/custom-document.md).
+To add a web font to your Next.js application, add the font to a [Custom `Document`](/docs/advanced-features/custom-document.md).
 
 ```js
 // pages/_document.js
@@ -58,7 +37,7 @@ class MyDocument extends Document {
       <Html>
         <Head>
           <link
-            href="https://fonts.googleapis.com/css2?family=Inter"
+            href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
             rel="stylesheet"
           />
         </Head>
@@ -74,7 +53,13 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
+Note that we don't recommend adding fonts with `next/head`, as this only applies the font to the particular page and won't work with a streaming architecture.
+
 Automatic Webfont Optimization currently supports Google Fonts and Typekit with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
+
+See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
+
+> **Note**: Font Optimization does not currently support self-hosted fonts.
 
 ## Disabling Optimization
 

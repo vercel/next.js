@@ -1,4 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
+const findUp = require('find-up')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, resolve } = require('path')
@@ -25,6 +27,7 @@ module.exports = function (task) {
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
       minify: options.minify === false ? false : true,
+      assetBuilds: true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
@@ -56,7 +59,17 @@ module.exports = function (task) {
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
 function writePackageManifest(packageName, main, bundleName, precompiled) {
-  const packagePath = bundleRequire.resolve(packageName + '/package.json')
+  // some newer packages fail to include package.json in the exports
+  // so we can't reliably use require.resolve here
+  let packagePath
+
+  try {
+    packagePath = bundleRequire.resolve(packageName + '/package.json')
+  } catch (_) {
+    packagePath = findUp.sync('package.json', {
+      cwd: dirname(bundleRequire.resolve(packageName)),
+    })
+  }
   let { name, author, license } = require(packagePath)
 
   const compiledPackagePath = join(

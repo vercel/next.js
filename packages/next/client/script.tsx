@@ -1,19 +1,24 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
+export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
+  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker'
   id?: string
-  onLoad?: () => void
-  onError?: () => void
+  onLoad?: (e: any) => void
+  onError?: (e: any) => void
   children?: React.ReactNode
 }
+
+/**
+ * @deprecated Use `ScriptProps` instead.
+ */
+export type Props = ScriptProps
 
 const ignoreProps = [
   'onLoad',
@@ -23,47 +28,54 @@ const ignoreProps = [
   'strategy',
 ]
 
-const loadScript = (props: Props): void => {
+const loadScript = (props: ScriptProps): void => {
   const {
     src,
     id,
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
+    strategy = 'afterInteractive',
     onError,
   } = props
 
   const cacheKey = id || src
+
+  // Script has already loaded
+  if (cacheKey && LoadCache.has(cacheKey)) {
+    return
+  }
+
+  // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
-    if (!LoadCache.has(cacheKey)) {
-      LoadCache.add(cacheKey)
-      // Execute onLoad since the script loading has begun
-      ScriptCache.get(src).then(onLoad, onError)
-    }
+    LoadCache.add(cacheKey)
+    // Execute onLoad since the script loading has begun
+    ScriptCache.get(src).then(onLoad, onError)
     return
   }
 
   const el = document.createElement('script')
 
   const loadPromise = new Promise<void>((resolve, reject) => {
-    el.addEventListener('load', function () {
+    el.addEventListener('load', function (e) {
       resolve()
       if (onLoad) {
-        onLoad.call(this)
+        onLoad.call(this, e)
       }
     })
-    el.addEventListener('error', function () {
-      reject()
-      if (onError) {
-        onError()
-      }
+    el.addEventListener('error', function (e) {
+      reject(e)
     })
+  }).catch(function (e) {
+    if (onError) {
+      onError(e)
+    }
   })
 
   if (src) {
     ScriptCache.set(src, loadPromise)
-    LoadCache.add(cacheKey)
   }
+  LoadCache.add(cacheKey)
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
@@ -87,21 +99,27 @@ const loadScript = (props: Props): void => {
     el.setAttribute(attr, value)
   }
 
+  if (strategy === 'worker') {
+    el.setAttribute('type', 'text/partytown')
+  }
+
+  el.setAttribute('data-nscript', strategy)
+
   document.body.appendChild(el)
 }
 
-function handleClientScriptLoad(props: Props) {
+export function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
-  if (strategy === 'afterInteractive') {
-    loadScript(props)
-  } else if (strategy === 'lazyOnload') {
+  if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
+  } else {
+    loadScript(props)
   }
 }
 
-function loadLazyScript(props: Props) {
+function loadLazyScript(props: ScriptProps) {
   if (document.readyState === 'complete') {
     requestIdleCallback(() => loadScript(props))
   } else {
@@ -111,22 +129,33 @@ function loadLazyScript(props: Props) {
   }
 }
 
-export function initScriptLoader(scriptLoaderItems: Props[]) {
-  scriptLoaderItems.forEach(handleClientScriptLoad)
+function addBeforeInteractiveToCache() {
+  const scripts = [
+    ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
+    ...document.querySelectorAll('[data-nscript="beforePageRender"]'),
+  ]
+  scripts.forEach((script) => {
+    const cacheKey = script.id || script.getAttribute('src')
+    LoadCache.add(cacheKey)
+  })
 }
 
-function Script(props: Props): JSX.Element | null {
+export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
+  scriptLoaderItems.forEach(handleClientScriptLoad)
+  addBeforeInteractiveToCache()
+}
+
+function Script(props: ScriptProps): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},
-    dangerouslySetInnerHTML,
     strategy = 'afterInteractive',
     onError,
     ...restProps
   } = props
 
   // Context is available only during SSR
-  const { updateScripts, scripts } = useContext(HeadManagerContext)
+  const { updateScripts, scripts, getIsSsr } = useContext(HeadManagerContext)
 
   useEffect(() => {
     if (strategy === 'afterInteractive') {
@@ -136,9 +165,9 @@ function Script(props: Props): JSX.Element | null {
     }
   }, [props, strategy])
 
-  if (strategy === 'beforeInteractive') {
+  if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
-      scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
+      scripts[strategy] = (scripts[strategy] || []).concat([
         {
           src,
           onLoad,
@@ -147,6 +176,11 @@ function Script(props: Props): JSX.Element | null {
         },
       ])
       updateScripts(scripts)
+    } else if (getIsSsr && getIsSsr()) {
+      // Script has already loaded during SSR
+      LoadCache.add(restProps.id || src)
+    } else if (getIsSsr && !getIsSsr()) {
+      loadScript(props)
     }
   }
 

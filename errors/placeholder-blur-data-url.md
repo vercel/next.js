@@ -4,9 +4,9 @@
 
 You are attempting use the `next/image` component with `placeholder=blur` property but no `blurDataURL` property.
 
-The `blurDataURL` might be missing because your using a string for `src` instead of a static import.
+The `blurDataURL` might be missing because you're using a string for `src` instead of a static import.
 
-Or `blurDataURL` might be missing because the static import is an unsupported image format. Only jpg, png, and webp are supported at this time.
+Or `blurDataURL` might be missing because the static import is an unsupported image format. Only jpg, png, webp, and avif are supported at this time.
 
 #### Possible Ways to Fix It
 

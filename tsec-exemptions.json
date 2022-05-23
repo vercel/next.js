@@ -1,0 +1,13 @@
+{
+  "ban-element-innerhtml-assignments": [
+    "packages/next/client/head-manager.ts",
+    "packages/next/client/script.tsx"
+  ],
+  "ban-element-setattribute": [
+    "packages/next/client/head-manager.ts",
+    "packages/next/client/script.tsx"
+  ],
+  "ban-script-content-assignments": ["packages/next/client/script.tsx"],
+  "ban-script-src-assignments": ["packages/next/client/script.tsx"],
+  "ban-trustedtypes-createpolicy": ["packages/next/client/trusted-types.ts"]
+}

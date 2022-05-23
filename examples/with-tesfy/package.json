@@ -1,6 +1,5 @@
 {
-  "name": "with-tesfy",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -14,6 +13,5 @@
     "react-tesfy": "latest",
     "tesfy": "latest",
     "uuid": "8.1.0"
-  },
-  "license": "MIT"
+  }
 }

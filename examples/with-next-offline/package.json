@@ -1,7 +1,5 @@
 {
-  "name": "with-next-offline",
-  "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -16,6 +14,5 @@
   },
   "devDependencies": {
     "cross-env": "6.0.3"
-  },
-  "license": "MIT"
+  }
 }

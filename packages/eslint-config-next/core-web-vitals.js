@@ -1,8 +1,3 @@
 module.exports = {
-  extends: ['.'].map(require.resolve),
-  rules: {
-    '@next/next/no-sync-scripts': 2,
-    '@next/next/no-html-link-for-pages': 2,
-    '@next/next/no-img-element': 2,
-  },
+  extends: [require.resolve('.'), 'plugin:@next/next/core-web-vitals'],
 }

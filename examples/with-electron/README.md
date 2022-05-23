@@ -14,6 +14,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-electron with-electron-app
 # or
 yarn create next-app --example with-electron with-electron-app
+# or
+pnpm create next-app -- --example with-electron with-electron-app
 ```
 
 You can create the production app using `npm run dist`.

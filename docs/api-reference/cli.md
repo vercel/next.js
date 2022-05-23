@@ -21,7 +21,7 @@ Usage
   $ next <command>
 
 Available commands
-  build, start, export, dev, lint, telemetry
+  build, start, export, dev, lint, telemetry, info
 
 Options
   --version, -v   Version number
@@ -39,6 +39,8 @@ NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
 
+> Note: Running `next` without a command is the same as running `next dev`
+
 ## Build
 
 `next build` creates an optimized production build of your application. The output displays information about each route.
@@ -46,7 +48,7 @@ NODE_OPTIONS='--inspect' next
 - **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
 
-The first load is colored green, yellow, or red. Aim for green for performant applications.
+The first load is indicated by green, yellow, or red. Aim for green for performant applications.
 
 You can enable production profiling for React with the `--profile` flag in `next build`. This requires [Next.js 9.5](https://nextjs.org/blog/next-9-5):
 
@@ -125,3 +127,36 @@ Next.js collects **completely anonymous** telemetry data about general usage.
 Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
 
 To learn more about Telemetry, [please read this document](https://nextjs.org/telemetry/).
+
+## Info
+
+`next info` prints relevant details about the current system which can be used to report Next.js bugs.
+This information includes Operating System platform/arch/version, Binaries (Node.js, npm, Yarn, pnpm) and npm package versions (`next`, `react`, `react-dom`).
+
+Running the following in your project's root directory:
+
+```bash
+next info
+```
+
+will give you information like this example:
+
+```bash
+
+    Operating System:
+      Platform: linux
+      Arch: x64
+      Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
+    Binaries:
+      Node: 16.13.0
+      npm: 8.1.0
+      Yarn: 1.22.17
+      pnpm: 6.24.2
+    Relevant packages:
+      next: 12.0.8
+      react: 17.0.2
+      react-dom: 17.0.2
+
+```
+
+This information should then be pasted into GitHub Issues.

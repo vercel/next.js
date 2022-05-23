@@ -56,6 +56,11 @@ module.exports = {
         destination: '/',
         permanent: false,
       },
+      {
+        source: '/redirect-5',
+        destination: 'https://jobs.example.com',
+        permanent: false,
+      },
     ]
   },
   async rewrites() {

@@ -10,8 +10,8 @@ const Alert = ({ preview }: Props) => {
   return (
     <div
       className={cn('border-b', {
-        'bg-accent-7 border-accent-7 text-white': preview,
-        'bg-accent-1 border-accent-2': !preview,
+        'bg-neutral-800 border-neutral-800 text-white': preview,
+        'bg-neutral-50 border-neutral-200': !preview,
       })}
     >
       <Container>
@@ -21,7 +21,7 @@ const Alert = ({ preview }: Props) => {
               This page is a preview.{' '}
               <a
                 href="/api/exit-preview"
-                className="underline hover:text-cyan duration-200 transition-colors"
+                className="underline hover:text-teal-300 duration-200 transition-colors"
               >
                 Click here
               </a>{' '}
@@ -32,7 +32,7 @@ const Alert = ({ preview }: Props) => {
               The source code for this blog is{' '}
               <a
                 href={`https://github.com/vercel/next.js/tree/canary/examples/${EXAMPLE_PATH}`}
-                className="underline hover:text-success duration-200 transition-colors"
+                className="underline hover:text-blue-600 duration-200 transition-colors"
               >
                 available on GitHub
               </a>

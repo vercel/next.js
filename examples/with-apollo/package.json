@@ -1,6 +1,5 @@
 {
-  "name": "with-apollo",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,6 +14,5 @@
     "prop-types": "^15.6.2",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
-  },
-  "license": "MIT"
+  }
 }
