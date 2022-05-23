@@ -3,6 +3,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
+import { makeRe } from 'minimatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
@@ -111,6 +112,7 @@ import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
+import { RemotePattern } from '../shared/lib/image-config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2216,6 +2218,15 @@ export default async function build(
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
       ;(images as any).remotePatterns =
         config?.experimental?.images?.remotePatterns || []
+      ;(images as any).remotePatternsRegex = (
+        config?.experimental?.images?.remotePatterns || []
+      ).map((p: RemotePattern) => ({
+        // Should be the same as matchRemotePattern()
+        protocol: p.protocol,
+        hostname: makeRe(p.hostname),
+        port: p.port,
+        pathname: makeRe(p.pathname ?? '**'),
+      }))
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
