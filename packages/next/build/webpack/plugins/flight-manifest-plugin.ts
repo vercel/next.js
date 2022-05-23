@@ -124,7 +124,7 @@ export class FlightManifestPlugin {
           // If this is a concatenation, register each child to the parent ID.
           if (mod.modules) {
             mod.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, chunk, concatenatedMod)
+              recordModule(chunk, modId, concatenatedMod)
             })
           }
         }
