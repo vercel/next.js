@@ -1468,6 +1468,7 @@ export async function ncc_minimatch(task, opts) {
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
+
 export async function ncc_mini_css_extract_plugin(task, opts) {
   await task
     .source(
@@ -1485,6 +1486,24 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       },
     })
     .target('compiled/mini-css-extract-plugin')
+  await task
+    .source(
+      relative(
+        __dirname,
+        resolve(
+          require.resolve('mini-css-extract-plugin'),
+          '../hmr/hotModuleReplacement.js'
+        )
+      )
+    )
+    .ncc({
+      externals: {
+        ...externals,
+        './hmr': './hmr',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin/hmr')
   await task
     .source(
       opts.src ||
@@ -1858,13 +1877,6 @@ export async function pages_app(task, opts) {
     .target('dist/pages')
 }
 
-export async function pages_app_server(task, opts) {
-  await task
-    .source('pages/_app.server.tsx')
-    .swc('client', { dev: opts.dev, keepImportAssertions: true })
-    .target('dist/pages')
-}
-
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
@@ -1880,10 +1892,7 @@ export async function pages_document(task, opts) {
 }
 
 export async function pages(task, opts) {
-  await task.parallel(
-    ['pages_app', 'pages_app_server', 'pages_error', 'pages_document'],
-    opts
-  )
+  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
 }
 
 export async function telemetry(task, opts) {

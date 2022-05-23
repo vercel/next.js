@@ -60,7 +60,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             file.endsWith('.js')
         )
 
-      // Skip _app.server entry which is empty
+      // Skip entries which are empty
       if (!files.length) {
         continue
       }
