@@ -29,7 +29,7 @@
     "prepublish": "yarn release && yarn types"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.33.1",
+    "@vercel/ncc": "0.33.4",
     "dotenv": "10.0.0",
     "dotenv-expand": "8.0.1"
   }
