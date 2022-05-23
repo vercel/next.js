@@ -257,11 +257,11 @@ export class FlightManifestPlugin {
 
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
-            const ids: string[] = []
+            const chunkIds: string[] = []
             chunkGroup.chunks.forEach((chunk) => {
               for (const asyncChunk of chunk.getAllAsyncChunks()) {
                 if (typeof asyncChunk.id === 'string') {
-                  ids.push(asyncChunk.id)
+                  chunkIds.push(asyncChunk.id)
                 }
               }
             })
@@ -269,7 +269,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: ids,
+              chunks: chunkIds,
             }
           }
         })
