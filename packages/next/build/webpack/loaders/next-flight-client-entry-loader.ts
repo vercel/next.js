@@ -11,10 +11,12 @@ export default async function transformSource(this: any): Promise<string> {
   const source =
     requests
       .map((request: string) => {
+        // TODO: only emit lazy chunks if it's under views/
         const isClientSource =
           !isNextBuiltinClientComponent(request) &&
           request.endsWith('.client.js')
         const webpackMode = isClientSource ? 'lazy' : 'eager'
+
         return `import(
           /* webpackMode: "${webpackMode}" */
           ${JSON.stringify(request)}

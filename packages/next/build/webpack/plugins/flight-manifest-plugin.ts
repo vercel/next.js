@@ -227,7 +227,7 @@ export class FlightManifestPlugin {
   createAsset(assets: any, compilation: webpack5.Compilation) {
     const manifest: any = {}
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function recordModule(id: string, mod: any) {
+      function recordModule(chunk_: any, id: string, mod: any) {
         const resource = mod.resource
 
         // TODO: Hook into deps instead of the target module.
@@ -257,25 +257,29 @@ export class FlightManifestPlugin {
 
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
-            // Exclude the chunks when this chunk group will be loaded on initial page load
-            // since they're already loaded by next.js.
-            // e.g. framework.js chunk of the page.
-            const chunkIds = chunkGroup.isInitial()
-              ? []
-              : chunkGroup.chunks.map((chunk) => chunk.id)
+            const ids: string[] = []
+            chunkGroup.chunks.forEach((chunk) => {
+              for (const asyncChunk of chunk.getAllAsyncChunks()) {
+                if (typeof asyncChunk.id === 'string') {
+                  ids.push(asyncChunk.id)
+                }
+              }
+            })
+
             moduleExports[name] = {
               id,
               name,
-              chunks: chunkIds,
+              chunks: ids,
             }
           }
         })
         manifest[resource] = moduleExports
       }
 
-      chunkGroup.chunks.forEach((chunk: any) => {
+      chunkGroup.chunks.forEach((chunk) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
+
         for (const mod of chunkModules) {
           let modId = compilation.chunkGraph.getModuleId(mod)
 
@@ -285,17 +289,14 @@ export class FlightManifestPlugin {
           modId = modId.split('?')[0]
           // Remove the loader prefix.
           modId = modId.split('next-flight-client-loader.js!')[1] || modId
-
-          // modId = modId
-          // @ts-ignore
-          // const resourcePath = mod.resourceResolveData?.path || modId
-          // console.log('resourcePath', resourcePath, modId)
-          recordModule(modId.replace(/^\(sc_server\)\//, ''), mod)
+          recordModule(chunk, modId.replace(/^\(sc_server\)\//, ''), mod)
+          // modId = modId.replace(/^\(sc_server\)\//, '')
+          recordModule(chunk, modId, mod)
           // If this is a concatenation, register each child to the parent ID.
           const anyMod = mod as any
           if (anyMod.modules) {
             anyMod.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId.toString(), concatenatedMod)
+              recordModule(chunk, modId as string, concatenatedMod)
             })
           }
         }
