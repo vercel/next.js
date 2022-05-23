@@ -16,7 +16,6 @@ import {
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
-import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -25,11 +24,16 @@ const chunksDir = join(appDir, '.next/static/chunks')
 let stderr = ''
 let appPort
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless', () => {
+  let output
+
   beforeAll(async () => {
-    await nextBuild(appDir)
+    const result = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    output = result.stdout + result.stderr
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
       onStderr: (msg) => {
@@ -38,6 +42,12 @@ describe('Serverless', () => {
     })
   })
   afterAll(() => killApp(app))
+
+  it('should show target config deprecation warning', () => {
+    expect(output).toContain(
+      'The `target` config is deprecated and will be removed in a future version'
+    )
+  })
 
   it('should render the page', async () => {
     const html = await renderViaHTTP(appPort, '/')
@@ -75,7 +85,7 @@ describe('Serverless', () => {
 
     // ensure top-level static does not exist (important for test)
     // we expect /public/static, though.
-    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+    expect(existsSync(join(appDir, 'static'))).toBe(false)
 
     const res = await fetchViaHTTP(appPort, '/static/404')
     expect(res.status).toBe(404)

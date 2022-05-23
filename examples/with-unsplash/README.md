@@ -16,6 +16,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example with-unsplash with-unsplash-app
 # or
 yarn create next-app --example with-unsplash with-unsplash-app
+# or
+pnpm create next-app -- --example with-unsplash with-unsplash-app
 ```
 
 ## Configuration
@@ -24,7 +26,7 @@ First, you'll need to [create an account on Unsplash](https://unsplash.com/) if 
 
 ### Step 1. Create an app on Unsplash
 
-To create a new application on Unsplash, click [here](https://unsplash.com/oauth/applications/new) or go to https://unsplash.com/oauth/applications/new.
+Create a [new application on Unsplash](https://unsplash.com/oauth/applications/new).
 
 Before creating an app you'll have to accept the terms for API use:
 

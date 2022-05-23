@@ -1,6 +1,5 @@
 {
-  "name": "with-styled-components-rtl",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -16,6 +15,5 @@
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.12.0"
-  },
-  "license": "MIT"
+  }
 }

@@ -1,0 +1,18 @@
+{
+  "name": "@next/swc-android-arm64",
+  "version": "0.0.0",
+  "os": [
+    "android"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "next-swc.android-arm64.node",
+  "files": [
+    "next-swc.android-arm64.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

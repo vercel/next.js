@@ -1,17 +1,15 @@
 {
-  "name": "with-neo4j",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
-    "neo4j-driver": "4.1.1",
+    "neo4j-driver": "^4.3.1",
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "swr": "0.3.9"
   }
 }

@@ -4,8 +4,6 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -13,7 +11,17 @@ description: Add custom HTTP headers to your Next.js app.
   </ul>
 </details>
 
-Headers allow you to set custom HTTP headers for an incoming request path.
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes        |
+| --------- | -------------- |
+| `v10.2.0` | `has` added.   |
+| `v9.5.0`  | Headers added. |
+
+</details>
+
+Headers allow you to set custom HTTP headers on the response to an incoming request on a given path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
 
@@ -42,7 +50,7 @@ module.exports = {
 `headers` is an async function that expects an array to be returned holding objects with `source` and `headers` properties:
 
 - `source` is the incoming request path pattern.
-- `headers` is an array of header objects with the `key` and `value` properties.
+- `headers` is an array of response header objects, with `key` and `value` properties.
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
@@ -75,7 +83,7 @@ module.exports = {
           },
         ],
       },
-    ],
+    ]
   },
 }
 ```
@@ -101,7 +109,7 @@ module.exports = {
           },
         ],
       },
-    ],
+    ]
   },
 }
 ```
@@ -127,7 +135,7 @@ module.exports = {
           },
         ],
       },
-    ],
+    ]
   },
 }
 ```
@@ -149,7 +157,7 @@ module.exports = {
           },
         ],
       },
-    ],
+    ]
   },
 }
 ```
@@ -158,13 +166,17 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async headers() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
-        destination: '/en-us/:slug',
-        permanent: false,
+        headers: [
+          {
+            key: 'x-header',
+            value: 'value',
+          },
+        ],
       },
     ]
   },
@@ -353,7 +365,7 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'worlld',
+            value: 'world',
           },
         ],
       },
@@ -364,4 +376,28 @@ module.exports = {
 
 ### Cache-Control
 
-Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function.
+You can set the `Cache-Control` header in your [Next.js API Routes](/docs/api-routes/introduction.md) by using the `res.setHeader` method:
+
+```js
+// pages/api/user.js
+
+export default function handler(req, res) {
+  res.setHeader('Cache-Control', 's-maxage=86400')
+  res.status(200).json({ name: 'John Doe' })
+}
+```
+
+You cannot set `Cache-Control` headers in `next.config.js` file as these will be overwritten in production to ensure that API Routes and static assets are cached effectively.
+
+If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function.
+
+## Related
+
+For more information, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/advanced-features/security-headers.md">
+    <b>Security Headers:</b>
+    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+  </a>
+</div>

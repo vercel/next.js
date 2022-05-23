@@ -1,9 +1,17 @@
-import '../next-server/server/node-polyfill-fetch'
-import chalk from 'chalk'
-import gzipSize from 'next/dist/compiled/gzip-size'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  PageRuntime,
+} from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+
+import '../server/node-polyfill-fetch'
+import chalk from 'next/dist/compiled/chalk'
+import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
-import { isValidElementType } from 'react-is'
+import { promises as fs } from 'fs'
+import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   Redirect,
@@ -15,38 +23,48 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
+import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths } from 'next/types'
-import { denormalizePagePath } from '../next-server/server/normalize-page-path'
-import { BuildManifest } from '../next-server/server/get-page-files'
+import { GetStaticPaths, PageConfig } from 'next/types'
+import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import { loadComponents } from '../next-server/server/load-components'
-import { trace } from '../telemetry/trace'
+import { loadComponents } from '../server/load-components'
+import { trace } from '../trace'
+import { setHttpAgentOptions } from '../server/config'
+import isError from '../lib/is-error'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { Sema } from 'next/dist/compiled/async-sema'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 
-const fileGzipStats: { [k: string]: Promise<number> } = {}
+const { builtinModules } = require('module')
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
+const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
-  if (fileGzipStats[file]) return fileGzipStats[file]
-  fileGzipStats[file] = gzipSize.file(file)
-  return fileGzipStats[file]
+  const cached = fileGzipStats[file]
+  if (cached) return cached
+  return (fileGzipStats[file] = getGzipSize.file(file))
 }
 
-export function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
+const fileSize = async (file: string) => (await fs.stat(file)).size
+
+const fileStats: { [k: string]: Promise<number> | undefined } = {}
+const fsStat = (file: string) => {
+  const cached = fileStats[file]
+  if (cached) return cached
+  return (fileStats[file] = fileSize(file))
 }
 
 export interface PageInfo {
@@ -57,6 +75,9 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
+  pageDuration: number | undefined
+  ssgPageDurations: number[] | undefined
+  runtime: PageRuntime
 }
 
 export async function printTreeView(
@@ -69,14 +90,18 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    middlewareManifest,
     useStatic404,
+    gzipSize = true,
   }: {
     distPath: string
     buildId: string
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
+    gzipSize?: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -89,6 +114,17 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  const MIN_DURATION = 300
+  const getPrettyDuration = (_duration: number): string => {
+    const duration = `${_duration} ms`
+    // green for 300-1000ms
+    if (_duration < 1000) return chalk.green(duration)
+    // yellow for 1000-2000ms
+    if (_duration < 2000) return chalk.yellow(duration)
+    // red for >= 2000ms
+    return chalk.red.bold(duration)
+  }
+
   const getCleanName = (fileName: string) =>
     fileName
       // Trim off `static/`
@@ -96,7 +132,7 @@ export async function printTreeView(
       // Re-add `static/` for root files
       .replace(/^<buildId>/, 'static')
       // Remove file hash
-      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+      .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
     ['Page', 'Size', 'First Load JS'].map((entry) =>
@@ -105,7 +141,6 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
     static: useStatic404,
@@ -115,7 +150,14 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    gzipSize,
+    pageInfos
+  )
+
+  const usedSymbols = new Set()
 
   const pageList = list
     .slice()
@@ -130,7 +172,7 @@ export async function printTreeView(
     .sort((a, b) => a.localeCompare(b))
 
   pageList.forEach((item, i, arr) => {
-    const symbol =
+    const border =
       i === 0
         ? arr.length === 1
           ? '─'
@@ -141,20 +183,34 @@ export async function printTreeView(
 
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
+    const totalDuration =
+      (pageInfo?.pageDuration || 0) +
+      (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
+
+    const symbol =
+      item === '/_app' || item === '/_app.server'
+        ? ' '
+        : pageInfo?.static
+        ? '○'
+        : pageInfo?.isSsg
+        ? '●'
+        : pageInfo?.runtime === 'edge'
+        ? 'ℇ'
+        : 'λ'
+
+    usedSymbols.add(symbol)
+
+    if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
 
     messages.push([
-      `${symbol} ${
-        item === '/_app'
-          ? ' '
-          : pageInfo?.static
-          ? '○'
-          : pageInfo?.isSsg
-          ? '●'
-          : 'λ'
-      } ${
+      `${border} ${symbol} ${
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
+      }${
+        totalDuration > MIN_DURATION
+          ? ` (${getPrettyDuration(totalDuration)})`
+          : ''
       }`,
       pageInfo
         ? ampFirst
@@ -192,18 +248,64 @@ export async function printTreeView(
 
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
-      const previewPages = totalRoutes === 4 ? 4 : 3
       const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
-      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
-      if (totalRoutes > previewPages) {
-        const remaining = totalRoutes - previewPages
-        routes.push(`[+${remaining} more paths]`)
+      let routes: { route: string; duration: number; avgDuration?: number }[]
+      if (
+        pageInfo.ssgPageDurations &&
+        pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
+      ) {
+        const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
+        const routesWithDuration = pageInfo.ssgPageRoutes
+          .map((route, idx) => ({
+            route,
+            duration: pageInfo.ssgPageDurations![idx] || 0,
+          }))
+          .sort(({ duration: a }, { duration: b }) =>
+            // Sort by duration
+            // keep too small durations in original order at the end
+            a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
+          )
+        routes = routesWithDuration.slice(0, previewPages)
+        const remainingRoutes = routesWithDuration.slice(previewPages)
+        if (remainingRoutes.length) {
+          const remaining = remainingRoutes.length
+          const avgDuration = Math.round(
+            remainingRoutes.reduce(
+              (total, { duration }) => total + duration,
+              0
+            ) / remainingRoutes.length
+          )
+          routes.push({
+            route: `[+${remaining} more paths]`,
+            duration: 0,
+            avgDuration,
+          })
+        }
+      } else {
+        const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
+        routes = pageInfo.ssgPageRoutes
+          .slice(0, previewPages)
+          .map((route) => ({ route, duration: 0 }))
+        if (totalRoutes > previewPages) {
+          const remaining = totalRoutes - previewPages
+          routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        }
       }
 
-      routes.forEach((slug, index, { length }) => {
+      routes.forEach(({ route, duration, avgDuration }, index, { length }) => {
         const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${route}${
+            duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+          }${
+            avgDuration && avgDuration > MIN_DURATION
+              ? ` (avg ${getPrettyDuration(avgDuration)})`
+              : ''
+          }`,
+          '',
+          '',
+        ])
       })
     }
   })
@@ -243,6 +345,18 @@ export async function printTreeView(
     ])
   })
 
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const sizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
+    )
+
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+  }
+
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
@@ -254,33 +368,38 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        [
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Streaming)',
+          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
+        ],
+        usedSymbols.has('λ') && [
           'λ',
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
         ],
-        [
+        usedSymbols.has('○') && [
           '○',
           '(Static)',
           'automatically rendered as static HTML (uses no initial props)',
         ],
-        [
+        usedSymbols.has('●') && [
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-        [
+        usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-      ] as [string, string, string][],
+      ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: (str) => stripAnsi(str).length,
@@ -378,9 +497,10 @@ let cachedBuildManifest: BuildManifest | undefined
 let lastCompute: ComputeManifestShape | undefined
 let lastComputePageInfo: boolean | undefined
 
-async function computeFromManifest(
+export async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
+  gzipSize: boolean = true,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
@@ -414,6 +534,8 @@ async function computeFromManifest(
     })
   })
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
     .map(([f]) => f)
@@ -426,7 +548,7 @@ async function computeFromManifest(
     stats = await Promise.all(
       commonFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -438,7 +560,7 @@ async function computeFromManifest(
     uniqueStats = await Promise.all(
       uniqueFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -486,9 +608,13 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifest
+  buildManifest: BuildManifest,
+  gzipSize: boolean = true,
+  computedManifestData?: ComputeManifestShape
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath)
+  const data =
+    computedManifestData ||
+    (await computeFromManifest(buildManifest, distPath, gzipSize))
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -507,11 +633,13 @@ export async function getJsPageSizeInKb(
     data.commonFiles
   ).map(fnMapRealPath)
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
-    const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
-    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(getSize)))
+    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(getSize)))
 
     return [selfFilesSize, allFilesSize]
   } catch (_) {}
@@ -521,6 +649,7 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths,
+  configFileName: string,
   locales?: string[],
   defaultLocale?: string
 ): Promise<
@@ -596,7 +725,7 @@ export async function buildStaticPaths(
       let cleanedEntry = entry
 
       if (localePathResult.detectedLocale) {
-        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+        cleanedEntry = entry.slice(localePathResult.detectedLocale.length + 1)
       } else if (defaultLocale) {
         entry = `/${defaultLocale}${entry}`
       }
@@ -692,7 +821,7 @@ export async function buildStaticPaths(
 
       if (entry.locale && !locales?.includes(entry.locale)) {
         throw new Error(
-          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in ${configFileName}`
         )
       }
       const curLocale = entry.locale || defaultLocale || ''
@@ -721,7 +850,9 @@ export async function isPageStatic(
   page: string,
   distDir: string,
   serverless: boolean,
+  configFileName: string,
   runtimeEnvConfig: any,
+  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
   defaultLocale?: string,
   parentId?: any
@@ -735,27 +866,34 @@ export async function isPageStatic(
   encodedPrerenderRoutes?: string[]
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
+  traceIncludes?: string[]
+  traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
-      require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-      const components = await loadComponents(distDir, page, serverless)
-      const mod = components.ComponentMod
-      const Comp = mod.default || mod
+      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
+      setHttpAgentOptions(httpAgentOptions)
+
+      const mod = await loadComponents(distDir, page, serverless)
+      const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!(await mod.getStaticProps)
-      const hasStaticPaths = !!(await mod.getStaticPaths)
-      const hasServerProps = !!(await mod.getServerSideProps)
-      const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
+      const hasStaticProps = !!mod.getStaticProps
+      const hasStaticPaths = !!mod.getStaticPaths
+      const hasServerProps = !!mod.getServerSideProps
+      const hasLegacyServerProps = !!(await mod.ComponentMod
+        .unstable_getServerProps)
+      const hasLegacyStaticProps = !!(await mod.ComponentMod
+        .unstable_getStaticProps)
+      const hasLegacyStaticPaths = !!(await mod.ComponentMod
+        .unstable_getStaticPaths)
+      const hasLegacyStaticParams = !!(await mod.ComponentMod
+        .unstable_getStaticParams)
 
       if (hasLegacyStaticParams) {
         throw new Error(
@@ -821,14 +959,15 @@ export async function isPageStatic(
           encodedPaths: encodedPrerenderRoutes,
         } = await buildStaticPaths(
           page,
-          mod.getStaticPaths,
+          mod.getStaticPaths!,
+          configFileName,
           locales,
           defaultLocale
         ))
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-      const config = mod.config || {}
+      const config: PageConfig = mod.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
@@ -839,9 +978,11 @@ export async function isPageStatic(
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
+        traceIncludes: config.unstable_includeFiles || [],
+        traceExcludes: config.unstable_excludeFiles || [],
       }
     } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND') return {}
+      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
       throw err
     }
   })
@@ -854,7 +995,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
@@ -874,7 +1015,7 @@ export async function getNamedExports(
   isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
 
@@ -949,7 +1090,7 @@ export function detectConflictingPaths(
     })
 
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
@@ -957,15 +1098,218 @@ export function detectConflictingPaths(
   }
 }
 
-export function getCssFilePaths(buildManifest: BuildManifest): string[] {
-  const cssFiles = new Set<string>()
-  Object.values(buildManifest.pages).forEach((files) => {
-    files.forEach((file) => {
-      if (file.endsWith('.css')) {
-        cssFiles.add(file)
+/**
+ * With RSC we automatically add .server and .client to page extensions. This
+ * function allows to remove them for cases where we just need to strip out
+ * the actual extension keeping the .server and .client.
+ */
+export function withoutRSCExtensions(pageExtensions: string[]): string[] {
+  return pageExtensions.filter(
+    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
+  )
+}
+
+export function isServerComponentPage(
+  nextConfig: NextConfigComplete,
+  filePath: string
+): boolean {
+  if (!nextConfig.experimental.serverComponents) {
+    return false
+  }
+
+  const rawPageExtensions = withoutRSCExtensions(
+    nextConfig.pageExtensions || []
+  )
+  return rawPageExtensions.some((ext) => {
+    return filePath.endsWith(`.server.${ext}`)
+  })
+}
+
+export function getUnresolvedModuleFromError(
+  error: string
+): string | undefined {
+  const moduleErrorRegex = new RegExp(
+    `Module not found: Error: Can't resolve '(\\w+)'`
+  )
+  const [, moduleName] = error.match(moduleErrorRegex) || []
+  return builtinModules.find((item: string) => item === moduleName)
+}
+
+export async function copyTracedFiles(
+  dir: string,
+  distDir: string,
+  pageKeys: string[],
+  tracingRoot: string,
+  serverConfig: { [key: string]: any },
+  middlewareManifest: MiddlewareManifest
+) {
+  const outputPath = path.join(distDir, 'standalone')
+  const copiedFiles = new Set()
+  await recursiveDelete(outputPath)
+
+  async function handleTraceFiles(traceFilePath: string) {
+    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+      files: string[]
+    }
+    const copySema = new Sema(10, { capacity: traceData.files.length })
+    const traceFileDir = path.dirname(traceFilePath)
+
+    await Promise.all(
+      traceData.files.map(async (relativeFile) => {
+        await copySema.acquire()
+
+        const tracedFilePath = path.join(traceFileDir, relativeFile)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, tracedFilePath)
+        )
+
+        if (!copiedFiles.has(fileOutputPath)) {
+          copiedFiles.add(fileOutputPath)
+
+          await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+
+          if (symlink) {
+            console.log('symlink', path.relative(tracingRoot, symlink))
+            await fs.symlink(symlink, fileOutputPath)
+          } else {
+            await fs.copyFile(tracedFilePath, fileOutputPath)
+          }
+        }
+
+        await copySema.release()
+      })
+    )
+  }
+
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (middleware.name === MIDDLEWARE_FILENAME) {
+      for (const file of middleware.files) {
+        const originalPath = path.join(distDir, file)
+        const fileOutputPath = path.join(
+          outputPath,
+          path.relative(tracingRoot, distDir),
+          file
+        )
+        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+        await fs.copyFile(originalPath, fileOutputPath)
       }
-    })
+    }
+  }
+
+  for (const page of pageKeys) {
+    const pageFile = path.join(
+      distDir,
+      'server',
+      'pages',
+      `${normalizePagePath(page)}.js`
+    )
+    const pageTraceFile = `${pageFile}.nft.json`
+    await handleTraceFiles(pageTraceFile)
+  }
+  await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
+  const serverOutputPath = path.join(
+    outputPath,
+    path.relative(tracingRoot, dir),
+    'server.js'
+  )
+  await fs.writeFile(
+    serverOutputPath,
+    `
+process.env.NODE_ENV = 'production'
+process.chdir(__dirname)
+const NextServer = require('next/dist/server/next-server').default
+const http = require('http')
+const path = require('path')
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
+
+let handler
+
+const server = http.createServer(async (req, res) => {
+  try {
+    await handler(req, res)
+  } catch (err) {
+    console.error(err);
+    res.statusCode = 500
+    res.end('internal server error')
+  }
+})
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+
+server.listen(currentPort, (err) => {
+  if (err) {
+    console.error("Failed to start server", err)
+    process.exit(1)
+  }
+  const addr = server.address()
+  const nextServer = new NextServer({
+    hostname: 'localhost',
+    port: currentPort,
+    dir: path.join(__dirname),
+    dev: false,
+    conf: ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })},
+  })
+  handler = nextServer.getRequestHandler()
+
+  console.log("Listening on port", currentPort)
+})
+    `
+  )
+}
+export function isReservedPage(page: string) {
+  return RESERVED_PAGE.test(page)
+}
+
+export function isCustomErrorPage(page: string) {
+  return page === '/404' || page === '/500'
+}
+
+// FIX ME: it does not work for non-middleware edge functions
+//  since chunks don't contain runtime specified somehow
+export async function isEdgeRuntimeCompiled(
+  compilation: webpack5.Compilation,
+  module: any,
+  config: NextConfig
+) {
+  if (!module) return false
+
+  for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
+    let runtimes: string[]
+    if (typeof chunk.runtime === 'string') {
+      runtimes = [chunk.runtime]
+    } else if (chunk.runtime) {
+      runtimes = [...chunk.runtime]
+    } else {
+      runtimes = []
+    }
+
+    if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
+      return true
+    }
+  }
+
+  const staticInfo = await getPageStaticInfo({
+    pageFilePath: module.resource,
+    nextConfig: config,
   })
 
-  return [...cssFiles]
+  // Check the page runtime as well since we cannot detect the runtime from
+  // compilation when it's for the client part of edge function
+  return staticInfo.runtime === 'edge'
+}
+
+export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
+  name: string
+) {
+  return (
+    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
+    'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
+  )
 }

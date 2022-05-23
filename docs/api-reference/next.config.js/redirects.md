@@ -4,8 +4,6 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -13,9 +11,17 @@ description: Add redirects to your Next.js app.
   </ul>
 </details>
 
-Redirects allow you to redirect an incoming request path to a different destination path.
+<details>
+  <summary><b>Version History</b></summary>
 
-Redirects are only available on the Node.js environment and do not affect client-side routing.
+| Version   | Changes          |
+| --------- | ---------------- |
+| `v10.2.0` | `has` added.     |
+| `v9.5.0`  | Redirects added. |
+
+</details>
+
+Redirects allow you to redirect an incoming request path to a different destination path.
 
 To use Redirects you can use the `redirects` key in `next.config.js`:
 
@@ -37,12 +43,27 @@ module.exports = {
 
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.
-- `permanent` if the redirect is permanent or not.
+- `permanent` `true` or `false` - if `true` will use the 308 status code which instructs clients/search engines to cache the redirect forever, if `false` will use the 307 status code which is temporary and is not cached.
+
+> **Why does Next.js use 307 and 308?** Traditionally a 302 was used for a temporary redirect, and a 301 for a permanent redirect, but many browsers changed the request method of the redirect to `GET`, regardless of the original method. For example, if the browser made a request to `POST /v1/users` which returned status code `302` with location `/v2/users`, the subsequent request might be `GET /v2/users` instead of the expected `POST /v2/users`. Next.js uses the 307 temporary redirect, and 308 permanent redirect status codes to explicitly preserve the request method used.
+
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
+
+When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
+
+```js
+{
+  source: '/old-blog/:path*',
+  destination: '/blog/:path*',
+  permanent: false
+}
+```
+
+When `/old-blog/post-1?hello=world` is requested, the client will be redirected to `/blog/post-1?hello=world`.
 
 ## Path Matching
 
@@ -132,7 +153,7 @@ module.exports = {
       // if the header `x-redirect-me` is present,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'header',
@@ -162,12 +183,12 @@ module.exports = {
           },
         ],
         permanent: false,
-        destination: '/:path*/:page',
+        destination: '/another/:path*',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this redirect will be applied
       {
-        source: '/:path*',
+        source: '/',
         has: [
           {
             type: 'header',
@@ -181,13 +202,14 @@ module.exports = {
       // if the host is `example.com`,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'host',
             value: 'example.com',
           },
         ],
+        permanent: false,
         destination: '/another-page',
       },
     ]
@@ -271,4 +293,4 @@ In some rare cases, you might need to assign a custom status code for older HTTP
 ## Other Redirects
 
 - Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
-- Inside [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering), you can redirect specific pages at request-time.
+- Inside [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md), you can redirect specific pages at request-time.

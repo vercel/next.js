@@ -1,6 +1,7 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
+    // no-rewrites comment
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'
@@ -189,6 +190,20 @@ module.exports = {
           ],
           destination: '/with-params?idk=:idk',
         },
+        {
+          source: '/has-rewrite-8',
+          has: [
+            {
+              type: 'query',
+              key: 'post',
+            },
+          ],
+          destination: '/blog-catchall/:post',
+        },
+        {
+          source: '/blog/about',
+          destination: '/hello',
+        },
       ],
       beforeFiles: [
         {
@@ -200,6 +215,18 @@ module.exports = {
             },
           ],
           destination: '/with-params?overridden=1',
+        },
+        {
+          source: '/old-blog/:path*',
+          destination: '/blog/:path*',
+        },
+        {
+          source: '/overridden',
+          destination: 'https://example.vercel.sh',
+        },
+        {
+          source: '/nfl/:path*',
+          destination: '/_sport/nfl/:path*',
         },
       ],
     }
@@ -357,6 +384,40 @@ module.exports = {
           },
         ],
         destination: '/another?host=1',
+        permanent: false,
+      },
+      {
+        source: '/:path/has-redirect-5',
+        has: [
+          {
+            type: 'header',
+            key: 'x-test-next',
+          },
+        ],
+        destination: '/somewhere',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-6',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>.*)-test.example.com',
+          },
+        ],
+        destination: 'https://:subdomain.example.com/some-path/end?a=b',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-7',
+        has: [
+          {
+            type: 'query',
+            key: 'hello',
+            value: '(?<hello>.*)',
+          },
+        ],
+        destination: '/somewhere?value=:hello',
         permanent: false,
       },
     ]

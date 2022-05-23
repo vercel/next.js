@@ -2,11 +2,11 @@
 
 This example shows how to create internationalized pages using Next.js and the i18n routing feature. It shows a normal page, a non-dynamic `getStaticProps` page, a dynamic `getStaticProps` page, and a `getServerSideProps` page.
 
-For further documentation on this feature see the documentation [here](https://nextjs.org/docs/advanced-features/i18n-routing)
+For further documentation on this feature see the [Internationalized Routing docs](https://nextjs.org/docs/advanced-features/i18n-routing).
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/i18n-routing)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/i18n-routing&project-name=i18n-routing&repository-name=i18n-routing)
 
@@ -18,6 +18,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example i18n-routing i18n-app
 # or
 yarn create next-app --example i18n-routing i18n-app
+# or
+pnpm create next-app -- --example i18n-routing i18n-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

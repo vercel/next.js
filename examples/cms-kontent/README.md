@@ -27,7 +27,9 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
@@ -37,6 +39,8 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-kontent cms-kontent-app
 # or
 yarn create next-app --example cms-kontent cms-kontent-app
+# or
+pnpm create next-app -- --example cms-kontent cms-kontent-app
 ```
 
 ## Configuration
@@ -68,7 +72,7 @@ To import the content models with their data follow the next steps:
    kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
    ```
 
-   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
+   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import) for importing the content.**
 
 1. Go to your Kontent project and publish all the imported items.
    > You could deactivate Management API key, it is not necessary any more.

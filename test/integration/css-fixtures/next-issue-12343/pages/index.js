@@ -6,7 +6,7 @@ function HomePage() {
   return (
     <div>
       <h1>Home page</h1>
-      <Link href="/another-page">
+      <Link href="/another-page" passHref>
         <Button id="link-other" className={styles.button}>
           Another page
         </Button>

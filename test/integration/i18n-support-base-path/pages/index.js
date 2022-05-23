@@ -11,6 +11,7 @@ export default function Page(props) {
       <p id="router-locale">{router.locale}</p>
       <p id="router-default-locale">{router.defaultLocale}</p>
       <p id="router-locales">{JSON.stringify(router.locales)}</p>
+      <p id="router-domain-locales">{JSON.stringify(router.domainLocales)}</p>
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>

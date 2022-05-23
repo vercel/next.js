@@ -6,7 +6,7 @@ description: Next.js has a built-in, opinionated, and file-system based Router. 
 
 Next.js has a file-system based router built on the [concept of pages](/docs/basic-features/pages.md).
 
-When a file is added to the `pages` directory it's automatically available as a route.
+When a file is added to the `pages` directory, it's automatically available as a route.
 
 The files inside the `pages` directory can be used to define most common patterns.
 
@@ -19,14 +19,14 @@ The router will automatically route files named `index` to the root of the direc
 
 #### Nested routes
 
-The router supports nested files. If you create a nested folder structure files will be automatically routed in the same way still.
+The router supports nested files. If you create a nested folder structure, files will automatically be routed in the same way still.
 
 - `pages/blog/first-post.js` → `/blog/first-post`
 - `pages/dashboard/settings/username.js` → `/dashboard/settings/username`
 
 #### Dynamic route segments
 
-To match a dynamic segment you can use the bracket syntax. This allows you to match named parameters.
+To match a dynamic segment, you can use the bracket syntax. This allows you to match named parameters.
 
 - `pages/blog/[slug].js` → `/blog/:slug` (`/blog/hello-world`)
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
@@ -68,13 +68,13 @@ function Home() {
 export default Home
 ```
 
-In the example above we have multiple links, each one maps a path (`href`) to a known page:
+The example above uses multiple links. Each one maps a path (`href`) to a known page:
 
 - `/` → `pages/index.js`
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
-Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation). The corresponding data for [server-rendered](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) routes is _not_ prefetched.
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
 
 ### Linking to dynamic paths
 

@@ -17,4 +17,4 @@ Remove the plugin specified in the error message from your custom PostCSS config
 #### How do I configure CSS Modules?
 
 CSS Modules are supported in [Next.js' built-in CSS support](https://nextjs.org/docs/advanced-features/customizing-postcss-config).
-You can [read more](https://nextjs.org/docs/advanced-features/customizing-postcss-config) about how to use them [here](https://nextjs.org/docs/advanced-features/customizing-postcss-config).
+You can [read more about how to use CSS Modules here](https://nextjs.org/docs/advanced-features/customizing-postcss-config).

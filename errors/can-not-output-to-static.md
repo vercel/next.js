@@ -4,7 +4,7 @@
 
 Either you set `distDir` to `static` in your `next.config.js` or during `next export` you tried to export to the `static` directory.
 
-This is not allowed due to `static` being a special folder in Next.js used to serve static assets.
+This is not allowed because `static` is used by Next.js to serve static assets.
 
 #### Possible Ways to Fix It
 

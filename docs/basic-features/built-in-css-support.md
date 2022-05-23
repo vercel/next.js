@@ -153,7 +153,7 @@ You can use component-level Sass via CSS Modules and the `.module.scss` or `.mod
 Before you can use Next.js' built-in Sass support, be sure to install [`sass`](https://github.com/sass/sass):
 
 ```bash
-npm install sass
+npm install --save-dev sass
 ```
 
 Sass support has the same benefits and restrictions as the built-in CSS support detailed above.
@@ -181,17 +181,32 @@ module.exports = {
 }
 ```
 
-## Less and Stylus Support
+### Sass Variables
 
-To support importing `.less` or `.styl` files you can use the following plugins:
+Next.js supports Sass variables exported from CSS Module files.
 
-- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/vercel/next-plugins/tree/master/packages/next-stylus)
+For example, using the exported `primaryColor` Sass variable:
 
-If using the less plugin, don't forget to add a dependency on less as well, otherwise you'll see an error like:
+```scss
+/* variables.module.scss */
+$primary-color: #64ff00;
 
-```bash
-Error: Cannot find module 'less'
+:export {
+  primaryColor: $primary-color;
+}
+```
+
+```js
+// pages/_app.js
+import variables from '../styles/variables.module.scss'
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <Layout color={variables.primaryColor}>
+      <Component {...pageProps} />
+    </Layout>
+  )
+}
 ```
 
 ## CSS-in-JS
@@ -205,10 +220,10 @@ Error: Cannot find module 'less'
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-linaria">Linaria</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion">Tailwind CSS + Emotion</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styletron">Styletron</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-glamor">Glamor</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cxs">Cxs</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-fela">Fela</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-stitches">Stitches</a></li>
   </ul>
 </details>
 
