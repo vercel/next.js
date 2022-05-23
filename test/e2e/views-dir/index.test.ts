@@ -267,7 +267,7 @@ describe('views dir', () => {
           'Client Nested. Count: 1'
         )
         // After hydration count should be 1
-        expect(await browser.elementByCss('h1').text()).toBe(
+        expect(await browser.elementByCss('p').text()).toBe(
           'hello from root/client-nested'
         )
       })

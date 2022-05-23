@@ -5,7 +5,6 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import type webpack5 from 'webpack5'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
