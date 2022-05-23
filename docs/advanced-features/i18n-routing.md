@@ -164,7 +164,7 @@ module.exports = {
 Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
 
 ```js
-// pages/_middleware.ts
+// middleware.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 

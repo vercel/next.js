@@ -4,6 +4,7 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
+import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -15,7 +16,8 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
+  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -33,7 +35,6 @@ import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -54,11 +55,7 @@ import {
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
-import {
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { isTargetLikeServerless } from '../server/utils'
@@ -79,11 +76,8 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { runCompiler } from './compiler'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  getPageStaticInfo,
-} from './entries'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -115,6 +109,8 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { flatReaddir } from '../lib/flat-readdir'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -233,30 +229,74 @@ export default async function build(
       const ignoreTypeScriptErrors = Boolean(
         config.typescript.ignoreBuildErrors
       )
-      const typeCheckStart = process.hrtime()
-      const typeCheckingSpinner = createSpinner({
-        prefixText: `${Log.prefixes.info} ${
-          ignoreTypeScriptErrors
-            ? 'Skipping validation of types'
-            : 'Checking validity of types'
-        }`,
-      })
 
-      const verifyResult = await nextBuildSpan
-        .traceChild('verify-typescript-setup')
-        .traceAsyncFn(() =>
+      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+      const eslintCacheDir = path.join(cacheDir, 'eslint/')
+      const shouldLint = !ignoreESLint && runLint
+
+      if (ignoreTypeScriptErrors) {
+        Log.info('Skipping validation of types')
+      }
+      if (runLint && ignoreESLint) {
+        // only print log when build requre lint while ignoreESLint is enabled
+        Log.info('Skipping linting')
+      }
+
+      let typeCheckingAndLintingSpinnerPrefixText: string | undefined
+      let typeCheckingAndLintingSpinner:
+        | ReturnType<typeof createSpinner>
+        | undefined
+
+      if (!ignoreTypeScriptErrors && shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText =
+          'Linting and checking validity of types'
+      } else if (!ignoreTypeScriptErrors) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+      } else if (shouldLint) {
+        typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+      }
+
+      // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
+      // enabled, but we will still verifying project's tsconfig and dependencies.
+      if (typeCheckingAndLintingSpinnerPrefixText) {
+        typeCheckingAndLintingSpinner = createSpinner({
+          prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
+        })
+      }
+
+      const typeCheckStart = process.hrtime()
+
+      const [[verifyResult, typeCheckEnd]] = await Promise.all([
+        nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
             [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config,
-            cacheDir
-          )
-        )
+            cacheDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads
+          ).then((resolved) => {
+            const checkEnd = process.hrtime(typeCheckStart)
+            return [resolved, checkEnd] as const
+          })
+        ),
+        shouldLint &&
+          nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
+            await verifyAndLint(
+              dir,
+              eslintCacheDir,
+              config.eslint?.dirs,
+              config.experimental.cpus,
+              config.experimental.workerThreads,
+              telemetry
+            )
+          }),
+      ])
 
-      const typeCheckEnd = process.hrtime(typeCheckStart)
+      typeCheckingAndLintingSpinner?.stopAndPersist()
 
-      if (!ignoreTypeScriptErrors) {
+      if (!ignoreTypeScriptErrors && verifyResult) {
         telemetry.record(
           eventTypeCheckCompleted({
             durationInSeconds: typeCheckEnd[0],
@@ -268,27 +308,6 @@ export default async function build(
         )
       }
 
-      if (typeCheckingSpinner) {
-        typeCheckingSpinner.stopAndPersist()
-      }
-
-      const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-      const eslintCacheDir = path.join(cacheDir, 'eslint/')
-      const shouldLint = !ignoreESLint && runLint
-      if (shouldLint) {
-        await nextBuildSpan
-          .traceChild('verify-and-lint')
-          .traceAsyncFn(async () => {
-            await verifyAndLint(
-              dir,
-              eslintCacheDir,
-              config.eslint?.dirs,
-              config.experimental.cpus,
-              config.experimental.workerThreads,
-              telemetry
-            )
-          })
-      }
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
         invocationCount: shouldLint ? 1 : 0,
@@ -326,6 +345,13 @@ export default async function build(
           )
       }
 
+      const rootPaths = await flatReaddir(
+        dir,
+        new RegExp(
+          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        )
+      )
+
       // needed for static exporting since we want to replace with HTML
       // files
 
@@ -345,11 +371,12 @@ export default async function build(
             hasServerComponents,
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagePaths,
+            pagesType: 'pages',
+            pagePaths: pagePaths,
           })
         )
 
-      let mappedViewPaths: ReturnType<typeof createPagesMapping> | undefined
+      let mappedViewPaths: { [page: string]: string } | undefined
 
       if (viewPaths && viewsDir) {
         mappedViewPaths = nextBuildSpan
@@ -359,10 +386,21 @@ export default async function build(
               pagePaths: viewPaths!,
               hasServerComponents,
               isDev: false,
-              isViews: true,
+              pagesType: 'views',
               pageExtensions: config.pageExtensions,
             })
           )
+      }
+
+      let mappedRootPaths: { [page: string]: string } = {}
+      if (rootPaths.length > 0) {
+        mappedRootPaths = createPagesMapping({
+          hasServerComponents,
+          isDev: false,
+          pageExtensions: config.pageExtensions,
+          pagePaths: rootPaths,
+          pagesType: 'root',
+        })
       }
 
       const entrypoints = await nextBuildSpan
@@ -377,6 +415,8 @@ export default async function build(
             pagesDir,
             previewMode: previewProps,
             target,
+            rootDir: dir,
+            rootPaths: mappedRootPaths,
             viewsDir,
             viewPaths: mappedViewPaths,
             pageExtensions: config.pageExtensions,
@@ -389,7 +429,7 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))) {
+      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
         Log.warn(
           `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
         )
@@ -538,17 +578,10 @@ export default async function build(
         redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
         headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
         dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE)
-          )
+          .filter(isDynamicRoute)
           .map(pageToRoute),
         staticRoutes: getSortedRoutes(pageKeys)
-          .filter(
-            (page) =>
-              !isDynamicRoute(page) &&
-              !page.match(MIDDLEWARE_ROUTE) &&
-              !isReservedPage(page)
-          )
+          .filter((page) => !isDynamicRoute(page) && !isReservedPage(page))
           .map(pageToRoute),
         dataRoutes: [],
         i18n: config.i18n || undefined,
@@ -826,7 +859,7 @@ export default async function build(
         if (result.errors.length > 5) {
           result.errors.length = 5
         }
-        let error = result.errors.join('\n\n')
+        let error = result.errors.filter(Boolean).join('\n\n')
 
         console.error(chalk.red('Failed to compile.\n'))
 
@@ -883,7 +916,7 @@ export default async function build(
 
         if (result.warnings.length > 0) {
           Log.warn('Compiled with warnings\n')
-          console.warn(result.warnings.join('\n\n'))
+          console.warn(result.warnings.filter(Boolean).join('\n\n'))
           console.warn()
         } else {
           Log.info('Compiled successfully')
@@ -1069,16 +1102,20 @@ export default async function build(
               let isServerComponent = false
               let isHybridAmp = false
               let ssgPageRoutes: string[] | null = null
-              let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
               const pagePath = pagePaths.find(
                 (p) =>
                   p.startsWith(actualPage + '.') ||
                   p.startsWith(actualPage + '/index.')
               )
+
               const pageRuntime = pagePath
-                ? (await getPageStaticInfo(join(pagesDir, pagePath), config))
-                    .runtime
+                ? (
+                    await getPageStaticInfo({
+                      pageFilePath: join(pagesDir, pagePath),
+                      nextConfig: config,
+                    })
+                  ).runtime
                 : undefined
 
               if (hasServerComponents && pagePath) {
@@ -1088,7 +1125,6 @@ export default async function build(
               }
 
               if (
-                !isMiddlewareRoute &&
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
                 pageRuntime !== 'edge'
@@ -1483,7 +1519,9 @@ export default async function build(
           let routeKeys: { [named: string]: string } | undefined
 
           if (isDynamicRoute(page)) {
-            const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+            const routeRegex = getNamedRouteRegex(
+              dataRoute.replace(/\.json$/, '')
+            )
 
             dataRouteRegex = normalizeRouteRegex(
               routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
@@ -2091,9 +2129,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: pageKeys.filter((page) =>
-            MIDDLEWARE_ROUTE.test(page)
-          ).length,
+          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
         })
       )
 
@@ -2114,7 +2150,9 @@ export default async function build(
           )
 
           finalDynamicRoutes[tbdRoute] = {
-            routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
+            routeRegex: normalizeRouteRegex(
+              getNamedRouteRegex(tbdRoute).re.source
+            ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2122,10 +2160,9 @@ export default async function build(
               ? `${normalizedRoute}.html`
               : false,
             dataRouteRegex: normalizeRouteRegex(
-              getRouteRegex(dataRoute.replace(/\.json$/, '')).re.source.replace(
-                /\(\?:\\\/\)\?\$$/,
-                '\\.json$'
-              )
+              getNamedRouteRegex(
+                dataRoute.replace(/\.json$/, '')
+              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }
         })
@@ -2257,6 +2294,7 @@ export default async function build(
             useStatic404,
             pageExtensions: config.pageExtensions,
             buildManifest,
+            middlewareManifest,
             gzipSize: config.experimental.gzipSize,
           }
         )
@@ -2303,6 +2341,50 @@ export default async function build(
   }
 }
 
+/**
+ * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
+ * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ *
+ * Since it is impossible to pass a function from main thread to a worker,
+ * instead of running "next/lib/typescript/runTypeCheck" in a worker,
+ * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
+ */
+function verifyTypeScriptSetup(
+  dir: string,
+  intentDirs: string[],
+  typeCheckPreflight: boolean,
+  config: NextConfigComplete,
+  cacheDir: string | undefined,
+  numWorkers: number | undefined,
+  enableWorkerThreads: boolean | undefined
+) {
+  const typeCheckWorker = new JestWorker(
+    require.resolve('../lib/verifyTypeScriptSetup'),
+    {
+      numWorkers,
+      enableWorkerThreads,
+    }
+  ) as JestWorker & {
+    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
+  }
+
+  typeCheckWorker.getStdout().pipe(process.stdout)
+  typeCheckWorker.getStderr().pipe(process.stderr)
+
+  return typeCheckWorker
+    .verifyTypeScriptSetup(
+      dir,
+      intentDirs,
+      typeCheckPreflight,
+      config,
+      cacheDir
+    )
+    .then((result) => {
+      typeCheckWorker.end()
+      return result
+    })
+}
+
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -2334,7 +2416,7 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getRouteRegex(page)
+  const routeRegex = getNamedRouteRegex(page)
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
