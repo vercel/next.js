@@ -44,6 +44,13 @@ describe('should set-up next', () => {
     }
   })
 
+  it('should have correct head tags from a fragment', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    const $ = cheerio.load(html)
+
+    expect($(`meta[name="test-in-fragment"]`).attr()['content']).toBe('hello')
+  })
+
   it('should have correct head tags after hydration', async () => {
     const browser = await webdriver(next.url, '/')
 
