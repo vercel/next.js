@@ -25,7 +25,7 @@ export class NextDeployInstance extends NextInstance {
     let vcConfigDir
 
     if (process.env.NEXT_TEST_JOB) {
-      path.join(os.homedir(), '.vercel')
+      vcConfigDir = path.join(os.homedir(), '.vercel')
       await fs.ensureDir(vcConfigDir)
       await fs.writeFile(
         path.join(vcConfigDir, 'auth.json'),
