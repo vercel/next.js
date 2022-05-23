@@ -1,4 +1,7 @@
+import os from 'os'
+import path from 'path'
 import execa from 'execa'
+import fs from 'fs-extra'
 import { NextInstance } from './base'
 import {
   TEST_PROJECT_NAME,
@@ -19,6 +22,16 @@ export class NextDeployInstance extends NextInstance {
 
   public async setup() {
     await super.createTestDir({ skipInstall: true })
+    let vcConfigDir
+
+    if (process.env.NEXT_TEST_JOB) {
+      path.join(os.homedir(), '.vercel')
+      await fs.ensureDir(vcConfigDir)
+      await fs.writeFile(
+        path.join(vcConfigDir, 'auth.json'),
+        JSON.stringify({ token: TEST_TOKEN })
+      )
+    }
 
     // ensure Vercel CLI is installed
     try {
@@ -30,8 +43,12 @@ export class NextDeployInstance extends NextInstance {
         stdio: 'inherit',
       })
     }
-    const vercelFlags = ['--scope', TEST_TEAM_NAME]
+    const vercelFlags = ['--scope', TEST_TEAM_NAME, '']
     const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
+
+    if (vcConfigDir) {
+      vercelFlags.push('--global-config', vcConfigDir)
+    }
     console.log(`Linking project at ${this.testDir}`)
 
     // link the project
