@@ -14,22 +14,20 @@ import { noop as css } from '../helpers/noop-template'
 
 export function ComponentStyles() {
   return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: css`
-          ${overlay}
-          ${toast}
-          ${dialog}
-          ${leftRightDialogHeader}
-          ${codeFrame}
-          ${terminal}
-
-          ${buildErrorStyles}
-          ${containerErrorStyles}
-          ${containerRuntimeErrorStyles}
-          ${fullRefreshWarningStyles}
-        `,
-      }}
-    />
+    <style>
+      {css`
+        ${overlay}
+        ${toast}
+        ${dialog}
+        ${leftRightDialogHeader}
+        ${codeFrame}
+        ${terminal}
+        
+        ${buildErrorStyles}
+        ${containerErrorStyles}
+        ${containerRuntimeErrorStyles}
+        ${fullRefreshWarningStyles}
+      `}
+    </style>
   )
 }

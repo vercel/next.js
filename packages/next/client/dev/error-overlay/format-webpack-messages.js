@@ -34,6 +34,8 @@ function isLikelyASyntaxError(message) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
+let hadMissingSassError = false
+
 // Cleans up webpack error messages.
 function formatMessage(message, verbose) {
   // TODO: Replace this once webpack 5 is stable
@@ -121,14 +123,25 @@ function formatMessage(message, verbose) {
   }
 
   // Add helpful message for users trying to use Sass for the first time
-  if (lines[1] && lines[1].match(/Cannot find module.+node-sass/)) {
+  if (lines[1] && lines[1].match(/Cannot find module.+sass/)) {
     // ./file.module.scss (<<loader info>>) => ./file.module.scss
-    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+    const firstLine = lines[0].split('!')
+    lines[0] = firstLine[firstLine.length - 1]
 
     lines[1] =
       "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
     lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+
+    // dispose of unhelpful stack trace
+    lines = lines.slice(0, 2)
+    hadMissingSassError = true
+  } else if (
+    hadMissingSassError &&
+    message.match(/(sass-loader|resolve-url-loader: CSS error)/)
+  ) {
+    // dispose of unhelpful stack trace following missing sass module
+    lines = []
   }
 
   if (!verbose) {
