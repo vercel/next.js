@@ -4,16 +4,17 @@ One of the strengths of GraphQL is [enforcing data types on runtime](https://gra
 
 This template gives you the best start to use GraphQL with fully typed queries (client-side) and resolvers (server-side), all this with minimum bundle size 📦
 
-
 ```tsx
 import { useQuery } from '@apollo/client'
 import { ViewerDocument } from 'lib/graphql-operations'
 
 const News = () => {
-	// Typed already️⚡️
-	const { data: { viewer } } = useQuery(ViewerDocument)
+  // Typed already️⚡️
+  const {
+    data: { viewer },
+  } = useQuery(ViewerDocument)
 
-	return <div>{viewer.name}</div>
+  return <div>{viewer.name}</div>
 }
 ```
 

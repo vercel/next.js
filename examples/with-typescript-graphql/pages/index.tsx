@@ -28,7 +28,10 @@ const Index = () => {
         // Write our data back to the cache.
         if (newViewer) {
           newViewer.name = data.updateName.name
-          cache.writeQuery({ query: ViewerDocument, data: { viewer: newViewer } })
+          cache.writeQuery({
+            query: ViewerDocument,
+            data: { viewer: newViewer },
+          })
         }
       },
     })

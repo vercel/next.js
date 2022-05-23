@@ -17,7 +17,7 @@ const resolvers: Resolvers = {
       userProfile.name = _args.name
       return userProfile
     },
-  }
+  },
 }
 
 export default resolvers

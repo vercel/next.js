@@ -1,4 +1,4 @@
-const typeDefs = /* GraphQL */`
+const typeDefs = /* GraphQL */ `
   type User {
     id: ID!
     name: String!
@@ -12,6 +12,6 @@ const typeDefs = /* GraphQL */`
   type Mutation {
     updateName(name: String!): User!
   }
-`;
+`
 
 export default typeDefs
