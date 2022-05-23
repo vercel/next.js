@@ -12,6 +12,7 @@ import { join } from '../isomorphic/path'
  */
 export function getPagePaths(normalizedPagePath: string, extensions: string[]) {
   const page = denormalizePagePath(normalizedPagePath)
+
   return flatten(
     extensions.map((extension) => {
       return !normalizedPagePath.endsWith('/index')

@@ -1,4 +1,9 @@
-import type { NextConfigComplete, PageRuntime } from '../server/config-shared'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  PageRuntime,
+} from '../server/config-shared'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -18,10 +23,12 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
-  MIDDLEWARE_ROUTE,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
+import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
-import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
@@ -40,6 +47,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 
 const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
@@ -82,6 +90,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
+    middlewareManifest,
     useStatic404,
     gzipSize = true,
   }: {
@@ -90,6 +99,7 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
+    middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
@@ -131,12 +141,6 @@ export async function printTreeView(
   ]
 
   const hasCustomApp = await findPageFile(pagesDir, '/_app', pageExtensions)
-  const hasCustomAppServer = await findPageFile(
-    pagesDir,
-    '/_app.server',
-    pageExtensions
-  )
-
   pageInfos.set('/404', {
     ...(pageInfos.get('/404') || pageInfos.get('/_error')),
     static: useStatic404,
@@ -162,8 +166,7 @@ export async function printTreeView(
         !(
           e === '/_document' ||
           e === '/_error' ||
-          (!hasCustomApp && e === '/_app') ||
-          (!hasCustomAppServer && e === '/_app.server')
+          (!hasCustomApp && e === '/_app')
         )
     )
     .sort((a, b) => a.localeCompare(b))
@@ -187,8 +190,6 @@ export async function printTreeView(
     const symbol =
       item === '/_app' || item === '/_app.server'
         ? ' '
-        : item.endsWith('/_middleware')
-        ? 'ƒ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
@@ -344,6 +345,18 @@ export async function printTreeView(
     ])
   })
 
+  const middlewareInfo = middlewareManifest.middleware?.['/']
+  if (middlewareInfo?.files.length > 0) {
+    const sizes = await Promise.all(
+      middlewareInfo.files
+        .map((dep) => `${distPath}/${dep}`)
+        .map(gzipSize ? fsStatGzip : fsStat)
+    )
+
+    messages.push(['', '', ''])
+    messages.push(['ƒ Middleware', getPrettySize(sum(sizes)), ''])
+  }
+
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
@@ -355,11 +368,6 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        usedSymbols.has('ƒ') && [
-          'ƒ',
-          '(Middleware)',
-          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
-        ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Streaming)',
@@ -1101,7 +1109,7 @@ export function withoutRSCExtensions(pageExtensions: string[]): string[] {
   )
 }
 
-export function isFlightPage(
+export function isServerComponentPage(
   nextConfig: NextConfigComplete,
   filePath: string
 ): boolean {
@@ -1121,7 +1129,7 @@ export function getUnresolvedModuleFromError(
   error: string
 ): string | undefined {
   const moduleErrorRegex = new RegExp(
-    `Module not found: Can't resolve '(\\w+)'`
+    `Module not found: Error: Can't resolve '(\\w+)'`
   )
   const [, moduleName] = error.match(moduleErrorRegex) || []
   return builtinModules.find((item: string) => item === moduleName)
@@ -1175,12 +1183,9 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const page of pageKeys) {
-    if (MIDDLEWARE_ROUTE.test(page)) {
-      const { files } =
-        middlewareManifest.middleware[page.replace(/\/_middleware$/, '') || '/']
-
-      for (const file of files) {
+  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
+    if (middleware.name === MIDDLEWARE_FILENAME) {
+      for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
           outputPath,
@@ -1190,9 +1195,10 @@ export async function copyTracedFiles(
         await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
         await fs.copyFile(originalPath, fileOutputPath)
       }
-      continue
     }
+  }
 
+  for (const page of pageKeys) {
     const pageFile = path.join(
       distDir,
       'server',
@@ -1263,4 +1269,47 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
+}
+
+// FIX ME: it does not work for non-middleware edge functions
+//  since chunks don't contain runtime specified somehow
+export async function isEdgeRuntimeCompiled(
+  compilation: webpack5.Compilation,
+  module: any,
+  config: NextConfig
+) {
+  if (!module) return false
+
+  for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
+    let runtimes: string[]
+    if (typeof chunk.runtime === 'string') {
+      runtimes = [chunk.runtime]
+    } else if (chunk.runtime) {
+      runtimes = [...chunk.runtime]
+    } else {
+      runtimes = []
+    }
+
+    if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
+      return true
+    }
+  }
+
+  const staticInfo = await getPageStaticInfo({
+    pageFilePath: module.resource,
+    nextConfig: config,
+  })
+
+  // Check the page runtime as well since we cannot detect the runtime from
+  // compilation when it's for the client part of edge function
+  return staticInfo.runtime === 'edge'
+}
+
+export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
+  name: string
+) {
+  return (
+    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
+    'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
+  )
 }

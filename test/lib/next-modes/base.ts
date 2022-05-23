@@ -128,7 +128,8 @@ export class NextInstance {
       if (
         process.env.NEXT_TEST_STARTER &&
         !this.dependencies &&
-        !this.installCommand
+        !this.installCommand &&
+        !this.packageJson
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {
@@ -237,7 +238,7 @@ export class NextInstance {
     return {}
   }
   public async setup(): Promise<void> {}
-  public async start(): Promise<void> {}
+  public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
     if (this.childProcess) {

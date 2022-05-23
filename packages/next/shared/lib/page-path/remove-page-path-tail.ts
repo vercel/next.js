@@ -8,12 +8,24 @@ import { normalizePathSep } from './normalize-path-sep'
  *   - `/foo/bar/baz.js` -> `/foo/bar/baz`
  *
  * @param pagePath A page to a page file (absolute or relative)
- * @param extensions Extensions allowed for the page.
+ * @param options.extensions Extensions allowed for the page.
+ * @param options.keepIndex When true the trailing `index` is _not_ removed.
  */
-export function removePagePathTail(pagePath: string, extensions: string[]) {
-  return (
-    normalizePathSep(pagePath)
-      .replace(new RegExp(`\\.+(?:${extensions.join('|')})$`), '')
-      .replace(/\/index$/, '') || '/'
+export function removePagePathTail(
+  pagePath: string,
+  options: {
+    extensions: string[]
+    keepIndex?: boolean
+  }
+) {
+  pagePath = normalizePathSep(pagePath).replace(
+    new RegExp(`\\.+(?:${options.extensions.join('|')})$`),
+    ''
   )
+
+  if (options.keepIndex !== true) {
+    pagePath = pagePath.replace(/\/index$/, '') || '/'
+  }
+
+  return pagePath
 }

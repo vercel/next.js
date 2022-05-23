@@ -1,6 +1,7 @@
 use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
+use swc_common::errors::HANDLER;
 use swc_common::util::take::Take;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_common::{SourceMap, Spanned};
@@ -15,7 +16,6 @@ use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_css_prefixer::prefixer;
 use swc_ecmascript::ast::{Expr, Tpl, TplElement};
 use swc_ecmascript::parser::StringInput;
-use swc_ecmascript::utils::HANDLER;
 use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
