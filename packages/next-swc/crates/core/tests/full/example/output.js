@@ -4,34 +4,34 @@ function b(c, a) {
     return d;
 }
 import a from "other";
-(function(c, b) {
-    return function(c) {
-        if (Array.isArray(c)) return c;
-    }(c) || function(c, b) {
-        var d, e, a = null == c ? null : "undefined" != typeof Symbol && c[Symbol.iterator] || c["@@iterator"];
+(function(a, c) {
+    return function(a) {
+        if (Array.isArray(a)) return a;
+    }(a) || function(b, e) {
+        var f, g, a = null == b ? null : "undefined" != typeof Symbol && b[Symbol.iterator] || b["@@iterator"];
         if (null != a) {
-            var b = [], c = !0, f = !1;
+            var c = [], d = !0, h = !1;
             try {
-                for(a = a.call(c); !(c = (d = a.next()).done) && (b.push(d.value), !b || b.length !== b); c = !0);
-            } catch (g) {
-                f = !0, e = g;
+                for(a = a.call(b); !(d = (f = a.next()).done) && (c.push(f.value), !e || c.length !== e); d = !0);
+            } catch (i) {
+                h = !0, g = i;
             } finally{
                 try {
-                    c || null == a.return || a.return();
+                    d || null == a.return || a.return();
                 } finally{
-                    if (f) throw e;
+                    if (h) throw g;
                 }
             }
-            return b;
+            return c;
         }
-    }(c, b) || function(a, d) {
+    }(a, c) || function(a, d) {
         if (a) {
             if ("string" == typeof a) return b(a, d);
             var c = Object.prototype.toString.call(a).slice(8, -1);
             if ("Object" === c && a.constructor && (c = a.constructor.name), "Map" === c || "Set" === c) return Array.from(c);
             if ("Arguments" === c || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(c)) return b(a, d);
         }
-    }(c, b) || function() {
+    }(a, c) || function() {
         throw new TypeError("Invalid attempt to destructure non-iterable instance.\\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
     }();
 })(a, 1)[0];

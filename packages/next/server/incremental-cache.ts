@@ -3,7 +3,7 @@ import type { CacheFs } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../shared/lib/isomorphic/path'
 import { PrerenderManifest } from '../build'
-import { normalizePagePath } from './normalize-page-path'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
 
 function toRoute(pathname: string): string {

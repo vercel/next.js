@@ -22,7 +22,32 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
-async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should not contain _app.js in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-client-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-client-root"`, 'g')
+        )
+      ).toBe(0)
+    })
+  })
+}
+
+async function testRoute(appPort, url, { isStatic, isEdge }) {
   const html1 = await renderViaHTTP(appPort, url)
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
   expect(html1).toContain(`Runtime: ${isEdge ? 'Edge' : 'Node.js'}`)
@@ -37,12 +62,6 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
   } else {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
-  }
-  const customAppServerHtml = '<div class="app-server-root"'
-  if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
-  } else {
-    expect(html1).not.toContain(customAppServerHtml)
   }
 }
 
@@ -63,11 +82,12 @@ describe('Switchable runtime (prod)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
+
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -75,7 +95,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -83,7 +102,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssr', {
       isStatic: false,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -91,7 +109,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssg', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -99,7 +116,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc', {
       isStatic: true,
       isEdge: false,
-      isRSC: true,
     })
 
     const html = await renderViaHTTP(context.appPort, '/node-rsc')
@@ -110,7 +126,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssr', {
       isStatic: false,
       isEdge: false,
-      isRSC: true,
     })
   })
 
@@ -118,7 +133,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssg', {
       isStatic: true,
       isEdge: false,
-      isRSC: true,
     })
   })
 
@@ -150,7 +164,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge', {
       isStatic: false,
       isEdge: true,
-      isRSC: false,
     })
   })
 
@@ -158,7 +171,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge-rsc', {
       isStatic: false,
       isEdge: true,
-      isRSC: true,
     })
   })
 
@@ -168,7 +180,6 @@ describe('Switchable runtime (prod)', () => {
     )
     const expectedOutputLines = splitLines(`
   ┌   /_app
-  ├   /_app.server
   ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
@@ -277,6 +288,7 @@ describe('Switchable runtime (dev)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
   it('should support client side navigation to ssr rsc pages', async () => {
     let flightRequest = null
 

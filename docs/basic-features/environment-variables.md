@@ -46,8 +46,7 @@ export async function getStaticProps() {
 }
 ```
 
-> **Note**: In order to keep server-only secrets safe, Next.js replaces `process.env.*` with the correct values
-> at build time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
+> **Note**: In order to keep server-only secrets safe, environment variables are evaluated at build time, so only environment variables _actually_ used will be included. This means that `process.env` is not a standard JavaScript object, so you’re not able to
 > use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
 > Environment variables must be referenced as e.g. `process.env.PUBLISHABLE_KEY`, _not_ `const { PUBLISHABLE_KEY } = process.env`.
 
@@ -94,7 +93,8 @@ This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment a
 // pages/index.js
 import setupAnalyticsService from '../lib/my-analytics-service'
 
-// NEXT_PUBLIC_ANALYTICS_ID can be used here as it's prefixed by NEXT_PUBLIC_
+// 'NEXT_PUBLIC_ANALYTICS_ID' can be used here as it's prefixed by 'NEXT_PUBLIC_'.
+// It will be transformed at build time to `setupAnalyticsService('abcdefghijk')`.
 setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID)
 
 function HomePage() {
@@ -102,6 +102,18 @@ function HomePage() {
 }
 
 export default HomePage
+```
+
+Note that dynamic lookups will _not_ be inlined, such as:
+
+```js
+// This will NOT be inlined, because it uses a variable
+const varName = 'NEXT_PUBLIC_ANALYTICS_ID'
+setupAnalyticsService(process.env[varName])
+
+// This will NOT be inlined, because it uses a variable
+const env = process.env
+setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
 ```
 
 ## Default Environment Variables
@@ -152,26 +164,14 @@ export default async () => {
 
 ## Environment Variable Load Order
 
-Depending on the environment (as set by `NODE_ENV`), Environment Variables are loaded from the following sources in top-to-bottom order. In all environments, the existing `env` is not overridden by following sources:
+Environment variables are looked up in the following places, in order, stopping once the variable is found.
 
-`NODE_ENV=production`
-
-1. `.env.production.local`
-1. `.env.local`
-1. `.env.production`
+1. `process.env`
+1. `.env.$(NODE_ENV).local`
+1. `.env.local` (Not checked when `NODE_ENV` is `test`.)
+1. `.env.$(NODE_ENV)`
 1. `.env`
 
-`NODE_ENV=development`
+For example, if `NODE_ENV` is `development` and you define a variable in both `.env.development.local` and `.env`, the value in `.env.development.local` will be used.
 
-1. `.env.development.local`
-1. `.env.local`
-1. `.env.development`
-1. `.env`
-
-`NODE_ENV=test`
-
-1. `.env.test.local`
-1. `.env.test`
-1. `.env`
-
-> **Note:** `.env.local` is not loaded when `NODE_ENV=test`.
+> **Note:** The allowed values for `NODE_ENV` are `production`, `development` and `test`.
