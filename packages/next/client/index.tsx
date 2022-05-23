@@ -32,10 +32,6 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import {
-  flushBufferedVitalsMetrics,
-  trackWebVitalMetric,
-} from './streaming/vitals'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
@@ -90,7 +86,6 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isRSCPage: boolean
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -291,38 +286,38 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    const exportedReportWebVitals = mod && mod.reportWebVitals
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }: any): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      const webVitals: NextWebVitalsMetric = {
-        id: id || uniqueID,
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
         name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
       }
-      exportedReportWebVitals?.(webVitals)
-      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -335,7 +330,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
-    isRSCPage = !!pageEntrypoint.exports.__next_rsc__
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -651,12 +645,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isRSCPage) {
-    const { Component, err: _, router: __, ...props } = appProps
-    return <Component {...props} />
-  } else {
-    return <App {...appProps} />
-  }
+  return <App {...appProps} />
 }
 
 const wrapApp =
@@ -1033,8 +1022,6 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {

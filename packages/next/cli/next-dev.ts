@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { existsSync } from 'fs'
+import { existsSync, watchFile } from 'fs'
 import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -8,6 +8,8 @@ import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { CONFIG_FILES } from '../shared/lib/constants'
+import path from 'path'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -128,6 +130,16 @@ const nextDev: cliCommand = (argv) => {
       }
       process.nextTick(() => process.exit(1))
     })
+
+  for (const CONFIG_FILE of CONFIG_FILES) {
+    watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        console.log(
+          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
+        )
+      }
+    })
+  }
 }
 
 export { nextDev }

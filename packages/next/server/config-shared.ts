@@ -5,6 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
+  RemotePattern,
 } from '../shared/lib/image-config'
 
 export type PageRuntime = 'nodejs' | 'edge' | undefined
@@ -78,6 +79,9 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
+  browsersListForSwc?: boolean
+  manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
@@ -95,7 +99,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
-  rootDir?: boolean
+  viewsDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -115,15 +119,9 @@ export interface ExperimentalConfig {
   outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
+    remotePatterns: RemotePattern[]
   }
   middlewareSourceMaps?: boolean
-  emotion?:
-    | boolean
-    | {
-        sourceMap?: boolean
-        autoLabel?: 'dev-only' | 'always' | 'never'
-        labelFormat?: string
-      }
   modularizeImports?: Record<
     string,
     {
@@ -133,6 +131,7 @@ export interface ExperimentalConfig {
     }
   >
   swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
 }
 
 /**
@@ -408,6 +407,13 @@ export interface NextConfig extends Record<string, any> {
           exclude?: string[]
         }
     styledComponents?: boolean
+    emotion?:
+      | boolean
+      | {
+          sourceMap?: boolean
+          autoLabel?: 'dev-only' | 'always' | 'never'
+          labelFormat?: string
+        }
   }
 
   /**
@@ -470,6 +476,9 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   experimental: {
     // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
+    browsersListForSwc: false,
+    // TODO: change default in next major release (current v12.1.5)
     newNextLinkBehavior: false,
     cpus: Math.max(
       1,
@@ -492,7 +501,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    rootDir: false,
+    viewsDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
@@ -501,7 +510,9 @@ export const defaultConfig: NextConfig = {
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
+      remotePatterns: [],
     },
+    forceSwcTransforms: false,
   },
 }
 

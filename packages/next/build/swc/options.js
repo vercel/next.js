@@ -70,7 +70,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
+            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -105,7 +105,11 @@ function getBaseSWCOptions({
         }
       : null,
     removeConsole: nextConfig?.compiler?.removeConsole,
-    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    // disable "reactRemoveProperties" when "jest" is true
+    // otherwise the setting from next.config.js will be used
+    reactRemoveProperties: jest
+      ? false
+      : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
@@ -113,11 +117,11 @@ function getBaseSWCOptions({
 }
 
 function getEmotionOptions(nextConfig, development) {
-  if (!nextConfig?.experimental?.emotion) {
+  if (!nextConfig?.compiler?.emotion) {
     return null
   }
   let autoLabel = false
-  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+  switch (nextConfig?.compiler?.emotion?.autoLabel) {
     case 'never':
       autoLabel = false
       break
@@ -188,6 +192,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  supportedBrowsers,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -238,6 +243,13 @@ export function getLoaderSWCOptions({
       isServer,
       pagesDir,
       isPageFile,
+      ...(supportedBrowsers && supportedBrowsers.length > 0
+        ? {
+            env: {
+              targets: supportedBrowsers,
+            },
+          }
+        : {}),
     }
   }
 }

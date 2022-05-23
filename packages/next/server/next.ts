@@ -125,12 +125,11 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+    return loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      resolve(this.options.dir || '.'),
+      this.options.conf
+    )
   }
 
   private async getServer() {
@@ -185,8 +184,8 @@ function createServer(options: NextServerOptions): NextServer {
 
   // Make sure env of custom server is overridden.
   // Use dynamic require to make sure it's executed in it's own context.
-  const ReactDOMServer = require('react-dom/server.browser')
-  const shouldUseReactRoot = !!ReactDOMServer.renderToReadableStream
+  const ReactDOMServer = require('react-dom/server')
+  const shouldUseReactRoot = !!ReactDOMServer.renderToPipeableStream
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }

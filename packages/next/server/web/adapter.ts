@@ -27,12 +27,34 @@ export async function adapter(params: {
   })
 
   const event = new NextFetchEvent({ request, page: params.page })
-  const original = await params.handler(request, event)
+  const response = await params.handler(request, event)
 
   return {
-    response: original || NextResponse.next(),
+    response: response || NextResponse.next(),
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
+}
+
+export function blockUnallowedResponse(
+  promise: Promise<FetchEventResult>
+): Promise<FetchEventResult> {
+  return promise.then((result) => {
+    if (result.response?.body) {
+      console.error(
+        new Error(
+          `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
+        )
+      )
+      return {
+        ...result,
+        response: new Response('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+        }),
+      }
+    }
+    return result
+  })
 }
 
 class NextRequestHint extends NextRequest {

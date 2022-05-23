@@ -98,6 +98,7 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 | ✔️  | [next/inline-script-id](/docs/messages/inline-script-id.md)                     | Enforce id attribute on next/script components with inline content                                                     |
 | ✔️  | next/no-typos                                                                   | Ensure no typos were made declaring [Next.js's data fetching function](/docs/basic-features/data-fetching/overview.md) |
 | ✔️  | [next/next-script-for-ga](/docs/messages/next-script-for-ga.md)                 | Use the Script component to defer loading of the script until necessary.                                               |
+| ✔️  | [next/no-styled-jsx-in-document](/docs/messages/no-styled-jsx-in-document.md)   | styled-jsx should not be used in \_document                                                                            |
 
 - ✔: Enabled in the recommended configuration
 
