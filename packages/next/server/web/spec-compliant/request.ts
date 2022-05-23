@@ -16,7 +16,9 @@ class BaseRequest extends Body implements Request {
   }
 
   constructor(input: BaseRequest | string, init: RequestInit = {}) {
-    const method = init.method?.toUpperCase() ?? 'GET'
+    const method =
+      init.method?.toUpperCase() ??
+      (input instanceof BaseRequest ? input.method?.toUpperCase() : 'GET')
 
     if (
       (method === 'GET' || method === 'HEAD') &&
