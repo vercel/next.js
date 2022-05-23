@@ -129,7 +129,8 @@ export class NextInstance {
         process.env.NEXT_TEST_STARTER &&
         !this.dependencies &&
         !this.installCommand &&
-        !this.packageJson
+        !this.packageJson &&
+        !(global as any).isNextDeploy
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {

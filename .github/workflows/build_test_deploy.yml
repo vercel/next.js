@@ -911,7 +911,8 @@ jobs:
   testDeployE2E:
     name: E2E (deploy)
     runs-on: ubuntu-latest
-    needs: [publishRelease]
+    # todo revert after testing
+    needs: [build]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
