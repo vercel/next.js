@@ -1,4 +1,6 @@
-schema: pages/api/graphql.ts
+schema:
+  - 'lib/schema.ts':
+      noRequire: true
 documents: ./lib/documents/*.graphql
 generates:
   ./lib/graphql-operations.ts:

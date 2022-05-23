@@ -2,7 +2,7 @@ import { createServer } from '@graphql-yoga/node'
 import gql from 'graphql-tag'
 
 import resolvers from 'lib/resolvers'
-import { typeDefs } from 'lib/schema'
+import typeDefs from 'lib/schema'
 
 const server = createServer({
   schema: {

@@ -6,7 +6,7 @@ import {
   NormalizedCacheObject,
 } from '@apollo/client'
 import resolvers from './resolvers'
-import { typeDefs } from './schema'
+import typeDefs from './schema'
 
 let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
