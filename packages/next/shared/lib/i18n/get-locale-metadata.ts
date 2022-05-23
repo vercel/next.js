@@ -6,7 +6,7 @@ import { normalizeLocalePath } from './normalize-locale-path'
 import type { I18NConfig, DomainLocale } from '../../../server/config-shared'
 
 interface Params {
-  cookies(): { [key: string]: string }
+  cookies(): Partial<{ [key: string]: string }>
   headers?: { [key: string]: string | string[] | undefined }
   nextConfig: { basePath?: string; i18n: I18NConfig; trailingSlash?: boolean }
   url: { hostname?: string | null; pathname: string }
@@ -48,7 +48,7 @@ export function getLocaleMetadata(params: Params) {
 
 function getLocaleFromCookie(
   i18n: I18NConfig,
-  cookies: () => { [key: string]: string }
+  cookies: () => Partial<{ [key: string]: string }>
 ) {
   const nextLocale = cookies()?.NEXT_LOCALE?.toLowerCase()
   return nextLocale

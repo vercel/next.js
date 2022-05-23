@@ -197,15 +197,15 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
+  query: Partial<{
     [key: string]: string | string[]
-  }
+  }>
   /**
    * Object of `cookies` from header
    */
-  cookies: {
+  cookies: Partial<{
     [key: string]: string
-  }
+  }>
 
   body: any
 
