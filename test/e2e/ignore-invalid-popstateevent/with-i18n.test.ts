@@ -37,7 +37,7 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
       as: '/static',
       options: { locale: 'sv' },
       __N: true,
-      idx: 0,
+      key: '',
     }
 
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
@@ -60,7 +60,7 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
       as: '/static?param=1',
       options: { locale: 'sv' },
       __N: true,
-      idx: 0,
+      key: '',
     }
 
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
@@ -83,7 +83,7 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
       as: '/static?param=1',
       options: { locale: 'en' },
       __N: true,
-      idx: 0,
+      key: '',
     }
 
     expect(await browser.elementByCss('#page-type').text()).toBe('static')

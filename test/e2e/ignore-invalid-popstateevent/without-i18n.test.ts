@@ -37,7 +37,7 @@ describe('Event with stale state - static route previously was dynamic', () => {
       as: '/static',
       options: {},
       __N: true,
-      idx: 0,
+      key: '',
     }
 
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
@@ -60,7 +60,7 @@ describe('Event with stale state - static route previously was dynamic', () => {
       as: '/static?param=1',
       options: {},
       __N: true,
-      idx: 0,
+      key: '',
     }
 
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
