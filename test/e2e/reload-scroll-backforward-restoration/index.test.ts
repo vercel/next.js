@@ -68,6 +68,11 @@ describe('reload-scroll-back-restoration', () => {
 
     await browser.refresh()
 
+    await check(async () => {
+      const isReady = await browser.eval('next.router.isReady')
+      return isReady ? 'success' : isReady
+    }, 'success')
+
     // check restore value on history index: 0
     await browser.back()
     await check(
@@ -143,6 +148,11 @@ describe('reload-scroll-back-restoration', () => {
     }, 'success')
 
     await browser.refresh()
+
+    await check(async () => {
+      const isReady = await browser.eval('next.router.isReady')
+      return isReady ? 'success' : isReady
+    }, 'success')
 
     // check restore value on history index: 2
     await browser.forward()
