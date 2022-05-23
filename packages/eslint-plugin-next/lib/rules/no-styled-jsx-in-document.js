@@ -35,7 +35,7 @@ module.exports = {
         ) {
           context.report({
             node,
-            message: `Do not use styled-jsx inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.`,
+            message: `styled-jsx can not be used inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.`,
           })
         }
       },

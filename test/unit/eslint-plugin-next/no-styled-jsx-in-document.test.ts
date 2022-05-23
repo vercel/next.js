@@ -117,7 +117,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
       errors: [
         {
           message:
-            'Do not use styled-jsx inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.',
+            'styled-jsx can not be used inside pages/_document.js. See https://nextjs.org/docs/messages/no-styled-jsx-in-document.',
         },
       ],
     },
