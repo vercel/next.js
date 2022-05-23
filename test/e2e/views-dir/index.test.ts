@@ -240,9 +240,9 @@ describe('views dir', () => {
         )
       })
 
-      // TODO: Implement hydration
-      it.skip('should serve client-side', async () => {
+      it('should serve client-side', async () => {
         const browser = await webdriver(next.url, '/client-component-route')
+        await browser.waitForCondition('window.hydrated')
         // After hydration count should be 1
         expect(await browser.elementByCss('p').text()).toBe(
           'hello from root/client-component-route. count: 1'
@@ -262,6 +262,7 @@ describe('views dir', () => {
 
       it('should include it client-side', async () => {
         const browser = await webdriver(next.url, '/client-nested')
+        await browser.waitForCondition('window.hydrated')
         // After hydration count should be 1
         expect(await browser.elementByCss('h1').text()).toBe(
           'Client Nested. Count: 1'
