@@ -11,9 +11,6 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 
-// Polyfilled for `path-browserify` inside the Web Server.
-process.cwd = () => ''
-
 export function getRender({
   dev,
   page,
