@@ -68,3 +68,31 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 ]
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+
+// comparing
+// https://nextjs.org/docs/api-reference/edge-runtime
+// with
+// https://nodejs.org/docs/latest/api/globals.html
+export const EDGE_UNSUPPORTED_NODE_APIS = [
+  'clearImmediate',
+  'setImmediate',
+  'BroadcastChannel',
+  'Buffer',
+  'ByteLengthQueuingStrategy',
+  'CompressionStream',
+  'CountQueuingStrategy',
+  'DecompressionStream',
+  'DomException',
+  'Event',
+  'EventTarget',
+  'MessageChannel',
+  'MessageEvent',
+  'MessagePort',
+  'ReadableByteStreamController',
+  'ReadableStreamBYOBRequest',
+  'ReadableStreamDefaultController',
+  'TextDecoderStream',
+  'TextEncoderStream',
+  'TransformStreamDefaultController',
+  'WritableStreamDefaultController',
+]
