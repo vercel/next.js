@@ -244,8 +244,8 @@ describe('views dir', () => {
         const browser = await webdriver(next.url, '/client-component-route')
 
         // After hydration count should be 1
-        await browser.waitForCondition(
-          'document.querySelector("p").textContent === "hello from root/client-component-route. count: 1"'
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello from root/client-component-route. count: 1'
         )
       })
     })
@@ -264,8 +264,8 @@ describe('views dir', () => {
         const browser = await webdriver(next.url, '/client-nested')
 
         // After hydration count should be 1
-        await browser.waitForCondition(
-          'document.querySelector("h1").textContent === "Client Nested. Count: 1"'
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Client Nested. Count: 1'
         )
 
         // After hydration count should be 1
