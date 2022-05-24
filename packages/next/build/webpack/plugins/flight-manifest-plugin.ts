@@ -104,8 +104,10 @@ export class FlightManifestPlugin {
               id: id.replace(/^\(sc_server\)\//, ''),
               name,
               chunks: viewsDir
-                ? chunk.ids.map((id: string) => {
-                    return id + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                ? chunk.ids.map((chunkId: string) => {
+                    return (
+                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                    )
                   })
                 : [],
             }
