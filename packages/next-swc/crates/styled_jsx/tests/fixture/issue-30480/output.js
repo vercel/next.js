@@ -12,5 +12,4 @@ export default (({ breakPoint  })=><div className={_JSXStyle.dynamic([
         breakPoint
     ]}>{`@media(${breakPoint}){}`}</_JSXStyle>
 
-  </div>
-);
+  </div>);
