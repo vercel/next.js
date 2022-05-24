@@ -1017,7 +1017,6 @@ export default async function getBaseWebpackConfig(
         ? {
             // We have to use the names here instead of hashes to ensure the consistency between compilers.
             moduleIds: 'named',
-            chunkIds: 'named',
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
@@ -1184,7 +1183,7 @@ export default async function getBaseWebpackConfig(
             ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : appDir ? '' : '-[contenthash]'
+              dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',

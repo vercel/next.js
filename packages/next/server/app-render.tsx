@@ -168,7 +168,7 @@ function createServerComponentRenderer(
       : ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
-    globalThis.__webpack_chunk_load__ = () => Promise.resolve()
+    globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
   const writable = transformStream.writable

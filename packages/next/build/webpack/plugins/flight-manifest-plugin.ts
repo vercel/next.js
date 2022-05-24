@@ -67,6 +67,7 @@ export class FlightManifestPlugin {
   createAsset(assets: any, compilation: any) {
     const manifest: any = {}
     const appDir = this.appDir
+    const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
       function recordModule(chunk: any, id: string, mod: any) {
@@ -102,7 +103,13 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id: id.replace(/^\(sc_server\)\//, ''),
               name,
-              chunks: appDir ? chunk.ids : [],
+              chunks: appDir
+                ? chunk.ids.map((chunkId: string) => {
+                    return (
+                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                    )
+                  })
+                : [],
             }
           }
         })
