@@ -277,7 +277,7 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com'))).toBe(false)
     expect(m(p, new URL('https://sub.example.com'))).toBe(false)
     expect(m(p, new URL('https://example.com.uk'))).toBe(false)
-    expect(m(p, new URL('https://example.com/act123'))).toBe(false)
+    expect(m(p, new URL('https://example.com/act123'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4/pic'))).toBe(true)
     expect(m(p, new URL('https://example.com/act123/usr4/picsjpg'))).toBe(true)
