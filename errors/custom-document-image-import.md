@@ -23,6 +23,7 @@ function MyApp({ Component, pageProps }) {
       <Image src={yourImage} alt="your_image_description" />
       <Component {...pageProps} />
     </>
+  )
 }
 
 export default MyApp
