@@ -52,7 +52,7 @@ function preloadModule(moduleData) {
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = __webpack_chunk_load__(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
       var reject = chunkCache.set.bind(chunkCache, chunkId);

@@ -108,7 +108,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
-import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 

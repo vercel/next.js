@@ -46,6 +46,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { ClientEntryPlugin } from './webpack/plugins/client-entry-plugin'
 import {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -1182,7 +1183,7 @@ export default async function getBaseWebpackConfig(
             ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : '-[contenthash]'
+              dev ? '' : viewsDir ? '-[chunkhash]' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1641,12 +1642,16 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        !isClient &&
-        new FlightManifestPlugin({
-          dev,
-          pageExtensions: rawPageExtensions,
-          isEdgeServer,
-        }),
+        (isClient
+          ? new FlightManifestPlugin({
+              dev,
+              viewsDir: !!config.experimental.viewsDir,
+              pageExtensions: rawPageExtensions,
+            })
+          : new ClientEntryPlugin({
+              dev,
+              isEdgeServer,
+            })),
       !dev &&
         isClient &&
         new TelemetryPlugin(
