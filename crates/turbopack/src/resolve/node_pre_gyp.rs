@@ -14,7 +14,7 @@ use crate::{
         ResolveResultVc,
     },
     source_asset::SourceAssetVc,
-    target::CompileTarget,
+    target::{CompileTarget, Platform},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -98,12 +98,20 @@ pub async fn resolve_node_pre_gyp_files(
                         node_pre_gyp_config.binary.module_path.as_str(),
                         format!("{}", version),
                     );
+                    let platform = compile_target.platform();
                     let native_binding_path =
-                        PLATFORM_TEMPLATE.replace(&native_binding_path, compile_target.platform());
+                        PLATFORM_TEMPLATE.replace(&native_binding_path, platform);
                     let native_binding_path =
                         ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch());
-                    let native_binding_path =
-                        LIBC_TEMPLATE.replace(&native_binding_path, compile_target.libc());
+                    let native_binding_path = LIBC_TEMPLATE.replace(
+                        &native_binding_path,
+                        // node-pre-gyp only cares about libc on linux
+                        if platform == Platform::Linux.to_str() {
+                            compile_target.libc()
+                        } else {
+                            "unknown"
+                        },
+                    );
                     let resolved_file_vc = config_file_dir.join(
                         format!(
                             "{}/{}.node",
