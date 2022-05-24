@@ -1281,6 +1281,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
         'cjs/react-server-dom-webpack.*'
       )
     )
+    // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the chunk loading code with our own implementaion in Next.js.

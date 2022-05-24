@@ -17,6 +17,7 @@ __webpack_require__.u = (chunkId) => {
   return getChunkScriptFilename(chunkId) || chunkFilenameMap[chunkId]
 }
 
+// eslint-disable-next-line no-undef
 globalThis.__next_chunk_load__ = (chunk) => {
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
