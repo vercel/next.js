@@ -5,5 +5,4 @@ export default (()=><div className={"jsx-938ca197692ef624"}>
 
       <_JSXStyle id={"938ca197692ef624"}>{"li.jsx-938ca197692ef624:nth-child(2){color:lime}"}</_JSXStyle>
 
-    </div>
-);
+    </div>);
