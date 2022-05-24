@@ -139,7 +139,7 @@ $ next build
 $ next start
 ```
 
-Then, you are able to validate that static pages are successfully revalidated.
+Then, you can confirm that static pages have successfully revalidated.
 
 ## Error handling and revalidation
 
