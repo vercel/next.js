@@ -1184,7 +1184,7 @@ export default async function getBaseWebpackConfig(
             ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : viewsDir ? '' : '-[contenthash]'
+              dev ? '' : appDir ? '' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1646,7 +1646,7 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              viewsDir: !!config.experimental.viewsDir,
+              appDir: !!config.experimental.appDir,
               pageExtensions: rawPageExtensions,
             })
           : new ClientEntryPlugin({
