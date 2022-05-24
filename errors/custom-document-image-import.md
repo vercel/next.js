@@ -14,8 +14,8 @@ If your image needs to be displayed on every page you can relocate it to your [`
 
 ```jsx
 //pages/_app.js
-import yourImage from "path/to/your/image"
-import Image from "next/image"
+import yourImage from 'path/to/your/image'
+import Image from 'next/image'
 
 function MyApp({ Component, pageProps }) {
   return (
