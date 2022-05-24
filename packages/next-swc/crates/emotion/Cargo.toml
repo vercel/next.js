@@ -19,7 +19,7 @@ regex = "1.5"
 serde = "1"
 sourcemap = "6.0.1"
 swc_atoms = "0.2.11"
-swc_common = { version = "0.18.5", features = ["concurrent", "sourcemap"] }
+swc_common = { version = "0.18.7", features = ["concurrent", "sourcemap"] }
 swc_ecmascript = { version = "0.157.0", features = ["codegen", "utils", "visit"] }
 swc_trace_macro = "0.1.1"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }

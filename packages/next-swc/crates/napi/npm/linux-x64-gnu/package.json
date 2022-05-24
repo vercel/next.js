@@ -7,6 +7,9 @@
   "cpu": [
     "x64"
   ],
+  "libc": [
+    "glibc"
+  ],
   "main": "next-swc.linux-x64-gnu.node",
   "files": [
     "next-swc.linux-x64-gnu.node"

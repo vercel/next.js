@@ -6,5 +6,4 @@ export default (()=><div className={`jsx-${styles.__hash}`}>
 
     <_JSXStyle id={styles.__hash}>{styles}</_JSXStyle>
 
-  </div>
-);
+  </div>);
