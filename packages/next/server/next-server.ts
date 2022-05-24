@@ -167,13 +167,10 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
-  protected getViewPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.viewsDir) {
-      const viewPathsManifestPath = join(
-        this.serverDistDir,
-        VIEW_PATHS_MANIFEST
-      )
-      return require(viewPathsManifestPath)
+  protected getappPathsManifest(): PagesManifest | undefined {
+    if (this.nextConfig.experimental.appDir) {
+      const appPathsManifestPath = join(this.serverDistDir, VIEW_PATHS_MANIFEST)
+      return require(appPathsManifestPath)
     }
   }
 
@@ -592,7 +589,7 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
-    if (renderOpts.isViewPath) {
+    if (renderOpts.isAppPath) {
       return viewRenderToHTML(
         req.originalRequest,
         res.originalResponse,
@@ -650,7 +647,7 @@ export default class NextNodeServer extends BaseServer {
       this._isLikeServerless,
       this.renderOpts.dev,
       locales,
-      this.nextConfig.experimental.viewsDir
+      this.nextConfig.experimental.appDir
     )
   }
 
@@ -681,7 +678,7 @@ export default class NextNodeServer extends BaseServer {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
           this.renderOpts.serverComponents,
-          this.nextConfig.experimental.viewsDir
+          this.nextConfig.experimental.appDir
         )
 
         if (

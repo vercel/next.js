@@ -65,7 +65,7 @@ export function onDemandEntryHandler({
   pagesBufferLength,
   pagesDir,
   rootDir,
-  viewsDir,
+  appDir,
   watcher,
 }: {
   maxInactiveAge: number
@@ -74,7 +74,7 @@ export function onDemandEntryHandler({
   pagesBufferLength: number
   pagesDir: string
   rootDir: string
-  viewsDir?: string
+  appDir?: string
   watcher: any
 }) {
   invalidator = new Invalidator(watcher)
@@ -113,7 +113,7 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!viewsDir
+    const root = !!appDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -195,7 +195,7 @@ export function onDemandEntryHandler({
         pagesDir,
         page,
         nextConfig.pageExtensions,
-        viewsDir
+        appDir
       )
 
       let entryAdded = false
@@ -366,7 +366,7 @@ async function findPagePathData(
   pagesDir: string,
   page: string,
   extensions: string[],
-  viewsDir?: string
+  appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -391,9 +391,9 @@ async function findPagePathData(
     }
   }
 
-  // Check viewsDir first falling back to pagesDir
-  if (viewsDir) {
-    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
+  // Check appDir first falling back to pagesDir
+  if (appDir) {
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -403,8 +403,8 @@ async function findPagePathData(
       )
 
       return {
-        absolutePagePath: join(viewsDir, pagePath),
-        bundlePath: posix.join('views', normalizePagePath(pageUrl)),
+        absolutePagePath: join(appDir, pagePath),
+        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
         page: posix.normalize(pageUrl),
       }
     }

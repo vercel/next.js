@@ -1,4 +1,4 @@
-import { hydrate, version } from './views-index'
+import { hydrate, version } from './app-index'
 
 window.next = {
   version,

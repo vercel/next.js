@@ -22,7 +22,7 @@ describe('views dir', () => {
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
-        views: new FileRef(path.join(__dirname, 'app/views')),
+        app: new FileRef(path.join(__dirname, 'app/app')),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app/next.config.js')
         ),
