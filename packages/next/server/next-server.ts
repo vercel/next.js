@@ -30,7 +30,7 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -45,7 +45,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTML as viewRenderToHTML } from './view-render'
+import { renderToHTML as appRenderToHTML } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -167,9 +167,9 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
-  protected getappPathsManifest(): PagesManifest | undefined {
+  protected getAppPathsManifest(): PagesManifest | undefined {
     if (this.nextConfig.experimental.appDir) {
-      const appPathsManifestPath = join(this.serverDistDir, VIEW_PATHS_MANIFEST)
+      const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
       return require(appPathsManifestPath)
     }
   }
@@ -590,7 +590,7 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
     if (renderOpts.isAppPath) {
-      return viewRenderToHTML(
+      return appRenderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,

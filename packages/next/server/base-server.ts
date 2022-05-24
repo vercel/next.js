@@ -65,7 +65,7 @@ import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { replaceBasePath } from './router-utils'
-import { normalizeappPath } from '../shared/lib/router/utils/view-paths'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
@@ -188,7 +188,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
-  protected abstract getappPathsManifest(): PagesManifest | undefined
+  protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
@@ -338,7 +338,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
 
     this.pagesManifest = this.getPagesManifest()
-    this.appPathsManifest = this.getappPathsManifest()
+    this.appPathsManifest = this.getAppPathsManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -965,7 +965,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeappPath(entry)] = entry
+      appPathRoutes[normalizeAppPath(entry)] = entry
     })
     return appPathRoutes
   }

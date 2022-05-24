@@ -67,7 +67,7 @@ import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizeappPath } from '../../shared/lib/router/utils/view-paths'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
 
 // Load ReactDevOverlay only when needed
@@ -320,7 +320,7 @@ export default class DevServer extends Server {
           if (isAppPath) {
             // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeappPath(pageName)
+            pageName = normalizeAppPath(pageName)
             appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
@@ -810,7 +810,7 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getappPathsManifest(): undefined {
+  protected getAppPathsManifest(): undefined {
     return undefined
   }
 

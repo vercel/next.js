@@ -1,7 +1,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   PAGES_MANIFEST,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -109,7 +109,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
 
     if (this.appDirEnabled) {
       assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + VIEW_PATHS_MANIFEST
+        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + APP_PATHS_MANIFEST
       ] = new sources.RawSource(
         JSON.stringify(
           {
