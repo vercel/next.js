@@ -51,7 +51,7 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
-      externalHelpers: true,
+      externalHelpers: !process.versions.pnp,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
