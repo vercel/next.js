@@ -644,7 +644,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
-  isFirstPopStateEvent = true
+  asPathInFirstPopStateEvent: string | null
 
   private state: Readonly<{
     route: string
@@ -696,6 +696,7 @@ export default class Router implements BaseRouter {
       isRsc?: boolean
     }
   ) {
+    this.asPathInFirstPopStateEvent = as
     // represents the current component key
     const route = removePathTrailingSlash(pathname)
 
@@ -800,8 +801,8 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
-    const { isFirstPopStateEvent } = this
-    this.isFirstPopStateEvent = false
+    const { asPathInFirstPopStateEvent } = this
+    this.asPathInFirstPopStateEvent = null
 
     const state = e.state as HistoryState
 
@@ -830,9 +831,8 @@ export default class Router implements BaseRouter {
 
     // Safari fires popstateevent when reopening the browser.
     if (
-      isFirstPopStateEvent &&
-      this.locale === state.options.locale &&
-      state.as === this.asPath
+      asPathInFirstPopStateEvent === state.as &&
+      this.locale === state.options.locale
     ) {
       return
     }
@@ -945,6 +945,7 @@ export default class Router implements BaseRouter {
     options: TransitionOptions,
     forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
+    this.asPathInFirstPopStateEvent = null
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
