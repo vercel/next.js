@@ -11,7 +11,6 @@ export default async function transformSource(this: any): Promise<string> {
       )
       .join(';') +
     `
-
     export const __next_rsc__ = {
       server: false,
       __webpack_require__

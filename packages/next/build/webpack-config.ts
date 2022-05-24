@@ -1017,6 +1017,7 @@ export default async function getBaseWebpackConfig(
         ? {
             // We have to use the names here instead of hashes to ensure the consistency between compilers.
             moduleIds: 'named',
+            chunkIds: 'named',
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
