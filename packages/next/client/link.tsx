@@ -125,7 +125,7 @@ type LinkPropsReal = React.PropsWithChildren<
 >
 
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
-  (props, forwardedRef) => {
+  function LinkComponent(props, forwardedRef) {
     const {
       legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
     } = props
