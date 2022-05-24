@@ -10,10 +10,20 @@ window.next = {
 
 // eslint-disable-next-line no-undef
 const getChunkScriptFilename = __webpack_require__.u
+const chunkFilenameMap = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId) => {
-  return getChunkScriptFilename(chunkId) || `static/chunks/${chunkId}.js`
+  return getChunkScriptFilename(chunkId) || chunkFilenameMap[chunkId]
+}
+
+globalThis.__next_chunk_load__ = (chunk) => {
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+
+  // @ts-ignore
+  // eslint-disable-next-line no-undef
+  return __webpack_chunk_load__(chunkId)
 }
 
 hydrate()

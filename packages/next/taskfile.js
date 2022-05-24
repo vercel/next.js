@@ -1274,7 +1274,6 @@ export async function copy_react_server_dom_webpack(task, opts) {
   await task
     .source(require.resolve('react-server-dom-webpack'))
     .target('compiled/react-server-dom-webpack')
-
   await task
     .source(
       join(
@@ -1282,6 +1281,14 @@ export async function copy_react_server_dom_webpack(task, opts) {
         'cjs/react-server-dom-webpack.*'
       )
     )
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the chunk loading code with our own implementaion in Next.js.
+      file.data = source.replace(
+        /__webpack_chunk_load__/g,
+        'globalThis.__next_chunk_load__'
+      )
+    })
     .target('compiled/react-server-dom-webpack/cjs')
 
   await task
