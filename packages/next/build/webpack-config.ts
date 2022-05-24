@@ -1646,6 +1646,7 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              viewsDir: !!config.experimental.viewsDir,
               pageExtensions: rawPageExtensions,
             })
           : new ClientEntryPlugin({
