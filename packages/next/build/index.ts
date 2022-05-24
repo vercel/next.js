@@ -2216,16 +2216,14 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns =
-        config?.experimental?.images?.remotePatterns || []
-      ;(images as any).remotePatternsRegex = (
+      ;(images as any).remotePatterns = (
         config?.experimental?.images?.remotePatterns || []
       ).map((p: RemotePattern) => ({
         // Should be the same as matchRemotePattern()
         protocol: p.protocol,
-        hostname: makeRe(p.hostname),
+        hostname: makeRe(p.hostname).source,
         port: p.port,
-        pathname: makeRe(p.pathname ?? '**'),
+        pathname: makeRe(p.pathname ?? '**').source,
       }))
 
       await promises.writeFile(
