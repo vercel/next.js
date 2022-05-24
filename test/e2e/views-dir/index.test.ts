@@ -6,6 +6,11 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('views dir', () => {
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
     it('should skip for react v17', () => {})
     return
@@ -25,6 +30,12 @@ describe('views dir', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  it('should pass props from getServerSideProps in root layout', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard')
+    const $ = cheerio.load(html)
+    expect($('title').text()).toBe('hello world')
+  })
 
   it('should serve from pages', async () => {
     const html = await renderViaHTTP(next.url, '/')
@@ -55,14 +66,16 @@ describe('views dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/integrations')
   })
 
-  // TODO: why is this routable but /should-not-serve-server.server.js
   it('should not include parent when not in parent directory with route in directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
-    // Should be nested in /root.js
-    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
-    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect(html).toContain('<html>')
+    expect(html).toContain('<body>')
+    expect($('html').hasClass('this-is-the-document-html')).toBeFalsy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeFalsy()
 
     // Should not be nested in dashboard
     expect($('h1').text()).toBeFalsy()
@@ -71,11 +84,48 @@ describe('views dir', () => {
     expect($('p').text()).toBe('hello from root/dashboard/rootonly/hello')
   })
 
+  it('should use new root layout when provided', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/another')
+    const $ = cheerio.load(html)
+
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect($('html').hasClass('this-is-another-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-another-document-body')).toBeTruthy()
+
+    // Should not be nested in dashboard
+    expect($('h1').text()).toBeFalsy()
+
+    // Should render the page text
+    expect($('p').text()).toBe('hello from newroot/dashboard/another')
+  })
+
+  it('should not create new root layout when nested (optional)', async () => {
+    const html = await renderViaHTTP(
+      next.url,
+      '/dashboard/deployments/breakdown'
+    )
+    const $ = cheerio.load(html)
+
+    // new root has to provide it's own custom root layout or the default
+    // is used instead
+    expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
+    expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
+
+    // Should be nested in dashboard
+    expect($('h1').text()).toBe('Dashboard')
+    expect($('h2').text()).toBe('Custom dashboard')
+
+    // Should render the page text
+    expect($('p').text()).toBe(
+      'hello from root/dashboard/(custom)/deployments/breakdown'
+    )
+  })
+
   it('should include parent document when no direct parent layout', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
 
-    // Root has to provide it's own document
     expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
     expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
   })
@@ -181,37 +231,47 @@ describe('views dir', () => {
       expect(html).toContain('hello from root/shared-component-route')
     })
 
-    // TODO: implement
-    it.skip('should serve client component', async () => {
-      const html = await renderViaHTTP(next.url, '/client-component-route')
-      expect(html).toContain('hello from root/client-component-route. count: 0')
+    describe('should serve client component', () => {
+      it('should serve server-side', async () => {
+        const html = await renderViaHTTP(next.url, '/client-component-route')
+        const $ = cheerio.load(html)
+        expect($('p').text()).toBe(
+          'hello from root/client-component-route. count: 0'
+        )
+      })
 
-      const browser = await webdriver(next.url, '/client-component-route')
-      // After hydration count should be 1
-      expect(await browser.elementByCss('p').text()).toBe(
-        'hello from root/client-component-route. count: 1'
-      )
+      // TODO: Implement hydration
+      it.skip('should serve client-side', async () => {
+        const browser = await webdriver(next.url, '/client-component-route')
+        // After hydration count should be 1
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello from root/client-component-route. count: 1'
+        )
+      })
     })
 
-    // TODO: implement
-    it.skip('should include client component layout with server component route', async () => {
-      const html = await renderViaHTTP(next.url, '/client-nested')
-      const $ = cheerio.load(html)
-      // Should not be nested in dashboard
-      expect($('h1').text()).toBe('Client Nested. Count: 0')
-      // Should include the page text
-      expect($('p').text()).toBe('hello from root/client-nested')
+    describe('should include client component layout with server component route', () => {
+      it('should include it server-side', async () => {
+        const html = await renderViaHTTP(next.url, '/client-nested')
+        const $ = cheerio.load(html)
+        // Should not be nested in dashboard
+        expect($('h1').text()).toBe('Client Nested. Count: 0')
+        // Should include the page text
+        expect($('p').text()).toBe('hello from root/client-nested')
+      })
 
-      const browser = await webdriver(next.url, '/client-nested')
-      // After hydration count should be 1
-      expect(await browser.elementByCss('h1').text()).toBe(
-        'Client Nested. Count: 0'
-      )
-
-      // After hydration count should be 1
-      expect(await browser.elementByCss('h1').text()).toBe(
-        'hello from root/client-nested'
-      )
+      // TODO: Implement hydration
+      it.skip('should include it client-side', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
+        // After hydration count should be 1
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Client Nested. Count: 0'
+        )
+        // After hydration count should be 1
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'hello from root/client-nested'
+        )
+      })
     })
   })
 })

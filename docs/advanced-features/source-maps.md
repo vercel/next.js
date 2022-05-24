@@ -4,7 +4,9 @@ description: Enables browser source map generation during the production build.
 
 # Source Maps
 
-Source Maps are enabled by default during development. During production builds, they are disabled as generating source maps can significantly increase build times and memory usage while being generated.
+Source Maps are enabled by default during development. During production builds, they are disabled to prevent you leaking your source on the client, unless you specifically opt in with the configuration flag.
+
+## Configuration flag
 
 Next.js provides a configuration flag you can use to enable browser source map generation during the production build:
 

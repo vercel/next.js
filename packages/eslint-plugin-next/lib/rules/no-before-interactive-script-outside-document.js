@@ -31,7 +31,11 @@ module.exports = {
           (child) => child.name && child.name.name === 'strategy'
         )
 
-        if (!strategy || strategy?.value?.value !== 'beforeInteractive') {
+        if (
+          !strategy ||
+          !strategy.value ||
+          strategy.value.value !== 'beforeInteractive'
+        ) {
           return
         }
 

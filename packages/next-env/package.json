@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "12.1.7-canary.2",
+  "version": "12.1.7-canary.12",
   "keywords": [
     "react",
     "next",
@@ -29,7 +29,7 @@
     "prepublish": "yarn release && yarn types"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.33.1",
+    "@vercel/ncc": "0.33.4",
     "dotenv": "10.0.0",
     "dotenv-expand": "8.0.1"
   }
