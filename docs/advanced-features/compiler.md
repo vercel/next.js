@@ -350,7 +350,7 @@ module.exports = {
 }
 ```
 
-`swcPlugins` accepts an array of tuple for configuring plugins. A tuple for the plugin contains path to the plugin, and an object for its configurations. Path to the plugin can be a npm module package name, or absolute path to the `.wasm` binary itself.
+`swcPlugins` accepts an array of tuples for configuring plugins. A tuple for the plugin contains the path to the plugin and an object for plugin configuration. The path to the plugin can be an npm module package name or an absolute path to the `.wasm` binary itself.
 
 ## Unsupported Features
 
