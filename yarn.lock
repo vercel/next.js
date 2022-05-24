@@ -4733,6 +4733,13 @@
     "@swc/core-win32-ia32-msvc" "1.2.148"
     "@swc/core-win32-x64-msvc" "1.2.148"
 
+"@swc/helpers@0.3.15":
+  version "0.3.15"
+  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.3.15.tgz#02abb377c91c39e0a6034f1161870c18621b9129"
+  integrity sha512-rpZHDdzwhfe06gF98SUAi7TfI344zKb1Pd2D9gxUMTNnhMobDHrv2UiVVcbDXmkx84U5AaXJmBrmfT9g1TPasQ==
+  dependencies:
+    tslib "^2.4.0"
+
 "@szmarczak/http-timer@^1.1.2":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@szmarczak/http-timer/-/http-timer-1.1.2.tgz#b1665e2c461a2cd92f4c1bbf50d5454de0d4b421"
@@ -20594,6 +20601,11 @@ tslib@^2.0.3:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.0.3.tgz#8e0741ac45fc0c226e58a17bfc3e64b9bc6ca61c"
   integrity sha512-uZtkfKblCEQtZKBF6EBXVZeQNl82yqtDQdv+eck8u7tdPxjLu2/lp5/uPW+um2tpuxINHWy3GhiccY7QgEaVHQ==
+
+tslib@^2.4.0:
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.4.0.tgz#7cecaa7f073ce680a05847aa77be941098f36dc3"
+  integrity sha512-d6xOpEDfsi2CZVlPQzGeux8XMwLT9hssAsaPYExaQMuYskwb+x1x7J371tWlbBdWHroy99KnVB6qIkUbs5X3UQ==
 
 tsutils@^3.17.1:
   version "3.17.1"

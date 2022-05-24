@@ -51,6 +51,7 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
+      externalHelpers: true,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
