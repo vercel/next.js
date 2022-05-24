@@ -424,7 +424,8 @@ export default class DevServer extends Server {
       this.dir,
       [this.pagesDir!, this.viewsDir].filter(Boolean) as string[],
       false,
-      this.nextConfig
+      this.nextConfig.typescript.tsconfigPath,
+      this.nextConfig.images.disableStaticImages
     )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)

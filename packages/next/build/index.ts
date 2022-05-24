@@ -272,7 +272,8 @@ export default async function build(
             dir,
             [pagesDir, viewsDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
-            config,
+            config.typescript.tsconfigPath,
+            config.images.disableStaticImages,
             cacheDir,
             config.experimental.cpus,
             config.experimental.workerThreads
@@ -2353,7 +2354,8 @@ function verifyTypeScriptSetup(
   dir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  config: NextConfigComplete,
+  tsconfigPath: string,
+  disableStaticImages: boolean,
   cacheDir: string | undefined,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined
@@ -2376,7 +2378,8 @@ function verifyTypeScriptSetup(
       dir,
       intentDirs,
       typeCheckPreflight,
-      config,
+      tsconfigPath,
+      disableStaticImages,
       cacheDir
     )
     .then((result) => {

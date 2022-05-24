@@ -10,6 +10,11 @@ describe('views dir rendering', () => {
     return
   }
 
+  if ((global as any).isNextDeploy) {
+    it('should skip next deploy for now', () => {})
+    return
+  }
+
   const isDev = (global as any).isDev
   let next: NextInstance
 
