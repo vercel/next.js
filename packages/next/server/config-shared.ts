@@ -392,8 +392,8 @@ export interface NextConfig extends Record<string, any> {
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
   swcMinifyDebugOptions?: {
-    compress?: boolean | object
-    mangle?: boolean | object
+    compress?: object
+    mangle?: object
   }
 
   /**
