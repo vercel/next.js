@@ -1142,11 +1142,11 @@ export default async function getBaseWebpackConfig(
               ...terserOptions,
               compress: {
                 ...terserOptions.compress,
-                ...(config.swcMinifyDebugOptions.compress ?? {}),
+                ...(config.swcMinifyDebugOptions?.compress ?? {}),
               },
               mangle: {
                 ...terserOptions.mangle,
-                ...(config.swcMinifyDebugOptions.mangle ?? {}),
+                ...(config.swcMinifyDebugOptions?.mangle ?? {}),
               },
             },
           }).apply(compiler)
