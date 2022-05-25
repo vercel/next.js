@@ -18,7 +18,7 @@ import { clientComponentRegex } from '../loaders/utils'
 
 type Options = {
   dev: boolean
-  viewsDir: boolean
+  appDir: boolean
   pageExtensions: string[]
 }
 
@@ -27,13 +27,13 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
-  viewsDir: boolean = false
+  appDir: boolean = false
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
-    this.viewsDir = options.viewsDir
+    this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
   }
 
@@ -66,7 +66,7 @@ export class FlightManifestPlugin {
 
   createAsset(assets: any, compilation: any) {
     const manifest: any = {}
-    const viewsDir = this.viewsDir
+    const appDir = this.appDir
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
@@ -103,7 +103,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id: id.replace(/^\(sc_server\)\//, ''),
               name,
-              chunks: viewsDir
+              chunks: appDir
                 ? chunk.ids.map((chunkId: string) => {
                     return (
                       chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)

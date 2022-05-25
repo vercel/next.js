@@ -67,7 +67,7 @@ import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
 
 // Load ReactDevOverlay only when needed
@@ -100,7 +100,7 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir: string
-  private viewsDir?: string
+  private appDir?: string
 
   /**
    * Since the dev server is stateful and middleware routes can be added and
@@ -188,12 +188,12 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
     // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, views: viewsDir } = findPagesDir(
+    const { pages: pagesDir, appDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.viewsDir
+      this.nextConfig.experimental.appDir
     )
     this.pagesDir = pagesDir
-    this.viewsDir = viewsDir
+    this.appDir = appDir
   }
 
   protected getBuildId(): string {
@@ -271,8 +271,8 @@ export default class DevServer extends Server {
 
       let wp = (this.webpackWatcher = new Watchpack())
       const pages = [this.pagesDir]
-      const views = this.viewsDir ? [this.viewsDir] : []
-      const directories = [...pages, ...views]
+      const app = this.appDir ? [this.appDir] : []
+      const directories = [...pages, ...app]
       const files = this.nextConfig.pageExtensions.map((extension) =>
         pathJoin(this.dir, `${MIDDLEWARE_FILENAME}.${extension}`)
       )
@@ -283,7 +283,7 @@ export default class DevServer extends Server {
         const routedMiddleware: string[] = []
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
-        const viewPaths: Record<string, string> = {}
+        const appPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
         for (const [fileName, meta] of knownFiles) {
@@ -294,10 +294,10 @@ export default class DevServer extends Server {
             continue
           }
 
-          const isViewPath = Boolean(
-            this.viewsDir &&
+          const isAppPath = Boolean(
+            this.appDir &&
               normalizePathSep(fileName).startsWith(
-                normalizePathSep(this.viewsDir)
+                normalizePathSep(this.appDir)
               )
           )
 
@@ -312,16 +312,16 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isViewPath ? this.viewsDir! : this.pagesDir,
+            pagesDir: isAppPath ? this.appDir! : this.pagesDir,
             extensions: this.nextConfig.pageExtensions,
-            keepIndex: isViewPath,
+            keepIndex: isAppPath,
           })
 
-          if (isViewPath) {
+          if (isAppPath) {
             // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeViewPath(pageName)
-            viewPaths[pageName] = originalPageName
+            pageName = normalizeAppPath(pageName)
+            appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
               continue
@@ -360,7 +360,7 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        this.viewPathRoutes = viewPaths
+        this.appPathRoutes = appPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
           match: getRouteMatcher(
             getMiddlewareRegex(page, { catchAll: !ssrMiddleware.has(page) })
@@ -422,7 +422,7 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      [this.pagesDir!, this.viewsDir].filter(Boolean) as string[],
+      [this.pagesDir!, this.appDir].filter(Boolean) as string[],
       false,
       this.nextConfig.typescript.tsconfigPath,
       this.nextConfig.images.disableStaticImages
@@ -450,7 +450,7 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
-      viewsDir: this.viewsDir,
+      appDir: this.appDir,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -516,10 +516,10 @@ export default class DevServer extends Server {
       ).then(Boolean)
     }
 
-    // check viewsDir first if enabled
-    if (this.viewsDir) {
+    // check appDir first if enabled
+    if (this.appDir) {
       const pageFile = await findPageFile(
-        this.viewsDir,
+        this.appDir,
         normalizedPath,
         this.nextConfig.pageExtensions
       )
@@ -810,7 +810,7 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getViewPathsManifest(): undefined {
+  protected getAppPathsManifest(): undefined {
     return undefined
   }
 

@@ -30,7 +30,7 @@ import {
   ROUTES_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
@@ -45,7 +45,7 @@ import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
 import { RenderOpts, renderToHTML } from './render'
-import { renderToHTML as viewRenderToHTML } from './view-render'
+import { renderToHTML as appRenderToHTML } from './app-render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -167,13 +167,10 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.serverDistDir, PAGES_MANIFEST))
   }
 
-  protected getViewPathsManifest(): PagesManifest | undefined {
-    if (this.nextConfig.experimental.viewsDir) {
-      const viewPathsManifestPath = join(
-        this.serverDistDir,
-        VIEW_PATHS_MANIFEST
-      )
-      return require(viewPathsManifestPath)
+  protected getAppPathsManifest(): PagesManifest | undefined {
+    if (this.nextConfig.experimental.appDir) {
+      const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
+      return require(appPathsManifestPath)
     }
   }
 
@@ -592,8 +589,8 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
-    if (renderOpts.isViewPath) {
-      return viewRenderToHTML(
+    if (renderOpts.isAppPath) {
+      return appRenderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,
@@ -650,7 +647,7 @@ export default class NextNodeServer extends BaseServer {
       this._isLikeServerless,
       this.renderOpts.dev,
       locales,
-      this.nextConfig.experimental.viewsDir
+      this.nextConfig.experimental.appDir
     )
   }
 
@@ -681,7 +678,7 @@ export default class NextNodeServer extends BaseServer {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
           this.renderOpts.serverComponents,
-          this.nextConfig.experimental.viewsDir
+          this.nextConfig.experimental.appDir
         )
 
         if (

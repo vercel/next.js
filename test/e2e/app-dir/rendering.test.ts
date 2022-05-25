@@ -21,7 +21,7 @@ describe('views dir rendering', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        views: new FileRef(path.join(__dirname, 'app-rendering/views')),
+        app: new FileRef(path.join(__dirname, 'app-rendering/app')),
         pages: new FileRef(path.join(__dirname, 'app-rendering/pages')),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app-rendering/next.config.js')
