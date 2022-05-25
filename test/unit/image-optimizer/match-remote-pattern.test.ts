@@ -269,6 +269,9 @@ describe('matchRemotePattern', () => {
       false
     )
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com/act123/usr6/pic.jpg'))).toBe(
+      false
+    )
   })
 
   it('should match pathname pattern with double asterisk', () => {
@@ -287,6 +290,9 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/act123/team/pic.jpg'))).toBe(true)
     expect(m(p, new URL('https://example.com/act456/team/pic.jpg'))).toBe(false)
     expect(m(p, new URL('https://example.com/team/pic.jpg'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com/act123/team/pic.jpg'))).toBe(
+      false
+    )
   })
 
   it('should throw when hostname is missing', () => {
