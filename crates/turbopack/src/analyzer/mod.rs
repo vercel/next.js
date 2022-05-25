@@ -879,7 +879,12 @@ impl JsValue {
                     WellKnownFunctionKind::NodePreGypFind => (
                         format!("find"),
                         "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
-                    )
+                    ),
+                    #[cfg(feature = "node-native-binding")]
+                    WellKnownFunctionKind::NodeGypBuild => (
+                        format!("node-gyp-build"),
+                        "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1799,6 +1804,8 @@ pub enum WellKnownFunctionKind {
     OsEndianness,
     #[cfg(feature = "node-native-binding")]
     NodePreGypFind,
+    #[cfg(feature = "node-native-binding")]
+    NodeGypBuild,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
@@ -1843,6 +1850,8 @@ pub mod test_utils {
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 #[cfg(feature = "node-native-binding")]
                 "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+                #[cfg(feature = "node-native-binding")]
+                "node-pre-gyp" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
                 _ => return Ok((v, false)),
             },
             _ => {

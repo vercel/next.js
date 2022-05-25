@@ -7,6 +7,8 @@ pub mod failed_to_analyse {
         pub const CHILD_PROCESS_SPAWN: &'static str = "TP1005";
         pub const PATH_METHOD: &'static str = "TP1006";
         #[cfg(feature = "node-native-binding")]
-        pub const NODE_PRE_GYP_FIND: &'static str = "TP1107";
+        pub const NODE_PRE_GYP_FIND: &'static str = "TP1100";
+        #[cfg(feature = "node-native-binding")]
+        pub const NODE_GYP_BUILD: &'static str = "TP1101";
     }
 }

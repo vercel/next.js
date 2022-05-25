@@ -69,7 +69,7 @@ use turbopack::{
 #[case::jimp("integration/jimp.js", true)]
 #[case::jugglingdb("integration/jugglingdb.js", false)] // doesn't understand define
 #[case::koa("integration/koa.js", true)]
-#[case::leveldown("integration/leveldown.js", false)] // can't find *.node binding
+#[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
 #[case::loopback("integration/loopback.js", false)] // node_modules/strong-globalize/cldr folder missing
 #[case::mailgun("integration/mailgun.js", true)]

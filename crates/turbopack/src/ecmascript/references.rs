@@ -510,7 +510,8 @@ pub async fn module_references(
                     }
                     #[cfg(feature = "node-native-binding")]
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
-                        use crate::resolve::node_pre_gyp::NodePreGypConfigReferenceVc;
+                        use crate::resolve::node_native_binding::NodePreGypConfigReferenceVc;
+
                         let args = linked_args().await?;
                         if args.len() == 1 {
                             let first_arg = link_value(args[0].clone()).await?;
@@ -541,11 +542,47 @@ pub async fn module_references(
                         handler.span_warn_with_code(
                             *span,
                             &format!(
-                                "node-pre-gyp.find({args}) is not statically analyse-able{hints}",
+                                "require('@mapbox/node-pre-gyp').find({args}) is not statically \
+                                 analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
                                     .to_string(),
+                            ),
+                        )
+                    }
+                    #[cfg(feature = "node-native-binding")]
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
+                        use crate::analyzer::ConstantValue;
+                        use crate::resolve::node_native_binding::NodeGypBuildReferenceVc;
+
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            if let JsValue::Constant(ConstantValue::Str(ref s)) = first_arg {
+                                let current_context = FileSystemPathVc::new(
+                                    source.path().fs(),
+                                    s.trim_start_matches("/ROOT/"),
+                                );
+                                references.push(
+                                    NodeGypBuildReferenceVc::new(
+                                        current_context,
+                                        Value::new(*target),
+                                    )
+                                    .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('node-gyp-build')({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
                             ),
                         )
                     }
@@ -711,6 +748,8 @@ async fn value_visitor_inner(
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 #[cfg(feature = "node-native-binding")]
                 "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+                #[cfg(feature = "node-native-binding")]
+                "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",

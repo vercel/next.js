@@ -56,8 +56,6 @@ pub fn well_known_function_call(
         WellKnownFunctionKind::OsArch => target.arch().into(),
         WellKnownFunctionKind::OsPlatform => target.platform().into(),
         WellKnownFunctionKind::OsEndianness => target.endianness().into(),
-        #[cfg(feature = "node-native-binding")]
-        WellKnownFunctionKind::NodePreGypFind => node_pre_gyp_find(args),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -221,20 +219,6 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
             "only a single argument is supported",
         )
     }
-}
-
-#[cfg(feature = "node-native-binding")]
-fn node_pre_gyp_find(args: Vec<JsValue>) -> JsValue {
-    if args.len() == 1 {
-        return args[0].clone();
-    }
-    JsValue::Unknown(
-        Some(Arc::new(JsValue::call(
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
-            args,
-        ))),
-        "only a single argument is supported in node-pre-gyp find",
-    )
 }
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
