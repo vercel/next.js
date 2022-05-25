@@ -1138,7 +1138,13 @@ export default async function getBaseWebpackConfig(
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
             swcMinify: config.swcMinify,
-            terserOptions,
+            terserOptions: {
+              ...terserOptions,
+              compress: {
+                ...terserOptions.compress,
+                ...(config.swcMinifyDebugOptions.compress ?? {}),
+              },
+            },
           }).apply(compiler)
         },
         // Minify CSS
