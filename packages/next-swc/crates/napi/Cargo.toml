@@ -23,7 +23,7 @@ swc_bundler = { version = "0.147.0", features = ["concurrent"] }
 swc_common = { version = "0.18.7", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.30.2", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.157.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_node_base = "0.5.3"
+swc_node_base = "0.5.5"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
