@@ -265,12 +265,12 @@ Below are the steps to add a new link:
 
 ## Adding examples
 
-When you add an example to the [examples](examples) directory, we would like to follow these guidelines to ensure high quality examples:
+When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
 
-- TypeScript should be leveraged for new examples by default (no need for separate JavaScript and TypeScript examples)
-- Examples should not add custom eslint configuration by default (we have specific templates for eslint)
-- If API routes aren't needed for an example they can be omitted
-- If an example exists for a certain library and you would like to showcase a specific feature of that library the existing example should be updated instead of adding a new one
+- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples)
+- Examples should not add custom eslint configuration (we have specific templates for eslint)
+- If API routes aren't used in an example, they should be omitted
+- If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
 
 Also don’t forget to add a `README.md` file with the following format:
