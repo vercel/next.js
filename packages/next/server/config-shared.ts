@@ -132,6 +132,17 @@ export interface ExperimentalConfig {
   >
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
+
+  /**
+   * The option for the minifier of [SWC compiler](https://swc.rs).
+   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
+   *
+   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   */
+  swcMinifyDebugOptions?: {
+    compress?: object
+    mangle?: object
+  }
 }
 
 /**
@@ -384,17 +395,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
   swcMinify?: boolean
-
-  /**
-   * The option for the minifier of [SWC compiler](https://swc.rs).
-   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
-   */
-  swcMinifyDebugOptions?: {
-    compress?: object
-    mangle?: object
-  }
 
   /**
    * Optionally enable compiler transforms
