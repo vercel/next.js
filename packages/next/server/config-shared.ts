@@ -386,7 +386,8 @@ export interface NextConfig extends Record<string, any> {
   swcMinify?: boolean
 
   /**
-   * The option for the minifier of [SWC compiler](https://swc.rs). This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
+   * The option for the minifier of [SWC compiler](https://swc.rs).
+   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
