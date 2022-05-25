@@ -163,6 +163,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   setBlurComplete: (b: boolean) => void
   setIntersection: (img: HTMLImageElement | null) => void
   isVisible: boolean
+  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -830,6 +831,7 @@ export default function Image({
     setBlurComplete,
     setIntersection,
     isVisible,
+    noscriptSizes: sizes,
     ...rest,
   }
   return (
@@ -910,6 +912,7 @@ const ImageElement = ({
   onLoad,
   onError,
   isVisible,
+  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
   return (
@@ -982,7 +985,7 @@ const ImageElement = ({
               layout,
               width: widthInt,
               quality: qualityInt,
-              sizes: imgAttributes.sizes,
+              sizes: noscriptSizes,
               loader,
             })}
             {...(layout === 'raw'

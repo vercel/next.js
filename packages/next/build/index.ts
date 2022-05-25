@@ -108,7 +108,7 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
-import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
@@ -206,9 +206,9 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, views: viewsDir } = findPagesDir(
+      const { pages: pagesDir, appDir } = findPagesDir(
         dir,
-        config.experimental.viewsDir
+        config.experimental.appDir
       )
 
       const hasPublicDir = await fileExists(publicDir)
@@ -271,9 +271,10 @@ export default async function build(
         nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            [pagesDir, viewsDir].filter(Boolean) as string[],
+            [pagesDir, appDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
-            config,
+            config.typescript.tsconfigPath,
+            config.images.disableStaticImages,
             cacheDir,
             config.experimental.cpus,
             config.experimental.workerThreads
@@ -333,14 +334,14 @@ export default async function build(
           )
         )
 
-      let viewPaths: string[] | undefined
+      let appPaths: string[] | undefined
 
-      if (viewsDir) {
-        viewPaths = await nextBuildSpan
-          .traceChild('collect-view-paths')
+      if (appDir) {
+        appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
             recursiveReadDir(
-              viewsDir,
+              appDir,
               new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
@@ -377,17 +378,17 @@ export default async function build(
           })
         )
 
-      let mappedViewPaths: { [page: string]: string } | undefined
+      let mappedappPaths: { [page: string]: string } | undefined
 
-      if (viewPaths && viewsDir) {
-        mappedViewPaths = nextBuildSpan
-          .traceChild('create-views-mapping')
+      if (appPaths && appDir) {
+        mappedappPaths = nextBuildSpan
+          .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: viewPaths!,
+              pagePaths: appPaths!,
               hasServerComponents,
               isDev: false,
-              pagesType: 'views',
+              pagesType: 'app',
               pageExtensions: config.pageExtensions,
             })
           )
@@ -418,8 +419,8 @@ export default async function build(
             target,
             rootDir: dir,
             rootPaths: mappedRootPaths,
-            viewsDir,
-            viewPaths: mappedViewPaths,
+            appDir,
+            appPaths: mappedappPaths,
             pageExtensions: config.pageExtensions,
           })
         )
@@ -719,7 +720,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
-          viewsDir,
+          appDir,
         }
 
         const configs = await runWebpackSpan
@@ -2361,7 +2362,8 @@ function verifyTypeScriptSetup(
   dir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  config: NextConfigComplete,
+  tsconfigPath: string,
+  disableStaticImages: boolean,
   cacheDir: string | undefined,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined
@@ -2384,7 +2386,8 @@ function verifyTypeScriptSetup(
       dir,
       intentDirs,
       typeCheckPreflight,
-      config,
+      tsconfigPath,
+      disableStaticImages,
       cacheDir
     )
     .then((result) => {

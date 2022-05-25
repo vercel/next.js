@@ -4,9 +4,9 @@ import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 
 function pathToUrlPath(pathname: string) {
-  let urlPath = pathname.replace(/^private-next-views-dir/, '')
+  let urlPath = pathname.replace(/^private-next-app-dir/, '')
 
-  // For `views/layout.js`
+  // For `app/layout.js`
   if (urlPath === '') {
     urlPath = '/'
   }
@@ -36,17 +36,17 @@ async function resolveLayoutPathsByPage({
     let resolvedLayoutPath = await resolve(layoutPath)
     let urlPath = pathToUrlPath(pathWithoutSlashLayout)
 
-    // if we are in a new root views/(root) and a custom root layout was
-    // not provided or a root layout views/layout is not present, we use
+    // if we are in a new root app/(root) and a custom root layout was
+    // not provided or a root layout app/layout is not present, we use
     // a default root layout to provide the html/body tags
     const isCustomRootLayout = isNewRootLayout && i === 2
 
     if ((isCustomRootLayout || i === 1) && !resolvedLayoutPath) {
-      resolvedLayoutPath = await resolve('next/dist/lib/views-layout')
+      resolvedLayoutPath = await resolve('next/dist/lib/app-layout')
     }
     layoutPaths.set(urlPath, resolvedLayoutPath)
 
-    // if we're in a new root layout don't add the top-level view/layout
+    // if we're in a new root layout don't add the top-level app/layout
     if (isCustomRootLayout) {
       break
     }
@@ -54,19 +54,18 @@ async function resolveLayoutPathsByPage({
   return layoutPaths
 }
 
-const nextViewLoader: webpack.LoaderDefinitionFunction<{
+const nextAppLoader: webpack.LoaderDefinitionFunction<{
   name: string
   pagePath: string
-  viewsDir: string
+  appDir: string
   pageExtensions: string[]
-}> = async function nextViewLoader() {
-  const { name, viewsDir, pagePath, pageExtensions } = this.getOptions() || {}
+}> = async function nextAppLoader() {
+  const { name, appDir, pagePath, pageExtensions } = this.getOptions() || {}
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
-    page: name.replace(/^views/, ''),
-    absolutePagePath:
-      viewsDir + pagePath.replace(/^private-next-views-dir/, ''),
+    page: name.replace(/^app/, ''),
+    absolutePagePath: appDir + pagePath.replace(/^private-next-app-dir/, ''),
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -99,9 +98,7 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
       componentsCode.push(codeLine)
     } else {
       for (const ext of extensions) {
-        this.addMissingDependency(
-          path.join(viewsDir, layoutPath, `layout${ext}`)
-        )
+        this.addMissingDependency(path.join(appDir, layoutPath, `layout${ext}`))
       }
     }
   }
@@ -120,9 +117,9 @@ const nextViewLoader: webpack.LoaderDefinitionFunction<{
         ${componentsCode.join(',\n')}
     };
 
-    export const __next_view_webpack_require__ = __webpack_require__
+    export const __next_app_webpack_require__ = __webpack_require__
   `
   return result
 }
 
-export default nextViewLoader
+export default nextAppLoader
