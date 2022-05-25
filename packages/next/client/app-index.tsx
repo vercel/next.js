@@ -194,17 +194,17 @@ const RSCComponent = (props: any) => {
   )
 }
 
-const ViewRouterContext = React.createContext({})
+const AppRouterContext = React.createContext({})
 
 // TODO: move to client component when handling is implemented
-function ViewRouter({ initialUrl, children }: any) {
+function AppRouter({ initialUrl, children }: any) {
   const initialState = {
     url: initialUrl,
   }
   const previousUrlRef = React.useRef(initialState)
   const [current, setCurrent] = React.useState(initialState)
 
-  const viewRouter = React.useMemo(() => {
+  const appRouter = React.useMemo(() => {
     return {
       push: (url: string) => {
         previousUrlRef.current = current
@@ -217,10 +217,10 @@ function ViewRouter({ initialUrl, children }: any) {
   }, [current])
 
   // @ts-ignore TODO: for testing
-  window.viewRouter = viewRouter
+  window.appRouter = appRouter
 
   console.log({
-    viewRouter,
+    appRouter,
     previous: previousUrlRef.current,
     current,
   })
@@ -233,9 +233,9 @@ function ViewRouter({ initialUrl, children }: any) {
   }
 
   return (
-    <ViewRouterContext.Provider value={viewRouter}>
+    <AppRouterContext.Provider value={appRouter}>
       {root ? root : children}
-    </ViewRouterContext.Provider>
+    </AppRouterContext.Provider>
   )
 }
 
@@ -243,9 +243,9 @@ export function hydrate() {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
       <Root>
-        <ViewRouter initialUrl={location.pathname}>
+        <AppRouter initialUrl={location.pathname}>
           <RSCComponent />
-        </ViewRouter>
+        </AppRouter>
       </Root>
     </React.StrictMode>
   ))

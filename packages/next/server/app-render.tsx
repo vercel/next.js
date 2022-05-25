@@ -161,14 +161,14 @@ function createServerComponentRenderer(
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_view_webpack_require__ || ComponentMod.__next_rsc__) {
+  if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__webpack_require__ = ComponentMod.__next_view_webpack_require__
-      ? ComponentMod.__next_view_webpack_require__
+    globalThis.__webpack_require__ = ComponentMod.__next_app_webpack_require__
+      ? ComponentMod.__next_app_webpack_require__
       : ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
-    globalThis.__webpack_chunk_load__ = () => Promise.resolve()
+    globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
   const writable = transformStream.writable
