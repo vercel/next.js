@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import spawn from 'next/dist/compiled/cross-spawn'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { eventFatalError } from '../telemetry/events'
+import { commands } from '../cli/commands'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -14,17 +17,6 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 })
 
 const defaultCommand = 'dev'
-export type cliCommand = (argv?: string[]) => void
-export const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: () => Promise.resolve(require('../cli/next-build').nextBuild),
-  start: () => Promise.resolve(require('../cli/next-start').nextStart),
-  export: () => Promise.resolve(require('../cli/next-export').nextExport),
-  dev: () => Promise.resolve(require('../cli/next-dev').nextDev),
-  lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
-  telemetry: () =>
-    Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
-  info: () => Promise.resolve(require('../cli/next-info').nextInfo),
-}
 
 const args = arg(
   {
@@ -135,12 +127,50 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGINT', () => process.exit(0))
 }
 
-commands[command]()
-  .then((exec) => exec(forwardedArgs))
-  .then(() => {
-    if (command === 'build') {
-      // ensure process exits after build completes so open handles/connections
-      // don't cause process to hang
-      process.exit(0)
-    }
-  })
+if (command === 'dev') {
+  let fatalError: string | null
+  const startDev = () => {
+    fatalError = null
+    const child = spawn(
+      process.argv0,
+      [require.resolve('./next-dev'), ...forwardedArgs],
+      {
+        env: {
+          FORCE_COLOR: '1',
+          ...process.env,
+        },
+      }
+    )
+    child.stdout?.pipe(process.stdout)
+    child.stderr?.on('data', (data) => {
+      const err: string = data.toString()
+      console.error(err)
+      const matchedFatalError = /^FATAL ERROR: (.*)/m.exec(err)
+      if (matchedFatalError) {
+        fatalError = matchedFatalError[1]
+      }
+    })
+
+    child.on('close', (code) => {
+      if (fatalError) {
+        // telemetry
+        console.log(eventFatalError(fatalError))
+        log.info('restarting server due to fatal error')
+        startDev()
+      } else {
+        process.exit(code ?? 0)
+      }
+    })
+  }
+  startDev()
+} else {
+  commands[command]()
+    .then((exec) => exec(forwardedArgs))
+    .then(() => {
+      if (command === 'build') {
+        // ensure process exits after build completes so open handles/connections
+        // don't cause process to hang
+        process.exit(0)
+      }
+    })
+}
