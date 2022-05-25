@@ -27,7 +27,7 @@ type InternalLinkProps = {
   scroll?: boolean
   shallow?: boolean
   passHref?: boolean
-  prefetch?: boolean
+  prefetch?: 'visible' | 'hover' | boolean;
   locale?: string | false
   legacyBehavior?: boolean
   // e: any because as it would otherwise overlap with existing types
@@ -268,7 +268,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       children = <a>{children}</a>
     }
 
-    const p = prefetchProp !== false
+    const prefetchWhenVisible = prefetchProp === true || prefetchProp === 'visible'
+    const prefetchWhenHover = prefetchProp === true || prefetchProp === 'hover'
+    
     const router = useRouter()
 
     const { href, as } = React.useMemo(() => {
@@ -344,7 +346,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       [as, childRef, href, resetVisible, setIntersectionRef]
     )
     React.useEffect(() => {
-      const shouldPrefetch = isVisible && p && isLocalURL(href)
+      const shouldPrefetch = isVisible && prefetchWhenVisible && isLocalURL(href)
       const curLocale =
         typeof locale !== 'undefined' ? locale : router && router.locale
       const isPrefetched =
@@ -397,7 +399,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
+        if (isLocalURL(href) && prefetchWhenHover) {
           prefetch(router, href, as, { priority: true })
         }
       },
