@@ -336,6 +336,7 @@ export type NextRouter = BaseRouter &
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
+    | 'key'
   >
 
 export type PrefetchOptions = {
@@ -2243,6 +2244,10 @@ export default class Router implements BaseRouter {
 
   get isPreview(): boolean {
     return this.state.isPreview
+  }
+
+  get key(): string | null {
+    return this._key
   }
 }
 

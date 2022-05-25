@@ -123,6 +123,7 @@ class ServerRouter implements NextRouter {
   domainLocales?: DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
+  key: string | null
 
   constructor(
     pathname: string,
@@ -151,6 +152,7 @@ class ServerRouter implements NextRouter {
     this.domainLocales = domainLocales
     this.isPreview = !!isPreview
     this.isLocaleDomain = !!isLocaleDomain
+    this.key = null
   }
 
   push(): any {

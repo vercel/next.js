@@ -45,6 +45,7 @@ const urlPropertyFields = [
   'locales',
   'defaultLocale',
   'isReady',
+  'key',
   'isPreview',
   'isLocaleDomain',
   'domainLocales',
