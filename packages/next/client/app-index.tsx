@@ -152,10 +152,10 @@ const RSCComponent = () => {
   const [, dispatch] = useState({})
   const rerender = () => dispatch({})
   // If there is no cache, or there is serialized data already
-  function refreshCache(nextProps: any) {
+  function refreshCache() {
     startTransition(() => {
       const currentCacheKey = getCacheKey()
-      const response = createFromFetch(fetchFlight(currentCacheKey, nextProps))
+      const response = createFromFetch(fetchFlight(currentCacheKey))
 
       rscCache.set(currentCacheKey, response)
       rerender()
@@ -169,13 +169,11 @@ const RSCComponent = () => {
   )
 }
 
-function fetchFlight(href: string, props?: any) {
+function fetchFlight(href: string) {
   const url = new URL(href, location.origin)
   const searchParams = url.searchParams
   searchParams.append('__flight__', '1')
-  if (props) {
-    searchParams.append('__props__', JSON.stringify(props))
-  }
+
   return fetch(url.toString())
 }
 
