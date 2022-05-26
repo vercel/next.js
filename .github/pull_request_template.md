@@ -22,3 +22,4 @@ Choose the right checklist for the change that you're making:
 ## Documentation / Examples
 
 - [ ] Make sure the linting passes by running `yarn lint`
+- [ ] The examples guidelines are followed from [our contributing doc](https://github.com/vercel/next.js/blob/canary/contributing.md#adding-examples)

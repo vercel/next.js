@@ -372,10 +372,6 @@ export async function renderToHTML(
     }
   )
 
-  // const serverComponentProps = query.__props__
-  //   ? JSON.parse(query.__props__ as string)
-  //   : undefined
-
   const jsxStyleRegistry = createStyleRegistry()
 
   const styledJsxFlushEffect = () => {
