@@ -1,8 +1,6 @@
 import NextImage from 'next/image'
 import { transformImageUrl } from '@kentico/kontent-delivery'
 
-const KONTENT_ASSET_HOSTNAME_REGEX = /.kc-usercontent.com$/
-
 const getLoader = (src) => {
   return srcIsKontentAsset(src) ? kontentImageLoader : undefined
 }
@@ -10,13 +8,13 @@ const getLoader = (src) => {
 const srcIsKontentAsset = (src) => {
   try {
     const { hostname } = new URL(src)
-    return KONTENT_ASSET_HOSTNAME_REGEX.test(hostname)
+    return hostname.endsWith('.kc-usercontent.com')
   } catch {
     return false
   }
 }
 
-const kontentImageLoader = ({ src, width, quality = 100 }) => {
+const kontentImageLoader = ({ src, width, quality = 75 }) => {
   return new transformImageUrl(src)
     .withWidth(width)
     .withQuality(quality)

@@ -22,9 +22,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { useSyncExternalStore } from 'use-sync-external-store/shim'
-
 import { LoadableContext } from './loadable-context'
+
+const { useSyncExternalStore } = process.env.__NEXT_REACT_ROOT
+  ? require('react')
+  : require('use-sync-external-store/shim')
 
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
