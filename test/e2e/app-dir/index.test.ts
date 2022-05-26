@@ -22,7 +22,7 @@ describe('views dir', () => {
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
-        views: new FileRef(path.join(__dirname, 'app/views')),
+        app: new FileRef(path.join(__dirname, 'app/app')),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app/next.config.js')
         ),
@@ -240,9 +240,9 @@ describe('views dir', () => {
         )
       })
 
-      // TODO: Implement hydration
-      it.skip('should serve client-side', async () => {
+      it('should serve client-side', async () => {
         const browser = await webdriver(next.url, '/client-component-route')
+
         // After hydration count should be 1
         expect(await browser.elementByCss('p').text()).toBe(
           'hello from root/client-component-route. count: 1'
@@ -260,15 +260,16 @@ describe('views dir', () => {
         expect($('p').text()).toBe('hello from root/client-nested')
       })
 
-      // TODO: Implement hydration
-      it.skip('should include it client-side', async () => {
+      it('should include it client-side', async () => {
         const browser = await webdriver(next.url, '/client-nested')
+
         // After hydration count should be 1
         expect(await browser.elementByCss('h1').text()).toBe(
-          'Client Nested. Count: 0'
+          'Client Nested. Count: 1'
         )
+
         // After hydration count should be 1
-        expect(await browser.elementByCss('h1').text()).toBe(
+        expect(await browser.elementByCss('p').text()).toBe(
           'hello from root/client-nested'
         )
       })
