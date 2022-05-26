@@ -196,6 +196,13 @@ impl EvalContext {
                 };
             }
 
+            Expr::Bin(BinExpr {
+                op: op!("||") | op!("??"),
+                left,
+                right,
+                ..
+            }) => JsValue::Alternatives(2, vec![self.eval(left), self.eval(right)]),
+
             Expr::Tpl(e) => return self.eval_tpl(e, false),
 
             Expr::TaggedTpl(TaggedTpl {

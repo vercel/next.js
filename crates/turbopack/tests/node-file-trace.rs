@@ -75,7 +75,7 @@ use turbopack::{
 #[case::mailgun("integration/mailgun.js", true)]
 #[case::mariadb("integration/mariadb.js", true)]
 #[case::memcached("integration/memcached.js", true)]
-#[case::mongoose("integration/mongoose.js", false)] // Cannot find module './drivers/node-mongodb-native/connection'
+#[case::mongoose("integration/mongoose.js", true)]
 #[case::mysql("integration/mysql.js", true)]
 #[case::npm("integration/npm.js", false)]
 // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
