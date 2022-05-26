@@ -2,7 +2,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
@@ -111,6 +111,7 @@ import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
+import { RemotePattern } from '../shared/lib/image-config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2215,8 +2216,15 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns =
+      ;(images as any).remotePatterns = (
         config?.experimental?.images?.remotePatterns || []
+      ).map((p: RemotePattern) => ({
+        // Should be the same as matchRemotePattern()
+        protocol: p.protocol,
+        hostname: makeRe(p.hostname).source,
+        port: p.port,
+        pathname: makeRe(p.pathname ?? '**').source,
+      }))
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
