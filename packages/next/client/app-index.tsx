@@ -3,8 +3,7 @@ import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 // @ts-ignore startTransition exists when using React 18
-import React, { useState, startTransition } from 'react'
-import { RefreshContext } from './streaming/refresh'
+import React from 'react'
 import {
   createFromFetch,
   createFromReadableStream,
@@ -149,24 +148,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
 
 const RSCComponent = () => {
   const cacheKey = getCacheKey()
-  const [, dispatch] = useState({})
-  const rerender = () => dispatch({})
-  // If there is no cache, or there is serialized data already
-  function refreshCache() {
-    startTransition(() => {
-      const currentCacheKey = getCacheKey()
-      const response = createFromFetch(fetchFlight(currentCacheKey))
-
-      rscCache.set(currentCacheKey, response)
-      rerender()
-    })
-  }
-
-  return (
-    <RefreshContext.Provider value={refreshCache}>
-      <ServerRoot cacheKey={cacheKey} />
-    </RefreshContext.Provider>
-  )
+  return <ServerRoot cacheKey={cacheKey} />
 }
 
 function fetchFlight(href: string) {
