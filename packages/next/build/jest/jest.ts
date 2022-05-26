@@ -29,7 +29,7 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 
 /*
 // Usage in jest.config.js
-const nextJest = require('next/jest');
+const { nextJest } = require('next/jest');
 
 // Optionally provide path to Next.js app which will enable loading next.config.js and .env files
 const createJestConfig = nextJest({ dir })
