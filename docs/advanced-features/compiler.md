@@ -233,6 +233,29 @@ module.exports = {
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
+### Minifier debug options
+
+While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcMinifyDebugOptions: {
+      compress: {
+        defaults: true,
+        side_effects: false,
+      },
+    },
+  },
+  swcMinify: true,
+}
+```
+
+If your app works with the options above, it means `side_effects` is the problematic option.
+See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
+
 ### Modularize Imports
 
 Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
