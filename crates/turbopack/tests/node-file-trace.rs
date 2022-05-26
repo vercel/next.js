@@ -53,7 +53,7 @@ use turbopack::{
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]
-#[case::ffmpeg("integration/ffmpeg.js", false)]
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
 // Could not find ffmpeg executable
 // #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
 // #[case::firebase("integration/firebase.js", false)] // hanging
@@ -96,7 +96,7 @@ use turbopack::{
 #[case::pug("integration/pug.js", true)]
 #[case::react("integration/react.js", true)]
 #[case::redis("integration/redis.js", true)]
-// #[case::remark_prism("integration/remark-prism.mjs", false)] // need to copy *.node extra files
+#[case::remark_prism("integration/remark-prism.mjs", true)]
 #[case::request("integration/request.js", true)]
 #[case::rxjs("integration/rxjs.js", true)]
 #[case::saslprep("integration/saslprep.js", false)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
