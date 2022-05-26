@@ -1,6 +1,6 @@
 import type { DomainLocale } from '../server/config'
-import { normalizeLocalePath } from './normalize-locale-path'
-import { detectDomainLocale } from './detect-domain-locale'
+import type { normalizeLocalePath as NormalizeFn } from './normalize-locale-path'
+import type { detectDomainLocale as DetectFn } from './detect-domain-locale'
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -11,6 +11,11 @@ export function getDomainLocale(
   domainLocales?: DomainLocale[]
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const normalizeLocalePath: typeof NormalizeFn =
+      require('./normalize-locale-path').normalizeLocalePath
+    const detectDomainLocale: typeof DetectFn =
+      require('./detect-domain-locale').detectDomainLocale
+
     const target = locale || normalizeLocalePath(path, locales).detectedLocale
     const domain = detectDomainLocale(domainLocales, undefined, target)
     if (domain) {
