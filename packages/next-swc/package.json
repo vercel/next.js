@@ -3,7 +3,7 @@
   "version": "12.1.7-canary.16",
   "private": true,
   "scripts": {
-    "build-native": "napi build --platform --cargo-name next_swc_napi native",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi native --features plugin",
     "build-wasm": "wasm-pack build crates/wasm --scope=next"
   },
   "napi": {
