@@ -41,7 +41,8 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
-import { hasBasePath, replaceBasePath } from '../router-utils'
+import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -663,11 +664,11 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
-    if (basePath && hasBasePath(parsedUrl.pathname || '/', basePath)) {
+    if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
       originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = replaceBasePath(parsedUrl.pathname || '/', basePath)
+      parsedUrl.pathname = removePathPrefix(parsedUrl.pathname || '/', basePath)
     }
 
     const { pathname } = parsedUrl

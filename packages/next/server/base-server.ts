@@ -64,7 +64,7 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
-import { replaceBasePath } from './router-utils'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -420,7 +420,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       })
 
       if (url.basePath) {
-        req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
+        req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
         addRequestMeta(req, '_nextHadBasePath', true)
       }
 
