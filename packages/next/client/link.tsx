@@ -397,7 +397,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
+        if (p && isLocalURL(href)) {
           prefetch(router, href, as, { priority: true })
         }
       },
