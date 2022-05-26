@@ -571,9 +571,14 @@ function fetchRetry(
       }
       throw new Error(`Failed to load static props`)
     }
-    return opts.text ? res.text() : res.json()
+
+    if (opts.method !== 'HEAD') {
+      return opts.text ? res.text() : res.json()
+    }
   })
 }
+
+const backgroundCache: Record<string, Promise<any>> = {}
 
 function fetchNextData(
   dataHref: string,
@@ -614,8 +619,12 @@ function fetchNextData(
   if (inflightCache[cacheKey] !== undefined) {
     // we kick off a HEAD request in the background
     // when a non-prefetch request is made to signal revalidation
-    if (!isPrefetch && persistCache) {
-      getData(true).catch(() => {})
+    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
+      backgroundCache[cacheKey] = getData(true)
+        .catch(() => {})
+        .then(() => {
+          delete backgroundCache[cacheKey]
+        })
     }
     return inflightCache[cacheKey]
   }
