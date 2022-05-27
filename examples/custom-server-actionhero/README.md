@@ -14,7 +14,7 @@ npx create-next-app --example custom-server-actionhero custom-server-actionhero-
 # or
 yarn create next-app --example custom-server-actionhero custom-server-actionhero-app
 # or
-pnpm create next-app -- --example custom-server-actionhero custom-server-actionhero-app
+pnpm create next-app --example custom-server-actionhero custom-server-actionhero-app
 ```
 
 ## How does this work?

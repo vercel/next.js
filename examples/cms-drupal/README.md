@@ -39,7 +39,7 @@ npx create-next-app --example cms-drupal cms-drupal-app
 # or
 yarn create next-app --example cms-drupal cms-drupal-app
 # or
-pnpm create next-app -- --example cms-drupal cms-drupal-app
+pnpm create next-app --example cms-drupal cms-drupal-app
 ```
 
 ## Setup Drupal

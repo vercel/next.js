@@ -40,7 +40,7 @@ npx create-next-app --example cms-datocms cms-datocms-app
 # or
 yarn create next-app --example cms-datocms cms-datocms-app
 # or
-pnpm create next-app -- --example cms-datocms cms-datocms-app
+pnpm create next-app --example cms-datocms cms-datocms-app
 ```
 
 ## Configuration

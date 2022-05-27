@@ -17,7 +17,7 @@ npx create-next-app --example with-storybook-styled-jsx-scss with-storybook-styl
 # or
 yarn create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
 # or
-pnpm create next-app -- --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
+pnpm create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
 ```
 
 ### Run Storybook

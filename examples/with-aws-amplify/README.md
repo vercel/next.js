@@ -18,7 +18,7 @@ npx create-next-app --example with-aws-amplify nextjs-aws-amplify-app
 # or
 yarn create next-app --example with-aws-amplify nextjs-aws-amplify-app
 # or
-pnpm create next-app -- --example with-aws-amplify nextjs-aws-amplify-app
+pnpm create next-app --example with-aws-amplify nextjs-aws-amplify-app
 ```
 
 ### Initialize and deploy the Amplify project

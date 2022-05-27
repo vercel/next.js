@@ -21,7 +21,7 @@ npx create-next-app --example with-fauna with-fauna-app
 # or
 yarn create next-app --example with-fauna with-fauna-app
 # or
-pnpm create next-app -- --example with-fauna with-fauna-app
+pnpm create next-app --example with-fauna with-fauna-app
 ```
 
 You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).

@@ -11,7 +11,7 @@ npx create-next-app --example with-algolia-react-instantsearch with-algolia-reac
 # or
 yarn create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 # or
-pnpm create next-app -- --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
+pnpm create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
 To set up Algolia:

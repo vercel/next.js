@@ -19,5 +19,5 @@ npx create-next-app --example custom-server-polka custom-server-polka-app
 # or
 yarn create next-app --example custom-server-polka custom-server-polka-app
 # or
-pnpm create next-app -- --example custom-server-polka custom-server-polka-app
+pnpm create next-app --example custom-server-polka custom-server-polka-app
 ```

@@ -19,7 +19,7 @@ npx create-next-app --example with-mongodb-mongoose with-mongodb-mongoose-app
 # or
 yarn create next-app --example with-mongodb-mongoose with-mongodb-mongoose-app
 # or
-pnpm create next-app -- --example with-mongodb-mongoose with-mongodb-mongoose-app
+pnpm create next-app --example with-mongodb-mongoose with-mongodb-mongoose-app
 ```
 
 ## Configuration

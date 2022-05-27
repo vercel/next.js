@@ -21,7 +21,7 @@ npx create-next-app --example with-nhost-auth-realtime-graphql nhost-app
 # or
 yarn create next-app --example with-nhost-auth-realtime-graphql nhost-app
 # or
-pnpm create next-app -- --example with-nhost-auth-realtime-graphql nhost-app
+pnpm create next-app --example with-nhost-auth-realtime-graphql nhost-app
 ```
 
 ## Configuration

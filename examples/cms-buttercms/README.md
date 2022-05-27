@@ -56,7 +56,7 @@ npx create-next-app --example cms-buttercms cms-buttercms-app
 # or
 yarn create next-app --example cms-buttercms cms-buttercms-app
 # or
-pnpm create next-app -- --example cms-buttercms cms-buttercms-app
+pnpm create next-app --example cms-buttercms cms-buttercms-app
 ```
 
 ## Configuration

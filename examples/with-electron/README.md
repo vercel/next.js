@@ -15,7 +15,7 @@ npx create-next-app --example with-electron with-electron-app
 # or
 yarn create next-app --example with-electron with-electron-app
 # or
-pnpm create next-app -- --example with-electron with-electron-app
+pnpm create next-app --example with-electron with-electron-app
 ```
 
 You can create the production app using `npm run dist`.

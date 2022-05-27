@@ -39,7 +39,7 @@ npx create-next-app --example cms-takeshape cms-takeshape-app
 # or
 yarn create next-app --example cms-takeshape cms-takeshape-app
 # or
-pnpm create next-app -- --example cms-takeshape cms-takeshape-app
+pnpm create next-app --example cms-takeshape cms-takeshape-app
 ```
 
 ## Configuration

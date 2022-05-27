@@ -40,7 +40,7 @@ npx create-next-app --example cms-strapi cms-strapi-app
 # or
 yarn create next-app --example cms-strapi cms-strapi-app
 # or
-pnpm create next-app -- --example cms-strapi cms-strapi-app
+pnpm create next-app --example cms-strapi cms-strapi-app
 ```
 
 ## Configuration

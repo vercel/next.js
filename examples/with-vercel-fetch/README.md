@@ -17,5 +17,5 @@ npx create-next-app --example with-vercel-fetch with-vercel-fetch-app
 # or
 yarn create next-app --example with-vercel-fetch with-vercel-fetch-app
 # or
-pnpm create next-app -- --example with-vercel-fetch with-vercel-fetch-app
+pnpm create next-app --example with-vercel-fetch with-vercel-fetch-app
 ```

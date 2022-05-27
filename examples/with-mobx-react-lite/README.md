@@ -31,7 +31,7 @@ npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
 yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
-pnpm create next-app -- --example with-mobx-react-lite with-mobx-react-lite-app
+pnpm create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

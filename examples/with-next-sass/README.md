@@ -17,7 +17,7 @@ npx create-next-app --example with-next-sass with-next-sass-app
 # or
 yarn create next-app --example with-next-sass with-next-sass-app
 # or
-pnpm create next-app -- --example with-next-sass with-next-sass-app
+pnpm create next-app --example with-next-sass with-next-sass-app
 ```
 
 Run production build with:

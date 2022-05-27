@@ -25,7 +25,7 @@ npx create-next-app --example with-i18n-next-intl
 # or
 yarn create next-app --example with-i18n-next-intl
 # or
-pnpm create next-app -- --example with-i18n-next-intl
+pnpm create next-app --example with-i18n-next-intl
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

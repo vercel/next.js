@@ -17,7 +17,7 @@ npx create-next-app --example analyze-bundles analyze-bundles-app
 # or
 yarn create next-app --example analyze-bundles analyze-bundles-app
 # or
-pnpm create next-app -- --example analyze-bundles analyze-bundles-app
+pnpm create next-app --example analyze-bundles analyze-bundles-app
 ```
 
 ### Analyze webpack output

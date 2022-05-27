@@ -19,7 +19,7 @@ npx create-next-app --example with-electron-typescript with-electron-typescript-
 # or
 yarn create next-app --example with-electron-typescript with-electron-typescript-app
 # or
-pnpm create next-app -- --example with-electron-typescript with-electron-typescript-app
+pnpm create next-app --example with-electron-typescript with-electron-typescript-app
 ```
 
 Available commands:

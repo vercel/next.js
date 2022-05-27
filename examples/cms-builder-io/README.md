@@ -15,7 +15,7 @@ npx create-next-app --example cms-builder-io cms-builder-io-app
 # or
 yarn create next-app --example cms-builder-io cms-builder-io-app
 # or
-pnpm create next-app -- --example cms-builder-io cms-builder-io-app
+pnpm create next-app --example cms-builder-io cms-builder-io-app
 ```
 
 ## Configuration

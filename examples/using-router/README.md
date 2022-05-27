@@ -20,7 +20,7 @@ npx create-next-app --example using-router using-router-app
 # or
 yarn create next-app --example using-router using-router-app
 # or
-pnpm create next-app -- --example using-router using-router-app
+pnpm create next-app --example using-router using-router-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

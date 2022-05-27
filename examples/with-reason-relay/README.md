@@ -19,7 +19,7 @@ npx create-next-app --example with-reason-relay with-reason-relay-app
 # or
 yarn create next-app --example with-reason-relay with-reason-relay-app
 # or
-pnpm create next-app -- --example with-reason-relay with-reason-relay-app
+pnpm create next-app --example with-reason-relay with-reason-relay-app
 ```
 
 Download schema introspection data from configured Relay endpoint:

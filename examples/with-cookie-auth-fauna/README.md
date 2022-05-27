@@ -19,7 +19,7 @@ npx create-next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 # or
 yarn create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 # or
-pnpm create next-app -- --example with-cookie-auth-fauna with-cookie-auth-fauna-app
+pnpm create next-app --example with-cookie-auth-fauna with-cookie-auth-fauna-app
 ```
 
 ### Run locally

@@ -17,7 +17,7 @@ npx create-next-app --example with-unsplash with-unsplash-app
 # or
 yarn create next-app --example with-unsplash with-unsplash-app
 # or
-pnpm create next-app -- --example with-unsplash with-unsplash-app
+pnpm create next-app --example with-unsplash with-unsplash-app
 ```
 
 ## Configuration

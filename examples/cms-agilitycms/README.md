@@ -43,7 +43,7 @@ npx create-next-app --example cms-agilitycms cms-agilitycms-app
 # or
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
 # or
-pnpm create next-app -- --example cms-agilitycms cms-agilitycms-app
+pnpm create next-app --example cms-agilitycms cms-agilitycms-app
 ```
 
 ## Configuration

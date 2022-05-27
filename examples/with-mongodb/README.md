@@ -22,7 +22,7 @@ npx create-next-app --example with-mongodb with-mongodb-app
 # or
 yarn create next-app --example with-mongodb with-mongodb-app
 # or
-pnpm create next-app -- --example with-mongodb with-mongodb-app
+pnpm create next-app --example with-mongodb with-mongodb-app
 ```
 
 ## Configuration

@@ -21,5 +21,5 @@ npx create-next-app --example custom-server-fastify custom-server-fastify-app
 # or
 yarn create next-app --example custom-server-fastify custom-server-fastify-app
 # or
-pnpm create next-app -- --example custom-server-fastify custom-server-fastify-app
+pnpm create next-app --example custom-server-fastify custom-server-fastify-app
 ```

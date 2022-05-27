@@ -21,7 +21,7 @@ npx create-next-app --example with-clerk with-clerk-app
 # or
 yarn create next-app --example with-clerk with-clerk-app
 # or
-pnpm create next-app -- --example with-clerk with-clerk-app
+pnpm create next-app --example with-clerk with-clerk-app
 ```
 
 To run the example locally you need to:

@@ -38,7 +38,7 @@ npx create-next-app --example cms-ghost cms-ghost-app
 # or
 yarn create next-app --example cms-ghost cms-ghost-app
 # or
-pnpm create next-app -- --example cms-ghost cms-ghost-app
+pnpm create next-app --example cms-ghost cms-ghost-app
 ```
 
 ### Setp 1. Run Next.js in development mode

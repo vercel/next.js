@@ -19,5 +19,5 @@ npx create-next-app --example with-static-export with-static-export-app
 # or
 yarn create next-app --example with-static-export with-static-export-app
 # or
-pnpm create next-app -- --example with-static-export with-static-export-app
+pnpm create next-app --example with-static-export with-static-export-app
 ```

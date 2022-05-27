@@ -11,7 +11,7 @@ npx create-next-app --example with-http2 with-http2-app
 # or
 yarn create next-app --example with-http2 with-http2-app
 # or
-pnpm create next-app -- --example with-http2 with-http2-app
+pnpm create next-app --example with-http2 with-http2-app
 ```
 
 Create the public and private keys:
