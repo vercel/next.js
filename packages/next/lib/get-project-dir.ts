@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { commands } from '../cli/commands'
+import { commands } from '../bin/next'
 import * as Log from '../build/output/log'
 import { detectTypo } from './detect-typo'
 

@@ -3,7 +3,7 @@
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from './commands'
+import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'

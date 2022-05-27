@@ -2,7 +2,6 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { commands } from '../cli/commands'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -15,6 +14,17 @@ import { commands } from '../cli/commands'
 })
 
 const defaultCommand = 'dev'
+export type cliCommand = (argv?: string[]) => void
+export const commands: { [command: string]: () => Promise<cliCommand> } = {
+  build: () => Promise.resolve(require('../cli/next-build').nextBuild),
+  start: () => Promise.resolve(require('../cli/next-start').nextStart),
+  export: () => Promise.resolve(require('../cli/next-export').nextExport),
+  dev: () => Promise.resolve(require('../cli/next-dev').nextDev),
+  lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
+  telemetry: () =>
+    Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
+  info: () => Promise.resolve(require('../cli/next-info').nextInfo),
+}
 
 const args = arg(
   {
