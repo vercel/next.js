@@ -1,13 +1,9 @@
 {
-    "compilerOptions": {
-        "baseUrl": ".",
-        "paths": {
-            "contentlayer/generated": [
-                "./.contentlayer/generated"
-            ]
-        }
-    },
-    "include": [
-        ".contentlayer/generated"
-    ]
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "contentlayer/generated": ["./.contentlayer/generated"]
+    }
+  },
+  "include": [".contentlayer/generated"]
 }
