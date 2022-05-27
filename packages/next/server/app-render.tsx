@@ -371,21 +371,13 @@ export async function renderToHTML(
   serverComponentsInlinedTransformStream = new TransformStream()
   const search = stringifyQuery(query)
 
-  const handler2 = {
-    get(target, prop, receiver) {
-      console.log({ target, prop })
-      return ''
-    },
-  }
-
-  const proxy2 = new Proxy(serverComponentManifest, handler2)
   const Component = createServerComponentRenderer(
     WrappedComponentWithRouter,
     ComponentMod,
     {
       cachePrefix: pathname + (search ? `?${search}` : ''),
       transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest: proxy2,
+      serverComponentManifest,
     }
   )
 
