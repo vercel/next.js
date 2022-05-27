@@ -128,15 +128,7 @@ export class FlightManifestPlugin {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId = compilation.chunkGraph.getModuleId(mod)
-
-          // if (typeof modId !== 'string') continue
-
-          // // Remove resource queries.
-          // modId = modId.split('?')[0]
-          // // Remove the loader prefix.
-          // modId = modId.split('next-flight-client-loader.js!')[1] || modId
-          // modId = modId.replace(/^\(sc_server\)\//, '')
+          const modId = compilation.chunkGraph.getModuleId(mod)
 
           recordModule(chunk, modId, mod)
 
