@@ -1252,7 +1252,7 @@ jobs:
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
@@ -1349,7 +1349,7 @@ jobs:
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-10.15
@@ -1410,7 +1410,7 @@ jobs:
 
   build-wasm:
     needs: build
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
