@@ -19,7 +19,7 @@ npx create-next-app --example with-edgedb with-edgedb-app
 # or
 yarn create next-app --example with-edgedb with-edgedb-app
 # or
-pnpm create next-app -- --example with-edgedb with-edgedb-app
+pnpm create next-app --example with-edgedb with-edgedb-app
 ```
 
 Then `cd` into the created directory.

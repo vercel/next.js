@@ -43,7 +43,7 @@ npx create-next-app --example cms-graphcms cms-graphcms-app
 # or
 yarn create next-app --example cms-graphcms cms-graphcms-app
 # or
-pnpm create next-app -- --example cms-graphcms cms-graphcms-app
+pnpm create next-app --example cms-graphcms cms-graphcms-app
 ```
 
 ## Configuration

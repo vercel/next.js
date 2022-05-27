@@ -17,7 +17,7 @@ npx create-next-app --example with-knex with-knex-app
 # or
 yarn create next-app --example with-knex with-knex-app
 # or
-pnpm create next-app -- --example with-knex with-knex-app
+pnpm create next-app --example with-knex with-knex-app
 ```
 
 ## Configuration

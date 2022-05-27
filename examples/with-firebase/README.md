@@ -21,7 +21,7 @@ npx create-next-app --example with-firebase with-firebase-app
 # or
 yarn create next-app --example with-firebase with-firebase-app
 # or
-pnpm create next-app -- --example with-firebase with-firebase-app
+pnpm create next-app --example with-firebase with-firebase-app
 ```
 
 ## Configuration

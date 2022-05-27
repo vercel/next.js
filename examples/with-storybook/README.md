@@ -21,7 +21,7 @@ npx create-next-app --example with-storybook with-storybook-app
 # or
 yarn create next-app --example with-storybook with-storybook-app
 # or
-pnpm create next-app -- --example with-storybook with-storybook-app
+pnpm create next-app --example with-storybook with-storybook-app
 ```
 
 ### Run Storybook

@@ -22,7 +22,7 @@ npx create-next-app --example with-elasticsearch with-elasticsearch-app
 # or
 yarn create next-app --example with-elasticsearch with-elasticsearch-app
 # or
-pnpm create next-app -- --example with-elasticsearch with-elasticsearch-app
+pnpm create next-app --example with-elasticsearch with-elasticsearch-app
 ```
 
 ## Configuration

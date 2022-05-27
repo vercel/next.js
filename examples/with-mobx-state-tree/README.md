@@ -25,7 +25,7 @@ npx create-next-app --example with-mobx-state-tree with-mobx-state-tree-app
 # or
 yarn create next-app --example with-mobx-state-tree with-mobx-state-tree-app
 # or
-pnpm create next-app -- --example with-mobx-state-tree with-mobx-state-tree-app
+pnpm create next-app --example with-mobx-state-tree with-mobx-state-tree-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

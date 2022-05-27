@@ -11,7 +11,7 @@ npx create-next-app --example with-supertokens with-supertokens-app
 # or
 yarn create next-app --example with-supertokens with-supertokens-app
 # or
-pnpm create next-app -- --example with-supertokens with-supertokens-app
+pnpm create next-app --example with-supertokens with-supertokens-app
 ```
 
 - Run `yarn install`

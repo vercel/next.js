@@ -17,7 +17,7 @@ npx create-next-app --example with-mocha with-mocha-app
 # or
 yarn create next-app --example with-mocha with-mocha-app
 # or
-pnpm create next-app -- --example with-mocha with-mocha-app
+pnpm create next-app --example with-mocha with-mocha-app
 ```
 
 ## Run Mocha tests

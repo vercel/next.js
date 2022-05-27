@@ -17,7 +17,7 @@ npx create-next-app --example with-xstate with-xstate-app
 # or
 yarn create next-app --example with-xstate with-xstate-app
 # or
-pnpm create next-app -- --example with-xstate with-xstate-app
+pnpm create next-app --example with-xstate with-xstate-app
 ```
 
 ### Inspect your machines using `@xstate/inspect`

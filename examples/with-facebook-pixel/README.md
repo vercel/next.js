@@ -17,7 +17,7 @@ npx create-next-app --example with-facebook-pixel with-facebook-pixel-app
 # or
 yarn create next-app --example with-facebook-pixel with-facebook-pixel-app
 # or
-pnpm create next-app -- --example with-facebook-pixel with-facebook-pixel-app
+pnpm create next-app --example with-facebook-pixel with-facebook-pixel-app
 ```
 
 Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):

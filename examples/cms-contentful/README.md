@@ -40,7 +40,7 @@ npx create-next-app --example cms-contentful cms-contentful-app
 # or
 yarn create next-app --example cms-contentful cms-contentful-app
 # or
-pnpm create next-app -- --example cms-contentful cms-contentful-app
+pnpm create next-app --example cms-contentful cms-contentful-app
 ```
 
 ## Configuration

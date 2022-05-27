@@ -11,7 +11,7 @@ npx create-next-app --example with-docker nextjs-docker
 # or
 yarn create next-app --example with-docker nextjs-docker
 # or
-pnpm create next-app -- --example with-docker nextjs-docker
+pnpm create next-app --example with-docker nextjs-docker
 ```
 
 ## Using Docker

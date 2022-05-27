@@ -36,7 +36,7 @@ npx create-next-app --example cms-tina cms-tina-app
 # or
 yarn create next-app --example cms-tina cms-tina-app
 # or
-pnpm create next-app -- --example cms-tina cms-tina-app
+pnpm create next-app --example cms-tina cms-tina-app
 ```
 
 ### Setp 1. Run Next.js in development mode

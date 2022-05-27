@@ -23,7 +23,7 @@ npx create-next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
 # or
 yarn create next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
 # or
-pnpm create next-app -- --example with-styled-jsx-scss with-styled-jsx-scss-app
+pnpm create next-app --example with-styled-jsx-scss with-styled-jsx-scss-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

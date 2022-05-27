@@ -72,7 +72,7 @@ npx create-next-app --example with-why-did-you-render with-why-did-you-render-ap
 # or
 yarn create next-app --example with-why-did-you-render with-why-did-you-render-app
 # or
-pnpm create next-app -- --example with-why-did-you-render with-why-did-you-render-app
+pnpm create next-app --example with-why-did-you-render with-why-did-you-render-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

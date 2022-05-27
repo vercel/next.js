@@ -21,7 +21,7 @@ npx create-next-app --example with-graphql-hooks with-graphql-hooks-app
 # or
 yarn create next-app --example with-graphql-hooks with-graphql-hooks-app
 # or
-pnpm create next-app -- --example with-graphql-hooks with-graphql-hooks-app
+pnpm create next-app --example with-graphql-hooks with-graphql-hooks-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

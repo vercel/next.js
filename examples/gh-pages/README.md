@@ -11,7 +11,7 @@ npx create-next-app --example gh-pages gh-pages-app
 # or
 yarn create next-app --example gh-pages gh-pages-app
 # or
-pnpm create next-app -- --example gh-pages gh-pages-app
+pnpm create next-app --example gh-pages gh-pages-app
 ```
 
 ### Deploy it to github

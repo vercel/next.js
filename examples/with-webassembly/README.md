@@ -17,7 +17,7 @@ npx create-next-app --example with-webassembly with-webassembly-app
 # or
 yarn create next-app --example with-webassembly with-webassembly-app
 # or
-pnpm create next-app -- --example with-webassembly with-webassembly-app
+pnpm create next-app --example with-webassembly with-webassembly-app
 ```
 
 This example uses Rust compiled to wasm, the wasm file is included in the example, but to compile your own Rust code you'll have to [install](https://www.rust-lang.org/learn/get-started) Rust.

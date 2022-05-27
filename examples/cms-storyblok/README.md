@@ -40,7 +40,7 @@ npx create-next-app --example cms-storyblok cms-storyblok-app
 # or
 yarn create next-app --example cms-storyblok cms-storyblok-app
 # or
-pnpm create next-app -- --example cms-storyblok cms-storyblok-app
+pnpm create next-app --example cms-storyblok cms-storyblok-app
 ```
 
 ## Configuration

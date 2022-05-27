@@ -17,7 +17,7 @@ npx create-next-app --example api-routes-rest api-routes-rest-app
 # or
 yarn create next-app --example api-routes-rest api-routes-rest-app
 # or
-pnpm create next-app -- --example api-routes-rest api-routes-rest-app
+pnpm create next-app --example api-routes-rest api-routes-rest-app
 ```
 
 ### Deploy to Vercel

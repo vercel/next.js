@@ -19,7 +19,7 @@ npx create-next-app --example with-framer-motion with-framer-motion-app
 # or
 yarn create next-app --example with-framer-motion with-framer-motion-app
 # or
-pnpm create next-app -- --example with-framer-motion with-framer-motion-app
+pnpm create next-app --example with-framer-motion with-framer-motion-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

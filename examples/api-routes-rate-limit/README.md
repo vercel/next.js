@@ -31,7 +31,7 @@ npx create-next-app --example api-routes-rate-limit api-routes-rate-limit-app
 # or
 yarn create next-app --example api-routes-rate-limit api-routes-rate-limit-app
 # or
-pnpm create next-app -- --example api-routes-rate-limit api-routes-rate-limit-app
+pnpm create next-app --example api-routes-rate-limit api-routes-rate-limit-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

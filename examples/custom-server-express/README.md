@@ -19,5 +19,5 @@ npx create-next-app --example custom-server-express custom-server-express-app
 # or
 yarn create next-app --example custom-server-express custom-server-express-app
 # or
-pnpm create next-app -- --example custom-server-express custom-server-express-app
+pnpm create next-app --example custom-server-express custom-server-express-app
 ```

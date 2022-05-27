@@ -15,7 +15,7 @@ npx create-next-app --example with-zones with-zones-app
 # or
 yarn create next-app --example with-zones with-zones-app
 # or
-pnpm create next-app -- --example with-zones with-zones-app
+pnpm create next-app --example with-zones with-zones-app
 ```
 
 With multi zones you have multiple Next.js apps over a single app, therefore every app has its own dependencies and it runs independently.

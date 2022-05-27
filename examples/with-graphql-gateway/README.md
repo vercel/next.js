@@ -57,5 +57,5 @@ npx create-next-app --example with-graphql-gateway with-graphql-gateway-app
 # or
 yarn create next-app --example with-graphql-gateway with-graphql-gateway-app
 # or
-pnpm create next-app -- --example with-graphql-gateway with-graphql-gateway-app
+pnpm create next-app --example with-graphql-gateway with-graphql-gateway-app
 ```

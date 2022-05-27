@@ -19,7 +19,7 @@ npx create-next-app --example with-userbase next-userbase-app
 # or
 yarn create next-app --example with-userbase next-userbase-app
 # or
-pnpm create next-app -- --example with-userbase next-userbase-app
+pnpm create next-app --example with-userbase next-userbase-app
 ```
 
 ## Configuration

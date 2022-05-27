@@ -40,7 +40,7 @@ npx create-next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 # or
 yarn create next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 # or
-pnpm create next-app -- --example cms-umbraco-heartcore cms-umbraco-heartcore-app
+pnpm create next-app --example cms-umbraco-heartcore cms-umbraco-heartcore-app
 ```
 
 ## Configuration

@@ -27,7 +27,7 @@ npx create-next-app --example with-env-from-next-config-js with-env-from-next-co
 # or
 yarn create next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
 # or
-pnpm create next-app -- --example with-env-from-next-config-js with-env-from-next-config-js-app
+pnpm create next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

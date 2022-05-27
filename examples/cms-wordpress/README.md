@@ -39,7 +39,7 @@ npx create-next-app --example cms-wordpress cms-wordpress-app
 # or
 yarn create next-app --example cms-wordpress cms-wordpress-app
 # or
-pnpm create next-app -- --example cms-wordpress cms-wordpress-app
+pnpm create next-app --example cms-wordpress cms-wordpress-app
 ```
 
 ## Configuration

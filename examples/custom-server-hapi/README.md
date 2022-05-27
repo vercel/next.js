@@ -19,5 +19,5 @@ npx create-next-app --example custom-server-hapi custom-server-hapi-app
 # or
 yarn create next-app --example custom-server-hapi custom-server-hapi-app
 # or
-pnpm create next-app -- --example custom-server-hapi custom-server-hapi-app
+pnpm create next-app --example custom-server-hapi custom-server-hapi-app
 ```
