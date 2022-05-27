@@ -1,5 +1,6 @@
 import type { CacheFs } from '../../../shared/lib/utils'
 
+import FileSystemCache from './file-system-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { PrerenderManifest } from '../../../build'
@@ -62,12 +63,13 @@ export class IncrementalCache {
     incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
   }) {
-    if (!incrementalCacheHandlerPath) {
-      incrementalCacheHandlerPath = require.resolve('./file-system-cache')
+    let cacheHandlerMod: any = FileSystemCache
+
+    if (incrementalCacheHandlerPath) {
+      cacheHandlerMod = require(incrementalCacheHandlerPath)
+      cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
     }
-    const cacheHandlerMod = require(incrementalCacheHandlerPath)
-    this.cacheHandler = new ((cacheHandlerMod.default ||
-      cacheHandlerMod) as typeof CacheHandler)({
+    this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
       dev,
       distDir,
       fs,
