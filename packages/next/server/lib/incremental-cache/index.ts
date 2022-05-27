@@ -1,66 +1,91 @@
-import type { CacheFs } from '../shared/lib/utils'
+import type { CacheFs } from '../../../shared/lib/utils'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
-import path from '../shared/lib/isomorphic/path'
-import { PrerenderManifest } from '../build'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { IncrementalCacheValue, IncrementalCacheEntry } from './response-cache'
+import path from '../../../shared/lib/isomorphic/path'
+import { PrerenderManifest } from '../../../build'
+import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import {
+  IncrementalCacheValue,
+  IncrementalCacheEntry,
+} from '../../response-cache'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
 }
 
-export class IncrementalCache {
-  incrementalOptions: {
-    flushToDisk?: boolean
-    pagesDir?: string
-    distDir?: string
-    dev?: boolean
-  }
+export interface CacheHandlerContext {
+  flushToDisk?: boolean
+  pagesDir: string
+  distDir: string
+  dev?: boolean
+  fs: CacheFs
+}
 
+export class CacheHandler {
+  // eslint-disable-next-line
+  constructor(_ctx: CacheHandlerContext) {}
+
+  public async get(_key: string): Promise<string> {
+    return ''
+  }
+  public async getMeta(_key: string): Promise<{
+    // time in epoch e.g. Date.now()
+    mtime: number
+  }> {
+    return {} as any
+  }
+  public async set(_key: string, _data: string): Promise<void> {}
+}
+
+export class IncrementalCache {
   prerenderManifest: PrerenderManifest
   cache?: LRUCache<string, IncrementalCacheEntry>
-  locales?: string[]
-  fs: CacheFs
+  dev?: boolean
+  cacheHandler: CacheHandler
 
   constructor({
     fs,
-    max,
     dev,
     distDir,
     pagesDir,
     flushToDisk,
-    locales,
+    maxMemoryCacheSize,
     getPrerenderManifest,
+    incrementalCacheHandlerPath,
   }: {
     fs: CacheFs
     dev: boolean
-    max?: number
     distDir: string
     pagesDir: string
     flushToDisk?: boolean
-    locales?: string[]
+    maxMemoryCacheSize?: number
+    incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
   }) {
-    this.fs = fs
-    this.incrementalOptions = {
+    if (!incrementalCacheHandlerPath) {
+      incrementalCacheHandlerPath = require.resolve('./file-system-cache')
+    }
+    const cacheHandlerMod = require(incrementalCacheHandlerPath)
+    this.cacheHandler = new ((cacheHandlerMod.default ||
+      cacheHandlerMod) as typeof CacheHandler)({
       dev,
       distDir,
+      fs,
       pagesDir,
-      flushToDisk:
-        !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
-    }
-    this.locales = locales
+      flushToDisk,
+    })
+
+    this.dev = dev
     this.prerenderManifest = getPrerenderManifest()
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
       // Allow cache size to be overridden for testing purposes
-      max = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
+      maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
 
-    if (max) {
+    if (maxMemoryCacheSize) {
       this.cache = new LRUCache({
-        max,
+        max: maxMemoryCacheSize,
         length({ value }) {
           if (!value) {
             return 25
@@ -76,10 +101,6 @@ export class IncrementalCache {
     }
   }
 
-  private getSeedPath(pathname: string, ext: string): string {
-    return path.join(this.incrementalOptions.pagesDir!, `${pathname}.${ext}`)
-  }
-
   private calculateRevalidate(
     pathname: string,
     fromTime: number
@@ -88,7 +109,7 @@ export class IncrementalCache {
 
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
-    if (this.incrementalOptions.dev) return new Date().getTime() - 1000
+    if (this.dev) return new Date().getTime() - 1000
 
     const { initialRevalidateSeconds } = this.prerenderManifest.routes[
       pathname
@@ -103,14 +124,9 @@ export class IncrementalCache {
     return revalidateAfter
   }
 
-  getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
-    return this.fs.readFile(this.getSeedPath(page, 'html'))
-  }
-
   // get data from cache if available
   async get(pathname: string): Promise<IncrementalCacheEntry | null> {
-    if (this.incrementalOptions.dev) return null
+    if (this.dev) return null
     pathname = normalizePagePath(pathname)
 
     let data = this.cache && this.cache.get(pathname)
@@ -127,14 +143,15 @@ export class IncrementalCache {
       }
 
       try {
-        const htmlPath = this.getSeedPath(pathname, 'html')
-        const jsonPath = this.getSeedPath(pathname, 'json')
-        const html = await this.fs.readFile(htmlPath)
-        const pageData = JSON.parse(await this.fs.readFile(jsonPath))
-        const { mtime } = await this.fs.stat(htmlPath)
+        const htmlPath = `${pathname}.html`
+        const html = await this.cacheHandler.get(htmlPath)
+        const pageData = JSON.parse(
+          await this.cacheHandler.get(`${pathname}.json`)
+        )
+        const { mtime } = await this.cacheHandler.getMeta(htmlPath)
 
         data = {
-          revalidateAfter: this.calculateRevalidate(pathname, mtime.getTime()),
+          revalidateAfter: this.calculateRevalidate(pathname, mtime),
           value: {
             kind: 'PAGE',
             html,
@@ -175,10 +192,8 @@ export class IncrementalCache {
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false
   ) {
-    if (this.incrementalOptions.dev) return
+    if (this.dev) return
     if (typeof revalidateSeconds !== 'undefined') {
-      // TODO: Update this to not mutate the manifest from the
-      // build.
       this.prerenderManifest.routes[pathname] = {
         dataRoute: path.posix.join(
           '/_next/data',
@@ -200,17 +215,15 @@ export class IncrementalCache {
       })
     }
 
-    // TODO: This option needs to cease to exist unless it stops mutating the
-    // `next build` output's manifest.
-    if (this.incrementalOptions.flushToDisk && data?.kind === 'PAGE') {
+    if (data?.kind === 'PAGE') {
       try {
-        const seedHtmlPath = this.getSeedPath(pathname, 'html')
-        const seedJsonPath = this.getSeedPath(pathname, 'json')
-        await this.fs.mkdir(path.dirname(seedHtmlPath))
-        await this.fs.writeFile(seedHtmlPath, data.html)
-        await this.fs.writeFile(seedJsonPath, JSON.stringify(data.pageData))
+        await this.cacheHandler.set(`${pathname}.html`, data.html)
+        await this.cacheHandler.set(
+          `${pathname}.json`,
+          JSON.stringify(data.pageData)
+        )
       } catch (error) {
-        // failed to flush to disk
+        // failed to set to cache handler
         console.warn('Failed to update prerender files for', pathname, error)
       }
     }

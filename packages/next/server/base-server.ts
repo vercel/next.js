@@ -45,7 +45,7 @@ import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
-import { IncrementalCache } from './incremental-cache'
+import { IncrementalCache } from './lib/incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
@@ -71,6 +71,7 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -352,8 +353,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       dev,
       distDir: this.distDir,
       pagesDir: join(this.serverDistDir, 'pages'),
-      locales: this.nextConfig.i18n?.locales,
-      max: this.nextConfig.experimental.isrMemoryCacheSize,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => {
         if (dev) {
@@ -677,6 +677,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       rewrites = customRoutes.rewrites
     }
     return Object.assign(customRoutes, { rewrites })
+  }
+
+  protected getFallback(page: string): Promise<string> {
+    page = normalizePagePath(page)
+    const cacheFs = this.getCacheFilesystem()
+    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
   protected getPreviewProps(): __ApiPreviewProps {
@@ -1566,7 +1572,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (!isDataReq) {
             // Production already emitted the fallback as static HTML.
             if (isProduction) {
-              const html = await this.incrementalCache.getFallback(
+              const html = await this.getFallback(
                 locale ? `/${locale}${pathname}` : pathname
               )
               return {
