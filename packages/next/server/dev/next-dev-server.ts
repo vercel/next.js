@@ -5,7 +5,7 @@ import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
-import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
+import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
@@ -614,7 +614,7 @@ export default class DevServer extends Server {
   async runMiddleware(params: {
     request: BaseNextRequest
     response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
+    parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
     try {

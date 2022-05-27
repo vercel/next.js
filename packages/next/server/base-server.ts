@@ -58,7 +58,6 @@ import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import ResponseCache from './response-cache'
-import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
@@ -68,6 +67,10 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
+import { getHostname } from '../shared/lib/get-hostname'
+import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -413,13 +416,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
-      const url = parseNextUrl({
-        headers: req.headers,
+      const domainLocale = detectDomainLocale(
+        this.nextConfig.i18n?.domains,
+        getHostname(parsedUrl, req.headers)
+      )
+
+      const defaultLocale =
+        domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
+
+      const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
+      const pathnameInfo = getNextPathnameInfo(url.pathname, {
         nextConfig: this.nextConfig,
-        url: req.url?.replace(/^\/+/, '/'),
       })
 
-      if (url.basePath) {
+      url.pathname = pathnameInfo.pathname
+
+      if (pathnameInfo.basePath) {
         req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
         addRequestMeta(req, '_nextHadBasePath', true)
       }
@@ -493,8 +505,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         try {
           // ensure parsedUrl.pathname includes URL before processing
           // rewrites or they won't match correctly
-          if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
-            parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+          if (defaultLocale && !pathnameInfo.locale) {
+            parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParams = utils.handleRewrites(req, parsedUrl)
@@ -575,32 +587,42 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         url.pathname = parsedUrl.pathname
       }
 
-      addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
-      if (url.locale?.domain) {
-        addRequestMeta(req, '__nextIsLocaleDomain', true)
-      }
+      addRequestMeta(req, '__nextHadTrailingSlash', pathnameInfo.trailingSlash)
+      addRequestMeta(req, '__nextIsLocaleDomain', Boolean(domainLocale))
+      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
-      if (url.locale?.path.detectedLocale) {
+      if (pathnameInfo.locale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        if (url?.locale?.locale) {
-          parsedUrl.query.__nextLocale = url.locale.locale
+        if (pathnameInfo.locale || defaultLocale) {
+          parsedUrl.query.__nextLocale = pathnameInfo.locale || defaultLocale
         }
       }
 
-      if (url?.locale?.defaultLocale) {
-        parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
-      }
+      if (defaultLocale) {
+        const redirect = getLocaleRedirect({
+          defaultLocale,
+          domainLocale,
+          headers: req.headers,
+          nextConfig: this.nextConfig,
+          pathLocale: pathnameInfo.locale,
+          urlParsed: {
+            ...url,
+            pathname: pathnameInfo.locale
+              ? `/${pathnameInfo.locale}${url.pathname}`
+              : url.pathname,
+          },
+        })
 
-      if (url.locale?.redirect) {
-        res
-          .redirect(url.locale.redirect, TEMPORARY_REDIRECT_STATUS)
-          .body(url.locale.redirect)
-          .send()
-        return
+        if (redirect) {
+          return res
+            .redirect(redirect, TEMPORARY_REDIRECT_STATUS)
+            .body(redirect)
+            .send()
+        }
       }
 
       res.statusCode = 200

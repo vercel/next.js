@@ -20,10 +20,8 @@ export class NextResponse extends Response {
       cookies: new NextCookies(this),
       url: init.url
         ? new NextURL(init.url, {
-            basePath: init.nextConfig?.basePath,
-            i18n: init.nextConfig?.i18n,
-            trailingSlash: init.nextConfig?.trailingSlash,
             headers: toNodeHeaders(this.headers),
+            nextConfig: init.nextConfig,
           })
         : undefined,
     }

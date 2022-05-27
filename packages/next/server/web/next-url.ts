@@ -1,33 +1,30 @@
-import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
-import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import cookie from 'next/dist/compiled/cookie'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
+import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
+import { getHostname } from '../../shared/lib/get-hostname'
+import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
 
 interface Options {
   base?: string | URL
-  basePath?: string
   headers?: { [key: string]: string | string[] | undefined }
-  i18n?: I18NConfig | null
-  trailingSlash?: boolean
+  nextConfig?: {
+    basePath?: string
+    i18n?: I18NConfig | null
+    trailingSlash?: boolean
+  }
 }
 
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
   [Internal]: {
-    url: URL
-    options: Options
     basePath: string
     buildId?: string
-    locale?: {
-      defaultLocale: string
-      domain?: DomainLocale
-      locale: string
-      path: PathLocale
-      redirect?: string
-      trailingSlash?: boolean
-    }
+    defaultLocale?: string
+    domainLocale?: DomainLocale
+    locale?: string
+    options: Options
+    url: URL
   }
 
   constructor(input: string | URL, base?: string | URL, opts?: Options)
@@ -60,105 +57,67 @@ export class NextURL {
   }
 
   private analyzeUrl() {
-    const { headers = {}, basePath, i18n } = this[Internal].options
+    const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
+      nextConfig: this[Internal].options.nextConfig,
+      parseData: true,
+    })
 
-    if (this[Internal].url.pathname.startsWith('/_next/data/')) {
-      const [buildId, ...rest] = this[Internal].url.pathname
-        .replace(/^\/_next\/data\//, '')
-        .replace(/\.json$/, '')
-        .split('/')
-      this[Internal].buildId = buildId
-      this[Internal].url.pathname =
-        rest[0] !== 'index' ? `/${rest.join('/')}` : '/'
-    }
+    this[Internal].domainLocale = detectDomainLocale(
+      this[Internal].options.nextConfig?.i18n?.domains,
+      getHostname(this[Internal].url, this[Internal].options.headers)
+    )
 
-    if (basePath && this[Internal].url.pathname.startsWith(basePath)) {
-      this[Internal].url.pathname = removePathPrefix(
-        this[Internal].url.pathname,
-        basePath
-      )
-      this[Internal].basePath = basePath
-    } else {
-      this[Internal].basePath = ''
-    }
+    const defaultLocale =
+      this[Internal].domainLocale?.defaultLocale ||
+      this[Internal].options.nextConfig?.i18n?.defaultLocale
 
-    if (i18n) {
-      this[Internal].locale = getLocaleMetadata({
-        cookies: () => {
-          const value = headers['cookie']
-          return value
-            ? cookie.parse(Array.isArray(value) ? value.join(';') : value)
-            : {}
-        },
-        headers: headers,
-        nextConfig: {
-          basePath: basePath,
-          i18n: i18n,
-        },
-        url: {
-          hostname: this[Internal].url.hostname || null,
-          pathname: this[Internal].url.pathname,
-        },
-      })
-
-      if (this[Internal].locale?.path.detectedLocale) {
-        this[Internal].url.pathname = this[Internal].locale!.path.pathname
-      }
-    }
+    this[Internal].url.pathname = pathnameInfo.pathname
+    this[Internal].defaultLocale = defaultLocale
+    this[Internal].basePath = pathnameInfo.basePath ?? ''
+    this[Internal].buildId = pathnameInfo.buildId
+    this[Internal].locale = pathnameInfo.locale ?? defaultLocale
   }
 
   private formatPathname() {
-    const { i18n } = this[Internal].options
-    let pathname = this[Internal].url.pathname
-
-    if (
-      this[Internal].locale?.locale &&
-      ((i18n?.defaultLocale !== this[Internal].locale?.locale &&
-        !this.hasPathPrefix('/api')) ||
-        this[Internal].buildId)
-    ) {
-      pathname = `/${this[Internal].locale?.locale}${pathname}`
-    }
-
-    return this[Internal].buildId
-      ? `/_next/data/${this[Internal].buildId}${
-          pathname === '/' ? '/index' : pathname
-        }.json`
-      : `${this[Internal].basePath}${pathname}`
+    return formatNextPathnameInfo({
+      basePath: this[Internal].basePath,
+      buildId: this[Internal].buildId,
+      locale: this[Internal].locale,
+      pathname: this[Internal].url.pathname,
+    })
   }
 
   public get buildId() {
     return this[Internal].buildId
   }
 
-  private hasPathPrefix(prefix: string) {
-    const pathname = this[Internal].url.pathname
-    return pathname === prefix || pathname.startsWith(prefix + '/')
+  public set buildId(buildId: string | undefined) {
+    this[Internal].buildId = buildId
   }
 
   public get locale() {
-    return this[Internal].locale?.locale ?? ''
+    return this[Internal].locale ?? ''
   }
 
   public set locale(locale: string) {
     if (
       !this[Internal].locale ||
-      !this[Internal].options.i18n?.locales.includes(locale)
+      !this[Internal].options.nextConfig?.i18n?.locales.includes(locale)
     ) {
       throw new TypeError(
         `The NextURL configuration includes no locale "${locale}"`
       )
     }
 
-    this[Internal].locale!.locale = locale
+    this[Internal].locale = locale
   }
 
   get defaultLocale() {
-    return this[Internal].locale?.defaultLocale
+    return this[Internal].defaultLocale
   }
 
   get domainLocale() {
-    return this[Internal].locale?.domain
+    return this[Internal].domainLocale
   }
 
   get searchParams() {
