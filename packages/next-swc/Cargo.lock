@@ -2673,6 +2673,8 @@ checksum = "21f40169fe465e9a93cda5fe397c3afcb69be5ba2f76c4ab22137af6effaebcc"
 dependencies = [
  "is-macro",
  "num-bigint",
+ "rkyv",
+ "scoped-tls",
  "serde",
  "string_enum",
  "swc_atoms",
