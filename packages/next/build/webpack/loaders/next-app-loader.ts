@@ -117,6 +117,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         ${componentsCode.join(',\n')}
     };
 
+    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
+
     export const __next_app_webpack_require__ = __webpack_require__
   `
   return result
