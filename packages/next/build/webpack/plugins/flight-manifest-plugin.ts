@@ -8,6 +8,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
+import { relative } from 'path'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -18,7 +19,7 @@ import { clientComponentRegex } from '../loaders/utils'
 
 type Options = {
   dev: boolean
-  viewsDir: boolean
+  appDir: boolean
   pageExtensions: string[]
 }
 
@@ -27,13 +28,13 @@ const PLUGIN_NAME = 'FlightManifestPlugin'
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
-  viewsDir: boolean = false
+  appDir: boolean = false
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
-    this.viewsDir = options.viewsDir
+    this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
   }
 
@@ -59,32 +60,37 @@ export class FlightManifestPlugin {
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        (assets: any) => this.createAsset(assets, compilation, compiler.context)
       )
     })
   }
 
-  createAsset(assets: any, compilation: any) {
+  createAsset(assets: any, compilation: any, context: string) {
     const manifest: any = {}
-    const viewsDir = this.viewsDir
+    const appDir = this.appDir
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(chunk: any, id: string, mod: any) {
-        const resource = mod.resource
+      function recordModule(chunk: any, id: string | number, mod: any) {
+        const resource: string = mod.resource
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (
-          !resource ||
-          !clientComponentRegex.test(resource) ||
-          !clientComponentRegex.test(id)
-        ) {
+        if (!resource || !clientComponentRegex.test(resource)) {
           return
         }
 
         const moduleExports: any = manifest[resource] || {}
+        const moduleIdMapping: any = manifest.__ssr_module_id__ || {}
+
+        // Note that this isn't that reliable as webpack is still possible to assign
+        // additional queries to make sure there's no conflict even using the `named`
+        // module ID strategy.
+        const ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        moduleIdMapping[id] = ssrNamedModuleId.startsWith('.')
+          ? ssrNamedModuleId
+          : `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const moduleExportedKeys = ['', '*'].concat(
@@ -101,9 +107,9 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, ''),
+              id,
               name,
-              chunks: viewsDir
+              chunks: appDir
                 ? chunk.ids.map((chunkId: string) => {
                     return (
                       chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
@@ -113,22 +119,16 @@ export class FlightManifestPlugin {
             }
           }
         })
+
         manifest[resource] = moduleExports
+        manifest.__ssr_module_id__ = moduleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId = compilation.chunkGraph.getModuleId(mod)
-
-          if (typeof modId !== 'string') continue
-
-          // Remove resource queries.
-          modId = modId.split('?')[0]
-          // Remove the loader prefix.
-          modId = modId.split('next-flight-client-loader.js!')[1] || modId
-          modId = modId.replace(/^\(sc_server\)\//, '')
+          const modId = compilation.chunkGraph.getModuleId(mod)
 
           recordModule(chunk, modId, mod)
 

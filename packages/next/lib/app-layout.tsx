@@ -4,7 +4,7 @@ export type LayoutProps = {
   children: any
 }
 
-export default function ViewsLayout({ children }: LayoutProps) {
+export default function AppLayout({ children }: LayoutProps) {
   return (
     <html>
       <head>

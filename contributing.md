@@ -265,7 +265,17 @@ Below are the steps to add a new link:
 
 ## Adding examples
 
-When you add an example to the [examples](examples) directory, don’t forget to add a `README.md` file with the following format:
+When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
+
+- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples)
+- Examples should not add custom ESLint configuration (we have specific templates for ESLint)
+- If API routes aren't used in an example, they should be omitted
+- If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
+- Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
+- In `package.json` the version of `next` (and `eslint-config-next`) should be `latest`
+- In `package.json` the dependency versions should be up-to-date
+
+Also don’t forget to add a `README.md` file with the following format:
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.

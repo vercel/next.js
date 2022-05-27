@@ -49,7 +49,7 @@ import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -58,16 +58,19 @@ import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import ResponseCache from './response-cache'
-import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import { PrerenderManifest } from '../build'
 import { ImageConfigComplete } from '../shared/lib/image-config'
-import { replaceBasePath } from './router-utils'
-import { normalizeViewPath } from '../shared/lib/router/utils/view-paths'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
+import { getHostname } from '../shared/lib/get-hostname'
+import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -139,7 +142,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected publicDir: string
   protected hasStaticDir: boolean
   protected pagesManifest?: PagesManifest
-  protected viewPathsManifest?: PagesManifest
+  protected appPathsManifest?: PagesManifest
   protected buildId: string
   protected minimalMode: boolean
   protected renderOpts: {
@@ -179,7 +182,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
-  protected viewPathRoutes?: Record<string, string>
+  protected appPathRoutes?: Record<string, string>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   public readonly hostname?: string
@@ -188,7 +191,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
-  protected abstract getViewPathsManifest(): PagesManifest | undefined
+  protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
@@ -338,7 +341,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
 
     this.pagesManifest = this.getPagesManifest()
-    this.viewPathsManifest = this.getViewPathsManifest()
+    this.appPathsManifest = this.getAppPathsManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -413,14 +416,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
-      const url = parseNextUrl({
-        headers: req.headers,
+      const domainLocale = detectDomainLocale(
+        this.nextConfig.i18n?.domains,
+        getHostname(parsedUrl, req.headers)
+      )
+
+      const defaultLocale =
+        domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
+
+      const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
+      const pathnameInfo = getNextPathnameInfo(url.pathname, {
         nextConfig: this.nextConfig,
-        url: req.url?.replace(/^\/+/, '/'),
       })
 
-      if (url.basePath) {
-        req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
+      url.pathname = pathnameInfo.pathname
+
+      if (pathnameInfo.basePath) {
+        req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
         addRequestMeta(req, '_nextHadBasePath', true)
       }
 
@@ -493,8 +505,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         try {
           // ensure parsedUrl.pathname includes URL before processing
           // rewrites or they won't match correctly
-          if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
-            parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+          if (defaultLocale && !pathnameInfo.locale) {
+            parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParams = utils.handleRewrites(req, parsedUrl)
@@ -575,32 +587,42 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         url.pathname = parsedUrl.pathname
       }
 
-      addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
-      if (url.locale?.domain) {
-        addRequestMeta(req, '__nextIsLocaleDomain', true)
-      }
+      addRequestMeta(req, '__nextHadTrailingSlash', pathnameInfo.trailingSlash)
+      addRequestMeta(req, '__nextIsLocaleDomain', Boolean(domainLocale))
+      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
-      if (url.locale?.path.detectedLocale) {
+      if (pathnameInfo.locale) {
         req.url = formatUrl(url)
         addRequestMeta(req, '__nextStrippedLocale', true)
       }
 
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        if (url?.locale?.locale) {
-          parsedUrl.query.__nextLocale = url.locale.locale
+        if (pathnameInfo.locale || defaultLocale) {
+          parsedUrl.query.__nextLocale = pathnameInfo.locale || defaultLocale
         }
       }
 
-      if (url?.locale?.defaultLocale) {
-        parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
-      }
+      if (defaultLocale) {
+        const redirect = getLocaleRedirect({
+          defaultLocale,
+          domainLocale,
+          headers: req.headers,
+          nextConfig: this.nextConfig,
+          pathLocale: pathnameInfo.locale,
+          urlParsed: {
+            ...url,
+            pathname: pathnameInfo.locale
+              ? `/${pathnameInfo.locale}${url.pathname}`
+              : url.pathname,
+          },
+        })
 
-      if (url.locale?.redirect) {
-        res
-          .redirect(url.locale.redirect, TEMPORARY_REDIRECT_STATUS)
-          .body(url.locale.redirect)
-          .send()
-        return
+        if (redirect) {
+          return res
+            .redirect(redirect, TEMPORARY_REDIRECT_STATUS)
+            .body(redirect)
+            .send()
+        }
       }
 
       res.statusCode = 200
@@ -807,7 +829,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
 
         // next.js core assumes page path without trailing slash
-        pathname = removePathTrailingSlash(pathname)
+        pathname = removeTrailingSlash(pathname)
 
         if (this.nextConfig.i18n) {
           const localePathResult = normalizeLocalePath(
@@ -851,7 +873,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
-      this.viewPathRoutes = this.getViewPathRoutes()
+      this.appPathRoutes = this.getappPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
     }
 
@@ -943,7 +965,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     return getSortedRoutes(
       [
-        ...Object.keys(this.viewPathRoutes || {}),
+        ...Object.keys(this.appPathRoutes || {}),
         ...Object.keys(this.pagesManifest!),
       ].map(
         (page) =>
@@ -961,20 +983,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getViewPathRoutes(): Record<string, string> {
-    const viewPathRoutes: Record<string, string> = {}
+  protected getappPathRoutes(): Record<string, string> {
+    const appPathRoutes: Record<string, string> = {}
 
-    Object.keys(this.viewPathsManifest || {}).forEach((entry) => {
-      viewPathRoutes[normalizeViewPath(entry)] = entry
+    Object.keys(this.appPathsManifest || {}).forEach((entry) => {
+      appPathRoutes[normalizeAppPath(entry)] = entry
     })
-    return viewPathRoutes
+    return appPathRoutes
   }
 
-  protected getViewPathLayouts(pathname: string): string[] {
+  protected getappPathLayouts(pathname: string): string[] {
     const layoutPaths: string[] = []
 
-    if (this.viewPathRoutes) {
-      const paths = Object.values(this.viewPathRoutes)
+    if (this.appPathRoutes) {
+      const paths = Object.values(this.appPathRoutes)
       const parts = pathname.split('/').filter(Boolean)
 
       for (let i = 1; i < parts.length; i++) {
@@ -985,7 +1007,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (this.viewPathRoutes['/layout']) {
+      if (this.appPathRoutes['/layout']) {
         layoutPaths.unshift('/layout')
       }
     }
@@ -1284,9 +1306,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let resolvedUrlPathname =
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
-    urlPathname = removePathTrailingSlash(urlPathname)
+    urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = normalizeLocalePath(
-      removePathTrailingSlash(resolvedUrlPathname),
+      removeTrailingSlash(resolvedUrlPathname),
       this.nextConfig.i18n?.locales
     ).pathname
 
@@ -1705,17 +1727,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
     // map the route to the actual bundle name e.g.
     // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
-    const getOriginalViewPath = (viewPath: string) => {
-      if (this.nextConfig.experimental.viewsDir) {
-        const originalViewPath =
-          this.viewPathRoutes?.[`${viewPath}/index`] ||
-          this.viewPathRoutes?.[`${viewPath}`]
+    const getOriginalappPath = (appPath: string) => {
+      if (this.nextConfig.experimental.appDir) {
+        const originalappPath =
+          this.appPathRoutes?.[`${appPath}/index`] ||
+          this.appPathRoutes?.[`${appPath}`]
 
-        if (!originalViewPath) {
+        if (!originalappPath) {
           return null
         }
 
-        return originalViewPath
+        return originalappPath
       }
       return null
     }
@@ -1724,10 +1746,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(pathname)) {
-        const viewPath = getOriginalViewPath(pathname)
+        const appPath = getOriginalappPath(pathname)
 
-        if (typeof viewPath === 'string') {
-          page = viewPath
+        if (typeof appPath === 'string') {
+          page = appPath
         }
         const result = await this.findPageComponents(page, query)
         if (result) {
@@ -1750,10 +1772,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             continue
           }
           page = dynamicRoute.page
-          const viewPath = getOriginalViewPath(page)
+          const appPath = getOriginalappPath(page)
 
-          if (typeof viewPath === 'string') {
-            page = viewPath
+          if (typeof appPath === 'string') {
+            page = appPath
           }
 
           const dynamicRouteResult = await this.findPageComponents(

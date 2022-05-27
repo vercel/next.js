@@ -1,4 +1,4 @@
-import { hydrate, version } from './views-index'
+import { hydrate, version } from './app-index'
 
 window.next = {
   version,
@@ -17,8 +17,12 @@ __webpack_require__.u = (chunkId) => {
   return getChunkScriptFilename(chunkId) || chunkFilenameMap[chunkId]
 }
 
+// Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
-globalThis.__next_chunk_load__ = (chunk) => {
+self.__next_require__ = __webpack_require__
+
+// eslint-disable-next-line no-undef
+self.__next_chunk_load__ = (chunk) => {
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 

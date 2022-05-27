@@ -11,7 +11,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
-  VIEWS_DIR_ALIAS,
+  APP_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -333,7 +333,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     runWebpackSpan,
     target = 'server',
-    viewsDir,
+    appDir,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -347,7 +347,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
-    viewsDir?: string
+    appDir?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -569,14 +569,14 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        ...(config.experimental.viewsDir
+        ...(config.experimental.appDir
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
                 `./` +
                 path
                   .relative(
                     dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'views-next.js')
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
                   )
                   .replace(/\\/g, '/'),
             }
@@ -661,9 +661,9 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
-      ...(viewsDir
+      ...(appDir
         ? {
-            [VIEWS_DIR_ALIAS]: viewsDir,
+            [APP_DIR_ALIAS]: appDir,
           }
         : {}),
       [ROOT_DIR_ALIAS]: dir,
@@ -1016,7 +1016,7 @@ export default async function getBaseWebpackConfig(
       ...(hasServerComponents
         ? {
             // We have to use the names here instead of hashes to ensure the consistency between compilers.
-            moduleIds: 'named',
+            moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
@@ -1183,7 +1183,7 @@ export default async function getBaseWebpackConfig(
             ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : viewsDir ? '-[chunkhash]' : '-[contenthash]'
+              dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1221,7 +1221,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
-        'next-view-loader',
+        'next-app-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1602,7 +1602,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
-          rootEnabled: !!config.experimental.viewsDir,
+          appDirEnabled: !!config.experimental.appDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1613,7 +1613,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
-          rootEnabled: !!config.experimental.viewsDir,
+          appDirEnabled: !!config.experimental.appDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
@@ -1645,7 +1645,7 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
-              viewsDir: !!config.experimental.viewsDir,
+              appDir: !!config.experimental.appDir,
               pageExtensions: rawPageExtensions,
             })
           : new ClientEntryPlugin({
