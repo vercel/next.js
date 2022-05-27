@@ -88,7 +88,9 @@ export class FlightManifestPlugin {
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
         const ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
-        moduleIdMapping[id] = ssrNamedModuleId
+        moduleIdMapping[id] = ssrNamedModuleId.startsWith('.')
+          ? ssrNamedModuleId
+          : `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const moduleExportedKeys = ['', '*'].concat(
