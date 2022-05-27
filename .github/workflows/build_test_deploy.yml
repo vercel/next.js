@@ -1164,16 +1164,15 @@ jobs:
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
-            # Node.js in Baidu need to compatible with `GLIBC_2.12`
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
+              strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -1198,14 +1197,15 @@ jobs:
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-18.04
             target: 'armv7-unknown-linux-gnueabihf'
