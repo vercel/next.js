@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync, watchFile } from 'fs'
-import { startServer } from '../server/lib/start-server'
+import spawn from 'next/dist/compiled/cross-spawn'
 import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from './commands'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
+import { eventCrashReport } from '../telemetry/events'
+import loadConfig from '../server/config'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+// import { join } from 'path'
+// import { Telemetry } from '../telemetry/storage'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -59,22 +63,6 @@ const nextDev: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  async function preflight() {
-    const { getPackageVersion } = await Promise.resolve(
-      require('../lib/get-package-version')
-    )
-    const [sassVersion, nodeSassVersion] = await Promise.all([
-      getPackageVersion({ cwd: dir, name: 'sass' }),
-      getPackageVersion({ cwd: dir, name: 'node-sass' }),
-    ])
-    if (sassVersion && nodeSassVersion) {
-      Log.warn(
-        'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
-          'Please remove the `node-sass` dependency from your project. ' +
-          ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
-      )
-    }
-  }
   const allowRetry = !args['--port']
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
@@ -90,45 +78,56 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  startServer({
-    allowRetry,
-    dev: true,
-    dir,
-    hostname: host,
-    isNextDevCommand: true,
-    port,
-  })
-    .then(async (app) => {
-      const appUrl = `http://${app.hostname}:${app.port}`
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
-      // Start preflight after server is listening and ignore errors:
-      preflight().catch(() => {})
-      // Finalize server bootup:
-      await app.prepare()
-    })
-    .catch((err) => {
-      if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('next/dist/compiled/find-up').sync(
-          'package.json',
+  loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+    .then((_nextConfig) => {
+      // const distDir = join(dir, nextConfig.distDir)
+      // const telemetry = new Telemetry({ distDir })
+
+      let fatalError: string | null
+      const startDev = () => {
+        fatalError = null
+
+        const child = spawn(
+          process.argv0,
+          [
+            // '--max_old_space_size=50',
+            require.resolve('../bin/next-dev'),
+            allowRetry ? '1' : '0',
+            dir,
+            String(port),
+            host ?? '0.0.0.0',
+          ],
           {
-            cwd: dir,
+            env: {
+              FORCE_COLOR: '1',
+              ...process.env,
+            },
           }
         )
-        const appPackage = require(pkgAppPath)
-        if (appPackage.scripts) {
-          const nextScript = Object.entries(appPackage.scripts).find(
-            (scriptLine) => scriptLine[1] === 'next'
-          )
-          if (nextScript) {
-            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+
+        child.stdout?.pipe(process.stdout)
+        child.stderr?.on('data', (data) => {
+          const err = data.toString()
+          console.error(err)
+          const matchedFatalError = /^FATAL ERROR: (.*)/m.exec(err)
+          if (matchedFatalError) {
+            fatalError = matchedFatalError[1]
           }
-        }
-        console.error(errorMessage)
-      } else {
-        console.error(err)
+        })
+        child.on('close', (code) => {
+          if (fatalError) {
+            console.log(eventCrashReport(fatalError))
+            Log.info('restarting server due to fatal error')
+            startDev()
+          } else {
+            process.exit(code ?? 1)
+          }
+        })
       }
-      process.nextTick(() => process.exit(1))
+      startDev()
+    })
+    .catch(() => {
+      // loadConfig logs errors
     })
 
   for (const CONFIG_FILE of CONFIG_FILES) {
