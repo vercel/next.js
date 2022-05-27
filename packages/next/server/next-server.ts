@@ -6,7 +6,6 @@ import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { PrerenderManifest } from '../build'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -64,7 +63,6 @@ import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
 import { toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
-import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -73,9 +71,10 @@ import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
+import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
 export * from './base-server'
 
@@ -1098,14 +1097,12 @@ export default class NextNodeServer extends BaseServer {
   protected async runMiddleware(params: {
     request: BaseNextRequest
     response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
+    parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     middlewareBetaWarning()
-    const normalizedPathname = removePathTrailingSlash(
-      params.parsedUrl.pathname
-    )
+    const normalizedPathname = removeTrailingSlash(params.parsedUrl.pathname)
 
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -1217,17 +1214,13 @@ export default class NextNodeServer extends BaseServer {
         }
 
         const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-        const parsedUrl = parseNextUrl({
-          url: initUrl,
-          headers: req.headers,
-          nextConfig: {
-            basePath: this.nextConfig.basePath,
-            i18n: this.nextConfig.i18n,
-            trailingSlash: this.nextConfig.trailingSlash,
-          },
+        const parsedUrl = parseUrl(initUrl)
+        const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
+          nextConfig: this.nextConfig,
         })
 
-        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+        parsedUrl.pathname = pathnameInfo.pathname
+        const normalizedPathname = removeTrailingSlash(parsedUrl.pathname)
         if (!middleware.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
