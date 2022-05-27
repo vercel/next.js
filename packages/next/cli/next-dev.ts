@@ -83,14 +83,14 @@ const nextDev: cliCommand = (argv) => {
       // const distDir = join(dir, nextConfig.distDir)
       // const telemetry = new Telemetry({ distDir })
 
-      let fatalError: string | null
+      let restartServer: () => void
       const startDev = () => {
-        fatalError = null
+        let fatalError: string | null = null
+        let restartOnClose = false
 
         const child = spawn(
           process.argv0,
           [
-            // '--max_old_space_size=50',
             require.resolve('../bin/next-dev'),
             allowRetry ? '1' : '0',
             dir,
@@ -106,6 +106,7 @@ const nextDev: cliCommand = (argv) => {
         )
 
         child.stdout?.pipe(process.stdout)
+
         child.stderr?.on('data', (data) => {
           const err = data.toString()
           console.error(err)
@@ -114,31 +115,43 @@ const nextDev: cliCommand = (argv) => {
             fatalError = matchedFatalError[1]
           }
         })
+
         child.on('close', (code) => {
+          if (restartOnClose) {
+            startDev()
+            return
+          }
+
           if (fatalError) {
             console.log(eventCrashReport(fatalError))
-            Log.info('restarting server due to fatal error')
+            Log.error(fatalError)
+            Log.info('Restarting the server due to a fatal error')
             startDev()
           } else {
             process.exit(code ?? 1)
           }
         })
+
+        restartServer = () => {
+          restartOnClose = true
+          child.kill()
+        }
       }
       startDev()
+
+      for (const CONFIG_FILE of CONFIG_FILES) {
+        // eslint-disable-next-line no-loop-func
+        watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
+          if (cur.size > 0 || prev.size > 0) {
+            Log.info(`Found a change in ${CONFIG_FILE}. Restarting the server.`)
+            restartServer()
+          }
+        })
+      }
     })
     .catch(() => {
       // loadConfig logs errors
     })
-
-  for (const CONFIG_FILE of CONFIG_FILES) {
-    watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
-      if (cur.size > 0 || prev.size > 0) {
-        console.log(
-          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-        )
-      }
-    })
-  }
 }
 
 export { nextDev }

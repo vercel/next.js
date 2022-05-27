@@ -5,6 +5,9 @@ import { startServer } from '../server/lib/start-server'
 
 const [, , allowRetry, dir, port, host] = process.argv
 
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
+
 async function preflight() {
   const { getPackageVersion } = await Promise.resolve(
     require('../lib/get-package-version')
