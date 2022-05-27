@@ -123,8 +123,9 @@ export default function dynamic<P = {}>(
     delete loadableOptions.loadableGenerated
   }
 
-  // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false})
-  if (typeof loadableOptions.ssr === 'boolean') {
+  // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false}).
+  // skip `ssr` for suspense mode and opt-in React.lazy directly
+  if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.suspense) {
     if (!loadableOptions.ssr) {
       delete loadableOptions.ssr
       return noSSR(loadableFn, loadableOptions)
