@@ -164,13 +164,6 @@ function createLoadableComponent(loadFn, options) {
   function LazyImpl(props, ref) {
     useLoadableModule()
 
-    const context = React.useContext(LoadableContext)
-    if (context && Array.isArray(opts.modules)) {
-      opts.modules.forEach((moduleName) => {
-        context(moduleName)
-      })
-    }
-
     return React.createElement(opts.lazy, { ...props, ref })
   }
 
