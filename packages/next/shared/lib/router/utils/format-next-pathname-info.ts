@@ -3,8 +3,16 @@ import { addPathPrefix } from './add-path-prefix'
 import { addPathSuffix } from './add-path-suffix'
 import { addLocale } from './add-locale'
 
-export function formatNextPathnameInfo(info: NextPathnameInfo) {
-  let pathname = addLocale(info.pathname, info.locale)
+interface ExtendedInfo extends NextPathnameInfo {
+  defaultLocale?: string
+}
+
+export function formatNextPathnameInfo(info: ExtendedInfo) {
+  let pathname = addLocale(
+    info.pathname,
+    info.locale,
+    info.buildId ? undefined : info.defaultLocale
+  )
 
   if (info.buildId) {
     pathname = addPathSuffix(

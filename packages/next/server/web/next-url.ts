@@ -7,6 +7,7 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 interface Options {
   base?: string | URL
   headers?: { [key: string]: string | string[] | undefined }
+  forceLocale?: boolean
   nextConfig?: {
     basePath?: string
     i18n?: I18NConfig | null
@@ -82,6 +83,9 @@ export class NextURL {
     return formatNextPathnameInfo({
       basePath: this[Internal].basePath,
       buildId: this[Internal].buildId,
+      defaultLocale: !this[Internal].options.forceLocale
+        ? this[Internal].defaultLocale
+        : undefined,
       locale: this[Internal].locale,
       pathname: this[Internal].url.pathname,
     })

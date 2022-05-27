@@ -146,6 +146,35 @@ it('parses and formats the default locale', () => {
 
   url.locale = 'en'
   expect(url.locale).toEqual('en')
+  expect(url.toString()).toEqual('http://localhost/root/bar')
+
+  url.locale = 'fr'
+  expect(url.locale).toEqual('fr')
+  expect(url.toString()).toEqual('http://localhost/root/fr/bar')
+})
+
+it('parses and formats the default locale with forceLocale', () => {
+  const url = new NextURL('/es/bar', {
+    base: 'http://127.0.0.1',
+    forceLocale: true,
+    nextConfig: {
+      basePath: '/root',
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  expect(url.locale).toEqual('es')
+  expect(url.toString()).toEqual('http://localhost/es/bar')
+
+  url.basePath = '/root'
+  expect(url.locale).toEqual('es')
+  expect(url.toString()).toEqual('http://localhost/root/es/bar')
+
+  url.locale = 'en'
+  expect(url.locale).toEqual('en')
   expect(url.toString()).toEqual('http://localhost/root/en/bar')
 
   url.locale = 'fr'
@@ -293,7 +322,7 @@ it('allows to update the pathname to the root path for a prefetch url', async ()
 })
 
 it('preserves the trailingSlash', async () => {
-  const url = new NextURL('/en/', {
+  const url = new NextURL('/es/', {
     base: 'http://127.0.0.1:3000',
     nextConfig: {
       i18n: {
@@ -303,5 +332,5 @@ it('preserves the trailingSlash', async () => {
     },
   })
 
-  expect(String(url)).toEqual('http://localhost:3000/en/')
+  expect(String(url)).toEqual('http://localhost:3000/es/')
 })
