@@ -132,6 +132,7 @@ export interface ExperimentalConfig {
   >
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
+  swcPlugins?: Array<[string, Record<string, unknown>]>
 }
 
 /**
