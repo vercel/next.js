@@ -481,11 +481,13 @@ export async function renderToHTML(
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = urlQueryToSearchParams(query).toString()
-    // We need to expose the `__webpack_require__` API globally for
-    // react-server-dom-webpack. This is a hack until we find a better way.
+
     // @ts-ignore
-    globalThis.__webpack_require__ =
-      ComponentMod.__next_rsc__.__webpack_require__
+    globalThis.__next_require__ = (clientModuleId) => {
+      const ssrModuleId =
+        serverComponentManifest.__ssr_module_id__[clientModuleId]
+      return ComponentMod.__next_rsc__.__webpack_require__(ssrModuleId)
+    }
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
 

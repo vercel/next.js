@@ -1284,11 +1284,10 @@ export async function copy_react_server_dom_webpack(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the chunk loading code with our own implementaion in Next.js.
-      file.data = source.replace(
-        /__webpack_chunk_load__/g,
-        'globalThis.__next_chunk_load__'
-      )
+      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      file.data = source
+        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target('compiled/react-server-dom-webpack/cjs')
 
