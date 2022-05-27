@@ -1,5 +1,5 @@
 import { CacheFs } from '../../../shared/lib/utils'
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import type { CacheHandler, CacheHandlerContext } from './'
 
 export default class FileSystemCache implements CacheHandler {
