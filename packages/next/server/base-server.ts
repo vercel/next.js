@@ -49,7 +49,7 @@ import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -807,7 +807,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
 
         // next.js core assumes page path without trailing slash
-        pathname = removePathTrailingSlash(pathname)
+        pathname = removeTrailingSlash(pathname)
 
         if (this.nextConfig.i18n) {
           const localePathResult = normalizeLocalePath(
@@ -1284,9 +1284,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let resolvedUrlPathname =
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
-    urlPathname = removePathTrailingSlash(urlPathname)
+    urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = normalizeLocalePath(
-      removePathTrailingSlash(resolvedUrlPathname),
+      removeTrailingSlash(resolvedUrlPathname),
       this.nextConfig.i18n?.locales
     ).pathname
 

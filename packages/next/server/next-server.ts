@@ -73,7 +73,7 @@ import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
 
@@ -1103,9 +1103,7 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     middlewareBetaWarning()
-    const normalizedPathname = removePathTrailingSlash(
-      params.parsedUrl.pathname
-    )
+    const normalizedPathname = removeTrailingSlash(params.parsedUrl.pathname)
 
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -1227,7 +1225,7 @@ export default class NextNodeServer extends BaseServer {
           },
         })
 
-        const normalizedPathname = removePathTrailingSlash(parsedUrl.pathname)
+        const normalizedPathname = removeTrailingSlash(parsedUrl.pathname)
         if (!middleware.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }

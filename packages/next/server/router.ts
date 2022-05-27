@@ -7,7 +7,7 @@ import type {
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
@@ -231,7 +231,7 @@ export default class Router {
                   parsedCheckerUrl
                 ) => {
                   let { pathname } = parsedCheckerUrl
-                  pathname = removePathTrailingSlash(pathname || '/')
+                  pathname = removeTrailingSlash(pathname || '/')
 
                   if (!pathname) {
                     return { finished: false }
