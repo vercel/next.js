@@ -87,6 +87,9 @@ let webpackHMR: any
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
 
+// @ts-ignore
+;(self as any).__next_require__ = __webpack_require__
+
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
 }> {

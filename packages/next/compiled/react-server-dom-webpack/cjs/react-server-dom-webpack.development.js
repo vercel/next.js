@@ -78,7 +78,7 @@ function requireModule(moduleData) {
     }
   }
 
-  var moduleExports = __webpack_require__(moduleData.id);
+  var moduleExports = globalThis.__next_require__(moduleData.id);
 
   if (moduleData.name === '*') {
     // This is a placeholder value that represents that the caller imported this
