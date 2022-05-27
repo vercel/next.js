@@ -64,7 +64,7 @@ export type Middleware = (
 
 The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
 
-[Read the full Middleware API reference.](/docs/api-reference/next/server.md)
+[Read the full Middleware API reference](/docs/api-reference/next/server.md) and [learn about the supported Web API's available](/docs/api-reference/edge-runtime.md#unsupported-apis)
 
 ## Examples
 
