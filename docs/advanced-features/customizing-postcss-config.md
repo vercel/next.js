@@ -17,7 +17,7 @@ Next.js compiles CSS for its [built-in CSS support](/docs/basic-features/built-i
 
 Out of the box, with no configuration, Next.js compiles CSS with the following transformations:
 
-1. [Autoprefixer](https://github.com/postcss/autoprefixer) automatically adds vendor prefixes to CSS rules (back to IE11).
+1. [Autoprefixer](https://github.com/postcss/autoprefixer) ([see it in action online](https://goonlinetools.com/autoprefixer/)) automatically adds vendor prefixes to CSS rules (back to IE11).
 1. [Cross-browser Flexbox bugs](https://github.com/philipwalton/flexbugs) are corrected to behave like [the spec](https://www.w3.org/TR/css-flexbox-1/).
 1. New CSS features are automatically compiled for Internet Explorer 11 compatibility:
    - [`all` Property](https://developer.mozilla.org/en-US/docs/Web/CSS/all)
