@@ -60,7 +60,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              yarn install --frozen-lockfile --check-files
+              npm i -g pnpm && pnpm install
             displayName: 'Install dependencies'
           - script: |
               node run-tests.js --timings --write-timings --azure -g 1/1
