@@ -59,10 +59,10 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ github.sha }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             pnpm-store-
-            pnpm-store-${{ github.sha }}
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm install
       - run: pnpm run build

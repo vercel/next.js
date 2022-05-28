@@ -32,7 +32,7 @@ pr:
       - examples
 
 variables:
-  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
+  PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
   NEXT_TELEMETRY_DISABLED: '1'
   node_version: ^14.19.0
 
@@ -49,19 +49,6 @@ stages:
           - script: echo $(Build.SourceVersion)
           - powershell: Get-MpComputerStatus
 
-          - task: NodeTool@0
-            inputs:
-              versionSpec: $(node_version)
-            displayName: 'Install Node.js'
-
-          - task: Cache@2
-            inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
-
   - stage: Test
     dependsOn: Build
     jobs:
@@ -69,21 +56,24 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - checkout: none
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
           - task: Cache@2
             inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
+              key: '"pnpm" | "$(Agent.OS)" | pnpm-lock.yaml'
+              restoreKeys: |
+                pnpm | "$(Agent.OS)"
+                pnpm
+              path: $(PNPM_CACHE_FOLDER)
+            displayName: Cache pnpm store
+
+          - script: npm i -g pnpm
+          - script: pnpm config set store-dir /path/to/.pnpm-store
 
           - script: |
-              npm i -g pnpm && pnpm install && pnpm run build
+              pnpm install && pnpm run build
             displayName: 'Install and build'
 
           - script: |
@@ -109,14 +99,19 @@ stages:
 
           - task: Cache@2
             inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
+              key: '"pnpm" | "$(Agent.OS)" | pnpm-lock.yaml'
+              restoreKeys: |
+                pnpm | "$(Agent.OS)"
+                pnpm
+              path: $(PNPM_CACHE_FOLDER)
+            displayName: Cache pnpm store
+
+          - script: npm i -g pnpm
+          - script: pnpm config set store-dir /path/to/.pnpm-store
 
           - script: |
-              npm i -g pnpm && pnpm install && pnpm run build
+              pnpm install && pnpm run build
+            displayName: 'Install and build'
 
           - script: |
               node run-tests.js --type unit
