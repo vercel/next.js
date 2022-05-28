@@ -57,7 +57,8 @@ stages:
             displayName: Cache pnpm store
 
           - script: npm i -g pnpm
-          - script: pnpm config set store-dir /path/to/.pnpm-store
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
 
           - script: |
               pnpm install && pnpm run build
@@ -93,7 +94,8 @@ stages:
             displayName: Cache pnpm store
 
           - script: npm i -g pnpm
-          - script: pnpm config set store-dir /path/to/.pnpm-store
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
 
           - script: |
               pnpm install && pnpm run build
