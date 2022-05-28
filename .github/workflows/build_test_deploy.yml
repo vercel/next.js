@@ -51,6 +51,7 @@ jobs:
 
       - run: npm i -g pnpm
       - run: pnpm install
+      - run: pnpm run build
       - run: node run-tests.js --timings --write-timings -g 1/1
       - run: node ./scripts/fetch-tags.mjs ${{ github.sha }}
 
