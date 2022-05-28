@@ -24,7 +24,8 @@
     "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublish": "yarn release"
+    "prepublish": "cd ../../ && turbo run build",
+    "build": "yarn release"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",

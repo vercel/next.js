@@ -1,4 +1,4 @@
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
+import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'

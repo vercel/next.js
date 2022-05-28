@@ -11,6 +11,14 @@
     "build-wasm": {
       "dependsOn": ["^build-wasm"],
       "outputs": ["crates/wasm/pkg/*"]
-    }
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "prepublish": {
+      "outputs": ["dist/**"]
+    },
+    "typescript": {}
   }
 }

@@ -26,7 +26,8 @@
     "prerelease": "rimraf ./dist/",
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublish": "yarn release && yarn types"
+    "build": "yarn release && yarn types",
+    "prepublish": "cd ../../ && turbo run build"
   },
   "devDependencies": {
     "@vercel/ncc": "0.33.4",

@@ -57,7 +57,8 @@
   "scripts": {
     "dev": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release && yarn types",
+    "build": "npm run release && yarn types",
+    "prepublish": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"

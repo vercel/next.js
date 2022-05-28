@@ -1,4 +1,4 @@
-import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -155,7 +155,7 @@ export function attachReactRefresh(
 ) {
   let injections = 0
   const reactRefreshLoaderName =
-    'next/dist/compiled/@next/react-refresh-utils/loader'
+    'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules.forEach((rule) => {
     const curr = rule.use
@@ -548,7 +548,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/runtime`
+                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -1309,7 +1309,7 @@ export default async function getBaseWebpackConfig(
                 dev && isClient
                   ? [
                       require.resolve(
-                        'next/dist/compiled/@next/react-refresh-utils/loader'
+                        'next/dist/compiled/@next/react-refresh-utils/dist/loader'
                       ),
                       defaultLoaders.babel,
                     ]

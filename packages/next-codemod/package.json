@@ -19,7 +19,8 @@
     "lib/cra-to-next/gitignore"
   ],
   "scripts": {
-    "prepublish": "yarn tsc -d -p tsconfig.json",
+    "build": "yarn tsc -d -p tsconfig.json",
+    "prepublish": "cd ../../ && turbo run build",
     "dev": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
