@@ -73,11 +73,20 @@ jobs:
       - id: get-week
         run: echo ::set-output name=WEEK::$(date +%U)
 
+      - id: get-store-path
+        run: echo ::set-output name=STORE_PATH::$(pnpm store path)
+
       - uses: actions/cache@v3
         id: cache-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/cache@v3
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store
 
   lint:
     runs-on: ubuntu-latest

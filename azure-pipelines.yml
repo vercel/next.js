@@ -48,10 +48,12 @@ stages:
           - script: dir $(System.DefaultWorkingDirectory)
           - script: echo $(Build.SourceVersion)
           - powershell: Get-MpComputerStatus
+
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
+
           - task: Cache@2
             inputs:
               # use deterministic cache key that is specific
@@ -59,9 +61,7 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
-          - script: |
-              npm i -g pnpm && pnpm install
-            displayName: 'Install dependencies'
+
           - script: |
               node run-tests.js --timings --write-timings --azure -g 1/1
             displayName: 'Fetch test timing data'
@@ -87,6 +87,10 @@ stages:
             displayName: Cache Build
 
           - script: |
+              npm i -g pnpm && pnpm install && pnpm run build
+            displayName: 'Install and build'
+
+          - script: |
               npx playwright install chromium
 
           - script: |
@@ -101,10 +105,12 @@ stages:
           - script: |
               wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
             displayName: 'List Chrome version'
+
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
+
           - task: Cache@2
             inputs:
               # use deterministic cache key that is specific
@@ -112,6 +118,10 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
+
+          - script: |
+              npm i -g pnpm && pnpm install && pnpm run build
+
           - script: |
               node run-tests.js --type unit
             displayName: 'Run tests'
