@@ -62,10 +62,6 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
 
-          - script: |
-              node run-tests.js --timings --write-timings --azure -g 1/1
-            displayName: 'Fetch test timing data'
-
   - stage: Test
     dependsOn: Build
     jobs:
