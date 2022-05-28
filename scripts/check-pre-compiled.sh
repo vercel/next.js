@@ -7,7 +7,7 @@ cp node_modules/webpack5/lib/hmr/JavascriptHotModuleReplacement.runtime.js bundl
 cp node_modules/webpack5/hot/lazy-compilation-node.js bundles/webpack/packages/
 cp node_modules/webpack5/hot/lazy-compilation-web.js bundles/webpack/packages/
 
-npm run ncc-compiled
+pnpm run ncc-compiled
 
 cd ../../
 
