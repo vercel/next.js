@@ -10,6 +10,7 @@ env:
   NAPI_CLI_VERSION: 2.7.0
   TURBO_VERSION: 1.2.9
   RUST_TOOLCHAIN: nightly-2022-02-23
+  PNPM_VERSION: 7.1.6
 
 jobs:
   check-examples:
@@ -49,7 +50,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: npm i -g pnpm
+      - run: npm i -g pnpm@${PNPM_VERSION}
       - run: pnpm install
       - run: pnpm run build
       - run: node run-tests.js --timings --write-timings -g 1/1
@@ -1056,7 +1057,7 @@ jobs:
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
-      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: turbo run build-native --cache-dir=".turbo" -- --release
@@ -1151,17 +1152,17 @@ jobs:
           - host: macos-latest
             target: 'x86_64-apple-darwin'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
@@ -1172,7 +1173,7 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}" &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1183,7 +1184,7 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}" &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
@@ -1194,7 +1195,7 @@ jobs:
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1205,7 +1206,7 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
@@ -1215,7 +1216,7 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1225,7 +1226,7 @@ jobs:
               export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
               export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
               export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
               ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1235,7 +1236,7 @@ jobs:
               export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
               export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
               export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
               ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1243,7 +1244,7 @@ jobs:
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}" &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
@@ -1252,7 +1253,7 @@ jobs:
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
@@ -1303,7 +1304,6 @@ jobs:
         with:
           node-version: 16
           check-latest: true
-          cache: pnpm
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -1438,7 +1438,7 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
       - name: Turbo cache
         id: turbo-cache
@@ -1484,7 +1484,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}

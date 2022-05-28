@@ -170,6 +170,7 @@
     "rimraf": "2.6.3",
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",
+    "semver": "7.3.7",
     "shell-quote": "1.7.3",
     "styled-components": "5.3.3",
     "styled-jsx-plugin-postcss": "3.0.2",

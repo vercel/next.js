@@ -130,6 +130,7 @@ importers:
       rimraf: 2.6.3
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
+      semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3
       styled-jsx-plugin-postcss: 3.0.2
@@ -268,6 +269,7 @@ importers:
       rimraf: 2.6.3
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
+      semver: 7.3.7
       shell-quote: 1.7.3
       styled-components: 5.3.3_mg42qvqxyojuro644naflvwmve
       styled-jsx-plugin-postcss: 3.0.2
@@ -4062,7 +4064,7 @@ packages:
       pify: 5.0.0
       protobufjs: 6.11.2
       rimraf: 3.0.2
-      semver: 7.3.5
+      semver: 7.3.7
       source-map: 0.7.3
       split: 1.0.1
     dev: true
@@ -4844,7 +4846,7 @@ packages:
       npm-package-arg: 8.1.0
       p-map: 4.0.0
       pacote: 11.2.6
-      semver: 7.3.5
+      semver: 7.3.7
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -4878,7 +4880,7 @@ packages:
       p-map-series: 2.1.0
       p-waterfall: 2.1.1
       read-package-tree: 5.3.1
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /@lerna/changed/4.0.0:
@@ -5010,7 +5012,7 @@ packages:
       npm-package-arg: 8.1.0
       npmlog: 4.1.2
       pify: 5.0.0
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /@lerna/create-symlink/4.0.0:
@@ -5044,7 +5046,7 @@ packages:
       p-reduce: 2.1.0
       pacote: 11.2.6
       pify: 5.0.0
-      semver: 7.3.5
+      semver: 7.3.7
       slash: 3.0.0
       validate-npm-package-license: 3.0.4
       validate-npm-package-name: 3.0.0
@@ -5188,7 +5190,7 @@ packages:
     engines: { node: '>= 10.18.0' }
     dependencies:
       '@lerna/child-process': 4.0.0
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /@lerna/import/4.0.0:
@@ -5408,7 +5410,7 @@ packages:
       '@lerna/validation-error': 4.0.0
       npm-package-arg: 8.1.0
       npmlog: 4.1.2
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /@lerna/package/4.0.0:
@@ -5430,7 +5432,7 @@ packages:
       }
     engines: { node: '>= 10.18.0' }
     dependencies:
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /@lerna/profiler/4.0.0:
@@ -5511,7 +5513,7 @@ packages:
       p-map: 4.0.0
       p-pipe: 3.1.0
       pacote: 11.2.6
-      semver: 7.3.5
+      semver: 7.3.7
     transitivePeerDependencies:
       - bluebird
       - encoding
@@ -5679,7 +5681,7 @@ packages:
       p-pipe: 3.1.0
       p-reduce: 2.1.0
       p-waterfall: 2.1.1
-      semver: 7.3.5
+      semver: 7.3.7
       slash: 3.0.0
       temp-write: 4.0.0
       write-json-file: 4.3.0
@@ -5846,7 +5848,7 @@ packages:
       npm-pick-manifest: 6.1.0
       promise-inflight: 1.0.1
       promise-retry: 1.1.1
-      semver: 7.3.5
+      semver: 7.3.7
       unique-filename: 1.1.1
       which: 2.0.2
     transitivePeerDependencies:
@@ -7769,7 +7771,7 @@ packages:
       eslint: 7.24.0
       functional-red-black-tree: 1.0.1
       regexpp: 3.1.0
-      semver: 7.3.5
+      semver: 7.3.7
       tsutils: 3.21.0_typescript@4.6.3
       typescript: 4.6.3
     transitivePeerDependencies:
@@ -7897,7 +7899,7 @@ packages:
       debug: 4.3.4
       globby: 11.1.0
       is-glob: 4.0.3
-      semver: 7.3.5
+      semver: 7.3.7
       tsutils: 3.21.0_typescript@4.6.3
       typescript: 4.6.3
     transitivePeerDependencies:
@@ -13953,7 +13955,7 @@ packages:
       optionator: 0.9.1
       progress: 2.0.3
       regexpp: 3.1.0
-      semver: 7.3.5
+      semver: 7.3.7
       strip-ansi: 6.0.1
       strip-json-comments: 3.1.1
       table: 6.8.0
@@ -16651,7 +16653,7 @@ packages:
       promzard: 0.3.0
       read: 1.0.7
       read-package-json: 3.0.0
-      semver: 7.3.5
+      semver: 7.3.7
       validate-npm-package-license: 3.0.4
       validate-npm-package-name: 3.0.0
     dev: true
@@ -18136,7 +18138,7 @@ packages:
       jest-util: 27.0.6
       natural-compare: 1.4.0
       pretty-format: 27.5.1
-      semver: 7.3.5
+      semver: 7.3.7
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -18804,7 +18806,7 @@ packages:
       normalize-package-data: 3.0.0
       npm-package-arg: 8.1.0
       npm-registry-fetch: 9.0.0
-      semver: 7.3.5
+      semver: 7.3.7
       ssri: 8.0.1
     transitivePeerDependencies:
       - bluebird
@@ -20705,7 +20707,7 @@ packages:
       npmlog: 4.1.2
       request: 2.88.2
       rimraf: 3.0.2
-      semver: 7.3.5
+      semver: 7.3.7
       tar: 6.1.11
       which: 2.0.2
     dev: true
@@ -20762,7 +20764,7 @@ packages:
     dependencies:
       growly: 1.3.0
       is-wsl: 2.2.0
-      semver: 7.3.5
+      semver: 7.3.7
       shellwords: 0.1.1
       uuid: 8.3.2
       which: 2.0.2
@@ -20910,7 +20912,7 @@ packages:
     dependencies:
       hosted-git-info: 3.0.8
       resolve: 1.22.0
-      semver: 7.3.5
+      semver: 7.3.7
       validate-npm-package-license: 3.0.4
     dev: true
 
@@ -20973,7 +20975,7 @@ packages:
       }
     engines: { node: '>=10' }
     dependencies:
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /npm-lifecycle/3.1.5:
@@ -21007,7 +21009,7 @@ packages:
     engines: { node: '>=10' }
     dependencies:
       hosted-git-info: 3.0.8
-      semver: 7.3.5
+      semver: 7.3.7
       validate-npm-package-name: 3.0.0
     dev: true
 
@@ -21044,7 +21046,7 @@ packages:
     dependencies:
       npm-install-checks: 4.0.0
       npm-package-arg: 8.1.0
-      semver: 7.3.5
+      semver: 7.3.7
     dev: true
 
   /npm-registry-fetch/9.0.0:
@@ -25480,6 +25482,17 @@ packages:
     hasBin: true
     dependencies:
       lru-cache: 6.0.0
+
+  /semver/7.3.7:
+    resolution:
+      {
+        integrity: sha512-QlYTucUYOews+WeEujDoEGziz4K6c47V/Bd+LjSSYcA94p+DmINdf7ncaUinThfvZyu13lN9OY1XDxt8C0Tw0g==,
+      }
+    engines: { node: '>=10' }
+    hasBin: true
+    dependencies:
+      lru-cache: 6.0.0
+    dev: true
 
   /send/0.17.1:
     resolution:
