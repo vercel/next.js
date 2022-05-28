@@ -47,14 +47,6 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          - task: Cache@2
-            inputs:
-              key: '"pnpm" | "$(Agent.OS)" | pnpm-lock.yaml'
-              restoreKeys: |
-                pnpm | "$(Agent.OS)"
-                pnpm
-              path: $(PNPM_CACHE_FOLDER)
-            displayName: Cache pnpm store
 
           - script: npm i -g pnpm
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
@@ -83,15 +75,6 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-
-          - task: Cache@2
-            inputs:
-              key: '"pnpm" | "$(Agent.OS)" | pnpm-lock.yaml'
-              restoreKeys: |
-                pnpm | "$(Agent.OS)"
-                pnpm
-              path: $(PNPM_CACHE_FOLDER)
-            displayName: Cache pnpm store
 
           - script: npm i -g pnpm
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
