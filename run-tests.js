@@ -228,7 +228,12 @@ async function main() {
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const children = new Set()
-  const jestPath = path.join(__dirname, 'node_modules', '.bin', 'jest')
+  const jestPath = path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `jest${process.platform === 'win32' ? '.CMD' : ''}`
+  )
 
   const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
