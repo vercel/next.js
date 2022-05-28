@@ -35,17 +35,12 @@ jobs:
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
       weekNum: ${{ steps.get-week.outputs.WEEK }}
     steps:
-      - uses: pnpm/action-setup@v2
-        with:
-          version: ${PNPM_VERSION}
-
       - name: Setup node
         uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
           node-version: 16
           check-latest: true
-          cache: 'pnpm'
 
       - uses: actions/checkout@v3
         with:
@@ -55,6 +50,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
       - run: pnpm install
       - run: pnpm run build
       - run: node run-tests.js --timings --write-timings -g 1/1
