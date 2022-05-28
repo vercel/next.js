@@ -60,7 +60,8 @@ jobs:
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
           key: pnpm-store-${{ github.sha }}
-          restore-keys: pnpm-store-
+          restore-keys: |
+            pnpm-store-
             pnpm-store-${{ github.sha }}
 
       - run: pnpm install
