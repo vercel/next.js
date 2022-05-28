@@ -77,7 +77,7 @@ stages:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
-          - script: npm i -g pnpm
+          - script: npm i -g pnpm@$(PNPM_VERSION)
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
           - script: pnpm store path
 
