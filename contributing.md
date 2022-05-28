@@ -30,19 +30,19 @@ To develop locally:
    ```
    git checkout -b MY_BRANCH_NAME
    ```
-3. Install yarn:
+3. Install pnpm:
    ```
-   npm install -g yarn
+   npm install -g pnpm
    ```
 4. Install the dependencies with:
    ```
-   yarn
+   pnpm install
    ```
 5. Start developing and watch for code changes:
    ```
-   yarn dev
+   pnpm run dev
    ```
-6. In a new terminal, run `yarn types` to compile declaration files from
+6. In a new terminal, run `pnpm run types` to compile declaration files from
    TypeScript.
 
    _Note: You may need to repeat this step if your types get outdated._
@@ -56,9 +56,9 @@ below. (Naively linking the binary is not sufficient to develop locally.)
 You can build the project, including all type definitions, with:
 
 ```bash
-yarn build
+pnpm run build
 # - or -
-yarn prepublish
+pnpm run prepublish
 ```
 
 By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.
@@ -74,25 +74,25 @@ See the [testing readme](./test/readme.md) for information on writing tests.
 ### Running tests
 
 ```sh
-yarn testonly
+pnpm run testonly
 ```
 
 If you would like to run the tests in headless mode (with the browser windows hidden) you can do
 
 ```sh
-yarn testheadless
+pnpm run testheadless
 ```
 
 Running a specific test suite (e.g. `production`) inside of the `test/integration` directory:
 
 ```sh
-yarn testonly --testPathPattern "production"
+pnpm run testonly --testPathPattern "production"
 ```
 
 Running one test in the `production` test suite:
 
 ```sh
-yarn testonly --testPathPattern "production" -t "should allow etag header support"
+pnpm run testonly --testPathPattern "production" -t "should allow etag header support"
 ```
 
 ### Linting
@@ -100,13 +100,13 @@ yarn testonly --testPathPattern "production" -t "should allow etag header suppor
 To check the formatting of your code:
 
 ```sh
-yarn lint
+pnpm run lint
 ```
 
 If you get errors, you can fix them with:
 
 ```sh
-yarn lint-fix
+pnpm run lint-fix
 ```
 
 ### Running the example apps
@@ -114,9 +114,9 @@ yarn lint-fix
 Running examples can be done with:
 
 ```sh
-yarn next ./test/integration/basic
+pnpm run next ./test/integration/basic
 # OR
-yarn next ./examples/basic-css/
+pnpm run next ./examples/basic-css/
 ```
 
 To figure out which pages are available for the given example, you can run:
