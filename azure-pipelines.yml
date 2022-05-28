@@ -74,7 +74,6 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - checkout: none
           - script: |
               wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
             displayName: 'List Chrome version'
