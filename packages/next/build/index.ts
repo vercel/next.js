@@ -1447,32 +1447,36 @@ export default async function build(
             }
 
             const root = path.parse(dir).root
-            const serverResult = await nodeFileTrace(
-              [require.resolve('next/dist/server/next-server')],
-              {
-                base: root,
-                processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
-              }
-            )
+            const toTrace = [require.resolve('next/dist/server/next-server')]
+
+            // ensure we trace any dependencies needed for custom
+            // incremental cache handler
+            if (config.experimental.incrementalCacheHandlerPath) {
+              toTrace.push(
+                require.resolve(config.experimental.incrementalCacheHandlerPath)
+              )
+            }
+            const serverResult = await nodeFileTrace(toTrace, {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ],
+            })
 
             const tracedFiles = new Set()
 
