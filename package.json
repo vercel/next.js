@@ -47,6 +47,7 @@
   },
   "pre-commit": "lint-staged",
   "devDependencies": {
+    "@babel/core": "7.15.0",
     "@babel/eslint-parser": "7.15.0",
     "@babel/parser": "7.12.11",
     "@babel/plugin-proposal-object-rest-spread": "7.14.7",

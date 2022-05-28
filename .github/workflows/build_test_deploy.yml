@@ -41,6 +41,7 @@ jobs:
         with:
           node-version: 16
           check-latest: true
+          cache: 'pnpm'
 
       - uses: actions/checkout@v3
         with:

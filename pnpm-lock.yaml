@@ -7,6 +7,7 @@ overrides:
 importers:
   .:
     specifiers:
+      '@babel/core': 7.15.0
       '@babel/eslint-parser': 7.15.0
       '@babel/parser': 7.12.11
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
@@ -146,6 +147,7 @@ importers:
       webpack-bundle-analyzer: 4.3.0
       worker-loader: 3.0.7
     devDependencies:
+      '@babel/core': 7.17.5
       '@babel/eslint-parser': 7.15.0_zfufu2skozopumvzuksw2qh3pm
       '@babel/parser': 7.12.11
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.17.5
@@ -7923,7 +7925,7 @@ packages:
       debug: 4.3.4
       globby: 11.1.0
       is-glob: 4.0.3
-      semver: 7.3.5
+      semver: 7.3.7
       tsutils: 3.21.0_typescript@4.6.3
       typescript: 4.6.3
     transitivePeerDependencies:
@@ -14007,7 +14009,7 @@ packages:
       optionator: 0.9.1
       progress: 2.0.3
       regexpp: 3.1.0
-      semver: 7.3.5
+      semver: 7.3.7
       strip-ansi: 6.0.1
       strip-json-comments: 3.1.1
       table: 6.8.0
@@ -25482,6 +25484,7 @@ packages:
     hasBin: true
     dependencies:
       lru-cache: 6.0.0
+    dev: true
 
   /semver/7.3.7:
     resolution:
@@ -25492,7 +25495,6 @@ packages:
     hasBin: true
     dependencies:
       lru-cache: 6.0.0
-    dev: true
 
   /send/0.17.1:
     resolution:
