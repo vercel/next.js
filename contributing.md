@@ -58,7 +58,7 @@ You can build the project, including all type definitions, with:
 ```bash
 pnpm build
 # - or -
-pnpm prepublish
+pnpm prepublishOnly
 ```
 
 By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.

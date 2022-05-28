@@ -19,7 +19,7 @@
     "lib/cra-to-next/gitignore"
   ],
   "scripts": {
-    "prepublish": "yarn tsc -d -p tsconfig.json",
+    "prepublishOnly": "yarn tsc -d -p tsconfig.json",
     "dev": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
