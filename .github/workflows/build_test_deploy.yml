@@ -103,13 +103,15 @@ jobs:
           node-version: 16
           check-latest: true
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+
       - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
       - run: ./scripts/check-manifests.js
-      - run: yarn lint
+      - run: pnpm lint
 
   rust-check:
     runs-on: ubuntu-latest
@@ -756,7 +758,8 @@ jobs:
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       # test rsc hydration on firefox due to limited support of TransformStream api
-      - run: xvfb-run yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
+      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: xvfb-run pnpm testheadless test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -1412,8 +1415,8 @@ jobs:
             whoami
             env
             freebsd-version
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-            yarn --cwd packages/next-swc build-native --release --target x86_64-unknown-freebsd
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+            pnpm --filter=@next/swc build-native --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
