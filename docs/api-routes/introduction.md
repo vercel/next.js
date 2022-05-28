@@ -59,6 +59,7 @@ For new projects, you can build your entire API with API Routes. If you have an 
 
 - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
 - API Routes can't be used with [`next export`](/docs/advanced-features/static-html-export.md)
+- API Routes don't fully support file system interactions, such as reading files (https://github.com/vercel/next.js/discussions/32236). There are workarounds (https://github.com/vercel/next.js/discussions/32236#discussioncomment-2572290), but it's best to avoid interacting with the file system altogether.
 
 ## Related
 
