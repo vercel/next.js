@@ -61,11 +61,11 @@ pnpm build
 pnpm prepublishOnly
 ```
 
-By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `pnpm --filter=next-swc build-native`.
 
-If you want to test out the wasm build locally, you will need to [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Run `yarn --cwd packages/next-swc build-wasm --target <wasm_target>` to build and `node ./scripts/setup-wasm.mjs` to copy it into your `node_modules`. Run next with `NODE_OPTIONS='--no-addons'` to force it to use the wasm binary.
+If you want to test out the wasm build locally, you will need to [install wasm-pack](https://rustwasm.github.io/wasm-pack/installer/). Run `pnpm --filter=next-swc build-wasm --target <wasm_target>` to build and `node ./scripts/setup-wasm.mjs` to copy it into your `node_modules`. Run next with `NODE_OPTIONS='--no-addons'` to force it to use the wasm binary.
 
-If you need to clean the project for any reason, use `yarn clean`.
+If you need to clean the project for any reason, use `pnpm clean`.
 
 ## Testing
 
@@ -173,12 +173,12 @@ There are two options to develop with your local version of the codebase:
 5. To update your app's dependencies, after you've made changes to your local `next` repository. In your app's root directory, run:
 
    ```sh
-   yarn install --force
+   pnpm install --force
    ```
 
 #### Troubleshooting
 
-- If you see the below error while running `yarn dev` with next:
+- If you see the below error while running `pnpm dev` with next:
 
 ```
 Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
@@ -199,11 +199,11 @@ Try to add the below section to your `package.json`, then run again
 
 1. Move your app inside of the Next.js monorepo.
 
-2. Run with `yarn next-with-deps ./app-path-in-monorepo`
+2. Run with `pnpm next-with-deps ./app-path-in-monorepo`
 
 This will use the version of `next` built inside of the Next.js monorepo and the
-main `yarn dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take effect).
+main `pnpm dev` monorepo command can be running to make changes to the local
+Next.js version at the same time (some changes might require re-running `pnpm next-with-deps` to take effect).
 
 ## Updating documentation paths
 
@@ -256,7 +256,7 @@ In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 
-1. Run `yarn new-error` which will create the error document and update the manifest automatically.
+1. Run `pnpm new-error` which will create the error document and update the manifest automatically.
 2. Add the following url to your warning/error:
    `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
 
