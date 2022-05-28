@@ -107,7 +107,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (!actionInfo.skipClone) {
         let buildCommand = `cd ${dir}${
           !statsConfig.skipInitialInstall
-            ? ' && yarn install --network-timeout 1000000'
+            ? ' && pnpm install --network-timeout 1000000'
             : ''
         }`
 

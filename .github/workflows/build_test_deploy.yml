@@ -49,7 +49,8 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: npm i -g pnpm
+      - run: pnpm install
       - run: node run-tests.js --timings --write-timings -g 1/1
       - run: node ./scripts/fetch-tags.mjs ${{ github.sha }}
 
@@ -1301,7 +1302,7 @@ jobs:
         with:
           node-version: 16
           check-latest: true
-          cache: yarn
+          cache: pnpm
 
       - name: Install
         uses: actions-rs/toolchain@v1
