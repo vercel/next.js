@@ -26,7 +26,7 @@ npx create-next-app@latest
 # or
 yarn create next-app
 # or
-pnpm create next-app
+npm create next-app
 ```
 
 If you want to start with a TypeScript project you can use the `--typescript` flag:
