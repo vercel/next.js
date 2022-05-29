@@ -92,7 +92,7 @@ type PreflightEffect =
   | { type: 'refresh' }
   | { type: 'next' }
 
-type HistoryState =
+export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; key: string } & NextHistoryState)
@@ -642,6 +642,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
+  isFirstPopStateEvent = true
 
   private state: Readonly<{
     route: string
@@ -797,6 +798,9 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
+    const { isFirstPopStateEvent } = this
+    this.isFirstPopStateEvent = false
+
     const state = e.state as HistoryState
 
     if (!state) {
@@ -819,6 +823,15 @@ export default class Router implements BaseRouter {
     }
 
     if (!state.__N) {
+      return
+    }
+
+    // Safari fires popstateevent when reopening the browser.
+    if (
+      isFirstPopStateEvent &&
+      this.locale === state.options.locale &&
+      state.as === this.asPath
+    ) {
       return
     }
 

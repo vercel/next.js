@@ -385,6 +385,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       reactRoot: nextConfig.experimental.reactRoot || false,
+      largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
