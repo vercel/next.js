@@ -41,4 +41,4 @@ The following solutions are compatible with Next.js streaming:
 - [CSS Modules](/docs/basic-features/built-in-css-support.md#adding-component-level-css)
 - [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js)
 
-CSS-in-JS solutions like `styled-components` and `emotion` are not currently not compatible with streaming. For library authors, check out the [upgrade guide](https://github.com/reactwg/react-18/discussions/110) to learn more.
+CSS-in-JS solutions like `styled-components` and `emotion` are currently not compatible with streaming. For library authors, check out the [upgrade guide](https://github.com/reactwg/react-18/discussions/110) to learn more.
