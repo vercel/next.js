@@ -99,7 +99,10 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
         new S3Client().send(new AbortMultipartUploadCommand({}))
       `
     )
-    await expect(next.start()).rejects.toThrow()
+    // this previously threw from a module not found error
+    // although this is fixed now
+    await next.start()
+
     expect(next.cliOutput).not.toContain(
       `./node_modules/@aws-sdk/smithy-client/dist-es/lazy-json.js`
     )

@@ -52,9 +52,14 @@ describe('views dir', () => {
     expect(html).toContain('hello world')
   })
 
-  it('should serve from root', async () => {
+  it('should serve from app', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard')
     expect(html).toContain('hello from root/dashboard')
+  })
+
+  it('should serve /index as separate page', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/index')
+    expect(html).toContain('hello from root/dashboard/index')
   })
 
   it('should include layouts when no direct parent layout', async () => {

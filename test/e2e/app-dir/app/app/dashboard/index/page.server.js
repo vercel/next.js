@@ -1,7 +1,7 @@
-export default function DashboardPage(props) {
+export default function DashboardIndexPage() {
   return (
     <>
-      <p>hello from root/dashboard</p>
+      <p>hello from root/dashboard/index</p>
     </>
   )
 }
