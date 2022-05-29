@@ -355,6 +355,15 @@ export async function renderToHTML(
     // }
   }
 
+  const AppRouter = ComponentMod.AppRouter
+  const WrappedComponentWithRouter = () => {
+    return (
+      <AppRouter initialUrl={req.url}>
+        <WrappedComponent />
+      </AppRouter>
+    )
+  }
+
   const bootstrapScripts = !isSubtreeRender
     ? buildManifest.rootMainFiles.map((src) => '/_next/' + src)
     : undefined
@@ -368,7 +377,7 @@ export async function renderToHTML(
   const search = stringifyQuery(query)
 
   const Component = createServerComponentRenderer(
-    WrappedComponent,
+    WrappedComponentWithRouter,
     ComponentMod,
     {
       cachePrefix: pathname + (search ? `?${search}` : ''),
@@ -393,7 +402,7 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        <WrappedComponent />,
+        <WrappedComponentWithRouter />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
