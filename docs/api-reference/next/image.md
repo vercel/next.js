@@ -55,7 +55,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width
 
 When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
-The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `width` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ### height
 
@@ -65,7 +65,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `heigh
 
 When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
-The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `height` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 

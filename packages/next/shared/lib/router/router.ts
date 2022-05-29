@@ -7,10 +7,8 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
-import {
-  normalizePathTrailingSlash,
-  removePathTrailingSlash,
-} from '../../../client/normalize-trailing-slash'
+import { normalizePathTrailingSlash } from '../../../client/normalize-trailing-slash'
+import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
   isAssetError,
@@ -434,7 +432,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removePathTrailingSlash(denormalizePagePath(pathname!))
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
 
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
@@ -450,7 +448,7 @@ function resolveDynamicRoute(pathname: string, pages: string[]) {
       }
     })
   }
-  return removePathTrailingSlash(pathname)
+  return removeTrailingSlash(pathname)
 }
 
 export type BaseRouter = {
@@ -697,7 +695,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // represents the current component key
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -1146,9 +1144,7 @@ export default class Router implements BaseRouter {
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
     // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname
-      ? removePathTrailingSlash(delBasePath(pathname))
-      : pathname
+    pathname = pathname ? removeTrailingSlash(delBasePath(pathname)) : pathname
 
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1209,7 +1205,7 @@ export default class Router implements BaseRouter {
     if (
       (!options.shallow || (options as any)._h === 1) &&
       ((options as any)._h !== 1 ||
-        isDynamicRoute(removePathTrailingSlash(pathname)))
+        isDynamicRoute(removeTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1238,7 +1234,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1846,7 +1842,7 @@ export default class Router implements BaseRouter {
       url = formatWithValidation(parsed)
     }
 
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg: boolean) => {
@@ -1998,7 +1994,7 @@ export default class Router implements BaseRouter {
         ).pathname
       )
 
-      const fsPathname = removePathTrailingSlash(parsed.pathname)
+      const fsPathname = removeTrailingSlash(parsed.pathname)
 
       let matchedPage
       let resolvedHref
@@ -2028,7 +2024,7 @@ export default class Router implements BaseRouter {
 
     if (preflight.redirect) {
       if (preflight.redirect.startsWith('/')) {
-        const cleanRedirect = removePathTrailingSlash(
+        const cleanRedirect = removeTrailingSlash(
           normalizeLocalePath(
             hasBasePath(preflight.redirect)
               ? delBasePath(preflight.redirect)

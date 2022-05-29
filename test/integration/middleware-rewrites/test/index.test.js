@@ -65,11 +65,18 @@ describe('Middleware Rewrite', () => {
   })
 })
 
-function tests(context, locale = '') {
+function tests(context) {
+  it('includes the locale in rewrites by default', async () => {
+    const res = await fetchViaHTTP(context.appPort, `/rewrite-me-to-about`)
+    expect(
+      res.headers.get('x-middleware-rewrite')?.endsWith('/default/about')
+    ).toEqual(true)
+  })
+
   it('should override with rewrite internally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      `${locale}/about`,
+      `/about`,
       { override: 'internal' },
       { redirect: 'manual' }
     )
@@ -77,15 +84,13 @@ function tests(context, locale = '') {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Welcome Page A')
 
-    const browser = await webdriver(context.appPort, `${locale}`)
+    const browser = await webdriver(context.appPort, ``)
     await browser.elementByCss('#override-with-internal-rewrite').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
       /Welcome Page A/
     )
-    expect(await browser.eval('window.location.pathname')).toBe(
-      `${locale || ''}/about`
-    )
+    expect(await browser.eval('window.location.pathname')).toBe(`/about`)
     expect(await browser.eval('window.location.search')).toBe(
       '?override=internal'
     )
@@ -94,7 +99,7 @@ function tests(context, locale = '') {
   it('should override with rewrite externally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      `${locale}/about`,
+      `/about`,
       { override: 'external' },
       { redirect: 'manual' }
     )
@@ -102,16 +107,13 @@ function tests(context, locale = '') {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
 
-    const browser = await webdriver(context.appPort, `${locale}`)
+    const browser = await webdriver(context.appPort, ``)
     await browser.elementByCss('#override-with-external-rewrite').click()
     await check(
       () => browser.eval('document.documentElement.innerHTML'),
       /Example Domain/
     )
-    await check(
-      () => browser.eval('window.location.pathname'),
-      `${locale || ''}/about`
-    )
+    await check(() => browser.eval('window.location.pathname'), `/about`)
     await check(
       () => browser.eval('window.location.search'),
       '?override=external'
@@ -120,18 +122,12 @@ function tests(context, locale = '') {
 
   it('should rewrite to fallback: true page successfully', async () => {
     const randomSlug = `another-${Date.now()}`
-    const res2 = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/to-blog/${randomSlug}`
-    )
+    const res2 = await fetchViaHTTP(context.appPort, `/to-blog/${randomSlug}`)
     expect(res2.status).toBe(200)
     expect(await res2.text()).toContain('Loading...')
 
     const randomSlug2 = `another-${Date.now()}`
-    const browser = await webdriver(
-      context.appPort,
-      `${locale}/to-blog/${randomSlug2}`
-    )
+    const browser = await webdriver(context.appPort, `/to-blog/${randomSlug2}`)
 
     await check(async () => {
       const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -142,7 +138,7 @@ function tests(context, locale = '') {
   })
 
   it(`warns about a query param deleted`, async () => {
-    await fetchViaHTTP(context.appPort, `${locale}/clear-query-params`, {
+    await fetchViaHTTP(context.appPort, `/clear-query-params`, {
       a: '1',
       allowed: 'kept',
     })

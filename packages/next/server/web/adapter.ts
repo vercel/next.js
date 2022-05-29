@@ -6,6 +6,7 @@ import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { waitUntilSymbol } from './spec-compliant/fetch-event'
+import { NextURL } from './next-url'
 
 export async function adapter(params: {
   handler: NextMiddleware
@@ -28,6 +29,32 @@ export async function adapter(params: {
 
   const event = new NextFetchEvent({ request, page: params.page })
   const response = await params.handler(request, event)
+
+  /**
+   * For rewrites we must always include the locale in the final pathname
+   * so we re-create the NextURL forcing it to include it when the it is
+   * an internal rewrite.
+   */
+  if (response?.headers.has('x-middleware-rewrite')) {
+    const url = new NextURL(response.headers.get('x-middleware-rewrite')!, {
+      forceLocale: true,
+      headers: params.request.headers,
+      nextConfig: params.request.nextConfig,
+    })
+
+    if (url.host === request.nextUrl.host) {
+      response.headers.set(
+        'x-middleware-rewrite',
+        String(
+          new NextURL(response.headers.get('x-middleware-rewrite')!, {
+            forceLocale: true,
+            headers: params.request.headers,
+            nextConfig: params.request.nextConfig,
+          })
+        )
+      )
+    }
+  }
 
   return {
     response: response || NextResponse.next(),

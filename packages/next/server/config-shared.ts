@@ -83,6 +83,8 @@ export interface ExperimentalConfig {
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
+  // custom path to a cache handler to use
+  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -132,6 +134,7 @@ export interface ExperimentalConfig {
   >
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
+  swcPlugins?: Array<[string, Record<string, unknown>]>
 }
 
 /**

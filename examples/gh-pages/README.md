@@ -4,14 +4,14 @@ This example shows the most basic idea behind Next. We have 2 pages: `pages/inde
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example gh-pages gh-pages-app
 # or
 yarn create next-app --example gh-pages gh-pages-app
 # or
-pnpm create next-app -- --example gh-pages gh-pages-app
+pnpm create next-app --example gh-pages gh-pages-app
 ```
 
 ### Deploy it to github
