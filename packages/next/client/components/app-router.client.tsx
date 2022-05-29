@@ -1,6 +1,6 @@
 import React from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
-import { RouterContext } from '../../shared/lib/router-context'
+import { AppRouterContext } from '../../shared/lib/app-router-context'
 
 function createResponseCache() {
   return new Map<string, any>()
@@ -67,8 +67,8 @@ export default function AppRouter({ initialUrl, children }: any) {
     root = data.readRoot()
   }
   return (
-    <RouterContext.Provider value={appRouter}>
+    <AppRouterContext.Provider value={appRouter}>
       {root ? root : children}
-    </RouterContext.Provider>
+    </AppRouterContext.Provider>
   )
 }

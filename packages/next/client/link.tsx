@@ -10,6 +10,7 @@ import {
   resolveHref,
 } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
 
 type Url = string | UrlObject
@@ -269,7 +270,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    const router = React.useContext(RouterContext)
+    let router = React.useContext(RouterContext)
+
+    const appRouter = React.useContext(AppRouterContext)
+    if (appRouter) {
+      router = appRouter
+    }
 
     const { href, as } = React.useMemo(() => {
       const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
