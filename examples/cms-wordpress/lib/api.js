@@ -75,7 +75,7 @@ export async function getAllPostsForHome(preview) {
               }
             }
             author {
-              node{
+              node {
                 name
                 firstName
                 lastName
@@ -125,12 +125,12 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
       slug
       date
       featuredImage {
-        node{
+        node {
           sourceUrl
         }
       }
       author {
-        node{
+        node {
           ...AuthorFields
         }
       }
@@ -164,7 +164,7 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
               excerpt
               content
               author {
-                node{
+                node {
                   ...AuthorFields
                 }
               }
