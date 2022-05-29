@@ -280,10 +280,14 @@ export async function ncc_react_refresh_utils(task, opts) {
     join(__dirname, 'dist/compiled/react-refresh')
   )
 
-  const srcDir = dirname(
-    require.resolve('@next/react-refresh-utils/package.json')
+  const srcDir = join(
+    dirname(require.resolve('@next/react-refresh-utils/package.json')),
+    'dist'
   )
-  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
+  const destDir = join(
+    __dirname,
+    'dist/compiled/@next/react-refresh-utils/dist'
+  )
   await fs.remove(destDir)
   await fs.ensureDir(destDir)
 
@@ -300,7 +304,7 @@ export async function ncc_react_refresh_utils(task, opts) {
       outputFile,
       content.replace(
         /react-refresh\/runtime/g,
-        'next/dist/compiled/react-refresh/dist/runtime'
+        'next/dist/compiled/react-refresh/runtime'
       )
     )
   }
