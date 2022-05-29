@@ -1553,11 +1553,12 @@ jobs:
         if: "${{ env.TRACE_API_KEY != '' }}"
         run: echo "::set-output name=defined::true"
   build-performance-metrics:
-    # trigger ci
     name: Performance Metrics for Release Build
     runs-on: ubuntu-latest
     needs: [build, build-native-test, check-trace-secrests]
     if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
