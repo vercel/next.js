@@ -1616,6 +1616,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         isManualRevalidate,
+        isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
 
