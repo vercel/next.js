@@ -1,6 +1,5 @@
 import findUp from 'next/dist/compiled/find-up'
-import fs from 'fs'
-import JSON5 from 'next/dist/compiled/json5'
+import { importDefaultInterop } from './import-interop'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
@@ -16,7 +15,7 @@ export async function findConfig<T>(
   // `package.json` configuration always wins. Let's check that first.
   const packageJsonPath = await findUp('package.json', { cwd: directory })
   if (packageJsonPath) {
-    const packageJson = require(packageJsonPath)
+    const packageJson = await importDefaultInterop(packageJsonPath)
     if (packageJson[key] != null && typeof packageJson[key] === 'object') {
       return packageJson[key]
     }
@@ -35,15 +34,9 @@ export async function findConfig<T>(
       cwd: directory,
     }
   )
-  if (filePath) {
-    if (filePath.endsWith('.js')) {
-      return require(filePath)
-    }
 
-    // We load JSON contents with JSON5 to allow users to comment in their
-    // configuration file. This pattern was popularized by TypeScript.
-    const fileContents = fs.readFileSync(filePath, 'utf8')
-    return JSON5.parse(fileContents)
+  if (filePath) {
+    return importDefaultInterop(filePath)
   }
 
   return null
