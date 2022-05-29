@@ -353,7 +353,7 @@ export async function renderToHTML(
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
     return (
-      <AppRouter initialUrl={'/'}>
+      <AppRouter initialUrl={req.url}>
         <WrappedComponent />
       </AppRouter>
     )
