@@ -5,7 +5,7 @@ import {
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -24,7 +24,7 @@ export function getPagePath(
   serverless: boolean,
   dev?: boolean,
   locales?: string[],
-  rootEnabled?: boolean
+  appDirEnabled?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
@@ -32,11 +32,11 @@ export function getPagePath(
   )
   let rootPathsManifest: undefined | PagesManifest
 
-  if (rootEnabled) {
+  if (appDirEnabled) {
     if (page === '/_root') {
       return join(serverBuildPath, 'root.js')
     }
-    rootPathsManifest = require(join(serverBuildPath, VIEW_PATHS_MANIFEST))
+    rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
     serverBuildPath,
@@ -84,7 +84,7 @@ export function requirePage(
   page: string,
   distDir: string,
   serverless: boolean,
-  rootEnabled?: boolean
+  appDirEnabled?: boolean
 ): any {
   const pagePath = getPagePath(
     page,
@@ -92,7 +92,7 @@ export function requirePage(
     serverless,
     false,
     undefined,
-    rootEnabled
+    appDirEnabled
   )
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')

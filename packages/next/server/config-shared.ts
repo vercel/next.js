@@ -83,6 +83,8 @@ export interface ExperimentalConfig {
   browsersListForSwc?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
+  // custom path to a cache handler to use
+  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -99,7 +101,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
-  viewsDir?: boolean
+  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -143,6 +145,8 @@ export interface ExperimentalConfig {
     compress?: object
     mangle?: object
   }
+  swcPlugins?: Array<[string, Record<string, unknown>]>
+  largePageDataBytes?: number
 }
 
 /**
@@ -512,7 +516,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
-    viewsDir: false,
+    appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
@@ -524,6 +528,7 @@ export const defaultConfig: NextConfig = {
       remotePatterns: [],
     },
     forceSwcTransforms: false,
+    largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
 
