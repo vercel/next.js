@@ -135,6 +135,7 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
   swcPlugins?: Array<[string, Record<string, unknown>]>
+  largePageDataBytes?: number
 }
 
 /**
@@ -516,6 +517,7 @@ export const defaultConfig: NextConfig = {
       remotePatterns: [],
     },
     forceSwcTransforms: false,
+    largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
 

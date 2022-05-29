@@ -177,6 +177,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     reactRoot: boolean
+    largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
   private incrementalCache: IncrementalCache
@@ -327,6 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       reactRoot: this.nextConfig.experimental.reactRoot === true,
+      largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
