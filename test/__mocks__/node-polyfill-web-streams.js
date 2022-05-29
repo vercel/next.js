@@ -1,4 +1,5 @@
-const Primitives = require('@edge-runtime/primitives').default
+const Primitives =
+  require('next/dist/compiled/@edge-runtime/primitives').default
 
 const OriginWritableStreamWrite =
   Primitives.WritableStreamDefaultWriter.prototype.write

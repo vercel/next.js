@@ -1,4 +1,4 @@
-import Primitives from '@edge-runtime/primitives'
+import Primitives from 'next/dist/compiled/@edge-runtime/primitives'
 import type { IncomingMessage } from 'http'
 import { Readable } from 'stream'
 

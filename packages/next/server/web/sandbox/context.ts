@@ -1,7 +1,7 @@
-import type { Primitives } from '@edge-runtime/primitives'
+import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
-import { EdgeRuntime } from 'edge-runtime'
+import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 

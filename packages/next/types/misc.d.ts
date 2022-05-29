@@ -324,6 +324,16 @@ declare module 'next/dist/compiled/process' {
   export = m
 }
 
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
+  export = m
+}
+
 declare module 'pnp-webpack-plugin' {
   import webpack from 'webpack4'
 
