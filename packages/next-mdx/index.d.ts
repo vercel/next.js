@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { NextConfig } from 'next'
 import { CompileOptions } from '@mdx-js/mdx'
 import { RuleSetConditionAbsolute } from 'webpack'
@@ -29,3 +30,4 @@ interface NextMDXOptions {
 declare function nextMDX(options?: NextMDXOptions): WithMDX
 
 export = nextMDX
+/* eslint=enable */

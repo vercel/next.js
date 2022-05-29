@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig-tsec.json",
-  "compilerOptions": {
-    "strict": true,
-    "module": "commonjs",
-    "target": "es2017",
-    "moduleResolution": "node"
-  }
-}
