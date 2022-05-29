@@ -268,10 +268,12 @@ Below are the steps to add a new link:
 When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples)
-- Examples should not add custom eslint configuration (we have specific templates for eslint)
+- Examples should not add custom ESLint configuration (we have specific templates for ESLint)
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
+- In `package.json` the version of `next` (and `eslint-config-next`) should be `latest`
+- In `package.json` the dependency versions should be up-to-date
 
 Also don’t forget to add a `README.md` file with the following format:
 
@@ -298,14 +300,14 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 # or
 yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 # or
-pnpm create next-app -- --example DIRECTORY_NAME DIRECTORY_NAME-app
+pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

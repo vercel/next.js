@@ -7,10 +7,11 @@ import type {
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
 
 type RouteResult = {
@@ -41,24 +42,6 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 export type PageChecker = (pathname: string) => Promise<boolean>
 
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
-
-export function hasBasePath(pathname: string, basePath: string): boolean {
-  return (
-    typeof pathname === 'string' &&
-    (pathname === basePath || pathname.startsWith(basePath + '/'))
-  )
-}
-
-export function replaceBasePath(pathname: string, basePath: string): string {
-  // ensure basePath is only stripped if it matches exactly
-  // and doesn't contain extra chars e.g. basePath /docs
-  // should replace for /docs, /docs/, /docs/a but not /docsss
-  if (hasBasePath(pathname, basePath)) {
-    pathname = pathname.slice(basePath.length)
-    if (!pathname.startsWith('/')) pathname = `/${pathname}`
-  }
-  return pathname
-}
 
 export default class Router {
   basePath: string
@@ -162,7 +145,7 @@ export default class Router {
 
       const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
         const originalFsPathname = checkParsedUrl.pathname
-        const fsPathname = replaceBasePath(originalFsPathname!, this.basePath)
+        const fsPathname = removePathPrefix(originalFsPathname!, this.basePath)
 
         for (const fsRoute of this.fsRoutes) {
           const fsParams = fsRoute.match(fsPathname)
@@ -248,7 +231,7 @@ export default class Router {
                   parsedCheckerUrl
                 ) => {
                   let { pathname } = parsedCheckerUrl
-                  pathname = removePathTrailingSlash(pathname || '/')
+                  pathname = removeTrailingSlash(pathname || '/')
 
                   if (!pathname) {
                     return { finished: false }
@@ -313,7 +296,7 @@ export default class Router {
           isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
         const keepLocale = isCustomRoute
 
-        const currentPathnameNoBasePath = replaceBasePath(
+        const currentPathnameNoBasePath = removePathPrefix(
           currentPathname,
           this.basePath
         )
