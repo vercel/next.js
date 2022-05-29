@@ -9,7 +9,7 @@ import {
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
-import { useRouter } from './router'
+import { RouterContext } from '../shared/lib/router-context'
 import { useIntersection } from './use-intersection'
 
 type Url = string | UrlObject
@@ -269,7 +269,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    const router = useRouter()
+    const router = React.useContext(RouterContext)
 
     const { href, as } = React.useMemo(() => {
       const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
