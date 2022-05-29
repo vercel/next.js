@@ -145,6 +145,39 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['@edge-runtime/primitives'] =
+  'next/dist/compiled/@edge-runtime/primitives'
+
+export async function ncc_edge_runtime_primitives() {
+  // `@edge-runtime/primitives` is precompiled and pre-bundled
+  // so we vendor the package as it is.
+  const dest = 'compiled/@edge-runtime/primitives'
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/primitives/package.json')
+  )
+  await fs.remove(dest)
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: '@edge-runtime/primitives',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives'),
+    join(dest, 'index.js')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['edge-runtime'] = 'next/dist/compiled/edge-runtime'
+export async function ncc_edge_runtime(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
+    .ncc({ packageName: 'edge-runtime', externals })
+    .target('compiled/edge-runtime')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_next__react_dev_overlay(task, opts) {
   const overlayExternals = {
     ...externals,
@@ -1623,6 +1656,8 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',
+        'ncc_edge_runtime_primitives',
+        'ncc_edge_runtime',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',

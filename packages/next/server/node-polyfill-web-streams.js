@@ -1,4 +1,4 @@
-import Primitives from '@edge-runtime/primitives'
+import Primitives from 'next/dist/compiled/@edge-runtime/primitives'
 
 // Polyfill Web Streams for the Node.js runtime.
 if (!global.ReadableStream) {
