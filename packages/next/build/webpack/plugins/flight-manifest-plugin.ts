@@ -93,16 +93,41 @@ export class FlightManifestPlugin {
           : `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const moduleExportedKeys = ['', '*'].concat(
-          [...exportsInfo.exports]
-            .map((exportInfo) => {
+        const cjsExports = [
+          ...new Set(
+            [].concat(
+              mod.dependencies.map((dep: any) => {
+                // Match CommonJsSelfReferenceDependency
+                if (dep.type === 'cjs self exports reference') {
+                  // `module.exports = ...`
+                  if (dep.base === 'module.exports') {
+                    return 'default'
+                  }
+
+                  // `exports.foo = ...`, `exports.default = ...`
+                  if (dep.base === 'exports') {
+                    return dep.names.filter(
+                      (name: any) => name !== '__esModule'
+                    )
+                  }
+                }
+                return null
+              })
+            )
+          ),
+        ]
+
+        const moduleExportedKeys = ['', '*']
+          .concat(
+            [...exportsInfo.exports].map((exportInfo) => {
               if (exportInfo.provided) {
                 return exportInfo.name
               }
               return null
-            })
-            .filter(Boolean)
-        )
+            }),
+            ...cjsExports
+          )
+          .filter((name) => name !== null)
 
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
