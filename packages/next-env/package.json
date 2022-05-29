@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "12.1.7-canary.17",
+  "version": "12.1.7-canary.19",
   "keywords": [
     "react",
     "next",
@@ -26,7 +26,7 @@
     "prerelease": "rimraf ./dist/",
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublish": "yarn release && yarn types"
+    "prepublishOnly": "pnpm release && pnpm types"
   },
   "devDependencies": {
     "@vercel/ncc": "0.33.4",

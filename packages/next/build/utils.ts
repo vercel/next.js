@@ -34,7 +34,7 @@ import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimit
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths, PageConfig } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
@@ -719,7 +719,7 @@ export async function buildStaticPaths(
     // For a string-provided path, we must make sure it matches the dynamic
     // route.
     if (typeof entry === 'string') {
-      entry = removePathTrailingSlash(entry)
+      entry = removeTrailingSlash(entry)
 
       const localePathResult = normalizeLocalePath(entry, locales)
       let cleanedEntry = entry
