@@ -4,10 +4,7 @@ import '../build/polyfills/polyfill-module'
 import ReactDOMClient from 'react-dom/client'
 // @ts-ignore startTransition exists when using React 18
 import React from 'react'
-import {
-  createFromFetch,
-  createFromReadableStream,
-} from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 
 /// <reference types="react-dom/experimental" />
 
@@ -151,76 +148,11 @@ const RSCComponent = () => {
   return <ServerRoot cacheKey={cacheKey} />
 }
 
-function fetchFlight(href: string) {
-  const url = new URL(href, location.origin)
-  const searchParams = url.searchParams
-  searchParams.append('__flight__', '1')
-
-  return fetch(url.toString())
-}
-
-function useServerResponse(cacheKey: string) {
-  let response = rscCache.get(cacheKey)
-  if (response) return response
-
-  response = createFromFetch(fetchFlight(getCacheKey()))
-
-  rscCache.set(cacheKey, response)
-  return response
-}
-
-const AppRouterContext = React.createContext({})
-
-// TODO: move to client component when handling is implemented
-function AppRouter({ initialUrl, children }: any) {
-  const initialState = {
-    url: initialUrl,
-  }
-  const previousUrlRef = React.useRef(initialState)
-  const [current, setCurrent] = React.useState(initialState)
-
-  const appRouter = React.useMemo(() => {
-    return {
-      push: (url: string) => {
-        previousUrlRef.current = current
-        setCurrent({ ...current, url })
-        // TODO: update url eagerly or not?
-        window.history.pushState(current, '', url)
-      },
-      url: current.url,
-    }
-  }, [current])
-
-  // @ts-ignore TODO: for testing
-  window.appRouter = appRouter
-
-  console.log({
-    appRouter,
-    previous: previousUrlRef.current,
-    current,
-  })
-
-  let root
-  if (current.url !== previousUrlRef.current?.url) {
-    // eslint-disable-next-line
-    const data = useServerResponse(current.url)
-    root = data.readRoot()
-  }
-
-  return (
-    <AppRouterContext.Provider value={appRouter}>
-      {root ? root : children}
-    </AppRouterContext.Provider>
-  )
-}
-
 export function hydrate() {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
       <Root>
-        <AppRouter initialUrl={location.pathname}>
-          <RSCComponent />
-        </AppRouter>
+        <RSCComponent />
       </Root>
     </React.StrictMode>
   ))

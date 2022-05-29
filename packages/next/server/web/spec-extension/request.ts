@@ -28,10 +28,8 @@ export class NextRequest extends Request {
       ip: init.ip,
       page: init.page,
       url: new NextURL(typeof input === 'string' ? input : input.url, {
-        basePath: init.nextConfig?.basePath,
         headers: toNodeHeaders(this.headers),
-        i18n: init.nextConfig?.i18n,
-        trailingSlash: init.nextConfig?.trailingSlash,
+        nextConfig: init.nextConfig,
       }),
     }
   }

@@ -39,6 +39,7 @@ export type HtmlProps = {
   nextScriptWorkers?: boolean
   runtime?: 'edge' | 'nodejs'
   hasConcurrentFeatures?: boolean
+  largePageDataBytes?: number
 }
 
 export const HtmlContext = createContext<HtmlProps>(null as any)

@@ -7,10 +7,8 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
-import {
-  normalizePathTrailingSlash,
-  removePathTrailingSlash,
-} from '../../../client/normalize-trailing-slash'
+import { normalizePathTrailingSlash } from '../../../client/normalize-trailing-slash'
+import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
   isAssetError,
@@ -94,7 +92,7 @@ type PreflightEffect =
   | { type: 'refresh' }
   | { type: 'next' }
 
-type HistoryState =
+export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; key: string } & NextHistoryState)
@@ -434,7 +432,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removePathTrailingSlash(denormalizePagePath(pathname!))
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
 
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
@@ -450,7 +448,7 @@ function resolveDynamicRoute(pathname: string, pages: string[]) {
       }
     })
   }
-  return removePathTrailingSlash(pathname)
+  return removeTrailingSlash(pathname)
 }
 
 export type BaseRouter = {
@@ -535,7 +533,7 @@ const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 function fetchRetry(
   url: string,
   attempts: number,
-  opts: { text?: boolean }
+  opts: { text?: boolean; isPrefetch?: boolean; method?: string }
 ): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -550,6 +548,12 @@ function fetchRetry(
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
+    method: opts.method || 'GET',
+    headers: opts.isPrefetch
+      ? {
+          purpose: 'prefetch',
+        }
+      : {},
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
@@ -565,47 +569,64 @@ function fetchRetry(
       }
       throw new Error(`Failed to load static props`)
     }
-    return opts.text ? res.text() : res.json()
+
+    if (opts.method !== 'HEAD') {
+      return opts.text ? res.text() : res.json()
+    }
   })
 }
+
+const backgroundCache: Record<string, Promise<any>> = {}
 
 function fetchNextData(
   dataHref: string,
   isServerRender: boolean,
   text: boolean | undefined,
   inflightCache: NextDataCache,
-  persistCache: boolean
+  persistCache: boolean,
+  isPrefetch: boolean
 ) {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const getData = (background = false) =>
+    fetchRetry(dataHref, isServerRender ? 3 : 1, {
+      text,
+      isPrefetch,
+      method: background ? 'HEAD' : 'GET',
+    })
+      .catch((err: Error) => {
+        // We should only trigger a server-side transition if this was caused
+        // on a client-side transition. Otherwise, we'd get into an infinite
+        // loop.
+
+        if (!isServerRender) {
+          markAssetError(err)
+        }
+        throw err
+      })
+      .then((data) => {
+        if (!persistCache || process.env.NODE_ENV !== 'production') {
+          delete inflightCache[cacheKey]
+        }
+        return data
+      })
+      .catch((err) => {
+        delete inflightCache[cacheKey]
+        throw err
+      })
 
   if (inflightCache[cacheKey] !== undefined) {
+    // we kick off a HEAD request in the background
+    // when a non-prefetch request is made to signal revalidation
+    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
+      backgroundCache[cacheKey] = getData(true)
+        .catch(() => {})
+        .then(() => {
+          delete backgroundCache[cacheKey]
+        })
+    }
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = fetchRetry(
-    dataHref,
-    isServerRender ? 3 : 1,
-    { text }
-  )
-    .catch((err: Error) => {
-      // We should only trigger a server-side transition if this was caused
-      // on a client-side transition. Otherwise, we'd get into an infinite
-      // loop.
-
-      if (!isServerRender) {
-        markAssetError(err)
-      }
-      throw err
-    })
-    .then((data) => {
-      if (!persistCache || process.env.NODE_ENV !== 'production') {
-        delete inflightCache[cacheKey]
-      }
-      return data
-    })
-    .catch((err) => {
-      delete inflightCache[cacheKey]
-      throw err
-    }))
+  return (inflightCache[cacheKey] = getData())
 }
 
 interface NextDataCache {
@@ -644,6 +665,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
+  isFirstPopStateEvent = true
 
   private state: Readonly<{
     route: string
@@ -696,7 +718,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // represents the current component key
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -799,6 +821,9 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
+    const { isFirstPopStateEvent } = this
+    this.isFirstPopStateEvent = false
+
     const state = e.state as HistoryState
 
     if (!state) {
@@ -821,6 +846,15 @@ export default class Router implements BaseRouter {
     }
 
     if (!state.__N) {
+      return
+    }
+
+    // Safari fires popstateevent when reopening the browser.
+    if (
+      isFirstPopStateEvent &&
+      this.locale === state.options.locale &&
+      state.as === this.asPath
+    ) {
       return
     }
 
@@ -1133,9 +1167,7 @@ export default class Router implements BaseRouter {
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
     // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname
-      ? removePathTrailingSlash(delBasePath(pathname))
-      : pathname
+    pathname = pathname ? removeTrailingSlash(delBasePath(pathname)) : pathname
 
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1196,7 +1228,7 @@ export default class Router implements BaseRouter {
     if (
       (!options.shallow || (options as any)._h === 1) &&
       ((options as any)._h !== 1 ||
-        isDynamicRoute(removePathTrailingSlash(pathname)))
+        isDynamicRoute(removeTrailingSlash(pathname)))
     ) {
       const effect = await this._preflightRequest({
         as,
@@ -1225,7 +1257,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1617,7 +1649,8 @@ export default class Router implements BaseRouter {
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !isPreview
+              !!__N_SSG && !isPreview,
+              false
             )
           : this.getInitialProps(
               Component,
@@ -1833,7 +1866,7 @@ export default class Router implements BaseRouter {
       url = formatWithValidation(parsed)
     }
 
-    const route = removePathTrailingSlash(pathname)
+    const route = removeTrailingSlash(pathname)
 
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg: boolean) => {
@@ -1851,6 +1884,7 @@ export default class Router implements BaseRouter {
               false,
               false, // text
               this.sdc,
+              !this.isPreview,
               true
             )
           : false
@@ -1915,7 +1949,7 @@ export default class Router implements BaseRouter {
 
   _getFlightData(dataHref: string): Promise<object> {
     // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData(dataHref, true, true, this.sdc, false).then(
+    return fetchNextData(dataHref, true, true, this.sdc, false, false).then(
       (serialized) => {
         return { data: serialized }
       }
@@ -1985,7 +2019,7 @@ export default class Router implements BaseRouter {
         ).pathname
       )
 
-      const fsPathname = removePathTrailingSlash(parsed.pathname)
+      const fsPathname = removeTrailingSlash(parsed.pathname)
 
       let matchedPage
       let resolvedHref
@@ -2015,7 +2049,7 @@ export default class Router implements BaseRouter {
 
     if (preflight.redirect) {
       if (preflight.redirect.startsWith('/')) {
-        const cleanRedirect = removePathTrailingSlash(
+        const cleanRedirect = removeTrailingSlash(
           normalizeLocalePath(
             hasBasePath(preflight.redirect)
               ? delBasePath(preflight.redirect)
