@@ -187,8 +187,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
-## Experimental Features
-
 ### Emotion
 
 We're working to port `@emotion/babel-plugin` to the Next.js Compiler.
@@ -199,7 +197,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     emotion: boolean | {
       // default is true. It will be disabled when build type is production.
       sourceMap?: boolean,
@@ -218,6 +216,8 @@ module.exports = {
 ```
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
+
+## Experimental Features
 
 ### Minification
 
@@ -315,6 +315,42 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
 3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+
+### SWC Trace profiling
+
+You can generate SWC's internal transform traces as chromium's [trace event format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?mode=html#%21=).
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcTraceProfiling: true,
+  },
+}
+```
+
+Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
+
+### Experimental SWC plugin support
+
+You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcPlugins: [
+      ['plugin', {
+        ..pluginOptions
+      }]
+    ]
+  }
+}
+```
+
+`swcPlugins` accepts an array of tuples for configuring plugins. A tuple for the plugin contains the path to the plugin and an object for plugin configuration. The path to the plugin can be an npm module package name or an absolute path to the `.wasm` binary itself.
 
 ## Unsupported Features
 

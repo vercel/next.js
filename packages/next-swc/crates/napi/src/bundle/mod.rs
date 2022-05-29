@@ -123,6 +123,8 @@ impl Task for BundleTask {
                     None,
                     false,
                     Some(&comments),
+                    true,
+                    false,
                 )?;
 
                 Ok(code)

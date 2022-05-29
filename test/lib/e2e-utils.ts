@@ -4,9 +4,10 @@ import { NextConfig } from 'next'
 import { InstallCommand, NextInstance, PackageJson } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
+import { NextDeployInstance } from './next-modes/next-deploy'
 
 // increase timeout to account for yarn install time
-jest.setTimeout((process.platform === 'win32' ? 240 : 180) * 1000)
+jest.setTimeout(240 * 1000)
 
 const testsFolder = path.join(__dirname, '..')
 
@@ -45,7 +46,9 @@ if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
   if (!process.env.NEXT_TEST_JOB && !testMode) {
-    console.warn('Warn: no NEXT_TEST_MODE set, using default of start')
+    require('console').warn(
+      'Warn: no NEXT_TEST_MODE set, using default of start'
+    )
     testMode = 'start'
   }
   assert(
@@ -73,7 +76,9 @@ if (!testMode) {
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
   )
 }
-console.log(`Using test mode: ${testMode} in test folder ${testModeFromFile}`)
+require('console').warn(
+  `Using test mode: ${testMode} in test folder ${testModeFromFile}`
+)
 
 /**
  * FileRef is wrapper around a file path that is meant be copied
@@ -118,6 +123,7 @@ export async function createNext(opts: {
   buildCommand?: string
   packageJson?: PackageJson
   startCommand?: string
+  packageLockPath?: string
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {
@@ -129,7 +135,7 @@ export async function createNext(opts: {
       nextInstance = new NextDevInstance(opts)
     } else if (testMode === 'deploy') {
       // Vercel
-      throw new Error('to-implement')
+      nextInstance = new NextDeployInstance(opts)
     } else {
       // next build + next start
       nextInstance = new NextStartInstance(opts)
@@ -146,9 +152,9 @@ export async function createNext(opts: {
     }
     return nextInstance!
   } catch (err) {
-    console.error('Failed to create next instance', err)
+    require('console').error('Failed to create next instance', err)
     try {
-      await nextInstance.destroy()
+      nextInstance.destroy()
     } catch (_) {}
     process.exit(1)
   }

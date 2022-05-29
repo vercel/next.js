@@ -17,5 +17,10 @@
       "e2e-utils": ["test/lib/e2e-utils"]
     }
   },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/**/test/*"]
+  "include": [
+    "test/**/*.test.ts",
+    "test/**/*.test.tsx",
+    "test/**/test/*",
+    "packages/next/types/webpack.d.ts"
+  ]
 }

@@ -2,7 +2,7 @@ import type { Context } from 'vm'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { readFileSync, promises as fs } from 'fs'
 import { requireDependencies } from './require'
-import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+import '../../node-polyfill-web-streams'
 import cookie from 'next/dist/compiled/cookie'
 import * as polyfills from './polyfills'
 import {
@@ -10,7 +10,8 @@ import {
   AbortSignal,
 } from 'next/dist/compiled/abort-controller'
 import vm from 'vm'
-import type { WasmBinding } from '../../../build/webpack/loaders/next-middleware-wasm-loader'
+import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -47,19 +48,21 @@ const caches = new Map<
   }
 >()
 
+interface ModuleContextOptions {
+  module: string
+  onWarning: (warn: Error) => void
+  useCache: boolean
+  env: string[]
+  wasm: WasmBinding[]
+}
+
 /**
  * For a given module name this function will create a context for the
  * runtime. It returns a function where we can provide a module path and
  * run in within the context. It may or may not use a cache depending on
  * the parameters.
  */
-export async function getModuleContext(options: {
-  module: string
-  onWarning: (warn: Error) => void
-  useCache: boolean
-  env: string[]
-  wasm: WasmBinding[]
-}) {
+export async function getModuleContext(options: ModuleContextOptions) {
   let moduleCache = options.useCache
     ? caches.get(options.module)
     : await createModuleContext(options)
@@ -97,12 +100,7 @@ export async function getModuleContext(options: {
  * 2. Dependencies that require runtime globals such as Blob.
  * 3. Dependencies that are scoped for the provided parameters.
  */
-async function createModuleContext(options: {
-  onWarning: (warn: Error) => void
-  module: string
-  env: string[]
-  wasm: WasmBinding[]
-}) {
+async function createModuleContext(options: ModuleContextOptions) {
   const requireCache = new Map([
     [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
   ])
@@ -181,11 +179,10 @@ async function createModuleContext(options: {
  * Create a base context with all required globals for the runtime that
  * won't depend on any externally provided dependency.
  */
-function createContext(options: {
-  /** Environment variables to be provided to the context */
-  env: string[]
-}) {
-  const context: { [key: string]: unknown } = {
+function createContext(
+  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
+) {
+  const context: Context = {
     _ENTRIES: {},
     atob: polyfills.atob,
     Blob,
@@ -202,25 +199,25 @@ function createContext(options: {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
-    AbortController: AbortController,
-    AbortSignal: AbortSignal,
+    AbortController,
+    AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
+    DataView,
     File,
     FormData,
-    process: {
-      ...polyfills.process,
-      env: buildEnvironmentVariablesFrom(options.env),
-    },
-    ReadableStream: polyfills.ReadableStream,
+    process: createProcessPolyfill(options),
+    ReadableStream,
     setInterval,
     setTimeout,
+    queueMicrotask,
     TextDecoder,
     TextEncoder,
     TransformStream,
     URL,
     URLSearchParams,
+    WebAssembly,
 
     // Indexed collections
     Array,
@@ -245,6 +242,18 @@ function createContext(options: {
     // Structured data
     ArrayBuffer,
     SharedArrayBuffer,
+
+    // These APIs are supported by the Edge runtime, but not by the version of Node.js we're using
+    // Since we'll soon replace this sandbox with the edge-runtime itself, it's not worth polyfilling.
+    // ReadableStreamBYOBReader,
+    // ReadableStreamDefaultReader,
+    // structuredClone,
+    // SubtleCrypto,
+    // WritableStream,
+    // WritableStreamDefaultWriter,
+  }
+  for (const name of EDGE_UNSUPPORTED_NODE_APIS) {
+    addStub(context, name, options)
   }
 
   // Self references
@@ -266,7 +275,9 @@ function buildEnvironmentVariablesFrom(
   keys: string[]
 ): Record<string, string | undefined> {
   const pairs = keys.map((key) => [key, process.env[key]])
-  return Object.fromEntries(pairs)
+  const env = Object.fromEntries(pairs)
+  env.NEXT_RUNTIME = 'edge'
+  return env
 }
 
 async function loadWasm(
@@ -284,4 +295,58 @@ async function loadWasm(
   )
 
   return modules
+}
+
+function createProcessPolyfill(
+  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
+) {
+  const env = buildEnvironmentVariablesFrom(options.env)
+
+  const processPolyfill = { env }
+  const overridenValue: Record<string, any> = {}
+  for (const key of Object.keys(process)) {
+    if (key === 'env') continue
+    Object.defineProperty(processPolyfill, key, {
+      get() {
+        emitWarning(`process.${key}`, options)
+        return overridenValue[key]
+      },
+      set(value) {
+        overridenValue[key] = value
+      },
+      enumerable: false,
+    })
+  }
+  return processPolyfill
+}
+
+const warnedAlready = new Set<string>()
+
+function addStub(
+  context: Context,
+  name: string,
+  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
+) {
+  Object.defineProperty(context, name, {
+    get() {
+      emitWarning(name, contextOptions)
+      return undefined
+    },
+    enumerable: false,
+  })
+}
+
+function emitWarning(
+  name: string,
+  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
+) {
+  if (!warnedAlready.has(name)) {
+    const warning =
+      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
+    warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
+    contextOptions.onWarning(warning)
+    console.warn(warning.message)
+    warnedAlready.add(name)
+  }
 }

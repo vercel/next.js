@@ -18,7 +18,7 @@ export class BrowserInterface {
     return this
   }
 
-  async setup(browserName: string): Promise<void> {}
+  async setup(browserName: string, locale?: string): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 

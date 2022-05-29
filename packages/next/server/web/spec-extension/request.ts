@@ -3,17 +3,18 @@ import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
 import { toNodeHeaders } from '../utils'
-import cookie from 'next/dist/compiled/cookie'
 import parseua from 'next/dist/compiled/ua-parser-js'
+
+import { NextCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
 export class NextRequest extends Request {
   [INTERNALS]: {
-    cookieParser(): { [key: string]: string }
+    cookies: NextCookies
     geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string } }
+    page?: { name?: string; params?: { [key: string]: string | string[] } }
     ua?: UserAgent | null
     url: NextURL
   }
@@ -21,27 +22,20 @@ export class NextRequest extends Request {
   constructor(input: Request | string, init: RequestInit = {}) {
     super(input, init)
 
-    const cookieParser = () => {
-      const value = this.headers.get('cookie')
-      return value ? cookie.parse(value) : {}
-    }
-
     this[INTERNALS] = {
-      cookieParser,
+      cookies: new NextCookies(this),
       geo: init.geo || {},
       ip: init.ip,
       page: init.page,
       url: new NextURL(typeof input === 'string' ? input : input.url, {
-        basePath: init.nextConfig?.basePath,
         headers: toNodeHeaders(this.headers),
-        i18n: init.nextConfig?.i18n,
-        trailingSlash: init.nextConfig?.trailingSlash,
+        nextConfig: init.nextConfig,
       }),
     }
   }
 
   public get cookies() {
-    return this[INTERNALS].cookieParser()
+    return this[INTERNALS].cookies
   }
 
   public get geo() {
@@ -105,7 +99,7 @@ export interface RequestInit extends globalThis.RequestInit {
   }
   page?: {
     name?: string
-    params?: { [key: string]: string }
+    params?: { [key: string]: string | string[] }
   }
 }
 

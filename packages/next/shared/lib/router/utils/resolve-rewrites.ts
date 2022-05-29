@@ -1,13 +1,11 @@
 import { ParsedUrlQuery } from 'querystring'
-import pathMatch from './path-match'
+import { getPathMatch } from './path-match'
 import { matchHas, prepareDestination } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
-import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
+import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { parseRelativeUrl } from './parse-relative-url'
 import { delBasePath } from '../router'
-
-const customRouteMatcher = pathMatch(true)
 
 export default function resolveRewrites(
   asPath: string,
@@ -30,13 +28,17 @@ export default function resolveRewrites(
   let matchedPage = false
   let externalDest = false
   let parsedAs = parseRelativeUrl(asPath)
-  let fsPathname = removePathTrailingSlash(
+  let fsPathname = removeTrailingSlash(
     normalizeLocalePath(delBasePath(parsedAs.pathname), locales).pathname
   )
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = customRouteMatcher(rewrite.source)
+    const matcher = getPathMatch(rewrite.source, {
+      removeUnnamedParams: true,
+      strict: true,
+    })
+
     let params = matcher(parsedAs.pathname)
 
     if (rewrite.has && params) {
@@ -80,7 +82,7 @@ export default function resolveRewrites(
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)
 
-      fsPathname = removePathTrailingSlash(
+      fsPathname = removeTrailingSlash(
         normalizeLocalePath(delBasePath(asPath), locales).pathname
       )
 
@@ -106,7 +108,7 @@ export default function resolveRewrites(
   for (let i = 0; i < rewrites.beforeFiles.length; i++) {
     // we don't end after match in beforeFiles to allow
     // continuing through all beforeFiles rewrites
-    finished = handleRewrite(rewrites.beforeFiles[i]) || false
+    handleRewrite(rewrites.beforeFiles[i])
   }
   matchedPage = pages.includes(fsPathname)
 

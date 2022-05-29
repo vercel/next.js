@@ -8,7 +8,7 @@ import {
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
-import { removePathTrailingSlash } from './normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import {
   createRouteLoader,
   getClientBuildManifest,
@@ -152,11 +152,12 @@ export default class PageLoader {
       }
 
       const dataRoute = getAssetPathFromRoute(
-        removePathTrailingSlash(addLocale(path, locale)),
+        removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
+        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`,
+        true
       )
     }
 
