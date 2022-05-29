@@ -106,7 +106,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   // Add page itself to the list of components
   componentsCode.push(
     `'${pathToUrlPath(pagePath).replace(
-      new RegExp(`/page+(${extensions.join('|')})$`),
+      new RegExp(`(${extensions.join('|')})$`),
       ''
       // use require so that we can bust the require cache
     )}': () => require('${pagePath}')`
