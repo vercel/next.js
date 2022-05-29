@@ -946,7 +946,7 @@ describe('Prerender', () => {
       await renderViaHTTP(next.url, '/large-page-data')
       await check(
         () => next.cliOutput,
-        /Warning: data for page "\/large-page-data" is 128 kB, this amount of data can reduce performance/
+        /Warning: data for page "\/large-page-data" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
       )
     })
 

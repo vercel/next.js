@@ -946,16 +946,18 @@ export class NextScript extends Component<OriginProps> {
   }
 
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
-    const { __NEXT_DATA__ } = context
+    const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
-
       const bytes = Buffer.from(data).byteLength
       const prettyBytes = require('../lib/pretty-bytes').default
-      if (bytes > 128 * 1000) {
+
+      if (largePageDataBytes && bytes > largePageDataBytes) {
         console.warn(
           `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
             bytes
+          )} which exceeds the threshold of ${prettyBytes(
+            largePageDataBytes
           )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
         )
       }
