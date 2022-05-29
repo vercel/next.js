@@ -10,7 +10,8 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
-  VIEWS_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
+  APP_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -25,6 +26,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  MODERN_BROWSERSLIST_TARGET,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -44,6 +46,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { ClientEntryPlugin } from './webpack/plugins/client-entry-plugin'
 import {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -54,6 +57,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
+import { loadBindings } from './swc'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -62,16 +66,31 @@ const watchOptions = Object.freeze({
 
 function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean
+  isDevelopment: boolean,
+  config: NextConfigComplete
 ): string[] | undefined {
   let browsers: any
   try {
-    browsers = browserslist.loadConfig({
+    const browsersListConfig = browserslist.loadConfig({
       path: dir,
       env: isDevelopment ? 'development' : 'production',
     })
+    // Running `browserslist` resolves `extends` and other config features into a list of browsers
+    if (browsersListConfig && browsersListConfig.length > 0) {
+      browsers = browserslist(browsersListConfig)
+    }
   } catch {}
-  return browsers
+
+  // When user has browserslist use that target
+  if (browsers && browsers.length > 0) {
+    return browsers
+  }
+
+  // When user does not have browserslist use the default target
+  // When `experimental.legacyBrowsers: false` the modern default is used
+  return config.experimental.legacyBrowsers
+    ? undefined
+    : MODERN_BROWSERSLIST_TARGET
 }
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -314,7 +333,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
     runWebpackSpan,
     target = 'server',
-    viewsDir,
+    appDir,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -328,7 +347,7 @@ export default async function getBaseWebpackConfig(
     rewrites: CustomRoutes['rewrites']
     runWebpackSpan: Span
     target?: string
-    viewsDir?: string
+    appDir?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -338,7 +357,8 @@ export default async function getBaseWebpackConfig(
     dir,
     config
   )
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -432,6 +452,11 @@ export default async function getBaseWebpackConfig(
     loggedSwcDisabled = true
   }
 
+  // eagerly load swc bindings instead of waiting for transform calls
+  if (!babelConfigFile && isClient) {
+    await loadBindings()
+  }
+
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
     Log.info(
       '`compiler` options in `next.config.js` will be ignored while using Babel https://nextjs.org/docs/messages/ignored-compiler-options'
@@ -460,6 +485,9 @@ export default async function getBaseWebpackConfig(
             fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
+            supportedBrowsers: config.experimental.browsersListForSwc
+              ? supportedBrowsers
+              : undefined,
           },
         }
       : {
@@ -541,14 +569,14 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        ...(config.experimental.viewsDir
+        ...(config.experimental.appDir
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
                 `./` +
                 path
                   .relative(
                     dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'root-next.js')
+                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
                   )
                   .replace(/\\/g, '/'),
             }
@@ -579,18 +607,11 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
+      ...config.pageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_app.js',
-    ]
-    customAppAliases[`${PAGES_DIR_ALIAS}/_app.server`] = [
-      ...rawPageExtensions.reduce((prev, ext) => {
-        prev.push(path.join(pagesDir, `_app.server.${ext}`))
-        return prev
-      }, [] as string[]),
-      'next/dist/pages/_app.server.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
       ...config.pageExtensions.reduce((prev, ext) => {
@@ -640,11 +661,12 @@ export default async function getBaseWebpackConfig(
       ...customRootAliases,
 
       [PAGES_DIR_ALIAS]: pagesDir,
-      ...(viewsDir
+      ...(appDir
         ? {
-            [VIEWS_DIR_ALIAS]: viewsDir,
+            [APP_DIR_ALIAS]: appDir,
           }
         : {}),
+      [ROOT_DIR_ALIAS]: dir,
       [DOT_NEXT_ALIAS]: distDir,
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
@@ -790,7 +812,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic|script)$)|string-hash$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -909,14 +931,14 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const rscCodeCondition = {
+  const serverComponentCodeCondition = {
     test: serverComponentsRegex,
-    // only apply to the pages as the begin process of rsc loaders
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    // @ts-ignore
     externals:
       isClient || isEdgeServer
         ? // make sure importing "next" is handled gracefully for client
@@ -993,11 +1015,30 @@ export default async function getBaseWebpackConfig(
       nodeEnv: false,
       ...(hasServerComponents
         ? {
-            // We have to use the names here instead of hashes to ensure the consistency between builds.
-            moduleIds: 'named',
+            // We have to use the names here instead of hashes to ensure the consistency between compilers.
+            moduleIds: isClient ? 'deterministic' : 'named',
           }
         : {}),
       splitChunks: ((): webpack.Options.SplitChunksOptions | false => {
+        // For the edge runtime, we have to bundle all dependencies inside without dynamic `require`s.
+        // To make some dependencies like `react` to be shared between entrypoints, we use a special
+        // cache group here even under dev mode.
+        const edgeRSCCacheGroups = hasServerComponents
+          ? {
+              rscDeps: {
+                enforce: true,
+                name: 'rsc-runtime-deps',
+                filename: 'rsc-runtime-deps.js',
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+              },
+            }
+          : undefined
+        if (isEdgeServer && edgeRSCCacheGroups) {
+          return {
+            cacheGroups: edgeRSCCacheGroups,
+          }
+        }
+
         if (dev) {
           return false
         }
@@ -1017,6 +1058,7 @@ export default async function getBaseWebpackConfig(
             filename: 'edge-chunks/[name].js',
             chunks: 'all',
             minChunks: 2,
+            cacheGroups: edgeRSCCacheGroups,
           }
         }
 
@@ -1141,7 +1183,7 @@ export default async function getBaseWebpackConfig(
             ? `[name].js`
             : `../[name].js`
           : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-              dev ? '' : '-[contenthash]'
+              dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
@@ -1174,11 +1216,12 @@ export default async function getBaseWebpackConfig(
         'next-style-loader',
         'next-flight-client-loader',
         'next-flight-server-loader',
+        'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
-        'next-view-loader',
+        'next-app-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1210,24 +1253,31 @@ export default async function getBaseWebpackConfig(
             ? [
                 // RSC server compilation loaders
                 {
-                  ...rscCodeCondition,
+                  ...serverComponentCodeCondition,
+                  issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-server-loader',
                   },
                 },
-              ]
-            : [
-                // RSC client compilation loaders
                 {
-                  ...rscCodeCondition,
+                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|head|script)/,
+                  issuerLayer: 'sc_server',
                   use: {
-                    loader: 'next-flight-server-loader',
-                    options: {
-                      client: 1,
-                    },
+                    loader: 'next-flight-client-loader',
                   },
                 },
               ]
+            : []
+          : []),
+        ...(hasServerComponents && isEdgeServer
+          ? [
+              // Move shared dependencies from sc_server and sc_client into the
+              // same layer.
+              {
+                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+                layer: 'rsc_shared_deps',
+              },
+            ]
           : []),
         {
           test: /\.(js|cjs|mjs)$/,
@@ -1403,6 +1453,9 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
+          config.experimental.manualClientBasePath
+        ),
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
@@ -1549,7 +1602,7 @@ export default async function getBaseWebpackConfig(
           serverless: isLikeServerless,
           dev,
           isEdgeRuntime: isEdgeServer,
-          rootEnabled: !!config.experimental.viewsDir,
+          appDirEnabled: !!config.experimental.appDir,
         }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
@@ -1560,7 +1613,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           exportRuntime: hasConcurrentFeatures,
-          rootEnabled: !!config.experimental.viewsDir,
+          appDirEnabled: !!config.experimental.appDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
@@ -1589,8 +1642,16 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasServerComponents &&
-        isClient &&
-        new FlightManifestPlugin({ dev, pageExtensions: rawPageExtensions }),
+        (isClient
+          ? new FlightManifestPlugin({
+              dev,
+              appDir: !!config.experimental.appDir,
+              pageExtensions: rawPageExtensions,
+            })
+          : new ClientEntryPlugin({
+              dev,
+              isEdgeServer,
+            })),
       !dev &&
         isClient &&
         new TelemetryPlugin(
@@ -1610,7 +1671,7 @@ export default async function getBaseWebpackConfig(
               ],
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
-              ['swcEmotion', !!config.experimental.emotion],
+              ['swcEmotion', !!config.compiler?.emotion],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
@@ -1668,8 +1729,15 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  if (!webpack5Config.output) {
+    webpack5Config.output = {}
+  }
+  if (isClient) {
+    webpack5Config.output.trustedTypes = 'nextjs#bundler'
+  }
+
   if (isClient || isEdgeServer) {
-    webpack5Config.output!.enabledLibraryTypes = ['assign']
+    webpack5Config.output.enabledLibraryTypes = ['assign']
   }
 
   if (dev) {
@@ -1740,8 +1808,9 @@ export default async function getBaseWebpackConfig(
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
-    emotion: config.experimental?.emotion,
+    emotion: config.compiler?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
+    legacyBrowsers: config.experimental?.legacyBrowsers,
   })
 
   const cache: any = {

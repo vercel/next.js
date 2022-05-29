@@ -1,6 +1,11 @@
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
+type GetWithOptionsOutput = {
+  value: string | undefined
+  options: { [key: string]: string }
+}
+
 const normalizeCookieOptions = (options: CookieSerializeOptions) => {
   options = Object.assign({}, options)
 
@@ -35,7 +40,7 @@ const deserializeCookie = (input: Request | Response): string[] => {
 
 const serializeCookie = (input: string[]) => input.join(', ')
 
-export class Cookies extends Map<string, any> {
+export class Cookies extends Map<string, string> {
   constructor(input?: string | null) {
     const parsedInput = typeof input === 'string' ? cookie.parse(input) : {}
     super(Object.entries(parsedInput))
@@ -59,9 +64,28 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
+  get = (...args: Parameters<Cookies['get']>) => {
+    return this.getWithOptions(...args).value
+  }
+  getWithOptions = (
+    ...args: Parameters<Cookies['get']>
+  ): GetWithOptionsOutput => {
+    const raw = super.get(...args)
+    if (typeof raw !== 'string') return { value: raw, options: {} }
+    const { [args[0]]: value, ...options } = cookie.parse(raw)
+    return { value, options }
+  }
   set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])
-    const store = super.set(...args)
+
+    super.set(...args)
+    const currentCookie = super.get(args[0])
+
+    if (typeof currentCookie !== 'string') {
+      throw new Error(
+        `Invariant: failed to generate cookie for ${JSON.stringify(args)}`
+      )
+    }
 
     if (isAlreadyAdded) {
       const setCookie = serializeCookie(
@@ -73,18 +97,18 @@ export class NextCookies extends Cookies {
       if (setCookie) {
         this.response.headers.set(
           'set-cookie',
-          [store.get(args[0]), setCookie].join(', ')
+          [currentCookie, setCookie].join(', ')
         )
       } else {
-        this.response.headers.set('set-cookie', store.get(args[0]))
+        this.response.headers.set('set-cookie', currentCookie)
       }
     } else {
-      this.response.headers.append('set-cookie', store.get(args[0]))
+      this.response.headers.append('set-cookie', currentCookie)
     }
 
-    return store
+    return this
   }
-  delete = (key: any, options: CookieSerializeOptions = {}) => {
+  delete = (key: string, options: CookieSerializeOptions = {}) => {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {
