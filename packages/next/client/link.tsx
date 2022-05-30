@@ -230,6 +230,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'shallow' ||
           key === 'passHref' ||
           key === 'prefetch' ||
+          key === 'prefetchOnHover' ||
           key === 'legacyBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
