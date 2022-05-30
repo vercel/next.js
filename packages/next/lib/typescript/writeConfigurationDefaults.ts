@@ -5,8 +5,10 @@ import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
+import type { CompilerOptions } from 'typescript'
+
 type DesiredCompilerOptionsShape = {
-  [key: string]:
+  [K in keyof CompilerOptions]:
     | { suggested: any }
     | {
         parsedValue?: any
