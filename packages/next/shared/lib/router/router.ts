@@ -38,6 +38,7 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
+import { pathHasPrefix } from './utils/path-has-prefix'
 import { parsePath } from './utils/parse-path'
 
 declare global {
@@ -118,11 +119,6 @@ function addPathPrefix(path: string, prefix?: string) {
   )
 }
 
-function hasPathPrefix(path: string, prefix: string) {
-  path = parsePath(path).pathname
-  return path === prefix || path.startsWith(prefix + '/')
-}
-
 export function getDomainLocale(
   path: string,
   locale?: string | false,
@@ -157,8 +153,8 @@ export function addLocale(
       const localeLower = locale.toLowerCase()
 
       if (
-        !hasPathPrefix(pathLower, '/' + localeLower) &&
-        !hasPathPrefix(pathLower, '/api')
+        !pathHasPrefix(pathLower, '/' + localeLower) &&
+        !pathHasPrefix(pathLower, '/api')
       ) {
         return addPathPrefix(path, '/' + locale)
       }
@@ -184,7 +180,7 @@ export function delLocale(path: string, locale?: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  return hasPathPrefix(path, basePath)
+  return pathHasPrefix(path, basePath)
 }
 
 export function addBasePath(path: string, required?: boolean): string {
