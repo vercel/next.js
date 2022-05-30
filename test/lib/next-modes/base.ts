@@ -235,9 +235,6 @@ export class NextInstance {
     }
   }
 
-  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
-    return {}
-  }
   public async setup(): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
