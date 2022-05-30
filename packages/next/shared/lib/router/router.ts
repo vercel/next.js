@@ -42,6 +42,7 @@ import { pathHasPrefix } from './utils/path-has-prefix'
 import { parsePath } from './utils/parse-path'
 import { addPathPrefix } from './utils/add-path-prefix'
 import { addLocale } from '../../../client/add-locale'
+import { removeLocale } from '../../../client/remove-locale'
 
 declare global {
   interface Window {
@@ -130,22 +131,6 @@ export function getDomainLocale(
   } else {
     return false
   }
-}
-
-export function delLocale(path: string, locale?: string) {
-  if (process.env.__NEXT_I18N_SUPPORT) {
-    const { pathname } = parsePath(path)
-    const pathLower = pathname.toLowerCase()
-    const localeLower = locale && locale.toLowerCase()
-
-    return locale &&
-      (pathLower.startsWith('/' + localeLower + '/') ||
-        pathLower === '/' + localeLower)
-      ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.slice(locale.length + 1)
-      : path
-  }
-  return path
 }
 
 export function hasBasePath(path: string): boolean {
@@ -1038,7 +1023,7 @@ export default class Router implements BaseRouter {
         this.defaultLocale
       )
     )
-    const cleanedAs = delLocale(
+    const cleanedAs = removeLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       nextState.locale
     )
@@ -1167,7 +1152,7 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    resolvedAs = delLocale(delBasePath(resolvedAs), nextState.locale)
+    resolvedAs = removeLocale(delBasePath(resolvedAs), nextState.locale)
 
     /**
      * If the route update was triggered for client-side hydration and
@@ -1773,7 +1758,7 @@ export default class Router implements BaseRouter {
       if (rewritesResult.externalDest) {
         return
       }
-      resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
+      resolvedAs = removeLocale(delBasePath(rewritesResult.asPath), this.locale)
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
@@ -1915,7 +1900,7 @@ export default class Router implements BaseRouter {
     isPreview: boolean
   }): Promise<PreflightEffect> {
     const { pathname: asPathname } = parsePath(options.as)
-    const cleanedAs = delLocale(
+    const cleanedAs = removeLocale(
       hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
     )
