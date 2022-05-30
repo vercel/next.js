@@ -38,6 +38,7 @@ import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
+import { parsePath } from './utils/parse-path'
 
 declare global {
   interface Window {
@@ -110,8 +111,7 @@ function addPathPrefix(path: string, prefix?: string) {
   if (!path.startsWith('/') || !prefix) {
     return path
   }
-  const pathname = pathNoQueryHash(path)
-
+  const { pathname } = parsePath(path)
   return (
     normalizePathTrailingSlash(`${prefix}${pathname}`) +
     path.slice(pathname.length)
@@ -119,7 +119,7 @@ function addPathPrefix(path: string, prefix?: string) {
 }
 
 function hasPathPrefix(path: string, prefix: string) {
-  path = pathNoQueryHash(path)
+  path = parsePath(path).pathname
   return path === prefix || path.startsWith(prefix + '/')
 }
 
@@ -152,7 +152,7 @@ export function addLocale(
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     if (locale && locale !== defaultLocale) {
-      const pathname = pathNoQueryHash(path)
+      const { pathname } = parsePath(path)
       const pathLower = pathname.toLowerCase()
       const localeLower = locale.toLowerCase()
 
@@ -169,7 +169,7 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathname = pathNoQueryHash(path)
+    const { pathname } = parsePath(path)
     const pathLower = pathname.toLowerCase()
     const localeLower = locale && locale.toLowerCase()
 
@@ -179,16 +179,6 @@ export function delLocale(path: string, locale?: string) {
       ? (pathname.length === locale.length + 1 ? '/' : '') +
           path.slice(locale.length + 1)
       : path
-  }
-  return path
-}
-
-function pathNoQueryHash(path: string) {
-  const queryIndex = path.indexOf('?')
-  const hashIndex = path.indexOf('#')
-
-  if (queryIndex > -1 || hashIndex > -1) {
-    path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
   }
   return path
 }
@@ -967,7 +957,7 @@ export default class Router implements BaseRouter {
     const shouldResolveHref =
       (options as any)._h ||
       (options as any)._shouldResolveHref ||
-      pathNoQueryHash(url) === pathNoQueryHash(as)
+      parsePath(url).pathname === parsePath(as).pathname
 
     const nextState = {
       ...this.state,
@@ -1959,7 +1949,7 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
-    const asPathname = pathNoQueryHash(options.as)
+    const { pathname: asPathname } = parsePath(options.as)
     const cleanedAs = delLocale(
       hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
       options.locale
