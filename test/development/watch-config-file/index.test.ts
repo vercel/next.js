@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 describe('watch-config-file', () => {
@@ -14,35 +14,44 @@ describe('watch-config-file', () => {
           } 
         `,
         'next.config.js': `
-        const nextConfig = {
-          reactStrictMode: true,
-        }
+          const nextConfig = {
+            reactStrictMode: true,
+          }
         
-        module.exports = nextConfig        
+          module.exports = nextConfig        
         `,
       },
       dependencies: {},
-      skipStart: true,
     })
   })
   afterAll(() => next.destroy())
 
-  it('should output config file change', async () => {
-    // next dev test-dir
-    await next.start(true)
-    let i = 1
+  it('should restart the server on config change', async () => {
+    const html = await renderViaHTTP(next.url, '/rewrite')
+    expect(html).toContain('This page could not be found')
 
-    await check(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
-          /** changed - ${i} **/  
-          const nextConfig = {
-            reactStrictMode: true,
-          }
-          module.exports = nextConfig`
-      )
-      return next.cliOutput
-    }, /Found a change in next.config.js. Restart the server to see the changes in effect./)
+    await next.patchFile(
+      'next.config.js',
+      `
+      const nextConfig = {
+        reactStrictMode: true,
+        async rewrites() {
+          return [
+            {
+              source: '/rewrite',
+              destination: '/',
+            },
+          ]
+        },
+      }
+      module.exports = nextConfig`
+    )
+
+    await check(
+      () => next.cliOutput,
+      /Found a change in next.config.js. Restarting the server./
+    )
+
+    await check(() => renderViaHTTP(next.url, '/rewrite'), /hello world/)
   })
 })

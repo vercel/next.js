@@ -83,18 +83,20 @@ const nextDev: cliCommand = (argv) => {
       // const distDir = join(dir, nextConfig.distDir)
       // const telemetry = new Telemetry({ distDir })
 
-      let restartServer: () => void
+      let serverPort: string | undefined
+      let restartServer = () => {}
+
       const startDev = () => {
-        let fatalError: string | null = null
+        let fatalError: string | undefined
         let restartOnClose = false
 
         const child = spawn(
           process.argv0,
           [
             require.resolve('../bin/next-dev'),
-            allowRetry ? '1' : '0',
+            !serverPort && allowRetry ? '1' : '0',
             dir,
-            String(port),
+            serverPort ?? String(port),
             host ?? '0.0.0.0',
           ],
           {
@@ -105,12 +107,26 @@ const nextDev: cliCommand = (argv) => {
           }
         )
 
-        child.stdout?.pipe(process.stdout)
+        restartServer = () => {
+          restartOnClose = true
+          child.kill('SIGKILL')
+        }
 
-        child.stderr?.on('data', (data) => {
-          const err = data.toString()
-          console.error(err)
-          const matchedFatalError = /^FATAL ERROR: (.*)/m.exec(err)
+        child.stdout?.on('data', (chunk) => {
+          process.stdout.write(chunk)
+          if (serverPort) return
+          const msg = chunk.toString()
+          const matchedPort = /started server on .+:(.+), url: /.exec(msg)
+          if (matchedPort) {
+            serverPort = matchedPort[1]
+          }
+        })
+
+        child.stderr?.on('data', (chunk) => {
+          process.stderr.write(chunk)
+          if (fatalError) return
+          const msg = chunk.toString()
+          const matchedFatalError = /^FATAL ERROR: (.+)/m.exec(msg)
           if (matchedFatalError) {
             fatalError = matchedFatalError[1]
           }
@@ -131,11 +147,6 @@ const nextDev: cliCommand = (argv) => {
             process.exit(code ?? 1)
           }
         })
-
-        restartServer = () => {
-          restartOnClose = true
-          child.kill()
-        }
       }
       startDev()
 
@@ -149,8 +160,9 @@ const nextDev: cliCommand = (argv) => {
         })
       }
     })
-    .catch(() => {
-      // loadConfig logs errors
+    .catch((err) => {
+      console.error(err)
+      process.exit(1)
     })
 }
 
