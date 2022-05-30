@@ -40,6 +40,7 @@ import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { pathHasPrefix } from './utils/path-has-prefix'
 import { parsePath } from './utils/parse-path'
+import { addPathPrefix } from './utils/add-path-prefix'
 
 declare global {
   interface Window {
@@ -108,17 +109,6 @@ function buildCancellationError() {
   })
 }
 
-function addPathPrefix(path: string, prefix?: string) {
-  if (!path.startsWith('/') || !prefix) {
-    return path
-  }
-  const { pathname } = parsePath(path)
-  return (
-    normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.slice(pathname.length)
-  )
-}
-
 export function getDomainLocale(
   path: string,
   locale?: string | false,
@@ -148,15 +138,15 @@ export function addLocale(
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     if (locale && locale !== defaultLocale) {
-      const { pathname } = parsePath(path)
-      const pathLower = pathname.toLowerCase()
-      const localeLower = locale.toLowerCase()
-
+      const pathLower = parsePath(path).pathname.toLowerCase()
       if (
-        !pathHasPrefix(pathLower, '/' + localeLower) &&
+        !pathHasPrefix(pathLower, `/${locale.toLowerCase()}`) &&
         !pathHasPrefix(pathLower, '/api')
       ) {
-        return addPathPrefix(path, '/' + locale)
+        const { pathname, query, hash } = parsePath(
+          addPathPrefix(path, `/${locale}`)
+        )
+        return `${normalizePathTrailingSlash(pathname)}${query}${hash}`
       }
     }
   }
@@ -190,7 +180,8 @@ export function addBasePath(path: string, required?: boolean): string {
     }
   }
   // we only add the basepath on relative urls
-  return addPathPrefix(path, basePath)
+  const { pathname, query, hash } = parsePath(addPathPrefix(path, basePath))
+  return `${normalizePathTrailingSlash(pathname)}${query}${hash}`
 }
 
 export function delBasePath(path: string): string {
