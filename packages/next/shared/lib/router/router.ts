@@ -41,6 +41,7 @@ import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { pathHasPrefix } from './utils/path-has-prefix'
 import { parsePath } from './utils/parse-path'
 import { addPathPrefix } from './utils/add-path-prefix'
+import { addLocale } from '../../../client/add-locale'
 
 declare global {
   interface Window {
@@ -131,28 +132,6 @@ export function getDomainLocale(
   }
 }
 
-export function addLocale(
-  path: string,
-  locale?: string | false,
-  defaultLocale?: string
-) {
-  if (process.env.__NEXT_I18N_SUPPORT) {
-    if (locale && locale !== defaultLocale) {
-      const pathLower = parsePath(path).pathname.toLowerCase()
-      if (
-        !pathHasPrefix(pathLower, `/${locale.toLowerCase()}`) &&
-        !pathHasPrefix(pathLower, '/api')
-      ) {
-        const { pathname, query, hash } = parsePath(
-          addPathPrefix(path, `/${locale}`)
-        )
-        return `${normalizePathTrailingSlash(pathname)}${query}${hash}`
-      }
-    }
-  }
-  return path
-}
-
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     const { pathname } = parsePath(path)
@@ -179,9 +158,8 @@ export function addBasePath(path: string, required?: boolean): string {
       return path
     }
   }
-  // we only add the basepath on relative urls
-  const { pathname, query, hash } = parsePath(addPathPrefix(path, basePath))
-  return `${normalizePathTrailingSlash(pathname)}${query}${hash}`
+
+  return normalizePathTrailingSlash(addPathPrefix(path, basePath))
 }
 
 export function delBasePath(path: string): string {

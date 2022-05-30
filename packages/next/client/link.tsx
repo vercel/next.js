@@ -2,13 +2,13 @@ import React from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
-  addLocale,
   getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
+import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
