@@ -2,7 +2,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
@@ -111,6 +111,7 @@ import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
+import { RemotePattern } from '../shared/lib/image-config'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -205,9 +206,9 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, views: viewsDir } = findPagesDir(
+      const { pages: pagesDir, appDir } = findPagesDir(
         dir,
-        config.experimental.viewsDir
+        config.experimental.appDir
       )
 
       const hasPublicDir = await fileExists(publicDir)
@@ -270,7 +271,7 @@ export default async function build(
         nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            [pagesDir, viewsDir].filter(Boolean) as string[],
+            [pagesDir, appDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config.typescript.tsconfigPath,
             config.images.disableStaticImages,
@@ -333,14 +334,14 @@ export default async function build(
           )
         )
 
-      let viewPaths: string[] | undefined
+      let appPaths: string[] | undefined
 
-      if (viewsDir) {
-        viewPaths = await nextBuildSpan
-          .traceChild('collect-view-paths')
+      if (appDir) {
+        appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
             recursiveReadDir(
-              viewsDir,
+              appDir,
               new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
@@ -377,17 +378,17 @@ export default async function build(
           })
         )
 
-      let mappedViewPaths: { [page: string]: string } | undefined
+      let mappedappPaths: { [page: string]: string } | undefined
 
-      if (viewPaths && viewsDir) {
-        mappedViewPaths = nextBuildSpan
-          .traceChild('create-views-mapping')
+      if (appPaths && appDir) {
+        mappedappPaths = nextBuildSpan
+          .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: viewPaths!,
+              pagePaths: appPaths!,
               hasServerComponents,
               isDev: false,
-              pagesType: 'views',
+              pagesType: 'app',
               pageExtensions: config.pageExtensions,
             })
           )
@@ -418,8 +419,8 @@ export default async function build(
             target,
             rootDir: dir,
             rootPaths: mappedRootPaths,
-            viewsDir,
-            viewPaths: mappedViewPaths,
+            appDir,
+            appPaths: mappedappPaths,
             pageExtensions: config.pageExtensions,
           })
         )
@@ -719,7 +720,7 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
-          viewsDir,
+          appDir,
         }
 
         const configs = await runWebpackSpan
@@ -1446,32 +1447,36 @@ export default async function build(
             }
 
             const root = path.parse(dir).root
-            const serverResult = await nodeFileTrace(
-              [require.resolve('next/dist/server/next-server')],
-              {
-                base: root,
-                processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
-              }
-            )
+            const toTrace = [require.resolve('next/dist/server/next-server')]
+
+            // ensure we trace any dependencies needed for custom
+            // incremental cache handler
+            if (config.experimental.incrementalCacheHandlerPath) {
+              toTrace.push(
+                require.resolve(config.experimental.incrementalCacheHandlerPath)
+              )
+            }
+            const serverResult = await nodeFileTrace(toTrace, {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ],
+            })
 
             const tracedFiles = new Set()
 
@@ -2215,8 +2220,15 @@ export default async function build(
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns =
+      ;(images as any).remotePatterns = (
         config?.experimental?.images?.remotePatterns || []
+      ).map((p: RemotePattern) => ({
+        // Should be the same as matchRemotePattern()
+        protocol: p.protocol,
+        hostname: makeRe(p.hostname).source,
+        port: p.port,
+        pathname: makeRe(p.pathname ?? '**').source,
+      }))
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),

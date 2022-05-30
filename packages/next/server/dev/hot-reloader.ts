@@ -11,7 +11,7 @@ import {
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
-  getViewsEntry,
+  getAppEntry,
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
@@ -19,7 +19,7 @@ import getBaseWebpackConfig from '../../build/webpack-config'
 import {
   API_ROUTE,
   MIDDLEWARE_FILENAME,
-  VIEWS_DIR_ALIAS,
+  APP_DIR_ALIAS,
 } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
@@ -175,7 +175,7 @@ export default class HotReloader {
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private viewsDir?: string
+  private appDir?: string
 
   constructor(
     dir: string,
@@ -186,7 +186,7 @@ export default class HotReloader {
       buildId,
       previewProps,
       rewrites,
-      viewsDir,
+      appDir,
     }: {
       config: NextConfigComplete
       pagesDir: string
@@ -194,14 +194,14 @@ export default class HotReloader {
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
-      viewsDir?: string
+      appDir?: string
     }
   ) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
-    this.viewsDir = viewsDir
+    this.appDir = appDir
     this.distDir = distDir
     this.clientStats = null
     this.serverStats = null
@@ -437,7 +437,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         runWebpackSpan: this.hotReloaderSpan,
-        viewsDir: this.viewsDir,
+        appDir: this.appDir,
       }
 
       return webpackConfigSpan
@@ -633,14 +633,14 @@ export default class HotReloader {
                   name: bundlePath,
                   isServerComponent,
                   value:
-                    this.viewsDir && bundlePath.startsWith('views/')
-                      ? getViewsEntry({
+                    this.appDir && bundlePath.startsWith('app/')
+                      ? getAppEntry({
                           name: bundlePath,
                           pagePath: join(
-                            VIEWS_DIR_ALIAS,
-                            relative(this.viewsDir!, absolutePagePath)
+                            APP_DIR_ALIAS,
+                            relative(this.appDir!, absolutePagePath)
                           ),
-                          viewsDir: this.viewsDir!,
+                          appDir: this.appDir!,
                           pageExtensions: this.config.pageExtensions,
                         })
                       : request,
@@ -889,7 +889,7 @@ export default class HotReloader {
       multiCompiler,
       watcher: this.watcher,
       pagesDir: this.pagesDir,
-      viewsDir: this.viewsDir,
+      appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
       ...(this.config.onDemandEntries as {

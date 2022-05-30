@@ -137,6 +137,15 @@ export async function middleware(request) {
     }
   }
 
+  if (url.pathname.startsWith('/_next')) {
+    return NextResponse.next()
+  }
+
+  if (url.pathname === '/ssr-page') {
+    url.pathname = '/ssr-page-2'
+    return NextResponse.rewrite(url)
+  }
+
   // Map metadata by default
   return new Response(null, {
     headers: {

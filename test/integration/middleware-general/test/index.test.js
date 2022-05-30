@@ -29,6 +29,7 @@ describe('Middleware Runtime', () => {
     beforeAll(async () => {
       context.dev = true
       context.appPort = await findPort()
+      context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
@@ -82,6 +83,11 @@ describe('Middleware Runtime', () => {
         stderr: true,
         stdout: true,
       })
+
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
 
       context.buildLogs = {
         output: build.stdout + build.stderr,
@@ -278,6 +284,18 @@ function tests(context, locale = '') {
       `/url/relative-next-rewrite`
     )
     expect(readMiddlewareError(response)).toContain(urlsError)
+  })
+
+  it('should trigger middleware for data requests', async () => {
+    const browser = await webdriver(context.appPort, `/ssr-page`)
+    const text = await browser.elementByCss('h1').text()
+    expect(text).toEqual('Bye Cruel World')
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/ssr-page.json`
+    )
+    const json = await res.json()
+    expect(json.pageProps.message).toEqual('Bye Cruel World')
   })
 }
 

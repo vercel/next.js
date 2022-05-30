@@ -1,9 +1,10 @@
 {
   "name": "@next/swc",
-  "version": "12.1.7-canary.15",
+  "version": "12.1.7-canary.22",
   "private": true,
   "scripts": {
-    "build-native": "napi build --platform --cargo-name next_swc_napi native",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi native --features plugin",
+    "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next"
   },
   "napi": {

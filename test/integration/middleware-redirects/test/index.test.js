@@ -27,6 +27,7 @@ describe('Middleware Redirect', () => {
       context.app = await launchApp(context.appDir, context.appPort)
     })
 
+    tests(context)
     testsWithLocale(context)
     testsWithLocale(context, '/fr')
   })
@@ -39,10 +40,22 @@ describe('Middleware Redirect', () => {
       context.app = await nextStart(context.appDir, context.appPort)
     })
 
+    tests(context)
     testsWithLocale(context)
     testsWithLocale(context, '/fr')
   })
 })
+
+function tests(context) {
+  it('does not include the locale in redirects by default', async () => {
+    const res = await fetchViaHTTP(context.appPort, `/old-home`, undefined, {
+      redirect: 'manual',
+    })
+    expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(
+      false
+    )
+  })
+}
 
 function testsWithLocale(context, locale = '') {
   const label = locale ? `${locale} ` : ``

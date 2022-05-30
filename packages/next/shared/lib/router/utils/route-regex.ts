@@ -158,7 +158,7 @@ export function getMiddlewareRegex(
   const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
   const { catchAll = true } = options ?? {}
   if (parameterizedRoute === '/') {
-    let catchAllRegex = catchAll ? '(?!_next).*' : ''
+    let catchAllRegex = catchAll ? '.*' : ''
     return {
       groups: {},
       re: new RegExp(`^/${catchAllRegex}$`),
@@ -185,7 +185,7 @@ export function getNamedMiddlewareRegex(
   const { parameterizedRoute } = getParametrizedRoute(normalizedRoute)
   const { catchAll = true } = options
   if (parameterizedRoute === '/') {
-    let catchAllRegex = catchAll ? '(?!_next).*' : ''
+    let catchAllRegex = catchAll ? '.*' : ''
     return {
       namedRegex: `^/${catchAllRegex}$`,
     }
