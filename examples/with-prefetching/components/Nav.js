@@ -12,13 +12,15 @@ export default function Nav() {
       </p>
       <Link href="/">
         <a>Home</a>
-      </Link>{' '}
-      <Link href="/features">
+      </Link>
+      <h2>Hover only</h2>
+      <p>Prefetch only onMouseEnter:</p>
+      <Link prefetch={false} href="/features">
         <a>Features</a>
       </Link>
       <h2>Imperative</h2>
-      <p>Prefetch on onMouseEnter or on other events:</p>
-      <Link prefetch={false} href="/about">
+      <p>Prefetch on onMouseEnter or on other events with router.prefetch:</p>
+      <Link prefetch={false} prefetchOnHover={false} href="/about">
         <a
           onMouseEnter={() => {
             router.prefetch('/about')
@@ -30,7 +32,7 @@ export default function Nav() {
       </Link>
       <h2>Disable</h2>
       <p>Disable prefetching</p>
-      <Link prefetch={false} href="/contact">
+      <Link prefetch={false} prefetchOnHover={false} href="/contact">
         <a>Contact</a>
       </Link>
       <style jsx>{`

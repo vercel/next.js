@@ -32,6 +32,7 @@ type InternalLinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  prefetchOnHover?: boolean
   locale?: string | false
   legacyBehavior?: boolean
   // e: any because as it would otherwise overlap with existing types
@@ -187,6 +188,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         shallow: true,
         passHref: true,
         prefetch: true,
+        prefetchOnHover: true,
         locale: true,
         onClick: true,
         onMouseEnter: true,
@@ -262,6 +264,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp,
+      prefetchOnHover,
       passHref,
       replace,
       shallow,
@@ -430,7 +433,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onMouseEnter(e)
         }
-        if (isLocalURL(href)) {
+        if (prefetchOnHover !== false && isLocalURL(href)) {
           prefetch(router, href, as, { priority: true })
         }
       },
