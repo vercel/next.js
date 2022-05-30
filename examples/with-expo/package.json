@@ -1,5 +1,5 @@
 {
-  "name": "with-expo",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -20,6 +20,5 @@
   },
   "devDependencies": {
     "@expo/next-adapter": "2.1.5"
-  },
-  "license": "MIT"
+  }
 }

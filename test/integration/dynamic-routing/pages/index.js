@@ -26,6 +26,10 @@ const Page = () => {
         <a id="view-post-1-hash-1-href-only">View post 1 (hash only href)</a>
       </Link>
       <br />
+      <Link href="/post-1?hidden=value" as="/post-1">
+        <a id="view-post-1-hidden-query">View post 1 (href query)</a>
+      </Link>
+      <br />
       <Link
         href={{
           hash: 'my-hash',

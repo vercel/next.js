@@ -1,0 +1,5 @@
+$var: red;
+.red-text {
+  color: $var;
+  background-image: url("data:image/svg+xml,%3c%3fxml version='1.0' encoding='UTF-8'%3f%3e%3csvg width='114px' height='100px' viewBox='0 0 114 100' version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'%3e%3cdefs%3e%3clinearGradient x1='100.929941%25' y1='181.283245%25' x2='41.7687834%25' y2='100%25' id='linearGradient-1'%3e%3cstop stop-color='white' offset='0%25'%3e%3c/stop%3e%3cstop stop-color='black' offset='100%25'%3e%3c/stop%3e%3c/linearGradient%3e%3c/defs%3e%3cg id='Page-1' stroke='none' stroke-width='1' fill='none' fill-rule='evenodd'%3e%3cg id='Black-Triangle' transform='translate(-293.000000%2c -150.000000)' fill='url(%23linearGradient-1)'%3e%3cpolygon id='Logotype---Black' points='350 150 407 250 293 250'%3e%3c/polygon%3e%3c/g%3e%3c/g%3e%3c/svg%3e");
+}

@@ -27,16 +27,20 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-contentful cms-contentful-app
 # or
 yarn create next-app --example cms-contentful cms-contentful-app
+# or
+pnpm create next-app --example cms-contentful cms-contentful-app
 ```
 
 ## Configuration
@@ -138,7 +142,7 @@ After setting up the content model (either manually or by running `npm run setup
 
 **Content model overview**
 
-![Content model overview](./docs/content-model-overview.jpg)
+![Content model overview](./docs/content-model-overview.png)
 
 ### Step 4. Populate Content
 
@@ -157,7 +161,7 @@ Next, create another entry with the content type **Post**:
 
 **Important:** For each entry and asset, you need to click on **Publish**. If not, the entry will be in draft state.
 
-![Published content entry](./docs/content-entry-publish.jpg)
+![Published content entry](./docs/content-entry-publish.png)
 
 ### Step 5. Set up environment variables
 
@@ -211,7 +215,7 @@ http://localhost:3000/api/preview?secret=<CONTENTFUL_PREVIEW_SECRET>&slug={entry
 
 Replace `<CONTENTFUL_PREVIEW_SECRET>` with its respective value in `.env.local`.
 
-![Content preview setup](./docs/content-preview-setup.jpg)
+![Content preview setup](./docs/content-preview-setup.png)
 
 Once saved, go to one of the posts you've created and:
 
@@ -219,7 +223,7 @@ Once saved, go to one of the posts you've created and:
 - The state of the post will switch to **CHANGED** automatically. **Do not** publish it. By doing this, the post will be in draft state.
 - In the sidebar, you will see the **Open preview** button. Click on it!
 
-![Content entry overview](./docs/content-entry-preview.jpg)
+![Content entry overview](./docs/content-entry-preview.png)
 
 You will now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 

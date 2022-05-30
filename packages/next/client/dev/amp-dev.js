@@ -1,14 +1,11 @@
 /* globals __webpack_hash__ */
-import EventSourcePolyfill from './event-source-polyfill'
-import { addMessageListener } from './error-overlay/eventsource'
-import { setupPing } from './on-demand-entries-utils'
 import { displayContent } from './fouc'
-
-if (!window.EventSource) {
-  window.EventSource = EventSourcePolyfill
-}
+import initOnDemandEntries from './on-demand-entries-client'
+import { addMessageListener, connectHMR } from './error-overlay/websocket'
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 let { assetPrefix, page } = data
 assetPrefix = assetPrefix || ''
 let mostRecentHash = null
@@ -46,18 +43,18 @@ async function tryApplyUpdates() {
     const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
     // webpack 5 uses an array instead
-    const pageUpdated = (Array.isArray(jsonData.c)
-      ? jsonData.c
-      : Object.keys(jsonData.c)
+    const pageUpdated = (
+      Array.isArray(jsonData.c) ? jsonData.c : Object.keys(jsonData.c)
     ).some((mod) => {
       return (
         mod.indexOf(
-          `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`
+          `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`
         ) !== -1 ||
         mod.indexOf(
-          `pages${
-            curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`
-          }`.replace(/\//g, '\\')
+          `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`.replace(
+            /\//g,
+            '\\'
+          )
         ) !== -1
       )
     })
@@ -95,5 +92,10 @@ addMessageListener((event) => {
   }
 })
 
-setupPing(assetPrefix, () => page)
+connectHMR({
+  assetPrefix,
+  path: '/_next/webpack-hmr',
+})
 displayContent()
+
+initOnDemandEntries(data.page)

@@ -1,23 +1,11 @@
+import type { DomainLocale } from '../../../server/config-shared'
+
 export function detectDomainLocale(
-  domainItems:
-    | Array<{
-        http?: boolean
-        domain: string
-        locales?: string[]
-        defaultLocale: string
-      }>
-    | undefined,
+  domainItems?: DomainLocale[],
   hostname?: string,
   detectedLocale?: string
 ) {
-  let domainItem:
-    | {
-        http?: boolean
-        domain: string
-        locales?: string[]
-        defaultLocale: string
-      }
-    | undefined
+  let domainItem: DomainLocale | undefined
 
   if (domainItems) {
     if (detectedLocale) {

@@ -52,15 +52,15 @@ export default function nextPageConfig({
               ExportDeclaration(exportPath, exportState) {
                 if (
                   BabelTypes.isExportNamedDeclaration(exportPath) &&
-                  (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
-                    (specifier) => {
-                      return (
-                        (t.isIdentifier(specifier.exported)
-                          ? specifier.exported.name
-                          : specifier.exported.value) === CONFIG_KEY
-                      )
-                    }
-                  ) &&
+                  (
+                    exportPath.node as BabelTypes.ExportNamedDeclaration
+                  ).specifiers?.some((specifier) => {
+                    return (
+                      (t.isIdentifier(specifier.exported)
+                        ? specifier.exported.name
+                        : specifier.exported.value) === CONFIG_KEY
+                    )
+                  }) &&
                   BabelTypes.isStringLiteral(
                     (exportPath.node as BabelTypes.ExportNamedDeclaration)
                       .source
@@ -88,9 +88,10 @@ export default function nextPageConfig({
 
                 const config: PageConfig = {}
                 const declarations: BabelTypes.VariableDeclarator[] = [
-                  ...((exportPath.node
-                    .declaration as BabelTypes.VariableDeclaration)
-                    ?.declarations || []),
+                  ...((
+                    exportPath.node
+                      .declaration as BabelTypes.VariableDeclaration
+                  )?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path
                     .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)
@@ -143,10 +144,13 @@ export default function nextPageConfig({
                     continue
                   }
 
-                  if (!BabelTypes.isObjectExpression(declaration.init)) {
-                    const got = declaration.init
-                      ? declaration.init.type
-                      : 'undefined'
+                  let { init } = declaration
+                  if (BabelTypes.isTSAsExpression(init)) {
+                    init = init.expression
+                  }
+
+                  if (!BabelTypes.isObjectExpression(init)) {
+                    const got = init ? init.type : 'undefined'
                     throw new Error(
                       errorMessage(
                         exportState,
@@ -155,7 +159,7 @@ export default function nextPageConfig({
                     )
                   }
 
-                  for (const prop of declaration.init.properties) {
+                  for (const prop of init.properties) {
                     if (BabelTypes.isSpreadElement(prop)) {
                       throw new Error(
                         errorMessage(

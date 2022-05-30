@@ -5,7 +5,7 @@ function AnotherPage() {
   return (
     <div>
       <h1>Another page</h1>
-      <Link href="/">
+      <Link href="/" passHref>
         <Button id="link-index">Another Button instance</Button>
       </Link>
     </div>

@@ -29,7 +29,7 @@ export function getPostBySlug(slug: string, fields: string[] = []) {
       items[field] = content
     }
 
-    if (data[field]) {
+    if (typeof data[field] !== 'undefined') {
       items[field] = data[field]
     }
   })

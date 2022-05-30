@@ -1,6 +1,5 @@
 {
-  "name": "with-mobx-state-tree-typescript",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -21,6 +20,5 @@
     "@babel/plugin-proposal-decorators": "^7.3.0",
     "@types/node": "^14.0.23",
     "@types/react": "^16.4.12"
-  },
-  "license": "MIT"
+  }
 }

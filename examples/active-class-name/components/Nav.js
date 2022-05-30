@@ -23,6 +23,11 @@ const Nav = () => (
         </ActiveLink>
       </li>
       <li>
+        <ActiveLink activeClassName="active" href="/blog">
+          <a className="nav-link">Blog</a>
+        </ActiveLink>
+      </li>
+      <li>
         <ActiveLink activeClassName="active" href="/[slug]" as="/dynamic-route">
           <a className="nav-link">Dynamic Route</a>
         </ActiveLink>

@@ -13,12 +13,14 @@ Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example auth0 auth0-app
 # or
 yarn create next-app --example auth0 auth0-app
+# or
+pnpm create next-app --example auth0 auth0-app
 ```
 
 ## Configuring Auth0
@@ -44,7 +46,7 @@ cp .env.local.example .env.local
 
 Then, open `.env.local` and add the missing environment variables:
 
-- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`.
+- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`. (Should be prefixed with `https://`)
 - `NEXT_PUBLIC_AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
 - `NEXT_PUBLIC_BASE_URL` - The base url of the application.

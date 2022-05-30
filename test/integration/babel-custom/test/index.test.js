@@ -3,8 +3,6 @@
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
-
 describe('Babel', () => {
   it('should allow setting babelrc env', async () => {
     await nextBuild(join(__dirname, '../fixtures/babel-env'))

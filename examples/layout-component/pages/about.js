@@ -13,7 +13,7 @@ export default function About() {
       </p>
       <p>
         When navigating between pages, we want to persist page state (input
-        values, scroll position, etc) for a Single-Page Application (SPA)
+        values, scroll position, etc.) for a Single-Page Application (SPA)
         experience.
       </p>
       <p>
@@ -32,9 +32,11 @@ export default function About() {
   )
 }
 
-About.getLayout = (page) => (
-  <Layout>
-    <Sidebar />
-    {page}
-  </Layout>
-)
+About.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <Sidebar />
+      {page}
+    </Layout>
+  )
+}

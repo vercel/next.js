@@ -1,13 +1,11 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
-import { formatUrl } from './router/utils/format-url'
-import { NextRouter } from './router/router'
-import { Env } from '@next/env'
-import { BuildManifest } from '../../server/get-page-files'
-import { DomainLocales } from '../../server/config'
-import { PreviewData } from 'next/types'
+import type { HtmlProps } from './html-context'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../server/config'
+import type { Env } from '@next/env'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextRouter } from './router/router'
+import type { ParsedUrlQuery } from 'querystring'
+import type { PreviewData } from 'next/types'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -26,12 +24,7 @@ export type DocumentType = NextComponentType<
   DocumentContext,
   DocumentInitialProps,
   DocumentProps
-> & {
-  renderDocument(
-    Document: DocumentType,
-    props: DocumentProps
-  ): React.ReactElement
-}
+>
 
 export type AppType = NextComponentType<
   AppContextType,
@@ -49,11 +42,21 @@ export type AppTreeType = ComponentType<
  */
 export type NextWebVitalsMetric = {
   id: string
-  label: string
-  name: string
   startTime: number
   value: number
-}
+} & (
+  | {
+      label: 'web-vital'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+    }
+  | {
+      label: 'custom'
+      name:
+        | 'Next.js-hydration'
+        | 'Next.js-route-change-to-render'
+        | 'Next.js-render'
+    }
+)
 
 export type Enhancer<C> = (Component: C) => C
 
@@ -71,7 +74,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -98,9 +101,11 @@ export type NEXT_DATA = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  notFoundSrcPage?: string
+  rsc?: boolean
 }
 
 /**
@@ -168,41 +173,22 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
 }
 
-export type DocumentProps = DocumentInitialProps & {
-  __NEXT_DATA__: NEXT_DATA
-  dangerousAsPath: string
-  docComponentsRendered: {
-    Html?: boolean
-    Main?: boolean
-    Head?: boolean
-    NextScript?: boolean
-  }
-  buildManifest: BuildManifest
-  ampPath: string
-  inAmpMode: boolean
-  hybridAmp: boolean
-  isDevelopment: boolean
-  dynamicImports: string[]
-  assetPrefix?: string
-  canonicalBase: string
-  headTags: any[]
-  unstable_runtimeJS?: false
-  unstable_JsPreload?: false
-  devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
-  locale?: string
-  disableOptimizedLoading?: boolean
-}
+export type DocumentProps = DocumentInitialProps & HtmlProps
 
 /**
  * Next `API` route request
@@ -211,15 +197,15 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
+  query: Partial<{
     [key: string]: string | string[]
-  }
+  }>
   /**
    * Object of `cookies` from header
    */
-  cookies: {
+  cookies: Partial<{
     [key: string]: string
-  }
+  }>
 
   body: any
 
@@ -269,6 +255,13 @@ export type NextApiResponse<T = any> = ServerResponse & {
     }
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
+
+  unstable_revalidate: (
+    urlPath: string,
+    opts?: {
+      unstable_onlyGenerated?: boolean
+    }
+  ) => Promise<void>
 }
 
 /**
@@ -277,7 +270,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void | Promise<void>
+) => unknown | Promise<unknown>
 
 /**
  * Utils
@@ -296,6 +289,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
     return result
   }) as T
 }
+
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
@@ -316,6 +314,20 @@ export function getDisplayName<P>(Component: ComponentType<P>) {
 
 export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
+}
+
+export function normalizeRepeatedSlashes(url: string) {
+  const urlParts = url.split('?')
+  const urlNoQuery = urlParts[0]
+
+  return (
+    urlNoQuery
+      // first we replace any non-encoded backslashes with forward
+      // then normalize repeated forward slashes
+      .replace(/\\/g, '/')
+      .replace(/\/\/+/g, '/') +
+    (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
+  )
 }
 
 export async function loadGetInitialProps<
@@ -370,36 +382,18 @@ export async function loadGetInitialProps<
   return props
 }
 
-export const urlObjectKeys = [
-  'auth',
-  'hash',
-  'host',
-  'hostname',
-  'href',
-  'path',
-  'pathname',
-  'port',
-  'protocol',
-  'query',
-  'search',
-  'slashes',
-]
-
-export function formatWithValidation(url: UrlObject): string {
-  if (process.env.NODE_ENV === 'development') {
-    if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach((key) => {
-        if (urlObjectKeys.indexOf(key) === -1) {
-          console.warn(
-            `Unknown key passed via urlObject into url.format: ${key}`
-          )
-        }
-      })
+let warnOnce = (_: string) => {}
+if (process.env.NODE_ENV !== 'production') {
+  const warnings = new Set<string>()
+  warnOnce = (msg: string) => {
+    if (!warnings.has(msg)) {
+      console.warn(msg)
     }
+    warnings.add(msg)
   }
-
-  return formatUrl(url)
 }
+
+export { warnOnce }
 
 export const SP = typeof performance !== 'undefined'
 export const ST =
@@ -408,3 +402,12 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
+
+export interface CacheFs {
+  readFile(f: string): Promise<string>
+  readFileSync(f: string): string
+  writeFile(f: string, d: any): Promise<void>
+  mkdir(dir: string): Promise<void | string>
+  stat(f: string): Promise<{ mtime: Date }>
+}
