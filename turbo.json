@@ -15,10 +15,6 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
-    },
-    "prepublish": {
-      "outputs": ["dist/**"]
-    },
-    "typescript": {}
+    }
   }
 }
