@@ -37,17 +37,12 @@ export async function getPageStaticInfo(params: {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
+
     const runtime =
       config?.runtime === 'edge'
         ? 'edge'
-        : // For Node.js runtime, we do static optimization.
-        config?.runtime === 'nodejs'
-        ? ssr || ssg
-          ? 'nodejs'
-          : undefined
-        : // When the runtime is required because there is ssr or ssg we fallback
-        ssr || ssg
-        ? nextConfig.experimental?.runtime
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
         : undefined
 
     const middlewareConfig =
