@@ -37,6 +37,7 @@ import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
+import { detectDomainLocale } from '../../../client/detect-domain-locale'
 
 declare global {
   interface Window {
@@ -96,13 +97,6 @@ export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; key: string } & NextHistoryState)
-
-let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
-
-if (process.env.__NEXT_I18N_SUPPORT) {
-  detectDomainLocale =
-    require('../i18n/detect-domain-locale').detectDomainLocale
-}
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
