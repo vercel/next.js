@@ -59,7 +59,7 @@ function getDesiredCompilerOptions(
       // All of these values work:
       parsedValues: [
         ts.ModuleResolutionKind.NodeJs,
-        ts.ModuleResolutionKind.Node12,
+        ts.ModuleResolutionKind.Node16,
         ts.ModuleResolutionKind.NodeNext,
       ],
       value: 'node',
