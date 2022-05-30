@@ -936,6 +936,9 @@ export default async function getBaseWebpackConfig(
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
+  const rscSharedRegex =
+    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context)\.js|node_modules\/styled-jsx\/)/
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     // @ts-ignore
@@ -1029,7 +1032,7 @@ export default async function getBaseWebpackConfig(
                 enforce: true,
                 name: 'rsc-runtime-deps',
                 filename: 'rsc-runtime-deps.js',
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+                test: rscSharedRegex,
               },
             }
           : undefined
@@ -1284,7 +1287,7 @@ export default async function getBaseWebpackConfig(
               // Move shared dependencies from sc_server and sc_client into the
               // same layer.
               {
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+                test: rscSharedRegex,
                 layer: 'rsc_shared_deps',
               },
             ]

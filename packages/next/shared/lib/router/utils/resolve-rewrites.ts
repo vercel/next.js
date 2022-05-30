@@ -1,11 +1,11 @@
-import { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrlQuery } from 'querystring'
 import { getPathMatch } from './path-match'
 import { matchHas, prepareDestination } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
+import { removeBasePath } from '../../../../client/remove-base-path'
 import { parseRelativeUrl } from './parse-relative-url'
-import { delBasePath } from '../router'
 
 export default function resolveRewrites(
   asPath: string,
@@ -29,7 +29,7 @@ export default function resolveRewrites(
   let externalDest = false
   let parsedAs = parseRelativeUrl(asPath)
   let fsPathname = removeTrailingSlash(
-    normalizeLocalePath(delBasePath(parsedAs.pathname), locales).pathname
+    normalizeLocalePath(removeBasePath(parsedAs.pathname), locales).pathname
   )
   let resolvedHref
 
@@ -83,7 +83,7 @@ export default function resolveRewrites(
       Object.assign(query, destRes.parsedDestination.query)
 
       fsPathname = removeTrailingSlash(
-        normalizeLocalePath(delBasePath(asPath), locales).pathname
+        normalizeLocalePath(removeBasePath(asPath), locales).pathname
       )
 
       if (pages.includes(fsPathname)) {

@@ -1,4 +1,6 @@
-/* eslint-env jest */
+/**
+ * @jest-environment @edge-runtime/jest-environment
+ */
 import { NextURL } from 'next/dist/server/web/next-url'
 
 // TODO Make NextURL extend URL

@@ -2,7 +2,7 @@ import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import parseua from 'next/dist/compiled/ua-parser-js'
 
 import { NextCookies } from './cookies'
@@ -20,14 +20,15 @@ export class NextRequest extends Request {
   }
 
   constructor(input: Request | string, init: RequestInit = {}) {
+    const url = typeof input === 'string' ? input : input.url
+    validateURL(url)
     super(input, init)
-
     this[INTERNALS] = {
       cookies: new NextCookies(this),
       geo: init.geo || {},
       ip: init.ip,
       page: init.page,
-      url: new NextURL(typeof input === 'string' ? input : input.url, {
+      url: new NextURL(url, {
         headers: toNodeHeaders(this.headers),
         nextConfig: init.nextConfig,
       }),

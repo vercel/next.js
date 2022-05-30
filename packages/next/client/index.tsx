@@ -8,8 +8,6 @@ import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
-  delBasePath,
-  hasBasePath,
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -35,6 +33,8 @@ import { getProperError } from '../lib/is-error'
 import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { removeBasePath } from './remove-base-path'
+import { hasBasePath } from './has-base-path'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -206,7 +206,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
 
   // make sure not to attempt stripping basePath for 404s
   if (hasBasePath(asPath)) {
-    asPath = delBasePath(asPath)
+    asPath = removeBasePath(asPath)
   }
 
   if (process.env.__NEXT_I18N_SUPPORT) {

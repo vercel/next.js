@@ -189,18 +189,18 @@ function tests(context, locale = '') {
   })
 
   it(`should accept a URL instance for fetch`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/fetch-url')
-    const response = readMiddlewareJSON(res)
-    expect(response).toHaveProperty('error.name')
-    expect(response.error.name).not.toBe('TypeError')
+    const response = await fetchViaHTTP(context.appPort, '/fetch-url')
+    const { error } = readMiddlewareJSON(response)
+    expect(error).toBeTruthy()
+    expect(error.message).not.toContain("Failed to construct 'URL'")
   })
 
   it(`should allow to abort a fetch request`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/abort-controller')
-    const response = readMiddlewareJSON(res)
-    expect('error' in response).toBe(true)
-    expect(response.error.name).toBe('AbortError')
-    expect(response.error.message).toBe('The user aborted a request.')
+    const response = await fetchViaHTTP(context.appPort, '/abort-controller')
+    const payload = readMiddlewareJSON(response)
+    expect('error' in payload).toBe(true)
+    expect(payload.error.name).toBe('AbortError')
+    expect(payload.error.message).toBe('The operation was aborted')
   })
 
   it(`should validate & parse request url from any route`, async () => {
@@ -250,16 +250,19 @@ function tests(context, locale = '') {
   })
 
   it('should throw when using Request with a relative URL', async () => {
-    const res = await fetchViaHTTP(context.appPort, `/url/relative-request`)
-    expect(readMiddlewareError(res)).toContain('Invalid URL')
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `/url/relative-request`
+    )
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should throw when using NextRequest with a relative URL', async () => {
-    const res = await fetchViaHTTP(
+    const response = await fetchViaHTTP(
       context.appPort,
       `/url/relative-next-request`
     )
-    expect(readMiddlewareError(res)).toContain('Invalid URL')
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should warn when using Response.redirect with a relative URL', async () => {
