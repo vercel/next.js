@@ -36,9 +36,6 @@ export default function middleware({ nextUrl: { pathname } }) {
   if (pathname === '/DomException') {
     new DomException()
   }
-  if (pathname === '/Event') {
-    new Event()
-  }
   if (pathname === '/EventTarget') {
     new EventTarget()
   }
