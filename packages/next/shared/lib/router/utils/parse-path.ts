@@ -10,7 +10,10 @@ export function parsePath(path: string) {
   if (queryIndex > -1 || hashIndex > -1) {
     return {
       pathname: path.substring(0, queryIndex > -1 ? queryIndex : hashIndex),
-      query: queryIndex > -1 ? path.substring(queryIndex, hashIndex) : '',
+      query:
+        queryIndex > -1
+          ? path.substring(queryIndex, hashIndex > -1 ? hashIndex : undefined)
+          : '',
       hash: hashIndex > -1 ? path.slice(hashIndex) : '',
     }
   }
