@@ -132,8 +132,6 @@ function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
     )
   }
 
-  console.log(result)
-
   return result
 }
 
