@@ -1,8 +1,6 @@
 import React from 'react'
 import { UrlObject } from 'url'
 import {
-  addBasePath,
-  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
@@ -12,6 +10,8 @@ import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
+import { getDomainLocale } from './get-domain-locale'
+import { addBasePath } from './add-base-path'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -422,12 +422,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const localeDomain =
         router &&
         router.isLocaleDomain &&
-        getDomainLocale(
-          as,
-          curLocale,
-          router && router.locales,
-          router && router.domainLocales
-        )
+        getDomainLocale(as, curLocale, router.locales, router.domainLocales)
 
       childProps.href =
         localeDomain ||
