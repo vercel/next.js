@@ -20,6 +20,17 @@ export const FONT_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const SERVERLESS_DIRECTORY = 'serverless'
 export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
+export const BABEL_CONFIG_FILES = [
+  '.babelrc',
+  '.babelrc.json',
+  '.babelrc.js',
+  '.babelrc.mjs',
+  '.babelrc.cjs',
+  'babel.config.js',
+  'babel.config.json',
+  'babel.config.mjs',
+  'babel.config.cjs',
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'

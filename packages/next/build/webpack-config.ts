@@ -27,6 +27,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   MODERN_BROWSERSLIST_TARGET,
+  BABEL_CONFIG_FILES,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
@@ -411,23 +412,16 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const babelConfigFile = await [
-    '.babelrc',
-    '.babelrc.json',
-    '.babelrc.js',
-    '.babelrc.mjs',
-    '.babelrc.cjs',
-    'babel.config.js',
-    'babel.config.json',
-    'babel.config.mjs',
-    'babel.config.cjs',
-  ].reduce(async (memo: Promise<string | undefined>, filename) => {
-    const configFilePath = path.join(dir, filename)
-    return (
-      (await memo) ||
-      ((await fileExists(configFilePath)) ? configFilePath : undefined)
-    )
-  }, Promise.resolve(undefined))
+  const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
+    async (memo: Promise<string | undefined>, filename) => {
+      const configFilePath = path.join(dir, filename)
+      return (
+        (await memo) ||
+        ((await fileExists(configFilePath)) ? configFilePath : undefined)
+      )
+    },
+    Promise.resolve(undefined)
+  )
 
   const distDir = path.join(dir, config.distDir)
 

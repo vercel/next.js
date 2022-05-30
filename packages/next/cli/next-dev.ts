@@ -79,7 +79,7 @@ const nextDev: cliCommand = (argv) => {
   const host = args['--hostname']
 
   loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
-    .then((_nextConfig) => {
+    .then((nextConfig) => {
       // const distDir = join(dir, nextConfig.distDir)
       // const telemetry = new Telemetry({ distDir })
 
@@ -89,6 +89,7 @@ const nextDev: cliCommand = (argv) => {
       const startDev = () => {
         let fatalError: string | undefined
         let restartOnClose = false
+        let compiledSuccessfully = false
 
         const child = spawn(
           process.argv0,
@@ -106,6 +107,7 @@ const nextDev: cliCommand = (argv) => {
             },
           }
         )
+        const startTime = Date.now()
 
         restartServer = () => {
           restartOnClose = true
@@ -114,11 +116,21 @@ const nextDev: cliCommand = (argv) => {
 
         child.stdout?.on('data', (chunk) => {
           process.stdout.write(chunk)
-          if (serverPort) return
-          const msg = chunk.toString()
-          const matchedPort = /started server on .+:(.+), url: /.exec(msg)
-          if (matchedPort) {
-            serverPort = matchedPort[1]
+
+          if (!serverPort) {
+            const matchedPort = /started server on .+:(.+), url: /.exec(
+              chunk.toString()
+            )
+            if (matchedPort) {
+              serverPort = matchedPort[1]
+            }
+          }
+
+          if (!compiledSuccessfully) {
+            compiledSuccessfully =
+              /compiled client and server successfully in /.test(
+                chunk.toString()
+              )
           }
         })
 
@@ -139,7 +151,13 @@ const nextDev: cliCommand = (argv) => {
           }
 
           if (fatalError) {
-            console.log(eventCrashReport(fatalError))
+            eventCrashReport({
+              error: fatalError,
+              childProcessDuration: Date.now() - startTime,
+              compiledSuccessfully,
+              dir,
+              nextConfig,
+            }).then(console.log)
             Log.error(fatalError)
             Log.info('Restarting the server due to a fatal error')
             startDev()
