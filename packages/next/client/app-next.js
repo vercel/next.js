@@ -1,5 +1,9 @@
 import { hydrate, version } from './app-index'
 
+// We have to include the router
+import { router } from './'
+console.log(router)
+
 window.next = {
   version,
   root: true,

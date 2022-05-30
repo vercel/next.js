@@ -39,7 +39,7 @@ export default function AppRouter({ initialUrl, children }: any) {
   const [current, setCurrent] = React.useState(initialState)
   const appRouter = React.useMemo(() => {
     return {
-      prefetch: () => {},
+      prefetch: () => Promise.resolve(),
       replace: () => {},
       push: (url: string) => {
         previousUrlRef.current = current
