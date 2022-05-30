@@ -533,7 +533,7 @@ const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 function fetchRetry(
   url: string,
   attempts: number,
-  opts: { text?: boolean }
+  opts: { text?: boolean; isPrefetch?: boolean; method?: string }
 ): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -548,6 +548,12 @@ function fetchRetry(
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
+    method: opts.method || 'GET',
+    headers: opts.isPrefetch
+      ? {
+          purpose: 'prefetch',
+        }
+      : {},
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
@@ -563,47 +569,64 @@ function fetchRetry(
       }
       throw new Error(`Failed to load static props`)
     }
-    return opts.text ? res.text() : res.json()
+
+    if (opts.method !== 'HEAD') {
+      return opts.text ? res.text() : res.json()
+    }
   })
 }
+
+const backgroundCache: Record<string, Promise<any>> = {}
 
 function fetchNextData(
   dataHref: string,
   isServerRender: boolean,
   text: boolean | undefined,
   inflightCache: NextDataCache,
-  persistCache: boolean
+  persistCache: boolean,
+  isPrefetch: boolean
 ) {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const getData = (background = false) =>
+    fetchRetry(dataHref, isServerRender ? 3 : 1, {
+      text,
+      isPrefetch,
+      method: background ? 'HEAD' : 'GET',
+    })
+      .catch((err: Error) => {
+        // We should only trigger a server-side transition if this was caused
+        // on a client-side transition. Otherwise, we'd get into an infinite
+        // loop.
+
+        if (!isServerRender) {
+          markAssetError(err)
+        }
+        throw err
+      })
+      .then((data) => {
+        if (!persistCache || process.env.NODE_ENV !== 'production') {
+          delete inflightCache[cacheKey]
+        }
+        return data
+      })
+      .catch((err) => {
+        delete inflightCache[cacheKey]
+        throw err
+      })
 
   if (inflightCache[cacheKey] !== undefined) {
+    // we kick off a HEAD request in the background
+    // when a non-prefetch request is made to signal revalidation
+    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
+      backgroundCache[cacheKey] = getData(true)
+        .catch(() => {})
+        .then(() => {
+          delete backgroundCache[cacheKey]
+        })
+    }
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = fetchRetry(
-    dataHref,
-    isServerRender ? 3 : 1,
-    { text }
-  )
-    .catch((err: Error) => {
-      // We should only trigger a server-side transition if this was caused
-      // on a client-side transition. Otherwise, we'd get into an infinite
-      // loop.
-
-      if (!isServerRender) {
-        markAssetError(err)
-      }
-      throw err
-    })
-    .then((data) => {
-      if (!persistCache || process.env.NODE_ENV !== 'production') {
-        delete inflightCache[cacheKey]
-      }
-      return data
-    })
-    .catch((err) => {
-      delete inflightCache[cacheKey]
-      throw err
-    }))
+  return (inflightCache[cacheKey] = getData())
 }
 
 interface NextDataCache {
@@ -1626,7 +1649,8 @@ export default class Router implements BaseRouter {
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !isPreview
+              !!__N_SSG && !isPreview,
+              false
             )
           : this.getInitialProps(
               Component,
@@ -1860,6 +1884,7 @@ export default class Router implements BaseRouter {
               false,
               false, // text
               this.sdc,
+              !this.isPreview,
               true
             )
           : false
@@ -1924,7 +1949,7 @@ export default class Router implements BaseRouter {
 
   _getFlightData(dataHref: string): Promise<object> {
     // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData(dataHref, true, true, this.sdc, false).then(
+    return fetchNextData(dataHref, true, true, this.sdc, false, false).then(
       (serialized) => {
         return { data: serialized }
       }

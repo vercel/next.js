@@ -106,7 +106,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   // Add page itself to the list of components
   componentsCode.push(
     `'${pathToUrlPath(pagePath).replace(
-      new RegExp(`/page+(${extensions.join('|')})$`),
+      new RegExp(`(${extensions.join('|')})$`),
       ''
       // use require so that we can bust the require cache
     )}': () => require('${pagePath}')`
@@ -116,6 +116,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export const components = {
         ${componentsCode.join(',\n')}
     };
+
+    export const AppRouter = require('next/dist/client/components/app-router.client.js').default
 
     export const __next_app_webpack_require__ = __webpack_require__
   `

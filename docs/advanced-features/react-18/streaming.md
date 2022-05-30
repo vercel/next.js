@@ -1,6 +1,7 @@
 # Streaming SSR
 
 React 18 includes architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render content on the server and send updates through HTTP streams.
+
 React Server Components, an experimental feature, is based on streaming. You can read more about Server Components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on streaming with React 18.
 
 ## Using Streaming Server-Rendering
@@ -11,43 +12,15 @@ All SSR pages have the ability to render components into streams and the client 
 
 As an added bonus, in streaming SSR mode the client will also use selective hydration to prioritize component hydration based on user interactions, further improving performance.
 
-For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
+For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md). Check out [`next/streaming`](/docs/api-reference/next/streaming.md) for the API reference for streaming SSR.
 
 ## Streaming Features
 
 ### next/dynamic
 
-Dynamic imports through `React.lazy` have better support in React 18. Previously, Next.js supported dynamic imports internally without requiring `Suspense` or `React.lazy`. Now to embrace the official APIs on the React side, we provide you with `options.suspense` in `next/dynamic`.
+Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libaries are only imported and included in the JavaScript bundle when they're used.
 
-```jsx
-import dynamic from 'next/dynamic'
-import { lazy, Suspense } from 'react'
-
-import Content from '../components/content'
-
-// These two ways are identical:
-const Profile = dynamic(() => import('./profile'), { suspense: true })
-const Footer = lazy(() => import('./footer'))
-
-export default function Home() {
-  return (
-    <div>
-      <Suspense fallback={<Spinner />}>
-        {/* A component that uses Suspense */}
-        <Content />
-      </Suspense>
-      <Suspense fallback={<Spinner />}>
-        <Profile />
-      </Suspense>
-      <Suspense fallback={<Spinner />}>
-        <Footer />
-      </Suspense>
-    </div>
-  )
-}
-```
-
-Check out [`next/streaming`](/docs/api-reference/next/streaming.md) for more details on building Next.js apps in streaming SSR mode.
+Read more about how to use [`next/dynamic`](/docs/advanced-features/dynamic-import.md).
 
 ## Important Notes
 
@@ -57,10 +30,15 @@ Using resource tags (e.g. scripts or stylesheets) in `next/head` won't work as i
 
 #### Data Fetching
 
-Currently, data fetching within `Suspense` boundaries on the server side is not fully supported, which could lead to mismatching between server and client. In the short-term, please don't try data fetching within `Suspense`.
+Data fetching within `Suspense` boundaries is currently only supported on the client side. **Server-side data fetching is not supported** yet. Read the [Layouts RFC](https://nextjs.org/blog/layouts-rfc) for more information about the future of data fetching on the server.
 
 #### Styling
 
-Inline styles, Global CSS, CSS modules and Next.js built-in `styled-jsx` are supported with streaming. The Next.js team is working on the guide of integrating other CSS-in-JS solutions in streaming SSR. Stay tuned for updates.
+The following solutions are compatible with Next.js streaming:
 
-> Note: The styling code should be only placed in client components, not server components, when using React Server Components
+- Inline Styles
+- [Global Stylesheets](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet)
+- [CSS Modules](/docs/basic-features/built-in-css-support.md#adding-component-level-css)
+- [styled-jsx](/docs/basic-features/built-in-css-support.md#css-in-js)
+
+CSS-in-JS solutions like `styled-components` and `emotion` are currently not compatible with streaming. For library authors, check out the [upgrade guide](https://github.com/reactwg/react-18/discussions/110) to learn more.
