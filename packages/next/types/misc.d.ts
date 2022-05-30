@@ -259,30 +259,8 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
-declare module 'next/dist/compiled/web-streams-polyfill' {
-  import m from 'web-streams-polyfill/ponyfill'
-  export = m
-}
-declare module 'next/dist/compiled/abort-controller' {
-  type BaseAbortController = typeof AbortController
-  type BaseAbortSignal = typeof AbortSignal
-  export { BaseAbortController as AbortController }
-  export { BaseAbortSignal as AbortSignal }
-}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
-  export = m
-}
-declare module 'next/dist/compiled/formdata-node' {
-  import m from 'formdata-node'
-  export = m
-}
-declare module 'next/dist/compiled/@peculiar/webcrypto' {
-  import m from '@peculiar/webcrypto'
-  export = m
-}
-declare module 'next/dist/compiled/uuid' {
-  import m from 'uuid'
   export = m
 }
 declare module 'next/dist/compiled/strip-ansi' {
@@ -343,6 +321,16 @@ declare module 'next/dist/compiled/comment-json' {
 
 declare module 'next/dist/compiled/process' {
   import m from 'process'
+  export = m
+}
+
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
   export = m
 }
 
