@@ -75,7 +75,9 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg = getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('path')
       expect(res.status).toBe(500)
-      expect(context.logs.output).toContain(getModuleNotFound('path'))
+      expect(stripAnsi(context.logs.output)).toContain(
+        getModuleNotFound('path')
+      )
       expect(context.logs.output).toContain(msg)
       expect(text).toContain(escapeLF(msg))
       expect(stripAnsi(context.logs.output)).toContain(
@@ -100,7 +102,9 @@ describe('Middleware importing Node.js modules', () => {
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
       expect(res.status).toBe(500)
-      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
+      expect(stripAnsi(context.logs.output)).toContain(
+        getModuleNotFound('child_process')
+      )
       expect(context.logs.output).toContain(msg)
       expect(text).toContain(escapeLF(msg))
       expect(stripAnsi(context.logs.output)).toContain(
@@ -126,7 +130,9 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
-      expect(context.logs.output).toContain(getModuleNotFound('not-exist'))
+      expect(stripAnsi(context.logs.output)).toContain(
+        getModuleNotFound('not-exist')
+      )
       expect(context.logs.output).not.toContain(msg)
       expect(text).not.toContain(escapeLF(msg))
     })
@@ -151,7 +157,9 @@ describe('Middleware importing Node.js modules', () => {
       await waitFor(500)
       const msg =
         getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
+      expect(stripAnsi(context.logs.output)).toContain(
+        getModuleNotFound('child_process')
+      )
       expect(context.logs.output).not.toContain(msg)
       expect(text).not.toContain(escapeLF(msg))
     })
