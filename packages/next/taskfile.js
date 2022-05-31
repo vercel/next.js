@@ -192,7 +192,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       opts.src ||
         relative(
           __dirname,
-          require.resolve('@next/react-dev-overlay/lib/middleware')
+          require.resolve('@next/react-dev-overlay/dist/middleware')
         )
     )
     .ncc({
@@ -201,14 +201,14 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('dist/compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay/dist')
 
   await task
     .source(
       opts.src ||
         relative(
           __dirname,
-          require.resolve('@next/react-dev-overlay/lib/client')
+          require.resolve('@next/react-dev-overlay/dist/client')
         )
     )
     .ncc({
@@ -217,11 +217,11 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('dist/compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay/dist')
 
   const clientFile = join(
     __dirname,
-    'dist/compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/dist/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
@@ -313,10 +313,14 @@ export async function ncc_react_refresh_utils(task, opts) {
     join(__dirname, 'dist/compiled/react-refresh')
   )
 
-  const srcDir = dirname(
-    require.resolve('@next/react-refresh-utils/package.json')
+  const srcDir = join(
+    dirname(require.resolve('@next/react-refresh-utils/package.json')),
+    'dist'
   )
-  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
+  const destDir = join(
+    __dirname,
+    'dist/compiled/@next/react-refresh-utils/dist'
+  )
   await fs.remove(destDir)
   await fs.ensureDir(destDir)
 
