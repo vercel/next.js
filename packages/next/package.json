@@ -116,6 +116,7 @@
     "@babel/runtime": "7.15.4",
     "@babel/traverse": "7.18.0",
     "@babel/types": "7.18.0",
+    "@edge-runtime/primitives": "1.0.1-beta.10",
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.4.4",
     "@napi-rs/triples": "1.1.0",
