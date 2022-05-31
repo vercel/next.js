@@ -340,7 +340,7 @@ export async function renderToHTML(
         layout.path.endsWith('/page') ? (
           children
         ) : (
-          // TODO: only provide the part of the url that is relevant to the layout
+          // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
           <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
             {children}
           </LayoutRouter>

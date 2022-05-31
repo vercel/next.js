@@ -31,8 +31,6 @@ export function fetchServerResponse(href: string, layoutPath?: string) {
 }
 
 export default function AppRouter({ initialUrl, layoutPath, children }: any) {
-  // @ts-ignore useTransition exists
-  const [, startBackTransition] = React.useTransition()
   const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
 
   const onPopState = React.useCallback(
@@ -40,9 +38,11 @@ export default function AppRouter({ initialUrl, layoutPath, children }: any) {
       if (!state) {
         return
       }
-      startBackTransition(() => appRouter.replace(state.url))
+      // @ts-ignore useTransition exists
+      // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+      React.startTransition(() => appRouter.replace(state.url))
     },
-    [startBackTransition, appRouter]
+    [appRouter]
   )
   React.useEffect(() => {
     window.addEventListener('popstate', onPopState)
@@ -52,6 +52,7 @@ export default function AppRouter({ initialUrl, layoutPath, children }: any) {
   })
 
   let root
+  // TODO: Check the RSC cache first for the page you want to navigate to
   if (current.url !== previousUrlRef.current?.url) {
     // eslint-disable-next-line
     const data = fetchServerResponse(current.url, layoutPath)

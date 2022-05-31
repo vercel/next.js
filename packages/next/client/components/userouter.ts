@@ -9,16 +9,20 @@ export default function useRouter(initialUrl: string): any {
   const [current, setCurrent] = React.useState(initialState)
   const change = React.useCallback(
     (method: 'replaceState' | 'pushState', url: string) => {
-      previousUrlRef.current = current
-      const state = { ...current, url }
-      setCurrent(state)
-      // TODO: update url eagerly or not?
-      window.history[method](state, '', url)
+      // @ts-ignore startTransition exists
+      React.startTransition(() => {
+        previousUrlRef.current = current
+        const state = { ...current, url }
+        setCurrent(state)
+        // TODO: update url eagerly or not?
+        window.history[method](state, '', url)
+      })
     },
     [current]
   )
   const appRouter = React.useMemo(() => {
     return {
+      // TODO: implement prefetching of loading / flight
       prefetch: () => Promise.resolve({}),
       replace: (url: string) => {
         return change('replaceState', url)
