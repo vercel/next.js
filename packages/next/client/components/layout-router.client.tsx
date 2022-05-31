@@ -3,7 +3,6 @@ import { AppRouterContext } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client.js'
 import useRouter from './userouter.js'
 
-// TODO: move to client component when handling is implemented
 export default function LayoutRouter({
   initialUrl,
   layoutPath,

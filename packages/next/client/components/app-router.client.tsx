@@ -30,7 +30,6 @@ export function fetchServerResponse(href: string, layoutPath?: string) {
   return response
 }
 
-// TODO: move to client component when handling is implemented
 export default function AppRouter({ initialUrl, layoutPath, children }: any) {
   // @ts-ignore useTransition exists
   const [, startBackTransition] = React.useTransition()

@@ -1,4 +1,6 @@
 import React from 'react'
+
+// TODO: Handle case where current layout path does not handle navigation
 export default function useRouter(initialUrl: string): any {
   const initialState = {
     url: initialUrl,
