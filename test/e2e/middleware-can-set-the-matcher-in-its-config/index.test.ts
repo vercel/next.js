@@ -59,7 +59,7 @@ describe('Middleware can set the matcher in its config', () => {
         'middleware.js': `
           import { NextResponse } from 'next/server'
           export const config = {
-            matching: ['/with-middleware/:path*', '/another-middleware/:path*']
+            matcher: ['/with-middleware/:path*', '/another-middleware/:path*']
           };
           export default (req) => {
             const res = NextResponse.next();

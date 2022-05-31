@@ -33,7 +33,7 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps|matching/.test(fileContent)) {
+  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
@@ -121,27 +121,27 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
   const result: Partial<MiddlewareConfig> = {}
 
-  if (config.matching) {
+  if (config.matcher) {
     result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matching).join('|')
+      getMiddlewareRegExpStrings(config.matcher).join('|')
     )
   }
 
   return result
 }
 
-function getMiddlewareRegExpStrings(matching: string | string[]): string[] {
-  if (Array.isArray(matching)) {
-    return matching.flatMap((x) => getMiddlewareRegExpStrings(x))
+function getMiddlewareRegExpStrings(matcher: string | string[]): string[] {
+  if (Array.isArray(matcher)) {
+    return matcher.flatMap((x) => getMiddlewareRegExpStrings(x))
   }
 
-  if (typeof matching !== 'string') {
+  if (typeof matcher !== 'string') {
     throw new Error(
-      '`matching` must be a path pattern or an array of path patterns'
+      '`matcher` must be a path pattern or an array of path patterns'
     )
   }
 
-  let matcher = matching.startsWith('/') ? matching : `/${matching}`
+  matcher = matcher.startsWith('/') ? matcher : `/${matcher}`
   const parsedPage = tryToParsePath(matcher)
 
   matcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
