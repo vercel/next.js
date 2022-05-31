@@ -1,9 +1,7 @@
 import type { CacheFs } from '../../../shared/lib/utils'
-
 import FileSystemCache from './file-system-cache'
-import LRUCache from 'next/dist/compiled/lru-cache'
-import path from '../../../shared/lib/isomorphic/path'
 import { PrerenderManifest } from '../../../build'
+import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import {
   IncrementalCacheValue,
@@ -15,49 +13,49 @@ function toRoute(pathname: string): string {
 }
 
 export interface CacheHandlerContext {
-  flushToDisk?: boolean
-  pagesDir: string
-  distDir: string
-  dev?: boolean
   fs: CacheFs
+  dev?: boolean
+  flushToDisk?: boolean
+  serverDistDir: string
+  maxMemoryCacheSize?: number
+}
+
+export interface CacheHandlerValue {
+  lastModified?: number
+  value: IncrementalCacheValue | null
 }
 
 export class CacheHandler {
   // eslint-disable-next-line
   constructor(_ctx: CacheHandlerContext) {}
 
-  public async get(_key: string): Promise<string> {
-    return ''
-  }
-  public async getMeta(_key: string): Promise<{
-    // time in epoch e.g. Date.now()
-    mtime: number
-  }> {
+  public async get(_key: string): Promise<CacheHandlerValue | null> {
     return {} as any
   }
-  public async set(_key: string, _data: string): Promise<void> {}
+
+  public async set(
+    _key: string,
+    _data: IncrementalCacheValue | null
+  ): Promise<void> {}
 }
 
 export class IncrementalCache {
-  prerenderManifest: PrerenderManifest
-  cache?: LRUCache<string, IncrementalCacheEntry>
   dev?: boolean
   cacheHandler: CacheHandler
+  prerenderManifest: PrerenderManifest
 
   constructor({
     fs,
     dev,
-    distDir,
-    pagesDir,
     flushToDisk,
+    serverDistDir,
     maxMemoryCacheSize,
     getPrerenderManifest,
     incrementalCacheHandlerPath,
   }: {
     fs: CacheFs
     dev: boolean
-    distDir: string
-    pagesDir: string
+    serverDistDir: string
     flushToDisk?: boolean
     maxMemoryCacheSize?: number
     incrementalCacheHandlerPath?: string
@@ -69,52 +67,34 @@ export class IncrementalCache {
       cacheHandlerMod = require(incrementalCacheHandlerPath)
       cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
     }
-    this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
-      dev,
-      distDir,
-      fs,
-      pagesDir,
-      flushToDisk,
-    })
-
-    this.dev = dev
-    this.prerenderManifest = getPrerenderManifest()
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
       // Allow cache size to be overridden for testing purposes
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
-
-    if (maxMemoryCacheSize) {
-      this.cache = new LRUCache({
-        max: maxMemoryCacheSize,
-        length({ value }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === 'REDIRECT') {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === 'IMAGE') {
-            throw new Error('invariant image should not be incremental-cache')
-          }
-          // rough estimate of size of cache value
-          return value.html.length + JSON.stringify(value.pageData).length
-        },
-      })
-    }
+    this.dev = dev
+    this.prerenderManifest = getPrerenderManifest()
+    this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
+      dev,
+      fs,
+      flushToDisk,
+      serverDistDir,
+      maxMemoryCacheSize,
+    })
   }
 
   private calculateRevalidate(
     pathname: string,
     fromTime: number
   ): number | false {
-    pathname = toRoute(pathname)
-
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
     if (this.dev) return new Date().getTime() - 1000
 
+    // if an entry isn't present in routes we fallback to a default
+    // of revalidating after 1 second
     const { initialRevalidateSeconds } = this.prerenderManifest.routes[
-      pathname
+      toRoute(pathname)
     ] || {
       initialRevalidateSeconds: 1,
     }
@@ -126,66 +106,58 @@ export class IncrementalCache {
     return revalidateAfter
   }
 
+  _getPathname(pathname: string) {
+    return normalizePagePath(pathname)
+  }
+
   // get data from cache if available
   async get(pathname: string): Promise<IncrementalCacheEntry | null> {
+    // we don't leverage the prerender cache in dev mode
+    // so that getStaticProps is always called for easier debugging
     if (this.dev) return null
-    pathname = normalizePagePath(pathname)
 
-    let data = this.cache && this.cache.get(pathname)
+    pathname = this._getPathname(pathname)
+    let entry: IncrementalCacheEntry | null = null
+    const cacheData = await this.cacheHandler.get(pathname)
 
-    // let's check the disk for seed data
-    if (!data) {
-      if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
-        const now = Date.now()
-        const revalidateAfter = this.calculateRevalidate(pathname, now)
-        data = {
-          value: null,
-          revalidateAfter: revalidateAfter !== false ? now : false,
-        }
+    const curRevalidate =
+      this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
+    const revalidateAfter = this.calculateRevalidate(
+      pathname,
+      cacheData?.lastModified || Date.now()
+    )
+    const isStale =
+      revalidateAfter !== false && revalidateAfter < Date.now()
+        ? true
+        : undefined
+
+    if (cacheData) {
+      entry = {
+        isStale,
+        curRevalidate,
+        revalidateAfter,
+        value: cacheData.value,
       }
-
-      try {
-        const htmlPath = `${pathname}.html`
-        const html = await this.cacheHandler.get(htmlPath)
-        const pageData = JSON.parse(
-          await this.cacheHandler.get(`${pathname}.json`)
-        )
-        const { mtime } = await this.cacheHandler.getMeta(htmlPath)
-
-        data = {
-          revalidateAfter: this.calculateRevalidate(pathname, mtime),
-          value: {
-            kind: 'PAGE',
-            html,
-            pageData,
-          },
-        }
-        if (this.cache) {
-          this.cache.set(pathname, data)
-        }
-      } catch (_) {
-        // unable to get data from disk
-      }
-    }
-    if (!data) {
-      return null
     }
 
     if (
-      data &&
-      data.revalidateAfter !== false &&
-      data.revalidateAfter < new Date().getTime()
+      !cacheData &&
+      this.prerenderManifest.notFoundRoutes.includes(pathname)
     ) {
-      data.isStale = true
+      // for the first hit after starting the server the cache
+      // may not have a way to save notFound: true so if
+      // the prerender-manifest marks this as notFound then we
+      // return that entry and trigger a cache set to give it a
+      // chance to update in-memory entries
+      entry = {
+        isStale,
+        value: null,
+        curRevalidate,
+        revalidateAfter,
+      }
+      this.set(pathname, entry.value, curRevalidate)
     }
-
-    const manifestPath = toRoute(pathname)
-    const manifestEntry = this.prerenderManifest.routes[manifestPath]
-
-    if (data && manifestEntry) {
-      data.curRevalidate = manifestEntry.initialRevalidateSeconds
-    }
-    return data
+    return entry
   }
 
   // populate the incremental cache with new data
@@ -195,39 +167,25 @@ export class IncrementalCache {
     revalidateSeconds?: number | false
   ) {
     if (this.dev) return
-    if (typeof revalidateSeconds !== 'undefined') {
-      this.prerenderManifest.routes[pathname] = {
-        dataRoute: path.posix.join(
-          '/_next/data',
-          `${normalizePagePath(pathname)}.json`
-        ),
-        srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
-        initialRevalidateSeconds: revalidateSeconds,
-      }
-    }
+    pathname = this._getPathname(pathname)
 
-    pathname = normalizePagePath(pathname)
-    if (this.cache) {
-      this.cache.set(pathname, {
-        revalidateAfter: this.calculateRevalidate(
-          pathname,
-          new Date().getTime()
-        ),
-        value: data,
-      })
-    }
-
-    if (data?.kind === 'PAGE') {
-      try {
-        await this.cacheHandler.set(`${pathname}.html`, data.html)
-        await this.cacheHandler.set(
-          `${pathname}.json`,
-          JSON.stringify(data.pageData)
-        )
-      } catch (error) {
-        // failed to set to cache handler
-        console.warn('Failed to update prerender files for', pathname, error)
+    try {
+      // we use the prerender manifest memory instance
+      // to store revalidate timings for calculating
+      // revalidateAfter values so we update this on set
+      if (typeof revalidateSeconds !== 'undefined') {
+        this.prerenderManifest.routes[pathname] = {
+          dataRoute: path.posix.join(
+            '/_next/data',
+            `${normalizePagePath(pathname)}.json`
+          ),
+          srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
+          initialRevalidateSeconds: revalidateSeconds,
+        }
       }
+      await this.cacheHandler.set(pathname, data)
+    } catch (error) {
+      console.warn('Failed to update prerender cache for', pathname, error)
     }
   }
 }
