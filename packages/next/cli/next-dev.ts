@@ -12,7 +12,7 @@ import path from 'path'
 import { eventCrashReport } from '../telemetry/events'
 import loadConfig from '../server/config'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-// import { join } from 'path'
+import { join } from 'path'
 // import { Telemetry } from '../telemetry/storage'
 
 const nextDev: cliCommand = (argv) => {
@@ -78,110 +78,107 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
-    .then((nextConfig) => {
-      // const distDir = join(dir, nextConfig.distDir)
-      // const telemetry = new Telemetry({ distDir })
+  let serverPort: string | undefined
+  let restartServer = () => {}
 
-      let serverPort: string | undefined
-      let restartServer = () => {}
+  const startDev = () => {
+    let fatalError: string | undefined
+    let restartOnClose = false
+    let compiledSuccessfully = false
 
-      const startDev = () => {
-        let fatalError: string | undefined
-        let restartOnClose = false
-        let compiledSuccessfully = false
+    const child = spawn(
+      process.argv0,
+      [
+        require.resolve('../bin/next-dev'),
+        !serverPort && allowRetry ? '1' : '0',
+        dir,
+        serverPort ?? String(port),
+        host ?? '0.0.0.0',
+      ],
+      {
+        env: {
+          FORCE_COLOR: '1',
+          ...process.env,
+        },
+      }
+    )
+    const startTime = Date.now()
 
-        const child = spawn(
-          process.argv0,
-          [
-            require.resolve('../bin/next-dev'),
-            !serverPort && allowRetry ? '1' : '0',
-            dir,
-            serverPort ?? String(port),
-            host ?? '0.0.0.0',
-          ],
-          {
-            env: {
-              FORCE_COLOR: '1',
-              ...process.env,
-            },
-          }
+    restartServer = () => {
+      restartOnClose = true
+      child.kill('SIGKILL')
+    }
+
+    child.stdout?.on('data', (chunk) => {
+      process.stdout.write(chunk)
+
+      if (!serverPort) {
+        const matchedPort = /started server on .+:(.+), url: /.exec(
+          chunk.toString()
         )
-        const startTime = Date.now()
-
-        restartServer = () => {
-          restartOnClose = true
-          child.kill('SIGKILL')
+        if (matchedPort) {
+          serverPort = matchedPort[1]
         }
+      }
 
-        child.stdout?.on('data', (chunk) => {
-          process.stdout.write(chunk)
+      if (!compiledSuccessfully) {
+        compiledSuccessfully =
+          /compiled client and server successfully in /.test(chunk.toString())
+      }
+    })
 
-          if (!serverPort) {
-            const matchedPort = /started server on .+:(.+), url: /.exec(
-              chunk.toString()
-            )
-            if (matchedPort) {
-              serverPort = matchedPort[1]
-            }
-          }
+    child.stderr?.on('data', (chunk) => {
+      process.stderr.write(chunk)
+      if (fatalError) return
+      const msg = chunk.toString()
+      const matchedFatalError = /^FATAL ERROR: (.+)/m.exec(msg)
+      if (matchedFatalError) {
+        fatalError = matchedFatalError[1]
+      }
+    })
 
-          if (!compiledSuccessfully) {
-            compiledSuccessfully =
-              /compiled client and server successfully in /.test(
-                chunk.toString()
-              )
-          }
-        })
+    child.on('close', (code) => {
+      if (restartOnClose) {
+        startDev()
+        return
+      }
 
-        child.stderr?.on('data', (chunk) => {
-          process.stderr.write(chunk)
-          if (fatalError) return
-          const msg = chunk.toString()
-          const matchedFatalError = /^FATAL ERROR: (.+)/m.exec(msg)
-          if (matchedFatalError) {
-            fatalError = matchedFatalError[1]
-          }
-        })
-
-        child.on('close', (code) => {
-          if (restartOnClose) {
-            startDev()
-            return
-          }
-
-          if (fatalError) {
-            eventCrashReport({
+      if (fatalError) {
+        loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+          .then((nextConfig) => {
+            const distDir = join(dir, nextConfig.distDir)
+            console.log({ distDir })
+            // const telemetry = new Telemetry({ distDir })
+            if (!fatalError) return
+            return eventCrashReport({
               error: fatalError,
               childProcessDuration: Date.now() - startTime,
               compiledSuccessfully,
               dir,
               nextConfig,
-            }).then(console.log)
-            Log.error(fatalError)
-            Log.info('Restarting the server due to a fatal error')
-            startDev()
-          } else {
-            process.exit(code ?? 1)
-          }
-        })
+            })
+          })
+          .then(console.log)
+          .catch(() => {})
+        Log.error(fatalError)
+        Log.info('Restarting the server due to a fatal error')
+        startDev()
+      } else {
+        process.exit(code ?? 1)
       }
-      startDev()
+    })
+  }
+  startDev()
 
-      for (const CONFIG_FILE of CONFIG_FILES) {
-        // eslint-disable-next-line no-loop-func
-        watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
-          if (cur.size > 0 || prev.size > 0) {
-            Log.info(`Found a change in ${CONFIG_FILE}. Restarting the server.`)
-            restartServer()
-          }
-        })
+  for (const CONFIG_FILE of CONFIG_FILES) {
+    // eslint-disable-next-line no-loop-func
+    watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        Log.info(`Found a change in ${CONFIG_FILE}. Restarting the server.`)
+        restartServer()
       }
     })
-    .catch((err) => {
-      console.error(err)
-      process.exit(1)
-    })
+  }
 }
 
 export { nextDev }
