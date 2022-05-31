@@ -78,6 +78,7 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
+  const devNodeArgs = process.env.__NEXT_DEV_NODE_ARGS?.split(',') ?? []
   let serverPort: string | undefined
   let restartServer = () => {}
 
@@ -89,6 +90,7 @@ const nextDev: cliCommand = (argv) => {
     const child = spawn(
       process.argv0,
       [
+        ...devNodeArgs,
         require.resolve('../bin/next-dev'),
         !serverPort && allowRetry ? '1' : '0',
         dir,

@@ -248,21 +248,17 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
   const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      [
-        ...nodeArgs,
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
-      {
-        cwd,
-        env,
-      }
-    )
+    const devNodeArgs = [
+      ...nodeArgs,
+      '-r',
+      require.resolve('./mocks-require-hook'),
+      '--no-deprecation',
+    ]
+
+    const instance = spawn('node', [...devNodeArgs, nextBin, ...argv], {
+      cwd,
+      env: { ...env, __NEXT_DEV_NODE_ARGS: devNodeArgs.join(',') },
+    })
     let didResolve = false
 
     function handleStdout(data) {
