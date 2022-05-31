@@ -132,3 +132,66 @@ describe('Middleware can set the matcher in its config', () => {
     expect(response.headers.get('X-From-Middleware')).toBeNull()
   })
 })
+
+describe.only('using a single matcher', () => {
+  let next: NextInstance
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/[...route].js': `
+          export default function Page({ message }) { 
+            return <div>
+              <p>root page</p>
+              <p>{message}</p>
+            </div>
+          } 
+
+          export const getServerSideProps = ({ params }) => {
+            return {
+              props: {
+                message: "Hello from /" + params.route.join("/")
+              }
+            }
+          }
+        `,
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+          export const config = {
+            matcher: ['/middleware/works']
+          };
+          export default (req) => {
+            const res = NextResponse.next();
+            res.headers.set('X-From-Middleware', 'true');
+            return res;
+          }
+        `,
+      },
+      dependencies: {},
+    })
+  })
+  afterAll(() => next.destroy())
+  it('adds the header for a matched path', async () => {
+    const response = await fetchViaHTTP(next.url, '/middleware/works')
+    expect(await response.text()).toContain('Hello from /middleware/works')
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('adds the headers for a matched data path', async () => {
+    const response = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/middleware/works.json`
+    )
+    expect(await response.json()).toMatchObject({
+      pageProps: {
+        message: 'Hello from /middleware/works',
+      },
+    })
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it('does not add the header for an unmatched path', async () => {
+    const response = await fetchViaHTTP(next.url, '/about/me')
+    expect(await response.text()).toContain('Hello from /about/me')
+    expect(response.headers.get('X-From-Middleware')).toBeNull()
+  })
+})
