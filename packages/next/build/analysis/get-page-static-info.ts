@@ -143,30 +143,26 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
 
   if (typeof matcherOrMatchers !== 'string') {
     throw new Error(
-      '`matcher` must be a path pattern or an array of path patterns'
+      '`matcher` must be a path matcher or an array of path matchers'
     )
   }
 
   let matcher: string = matcherOrMatchers
 
   if (!matcher.startsWith('/')) {
-    throw new Error('`matcher` must start with /')
+    throw new Error('`matcher`: path matcher must start with /')
   }
 
-  matcher = matcherOrMatchers.startsWith('/')
-    ? matcherOrMatchers
-    : `/${matcherOrMatchers}`
   const parsedPage = tryToParsePath(matcher)
-
   if (parsedPage.error) {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
 
-  matcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
-  const parsedDataRoute = tryToParsePath(matcher)
+  const dataMatcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
 
+  const parsedDataRoute = tryToParsePath(dataMatcher)
   if (parsedDataRoute.error) {
-    throw new Error(`Invalid path matcher: ${matcher}`)
+    throw new Error(`Invalid data path matcher: ${dataMatcher}`)
   }
 
   const regexes = [parsedPage.regexStr, parsedDataRoute.regexStr].filter(
