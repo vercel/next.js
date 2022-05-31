@@ -353,8 +353,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.incrementalCache = new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      distDir: this.distDir,
-      pagesDir: join(this.serverDistDir, 'pages'),
+      serverDistDir: this.serverDistDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => {
