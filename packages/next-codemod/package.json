@@ -19,7 +19,8 @@
     "lib/cra-to-next/gitignore"
   ],
   "scripts": {
-    "prepublishOnly": "pnpm tsc -d -p tsconfig.json",
+    "build": "pnpm tsc -d -p tsconfig.json",
+    "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
     "test": "jest"
   },

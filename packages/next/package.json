@@ -57,7 +57,8 @@
   "scripts": {
     "dev": "taskr",
     "release": "taskr release",
-    "prepublishOnly": "pnpm release && pnpm types",
+    "build": "pnpm release && pnpm types",
+    "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "ncc cache clean && taskr ncc"

@@ -1,6 +1,6 @@
 import Chalk from 'next/dist/compiled/chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/middleware'
+import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,

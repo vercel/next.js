@@ -9,8 +9,8 @@
     "directory": "packages/next-polyfill-nomodule"
   },
   "scripts": {
-    "prepublishOnly": "microbundle -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main",
-    "build": "microbundle watch -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main"
+    "build": "microbundle -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main",
+    "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
     "core-js": "3.6.5",
