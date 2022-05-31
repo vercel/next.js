@@ -418,8 +418,8 @@ const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 function fetchRetry(
   url: string,
   attempts: number,
-  opts: { text?: boolean; isPrefetch?: boolean; method?: string }
-): Promise<any> {
+  options: Pick<RequestInit, 'method' | 'headers'>
+): Promise<Response> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
     // Cookies may also be required for `getServerSideProps`.
@@ -433,66 +433,89 @@ function fetchRetry(
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
-    method: opts.method || 'GET',
-    headers: opts.isPrefetch
-      ? {
-          purpose: 'prefetch',
-        }
-      : {},
-  }).then((res) => {
-    if (!res.ok) {
-      if (attempts > 1 && res.status >= 500) {
-        return fetchRetry(url, attempts - 1, opts)
-      }
-      if (res.status === 404) {
-        return res.json().then((data) => {
-          if (data.notFound) {
-            return { notFound: SSG_DATA_NOT_FOUND }
-          }
-          throw new Error(`Failed to load static props`)
-        })
-      }
-      throw new Error(`Failed to load static props`)
-    }
-
-    if (opts.method !== 'HEAD') {
-      return opts.text ? res.text() : res.json()
-    }
+    method: options.method || 'GET',
+    headers: options.headers ?? {},
+  }).then((response) => {
+    return !response.ok && attempts > 1 && response.status >= 500
+      ? fetchRetry(url, attempts - 1, options)
+      : response
   })
 }
 
 const backgroundCache: Record<string, Promise<any>> = {}
 
-function fetchNextData(
-  dataHref: string,
-  isServerRender: boolean,
-  text: boolean | undefined,
-  inflightCache: NextDataCache,
-  persistCache: boolean,
-  isPrefetch: boolean
-) {
-  const { href: cacheKey } = new URL(dataHref, window.location.href)
-  const getData = (background = false) =>
-    fetchRetry(dataHref, isServerRender ? 3 : 1, {
-      text,
-      isPrefetch,
-      method: background ? 'HEAD' : 'GET',
-    })
-      .catch((err: Error) => {
-        // We should only trigger a server-side transition if this was caused
-        // on a client-side transition. Otherwise, we'd get into an infinite
-        // loop.
+interface FetchDataOutput {
+  response: Response
+  text: string
+  json: Record<string, any>
+}
 
-        if (!isServerRender) {
-          markAssetError(err)
+function fetchNextData({
+  dataHref,
+  inflightCache,
+  isPrefetch,
+  isServerRender,
+  parseJSON,
+  persistCache,
+}: {
+  dataHref: string
+  isServerRender: boolean
+  parseJSON: boolean | undefined
+  inflightCache: NextDataCache
+  persistCache: boolean
+  isPrefetch: boolean
+}): Promise<FetchDataOutput> {
+  const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const getData = async (params?: { method?: 'HEAD' | 'GET' }) =>
+    fetchRetry(dataHref, isServerRender ? 3 : 1, {
+      headers: isPrefetch ? { purpose: 'prefetch' } : {},
+      method: params?.method ?? 'GET',
+    })
+      .then((response) => {
+        if (response.ok && params?.method === 'HEAD') {
+          return { response, text: '', json: {} }
         }
-        throw err
-      })
-      .then((data) => {
-        if (!persistCache || process.env.NODE_ENV !== 'production') {
-          delete inflightCache[cacheKey]
-        }
-        return data
+
+        return response
+          .text()
+          .then((text) => {
+            if (!response.ok) {
+              if (response.status === 404) {
+                if (tryToParseAsJSON(text)?.notFound) {
+                  return {
+                    json: { notFound: SSG_DATA_NOT_FOUND },
+                    response,
+                    text,
+                  }
+                }
+              }
+
+              const error = new Error(`Failed to load static props`)
+
+              /**
+               * We should only trigger a server-side transition if this was
+               * caused on a client-side transition. Otherwise, we'd get into
+               * an infinite loop.
+               */
+              if (!isServerRender) {
+                markAssetError(error)
+              }
+
+              throw error
+            }
+
+            return {
+              json: parseJSON ? tryToParseAsJSON(text) : {},
+              response,
+              text,
+            }
+          })
+          .then((data) => {
+            if (!persistCache || process.env.NODE_ENV !== 'production') {
+              delete inflightCache[cacheKey]
+            }
+            return data
+          })
       })
       .catch((err) => {
         delete inflightCache[cacheKey]
@@ -503,7 +526,7 @@ function fetchNextData(
     // we kick off a HEAD request in the background
     // when a non-prefetch request is made to signal revalidation
     if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
-      backgroundCache[cacheKey] = getData(true)
+      backgroundCache[cacheKey] = getData({ method: 'HEAD' })
         .catch(() => {})
         .then(() => {
           delete backgroundCache[cacheKey]
@@ -514,8 +537,16 @@ function fetchNextData(
   return (inflightCache[cacheKey] = getData())
 }
 
+function tryToParseAsJSON(text: string) {
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    return {}
+  }
+}
+
 interface NextDataCache {
-  [asPath: string]: Promise<object>
+  [asPath: string]: Promise<FetchDataOutput>
 }
 
 export function createKey() {
@@ -1207,16 +1238,16 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as, routeProps)
 
     try {
-      let routeInfo = await this.getRouteInfo(
+      let routeInfo = await this.getRouteInfo({
         route,
         pathname,
         query,
         as,
         resolvedAs,
         routeProps,
-        nextState.locale,
-        nextState.isPreview
-      )
+        locale: nextState.locale,
+        isPreview: nextState.isPreview,
+      })
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       const component: any = routeInfo.Component
@@ -1274,16 +1305,16 @@ export default class Router implements BaseRouter {
             notFoundRoute = '/_error'
           }
 
-          routeInfo = await this.getRouteInfo(
-            notFoundRoute,
-            notFoundRoute,
+          routeInfo = await this.getRouteInfo({
+            route: notFoundRoute,
+            pathname: notFoundRoute,
             query,
             as,
             resolvedAs,
-            { shallow: false },
-            nextState.locale,
-            nextState.isPreview
-          )
+            routeProps: { shallow: false },
+            locale: nextState.locale,
+            isPreview: nextState.isPreview,
+          })
         }
       }
 
@@ -1464,115 +1495,120 @@ export default class Router implements BaseRouter {
     }
   }
 
-  async getRouteInfo(
-    route: string,
-    pathname: string,
-    query: any,
-    as: string,
-    resolvedAs: string,
-    routeProps: RouteProperties,
-    locale: string | undefined,
+  async getRouteInfo({
+    route,
+    pathname,
+    query,
+    as,
+    resolvedAs,
+    routeProps,
+    locale,
+    isPreview,
+  }: {
+    route: string
+    pathname: string
+    query: any
+    as: string
+    resolvedAs: string
+    routeProps: RouteProperties
+    locale: string | undefined
     isPreview: boolean
-  ): Promise<PrivateRouteInfo> {
+  }): Promise<PrivateRouteInfo> {
     try {
-      const existingRouteInfo: PrivateRouteInfo | undefined =
-        this.components[route]
-      if (routeProps.shallow && existingRouteInfo && this.route === route) {
-        return existingRouteInfo
+      const existingInfo: PrivateRouteInfo | undefined = this.components[route]
+      if (routeProps.shallow && existingInfo && this.route === route) {
+        return existingInfo
       }
 
-      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
-      // can only use non-initial route info
-      // cannot reuse route info in development since it can change after HMR
-      if (
-        process.env.NODE_ENV !== 'development' &&
-        existingRouteInfo &&
-        !('initial' in existingRouteInfo)
-      ) {
-        cachedRouteInfo = existingRouteInfo
-      }
-      const routeInfo: CompletePrivateRouteInfo =
+      let cachedRouteInfo =
+        existingInfo &&
+        !('initial' in existingInfo) &&
+        process.env.NODE_ENV !== 'development'
+          ? existingInfo
+          : undefined
+
+      const routeInfo =
         cachedRouteInfo ||
-        (await this.fetchComponent(route).then((res) => ({
-          Component: res.page,
-          styleSheets: res.styleSheets,
-          __N_SSG: res.mod.__N_SSG,
-          __N_SSP: res.mod.__N_SSP,
-          __N_RSC: !!res.mod.__next_rsc__,
-        })))
-
-      const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
+        (await this.fetchComponent(route).then<CompletePrivateRouteInfo>(
+          (res) => ({
+            Component: res.page,
+            styleSheets: res.styleSheets,
+            __N_SSG: res.mod.__N_SSG,
+            __N_SSP: res.mod.__N_SSP,
+            __N_RSC: !!res.mod.__next_rsc__,
+          })
+        ))
 
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('next/dist/compiled/react-is')
-        if (!isValidElementType(Component)) {
+        if (!isValidElementType(routeInfo.Component)) {
           throw new Error(
             `The default export is not a React Component in page: "${pathname}"`
           )
         }
       }
 
-      let dataHref: string | undefined
-
-      // For server components, non-SSR pages will have statically optimized
-      // flight data in a production build.
-      // So only development and SSR pages will always have the real-time
-      // generated and streamed flight data.
+      /**
+       * For server components, non-SSR pages will have statically optimized
+       * flight data in a production build. So only development and SSR pages
+       * will always have the real-time generated and streamed flight data.
+       */
       const useStreamedFlightData =
-        (process.env.NODE_ENV !== 'production' || __N_SSP) && __N_RSC
+        routeInfo.__N_RSC &&
+        (process.env.NODE_ENV !== 'production' || routeInfo.__N_SSP)
 
-      if (__N_SSG || __N_SSP || __N_RSC) {
-        dataHref = this.pageLoader.getDataHref({
-          href: formatWithValidation({ pathname, query }),
-          asPath: resolvedAs,
-          ssg: __N_SSG,
-          flight: useStreamedFlightData,
-          locale,
-        })
-      }
+      const shouldFetchData =
+        routeInfo.__N_SSG || routeInfo.__N_SSP || routeInfo.__N_RSC
 
-      const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        (__N_SSG || __N_SSP || __N_RSC) && !useStreamedFlightData
-          ? fetchNextData(
-              dataHref!,
-              this.isSsr,
-              false,
-              __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !isPreview,
-              false
-            )
-          : this.getInitialProps(
-              Component,
-              // we provide AppTree later so this needs to be `any`
-              {
-                pathname,
-                query,
-                asPath: as,
-                locale,
-                locales: this.locales,
-                defaultLocale: this.defaultLocale,
-              } as any
-            )
-      )
-
-      if (__N_RSC) {
-        if (useStreamedFlightData) {
-          const { data } = (await this._getData(() =>
-            this._getFlightData(dataHref!)
-          )) as { data: string }
-          ;(props as any).pageProps = Object.assign((props as any).pageProps, {
-            __flight__: data,
+      const dataHref = shouldFetchData
+        ? this.pageLoader.getDataHref({
+            href: formatWithValidation({ pathname, query }),
+            asPath: resolvedAs,
+            ssg: routeInfo.__N_SSG,
+            flight: useStreamedFlightData,
+            locale,
           })
-        } else {
-          const { __flight__ } = props as any
-          ;(props as any).pageProps = Object.assign(
-            {},
-            (props as any).pageProps,
-            {
-              __flight__,
-            }
-          )
+        : undefined
+
+      const { props } = await this._getData(async () => {
+        if (shouldFetchData && !useStreamedFlightData) {
+          const { json } = await fetchNextData({
+            dataHref: dataHref!,
+            isServerRender: this.isSsr,
+            parseJSON: true,
+            inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
+            persistCache: !!routeInfo.__N_SSG && !isPreview,
+            isPrefetch: false,
+          })
+
+          return {
+            props: json,
+          }
         }
+
+        return {
+          headers: {},
+          props: await this.getInitialProps(
+            routeInfo.Component,
+            // we provide AppTree later so this needs to be `any`
+            {
+              pathname,
+              query,
+              asPath: as,
+              locale,
+              locales: this.locales,
+              defaultLocale: this.defaultLocale,
+            } as any
+          ),
+        }
+      })
+
+      if (routeInfo.__N_RSC) {
+        props.pageProps = Object.assign(props.pageProps, {
+          __flight__: useStreamedFlightData
+            ? (await this._getData(() => this._getFlightData(dataHref!))).data
+            : props.__flight__,
+        })
       }
 
       routeInfo.props = props
@@ -1761,10 +1797,10 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     await Promise.all([
-      this.pageLoader._isSsg(route).then((isSsg: boolean) => {
+      this.pageLoader._isSsg(route).then((isSsg) => {
         return isSsg
-          ? fetchNextData(
-              this.pageLoader.getDataHref({
+          ? fetchNextData({
+              dataHref: this.pageLoader.getDataHref({
                 href: url,
                 asPath: resolvedAs,
                 ssg: true,
@@ -1773,12 +1809,12 @@ export default class Router implements BaseRouter {
                     ? options.locale
                     : this.locale,
               }),
-              false,
-              false, // text
-              this.sdc,
-              !this.isPreview,
-              true
-            )
+              isServerRender: false,
+              parseJSON: true,
+              inflightCache: this.sdc,
+              persistCache: !this.isPreview,
+              isPrefetch: true,
+            }).then(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
@@ -1839,13 +1875,16 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getFlightData(dataHref: string): Promise<object> {
+  _getFlightData(dataHref: string) {
     // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData(dataHref, true, true, this.sdc, false, false).then(
-      (serialized) => {
-        return { data: serialized }
-      }
-    )
+    return fetchNextData({
+      dataHref,
+      isServerRender: true,
+      parseJSON: false,
+      inflightCache: this.sdc,
+      persistCache: false,
+      isPrefetch: false,
+    }).then(({ text }) => ({ data: text }))
   }
 
   async _preflightRequest(options: {
