@@ -340,6 +340,7 @@ export async function renderToHTML(
         layout.path.endsWith('/page') ? (
           children
         ) : (
+          // TODO: only provide the part of the url that is relevant to the layout
           <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
             {children}
           </LayoutRouter>
@@ -363,6 +364,7 @@ export async function renderToHTML(
       return <WrappedComponent />
     }
     return (
+      // TODO: verify pathname passed is correct
       <AppRouter initialUrl={pathname}>
         <WrappedComponent />
       </AppRouter>
