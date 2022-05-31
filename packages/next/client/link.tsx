@@ -98,7 +98,8 @@ function linkClicked(
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string | false
+  locale?: string | false,
+  startTransition?: (cb: any) => void
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -112,12 +113,20 @@ function linkClicked(
 
   e.preventDefault()
 
-  // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, {
-    shallow,
-    locale,
-    scroll,
-  })
+  const navigate = () => {
+    // replace state instead of push if prop is present
+    router[replace ? 'replace' : 'push'](href, as, {
+      shallow,
+      locale,
+      scroll,
+    })
+  }
+
+  if (startTransition) {
+    startTransition(navigate)
+  } else {
+    navigate()
+  }
 }
 
 type LinkPropsReal = React.PropsWithChildren<
@@ -268,6 +277,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
+    // @ts-ignore useTransition exists
+    const [isPending, startTransition] = React.useTransition()
     let router = React.useContext(RouterContext)
 
     const appRouter = React.useContext(AppRouterContext)
@@ -387,7 +398,17 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onClick(e)
         }
         if (!e.defaultPrevented) {
-          linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+          linkClicked(
+            e,
+            router,
+            href,
+            as,
+            replace,
+            shallow,
+            scroll,
+            locale,
+            appRouter ? startTransition : undefined
+          )
         }
       },
       onMouseEnter: (e: React.MouseEvent) => {
