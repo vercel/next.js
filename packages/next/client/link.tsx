@@ -278,7 +278,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     const p = prefetchProp !== false
     // @ts-ignore useTransition exists
-    const [isPending, startTransition] = React.useTransition()
+    const [, /* isPending */ startTransition] = React.useTransition()
     let router = React.useContext(RouterContext)
 
     const appRouter = React.useContext(AppRouterContext)
