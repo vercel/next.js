@@ -243,6 +243,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   reactRoot: boolean
+  largePageDataBytes?: number
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -1562,6 +1563,7 @@ export async function renderToHTML(
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
+    largePageDataBytes: renderOpts.largePageDataBytes,
   }
 
   const document = (

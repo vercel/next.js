@@ -37,6 +37,13 @@ import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
+import { detectDomainLocale } from '../../../client/detect-domain-locale'
+import { parsePath } from './utils/parse-path'
+import { addLocale } from '../../../client/add-locale'
+import { removeLocale } from '../../../client/remove-locale'
+import { removeBasePath } from '../../../client/remove-base-path'
+import { addBasePath } from '../../../client/add-base-path'
+import { hasBasePath } from '../../../client/has-base-path'
 
 declare global {
   interface Window {
@@ -92,137 +99,15 @@ type PreflightEffect =
   | { type: 'refresh' }
   | { type: 'next' }
 
-type HistoryState =
+export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; key: string } & NextHistoryState)
-
-let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
-
-if (process.env.__NEXT_I18N_SUPPORT) {
-  detectDomainLocale =
-    require('../i18n/detect-domain-locale').detectDomainLocale
-}
-
-const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
     cancelled: true,
   })
-}
-
-function addPathPrefix(path: string, prefix?: string) {
-  if (!path.startsWith('/') || !prefix) {
-    return path
-  }
-  const pathname = pathNoQueryHash(path)
-
-  return (
-    normalizePathTrailingSlash(`${prefix}${pathname}`) +
-    path.slice(pathname.length)
-  )
-}
-
-function hasPathPrefix(path: string, prefix: string) {
-  path = pathNoQueryHash(path)
-  return path === prefix || path.startsWith(prefix + '/')
-}
-
-export function getDomainLocale(
-  path: string,
-  locale?: string | false,
-  locales?: string[],
-  domainLocales?: DomainLocale[]
-) {
-  if (process.env.__NEXT_I18N_SUPPORT) {
-    locale = locale || normalizeLocalePath(path, locales).detectedLocale
-
-    const detectedDomain = detectDomainLocale(domainLocales, undefined, locale)
-
-    if (detectedDomain) {
-      return `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${
-        basePath || ''
-      }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
-    }
-    return false
-  } else {
-    return false
-  }
-}
-
-export function addLocale(
-  path: string,
-  locale?: string | false,
-  defaultLocale?: string
-) {
-  if (process.env.__NEXT_I18N_SUPPORT) {
-    if (locale && locale !== defaultLocale) {
-      const pathname = pathNoQueryHash(path)
-      const pathLower = pathname.toLowerCase()
-      const localeLower = locale.toLowerCase()
-
-      if (
-        !hasPathPrefix(pathLower, '/' + localeLower) &&
-        !hasPathPrefix(pathLower, '/api')
-      ) {
-        return addPathPrefix(path, '/' + locale)
-      }
-    }
-  }
-  return path
-}
-
-export function delLocale(path: string, locale?: string) {
-  if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathname = pathNoQueryHash(path)
-    const pathLower = pathname.toLowerCase()
-    const localeLower = locale && locale.toLowerCase()
-
-    return locale &&
-      (pathLower.startsWith('/' + localeLower + '/') ||
-        pathLower === '/' + localeLower)
-      ? (pathname.length === locale.length + 1 ? '/' : '') +
-          path.slice(locale.length + 1)
-      : path
-  }
-  return path
-}
-
-function pathNoQueryHash(path: string) {
-  const queryIndex = path.indexOf('?')
-  const hashIndex = path.indexOf('#')
-
-  if (queryIndex > -1 || hashIndex > -1) {
-    path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
-  }
-  return path
-}
-
-export function hasBasePath(path: string): boolean {
-  return hasPathPrefix(path, basePath)
-}
-
-export function addBasePath(path: string, required?: boolean): string {
-  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
-    if (!required) {
-      return path
-    }
-  }
-  // we only add the basepath on relative urls
-  return addPathPrefix(path, basePath)
-}
-
-export function delBasePath(path: string): string {
-  if (process.env.__NEXT_MANUAL_CLIENT_BASE_PATH) {
-    if (!hasBasePath(path)) {
-      return path
-    }
-  }
-
-  path = path.slice(basePath.length)
-  if (!path.startsWith('/')) path = `/${path}`
-  return path
 }
 
 /**
@@ -533,7 +418,7 @@ const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 function fetchRetry(
   url: string,
   attempts: number,
-  opts: { text?: boolean }
+  opts: { text?: boolean; isPrefetch?: boolean; method?: string }
 ): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -548,6 +433,12 @@ function fetchRetry(
     // > option instead of relying on the default.
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
+    method: opts.method || 'GET',
+    headers: opts.isPrefetch
+      ? {
+          purpose: 'prefetch',
+        }
+      : {},
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
@@ -563,47 +454,64 @@ function fetchRetry(
       }
       throw new Error(`Failed to load static props`)
     }
-    return opts.text ? res.text() : res.json()
+
+    if (opts.method !== 'HEAD') {
+      return opts.text ? res.text() : res.json()
+    }
   })
 }
+
+const backgroundCache: Record<string, Promise<any>> = {}
 
 function fetchNextData(
   dataHref: string,
   isServerRender: boolean,
   text: boolean | undefined,
   inflightCache: NextDataCache,
-  persistCache: boolean
+  persistCache: boolean,
+  isPrefetch: boolean
 ) {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
+  const getData = (background = false) =>
+    fetchRetry(dataHref, isServerRender ? 3 : 1, {
+      text,
+      isPrefetch,
+      method: background ? 'HEAD' : 'GET',
+    })
+      .catch((err: Error) => {
+        // We should only trigger a server-side transition if this was caused
+        // on a client-side transition. Otherwise, we'd get into an infinite
+        // loop.
+
+        if (!isServerRender) {
+          markAssetError(err)
+        }
+        throw err
+      })
+      .then((data) => {
+        if (!persistCache || process.env.NODE_ENV !== 'production') {
+          delete inflightCache[cacheKey]
+        }
+        return data
+      })
+      .catch((err) => {
+        delete inflightCache[cacheKey]
+        throw err
+      })
 
   if (inflightCache[cacheKey] !== undefined) {
+    // we kick off a HEAD request in the background
+    // when a non-prefetch request is made to signal revalidation
+    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
+      backgroundCache[cacheKey] = getData(true)
+        .catch(() => {})
+        .then(() => {
+          delete backgroundCache[cacheKey]
+        })
+    }
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = fetchRetry(
-    dataHref,
-    isServerRender ? 3 : 1,
-    { text }
-  )
-    .catch((err: Error) => {
-      // We should only trigger a server-side transition if this was caused
-      // on a client-side transition. Otherwise, we'd get into an infinite
-      // loop.
-
-      if (!isServerRender) {
-        markAssetError(err)
-      }
-      throw err
-    })
-    .then((data) => {
-      if (!persistCache || process.env.NODE_ENV !== 'production') {
-        delete inflightCache[cacheKey]
-      }
-      return data
-    })
-    .catch((err) => {
-      delete inflightCache[cacheKey]
-      throw err
-    }))
+  return (inflightCache[cacheKey] = getData())
 }
 
 interface NextDataCache {
@@ -642,6 +550,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
+  isFirstPopStateEvent = true
 
   private state: Readonly<{
     route: string
@@ -730,7 +639,7 @@ export default class Router implements BaseRouter {
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.basePath = basePath
+    this.basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -797,6 +706,9 @@ export default class Router implements BaseRouter {
   }
 
   onPopState = (e: PopStateEvent): void => {
+    const { isFirstPopStateEvent } = this
+    this.isFirstPopStateEvent = false
+
     const state = e.state as HistoryState
 
     if (!state) {
@@ -819,6 +731,15 @@ export default class Router implements BaseRouter {
     }
 
     if (!state.__N) {
+      return
+    }
+
+    // Safari fires popstateevent when reopening the browser.
+    if (
+      isFirstPopStateEvent &&
+      this.locale === state.options.locale &&
+      state.as === this.asPath
+    ) {
       return
     }
 
@@ -937,7 +858,7 @@ export default class Router implements BaseRouter {
     const shouldResolveHref =
       (options as any)._h ||
       (options as any)._shouldResolveHref ||
-      pathNoQueryHash(url) === pathNoQueryHash(as)
+      parsePath(url).pathname === parsePath(as).pathname
 
     const nextState = {
       ...this.state,
@@ -961,7 +882,9 @@ export default class Router implements BaseRouter {
         options.locale = nextState.locale
       }
 
-      const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
+      const parsedAs = parseRelativeUrl(
+        hasBasePath(as) ? removeBasePath(as) : as
+      )
       const localePathResult = normalizeLocalePath(
         parsedAs.pathname,
         this.locales
@@ -973,7 +896,7 @@ export default class Router implements BaseRouter {
         as = formatWithValidation(parsedAs)
         url = addBasePath(
           normalizeLocalePath(
-            hasBasePath(url) ? delBasePath(url) : url,
+            hasBasePath(url) ? removeBasePath(url) : url,
             this.locales
           ).pathname
         )
@@ -1010,7 +933,7 @@ export default class Router implements BaseRouter {
           this.isLocaleDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
-          const asNoBasePath = delBasePath(as)
+          const asNoBasePath = removeBasePath(as)
           window.location.href = `http${detectedDomain.http ? '' : 's'}://${
             detectedDomain.domain
           }${addBasePath(
@@ -1048,13 +971,13 @@ export default class Router implements BaseRouter {
 
     as = addBasePath(
       addLocale(
-        hasBasePath(as) ? delBasePath(as) : as,
+        hasBasePath(as) ? removeBasePath(as) : as,
         options.locale,
         this.defaultLocale
       )
     )
-    const cleanedAs = delLocale(
-      hasBasePath(as) ? delBasePath(as) : as,
+    const cleanedAs = removeLocale(
+      hasBasePath(as) ? removeBasePath(as) : as,
       nextState.locale
     )
     this._inFlightRoute = as
@@ -1131,7 +1054,9 @@ export default class Router implements BaseRouter {
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
     // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname ? removeTrailingSlash(delBasePath(pathname)) : pathname
+    pathname = pathname
+      ? removeTrailingSlash(removeBasePath(pathname))
+      : pathname
 
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1182,7 +1107,7 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    resolvedAs = delLocale(delBasePath(resolvedAs), nextState.locale)
+    resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     /**
      * If the route update was triggered for client-side hydration and
@@ -1613,7 +1538,8 @@ export default class Router implements BaseRouter {
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG && !isPreview
+              !!__N_SSG && !isPreview,
+              false
             )
           : this.getInitialProps(
               Component,
@@ -1787,7 +1713,10 @@ export default class Router implements BaseRouter {
       if (rewritesResult.externalDest) {
         return
       }
-      resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
+      resolvedAs = removeLocale(
+        removeBasePath(rewritesResult.asPath),
+        this.locale
+      )
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
@@ -1847,6 +1776,7 @@ export default class Router implements BaseRouter {
               false,
               false, // text
               this.sdc,
+              !this.isPreview,
               true
             )
           : false
@@ -1911,7 +1841,7 @@ export default class Router implements BaseRouter {
 
   _getFlightData(dataHref: string): Promise<object> {
     // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData(dataHref, true, true, this.sdc, false).then(
+    return fetchNextData(dataHref, true, true, this.sdc, false, false).then(
       (serialized) => {
         return { data: serialized }
       }
@@ -1927,9 +1857,9 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }): Promise<PreflightEffect> {
-    const asPathname = pathNoQueryHash(options.as)
-    const cleanedAs = delLocale(
-      hasBasePath(asPathname) ? delBasePath(asPathname) : asPathname,
+    const { pathname: asPathname } = parsePath(options.as)
+    const cleanedAs = removeLocale(
+      hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
       options.locale
     )
 
@@ -1975,7 +1905,7 @@ export default class Router implements BaseRouter {
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
           hasBasePath(preflight.rewrite)
-            ? delBasePath(preflight.rewrite)
+            ? removeBasePath(preflight.rewrite)
             : preflight.rewrite,
           this.locales
         ).pathname
@@ -2014,7 +1944,7 @@ export default class Router implements BaseRouter {
         const cleanRedirect = removeTrailingSlash(
           normalizeLocalePath(
             hasBasePath(preflight.redirect)
-              ? delBasePath(preflight.redirect)
+              ? removeBasePath(preflight.redirect)
               : preflight.redirect,
             this.locales
           ).pathname

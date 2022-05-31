@@ -94,7 +94,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'CountQueuingStrategy',
   'DecompressionStream',
   'DomException',
-  'Event',
   'EventTarget',
   'MessageChannel',
   'MessageEvent',

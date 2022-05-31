@@ -129,6 +129,7 @@ export default function (context, { runtime, env }) {
     expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
     expect(dynamicRoute2HTML).toContain('query: dynamic2')
     expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute1HTML).toContain('router pathname: /routes/[dynamic]')
   })
 
   it('should be able to navigate between rsc pages', async () => {

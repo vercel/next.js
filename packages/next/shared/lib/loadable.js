@@ -94,12 +94,12 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Server only
-  if (typeof window === 'undefined' && !opts.suspense) {
+  if (typeof window === 'undefined') {
     ALL_INITIALIZERS.push(init)
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+  if (!initialized && typeof window !== 'undefined') {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
       opts.webpack && typeof require.resolveWeak === 'function'
@@ -116,10 +116,20 @@ function createLoadableComponent(loadFn, options) {
     }
   }
 
-  function LoadableImpl(props, ref) {
+  function useLoadableModule() {
     init()
 
     const context = React.useContext(LoadableContext)
+    if (context && Array.isArray(opts.modules)) {
+      opts.modules.forEach((moduleName) => {
+        context(moduleName)
+      })
+    }
+  }
+
+  function LoadableImpl(props, ref) {
+    useLoadableModule()
+
     const state = useSyncExternalStore(
       subscription.subscribe,
       subscription.getCurrentValue,
@@ -133,12 +143,6 @@ function createLoadableComponent(loadFn, options) {
       }),
       []
     )
-
-    if (context && Array.isArray(opts.modules)) {
-      opts.modules.forEach((moduleName) => {
-        context(moduleName)
-      })
-    }
 
     return React.useMemo(() => {
       if (state.loading || state.error) {
@@ -158,11 +162,13 @@ function createLoadableComponent(loadFn, options) {
   }
 
   function LazyImpl(props, ref) {
+    useLoadableModule()
+
     return React.createElement(opts.lazy, { ...props, ref })
   }
 
   const LoadableComponent = opts.suspense ? LazyImpl : LoadableImpl
-  LoadableComponent.preload = () => !opts.suspense && init()
+  LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
   return React.forwardRef(LoadableComponent)

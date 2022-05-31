@@ -1,4 +1,4 @@
-import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -156,7 +156,7 @@ export function attachReactRefresh(
 ) {
   let injections = 0
   const reactRefreshLoaderName =
-    'next/dist/compiled/@next/react-refresh-utils/loader'
+    'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules.forEach((rule) => {
     const curr = rule.use
@@ -542,7 +542,7 @@ export default async function getBaseWebpackConfig(
         ...(dev
           ? {
               [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
-                `next/dist/compiled/@next/react-refresh-utils/runtime`
+                `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
               ),
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
@@ -930,6 +930,9 @@ export default async function getBaseWebpackConfig(
     include: [dir, /next[\\/]dist[\\/]pages/],
   }
 
+  const rscSharedRegex =
+    /(node_modules\/react\/|\/shared\/lib\/(head-manager-context|router-context)\.js|node_modules\/styled-jsx\/)/
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     // @ts-ignore
@@ -1023,7 +1026,7 @@ export default async function getBaseWebpackConfig(
                 enforce: true,
                 name: 'rsc-runtime-deps',
                 filename: 'rsc-runtime-deps.js',
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+                test: rscSharedRegex,
               },
             }
           : undefined
@@ -1132,7 +1135,17 @@ export default async function getBaseWebpackConfig(
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
             swcMinify: config.swcMinify,
-            terserOptions,
+            terserOptions: {
+              ...terserOptions,
+              compress: {
+                ...terserOptions.compress,
+                ...(config.experimental.swcMinifyDebugOptions?.compress ?? {}),
+              },
+              mangle: {
+                ...terserOptions.mangle,
+                ...(config.experimental.swcMinifyDebugOptions?.mangle ?? {}),
+              },
+            },
           }).apply(compiler)
         },
         // Minify CSS
@@ -1268,7 +1281,7 @@ export default async function getBaseWebpackConfig(
               // Move shared dependencies from sc_server and sc_client into the
               // same layer.
               {
-                test: /(node_modules\/react\/|\/shared\/lib\/head-manager-context\.js|node_modules\/styled-jsx\/)/,
+                test: rscSharedRegex,
                 layer: 'rsc_shared_deps',
               },
             ]
@@ -1303,7 +1316,7 @@ export default async function getBaseWebpackConfig(
                 dev && isClient
                   ? [
                       require.resolve(
-                        'next/dist/compiled/@next/react-refresh-utils/loader'
+                        'next/dist/compiled/@next/react-refresh-utils/dist/loader'
                       ),
                       defaultLoaders.babel,
                     ]

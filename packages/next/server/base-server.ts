@@ -45,7 +45,7 @@ import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
-import { IncrementalCache } from './incremental-cache'
+import { IncrementalCache } from './lib/incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
@@ -71,6 +71,7 @@ import { getLocaleRedirect } from '../shared/lib/i18n/get-locale-redirect'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -176,6 +177,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     reactRoot: boolean
+    largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
   private incrementalCache: IncrementalCache
@@ -326,6 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       reactRoot: this.nextConfig.experimental.reactRoot === true,
+      largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -350,10 +353,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.incrementalCache = new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      distDir: this.distDir,
-      pagesDir: join(this.serverDistDir, 'pages'),
-      locales: this.nextConfig.i18n?.locales,
-      max: this.nextConfig.experimental.isrMemoryCacheSize,
+      serverDistDir: this.serverDistDir,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => {
         if (dev) {
@@ -677,6 +678,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       rewrites = customRoutes.rewrites
     }
     return Object.assign(customRoutes, { rewrites })
+  }
+
+  protected getFallback(page: string): Promise<string> {
+    page = normalizePagePath(page)
+    const cacheFs = this.getCacheFilesystem()
+    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
   protected getPreviewProps(): __ApiPreviewProps {
@@ -1566,7 +1573,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (!isDataReq) {
             // Production already emitted the fallback as static HTML.
             if (isProduction) {
-              const html = await this.incrementalCache.getFallback(
+              const html = await this.getFallback(
                 locale ? `/${locale}${pathname}` : pathname
               )
               return {
@@ -1608,6 +1615,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         isManualRevalidate,
+        isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
 
@@ -1725,13 +1733,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
-    // map the route to the actual bundle name e.g.
-    // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
+    // map the route to the actual bundle name
     const getOriginalappPath = (appPath: string) => {
       if (this.nextConfig.experimental.appDir) {
-        const originalappPath =
-          this.appPathRoutes?.[`${appPath}/index`] ||
-          this.appPathRoutes?.[`${appPath}`]
+        const originalappPath = this.appPathRoutes?.[appPath]
 
         if (!originalappPath) {
           return null

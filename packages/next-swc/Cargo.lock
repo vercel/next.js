@@ -1244,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.4.0"
+version = "0.6.0"
 dependencies = [
  "handlebars",
  "once_cell",
@@ -2329,7 +2329,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "styled_components"
-version = "0.29.0"
+version = "0.31.0"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.4.0"
+version = "0.6.0"
 dependencies = [
  "easy-error",
  "swc_common",
@@ -2870,9 +2870,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.85.1"
+version = "0.85.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1029b98240a2e87af924e5abe56b274110436670f12752c3978aae1fb6cb2ea"
+checksum = "528c99be91500ed393e04e5cfc37763b4b68b71bc4f9b54ff0cd21d714920130"
 dependencies = [
  "better_scoped_tls",
  "once_cell",
@@ -2905,9 +2905,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.99.2"
+version = "0.99.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "299b629eb4c48fcb27760f760a7edde1f533e5f38f20f6a9eddc07b8a94b4ae7"
+checksum = "dc2f3792e7d5da4acc577fb8c0d40876c20811892e2143d2bd161b53f85b491f"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -2945,14 +2945,15 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_module"
-version = "0.112.6"
+version = "0.112.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "727fc776ddc1a564486f13602f50f3e68c242555f644fdaffbbeeef0a788b2b3"
+checksum = "5bc3eede69627f3de90ca5a90efb78307f50762ab9cf94955e076493b9f33207"
 dependencies = [
  "Inflector",
  "ahash",
  "anyhow",
  "indexmap",
+ "path-clean",
  "pathdiff",
  "serde",
  "swc_atoms",
@@ -3120,7 +3121,7 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.5.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.13.0",
  "byteorder",
@@ -3203,9 +3204,9 @@ dependencies = [
 
 [[package]]
 name = "swc_node_base"
-version = "0.5.3"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "453fe6f9b8b74ab126bc034cf8a67cd454f448371123fd555e7549ca66e7bbc9"
+checksum = "2771d2e2fe236364f95a4c4e29e41dd82592d047377337401593cade75ef878a"
 dependencies = [
  "mimalloc-rust",
  "tikv-jemallocator",
