@@ -9,11 +9,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
-import { eventCrashReport } from '../telemetry/events'
-import loadConfig from '../server/config'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
-import { join } from 'path'
-// import { Telemetry } from '../telemetry/storage'
+import { recordCrashReport } from '../telemetry/events'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -146,22 +142,12 @@ const nextDev: cliCommand = (argv) => {
       }
 
       if (fatalError) {
-        loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
-          .then((nextConfig) => {
-            const distDir = join(dir, nextConfig.distDir)
-            console.log({ distDir })
-            // const telemetry = new Telemetry({ distDir })
-            if (!fatalError) return
-            return eventCrashReport({
-              error: fatalError,
-              childProcessDuration: Date.now() - startTime,
-              compiledSuccessfully,
-              dir,
-              nextConfig,
-            })
-          })
-          .then(console.log)
-          .catch(() => {})
+        recordCrashReport({
+          error: fatalError,
+          childProcessDuration: Date.now() - startTime,
+          compiledSuccessfully,
+          dir,
+        })
         Log.error(fatalError)
         Log.info('Restarting the server due to a fatal error')
         startDev()
