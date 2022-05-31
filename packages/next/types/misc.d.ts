@@ -5,15 +5,15 @@ declare module 'next/dist/compiled/react-server-dom-webpack'
 declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'next/dist/compiled/browserslist'
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
-  export * from '@next/react-dev-overlay/lib/client'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
+  export * from '@next/react-dev-overlay/dist/client'
 }
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
-  export * from '@next/react-dev-overlay/lib/middleware'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
+  export * from '@next/react-dev-overlay/dist/middleware'
 }
 
-declare module 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin' {
+declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
 }
@@ -259,30 +259,8 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
-declare module 'next/dist/compiled/web-streams-polyfill' {
-  import m from 'web-streams-polyfill/ponyfill'
-  export = m
-}
-declare module 'next/dist/compiled/abort-controller' {
-  type BaseAbortController = typeof AbortController
-  type BaseAbortSignal = typeof AbortSignal
-  export { BaseAbortController as AbortController }
-  export { BaseAbortSignal as AbortSignal }
-}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
-  export = m
-}
-declare module 'next/dist/compiled/formdata-node' {
-  import m from 'formdata-node'
-  export = m
-}
-declare module 'next/dist/compiled/@peculiar/webcrypto' {
-  import m from '@peculiar/webcrypto'
-  export = m
-}
-declare module 'next/dist/compiled/uuid' {
-  import m from 'uuid'
   export = m
 }
 declare module 'next/dist/compiled/strip-ansi' {
@@ -343,6 +321,16 @@ declare module 'next/dist/compiled/comment-json' {
 
 declare module 'next/dist/compiled/process' {
   import m from 'process'
+  export = m
+}
+
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
+}
+
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
   export = m
 }
 

@@ -1,17 +1,17 @@
 import React from 'react'
 import { UrlObject } from 'url'
 import {
-  addBasePath,
-  addLocale,
-  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
+import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
+import { getDomainLocale } from './get-domain-locale'
+import { addBasePath } from './add-base-path'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -127,9 +127,6 @@ type LinkPropsReal = React.PropsWithChildren<
 
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
-    const {
-      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
-    } = props
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -260,6 +257,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       locale,
       onClick,
       onMouseEnter,
+      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
 
@@ -424,12 +422,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const localeDomain =
         router &&
         router.isLocaleDomain &&
-        getDomainLocale(
-          as,
-          curLocale,
-          router && router.locales,
-          router && router.domainLocales
-        )
+        getDomainLocale(as, curLocale, router.locales, router.domainLocales)
 
       childProps.href =
         localeDomain ||

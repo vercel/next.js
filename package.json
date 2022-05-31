@@ -9,7 +9,7 @@
     "new-error": "plop error",
     "new-test": "plop test",
     "clean": "pnpm lerna clean -y && pnpm lerna bootstrap && pnpm lerna exec 'rm -rf ./dist'",
-    "build": "pnpm prepublishOnly",
+    "build": "turbo run build",
     "lerna": "lerna",
     "dev": "lerna run dev --stream --parallel",
     "test-types": "pnpm tsc",
@@ -31,8 +31,8 @@
     "prettier-check": "prettier --check .",
     "prettier-fix": "prettier --write .",
     "types": "lerna run types --stream",
-    "typescript": "lerna run typescript",
-    "prepublishOnly": "lerna run prepublishOnly",
+    "typescript": "turbo run typescript",
+    "prepublishOnly": "turbo run build",
     "publish-canary": "git checkout canary && git pull && lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
@@ -54,6 +54,7 @@
     "@babel/plugin-proposal-object-rest-spread": "7.14.7",
     "@babel/preset-flow": "7.14.5",
     "@babel/preset-react": "7.14.5",
+    "@edge-runtime/jest-environment": "1.0.1-beta.10",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
     "@next/bundle-analyzer": "workspace:*",
@@ -188,10 +189,9 @@
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
     "tsec": "0.2.1",
-    "turbo": "1.2.9",
+    "turbo": "1.2.14",
     "typescript": "4.6.3",
     "wait-port": "0.2.2",
-    "web-streams-polyfill": "2.1.1",
     "webpack": "link:./node_modules/webpack5",
     "webpack-bundle-analyzer": "4.3.0",
     "worker-loader": "3.0.7"
@@ -205,6 +205,7 @@
     "@babel/traverse": "7.18.0"
   },
   "engines": {
-    "node": ">=12.22.0"
+    "node": ">=12.22.0",
+    "pnpm": "7"
   }
 }
