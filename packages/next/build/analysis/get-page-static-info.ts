@@ -125,27 +125,49 @@ function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
     result.pathMatcher = new RegExp(
       getMiddlewareRegExpStrings(config.matcher).join('|')
     )
+
+    if (result.pathMatcher.source.length > 4096) {
+      throw new Error(
+        `generated matcher config must be less than 4096 characters.`
+      )
+    }
   }
 
   return result
 }
 
-function getMiddlewareRegExpStrings(matcher: string | string[]): string[] {
-  if (Array.isArray(matcher)) {
-    return matcher.flatMap((x) => getMiddlewareRegExpStrings(x))
+function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
+  if (Array.isArray(matcherOrMatchers)) {
+    return matcherOrMatchers.flatMap((x) => getMiddlewareRegExpStrings(x))
   }
 
-  if (typeof matcher !== 'string') {
+  if (typeof matcherOrMatchers !== 'string') {
     throw new Error(
       '`matcher` must be a path pattern or an array of path patterns'
     )
   }
 
-  matcher = matcher.startsWith('/') ? matcher : `/${matcher}`
+  let matcher: string = matcherOrMatchers
+
+  if (!matcher.startsWith('/')) {
+    throw new Error('`matcher` must start with /')
+  }
+
+  matcher = matcherOrMatchers.startsWith('/')
+    ? matcherOrMatchers
+    : `/${matcherOrMatchers}`
   const parsedPage = tryToParsePath(matcher)
+
+  if (parsedPage.error) {
+    throw new Error(`Invalid path matcher: ${matcher}`)
+  }
 
   matcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
   const parsedDataRoute = tryToParsePath(matcher)
+
+  if (parsedDataRoute.error) {
+    throw new Error(`Invalid path matcher: ${matcher}`)
+  }
 
   const regexes = [parsedPage.regexStr, parsedDataRoute.regexStr].filter(
     (x): x is string => !!x

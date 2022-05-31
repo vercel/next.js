@@ -133,7 +133,7 @@ describe('Middleware can set the matcher in its config', () => {
   })
 })
 
-describe.only('using a single matcher', () => {
+describe('using a single matcher', () => {
   let next: NextInstance
   beforeAll(async () => {
     next = await createNext({
