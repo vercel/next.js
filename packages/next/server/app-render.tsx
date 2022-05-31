@@ -229,7 +229,7 @@ export async function renderToHTML(
       if (flightRouterPath) {
         // TODO: check the actual path
         const pathLength = path.length
-        return pathLength >= flightRouterPath.length
+        return pathLength > flightRouterPath.length
       }
       return true
     })
@@ -237,6 +237,7 @@ export async function renderToHTML(
     .map((path) => {
       const mod = ComponentMod.components[path]()
       mod.Component = mod.default || mod
+      mod.path = path
       return mod
     })
 
@@ -305,6 +306,7 @@ export async function renderToHTML(
       preloadDataFetchingRecord(dataCache, dataCacheKey, fetcher)
     }
 
+    const LayoutRouter = ComponentMod.LayoutRouter
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
     WrappedComponent = (props: any) => {
@@ -326,22 +328,22 @@ export async function renderToHTML(
         }
       }
 
-      // if this is the root layout pass children as children prop
-      if (!isSubtreeRender && i === 0) {
-        return React.createElement(layout.Component, {
-          ...props,
-          children: React.createElement(
-            lastComponent || React.Fragment,
-            {},
-            null
-          ),
-        })
-      }
-
+      const children = React.createElement(
+        lastComponent || React.Fragment,
+        {},
+        null
+      )
+      // Pages don't need to be wrapped in a router
       return React.createElement(
         layout.Component,
         props,
-        React.createElement(lastComponent || React.Fragment, {}, null)
+        layout.path.endsWith('/page') ? (
+          children
+        ) : (
+          <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
+            {children}
+          </LayoutRouter>
+        )
       )
     }
     // TODO: loading state
@@ -357,8 +359,11 @@ export async function renderToHTML(
 
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
+    if (flightRouterPath) {
+      return <WrappedComponent />
+    }
     return (
-      <AppRouter initialUrl={req.url}>
+      <AppRouter initialUrl={pathname}>
         <WrappedComponent />
       </AppRouter>
     )
