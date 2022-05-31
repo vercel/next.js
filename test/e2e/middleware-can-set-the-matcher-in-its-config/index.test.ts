@@ -157,7 +157,7 @@ describe('using a single matcher', () => {
         'middleware.js': `
           import { NextResponse } from 'next/server'
           export const config = {
-            matcher: ['/middleware/works']
+            matcher: '/middleware/works'
           };
           export default (req) => {
             const res = NextResponse.next();
