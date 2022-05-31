@@ -1232,6 +1232,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
+        'next-edge-function-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
