@@ -471,11 +471,18 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
+    if (entry.import.includes('flight')) {
+      return {
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        ...entry,
+      }
+    }
+
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
-          : 'main',
+          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
       ...entry,
     }
   }
