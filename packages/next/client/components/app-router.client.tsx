@@ -1,6 +1,7 @@
 import React from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import { AppRouterContext } from '../../shared/lib/app-router-context'
+import useRouter from './userouter.js'
 
 function createResponseCache() {
   return new Map<string, any>()
@@ -31,44 +32,18 @@ export function fetchServerResponse(href: string, layoutPath?: string) {
 
 // TODO: move to client component when handling is implemented
 export default function AppRouter({ initialUrl, layoutPath, children }: any) {
-  const initialState = {
-    url: initialUrl,
-  }
-  const previousUrlRef = React.useRef(initialState)
-  const [current, setCurrent] = React.useState(initialState)
   // @ts-ignore useTransition exists
   const [, startBackTransition] = React.useTransition()
-  const change = React.useCallback(
-    (method: 'replaceState' | 'pushState', url: string) => {
-      previousUrlRef.current = current
-      const state = { ...current, url }
-      setCurrent(state)
-      // TODO: update url eagerly or not?
-      window.history[method](state, '', url)
-    },
-    [current]
-  )
-  const appRouter = React.useMemo(() => {
-    return {
-      prefetch: () => Promise.resolve({}),
-      replace: (url: string) => {
-        return change('replaceState', url)
-      },
-      push: (url: string) => {
-        return change('pushState', url)
-      },
-      url: current.url,
-    }
-  }, [current, change])
+  const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
 
   const onPopState = React.useCallback(
     ({ state }: PopStateEvent) => {
       if (!state) {
         return
       }
-      startBackTransition(() => change('replaceState', state.url))
+      startBackTransition(() => appRouter.replace(state.url))
     },
-    [startBackTransition, change]
+    [startBackTransition, appRouter]
   )
   React.useEffect(() => {
     window.addEventListener('popstate', onPopState)
