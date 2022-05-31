@@ -19,7 +19,7 @@ function requestToBodyStream(request: IncomingMessage): BodyStream {
   return transform.readable as unknown as ReadableStream<Uint8Array>
 }
 
-export function bodyStreamToNodeStream(bodyStream: BodyStream): Readable {
+function bodyStreamToNodeStream(bodyStream: BodyStream): Readable {
   const reader = bodyStream.getReader()
   return Readable.from(
     (async function* () {

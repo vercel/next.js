@@ -12,7 +12,6 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { readJson } from 'fs-extra'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -175,31 +174,6 @@ describe('Switchable runtime (prod)', () => {
     })
   })
 
-  it('should build /api/hello as an api route with edge runtime', async () => {
-    const response = await fetchViaHTTP(context.appPort, '/api/hello')
-    const text = await response.text()
-    expect(text).toMatch(/Hello from .+\/api\/hello/)
-
-    const manifest = await readJson(
-      join(context.appDir, '.next/server/middleware-manifest.json')
-    )
-    expect(manifest).toMatchObject({
-      functions: {
-        '/api/hello': {
-          env: [],
-          files: [
-            'server/edge-runtime-webpack.js',
-            'server/pages/api/hello.js',
-          ],
-          name: 'pages/api/hello',
-          page: '/api/hello',
-          regexp: '^/api/hello$',
-          wasm: [],
-        },
-      },
-    })
-  })
-
   it('should display correct tree view with page types in terminal', async () => {
     const stdoutLines = splitLines(context.stdout).filter((line) =>
       /^[┌├└/]/.test(line)
@@ -207,8 +181,6 @@ describe('Switchable runtime (prod)', () => {
     const expectedOutputLines = splitLines(`
   ┌   /_app
   ├ ○ /404
-  ├ ℇ /api/hello
-  ├ λ /api/node
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -220,16 +192,12 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-
-    const mappedOutputLines = expectedOutputLines.map((_line, index) => {
-      /** @type {string} */
-      const str = stdoutLines[index]
-      const beginningOfPath = str.indexOf('/')
-      const endOfPath = str.indexOf(' ', beginningOfPath)
-      return str.slice(0, endOfPath)
+    const isMatched = expectedOutputLines.every((line, index) => {
+      const matched = stdoutLines[index].startsWith(line)
+      return matched
     })
 
-    expect(mappedOutputLines).toEqual(expectedOutputLines)
+    expect(isMatched).toBe(true)
   })
 
   it('should prefetch data for static pages', async () => {
@@ -370,30 +338,5 @@ describe('Switchable runtime (dev)', () => {
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
-  })
-
-  it('should build /api/hello as an api route with edge runtime', async () => {
-    const response = await fetchViaHTTP(context.appPort, '/api/hello')
-    const text = await response.text()
-    expect(text).toMatch(/Hello from .+\/api\/hello/)
-
-    const manifest = await readJson(
-      join(context.appDir, '.next/server/middleware-manifest.json')
-    )
-    expect(manifest).toMatchObject({
-      functions: {
-        '/api/hello': {
-          env: [],
-          files: [
-            'server/edge-runtime-webpack.js',
-            'server/pages/api/hello.js',
-          ],
-          name: 'pages/api/hello',
-          page: '/api/hello',
-          regexp: '^/api/hello$',
-          wasm: [],
-        },
-      },
-    })
   })
 })
