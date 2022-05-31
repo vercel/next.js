@@ -72,9 +72,9 @@ import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { clonableBodyForRequest } from './body-streams'
-import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
+import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
 
 export * from './base-server'
 
@@ -540,6 +540,19 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
+    const handledAsEdgeFunction = await this.runEdgeFunctionApiEndpoint({
+      req,
+      res,
+      query,
+      params,
+      page,
+      builtPagePath,
+    })
+
+    if (handledAsEdgeFunction) {
+      return true
+    }
+
     const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
 
@@ -1031,11 +1044,15 @@ export default class NextNodeServer extends BaseServer {
   }
 
   /**
-   * Get information for the middleware located in the provided page
-   * folder. If the middleware info can't be found it will throw
+   * Get information for the edge function located in the provided page
+   * folder. If the edge function info can't be found it will throw
    * an error.
    */
-  protected getMiddlewareInfo(page: string) {
+  protected getEdgeFunctionInfo(params: {
+    page: string
+    /** Whether we should look for a middleware or not */
+    middleware: boolean
+  }) {
     const manifest: MiddlewareManifest = require(join(
       this.serverDistDir,
       MIDDLEWARE_MANIFEST
@@ -1044,12 +1061,14 @@ export default class NextNodeServer extends BaseServer {
     let foundPage: string
 
     try {
-      foundPage = denormalizePagePath(normalizePagePath(page))
+      foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
-      throw pageNotFoundError(page)
+      throw pageNotFoundError(params.page)
     }
 
-    let pageInfo = manifest.middleware[foundPage]
+    let pageInfo = params.middleware
+      ? manifest.middleware[foundPage]
+      : manifest.functions[foundPage]
     if (!pageInfo) {
       throw pageNotFoundError(foundPage)
     }
@@ -1075,7 +1094,10 @@ export default class NextNodeServer extends BaseServer {
     _isSSR?: boolean
   ): Promise<boolean> {
     try {
-      return this.getMiddlewareInfo(pathname).paths.length > 0
+      return (
+        this.getEdgeFunctionInfo({ page: pathname, middleware: true }).paths
+          .length > 0
+      )
     } catch (_) {}
 
     return false
@@ -1142,7 +1164,10 @@ export default class NextNodeServer extends BaseServer {
         }
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
-        const middlewareInfo = this.getMiddlewareInfo(middleware.page)
+        const middlewareInfo = this.getEdgeFunctionInfo({
+          page: middleware.page,
+          middleware: true,
+        })
 
         result = await run({
           name: middlewareInfo.name,
@@ -1410,5 +1435,81 @@ export default class NextNodeServer extends BaseServer {
       )
       this.warnIfQueryParametersWereDeleted = () => {}
     }
+  }
+
+  private async runEdgeFunctionApiEndpoint(params: {
+    req: NodeNextRequest
+    res: NodeNextResponse
+    query: ParsedUrlQuery
+    params: Params | false
+    page: string
+    builtPagePath: string
+  }): Promise<boolean> {
+    let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+
+    try {
+      middlewareInfo = this.getEdgeFunctionInfo({
+        page: params.page,
+        middleware: false,
+      })
+    } catch {
+      return false
+    }
+
+    // For middleware to "fetch" we must always provide an absolute URL
+    const url = getRequestMeta(params.req, '__NEXT_INIT_URL')!
+    if (!url.startsWith('http')) {
+      throw new Error(
+        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
+      )
+    }
+
+    const result = await run({
+      name: middlewareInfo.name,
+      paths: middlewareInfo.paths,
+      env: middlewareInfo.env,
+      wasm: middlewareInfo.wasm,
+      request: {
+        headers: params.req.headers,
+        method: params.req.method,
+        nextConfig: {
+          basePath: this.nextConfig.basePath,
+          i18n: this.nextConfig.i18n,
+          trailingSlash: this.nextConfig.trailingSlash,
+        },
+        url,
+        page: {
+          name: params.page,
+          ...(params.params && { params: params.params }),
+        },
+        // TODO(gal): complete body
+        // body: originalBody?.cloneBodyStream(),
+      },
+      useCache: !this.nextConfig.experimental.runtime,
+      onWarning: (_warning: Error) => {
+        // if (params.onWarning) {
+        //   warning.message += ` "./${middlewareInfo.name}"`
+        //   params.onWarning(warning)
+        // }
+      },
+    })
+
+    params.res.statusCode = result.response.status
+    params.res.statusMessage = result.response.statusText
+
+    result.response.headers.forEach((value, key) => {
+      params.res.appendHeader(key, value)
+    })
+
+    if (result.response.body) {
+      // TODO(gal): not sure that we always need to stream
+      bodyStreamToNodeStream(result.response.body).pipe(
+        params.res.originalResponse
+      )
+    } else {
+      params.res.originalResponse.end()
+    }
+
+    return true
   }
 }

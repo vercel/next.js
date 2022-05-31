@@ -14,24 +14,26 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
+interface EdgeFunctionDefinition {
+  env: string[]
+  files: string[]
+  name: string
+  page: string
+  regexp: string
+  wasm?: WasmBinding[]
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
   clientInfo: [location: string, isSSR: boolean][]
-  middleware: {
-    [page: string]: {
-      env: string[]
-      files: string[]
-      name: string
-      page: string
-      regexp: string
-      wasm?: WasmBinding[]
-    }
-  }
+  middleware: { [page: string]: EdgeFunctionDefinition }
+  functions: { [page: string]: EdgeFunctionDefinition }
 }
 
 interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
+  edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
@@ -42,6 +44,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   clientInfo: [],
   middleware: {},
+  functions: {},
   version: 1,
 }
 
@@ -310,6 +313,8 @@ function getExtractMetadata(params: {
           entryMetadata.edgeSSR = buildInfo.nextEdgeSSR
         } else if (buildInfo?.nextEdgeMiddleware) {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
+        } else if (buildInfo?.nextEdgeApiFunction) {
+          entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
         }
 
         /**
@@ -386,22 +391,31 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
-      const page = metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
 
-      middlewareManifest.middleware[page] = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
         regexp: namedRegex,
         wasm: Array.from(metadata.wasmBindings),
+      }
+
+      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
       }
     }
 
