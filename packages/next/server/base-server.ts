@@ -353,8 +353,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.incrementalCache = new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      distDir: this.distDir,
-      pagesDir: join(this.serverDistDir, 'pages'),
+      serverDistDir: this.serverDistDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => {
@@ -1616,6 +1615,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         isManualRevalidate,
+        isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
 
@@ -1733,13 +1733,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
-    // map the route to the actual bundle name e.g.
-    // `/dashboard/rootonly/hello` -> `/dashboard+rootonly/hello`
+    // map the route to the actual bundle name
     const getOriginalappPath = (appPath: string) => {
       if (this.nextConfig.experimental.appDir) {
-        const originalappPath =
-          this.appPathRoutes?.[`${appPath}/index`] ||
-          this.appPathRoutes?.[`${appPath}`]
+        const originalappPath = this.appPathRoutes?.[appPath]
 
         if (!originalappPath) {
           return null

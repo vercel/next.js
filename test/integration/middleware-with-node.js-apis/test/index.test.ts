@@ -27,7 +27,6 @@ const unsupportedClasses = [
   'CountQueuingStrategy',
   'DecompressionStream',
   'DomException',
-  'Event',
   'EventTarget',
   'MessageChannel',
   'MessageEvent',

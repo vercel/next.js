@@ -56,7 +56,7 @@ import {
   createOriginalStackFrame,
   getSourceById,
   parseStack,
-} from 'next/dist/compiled/@next/react-dev-overlay/middleware'
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import {
@@ -76,7 +76,7 @@ let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/client').ReactDevOverlay
+      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }

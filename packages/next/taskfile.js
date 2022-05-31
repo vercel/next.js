@@ -145,6 +145,39 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['@edge-runtime/primitives'] =
+  'next/dist/compiled/@edge-runtime/primitives'
+
+export async function ncc_edge_runtime_primitives() {
+  // `@edge-runtime/primitives` is precompiled and pre-bundled
+  // so we vendor the package as it is.
+  const dest = 'compiled/@edge-runtime/primitives'
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/primitives/package.json')
+  )
+  await fs.remove(dest)
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: '@edge-runtime/primitives',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives'),
+    join(dest, 'index.js')
+  )
+}
+
+// eslint-disable-next-line camelcase
+externals['edge-runtime'] = 'next/dist/compiled/edge-runtime'
+export async function ncc_edge_runtime(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
+    .ncc({ packageName: 'edge-runtime', externals })
+    .target('compiled/edge-runtime')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_next__react_dev_overlay(task, opts) {
   const overlayExternals = {
     ...externals,
@@ -159,7 +192,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       opts.src ||
         relative(
           __dirname,
-          require.resolve('@next/react-dev-overlay/lib/middleware')
+          require.resolve('@next/react-dev-overlay/dist/middleware')
         )
     )
     .ncc({
@@ -168,14 +201,14 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('dist/compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay/dist')
 
   await task
     .source(
       opts.src ||
         relative(
           __dirname,
-          require.resolve('@next/react-dev-overlay/lib/client')
+          require.resolve('@next/react-dev-overlay/dist/client')
         )
     )
     .ncc({
@@ -184,11 +217,11 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       externals: overlayExternals,
       target: 'es5',
     })
-    .target('dist/compiled/@next/react-dev-overlay')
+    .target('dist/compiled/@next/react-dev-overlay/dist')
 
   const clientFile = join(
     __dirname,
-    'dist/compiled/@next/react-dev-overlay/client.js'
+    'dist/compiled/@next/react-dev-overlay/dist/client.js'
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
@@ -280,10 +313,14 @@ export async function ncc_react_refresh_utils(task, opts) {
     join(__dirname, 'dist/compiled/react-refresh')
   )
 
-  const srcDir = dirname(
-    require.resolve('@next/react-refresh-utils/package.json')
+  const srcDir = join(
+    dirname(require.resolve('@next/react-refresh-utils/package.json')),
+    'dist'
   )
-  const destDir = join(__dirname, 'dist/compiled/@next/react-refresh-utils')
+  const destDir = join(
+    __dirname,
+    'dist/compiled/@next/react-refresh-utils/dist'
+  )
   await fs.remove(destDir)
   await fs.ensureDir(destDir)
 
@@ -1533,35 +1570,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     .target('compiled/mini-css-extract-plugin')
 }
 // eslint-disable-next-line camelcase
-externals['web-streams-polyfill'] = 'next/dist/compiled/web-streams-polyfill'
-export async function ncc_web_streams_polyfill(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('web-streams-polyfill/ponyfill'))
-    )
-    .ncc({ packageName: 'web-streams-polyfill', externals })
-    .target('compiled/web-streams-polyfill')
-}
-// eslint-disable-next-line camelcase
-externals['abort-controller'] = 'next/dist/compiled/abort-controller'
-export async function ncc_abort_controller(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('abort-controller'))
-    )
-    .ncc({ packageName: 'abort-controller', externals })
-    .target('compiled/abort-controller')
-}
-// eslint-disable-next-line camelcase
-externals['formdata-node'] = 'next/dist/compiled/formdata-node'
-export async function ncc_formdata_node(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('formdata-node')))
-    .ncc({ packageName: 'formdata-node', externals })
-    .target('compiled/formdata-node')
-}
-// eslint-disable-next-line camelcase
 externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
 export async function ncc_ua_parser_js(task, opts) {
   await task
@@ -1569,25 +1577,6 @@ export async function ncc_ua_parser_js(task, opts) {
     .ncc({ packageName: 'ua-parser-js', externals })
     .target('compiled/ua-parser-js')
 }
-// eslint-disable-next-line camelcase
-externals['@peculiar/webcrypto'] = 'next/dist/compiled/@peculiar/webcrypto'
-export async function ncc_webcrypto(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('@peculiar/webcrypto'))
-    )
-    .ncc({ packageName: '@peculiar/webcrypto', externals })
-    .target('compiled/@peculiar/webcrypto')
-}
-// eslint-disable-next-line camelcase
-externals['uuid'] = 'next/dist/compiled/uuid'
-export async function ncc_uuid(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('uuid')))
-    .ncc({ packageName: 'uuid', externals })
-    .target('compiled/uuid')
-}
-
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
@@ -1671,6 +1660,8 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',
+        'ncc_edge_runtime_primitives',
+        'ncc_edge_runtime',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
@@ -1762,11 +1753,6 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources3',
         'ncc_ws',
         'ncc_ua_parser_js',
-        'ncc_webcrypto',
-        'ncc_uuid',
-        'ncc_formdata_node',
-        'ncc_web_streams_polyfill',
-        'ncc_abort_controller',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
       ],

@@ -1,11 +1,9 @@
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
-import {
-  addBasePath,
-  addLocale,
-  interpolateAs,
-} from '../shared/lib/router/router'
+import { addBasePath } from './add-base-path'
+import { interpolateAs } from '../shared/lib/router/router'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { addLocale } from './add-locale'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
