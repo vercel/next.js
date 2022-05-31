@@ -14,6 +14,11 @@ export function runTests(example = '') {
     return
   }
 
+  if (!process.env.NEXT_TEST_PNP) {
+    it('should skip when NEXT_TEST_PNP env is not set', () => {})
+    return
+  }
+
   if (
     versionParts[0] > 16 ||
     (versionParts[0] === 16 && versionParts[1] >= 14)
