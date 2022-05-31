@@ -47,10 +47,10 @@
   },
   "pre-commit": "lint-staged",
   "devDependencies": {
-    "@babel/core": "7.15.0",
-    "@babel/eslint-parser": "7.15.0",
-    "@babel/generator": "7.15.0",
+    "@babel/core": "7.18.0",
+    "@babel/eslint-parser": "7.18.2",
     "@babel/parser": "7.12.11",
+    "@babel/generator": "7.18.0",
     "@babel/plugin-proposal-object-rest-spread": "7.14.7",
     "@babel/preset-flow": "7.14.5",
     "@babel/preset-react": "7.14.5",
@@ -199,10 +199,10 @@
   "resolutions": {
     "browserslist": "4.20.2",
     "caniuse-lite": "1.0.30001332",
-    "@babel/core": "7.15.0",
-    "@babel/parser": "7.15.0",
-    "@babel/types": "7.15.0",
-    "@babel/traverse": "7.15.0"
+    "@babel/core": "7.18.0",
+    "@babel/parser": "7.18.0",
+    "@babel/types": "7.18.0",
+    "@babel/traverse": "7.18.0"
   },
   "engines": {
     "node": ">=12.22.0",
