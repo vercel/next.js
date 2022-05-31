@@ -51,6 +51,26 @@ ruleTester.run('no-server-import-in-page', rule, {
     `,
       filename: 'middleware.page.tsx',
     },
+    {
+      code: `import "jest";
+      import { NextRequest } from "next/server";
+      
+      describe("example", () => {
+        it("should pass", () => {});
+      });
+      `,
+      filename: `${path.sep}__tests__${path.sep}test.ts`,
+    },
+    {
+      code: `import "jest";
+      import { NextRequest } from "next/server";
+      
+      describe("example", () => {
+        it("should pass", () => {});
+      });
+      `,
+      filename: 'test/example.spec.jsx',
+    },
   ],
   invalid: [
     {

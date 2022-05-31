@@ -19,7 +19,10 @@ module.exports = {
         if (
           filename.startsWith('middleware.') ||
           filename.startsWith(`${path.sep}middleware.`) ||
-          filename.startsWith(`${path.posix.sep}middleware.`)
+          filename.startsWith(`${path.posix.sep}middleware.`) ||
+          filename.includes(`${path.sep}__tests__${path.sep}`) ||
+          filename.includes(`${path.posix.sep}__tests__${path.posix.sep}`) ||
+          /\.(test|spec)\.(js|mjs|cjs|ts|mts|cts|jsx|tsx)$/.test(filename)
         ) {
           return
         }
