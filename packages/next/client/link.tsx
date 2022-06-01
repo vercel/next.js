@@ -13,6 +13,9 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 
+// @ts-ignore useTransition exist
+const hasUseTransition = typeof React.useTransition !== 'undefined'
+
 type Url = string | UrlObject
 type RequiredKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? never : K
@@ -277,8 +280,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const p = prefetchProp !== false
-    // @ts-ignore useTransition exists
-    const [, /* isPending */ startTransition] = React.useTransition()
+    const [, /* isPending */ startTransition] = hasUseTransition
+      ? // Rules of hooks is disabled here because the useTransition will always exist with React 18.
+        // There is no difference between renders in this case, only between using React 18 vs 17.
+        // @ts-ignore useTransition exists
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        React.useTransition()
+      : []
     let router = React.useContext(RouterContext)
 
     const appRouter = React.useContext(AppRouterContext)
