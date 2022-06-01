@@ -213,13 +213,13 @@ export function middleware() {
 
 ### Explanation
 
-It is not possible to efficiently know ahead of time if an asset will be served instead of a dynamic page and therefore we only do an estimation based on the routes manifest.
+Currently, Middleware estimates whether you are serving an asset of a Page based on the Next.js routes manifest (internal configuration). This value is surfaced through `request.page`.
 
-Currently, we offer a property `request.page` showing the page that we estimate will render, along with its matched parameters when it is a dynamic page. This information cannot be guaranteed to be accurate, so we are deprecating this property.
+To make this more accurate, we are recommending to use the web standard `URLPattern` API.
 
 ### How to upgrade
 
-You should use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match.
+Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match.
 
 #### Before
 
@@ -276,3 +276,15 @@ export function middleware(request: NextRequest) {
   }
 }
 ```
+
+## Executing Middleware on Internal Next.js Requests
+
+### Summary of changes
+
+- Middleware will be executed for _all_ requests, including `_next`
+
+### Explanation
+
+Currently, we do not execute Middleware for `_next` requests, due the authorization use cases.
+
+For cases where Middleware is used for authorization, you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
