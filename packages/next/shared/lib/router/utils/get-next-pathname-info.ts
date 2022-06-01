@@ -1,4 +1,3 @@
-import type { I18NConfig } from '../../../../server/config-shared'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
@@ -39,7 +38,7 @@ interface Options {
    */
   nextConfig?: {
     basePath?: string
-    i18n?: I18NConfig | null
+    i18n?: { locales?: string[] } | null
     trailingSlash?: boolean
   }
 }
