@@ -901,7 +901,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading = 'lazy',
+  loading,
   srcString,
   config,
   unoptimized,
@@ -915,6 +915,7 @@ const ImageElement = ({
   noscriptSizes,
   ...rest
 }: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
   return (
     <>
       <img

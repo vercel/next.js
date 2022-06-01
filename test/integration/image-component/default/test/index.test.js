@@ -142,6 +142,23 @@ function runTests(mode) {
         },
       ])
 
+      // When priority={true}, we should _not_ set loading="lazy"
+      expect(await browser.elementById('default').getAttribute('loading')).toBe(
+        null
+      )
+      expect(
+        await browser.elementById('load-eager').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive1').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive2').getAttribute('loading')
+      ).toBe(null)
+      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+        null
+      )
+
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
