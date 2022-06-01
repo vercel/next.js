@@ -57,8 +57,8 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
 
   if (
     options.parseData === true &&
-    (info.pathname.startsWith('/_next/data/') ||
-      info.pathname.endsWith('.json'))
+    info.pathname.startsWith('/_next/data/') &&
+    info.pathname.endsWith('.json')
   ) {
     const [buildId, ...rest] = info.pathname
       .replace(/^\/_next\/data\//, '')
