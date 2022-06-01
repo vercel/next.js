@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
+import webdriver, { USE_SELENIUM } from 'next-webdriver'
 import {
   check,
   fetchViaHTTP,
@@ -69,7 +69,7 @@ function tests(context) {
   it('includes the locale in rewrites by default', async () => {
     const res = await fetchViaHTTP(context.appPort, `/rewrite-me-to-about`)
     expect(
-      res.headers.get('x-middleware-rewrite')?.endsWith('/default/about')
+      res.headers.get('x-middleware-rewrite')?.endsWith('/en/about')
     ).toEqual(true)
   })
 
@@ -178,6 +178,23 @@ function tests(context) {
     expect($('#locale').text()).toBe('es')
     expect($('#country').text()).toBe('us')
   })
+
+  if (!USE_SELENIUM) {
+    it(`should allow to switch locales`, async () => {
+      const browser = await webdriver(context.appPort, '/i18n')
+      await browser.waitForElementByCss('.en')
+      await browser.elementByCss('#link-ja').click()
+      await browser.waitForElementByCss('.ja')
+      await browser.elementByCss('#link-en').click()
+      await browser.waitForElementByCss('.en')
+      await browser.elementByCss('#link-fr').click()
+      await browser.waitForElementByCss('.fr')
+      await browser.elementByCss('#link-ja2').click()
+      await browser.waitForElementByCss('.ja')
+      await browser.elementByCss('#link-en2').click()
+      await browser.waitForElementByCss('.en')
+    })
+  }
 }
 
 function testsWithLocale(context, locale = '') {
