@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import webdriver, { USE_SELENIUM } from 'next-webdriver'
+import webdriver from 'next-webdriver'
 import {
   findPort,
   killApp,
@@ -14,8 +14,6 @@ jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 context.appDir = join(__dirname, '../')
-
-const itif = (condition) => (condition ? it : it.skip)
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
@@ -47,24 +45,6 @@ describe('Middleware base tests', () => {
 })
 
 function runTests() {
-  itif(!USE_SELENIUM)(
-    `should send preflight for specified locale`,
-    async () => {
-      const browser = await webdriver(context.appPort, '/i18n')
-      await browser.waitForElementByCss('.en')
-      await browser.elementByCss('#link-ja').click()
-      await browser.waitForElementByCss('.ja')
-      await browser.elementByCss('#link-en').click()
-      await browser.waitForElementByCss('.en')
-      await browser.elementByCss('#link-fr').click()
-      await browser.waitForElementByCss('.fr')
-      await browser.elementByCss('#link-ja2').click()
-      await browser.waitForElementByCss('.ja')
-      await browser.elementByCss('#link-en2').click()
-      await browser.waitForElementByCss('.en')
-    }
-  )
-
   it(`hard-navigates when preflight request failed`, async () => {
     const browser = await webdriver(context.appPort, `/error`)
     await browser.eval('window.__SAME_PAGE = true')
