@@ -28,7 +28,7 @@ import fs from 'fs-extra'
           )
         ).version === nextVersion
       ) {
-        console.log(`@next/${pkg}@${nextVersion} already installed skipping`);
+        console.log(`@next/${pkg}@${nextVersion} already installed skipping`)
         return
       }
     }
