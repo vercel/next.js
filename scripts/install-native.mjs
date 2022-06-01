@@ -21,6 +21,7 @@ import fs from 'fs-extra'
       path.join(cwd, 'node_modules', '@next')
     )) {
       if (
+        pkg.startsWith('swc-') &&
         (
           await fs.readJSON(
             path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
