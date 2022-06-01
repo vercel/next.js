@@ -10,6 +10,13 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 export const version = process.env.__NEXT_VERSION
 
+// History replace has to happen on bootup to ensure `state` is always populated in popstate event
+window.history.replaceState(
+  { url: window.location.toString() },
+  '',
+  window.location.toString()
+)
+
 const appElement: HTMLElement | Document | null = document
 
 let reactRoot: any = null
