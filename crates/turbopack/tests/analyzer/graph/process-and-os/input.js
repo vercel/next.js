@@ -1,4 +1,5 @@
 const { platform, endianness, arch } = require('os')
+const { platform: processPlatform } = require('process')
 
 let p = process
 
@@ -12,6 +13,5 @@ const binding3 = require(`esbuild-${arch()}-${
 const binding4 = require(`esbuild-${process.arch}-${
   process.platform
 }-${endianness()}`)
-const binding5 = require(`esbuild-${p.arch}-${
-  p.platform
-}-${endianness()}`)
+const binding5 = require(`esbuild-${p.arch}-${p.platform}-${endianness()}`)
+const binding6 = require(`esbuild-${p.arch}-${processPlatform}-${endianness()}`)

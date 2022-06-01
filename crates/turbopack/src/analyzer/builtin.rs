@@ -2,7 +2,7 @@ use std::{mem::take, sync::Arc};
 
 use crate::analyzer::FreeVarKind;
 
-use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
+use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart, WellKnownObjectKind};
 
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {

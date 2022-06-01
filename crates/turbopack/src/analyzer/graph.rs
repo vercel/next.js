@@ -170,9 +170,7 @@ impl EvalContext {
                         "require" => return JsValue::FreeVar(FreeVarKind::Require),
                         "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
                         "__filename" => return JsValue::FreeVar(FreeVarKind::Filename),
-                        "process" => {
-                            return JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
-                        }
+                        "process" => return JsValue::FreeVar(FreeVarKind::NodeProcess),
                         _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {

@@ -1348,7 +1348,10 @@ impl JsValue {
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::Filename) => true,
             JsValue::FreeVar(
-                FreeVarKind::Require | FreeVarKind::Import | FreeVarKind::RequireResolve,
+                FreeVarKind::Require
+                | FreeVarKind::Import
+                | FreeVarKind::RequireResolve
+                | FreeVarKind::NodeProcess,
             ) => false,
             JsValue::FreeVar(FreeVarKind::Other(_)) => false,
 
@@ -1746,6 +1749,9 @@ pub enum FreeVarKind {
     /// A reference to global `require.resolve`
     RequireResolve,
 
+    /// Node.js process
+    NodeProcess,
+
     /// `abc` `some_global`
     Other(JsWord),
 }
@@ -1806,12 +1812,16 @@ pub mod test_utils {
             }
             JsValue::FreeVar(FreeVarKind::Dirname) => "__dirname".into(),
             JsValue::FreeVar(FreeVarKind::Filename) => "__filename".into(),
+            JsValue::FreeVar(FreeVarKind::NodeProcess) => {
+                JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
+            }
             JsValue::FreeVar(kind) => {
                 JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(kind))), "unknown global")
             }
             JsValue::Module(ref name) => match name.as_ref() {
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
+                "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 _ => return Ok((v, false)),
             },
             _ => {
