@@ -590,6 +590,7 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                   }),
+                  appDir: this.config.experimental.appDir,
                 })
               },
               onClient: () => {
@@ -607,6 +608,7 @@ export default class HotReloader {
                         ),
                         absolutePagePath: clientLoader,
                       })}!` + clientLoader,
+                    appDir: this.config.experimental.appDir,
                   })
                 } else {
                   entries[pageKey].status = BUILDING
@@ -617,6 +619,7 @@ export default class HotReloader {
                       absolutePagePath,
                       page,
                     }),
+                    appDir: this.config.experimental.appDir,
                   })
                 }
               },
@@ -644,6 +647,7 @@ export default class HotReloader {
                           pageExtensions: this.config.pageExtensions,
                         })
                       : request,
+                  appDir: this.config.experimental.appDir,
                 })
               },
             })
