@@ -433,14 +433,12 @@ export function finalizeEntrypoint({
   value,
   isServerComponent,
   appDir,
-  isAppEntry,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
   appDir?: boolean
-  isAppEntry?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
