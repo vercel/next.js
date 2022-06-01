@@ -43,7 +43,7 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
