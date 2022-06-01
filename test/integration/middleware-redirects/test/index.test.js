@@ -75,6 +75,21 @@ function testsWithLocale(context, locale = '') {
     expect($('.title').text()).toBe('Welcome to a new page')
   })
 
+  it(`${label}should implement internal redirects`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#old-home').click()
+    await browser.waitForElementByCss('#new-home-title')
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/new-home`
+      )
+    } finally {
+      await browser.close()
+    }
+  })
+
   it(`${label}should redirect cleanly with the original url param`, async () => {
     const browser = await webdriver(
       context.appPort,
