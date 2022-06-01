@@ -38,7 +38,7 @@ export function middleware(req: NextRequest) {
   if (areCredentialsValid(req.headers.get('authorization')) {
     return NextResponse.next()
   }
-  return NextResponse.redirect(`/login?from=${req.nextUrl.pathname}`)
+  return NextResponse.redirect(new URL(`/login?from=${req.nextUrl.pathname}`, req.url))
 }
 ```
 
