@@ -177,6 +177,13 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
+  if (url.pathname === '/send-url') {
+    const response = NextResponse.next()
+    const url = new URL(request.url)
+    response.headers.set('x-url', `${url.pathname}${url.search}`)
+    return response
+  }
+
   // Map metadata by default
   return new Response(null, {
     headers: {
