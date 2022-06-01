@@ -2289,6 +2289,7 @@ export default async function getBaseWebpackConfig(
           value: entry[name],
           compilerType,
           name,
+          appDir: config.experimental.appDir,
         })
       }
 

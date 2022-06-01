@@ -432,11 +432,15 @@ export function finalizeEntrypoint({
   compilerType,
   value,
   isServerComponent,
+  appDir,
+  isAppEntry,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
+  appDir?: boolean
+  isAppEntry?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -472,7 +476,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
     // TODO: this is a temporary fix. @shuding is going to change the handling of server components
-    if (entry.import.includes('flight')) {
+    if (appDir && entry.import.includes('flight')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
         ...entry,
