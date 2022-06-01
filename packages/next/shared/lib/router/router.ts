@@ -16,7 +16,7 @@ import {
 } from '../../../client/route-loader'
 import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
-import { denormalizePagePath } from '../page-path/denormalize-page-path'
+import { resolveDynamicRoute } from '../../../client/resolve-dynamic-route'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
@@ -44,6 +44,7 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
+import { getMiddlewareEffects } from '../../../client/get-middleware-effects'
 
 declare global {
   interface Window {
@@ -75,29 +76,6 @@ interface PreflightData {
   rewrite?: string | null
   ssr?: boolean
 }
-
-type PreflightEffect =
-  | {
-      asPath: string
-      matchedPage?: boolean
-      parsedAs: ReturnType<typeof parseRelativeUrl>
-      resolvedHref: string
-      type: 'rewrite'
-    }
-  | {
-      destination?: undefined
-      newAs: string
-      newUrl: string
-      type: 'redirect'
-    }
-  | {
-      destination: string
-      newAs?: undefined
-      newUrl?: undefined
-      type: 'redirect'
-    }
-  | { type: 'refresh' }
-  | { type: 'next' }
 
 export type HistoryState =
   | null
@@ -345,26 +323,6 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
     url: preparedUrl,
     as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
   }
-}
-
-function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
-
-  if (cleanPathname === '/404' || cleanPathname === '/_error') {
-    return pathname
-  }
-
-  // handle resolving href for dynamic routes
-  if (!pages.includes(cleanPathname!)) {
-    // eslint-disable-next-line array-callback-return
-    pages.some((page) => {
-      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
-        pathname = page
-        return true
-      }
-    })
-  }
-  return removeTrailingSlash(pathname)
 }
 
 export type BaseRouter = {
@@ -1193,11 +1151,11 @@ export default class Router implements BaseRouter {
 
       if (effect.type === 'rewrite') {
         query = { ...query, ...effect.parsedAs.query }
-        resolvedAs = effect.asPath
+        resolvedAs = effect.parsedAs.pathname
         pathname = effect.resolvedHref
         parsed.pathname = effect.resolvedHref
         url = formatWithValidation(parsed)
-      } else if (effect.type === 'redirect' && effect.newAs) {
+      } else if (effect.type === 'redirect' && 'newAs' in effect) {
         return this.change(method, effect.newUrl, effect.newAs, options)
       } else if (effect.type === 'redirect' && effect.destination) {
         window.location.href = effect.destination
@@ -1830,7 +1788,7 @@ export default class Router implements BaseRouter {
       parsed.pathname = effects.resolvedHref
       pathname = effects.resolvedHref
       query = { ...query, ...effects.parsedAs.query }
-      resolvedAs = effects.asPath
+      resolvedAs = effects.parsedAs.pathname
       url = formatWithValidation(parsed)
     }
 
@@ -1935,7 +1893,7 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery
     locale: string | undefined
     isPreview: boolean
-  }): Promise<PreflightEffect> {
+  }) {
     const { pathname: asPathname } = parsePath(options.as)
     const cleanedAs = removeLocale(
       hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
@@ -1952,112 +1910,40 @@ export default class Router implements BaseRouter {
     })
 
     if (!requiresPreflight) {
-      return { type: 'next' }
+      return { type: 'next' as const }
     }
 
-    const preflightHref = addLocale(options.as, options.locale)
-
     let preflight: PreflightData | undefined
+
     try {
       preflight = await this._getPreflightData({
-        preflightHref,
-        shouldCache: options.cache,
         isPreview: options.isPreview,
+        preflightHref: addLocale(options.as, options.locale),
+        shouldCache: options.cache,
       })
     } catch (err) {
       // If preflight request fails, we need to do a hard-navigation.
       return {
-        type: 'redirect',
+        type: 'redirect' as const,
         destination: options.as,
       }
     }
 
-    if (preflight.rewrite) {
-      // for external rewrites we need to do a hard navigation
-      // to the resource
-      if (!preflight.rewrite.startsWith('/')) {
-        return {
-          type: 'redirect',
-          destination: options.as,
-        }
-      }
-      const parsed = parseRelativeUrl(
-        normalizeLocalePath(
-          hasBasePath(preflight.rewrite)
-            ? removeBasePath(preflight.rewrite)
-            : preflight.rewrite,
-          this.locales
-        ).pathname
-      )
-
-      const fsPathname = removeTrailingSlash(parsed.pathname)
-
-      let matchedPage
-      let resolvedHref
-
-      if (options.pages.includes(fsPathname)) {
-        matchedPage = true
-        resolvedHref = fsPathname
-      } else {
-        resolvedHref = resolveDynamicRoute(fsPathname, options.pages)
-
-        if (
-          resolvedHref !== parsed.pathname &&
-          options.pages.includes(resolvedHref)
-        ) {
-          matchedPage = true
-        }
-      }
-
-      return {
-        type: 'rewrite',
-        asPath: parsed.pathname,
-        parsedAs: parsed,
-        matchedPage,
-        resolvedHref,
-      }
-    }
-
-    if (preflight.redirect) {
-      if (preflight.redirect.startsWith('/')) {
-        const cleanRedirect = removeTrailingSlash(
-          normalizeLocalePath(
-            hasBasePath(preflight.redirect)
-              ? removeBasePath(preflight.redirect)
-              : preflight.redirect,
-            this.locales
-          ).pathname
-        )
-
-        const { url: newUrl, as: newAs } = prepareUrlAs(
-          this,
-          cleanRedirect,
-          cleanRedirect
-        )
-
-        return {
-          type: 'redirect',
-          newUrl,
-          newAs,
-        }
-      }
-
-      return {
-        type: 'redirect',
-        destination: preflight.redirect,
-      }
-    }
-
-    // For SSR requests, they will be handled like normal pages.
     if (preflight.refresh && !preflight.ssr) {
       return {
-        type: 'refresh',
+        type: 'refresh' as const,
       }
     }
 
-    return {
-      type: 'next',
-    }
+    return getMiddlewareEffects(preflight, {
+      nextConfig: {
+        basePath: this.basePath,
+        i18n: { locales: this.locales },
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+      },
+      pages: await this.pageLoader.getPageList(),
+      source: options.as,
+    })
   }
 
   _getPreflightData(params: {
