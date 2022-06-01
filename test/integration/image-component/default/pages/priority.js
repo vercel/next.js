@@ -7,7 +7,7 @@ const Page = () => {
       <p>Priority Page</p>
       <Image
         priority
-        id="default"
+        id="basic-image"
         src="/test.jpg"
         width="400"
         height="400"
