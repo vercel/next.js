@@ -348,6 +348,20 @@ function tests(context, locale = '') {
       `/_next/static/${context.buildId}/_devMiddlewareManifest.json?foo=1`
     )
   })
+
+  it('should add a rewrite header on data requests for rewrites', async () => {
+    const res = await fetchViaHTTP(context.appPort, `/ssr-page`)
+    const dataRes = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/ssr-page.json`
+    )
+    const json = await dataRes.json()
+    expect(json.pageProps.message).toEqual('Bye Cruel World')
+    expect(res.headers.get('x-nextjs-matched-path')).toBeNull()
+    expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
+      `/_next/data/${context.buildId}/en/ssr-page-2.json`
+    )
+  })
 }
 
 function readMiddlewareJSON(response) {
