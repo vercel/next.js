@@ -37,4 +37,16 @@ describe('TypeScript basic', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
   })
+
+  it('should work with babel', async () => {
+    await next.stop()
+    await next.patchFile(
+      '.babelrc',
+      JSON.stringify({ presets: ['next/babel'] })
+    )
+    await next.start()
+
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('hello world')
+  })
 })

@@ -237,12 +237,7 @@ export default async function exportApp(
         continue
       }
 
-      if (
-        page === '/_document' ||
-        page === '/_app.server' ||
-        page === '/_app' ||
-        page === '/_error'
-      ) {
+      if (page === '/_document' || page === '/_app' || page === '/_error') {
         continue
       }
 
@@ -390,6 +385,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts,
       reactRoot: nextConfig.experimental.reactRoot || false,
+      largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -418,13 +414,20 @@ export default async function exportApp(
         })
       )
 
-    if (
-      !options.buildExport &&
-      !exportPathMap['/404'] &&
-      !exportPathMap['/404.html']
-    ) {
-      exportPathMap['/404'] = exportPathMap['/404.html'] = {
-        page: '/_error',
+    // only add missing 404 page when `buildExport` is false
+    if (!options.buildExport) {
+      // only add missing /404 if not specified in `exportPathMap`
+      if (!exportPathMap['/404']) {
+        exportPathMap['/404'] = { page: '/_error' }
+      }
+
+      /**
+       * exports 404.html for backwards compat
+       * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
+       */
+      if (!exportPathMap['/404.html']) {
+        // alias /404.html to /404 to be compatible with custom 404 / _error page
+        exportPathMap['/404.html'] = exportPathMap['/404']
       }
     }
 
@@ -581,7 +584,7 @@ export default async function exportApp(
             outDir,
             pagesDataDir,
             renderOpts,
-            viewsDir: nextConfig.experimental.viewsDir,
+            appDir: nextConfig.experimental.appDir,
             serverRuntimeConfig,
             subFolders,
             buildExport: options.buildExport,
