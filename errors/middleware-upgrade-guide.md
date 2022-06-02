@@ -128,21 +128,15 @@ export function middleware(request: NextRequest) {
 
 ### Summary of changes
 
-**Added**
-
-- `cookie.delete`
-- `cookie.set`
-- `cookie.getAll`
-
-**Removed:**
-
-- `cookie`
-- `cookies`
-- `clearCookie`
+| Added                   | Removed       |
+| ----------------------- | ------------- |
+| `cookie.set`            | `cookie`      |
+| `cookie.delete`         | `clearCookie` |
+| `cookie.getWithOptions` | `cookies`     |
 
 ### Explanation
 
-Based on beta feedback, we are changing the Cookies API in `NextRequest` and `NextResponse` to align more to a `get`/`set` model.
+Based on beta feedback, we are changing the Cookies API in `NextRequest` and `NextResponse` to align more to a `get`/`set` model. The `Cookies` API extends Map, including methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
 ### How to upgrade
 
@@ -150,7 +144,9 @@ Based on beta feedback, we are changing the Cookies API in `NextRequest` and `Ne
 
 - `cookie.delete`
 - `cookie.set`
-- `cookie.getAll`
+- `cookie.getWithOptions`
+
+As well as other extended methods from `Map`.
 
 #### Before
 
@@ -217,7 +213,7 @@ export function middleware() {
 
 Currently, Middleware estimates whether you are serving an asset of a Page based on the Next.js routes manifest (internal configuration). This value is surfaced through `request.page`.
 
-To make this more accurate, we are recommending to use the web standard `URLPattern` API.
+To make page and asset matching more accurate, we are now using the web standard `URLPattern` API.
 
 ### How to upgrade
 
@@ -287,6 +283,8 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-Currently, we do not execute Middleware for `_next` requests, due the authorization use cases.
+Prior to Next.js `v12.2`, Middleware was not executed for `_next` requests.
 
 For cases where Middleware is used for authorization, you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
+
+See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrites`/`redirects`.
