@@ -4,6 +4,7 @@ import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
 import { toNodeHeaders, validateURL } from '../utils'
 import parseua from 'next/dist/compiled/ua-parser-js'
+import { DeprecationPageError } from '../error'
 
 import { NextCookies } from './cookies'
 
@@ -14,7 +15,6 @@ export class NextRequest extends Request {
     cookies: NextCookies
     geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string | string[] } }
     ua?: UserAgent | null
     url: NextURL
   }
@@ -27,7 +27,6 @@ export class NextRequest extends Request {
       cookies: new NextCookies(this),
       geo: init.geo || {},
       ip: init.ip,
-      page: init.page,
       url: new NextURL(url, {
         headers: toNodeHeaders(this.headers),
         nextConfig: init.nextConfig,
@@ -56,10 +55,7 @@ export class NextRequest extends Request {
   }
 
   public get page() {
-    return {
-      name: this[INTERNALS].page?.name,
-      params: this[INTERNALS].page?.params,
-    }
+    throw new DeprecationPageError()
   }
 
   public get ua() {
@@ -97,10 +93,6 @@ export interface RequestInit extends globalThis.RequestInit {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-  }
-  page?: {
-    name?: string
-    params?: { [key: string]: string | string[] }
   }
 }
 
