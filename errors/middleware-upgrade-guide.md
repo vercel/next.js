@@ -83,9 +83,9 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the Page level.
-
 To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
+
+Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the Page level.
 
 The following patterns will no longer work:
 
