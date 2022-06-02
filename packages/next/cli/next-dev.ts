@@ -11,6 +11,10 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES } from '../shared/lib/constants'
 import path from 'path'
 
+// Eagerly import the dev server here earlier, so it will be statically optimizable.
+// This makes bootup time faster.
+import '../server/dev/next-dev-server'
+
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
