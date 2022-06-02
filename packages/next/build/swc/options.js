@@ -72,7 +72,7 @@ function getBaseSWCOptions({
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
             (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
-          runtime: 'automatic',
+          runtime: nextConfig?.compiler?.emotion?.transformRuntime || 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
