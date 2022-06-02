@@ -502,7 +502,7 @@ var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
 var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
-var endAsyncScript = stringToPrecomputedChunk('" async=""></script>'); // Allows us to keep track of what we've already written so we can refer back to it.
+var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
 
 var textSeparator = stringToPrecomputedChunk('<!-- -->');
 
@@ -537,6 +537,10 @@ var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template
 var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
 var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
 var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
+var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template data-hash="');
+var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk('" data-msg="');
+var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk('" data-stack="');
+var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('"></template>');
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
 var startSegmentHTML2 = stringToPrecomputedChunk('">');
 var endSegmentHTML = stringToPrecomputedChunk('</div>');
@@ -566,7 +570,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 // const SUSPENSE_PENDING_START_DATA = '$?';
 // const SUSPENSE_FALLBACK_START_DATA = '$!';
 //
-// function clientRenderBoundary(suspenseBoundaryID) {
+// function clientRenderBoundary(suspenseBoundaryID, errorHash, errorMsg, errorComponentStack) {
 //   // Find the fallback's first element.
 //   const suspenseIdNode = document.getElementById(suspenseBoundaryID);
 //   if (!suspenseIdNode) {
@@ -578,6 +582,11 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 //   const suspenseNode = suspenseIdNode.previousSibling;
 //   // Tag it to be client rendered.
 //   suspenseNode.data = SUSPENSE_FALLBACK_START_DATA;
+//   // assign error metadata to first sibling
+//   let dataset = suspenseIdNode.dataset;
+//   if (errorHash) dataset.hash = errorHash;
+//   if (errorMsg) dataset.msg = errorMsg;
+//   if (errorComponentStack) dataset.stack = errorComponentStack;
 //   // Tell React to retry it if the parent already hydrated.
 //   if (suspenseNode._reactRetry) {
 //     suspenseNode._reactRetry();
@@ -661,7 +670,7 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 
 var completeSegmentFunction = 'function $RS(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)}';
 var completeBoundaryFunction = 'function $RC(a,b){a=document.getElementById(a);b=document.getElementById(b);b.parentNode.removeChild(b);if(a){a=a.previousSibling;var f=a.parentNode,c=a.nextSibling,e=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d)if(0===e)break;else e--;else"$"!==d&&"$?"!==d&&"$!"!==d||e++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;b.firstChild;)f.insertBefore(b.firstChild,c);a.data="$";a._reactRetry&&a._reactRetry()}}';
-var clientRenderFunction = 'function $RX(a){if(a=document.getElementById(a))a=a.previousSibling,a.data="$!",a._reactRetry&&a._reactRetry()}';
+var clientRenderFunction = 'function $RX(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.hash=c),d&&(a.msg=d),e&&(a.stack=e),b._reactRetry&&b._reactRetry())}';
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegmentFunction + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
@@ -672,7 +681,9 @@ var completeBoundaryScript2 = stringToPrecomputedChunk('","');
 var completeBoundaryScript3 = stringToPrecomputedChunk('")</script>');
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderFunction + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
-var clientRenderScript2 = stringToPrecomputedChunk('")</script>');
+var clientRenderScript1A = stringToPrecomputedChunk('"');
+var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
+var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
 
 var rendererSigil;
 
@@ -864,6 +875,14 @@ function readContext(context) {
   return value;
 }
 
+var currentRequest = null;
+function prepareToUseHooksForRequest(request) {
+  currentRequest = request;
+}
+function resetHooksForRequest() {
+  currentRequest = null;
+}
+
 function readContext$1(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
@@ -912,7 +931,7 @@ var Dispatcher = {
   useLayoutEffect: unsupportedHook,
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
-  useId: unsupportedHook,
+  useId: useId,
   useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
@@ -939,6 +958,16 @@ function getCurrentCache() {
   return currentCache;
 }
 
+function useId() {
+  if (currentRequest === null) {
+    throw new Error('useId can only be used while React is rendering');
+  }
+
+  var id = currentRequest.identifierCount++; // use 'S' for Flight components to distinguish from 'R' and 'r' in Fizz/Client
+
+  return ':' + currentRequest.identifierPrefix + 'S' + id.toString(32) + ':';
+}
+
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
@@ -957,7 +986,7 @@ function defaultErrorHandler(error) {
 var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
-function createRequest(model, bundlerConfig, onError, context) {
+function createRequest(model, bundlerConfig, onError, context, identifierPrefix) {
   var pingedSegments = [];
   var request = {
     status: OPEN,
@@ -974,6 +1003,8 @@ function createRequest(model, bundlerConfig, onError, context) {
     writtenSymbols: new Map(),
     writtenModules: new Map(),
     writtenProviders: new Map(),
+    identifierPrefix: identifierPrefix || '',
+    identifierCount: 1,
     onError: onError === undefined ? defaultErrorHandler : onError,
     toJSON: function (key, value) {
       return resolveModelToJSON(request, this, key, value);
@@ -1581,6 +1612,7 @@ function performWork(request) {
   var prevCache = getCurrentCache();
   ReactCurrentDispatcher.current = Dispatcher;
   setCurrentCache(request.cache);
+  prepareToUseHooksForRequest(request);
 
   try {
     var pingedSegments = request.pingedSegments;
@@ -1600,6 +1632,7 @@ function performWork(request) {
   } finally {
     ReactCurrentDispatcher.current = prevDispatcher;
     setCurrentCache(prevCache);
+    resetHooksForRequest();
   }
 }
 
@@ -1725,8 +1758,8 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-function renderToReadableStream(model, webpackMap, options, context) {
-  var request = createRequest(model, webpackMap, options ? options.onError : undefined, context);
+function renderToReadableStream(model, webpackMap, options) {
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
   var stream = new ReadableStream({
     type: 'bytes',
     start: function (controller) {
@@ -1736,6 +1769,9 @@ function renderToReadableStream(model, webpackMap, options, context) {
       startFlowing(request, controller);
     },
     cancel: function (reason) {}
+  }, // $FlowFixMe size() methods are not allowed on byte streams.
+  {
+    highWaterMark: 0
   });
   return stream;
 }
