@@ -123,7 +123,6 @@ export default class NextNodeServer extends BaseServer {
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
-
       this.imageResponseCache = new ResponseCache(
         new ImageOptimizerCache({
           distDir: this.distDir,
