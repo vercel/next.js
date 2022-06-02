@@ -33,10 +33,11 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Kontent](/examples/cms-kontent)
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Builder.io](/examples/cms-builder-io)
+- [TinaCMS](/examples/cms-tina/)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```
 npx create-next-app --example blog-starter blog-starter-app
@@ -48,7 +49,7 @@ or
 ```
 yarn create next-app --example blog-starter blog-starter-app
 # or
-pnpm create next-app -- --example blog-starter blog-starter-app
+pnpm create next-app --example blog-starter blog-starter-app
 
 ```
 

@@ -15,12 +15,11 @@ use swc_ecmascript::ast::{
     ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
     JSXExpr, JSXExprContainer, JSXObject,
 };
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::{ExprFactory, Id};
+use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::{
     ast::{
-        Callee, Expr, ExprOrSpread, Ident, ImportDecl, ImportSpecifier, JSXElement, KeyValueProp,
-        MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
+        Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, JSXElement,
+        KeyValueProp, MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
     },
     codegen::util::SourceMapperExt,
     visit::{Fold, FoldWith},

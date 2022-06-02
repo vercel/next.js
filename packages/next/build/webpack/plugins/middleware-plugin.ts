@@ -1,15 +1,17 @@
 import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
-import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
+import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   EDGE_RUNTIME_WEBPACK,
+  EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
 export interface MiddlewareManifest {
@@ -53,11 +55,14 @@ export default class MiddlewarePlugin {
   apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       const { hooks } = params.normalModuleFactory
-
       /**
        * This is the static code analysis phase.
        */
-      const codeAnalyzer = getCodeAnalizer({ dev: this.dev, compiler })
+      const codeAnalyzer = getCodeAnalizer({
+        dev: this.dev,
+        compiler,
+        compilation,
+      })
       hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
       hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
@@ -93,11 +98,13 @@ export default class MiddlewarePlugin {
 function getCodeAnalizer(params: {
   dev: boolean
   compiler: webpack5.Compiler
+  compilation: webpack5.Compilation
 }) {
   return (parser: webpack5.javascript.JavascriptParser) => {
     const {
       dev,
       compiler: { webpack: wp },
+      compilation,
     } = params
     const { hooks } = parser
 
@@ -107,7 +114,7 @@ function getCodeAnalizer(params: {
      * but actually execute the expression.
      */
     const handleWrapExpression = (expr: any) => {
-      if (parser.state.module?.layer !== 'middleware') {
+      if (!isInMiddlewareLayer(parser)) {
         return
       }
 
@@ -135,7 +142,7 @@ function getCodeAnalizer(params: {
      * module path that is using it.
      */
     const handleExpression = () => {
-      if (parser.state.module?.layer !== 'middleware') {
+      if (!isInMiddlewareLayer(parser)) {
         return
       }
 
@@ -169,32 +176,57 @@ function getCodeAnalizer(params: {
         }
 
         buildInfo.nextUsedEnvVars.add(members[1])
-        if (parser.state.module?.layer !== 'middleware') {
+        if (!isInMiddlewareLayer(parser)) {
           return true
         }
       }
     }
 
     /**
-     * A noop handler to skip analyzing some cases.
+     * A handler for calls to `new Response()` so we can fail if user is setting the response's body.
      */
-    const noop = () =>
-      parser.state.module?.layer === 'middleware' ? true : undefined
+    const handleNewResponseExpression = (node: any) => {
+      const firstParameter = node?.arguments?.[0]
+      if (
+        isInMiddlewareFile(parser) &&
+        firstParameter &&
+        !isNullLiteral(firstParameter) &&
+        !isUndefinedIdentifier(firstParameter)
+      ) {
+        const error = new wp.WebpackError(
+          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
+        )
+        error.name = NAME
+        error.module = parser.state.current
+        error.loc = node.loc
+        if (dev) {
+          compilation.warnings.push(error)
+        } else {
+          compilation.errors.push(error)
+        }
+      }
+    }
 
-    hooks.call.for('eval').tap(NAME, handleWrapExpression)
-    hooks.call.for('global.eval').tap(NAME, handleWrapExpression)
-    hooks.call.for('Function').tap(NAME, handleWrapExpression)
-    hooks.call.for('global.Function').tap(NAME, handleWrapExpression)
-    hooks.new.for('Function').tap(NAME, handleWrapExpression)
-    hooks.new.for('global.Function').tap(NAME, handleWrapExpression)
-    hooks.expression.for('eval').tap(NAME, handleExpression)
-    hooks.expression.for('Function').tap(NAME, handleExpression)
-    hooks.expression.for('global.eval').tap(NAME, handleExpression)
-    hooks.expression.for('global.Function').tap(NAME, handleExpression)
-    hooks.expression.for('Function.prototype').tap(NAME, noop)
-    hooks.expression.for('global.Function.prototype').tap(NAME, noop)
+    /**
+     * A noop handler to skip analyzing some cases.
+     * Order matters: for it to work, it must be registered first
+     */
+    const skip = () => (isInMiddlewareLayer(parser) ? true : undefined)
+
+    for (const prefix of ['', 'global.']) {
+      hooks.expression.for(`${prefix}Function.prototype`).tap(NAME, skip)
+      hooks.expression.for(`${prefix}Function.bind`).tap(NAME, skip)
+      hooks.call.for(`${prefix}eval`).tap(NAME, handleWrapExpression)
+      hooks.call.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
+      hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
+      hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
+      hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
+    }
+    hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
+    hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+    registerUnsupportedApiHooks(parser, compilation)
   }
 }
 
@@ -359,12 +391,16 @@ function getCreateAssets(params: {
         continue
       }
 
+      const { namedRegex } = getNamedMiddlewareRegex(page, {
+        catchAll: !metadata.edgeSSR,
+      })
+
       middlewareManifest.middleware[page] = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp: getMiddlewareRegex(page, !metadata.edgeSSR).namedRegex!,
+        regexp: namedRegex,
         wasm: Array.from(metadata.wasmBindings),
       }
     }
@@ -391,6 +427,18 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
       files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(
+        ...entryFiles
+          .filter(
+            (file) =>
+              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+          )
+          .map(
+            (file) =>
+              'server/' +
+              file.replace('.js', NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js')
+          )
+      )
     }
 
     files.push(
@@ -405,4 +453,87 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
       .map((file) => 'server/' + file)
   )
   return files
+}
+
+function registerUnsupportedApiHooks(
+  parser: webpack5.javascript.JavascriptParser,
+  compilation: webpack5.Compilation
+) {
+  const { WebpackError } = compilation.compiler.webpack
+  for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
+    const warnForUnsupportedApi = (node: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+      compilation.warnings.push(
+        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
+      )
+      return true
+    }
+    parser.hooks.call.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expression.for(expression).tap(NAME, warnForUnsupportedApi)
+    parser.hooks.callMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+    parser.hooks.expressionMemberChain
+      .for(expression)
+      .tap(NAME, warnForUnsupportedApi)
+  }
+
+  const warnForUnsupportedProcessApi = (node: any, [callee]: string[]) => {
+    if (!isInMiddlewareLayer(parser) || callee === 'env') {
+      return
+    }
+    compilation.warnings.push(
+      makeUnsupportedApiError(
+        WebpackError,
+        parser,
+        `process.${callee}`,
+        node.loc
+      )
+    )
+    return true
+  }
+
+  parser.hooks.callMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+  parser.hooks.expressionMemberChain
+    .for('process')
+    .tap(NAME, warnForUnsupportedProcessApi)
+}
+
+function makeUnsupportedApiError(
+  WebpackError: typeof webpack5.WebpackError,
+  parser: webpack5.javascript.JavascriptParser,
+  name: string,
+  loc: any
+) {
+  const error = new WebpackError(
+    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses. 
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
+  )
+  error.name = NAME
+  error.module = parser.state.current
+  error.loc = loc
+  return error
+}
+
+function isInMiddlewareLayer(parser: webpack5.javascript.JavascriptParser) {
+  return parser.state.module?.layer === 'middleware'
+}
+
+function isInMiddlewareFile(parser: webpack5.javascript.JavascriptParser) {
+  return (
+    parser.state.current?.layer === 'middleware' &&
+    /middleware\.\w+$/.test(parser.state.current?.rawRequest)
+  )
+}
+
+function isNullLiteral(expr: any) {
+  return expr.value === null
+}
+
+function isUndefinedIdentifier(expr: any) {
+  return expr.name === 'undefined'
 }

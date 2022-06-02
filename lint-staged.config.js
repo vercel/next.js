@@ -1,4 +1,4 @@
-const escape = require('shell-quote').quote
+const { quote } = require('shell-quote')
 const { ESLint } = require('eslint')
 
 const eslint = new ESLint()
@@ -25,4 +25,9 @@ module.exports = {
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
     ]
   },
+}
+
+function escape(str) {
+  const escaped = quote(str)
+  return escaped.replace(/\\@/g, '@')
 }

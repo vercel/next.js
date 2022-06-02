@@ -75,7 +75,7 @@ export function tryGetPreviewData(
     return false
   }
 
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
+  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   let encryptedPreviewData: {
     data: string

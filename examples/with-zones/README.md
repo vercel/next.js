@@ -8,14 +8,14 @@ With Next.js you can use multiple apps as a single app using its [multi-zones fe
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-zones with-zones-app
 # or
 yarn create next-app --example with-zones with-zones-app
 # or
-pnpm create next-app -- --example with-zones with-zones-app
+pnpm create next-app --example with-zones with-zones-app
 ```
 
 With multi zones you have multiple Next.js apps over a single app, therefore every app has its own dependencies and it runs independently.

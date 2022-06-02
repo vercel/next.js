@@ -30,6 +30,9 @@ describe('should set-up next', () => {
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
@@ -159,15 +162,7 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(
-          next.testDir,
-          'standalone/.next/server/pages/middleware/_middleware.js'
-        )
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+        join(next.testDir, 'standalone/.next/server/middleware.js')
       )
     ).toBe(true)
   })
@@ -188,6 +183,7 @@ describe('should set-up next', () => {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
+    expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
     const $ = cheerio.load(await res.text())
     const props = JSON.parse($('#props').text())
     expect(props.gspCalls).toBeDefined()
@@ -201,6 +197,7 @@ describe('should set-up next', () => {
       }
     )
     expect(res2.status).toBe(200)
+    expect(res2.headers.get('x-nextjs-cache')).toBeFalsy()
     const { pageProps: props2 } = await res2.json()
     expect(props2.gspCalls).toBe(props.gspCalls)
 

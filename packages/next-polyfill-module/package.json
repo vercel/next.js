@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-module",
-  "version": "12.1.7-canary.3",
+  "version": "12.1.7-canary.27",
   "description": "A standard library polyfill for ES Modules supporting browsers (Edge 16+, Firefox 60+, Chrome 61+, Safari 10.1+)",
   "main": "dist/polyfill-module.js",
   "license": "MIT",
@@ -9,8 +9,8 @@
     "directory": "packages/next-polyfill-module"
   },
   "scripts": {
-    "prepublish": "microbundle -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main",
-    "build": "microbundle watch -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main"
+    "build": "microbundle -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main",
+    "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
     "microbundle": "0.13.0"

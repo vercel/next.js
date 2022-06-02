@@ -210,7 +210,10 @@ async function main() {
     )
   })
 
-  if ((testType && testType !== 'unit') || hasIsolatedTests) {
+  if (
+    process.env.NEXT_TEST_MODE !== 'deploy' &&
+    ((testType && testType !== 'unit') || hasIsolatedTests)
+  ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
@@ -224,20 +227,21 @@ async function main() {
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
-  const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package.json')),
-    'bin/jest.js'
-  )
   const children = new Set()
+  const jestPath = path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `jest${process.platform === 'win32' ? '.CMD' : ''}`
+  )
 
   const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
       const child = spawn(
-        'node',
+        jestPath,
         [
-          jestPath,
           '--runInBand',
           '--forceExit',
           '--verbose',
