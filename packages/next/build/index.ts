@@ -2377,6 +2377,7 @@ function verifyTypeScriptSetup(
     {
       numWorkers,
       enableWorkerThreads,
+      maxRetries: 0,
     }
   ) as JestWorker & {
     verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup

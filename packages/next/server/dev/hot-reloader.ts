@@ -158,7 +158,6 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   private hasReactRoot: boolean
   public clientStats: webpack5.Stats | null
@@ -209,7 +208,6 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.runtime = config.experimental.runtime
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
@@ -590,6 +588,7 @@ export default class HotReloader {
                     pages: this.pagesMapping,
                     isServerComponent,
                   }),
+                  appDir: this.config.experimental.appDir,
                 })
               },
               onClient: () => {
@@ -607,6 +606,7 @@ export default class HotReloader {
                         ),
                         absolutePagePath: clientLoader,
                       })}!` + clientLoader,
+                    appDir: this.config.experimental.appDir,
                   })
                 } else {
                   entries[pageKey].status = BUILDING
@@ -617,6 +617,7 @@ export default class HotReloader {
                       absolutePagePath,
                       page,
                     }),
+                    appDir: this.config.experimental.appDir,
                   })
                 }
               },
@@ -644,6 +645,7 @@ export default class HotReloader {
                           pageExtensions: this.config.pageExtensions,
                         })
                       : request,
+                  appDir: this.config.experimental.appDir,
                 })
               },
             })

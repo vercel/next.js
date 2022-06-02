@@ -49,8 +49,8 @@
   "devDependencies": {
     "@babel/core": "7.18.0",
     "@babel/eslint-parser": "7.18.2",
-    "@babel/parser": "7.12.11",
     "@babel/generator": "7.18.0",
+    "@babel/parser": "7.12.11",
     "@babel/plugin-proposal-object-rest-spread": "7.14.7",
     "@babel/preset-flow": "7.14.5",
     "@babel/preset-react": "7.14.5",
@@ -192,7 +192,7 @@
     "turbo": "1.2.14",
     "typescript": "4.7.2",
     "wait-port": "0.2.2",
-    "webpack": "link:./node_modules/webpack5",
+    "webpack": "link:node_modules/webpack5",
     "webpack-bundle-analyzer": "4.3.0",
     "worker-loader": "3.0.7"
   },
