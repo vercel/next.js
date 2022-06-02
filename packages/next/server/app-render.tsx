@@ -36,6 +36,10 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+function interopDefault(mod: any) {
+  return mod.default || mod
+}
+
 const rscCache = new Map()
 
 // Shadowing check does not work with TypeScript enums
@@ -236,7 +240,7 @@ export async function renderToHTML(
     .sort()
     .map((path) => {
       const mod = ComponentMod.components[path]()
-      mod.Component = mod.default || mod
+      mod.Component = interopDefault(mod)
       mod.path = path
       return mod
     })
@@ -307,6 +311,9 @@ export async function renderToHTML(
     }
 
     const LayoutRouter = ComponentMod.LayoutRouter
+    const getLoadingMod = ComponentMod.loadingComponents[layout.path]
+    const Loading = getLoadingMod ? interopDefault(getLoadingMod()) : null
+
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
     WrappedComponent = (props: any) => {
@@ -333,16 +340,24 @@ export async function renderToHTML(
         {},
         null
       )
+
+      // TODO: add tests for loading.js
+      const chilrenWithLoading = Loading ? (
+        <React.Suspense fallback={<Loading />}>{children}</React.Suspense>
+      ) : (
+        children
+      )
+
       // Pages don't need to be wrapped in a router
       return React.createElement(
         layout.Component,
         props,
         layout.path.endsWith('/page') ? (
-          children
+          chilrenWithLoading
         ) : (
           // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
           <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
-            {children}
+            {chilrenWithLoading}
           </LayoutRouter>
         )
       )
