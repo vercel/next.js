@@ -1,0 +1,31 @@
+/* This is a single line comment to check if that works */
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "isomorphic-unfetch": ["packages/www/types/unfetch.d.ts"],
+      "@c/*": ["packages/www/components/*"],
+      "@lib/*": ["packages/lib/a/*", "packages/lib/b/*"],
+      "@mycomponent": ["packages/www/components/hello.tsx"],
+      "d-ts-alias": [
+        "packages/www/components/alias-to-d-ts.d.ts",
+        "packages/www/components/alias-to-d-ts.tsx"
+      ]
+      // This is a single line comment to check if that works
+    },
+    "esModuleInterop": true,
+    "module": "esnext",
+    "jsx": "preserve",
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  }
+}

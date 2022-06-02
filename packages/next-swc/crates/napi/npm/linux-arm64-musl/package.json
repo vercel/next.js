@@ -1,0 +1,22 @@
+{
+  "name": "@next/swc-linux-arm64-musl",
+  "version": "0.0.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "main": "next-swc.linux-arm64-musl.node",
+  "files": [
+    "next-swc.linux-arm64-musl.node"
+  ],
+  "libc": ["musl"],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

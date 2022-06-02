@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.2.7",
+    "apollo-server-micro": "^2.19.0",
+    "deepmerge": "4.2.2",
+    "graphql": "14.2.1",
+    "neo4j-driver": "^4.2.1",
+    "neo4j-graphql-js": "^2.17.1",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
+}

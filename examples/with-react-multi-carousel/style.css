@@ -1,0 +1,11 @@
+.image-item {
+  padding: 10px;
+}
+.container-with-dots {
+  margin-top: 20px;
+  padding-bottom: 10px;
+}
+#__next {
+  overflow: scroll;
+  margin-bottom: 40px;
+}

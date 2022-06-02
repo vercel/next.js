@@ -1,0 +1,8 @@
+{
+  "schemaPath": "schema/schema.graphql",
+  "extensions": {
+    "endpoints": {
+      "dev": "https://nextjs-graphql-with-prisma-relay.vercel.app/api"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "presets": ["next/babel"],
+  "plugins": [
+    [
+      "formatjs",
+      {
+        "ast": true
+      }
+    ]
+  ]
+}

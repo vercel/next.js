@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "flow": "flow",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "eslint": "7.30.0",
+    "eslint-config-next": "latest",
+    "babel-plugin-transform-flow-strip-types": "6.22.0",
+    "flow-bin": "0.77.0"
+  }
+}

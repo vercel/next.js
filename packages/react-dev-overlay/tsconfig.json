@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig-tsec.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "target": "es3",
+    "lib": ["dom"],
+    "downlevelIteration": true,
+    "preserveWatchOutput": true,
+    "outDir": "dist",
+    "jsx": "react",
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

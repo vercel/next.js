@@ -1,0 +1,1 @@
+{"name":"string-hash","main":"index.js","author":{"name":"The Dark Sky Company","email":"developer@darksky.net"},"license":"CC0-1.0"}

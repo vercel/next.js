@@ -1,0 +1,18 @@
+.gallery_container {
+  font-size: 1.2rem;
+  line-height: 1.5;
+  column-count: 3;
+  column-gap: 20px;
+}
+
+@media (max-width: 990px) {
+  .gallery_container {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 790px) {
+  .gallery_container {
+    column-count: 1;
+  }
+}

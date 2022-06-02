@@ -1,0 +1,52 @@
+{
+  "Main": {
+    "title": {
+      "type": "StructuredText",
+      "config": {
+        "single": "heading1, heading2, heading3, heading4, heading5, heading6",
+        "label": "title"
+      }
+    },
+    "content": {
+      "type": "StructuredText",
+      "config": {
+        "multi": "paragraph, preformatted, heading1, heading2, heading3, heading4, heading5, heading6, strong, em, hyperlink, image, embed, list-item, o-list-item, o-list-item",
+        "label": "content"
+      }
+    },
+    "excerpt": {
+      "type": "Text",
+      "config": {
+        "label": "excerpt"
+      }
+    },
+    "coverimage": {
+      "type": "Image",
+      "config": {
+        "constraint": {},
+        "thumbnails": [],
+        "label": "coverimage"
+      }
+    },
+    "date": {
+      "type": "Date",
+      "config": {
+        "label": "date"
+      }
+    },
+    "author": {
+      "type": "Link",
+      "config": {
+        "select": "document",
+        "customtypes": ["author"],
+        "label": "author"
+      }
+    },
+    "uid": {
+      "type": "UID",
+      "config": {
+        "label": "slug"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "npmClient": "pnpm",
+  "useWorkspaces": true,
+  "packages": [
+    "packages/*"
+  ],
+  "command": {
+    "version": {
+      "exact": true
+    },
+    "publish": {
+      "npmClient": "npm",
+      "allowBranch": [
+        "canary"
+      ],
+      "registry": "https://registry.npmjs.org/"
+    }
+  },
+  "version": "12.1.7-canary.29"
+}

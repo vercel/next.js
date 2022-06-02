@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mux/mux-node": "^2.8.0",
+    "@mux/upchunk": "^2.0.0",
+    "hls.js": "^0.13.2",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "swr": "^0.2.0"
+  }
+}

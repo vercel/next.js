@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "setup": "node ./contentful/setup.js $CONTENTFUL_SPACE_ID $CONTENTFUL_MANAGEMENT_TOKEN"
+  },
+  "dependencies": {
+    "@contentful/rich-text-react-renderer": "^15.4.0",
+    "classnames": "2.3.1",
+    "date-fns": "2.28.0",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.4.2",
+    "contentful-import": "^7.8.7",
+    "postcss": "8.4.5",
+    "tailwindcss": "^3.0.15"
+  }
+}

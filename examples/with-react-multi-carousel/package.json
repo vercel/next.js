@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@material-ui/core": "^3.9.2",
+    "@material-ui/icons": "^3.0.2",
+    "jss": "^9.8.7",
+    "mobile-detect": "^1.4.3",
+    "next": "^9.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-jss": "^8.6.1",
+    "react-multi-carousel": "^1.2.5"
+  }
+}

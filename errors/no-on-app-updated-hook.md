@@ -1,0 +1,25 @@
+# Router.onAppUpdated is removed
+
+Due to [this bug fix](https://github.com/vercel/next.js/pull/3849), we had to remove the `Router.onAppUpdated` hook. But the default functionality of this feature is still in effect.
+
+We use this hook to detect a new app deployment when switching pages and act accordingly. Although there are many things you can do in this hook, it's often used to navigate the page via the server as shown below:
+
+```js
+Router.onAppUpdated = function (nextRoute) {
+  location.href = nextRoute
+}
+```
+
+In this hook, you can't wait for a network request or a promise to get resolved. And you can't block the page navigation. So, the things you can do is limited.
+
+One real use of this hook is to persist your application state to local-storage before the page navigation. For that, you can use the [`window.onbeforeunload`](https://developer.mozilla.org/en-US/docs/Web/API/WindowEventHandlers/onbeforeunload) hook instead.
+
+This is code for that:
+
+```js
+window.onbeforeunload = function (e) {
+  // Get the application state (usually from a store like Redux)
+  const appState = {}
+  localStorage.setItem('app-state', JSON.stringify(appState))
+}
+```

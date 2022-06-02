@@ -1,0 +1,1 @@
+{"name":"content-type","main":"index.js","author":"Douglas Christopher Wilson <doug@somethingdoug.com>","license":"MIT"}

@@ -1,0 +1,37 @@
+{
+  "name": "@next/env",
+  "version": "12.1.7-canary.29",
+  "keywords": [
+    "react",
+    "next",
+    "next.js",
+    "dotenv"
+  ],
+  "description": "Next.js dotenv file loading",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-env"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "types/index.d.ts",
+  "files": [
+    "dist",
+    "types"
+  ],
+  "scripts": {
+    "dev": "ncc build ./index.ts -w -o dist/",
+    "prerelease": "rimraf ./dist/",
+    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
+    "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build": "pnpm release && pnpm types",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.33.4",
+    "dotenv": "10.0.0",
+    "dotenv-expand": "8.0.1"
+  }
+}

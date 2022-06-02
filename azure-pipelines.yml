@@ -1,0 +1,90 @@
+trigger:
+  # Only run latest commit for branches:
+  batch: true
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench
+      - docs
+      - errors
+      - examples
+  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
+  # increases the backlog, and the change was already tested on the PR.
+  branches:
+    include:
+      - '*'
+    exclude:
+      - canary
+      - main
+      - refs/tags/*
+
+pr:
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench
+      - docs
+      - errors
+      - examples
+
+variables:
+  PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
+  PNPM_VERSION: 7.1.6
+  NEXT_TELEMETRY_DISABLED: '1'
+  node_version: ^14.19.0
+
+stages:
+  - stage: Test
+    jobs:
+      - job: test_integration
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
+
+          - script: |
+              pnpm install && pnpm run build
+            displayName: 'Install and build'
+
+          - script: |
+              npx playwright install chromium
+
+          - script: |
+              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+            displayName: 'Run tests'
+
+      - job: test_unit
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - script: |
+              wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+            displayName: 'List Chrome version'
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
+
+          - script: |
+              pnpm install && pnpm run build
+            displayName: 'Install and build'
+
+          - script: |
+              node run-tests.js --type unit
+            displayName: 'Run tests'

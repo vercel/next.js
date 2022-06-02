@@ -1,0 +1,146 @@
+# source: https://graphql-with-prisma-relay.weakky.vercel.app/api
+# timestamp: Fri Jul 31 2020 18:27:09 GMT+0200 (Central European Summer Time)
+
+type BlogPost implements Node {
+  id: ID!
+  title: String!
+  content: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type BlogPostConnection {
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Edge-Types
+  """
+  edges: [BlogPostEdge]
+
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo
+  """
+  pageInfo: PageInfo!
+}
+
+type BlogPostEdge {
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor
+  """
+  cursor: String!
+
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Node
+  """
+  node: BlogPost!
+}
+
+input BlogPostOrderBy {
+  createdAt: OrderBy
+  updatedAt: OrderBy
+}
+
+scalar DateTime
+
+type Mutation {
+  createBlogPost(title: String!, content: String!): BlogPost!
+}
+
+interface Node {
+  id: ID!
+}
+
+enum OrderBy {
+  asc
+  desc
+}
+
+"""
+PageInfo cursor, as defined in https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo
+"""
+type PageInfo {
+  """
+  Used to indicate whether more edges exist following the set defined by the clients arguments.
+  """
+  hasNextPage: Boolean!
+
+  """
+  Used to indicate whether more edges exist prior to the set defined by the clients arguments.
+  """
+  hasPreviousPage: Boolean!
+
+  """
+  The cursor corresponding to the first nodes in edges. Null if the connection is empty.
+  """
+  startCursor: String
+
+  """
+  The cursor corresponding to the last nodes in edges. Null if the connection is empty.
+  """
+  endCursor: String
+}
+
+type Query {
+  node(id: String!): Node!
+  viewer: Viewer!
+}
+
+type User implements Node {
+  id: ID!
+  firstName: String!
+  lastName: String!
+  email: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type UserConnection {
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Edge-Types
+  """
+  edges: [UserEdge]
+
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-undefined.PageInfo
+  """
+  pageInfo: PageInfo!
+}
+
+type UserEdge {
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Cursor
+  """
+  cursor: String!
+
+  """
+  https://facebook.github.io/relay/graphql/connections.htm#sec-Node
+  """
+  node: User!
+}
+
+type Viewer {
+  BlogPost(id: String!): BlogPost!
+  allBlogPosts(
+    orderBy: BlogPostOrderBy
+
+    """
+    Returns the first n elements from the list.
+    """
+    first: Int!
+
+    """
+    Returns the elements in the list that come after the specified cursor
+    """
+    after: String
+  ): BlogPostConnection!
+  User(id: String!): User!
+  allUsers(
+    """
+    Returns the first n elements from the list.
+    """
+    first: Int!
+
+    """
+    Returns the elements in the list that come after the specified cursor
+    """
+    after: String
+  ): UserConnection!
+}
