@@ -2,12 +2,14 @@
 
 As we work on improving Middleware for General Availability (GA), we've made some changes to the Middleware APIs (and how you define Middleware in your application) based on your feedback.
 
-This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. This guide is for Next.js customers who:
+This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js customers who:
 
 - Currently use the beta Next.js Middleware features
 - Choose to upgrade to the next stable version of Next.js
 
-> **Note:** For customers using Next.js on Vercel, your existing deploys using Middlware will continue to work. Existing sites can be redeployed without needing to upgrade. Before upgrading to the next stable version of Next.js, you will need to follow the upgrade guide below.
+## Using Next.js Middleware on Vercel
+
+If you're using Next.js on Vercel, your existing deploys using Middleware will continue to work, and you can continue to deploy your site using Middleware. When you upgrade your site to the next stable version of Next.js (`v12.2`), you will need to follow this upgrade guide to update your Middleware.
 
 ## Breaking changes
 
@@ -30,14 +32,14 @@ This upgrade guide will help you understand the changes and how to migrate your 
 Previously, you could create a `_middleware.js` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
 
 - Middleware in `pages/dashboard/_middleware.ts`
-- Middlware in `pages/dashboard/users/_middleware.ts`
+- Middleware in `pages/dashboard/users/_middleware.ts`
 - A request to `/dashboard/users/*` **would match both.**
 
 Based on customer feedback, we have replaced this API with a single root Middleware.
 
 ### How to upgrade
 
-You should declare **one single Middleware file** in your application, which should be located at the root of the project directory (**not** inside of the `pages` directory) and named without an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
+You should declare **one single Middleware file** in your application, which should be located at the root of the project directory (**not** inside of the `pages` directory), and named without an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
 
 Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*`, the custom matcher is defined in an exported config object:
 
@@ -50,7 +52,7 @@ export function middleware(request: NextRequest) {
 }
 // config with custom matcher
 export const config = {
-  pathname: '/about/:path*',
+  matcher: '/about/:path*',
 }
 ```
 
@@ -81,7 +83,7 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we commend checking authorization at the Page level.
+Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the Page level.
 
 To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
