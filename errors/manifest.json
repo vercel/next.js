@@ -399,6 +399,10 @@
           "path": "/errors/no-server-import-in-page.md"
         },
         {
+          "title": "no-styled-jsx-in-document",
+          "path": "/errors/no-styled-jsx-in-document.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
@@ -627,6 +631,10 @@
           "path": "/errors/middleware-relative-urls.md"
         },
         {
+          "title": "nested-middleware",
+          "path": "/errors/nested-middleware.md"
+        },
+        {
           "title": "deleting-query-params-in-middlewares",
           "path": "/errors/deleting-query-params-in-middlewares.md"
         },
@@ -637,14 +645,6 @@
         {
           "title": "opening-an-issue",
           "path": "/errors/opening-an-issue.md"
-        },
-        {
-          "title": "multiple-flush-effects",
-          "path": "/errors/multiple-flush-effects.md"
-        },
-        {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
         },
         {
           "title": "import-next",
@@ -661,6 +661,18 @@
         {
           "title": "invalid-script",
           "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
+        },
+        {
+          "title": "returning-response-body-in-middleware",
+          "path": "/errors/returning-response-body-in-middleware.md"
+        },
+        {
+          "title": "middleware-request-page.md",
+          "path": "/errors/middleware-request-page.md"
         }
       ]
     }

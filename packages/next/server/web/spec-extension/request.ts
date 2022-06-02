@@ -2,8 +2,9 @@ import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
-import { toNodeHeaders } from '../utils'
+import { toNodeHeaders, validateURL } from '../utils'
 import parseua from 'next/dist/compiled/ua-parser-js'
+import { DeprecationPageError } from '../error'
 
 import { NextCookies } from './cookies'
 
@@ -14,24 +15,21 @@ export class NextRequest extends Request {
     cookies: NextCookies
     geo: RequestData['geo']
     ip?: string
-    page?: { name?: string; params?: { [key: string]: string | string[] } }
     ua?: UserAgent | null
     url: NextURL
   }
 
   constructor(input: Request | string, init: RequestInit = {}) {
+    const url = typeof input === 'string' ? input : input.url
+    validateURL(url)
     super(input, init)
-
     this[INTERNALS] = {
       cookies: new NextCookies(this),
       geo: init.geo || {},
       ip: init.ip,
-      page: init.page,
-      url: new NextURL(typeof input === 'string' ? input : input.url, {
-        basePath: init.nextConfig?.basePath,
+      url: new NextURL(url, {
         headers: toNodeHeaders(this.headers),
-        i18n: init.nextConfig?.i18n,
-        trailingSlash: init.nextConfig?.trailingSlash,
+        nextConfig: init.nextConfig,
       }),
     }
   }
@@ -57,10 +55,7 @@ export class NextRequest extends Request {
   }
 
   public get page() {
-    return {
-      name: this[INTERNALS].page?.name,
-      params: this[INTERNALS].page?.params,
-    }
+    throw new DeprecationPageError()
   }
 
   public get ua() {
@@ -98,10 +93,6 @@ export interface RequestInit extends globalThis.RequestInit {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-  }
-  page?: {
-    name?: string
-    params?: { [key: string]: string | string[] }
   }
 }
 

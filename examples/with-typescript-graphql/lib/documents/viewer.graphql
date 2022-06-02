@@ -1,0 +1,11 @@
+query Viewer {
+  viewer {
+    ...Partial
+    status
+  }
+}
+
+fragment Partial on User {
+  id
+  name
+}
