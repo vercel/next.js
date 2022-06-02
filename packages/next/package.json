@@ -268,12 +268,12 @@
     "util": "0.12.4",
     "uuid": "8.3.2",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.3.1",
+    "watchpack": "2.4.0",
     "web-vitals": "2.1.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.72.0",
+    "webpack5": "npm:webpack@5.73.0",
     "ws": "8.2.3"
   },
   "resolutions": {
