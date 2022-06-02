@@ -230,7 +230,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               e.stopPropagation()
               hide()
             }}
-            aria-label="Hide"
+            aria-label="Hide Errors"
           >
             <CloseIcon />
           </button>
