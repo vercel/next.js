@@ -2,25 +2,29 @@
 
 #### Why This Error Occurred
 
-You are defining a middleware file in a location different from `<root>/middleware` which is not allowed.
+You are defining a Middleware file in a location different from `<root>/middleware`, which is not allowed.
 
-While in beta, a middleware file under specific pages implied that it would _only_ be executed when pages below its declaration were matched.
-This execution model allowed the nesting of multiple middleware, which is hard to reason about and led to consequences such as dragging effects between different middleware executions.
-
-The API has been removed in favor of a simpler model with a single root middleware.
+While in beta, a Middleware file under specific pages would _only_ be executed when pages below its declaration were matched, allowing nesting Middleware files. Based on customer feedback, we have replaced this API with a single root Middleware.
 
 #### Possible Ways to Fix It
 
-To fix this error, declare your middleware in the root folder and use `NextRequest` parsed URL to define which path the middleware code should be executed for. For example, a middleware declared under `pages/about/_middleware.js` can be moved to `middleware`. A conditional can be used to ensure the middleware executes only when it matches the `about/*` path:
+Declare your Middleware in the root folder and use `NextRequest` parsed URL to define which path the Middleware should be executed for.
+
+For example, a Middleware at `pages/about/_middleware.js` can move the logic to `<root>/middleware.js` in the root of your repository. Then, a conditional statement can be used to only run the Middleware when it matches the `about/*` path:
 
 ```typescript
+// <root>/middleware.js
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/about')) {
-    // Execute pages/about/_middleware.js
+    // This logic is only applied to /about
+  }
+
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    // This logic is only applied to /dashboard
   }
 }
 ```
 
-If you have more than one middleware, you will need to combine them into a single file and model their execution depending on the request.
+If you have more than one Middleware, you should combine them into a single file and model their execution depending on the incoming request.
