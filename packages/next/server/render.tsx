@@ -43,7 +43,7 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -317,16 +317,21 @@ function useFlightResponse({
   req,
   pageData,
   inlinedDataWritable,
+  serverComponentManifest,
 }: {
   id: string
   req: ReadableStream<Uint8Array>
   pageData: { current: string } | null
   inlinedDataWritable: WritableStream<Uint8Array>
+  serverComponentManifest: any
 }) {
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -398,6 +403,7 @@ function createServerComponentRenderer(
       req: reqStream,
       pageData,
       inlinedDataWritable: inlinedTransformStream.writable,
+      serverComponentManifest,
     })
 
     const root = response.readRoot()
@@ -484,11 +490,7 @@ export async function renderToHTML(
     const search = urlQueryToSearchParams(query).toString()
 
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return ComponentMod.__next_rsc__.__webpack_require__(ssrModuleId)
-    }
+    globalThis.__next_require__ = ComponentMod.__next_rsc__.__webpack_require__
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
 

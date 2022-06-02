@@ -36,6 +36,10 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+function interopDefault(mod: any) {
+  return mod.default || mod
+}
+
 const rscCache = new Map()
 
 // Shadowing check does not work with TypeScript enums
@@ -102,12 +106,15 @@ function preloadDataFetchingRecord(
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   id: string,
-  req: ReadableStream<Uint8Array>
+  req: ReadableStream<Uint8Array>,
+  serverComponentManifest: any
 ) {
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -163,14 +170,9 @@ function createServerComponentRenderer(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return (
-        ComponentMod.__next_app_webpack_require__ ||
-        ComponentMod.__next_rsc__.__webpack_require__
-      )(ssrModuleId)
-    }
+    globalThis.__next_require__ =
+      ComponentMod.__next_app_webpack_require__ ||
+      ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -187,7 +189,8 @@ function createServerComponentRenderer(
     const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
-      reqStream
+      reqStream,
+      serverComponentManifest
     )
     const root = response.readRoot()
     rscCache.delete(id)
@@ -236,7 +239,7 @@ export async function renderToHTML(
     .sort()
     .map((path) => {
       const mod = ComponentMod.components[path]()
-      mod.Component = mod.default || mod
+      mod.Component = interopDefault(mod)
       mod.path = path
       return mod
     })
@@ -307,6 +310,9 @@ export async function renderToHTML(
     }
 
     const LayoutRouter = ComponentMod.LayoutRouter
+    const getLoadingMod = ComponentMod.loadingComponents[layout.path]
+    const Loading = getLoadingMod ? interopDefault(getLoadingMod()) : null
+
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
     WrappedComponent = (props: any) => {
@@ -333,16 +339,24 @@ export async function renderToHTML(
         {},
         null
       )
+
+      // TODO: add tests for loading.js
+      const chilrenWithLoading = Loading ? (
+        <React.Suspense fallback={<Loading />}>{children}</React.Suspense>
+      ) : (
+        children
+      )
+
       // Pages don't need to be wrapped in a router
       return React.createElement(
         layout.Component,
         props,
         layout.path.endsWith('/page') ? (
-          children
+          chilrenWithLoading
         ) : (
           // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
           <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
-            {children}
+            {chilrenWithLoading}
           </LayoutRouter>
         )
       )
