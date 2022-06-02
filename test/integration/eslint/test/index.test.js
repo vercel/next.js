@@ -33,6 +33,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
+const dirMjsLinting = join(__dirname, '../mjs-mts-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -604,5 +605,22 @@ describe('ESLint', () => {
       expect(output).not.toContain('pages/index.js')
       expect(output).not.toContain('External synchronous scripts are forbidden')
     })
+  })
+
+  test('lints .cjs and .mjs files by default', async () => {
+    const { stdout, stderr } = await nextLint(dirMjsLinting, [], {
+      stdout: true,
+      stderr: true,
+    })
+
+    const output = stdout + stderr
+
+    expect(output).toContain('pages/bar.mjs')
+    expect(output).toContain(
+      "Do not use <img>. Use Image from 'next/image' instead"
+    )
+
+    expect(output).toContain('pages/index.cjs')
+    expect(output).toContain('External synchronous scripts are forbidden')
   })
 })

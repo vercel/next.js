@@ -18,7 +18,16 @@ import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
-  extensions: args['--ext'] ?? ['.js', '.jsx', '.ts', '.tsx'],
+  extensions: args['--ext'] ?? [
+    '.js',
+    '.jsx',
+    '.cjs',
+    '.mjs',
+    '.ts',
+    '.tsx',
+    '.cts',
+    '.mts',
+  ],
   resolvePluginsRelativeTo: args['--resolve-plugins-relative-to'] || null,
   rulePaths: args['--rulesdir'] ?? [],
   fix: args['--fix'] ?? false,
