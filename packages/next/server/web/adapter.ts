@@ -13,9 +13,18 @@ export async function adapter(params: {
   page: string
   request: RequestData
 }): Promise<FetchEventResult> {
+  const requestUrl = new NextURL(params.request.url, {
+    headers: params.request.headers,
+    nextConfig: params.request.nextConfig,
+  })
+
+  // Ensure users only see page requests, never data requests.
+  const buildId = requestUrl.buildId
+  requestUrl.buildId = ''
+
   const request = new NextRequestHint({
     page: params.page,
-    input: params.request.url,
+    input: String(requestUrl),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -32,26 +41,39 @@ export async function adapter(params: {
   /**
    * For rewrites we must always include the locale in the final pathname
    * so we re-create the NextURL forcing it to include it when the it is
-   * an internal rewrite.
+   * an internal rewrite. Also we make sure the outgoing rewrite URL is
+   * a data URL if the request was a data request.
    */
-  if (response?.headers.has('x-middleware-rewrite')) {
-    const url = new NextURL(response.headers.get('x-middleware-rewrite')!, {
+  const rewrite = response?.headers.get('x-middleware-rewrite')
+  if (response && rewrite) {
+    const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
     })
 
-    if (url.host === request.nextUrl.host) {
-      response.headers.set(
-        'x-middleware-rewrite',
-        String(
-          new NextURL(response.headers.get('x-middleware-rewrite')!, {
-            forceLocale: true,
-            headers: params.request.headers,
-            nextConfig: params.request.nextConfig,
-          })
-        )
-      )
+    if (rewriteUrl.host === request.nextUrl.host) {
+      rewriteUrl.buildId = buildId || rewriteUrl.buildId
+      response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    }
+  }
+
+  /**
+   * For redirects we will not include the locale in case when it is the
+   * default and we must also make sure the outgoing URL is a data one if
+   * the incoming request was a data request.
+   */
+  const redirect = response?.headers.get('Location')
+  if (response && redirect) {
+    const redirectURL = new NextURL(redirect, {
+      forceLocale: false,
+      headers: params.request.headers,
+      nextConfig: params.request.nextConfig,
+    })
+
+    if (redirectURL.host === request.nextUrl.host) {
+      redirectURL.buildId = buildId || redirectURL.buildId
+      response.headers.set('Location', String(redirectURL))
     }
   }
 

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
@@ -24,6 +25,7 @@ describe('Middleware Redirect', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort)
     })
 
@@ -36,6 +38,10 @@ describe('Middleware Redirect', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
       await nextBuild(context.appDir)
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort)
     })
@@ -54,6 +60,34 @@ function tests(context) {
     expect(res.headers.get('location')?.endsWith('/default/about')).toEqual(
       false
     )
+  })
+
+  it(`should redirect to data urls with data requests and internal redirects`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/old-home.json`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(
+      res.headers
+        .get('location')
+        ?.endsWith(
+          `/_next/data/${context.buildId}/es/new-home.json?override=internal`
+        )
+    ).toEqual(true)
+  })
+
+  it(`should redirect to external urls with data requests and external redirects`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/old-home.json`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.headers.get('location')).toEqual('https://example.com/')
   })
 }
 

@@ -168,33 +168,23 @@ export async function middleware(request) {
     }
   }
 
-  if (url.pathname.startsWith('/_next')) {
-    return NextResponse.next()
-  }
-
   if (url.pathname === '/ssr-page') {
     url.pathname = '/ssr-page-2'
     return NextResponse.rewrite(url)
   }
 
-  if (url.pathname === '/send-url') {
-    const response = NextResponse.next()
-    const url = new URL(request.url)
-    response.headers.set('x-url', `${url.pathname}${url.search}`)
-    return response
-  }
-
-  // Map metadata by default
-  return new Response(null, {
-    headers: {
-      'req-url-basepath': request.nextUrl.basePath,
-      'req-url-pathname': request.nextUrl.pathname,
-      'req-url-params':
-        url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
-      'req-url-query': request.nextUrl.searchParams.get('foo'),
-      'req-url-locale': request.nextUrl.locale,
-    },
-  })
+  const response = NextResponse.next()
+  const original = new URL(request.url)
+  response.headers.set('req-url-path', `${original.pathname}${original.search}`)
+  response.headers.set('req-url-basepath', request.nextUrl.basePath)
+  response.headers.set('req-url-pathname', request.nextUrl.pathname)
+  response.headers.set('req-url-query', request.nextUrl.searchParams.get('foo'))
+  response.headers.set('req-url-locale', request.nextUrl.locale)
+  response.headers.set(
+    'req-url-params',
+    url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}'
+  )
+  return response
 }
 
 function serializeData(data) {
