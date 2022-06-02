@@ -607,6 +607,36 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
+export async function clickReloadOnFullRefreshWarning(browser) {
+  await retry(async () => {
+    const hasFullRefreshWarning = await evaluate(browser, () =>
+      Boolean(
+        Array.from(document.querySelectorAll('nextjs-portal')).find(
+          (p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_refresh_warning_label'
+            )?.textContent === 'About to perform a full refresh'
+        )
+      )
+    )
+    if (!hasFullRefreshWarning) throw new Error('No full refresh warning')
+    return evaluate(browser, () => {
+      const buttons = Array.from(document.querySelectorAll('nextjs-portal'))
+        .find(
+          (p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_refresh_warning_label'
+            )?.textContent === 'About to perform a full refresh'
+        )
+        .shadowRoot.querySelectorAll('button')
+
+      Array.from(buttons)
+        .find((b) => b.textContent === 'Reload')
+        .click()
+    })
+  })
+}
+
 export async function getRedboxHeader(browser) {
   return retry(
     () =>

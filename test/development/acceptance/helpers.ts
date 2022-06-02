@@ -30,6 +30,10 @@ export async function sandbox(
   }
   await next.start()
   const browser = await webdriver(next.appPort, '/')
+  // Don't show full refresh warnings
+  await browser.eval(() => {
+    sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
+  })
   return {
     session: {
       async write(filename, content) {
