@@ -2,7 +2,7 @@
 
 As we work on improving Middleware for General Availability (GA), we've made some changes to the Middleware APIs (and how you define Middleware in your application) based on your feedback.
 
-This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js customers who:
+This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
 
 - Currently use the beta Next.js Middleware features
 - Choose to upgrade to the next stable version of Next.js
@@ -50,7 +50,8 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   return NextResponse.rewrite(new URL('/about-2', request.url))
 }
-// config with custom matcher
+// Config with custom matcher
+// Pending: https://github.com/vercel/next.js/pull/37177
 export const config = {
   matcher: '/about/:path*',
 }
