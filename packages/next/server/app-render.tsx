@@ -105,10 +105,11 @@ function preloadDataFetchingRecord(
 
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  id: string,
+  cachePrefix: string,
   req: ReadableStream<Uint8Array>,
   serverComponentManifest: any
 ) {
+  const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
@@ -180,7 +181,6 @@ function createServerComponentRenderer(
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
-    const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
       <ComponentToRender {...props} />,
       serverComponentManifest
@@ -188,12 +188,11 @@ function createServerComponentRenderer(
 
     const response = useFlightResponse(
       writable,
-      cachePrefix + ',' + id,
+      cachePrefix,
       reqStream,
       serverComponentManifest
     )
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
