@@ -29,7 +29,7 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 
 ### Explanation
 
-Previously, you could create a `_middleware.js` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
+Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
 
 - Middleware in `pages/dashboard/_middleware.ts`
 - Middleware in `pages/dashboard/users/_middleware.ts`
@@ -244,7 +244,8 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 
 ```typescript
 // middleware.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const { params } = event.request.page
@@ -262,7 +263,8 @@ export function middleware(request: NextRequest) {
 
 ```typescript
 // middleware.ts
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 const PATTERNS = [
   [
