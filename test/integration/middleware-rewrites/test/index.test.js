@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import webdriver, { USE_SELENIUM } from 'next-webdriver'
 import {
@@ -25,6 +26,7 @@ describe('Middleware Rewrite', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort, {
         onStdout(msg) {
           context.logs.output += msg
@@ -47,6 +49,11 @@ describe('Middleware Rewrite', () => {
     beforeAll(async () => {
       await nextBuild(context.appDir, undefined)
       context.appPort = await findPort()
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
+
       context.app = await nextStart(context.appDir, context.appPort, {
         onStdout(msg) {
           context.logs.output += msg
@@ -96,6 +103,17 @@ function tests(context) {
     )
   })
 
+  it(`should rewrite to data urls for incoming data request internally rewritten`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/about.json`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+    const json = await res.json()
+    expect(json.pageProps).toEqual({ abtest: true })
+  })
+
   it('should override with rewrite externally correctly', async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -117,6 +135,17 @@ function tests(context) {
     await check(
       () => browser.eval('window.location.search'),
       '?override=external'
+    )
+  })
+
+  it(`should rewrite to the external url for incoming data request externally rewritten`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/about.json?override=external`
+    )
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
     )
   })
 

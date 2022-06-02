@@ -330,6 +330,24 @@ function tests(context, locale = '') {
     const json = await res.json()
     expect(json.pageProps.message).toEqual('Bye Cruel World')
   })
+
+  it('should normalize data requests into page requests', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/send-url.json`
+    )
+    expect(res.headers.get('req-url-path')).toEqual('/send-url')
+  })
+
+  it('should keep non data requests in their original shape', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/static/${context.buildId}/_devMiddlewareManifest.json?foo=1`
+    )
+    expect(res.headers.get('req-url-path')).toEqual(
+      `/_next/static/${context.buildId}/_devMiddlewareManifest.json?foo=1`
+    )
+  })
 }
 
 function readMiddlewareJSON(response) {
