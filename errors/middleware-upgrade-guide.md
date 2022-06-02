@@ -99,6 +99,26 @@ new Response(JSON.stringify(obj), { headers: 'application/json' })
 
 For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
 
+#### Before
+
+```typescript
+// pages/_middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { isAuthValid } from './lib/auth'
+
+export function middleware(request: NextRequest) {
+  // Example function to validate auth
+  if (isAuthValid(req)) {
+    return NextResponse.next()
+  }
+
+  return NextResponse.json({ message: 'Auth required' }, { status: 401 })
+}
+```
+
+#### After
+
 ```typescript
 // middleware.ts
 import { NextResponse } from 'next/server'
