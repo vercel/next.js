@@ -313,6 +313,23 @@ describe('Production Usage', () => {
     expect(content).not.toContain('.currentScript')
   })
 
+  it('should not contain useAmp in main chunk', async () => {
+    const globResult = await glob('main-*.js', {
+      cwd: join(appDir, '.next/static/chunks'),
+    })
+
+    if (!globResult || globResult.length !== 1) {
+      throw new Error('could not find main js chunk')
+    }
+
+    const content = await fs.readFile(
+      join(appDir, '.next/static/chunks', globResult[0]),
+      'utf8'
+    )
+
+    expect(content).not.toContain('useAmp')
+  })
+
   describe('With basic usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')
