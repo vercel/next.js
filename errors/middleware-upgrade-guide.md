@@ -56,7 +56,7 @@ export const config = {
 }
 ```
 
-You can also use a conditional statement to only run the Middleware when it matches the `about/*` path:
+While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. The following example shows how you can merge two previously nested Middleware:
 
 ```typescript
 // <root>/middleware.js
