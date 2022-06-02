@@ -31,9 +31,9 @@ export function getCssModuleLoader(
       // Use CJS mode for backwards compatibility:
       esModule: false,
       url: (url: string, resourcePath: string) =>
-        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+        cssFileResolve(url, resourcePath),
       import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+        cssFileResolve(url, resourcePath),
       modules: {
         // Do not transform class names (CJS mode backwards compatibility):
         exportLocalsConvention: 'asIs',

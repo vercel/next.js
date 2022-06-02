@@ -102,8 +102,39 @@ describe(`Handle url imports`, () => {
               browser
                 .elementByCss('#static-css')
                 .getComputedCss('background-image'),
-            /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
+            `url("https://github.com/vercel/next.js/raw/canary/test/integration/url/public/vercel.png")`
           )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it(`should support @import url in css`, async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/css')
+
+          let hasBootstrapCss = false
+
+          if (dev) {
+            hasBootstrapCss = await browser.eval(() => {
+              const styles = document.querySelectorAll('style')
+              return Boolean(
+                [...styles].find((style) =>
+                  style.innerHTML?.includes(
+                    `@import url('https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css')`
+                  )
+                )
+              )
+            })
+          } else {
+            hasBootstrapCss = await browser.eval(() => {
+              const style = getComputedStyle(document.body)
+              return style.getPropertyValue('--primary') === '#007bff'
+            })
+          }
+
+          expect(hasBootstrapCss).toBe(true)
         } finally {
           await browser.close()
         }
