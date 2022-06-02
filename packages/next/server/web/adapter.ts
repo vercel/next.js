@@ -5,6 +5,7 @@ import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
+import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 
@@ -55,6 +56,18 @@ export async function adapter(params: {
     if (rewriteUrl.host === request.nextUrl.host) {
       rewriteUrl.buildId = buildId || rewriteUrl.buildId
       response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    }
+
+    /**
+     * When the request is a data request we must show if there was a rewrite
+     * with an internal header so the client knows which component to load
+     * from the data request.
+     */
+    if (buildId) {
+      response.headers.set(
+        'x-nextjs-matched-path',
+        relativizeURL(String(rewriteUrl), String(requestUrl))
+      )
     }
   }
 
