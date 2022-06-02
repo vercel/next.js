@@ -7,6 +7,8 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
+  if (readable.tee) return readable.tee()
+
   const transformStream = new TransformStream()
   const transformStream2 = new TransformStream()
   const writer = transformStream.writable.getWriter()
