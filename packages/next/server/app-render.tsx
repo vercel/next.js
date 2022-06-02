@@ -106,12 +106,15 @@ function preloadDataFetchingRecord(
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   id: string,
-  req: ReadableStream<Uint8Array>
+  req: ReadableStream<Uint8Array>,
+  serverComponentManifest: any
 ) {
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -167,14 +170,9 @@ function createServerComponentRenderer(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return (
-        ComponentMod.__next_app_webpack_require__ ||
-        ComponentMod.__next_rsc__.__webpack_require__
-      )(ssrModuleId)
-    }
+    globalThis.__next_require__ =
+      ComponentMod.__next_app_webpack_require__ ||
+      ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -191,7 +189,8 @@ function createServerComponentRenderer(
     const response = useFlightResponse(
       writable,
       cachePrefix + ',' + id,
-      reqStream
+      reqStream,
+      serverComponentManifest
     )
     const root = response.readRoot()
     rscCache.delete(id)
