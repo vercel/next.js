@@ -85,7 +85,7 @@ export function middleware(request: NextRequest) {
 
 To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
-Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the Page level.
+Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the page level.
 
 The following patterns will no longer work:
 
@@ -97,7 +97,7 @@ new Response(JSON.stringify(obj), { headers: 'application/json' })
 
 ### How to upgrade
 
-For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to pages that show an authorization error, login forms, or to an API Route.
 
 #### Before
 
