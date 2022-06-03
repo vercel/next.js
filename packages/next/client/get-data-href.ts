@@ -9,14 +9,13 @@ import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-fro
 export interface DataHrefParams {
   asPath: string
   buildId: string
-  flight?: boolean
   href: string
   locale?: string | false
   ssg?: boolean
 }
 
 export function getDataHref(params: DataHrefParams): string {
-  const { asPath, buildId, href, locale, ssg, flight } = params
+  const { asPath, buildId, href, locale, ssg } = params
   const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
   const { pathname: asPathname } = parseRelativeUrl(asPath)
   const route = removeTrailingSlash(hrefPathname)
@@ -25,10 +24,6 @@ export function getDataHref(params: DataHrefParams): string {
   }
 
   const getHrefForSlug = (path: string) => {
-    if (flight) {
-      return path + search + (search ? `&` : '?') + '__flight__=1'
-    }
-
     const dataRoute = getAssetPathFromRoute(
       removeTrailingSlash(addLocale(path, locale)),
       '.json'

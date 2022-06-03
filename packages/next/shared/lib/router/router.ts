@@ -1562,12 +1562,15 @@ export default class Router implements BaseRouter {
             ? (
                 await this._getData(() =>
                   this._getFlightData(
-                    this.pageLoader.getDataHref({
-                      href: formatWithValidation({ pathname, query }),
-                      asPath: resolvedAs,
-                      ssg: routeInfo.__N_SSG,
-                      flight: useStreamedFlightData,
-                      locale,
+                    formatWithValidation({
+                      query: { ...query, __flight__: '1' },
+                      pathname: isDynamicRoute(route)
+                        ? interpolateAs(
+                            pathname,
+                            parseRelativeUrl(resolvedAs).pathname,
+                            query
+                          ).result
+                        : pathname,
                     })
                   )
                 )
