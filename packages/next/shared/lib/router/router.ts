@@ -1465,7 +1465,7 @@ export default class Router implements BaseRouter {
   }: {
     route: string
     pathname: string
-    query: any
+    query: ParsedUrlQuery
     as: string
     resolvedAs: string
     routeProps: RouteProperties
@@ -1518,20 +1518,15 @@ export default class Router implements BaseRouter {
       const shouldFetchData =
         routeInfo.__N_SSG || routeInfo.__N_SSP || routeInfo.__N_RSC
 
-      const dataHref = shouldFetchData
-        ? this.pageLoader.getDataHref({
-            href: formatWithValidation({ pathname, query }),
-            asPath: resolvedAs,
-            ssg: routeInfo.__N_SSG,
-            flight: useStreamedFlightData,
-            locale,
-          })
-        : undefined
-
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
           const { json } = await fetchNextData({
-            dataHref: dataHref!,
+            dataHref: this.pageLoader.getDataHref({
+              href: formatWithValidation({ pathname, query }),
+              ssg: routeInfo.__N_SSG,
+              asPath: resolvedAs,
+              locale,
+            }),
             isServerRender: this.isSsr,
             parseJSON: true,
             inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
@@ -1564,7 +1559,19 @@ export default class Router implements BaseRouter {
       if (routeInfo.__N_RSC) {
         props.pageProps = Object.assign(props.pageProps, {
           __flight__: useStreamedFlightData
-            ? (await this._getData(() => this._getFlightData(dataHref!))).data
+            ? (
+                await this._getData(() =>
+                  this._getFlightData(
+                    this.pageLoader.getDataHref({
+                      href: formatWithValidation({ pathname, query }),
+                      asPath: resolvedAs,
+                      ssg: routeInfo.__N_SSG,
+                      flight: useStreamedFlightData,
+                      locale,
+                    })
+                  )
+                )
+              ).data
             : props.__flight__,
         })
       }
