@@ -36,6 +36,10 @@ describe('TypeScript HMR', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/hello')
+        // Don't show full refresh warnings
+        await browser.eval(() => {
+          sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
+        })
         await check(() => getBrowserBodyText(browser), /Hello World/)
 
         const pagePath = join(appDir, 'pages/hello.tsx')
@@ -89,6 +93,10 @@ describe('TypeScript HMR', () => {
     const origContent = await fs.readFile(pagePath, 'utf8')
     try {
       browser = await webdriver(appPort, '/type-error-recover')
+      // Don't show full refresh warnings
+      await browser.eval(() => {
+        sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
+      })
       const errContent = origContent.replace(
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
