@@ -713,6 +713,9 @@ function runTests(mode) {
       expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x`
       )
+      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+        'eager'
+      )
 
       expect(await browser.elementById('raw2').getAttribute('style')).toBe(
         'padding-left:4rem;width:100%;object-position:30% 30%'
@@ -725,6 +728,9 @@ function runTests(mode) {
       )
       expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
         `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
+      )
+      expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+        'lazy'
       )
 
       expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
@@ -749,6 +755,85 @@ function runTests(mode) {
       }
     }
   })
+
+  it('should lazy load layout=raw and placeholder=blur', async () => {
+    const browser = await webdriver(appPort, '/layout-raw-placeholder-blur')
+
+    // raw1
+    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
+    )
+    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
+    )
+    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('raw1').getAttribute('style')).toMatch(
+      'filter:blur(20px);background-size:cover;'
+    )
+    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
+    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
+    await browser.eval(
+      `document.getElementById("raw1").scrollIntoView({behavior: "smooth"})`
+    )
+    await check(
+      () => browser.eval(`document.getElementById("raw1").currentSrc`),
+      /test(.*)jpg/
+    )
+    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
+    )
+    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
+    )
+    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
+    expect(await browser.elementById('raw1').getAttribute('style')).toMatch('')
+    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
+    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
+
+    // raw2
+    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
+    )
+    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
+    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('raw2').getAttribute('style')).toMatch(
+      'filter:blur(20px);background-size:cover;'
+    )
+    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
+    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
+    await browser.eval(
+      `document.getElementById("raw2").scrollIntoView({behavior: "smooth"})`
+    )
+    await check(
+      () => browser.eval(`document.getElementById("raw2").currentSrc`),
+      /test(.*)png/
+    )
+    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
+    )
+    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
+    )
+    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
+    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
+      'lazy'
+    )
+    expect(await browser.elementById('raw2').getAttribute('style')).toBe('')
+    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
+    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
+  })
+
   it('should handle the styles prop appropriately', async () => {
     let browser
     try {
@@ -859,6 +944,15 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should show error when layout=raw and lazyBoundary assigned', async () => {
+      const browser = await webdriver(appPort, '/invalid-raw-lazy-boundary')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has "layout='raw'" and "lazyBoundary='500px'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
       )
     })
 

@@ -78,7 +78,7 @@ export function downloadAndExtractRepo(
     ),
     tar.extract(
       { cwd: root, strip: filePath ? filePath.split('/').length + 1 : 1 },
-      [`${name}-${branch}${filePath ? `/${filePath}` : ''}`]
+      [`${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`]
     )
   )
 }

@@ -55,7 +55,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width
 
 When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
-The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `width` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ### height
 
@@ -65,7 +65,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `heigh
 
 When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
-The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `height` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 
@@ -75,13 +75,13 @@ The `<Image />` component accepts a number of additional properties beyond those
 
 The layout behavior of the image as the viewport changes size.
 
-| `layout`                                 | Behavior                                                   | `srcSet`                                                                                                    | `sizes`  | Has wrapper and sizer |
-| ---------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| `intrinsic` (default)                    | Scale *down* to fit width of container, up to image size   | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
-| `fixed`                                  | Sized to `width` and `height` exactly                      | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
-| `responsive`                             | Scale to fit width of container                            | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
-| `fill`                                   | Grow in both X and Y axes to fill container                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
-| `raw`[\*](#experimental-raw-layout-mode) | Insert the image element with no automatic layout behavior | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
+| `layout`                                 | Behavior                                                 | `srcSet`                                                                                                    | `sizes`  | Has wrapper and sizer |
+| ---------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `intrinsic` (default)                    | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `fixed`                                  | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `responsive`                             | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `fill`                                   | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `raw`[\*](#experimental-raw-layout-mode) | Raw `<img>` without styles and native lazy loading       | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.

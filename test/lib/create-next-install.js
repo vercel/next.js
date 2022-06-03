@@ -37,7 +37,7 @@ async function createNextInstall(
     }
   }
 
-  for (const item of ['package.json', 'yarn.lock', 'packages']) {
+  for (const item of ['package.json', 'packages']) {
     await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
       filter: (item) => {
         return (

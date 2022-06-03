@@ -20,10 +20,8 @@ export class NextResponse extends Response {
       cookies: new NextCookies(this),
       url: init.url
         ? new NextURL(init.url, {
-            basePath: init.nextConfig?.basePath,
-            i18n: init.nextConfig?.i18n,
-            trailingSlash: init.nextConfig?.trailingSlash,
             headers: toNodeHeaders(this.headers),
+            nextConfig: init.nextConfig,
           })
         : undefined,
     }
@@ -51,26 +49,21 @@ export class NextResponse extends Response {
       )
     }
 
-    const destination = validateURL(url)
-    return new NextResponse(destination, {
-      headers: { Location: destination },
+    return new NextResponse(null, {
+      headers: { Location: validateURL(url) },
       status,
     })
   }
 
   static rewrite(destination: string | NextURL | URL) {
     return new NextResponse(null, {
-      headers: {
-        'x-middleware-rewrite': validateURL(destination),
-      },
+      headers: { 'x-middleware-rewrite': validateURL(destination) },
     })
   }
 
   static next() {
     return new NextResponse(null, {
-      headers: {
-        'x-middleware-next': '1',
-      },
+      headers: { 'x-middleware-next': '1' },
     })
   }
 }

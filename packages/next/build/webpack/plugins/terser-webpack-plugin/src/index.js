@@ -101,7 +101,7 @@ export class TerserPlugin {
             // and doesn't provide too much of a benefit as it's server-side
             if (
               name.match(
-                /(edge-runtime-webpack\.js|edge-chunks|_middleware\.js$)/
+                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
               )
             ) {
               return false

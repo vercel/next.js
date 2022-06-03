@@ -129,6 +129,7 @@ export default function (context, { runtime, env }) {
     expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
     expect(dynamicRoute2HTML).toContain('query: dynamic2')
     expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute1HTML).toContain('router pathname: /routes/[dynamic]')
   })
 
   it('should be able to navigate between rsc pages', async () => {
@@ -164,6 +165,12 @@ export default function (context, { runtime, env }) {
       `document.querySelector('#content').innerText`
     )
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should escape streaming data correctly', async () => {
+    const browser = await webdriver(context.appPort, '/escaping-rsc')
+    const manipulated = await browser.eval(`window.__manipulated_by_injection`)
+    expect(manipulated).toBe(undefined)
   })
 
   // Disable next/image for nodejs runtime temporarily
@@ -262,6 +269,13 @@ export default function (context, { runtime, env }) {
     const content = getNodeBySelector(html, '#__next').text()
 
     expect(content).toContain('This should be in red')
+  })
+
+  it('should SSR styled-jsx correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/styled-jsx')
+    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+
+    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
