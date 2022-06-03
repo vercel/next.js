@@ -45,7 +45,7 @@ Middleware will be invoked for **every route in the app**, and a custom matcher 
 
 ```typescript
 // middleware.ts
-import type { NextRequest } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
   return NextResponse.rewrite(new URL('/about-2', request.url))
@@ -80,7 +80,7 @@ export function middleware(request: NextRequest) {
 
 - Middleware can no longer respond with a body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
-- Migrate to using `rewrites`/`redirects` to pages that handle authorization
+- Migrate to using `rewrites`/`redirects` to pages/APIs handling a response
 
 ### Explanation
 
@@ -94,6 +94,7 @@ The following patterns will no longer work:
 new Response('a text value')
 new Response(streamOrBuffer)
 new Response(JSON.stringify(obj), { headers: 'application/json' })
+NextResponse.json()
 ```
 
 ### How to upgrade
@@ -124,18 +125,12 @@ export function middleware(request: NextRequest) {
 // middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { credentialsValid } from './lib/auth'
+import { isAuthValid } from './lib/auth'
 
 export function middleware(request: NextRequest) {
-  const basicAuth = request.headers.get('authorization')
-
-  if (basicAuth) {
-    const auth = basicAuth.split(' ')[1]
-    const [user, pwd] = atob(auth).split(':')
-    // Example function to validate auth
-    if (credentialsValid(user, pwd)) {
-      return NextResponse.next()
-    }
+  // Example function to validate auth
+  if (isAuthValid(req)) {
+    return NextResponse.next()
   }
 
   const loginUrl = new URL('/login', request.url)
