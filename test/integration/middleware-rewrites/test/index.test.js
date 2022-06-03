@@ -208,6 +208,24 @@ function tests(context) {
     expect($('#country').text()).toBe('us')
   })
 
+  it(`should behave consistently on recursive rewrites`, async () => {
+    const res = await fetchViaHTTP(context.appPort, `/rewrite-me-to-about`, {
+      override: 'internal',
+    })
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('About Page')
+
+    const browser = await webdriver(context.appPort, `/`)
+    await browser.elementByCss('#rewrite-me-to-about').click()
+    await check(
+      () => browser.eval(`window.location.pathname`),
+      `/rewrite-me-to-about`
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('About Page')
+  })
+
   if (!USE_SELENIUM) {
     it(`should allow to switch locales`, async () => {
       const browser = await webdriver(context.appPort, '/i18n')
