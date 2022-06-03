@@ -158,7 +158,6 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   private hasReactRoot: boolean
   public clientStats: webpack5.Stats | null
@@ -209,7 +208,6 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.runtime = config.experimental.runtime
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
