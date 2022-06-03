@@ -170,6 +170,47 @@ export function interpolateAs(
   }
 }
 
+interface MatchHrefAndAsPathParams {
+  href: { pathname: string; query: ParsedUrlQuery }
+  asPath: string
+}
+
+function matchHrefAndAsPath(params: MatchHrefAndAsPathParams) {
+  const { pathname, query } = params.href
+  const route = removeTrailingSlash(pathname)
+  const regex = getRouteRegex(route)
+  const parsedAs = parseRelativeUrl(params.asPath)
+  const routeMatch = getRouteMatcher(regex)(parsedAs.pathname)
+  if (!routeMatch) {
+    return {
+      error: 'mismatch' as const,
+      asPathname: parsedAs.pathname,
+      missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
+    }
+  }
+
+  if (route === parsedAs.pathname) {
+    const interpolated = interpolateAs(route, parsedAs.pathname, query)
+    if (!interpolated?.result) {
+      return {
+        error: 'interpolate' as const,
+        missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
+      }
+    }
+
+    return {
+      as: formatWithValidation(
+        Object.assign({}, parsedAs, {
+          pathname: interpolated.result,
+          query: omitParmsFromQuery(query, interpolated.params!),
+        })
+      ),
+    }
+  }
+
+  return { routeMatch }
+}
+
 function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
   const filteredQuery: ParsedUrlQuery = {}
 
@@ -1138,58 +1179,39 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (isDynamicRoute(route)) {
-      const parsedAs = parseRelativeUrl(resolvedAs)
-      const asPathname = parsedAs.pathname
+      const matchInfo = matchHrefAndAsPath({
+        href: { pathname, query },
+        asPath: resolvedAs,
+      })
 
-      const routeRegex = getRouteRegex(route)
-      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
-      const shouldInterpolate = route === asPathname
-      const interpolatedAs = shouldInterpolate
-        ? interpolateAs(route, asPathname, query)
-        : ({} as { result: undefined; params: undefined })
-
-      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
-        const missingParams = Object.keys(routeRegex.groups).filter(
-          (param) => !query[param]
-        )
-
-        if (missingParams.length > 0) {
+      if (matchInfo.error) {
+        if (matchInfo.missingParams.length > 0) {
+          const missingParams = matchInfo.missingParams.join(', ')
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
               `${
-                shouldInterpolate
+                matchInfo.error === 'interpolate'
                   ? `Interpolating href`
                   : `Mismatching \`as\` and \`href\``
-              } failed to manually provide ` +
-                `the params: ${missingParams.join(
-                  ', '
-                )} in the \`href\`'s \`query\``
+              } failed to manually provide the params: ${missingParams} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
-            (shouldInterpolate
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-                  ', '
-                )}) to be interpolated properly. `
-              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+            (matchInfo.error === 'interpolate'
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams}) to be interpolated properly. `
+              : `The provided \`as\` value (${matchInfo.asPathname}) is incompatible with the \`href\` value (${route}). `) +
               `Read more: https://nextjs.org/docs/messages/${
-                shouldInterpolate
+                matchInfo.error === 'interpolate'
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'
               }`
           )
         }
-      } else if (shouldInterpolate) {
-        as = formatWithValidation(
-          Object.assign({}, parsedAs, {
-            pathname: interpolatedAs.result,
-            query: omitParmsFromQuery(query, interpolatedAs.params!),
-          })
-        )
+      } else if (matchInfo.as) {
+        as = matchInfo.as
       } else {
-        // Merge params into `query`, overwriting any specified in search
-        Object.assign(query, routeMatch)
+        Object.assign(query, matchInfo.routeMatch)
       }
     }
 
