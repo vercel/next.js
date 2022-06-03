@@ -669,6 +669,10 @@
         {
           "title": "returning-response-body-in-middleware",
           "path": "/errors/returning-response-body-in-middleware.md"
+        },
+        {
+          "title": "middleware-request-page.md",
+          "path": "/errors/middleware-request-page.md"
         }
       ]
     }

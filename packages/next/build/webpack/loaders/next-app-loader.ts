@@ -14,14 +14,16 @@ function pathToUrlPath(pathname: string) {
   return urlPath
 }
 
-async function resolveLayoutPathsByPage({
+async function resolvePathsByPage({
+  name,
   pagePath,
   resolve,
 }: {
+  name: 'layout' | 'loading'
   pagePath: string
   resolve: (pathname: string) => Promise<string | undefined>
 }) {
-  const layoutPaths = new Map<string, string | undefined>()
+  const paths = new Map<string, string | undefined>()
   const parts = pagePath.split('/')
   const isNewRootLayout =
     parts[1]?.length > 2 && parts[1]?.startsWith('(') && parts[1]?.endsWith(')')
@@ -32,26 +34,30 @@ async function resolveLayoutPathsByPage({
     if (!pathWithoutSlashLayout) {
       continue
     }
-    const layoutPath = `${pathWithoutSlashLayout}/layout`
+    const layoutPath = `${pathWithoutSlashLayout}/${name}`
     let resolvedLayoutPath = await resolve(layoutPath)
     let urlPath = pathToUrlPath(pathWithoutSlashLayout)
 
     // if we are in a new root app/(root) and a custom root layout was
     // not provided or a root layout app/layout is not present, we use
     // a default root layout to provide the html/body tags
-    const isCustomRootLayout = isNewRootLayout && i === 2
+    const isCustomRootLayout = name === 'layout' && isNewRootLayout && i === 2
 
-    if ((isCustomRootLayout || i === 1) && !resolvedLayoutPath) {
+    if (
+      name === 'layout' &&
+      (isCustomRootLayout || i === 1) &&
+      !resolvedLayoutPath
+    ) {
       resolvedLayoutPath = await resolve('next/dist/lib/app-layout')
     }
-    layoutPaths.set(urlPath, resolvedLayoutPath)
+    paths.set(urlPath, resolvedLayoutPath)
 
     // if we're in a new root layout don't add the top-level app/layout
     if (isCustomRootLayout) {
       break
     }
   }
-  return layoutPaths
+  return paths
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
@@ -75,7 +81,39 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   }
   const resolve = this.getResolve(resolveOptions)
 
-  const layoutPaths = await resolveLayoutPathsByPage({
+  const loadingPaths = await resolvePathsByPage({
+    name: 'loading',
+    pagePath: pagePath,
+    resolve: async (pathname) => {
+      try {
+        return await resolve(this.rootContext, pathname)
+      } catch (err: any) {
+        if (err.message.includes("Can't resolve")) {
+          return undefined
+        }
+        throw err
+      }
+    },
+  })
+
+  const loadingComponentsCode = []
+  for (const [loadingPath, resolvedLoadingPath] of loadingPaths) {
+    if (resolvedLoadingPath) {
+      this.addDependency(resolvedLoadingPath)
+      // use require so that we can bust the require cache
+      const codeLine = `'${loadingPath}': () => require('${resolvedLoadingPath}')`
+      loadingComponentsCode.push(codeLine)
+    } else {
+      for (const ext of extensions) {
+        this.addMissingDependency(
+          path.join(appDir, loadingPath, `layout${ext}`)
+        )
+      }
+    }
+  }
+
+  const layoutPaths = await resolvePathsByPage({
+    name: 'layout',
     pagePath: pagePath,
     resolve: async (pathname) => {
       try {
@@ -117,7 +155,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         ${componentsCode.join(',\n')}
     };
 
+    export const loadingComponents = {
+      ${loadingComponentsCode.join(',\n')}
+    };
+
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
+    export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
 
     export const __next_app_webpack_require__ = __webpack_require__
   `
