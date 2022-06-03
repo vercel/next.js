@@ -283,6 +283,7 @@ export default class DevServer extends Server {
 
       wp.on('aggregated', async () => {
         const routedMiddleware: string[] = []
+        let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
@@ -308,8 +309,15 @@ export default class DevServer extends Server {
             extensions: this.nextConfig.pageExtensions,
           })
 
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: this.nextConfig,
+            page: rootFile,
+          })
+
           if (rootFile === MIDDLEWARE_FILE) {
-            routedMiddleware.push(`/`)
+            middlewareMatcher = staticInfo.middleware?.pathMatcher
+            routedMiddleware.push('/')
             continue
           }
 
@@ -344,11 +352,6 @@ export default class DevServer extends Server {
             continue
           }
 
-          const staticInfo = await getPageStaticInfo({
-            pageFilePath: fileName,
-            nextConfig: this.nextConfig,
-          })
-
           runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
@@ -363,13 +366,19 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-          match: getRouteMatcher(
-            getMiddlewareRegex(page, { catchAll: !ssrMiddleware.has(page) })
-          ),
-          page,
-          ssr: ssrMiddleware.has(page),
-        }))
+        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
+          return {
+            match: getRouteMatcher(
+              page === '/' && middlewareMatcher
+                ? { re: middlewareMatcher, groups: {} }
+                : getMiddlewareRegex(page, {
+                    catchAll: !ssrMiddleware.has(page),
+                  })
+            ),
+            page,
+            ssr: ssrMiddleware.has(page),
+          }
+        })
 
         try {
           // we serve a separate manifest with all pages for the client in
