@@ -1523,7 +1523,6 @@ export default class Router implements BaseRouter {
           const { json } = await fetchNextData({
             dataHref: this.pageLoader.getDataHref({
               href: formatWithValidation({ pathname, query }),
-              ssg: routeInfo.__N_SSG,
               asPath: resolvedAs,
               locale,
             }),
@@ -1771,7 +1770,6 @@ export default class Router implements BaseRouter {
               dataHref: this.pageLoader.getDataHref({
                 href: url,
                 asPath: resolvedAs,
-                ssg: true,
                 locale:
                   typeof options.locale !== 'undefined'
                     ? options.locale

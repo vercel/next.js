@@ -11,11 +11,10 @@ export interface DataHrefParams {
   buildId: string
   href: string
   locale?: string | false
-  ssg?: boolean
 }
 
 export function getDataHref(params: DataHrefParams): string {
-  const { asPath, buildId, href, locale, ssg } = params
+  const { asPath, buildId, href, locale } = params
   const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
   const { pathname: asPathname } = parseRelativeUrl(asPath)
   const route = removeTrailingSlash(hrefPathname)
@@ -28,10 +27,7 @@ export function getDataHref(params: DataHrefParams): string {
       removeTrailingSlash(addLocale(path, locale)),
       '.json'
     )
-    return addBasePath(
-      `/_next/data/${buildId}${dataRoute}${ssg ? '' : search}`,
-      true
-    )
+    return addBasePath(`/_next/data/${buildId}${dataRoute}${search}`, true)
   }
 
   return getHrefForSlug(
