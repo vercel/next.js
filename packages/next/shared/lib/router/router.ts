@@ -1657,6 +1657,23 @@ export default class Router implements BaseRouter {
     }
   }
 
+  private async matchesMiddleware(asPath: string, locale?: string) {
+    const { pathname: asPathname } = parsePath(asPath)
+    const cleanedAs = removeLocale(
+      hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
+      locale
+    )
+
+    const fns = await this.pageLoader.getMiddlewareList()
+    return fns.some(([middleware, isSSR]) => {
+      return getRouteMatcher(
+        getMiddlewareRegex(middleware, {
+          catchAll: !isSSR,
+        })
+      )(cleanedAs)
+    })
+  }
+
   private set(
     state: typeof this.state,
     data: PrivateRouteInfo,
@@ -1927,22 +1944,8 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }) {
-    const { pathname: asPathname } = parsePath(options.as)
-    const cleanedAs = removeLocale(
-      hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-      options.locale
-    )
-
-    const fns = await this.pageLoader.getMiddlewareList()
-    const requiresPreflight = fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(
-        getMiddlewareRegex(middleware, {
-          catchAll: !isSSR,
-        })
-      )(cleanedAs)
-    })
-
-    if (!requiresPreflight) {
+    const matches = await this.matchesMiddleware(options.as, options.locale)
+    if (!matches) {
       return { type: 'next' as const }
     }
 
