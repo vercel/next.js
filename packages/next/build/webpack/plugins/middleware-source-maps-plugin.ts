@@ -10,7 +10,7 @@ export const getMiddlewareSourceMapPlugins = () => {
   return [
     new webpack.SourceMapDevToolPlugin({
       filename: '[file].map',
-      include: [new RegExp(`^${MIDDLEWARE_FILENAME}.`), /^edge-chunks\//],
+      include: [new RegExp(`${MIDDLEWARE_FILENAME}.`), /^edge-chunks\//],
     }),
     new MiddlewareSourceMapsPlugin(),
   ]

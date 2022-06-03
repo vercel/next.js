@@ -1184,7 +1184,7 @@ export async function copyTracedFiles(
   }
 
   for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (middleware.name === MIDDLEWARE_FILENAME) {
+    if (isMiddlewareFilename(middleware.name)) {
       for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
@@ -1312,4 +1312,32 @@ export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
     `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
     'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
   )
+}
+
+export function isMiddlewareFile(file: string) {
+  return (
+    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isMiddlewareFilename(file?: string) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function getPossibleMiddlewareFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.flatMap((extension) => [
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+    path.join(folder, `src/${MIDDLEWARE_FILENAME}.${extension}`),
+  ])
+}
+
+export function getPrevailingMiddlewareFile(
+  candidate: string,
+  existing?: string
+) {
+  // /middleware should prevail on /src/middleware
+  return existing === `/${MIDDLEWARE_FILENAME}` ? existing : candidate
 }

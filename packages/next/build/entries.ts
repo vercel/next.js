@@ -12,8 +12,6 @@ import { stringify } from 'querystring'
 import {
   API_ROUTE,
   DOT_NEXT_ALIAS,
-  MIDDLEWARE_FILE,
-  MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
@@ -28,7 +26,11 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { isServerComponentPage } from './utils'
+import {
+  isMiddlewareFile,
+  isMiddlewareFilename,
+  isServerComponentPage,
+} from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -156,7 +158,7 @@ export function getEdgeServerEntry(opts: {
   pages: { [page: string]: string }
   middleware?: { pathMatcher?: RegExp }
 }) {
-  if (opts.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -411,7 +413,7 @@ export function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: PageRuntime
 }) {
-  if (params.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(params.page)) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
     return [params.onServer()]
@@ -462,7 +464,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: name === MIDDLEWARE_FILENAME ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,

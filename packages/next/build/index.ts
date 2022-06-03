@@ -11,13 +11,12 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path, { join } from 'path'
+import path, { sep, join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
-  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -96,6 +95,7 @@ import {
   isReservedPage,
   isCustomErrorPage,
   isServerComponentPage,
+  isMiddlewareFile,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -347,12 +347,17 @@ export default async function build(
           )
       }
 
-      const rootPaths = await flatReaddir(
-        dir,
-        new RegExp(
-          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
-        )
+      const middlewareDetectionRegExp = new RegExp(
+        `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
+
+      let rootPaths = await flatReaddir(dir, middlewareDetectionRegExp)
+      // if no middleware found at root, falls back to src/
+      if (rootPaths.length === 0) {
+        rootPaths = (
+          await flatReaddir(join(dir, 'src'), middlewareDetectionRegExp)
+        ).map((filePath) => join(sep, 'src', filePath))
+      }
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -431,7 +436,7 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
+      if (Object.keys(mappedRootPaths || {}).some(isMiddlewareFile)) {
         Log.warn(
           `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
         )
