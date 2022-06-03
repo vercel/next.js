@@ -148,6 +148,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
         </nav>
         {close ? (
           <button
+            data-nextjs-errors-dialog-left-right-close-button
             ref={buttonClose}
             type="button"
             onClick={close}

@@ -224,6 +224,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
           </span>
           <button
+            data-nextjs-toast-errors-hide-button
             className="nextjs-toast-errors-hide-button"
             type="button"
             onClick={(e) => {
