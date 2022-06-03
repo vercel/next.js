@@ -154,11 +154,14 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
+  middleware?: { pathMatcher?: RegExp }
 }) {
   if (opts.page === MIDDLEWARE_FILE) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      matcherRegexp:
+        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -327,6 +330,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         nextConfig: config,
         pageFilePath,
         isDev,
+        page,
       })
 
       runDependingOnPageType({
@@ -376,6 +380,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isDev: false,
             isServerComponent,
             page,
+            middleware: staticInfo?.middleware,
           })
         },
       })

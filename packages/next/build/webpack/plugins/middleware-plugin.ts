@@ -394,13 +394,14 @@ function getCreateAssets(params: {
       const { namedRegex } = getNamedMiddlewareRegex(page, {
         catchAll: !metadata.edgeSSR,
       })
+      const regexp = metadata?.edgeMiddleware?.matcherRegexp ?? namedRegex
 
       middlewareManifest.middleware[page] = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp: namedRegex,
+        regexp,
         wasm: Array.from(metadata.wasmBindings),
       }
     }
