@@ -161,7 +161,7 @@ There are two options to develop with your local version of the codebase:
 3. In your app's root directory, run:
 
    ```sh
-   yarn
+   pnpm i
    ```
 
    to re-install all of the dependencies.

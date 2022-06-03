@@ -1593,7 +1593,11 @@ export default async function getBaseWebpackConfig(
             const {
               NextJsRequireCacheHotReloader,
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
-            const devPlugins = [new NextJsRequireCacheHotReloader()]
+            const devPlugins = [
+              new NextJsRequireCacheHotReloader({
+                hasServerComponents: config.experimental.serverComponents,
+              }),
+            ]
 
             if (isClient || isEdgeServer) {
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
@@ -2289,6 +2293,7 @@ export default async function getBaseWebpackConfig(
           value: entry[name],
           compilerType,
           name,
+          appDir: config.experimental.appDir,
         })
       }
 

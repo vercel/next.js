@@ -205,9 +205,14 @@ function tests(context, locale = '') {
 
   it(`should validate & parse request url from any route`, async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/static`)
+
     expect(res.headers.get('req-url-basepath')).toBe('')
     expect(res.headers.get('req-url-pathname')).toBe('/static')
-    expect(res.headers.get('req-url-params')).not.toBe('{}')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe(undefined)
+    expect(params).toEqual(undefined)
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     if (locale !== '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
@@ -216,10 +221,14 @@ function tests(context, locale = '') {
 
   it(`should validate & parse request url from a dynamic route with params`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/fr/1`)
+
     expect(res.headers.get('req-url-basepath')).toBe('')
     expect(res.headers.get('req-url-pathname')).toBe('/1')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"1"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe('/:locale/:id')
+    expect(params).toEqual({ locale: 'fr', id: '1' })
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('fr')
   })
@@ -227,9 +236,11 @@ function tests(context, locale = '') {
   it(`should validate & parse request url from a dynamic route with params and no query`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/fr/abc123`)
     expect(res.headers.get('req-url-basepath')).toBe('')
-    expect(res.headers.get('req-url-pathname')).toBe('/abc123')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"abc123"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe('/:locale/:id')
+    expect(params).toEqual({ locale: 'fr', id: 'abc123' })
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('fr')
   })
@@ -237,9 +248,12 @@ function tests(context, locale = '') {
   it(`should validate & parse request url from a dynamic route with params and query`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/abc123?foo=bar`)
     expect(res.headers.get('req-url-basepath')).toBe('')
-    expect(res.headers.get('req-url-pathname')).toBe('/abc123')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"abc123"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+
+    expect(pathname).toBe('/:id')
+    expect(params).toEqual({ id: 'abc123' })
+
     expect(res.headers.get('req-url-query')).toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('en')
   })
