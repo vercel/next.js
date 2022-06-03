@@ -444,9 +444,10 @@ function fetchRetry(
 const backgroundCache: Record<string, Promise<any>> = {}
 
 interface FetchDataOutput {
+  dataHref: string
+  json: Record<string, any>
   response: Response
   text: string
-  json: Record<string, any>
 }
 
 function fetchNextData({
@@ -472,7 +473,7 @@ function fetchNextData({
     })
       .then((response) => {
         if (response.ok && params?.method === 'HEAD') {
-          return { response, text: '', json: {} }
+          return { dataHref, response, text: '', json: {} }
         }
 
         return response
@@ -482,6 +483,7 @@ function fetchNextData({
               if (response.status === 404) {
                 if (tryToParseAsJSON(text)?.notFound) {
                   return {
+                    dataHref,
                     json: { notFound: SSG_DATA_NOT_FOUND },
                     response,
                     text,
@@ -504,6 +506,7 @@ function fetchNextData({
             }
 
             return {
+              dataHref,
               json: parseJSON ? tryToParseAsJSON(text) : {},
               response,
               text,
