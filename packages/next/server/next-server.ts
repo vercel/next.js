@@ -76,7 +76,6 @@ import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { isMiddlewareFilename } from '../build/utils'
 
 export * from './base-server'
 
