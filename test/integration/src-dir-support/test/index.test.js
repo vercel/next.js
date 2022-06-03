@@ -2,15 +2,14 @@
 
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { promises as fs } from 'fs-extra'
+import fs from 'fs-extra'
 import {
-  fetchViaHTTP,
+  renderViaHTTP,
   findPort,
   launchApp,
   killApp,
   nextBuild,
   nextStart,
-  renderViaHTTP,
 } from 'next-test-utils'
 
 let app
@@ -75,12 +74,9 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/post-1/cmnt-1')
     expect(html).toMatch(/gip.*post-1/i)
   })
-
-  it('should execute middleware', async () => {
-    const response = await fetchViaHTTP(appPort, '/post-1')
-    expect(response.headers.has('X-From-Middleware')).toBe(true)
-  })
 }
+
+const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
@@ -90,11 +86,12 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -104,25 +101,22 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe.skip('SSR production mode', () => {
-    const nextConfig = join(appDir, 'next.config.js')
-
+  describe('SSR production mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `module.exports = { target: 'serverless' }`
+        `
+        module.exports = {
+          target: 'serverless'
+        }
+      `
       )
 
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-
-    afterAll(async () => {
-      await fs.rm(nextConfig, { force: true })
-      await killApp(app)
-    })
-
+    afterAll(() => killApp(app))
     runTests()
   })
 })

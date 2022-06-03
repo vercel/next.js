@@ -1,22 +1,21 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { promises as fs } from 'fs-extra'
+import fs from 'fs-extra'
 import {
-  fetchViaHTTP,
+  renderViaHTTP,
   findPort,
   launchApp,
   killApp,
   nextBuild,
   nextStart,
-  renderViaHTTP,
 } from 'next-test-utils'
 
 let app
 let appPort
 const appDir = join(__dirname, '../')
 
-function runTests() {
+function runTests(dev) {
   it('should render from pages', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/PAGES/)
@@ -26,15 +25,9 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/hello')
     expect(html).toMatch(/404/)
   })
-
-  it('should invoke root middleware only', async () => {
-    const response = await fetchViaHTTP(appPort, '/hello')
-    expect(response.headers.has('X-From-Src-Middleware')).toBe(false)
-    expect(response.headers.has('X-From-Src-Middleware-TS')).toBe(false)
-    expect(response.headers.has('X-From-Root-Middleware')).toBe(false)
-    expect(response.headers.has('X-From-Root-Middleware-TS')).toBe(true)
-  })
 }
+
+const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
@@ -44,12 +37,18 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {
     beforeAll(async () => {
+      const curConfig = await fs.readFile(nextConfig, 'utf8')
+
+      if (curConfig.includes('target')) {
+        await fs.remove(nextConfig)
+      }
       await nextBuild(appDir)
+
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -58,9 +57,7 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe.skip('serverless production mode', () => {
-    const nextConfig = join(appDir, 'next.config.js')
-
+  describe('serverless production mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
@@ -68,15 +65,11 @@ describe('Dynamic Routing', () => {
       )
 
       await nextBuild(appDir)
+
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-
-    afterAll(async () => {
-      await fs.rm(nextConfig, { force: true })
-      await killApp(app)
-    })
-
+    afterAll(() => killApp(app))
     runTests()
   })
 })
