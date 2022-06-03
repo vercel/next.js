@@ -1,3 +1,5 @@
+const allowedHeadChildren = new Set(['title', 'meta', 'script'])
+
 module.exports = {
   meta: {
     docs: {
@@ -27,7 +29,7 @@ module.exports = {
         ) {
           return
         }
-        const allowedHeadChildren = new Set(['title', 'meta', 'script'])
+        
         const invalidChildren = node.children.filter(
           (child) =>
             child.openingElement &&
@@ -43,4 +45,5 @@ module.exports = {
       },
     }
   },
+  allowedHeadChildren
 }
