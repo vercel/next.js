@@ -701,9 +701,9 @@ describe('basic HMR', () => {
         await next.patchFile(erroredPage, errorContent)
 
         await check(async () => {
-          await browser.refresh()
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
+            await browser.refresh()
             await waitFor(2000)
             throw new Error('waiting')
           }
