@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "yarn relay && next dev",
+    "build": "yarn relay && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "relay": "relay-compiler"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
+    "react-relay": "^13.2.0",
+    "relay-runtime": "^13.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "17.0.39",
+    "@types/react": "18.0.11",
+    "@types/react-dom": "18.0.5",
+    "@types/react-relay": "^13.0.2",
+    "@types/relay-runtime": "^13.0.3",
+    "relay-compiler": "^13.2.0",
+    "typescript": "4.7.3"
+  }
+}
