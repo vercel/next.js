@@ -67,6 +67,8 @@ describe('should set-up next', () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
-    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe('hello')
+    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe(
+      'hello'
+    )
   })
 })
