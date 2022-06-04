@@ -111,14 +111,18 @@ function buildCancellationError() {
 }
 
 function compareRouterStates(a: Router['state'], b: Router['state']) {
-  if (Object.keys(a).length !== Object.keys(b).length) return false
+  const stateKeys = Object.keys(a)
+  if (stateKeys.length !== Object.keys(b).length) return false
 
-  for (const key in a) {
+  for (let i = stateKeys.length; i--; ) {
+    const key = stateKeys[i]
     if (key === 'query') {
-      if (Object.keys(a.query).length !== Object.keys(b.query).length) {
+      const queryKeys = Object.keys(a.query)
+      if (queryKeys.length !== Object.keys(b.query).length) {
         return false
       }
-      for (const queryKey in a.query) {
+      for (let j = queryKeys.length; j--; ) {
+        const queryKey = queryKeys[j]
         if (a.query[queryKey] !== b.query[queryKey]) {
           return false
         }
