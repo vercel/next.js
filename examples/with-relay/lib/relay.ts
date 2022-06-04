@@ -1,19 +1,28 @@
 import { useMemo } from 'react'
-import { Environment, Network, RecordSource, Store, type GraphQLResponse } from 'relay-runtime'
+import {
+  Environment,
+  Network,
+  RecordSource,
+  Store,
+  type GraphQLResponse,
+} from 'relay-runtime'
 
 let relayEnvironment: Environment | null = null
 
 function createRelayNetwork() {
   return Network.create(async ({ text: query }, variables) => {
-    const response = await fetch(process.env.NEXT_PUBLIC_GRAPHQL_API_ENDPOINT as string, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_GITHUB_API_TOKEN}`,
-      }, // Add authentication and other headers here
-      body: JSON.stringify({ query, variables }),
-    })
+    const response = await fetch(
+      process.env.NEXT_PUBLIC_GRAPHQL_API_ENDPOINT as string,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_GITHUB_API_TOKEN}`,
+        }, // Add authentication and other headers here
+        body: JSON.stringify({ query, variables }),
+      }
+    )
 
     if (response.status !== 200) {
       console.error(await response.text())
