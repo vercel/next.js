@@ -14,10 +14,6 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
       },
-      dependencies: {
-        react: '18',
-        'react-dom': '18',
-      },
     })
   })
   afterAll(() => next.destroy())
