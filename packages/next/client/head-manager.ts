@@ -1,3 +1,5 @@
+import { scheduleMicrotask } from './queue-task'
+
 export const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -120,13 +122,19 @@ export default function initHeadManager(): {
 } {
   let updatePromise: Promise<void> | null = null
 
+  const scheduleLatestMicrotask = (fn: () => void) => {
+    const callback = () => {
+      if (updatePromise !== promise) return
+      updatePromise = null
+      fn()
+    }
+    const promise = (updatePromise = scheduleMicrotask(callback))
+  }
+
   return {
     mountedInstances: new Set(),
     updateHead: (head: JSX.Element[]) => {
-      const promise = (updatePromise = Promise.resolve().then(() => {
-        if (promise !== updatePromise) return
-
-        updatePromise = null
+      scheduleLatestMicrotask(() => {
         const tags: Record<string, JSX.Element[]> = {}
 
         head.forEach((h) => {
@@ -168,7 +176,7 @@ export default function initHeadManager(): {
         ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
           updateElements(type, tags[type] || [])
         })
-      }))
+      })
     },
   }
 }

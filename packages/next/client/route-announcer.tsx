@@ -1,4 +1,5 @@
 import React from 'react'
+import { scheduleMicrotask } from './queue-task'
 import { useRouter } from './router'
 
 export function RouteAnnouncer() {
@@ -17,18 +18,20 @@ export function RouteAnnouncer() {
   // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
   React.useEffect(
     () => {
-      // If the path hasn't change, we do nothing.
-      if (previouslyLoadedPath.current === asPath) return
-      previouslyLoadedPath.current = asPath
+      scheduleMicrotask(() => {
+        // If the path hasn't change, we do nothing.
+        if (previouslyLoadedPath.current === asPath) return
+        previouslyLoadedPath.current = asPath
 
-      if (document.title) {
-        setRouteAnnouncement(document.title)
-      } else {
-        const pageHeader = document.querySelector('h1')
-        const content = pageHeader?.innerText ?? pageHeader?.textContent
+        if (document.title) {
+          setRouteAnnouncement(document.title)
+        } else {
+          const pageHeader = document.querySelector('h1')
+          const content = pageHeader?.innerText ?? pageHeader?.textContent
 
-        setRouteAnnouncement(content || asPath)
-      }
+          setRouteAnnouncement(content || asPath)
+        }
+      })
     },
     // TODO: switch to pathname + query object of dynamic route requirements
     [asPath]
