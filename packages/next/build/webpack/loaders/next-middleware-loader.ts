@@ -5,13 +5,16 @@ import { MIDDLEWARE_FILE } from '../../../lib/constants'
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
   page: string
+  matcherRegexp?: string
 }
 
 export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
+  const { absolutePagePath, page, matcherRegexp }: MiddlewareLoaderOptions =
+    this.getOptions()
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeMiddleware = {
+    matcherRegexp,
     page: page.replace(new RegExp(`${MIDDLEWARE_FILE}$`), '') || '/',
   }
 
