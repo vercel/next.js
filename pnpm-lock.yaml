@@ -1595,8 +1595,8 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-create-class-features-plugin': 7.17.1_@babel+core@7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-create-class-features-plugin': 7.18.0_@babel+core@7.18.0
+      '@babel/helper-plugin-utils': 7.17.12
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1718,7 +1718,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.17.5
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
       '@babel/plugin-syntax-export-namespace-from': 7.8.3_@babel+core@7.17.5
     dev: true
 
@@ -1729,7 +1729,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
       '@babel/plugin-syntax-export-namespace-from': 7.8.3_@babel+core@7.18.0
     dev: true
 
@@ -2114,7 +2114,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
     dev: true
 
   /@babel/plugin-syntax-class-properties/7.12.13_@babel+core@7.17.5:
@@ -2159,7 +2159,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.17.5
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
     dev: true
 
   /@babel/plugin-syntax-dynamic-import/7.8.3_@babel+core@7.18.0:
@@ -2168,7 +2168,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
 
   /@babel/plugin-syntax-export-namespace-from/7.8.3_@babel+core@7.17.5:
     resolution: {integrity: sha512-MXf5laXo6c1IbEbegDmzGPwGNTsHZmEy6QGznu5Sh2UCWvueywb2ee+CCE4zQiZstxU9BMoQO9i6zUFSY0Kj0Q==}
@@ -2214,7 +2214,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
     dev: true
 
   /@babel/plugin-syntax-import-assertions/7.17.12_@babel+core@7.18.0:
@@ -2268,7 +2268,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.17.5
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
     dev: true
 
   /@babel/plugin-syntax-jsx/7.14.5_@babel+core@7.18.0:
@@ -2278,7 +2278,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-plugin-utils': 7.16.7
+      '@babel/helper-plugin-utils': 7.17.12
     dev: true
 
   /@babel/plugin-syntax-logical-assignment-operators/7.10.4_@babel+core@7.17.5:

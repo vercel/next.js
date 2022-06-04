@@ -12,7 +12,10 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type {
+  Params,
+  RouteMatch,
+} from '../shared/lib/router/utils/route-matcher'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -66,14 +69,12 @@ import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { MIDDLEWARE_FILENAME } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
-import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
 export * from './base-server'
@@ -123,7 +124,6 @@ export default class NextNodeServer extends BaseServer {
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
-
       this.imageResponseCache = new ResponseCache(
         new ImageOptimizerCache({
           distDir: this.distDir,
@@ -1021,11 +1021,7 @@ export default class NextNodeServer extends BaseServer {
     ))
 
     return manifest.sortedMiddleware.map((page) => ({
-      match: getRouteMatcher(
-        getMiddlewareRegex(page, {
-          catchAll: manifest?.middleware?.[page].name === MIDDLEWARE_FILENAME,
-        })
-      ),
+      match: getMiddlewareMatcher(manifest.middleware[page]),
       page,
     }))
   }
@@ -1411,4 +1407,22 @@ export default class NextNodeServer extends BaseServer {
       this.warnIfQueryParametersWereDeleted = () => {}
     }
   }
+}
+
+const MiddlewareMatcherCache = new WeakMap<
+  MiddlewareManifest['middleware'][string],
+  RouteMatch
+>()
+
+function getMiddlewareMatcher(
+  info: MiddlewareManifest['middleware'][string]
+): RouteMatch {
+  const stored = MiddlewareMatcherCache.get(info)
+  if (stored) {
+    return stored
+  }
+
+  const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
+  MiddlewareMatcherCache.set(info, matcher)
+  return matcher
 }
