@@ -454,6 +454,7 @@ function fetchNextData({
   dataHref,
   inflightCache,
   isPrefetch,
+  hasMiddleware,
   isServerRender,
   parseJSON,
   persistCache,
@@ -461,6 +462,7 @@ function fetchNextData({
   dataHref: string
   isServerRender: boolean
   parseJSON: boolean | undefined
+  hasMiddleware?: boolean
   inflightCache: NextDataCache
   persistCache: boolean
   isPrefetch: boolean
@@ -488,6 +490,16 @@ function fetchNextData({
                     response,
                     text,
                   }
+                }
+
+                /**
+                 * If there is a 404 that is not for SSG we used to fail but if
+                 * there is a middleware we must respond with an empty object.
+                 * For now we will return the data when there is a middleware.
+                 * TODO: Update the server to success on these requests.
+                 */
+                if (hasMiddleware) {
+                  return { dataHref, response, text, json: {} }
                 }
               }
 
