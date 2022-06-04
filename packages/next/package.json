@@ -222,7 +222,7 @@
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
     "node-fetch": "2.6.7",
-    "node-html-parser": "1.4.9",
+    "node-html-parser": "5.3.3",
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
     "p-limit": "3.1.0",
