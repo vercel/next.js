@@ -34,26 +34,25 @@ export function useIntersection<T extends Element>({
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-  const [root, setRoot] = useState(rootRef ? rootRef.current : null)
-  const setRef = useCallback(
-    (el: T | null) => {
-      if (unobserve.current) {
-        unobserve.current()
-        unobserve.current = undefined
-      }
+  const elementRef = useRef<T | null>(null)
 
-      if (isDisabled || visible) return
+  useEffect(() => {
+    if (unobserve.current) {
+      unobserve.current()
+      unobserve.current = undefined
+    }
 
-      if (el && el.tagName) {
-        unobserve.current = observe(
-          el,
-          (isVisible) => isVisible && setVisible(isVisible),
-          { root, rootMargin }
-        )
-      }
-    },
-    [isDisabled, root, rootMargin, visible]
-  )
+    if (isDisabled || visible) return
+
+    const el = elementRef.current
+    if (el && el.tagName) {
+      unobserve.current = observe(
+        el,
+        (isVisible) => isVisible && setVisible(isVisible),
+        { root: rootRef?.current, rootMargin }
+      )
+    }
+  }, [isDisabled, rootMargin, rootRef, visible])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
@@ -68,9 +67,10 @@ export function useIntersection<T extends Element>({
     }
   }, [visible])
 
-  useEffect(() => {
-    if (rootRef) setRoot(rootRef.current)
-  }, [rootRef])
+  const setRef = useCallback((el: T | null) => {
+    elementRef.current = el
+  }, [])
+
   return [setRef, visible, resetVisible]
 }
 
@@ -91,7 +91,7 @@ function observe(
     if (elements.size === 0) {
       observer.disconnect()
       observers.delete(id)
-      let index = idList.findIndex(
+      const index = idList.findIndex(
         (obj) => obj.root === id.root && obj.margin === id.margin
       )
       if (index > -1) {
@@ -110,18 +110,16 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
     root: options.root || null,
     margin: options.rootMargin || '',
   }
-  let existing = idList.find(
+  const existing = idList.find(
     (obj) => obj.root === id.root && obj.margin === id.margin
   )
-  let instance
+  let instance: Observer | undefined
+
   if (existing) {
     instance = observers.get(existing)
-  } else {
-    instance = observers.get(id)
-    idList.push(id)
-  }
-  if (instance) {
-    return instance
+    if (instance) {
+      return instance
+    }
   }
 
   const elements = new Map<Element, ObserveCallback>()
@@ -134,14 +132,13 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
       }
     })
   }, options)
-
-  observers.set(
+  instance = {
     id,
-    (instance = {
-      id,
-      observer,
-      elements,
-    })
-  )
+    observer,
+    elements,
+  }
+
+  idList.push(id)
+  observers.set(id, instance)
   return instance
 }
