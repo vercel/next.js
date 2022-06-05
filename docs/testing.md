@@ -266,7 +266,7 @@ Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now 
 To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom jest-environment-jsdom
 ```
 
 Create a `jest.config.js` file in your project's root directory and add the following:
