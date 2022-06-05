@@ -37,7 +37,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",
-        "action": "debugWithChrome"
+        "action": "openExternally"
       }
     }
   ]
