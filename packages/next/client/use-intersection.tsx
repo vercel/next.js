@@ -52,6 +52,11 @@ export function useIntersection<T extends Element>({
         { root: rootRef?.current, rootMargin }
       )
     }
+
+    return () => {
+      unobserve.current?.()
+      unobserve.current = undefined
+    }
   }, [isDisabled, rootMargin, rootRef, visible])
 
   const resetVisible = useCallback(() => {
