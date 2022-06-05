@@ -1,0 +1,8 @@
+schema:
+  - ${NEXT_PUBLIC_GRAPHQL_API_ENDPOINT}:
+      headers:
+        Authorization: Bearer ${NEXT_PUBLIC_GITHUB_API_TOKEN}
+generates:
+  ./schema.graphql:
+    plugins:
+      - schema-ast
