@@ -16,7 +16,6 @@ import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
@@ -168,6 +167,8 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
+      const AmpHtmlValidator =
+        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
@@ -274,7 +275,7 @@ export default class DevServer extends Server {
         }
       })
 
-      let wp = (this.webpackWatcher = new Watchpack())
+      const wp = (this.webpackWatcher = new Watchpack())
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
