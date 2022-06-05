@@ -607,6 +607,12 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
+export async function ignoreFullRefreshWarnings(browser) {
+  await browser.eval(() => {
+    sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
+  })
+}
+
 export async function clickReloadOnFullRefreshWarning(browser) {
   await retry(async () => {
     const hasFullRefreshWarning = await evaluate(browser, () =>
@@ -666,6 +672,8 @@ export async function getRedboxSource(browser) {
               '#nextjs__container_errors_label, #nextjs__container_build_error_label'
             )
           )
+
+        console.log('portal', portal)
         const root = portal.shadowRoot
         return root
           .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')

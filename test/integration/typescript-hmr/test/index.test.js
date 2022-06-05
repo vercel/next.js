@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import {
   check,
+  ignoreFullRefreshWarnings,
   findPort,
   getBrowserBodyText,
   getRedboxHeader,
@@ -37,9 +38,7 @@ describe('TypeScript HMR', () => {
       try {
         browser = await webdriver(appPort, '/hello')
         // Don't show full refresh warnings
-        await browser.eval(() => {
-          sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
-        })
+        await ignoreFullRefreshWarnings(browser)
         await check(() => getBrowserBodyText(browser), /Hello World/)
 
         const pagePath = join(appDir, 'pages/hello.tsx')
@@ -93,10 +92,7 @@ describe('TypeScript HMR', () => {
     const origContent = await fs.readFile(pagePath, 'utf8')
     try {
       browser = await webdriver(appPort, '/type-error-recover')
-      // Don't show full refresh warnings
-      await browser.eval(() => {
-        sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
-      })
+      await ignoreFullRefreshWarnings(browser)
       const errContent = origContent.replace(
         '() => <p>Hello world</p>',
         '(): boolean => <p>hello with error</p>'
