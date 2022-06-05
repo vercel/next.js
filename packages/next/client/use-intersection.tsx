@@ -37,40 +37,38 @@ export function useIntersection<T extends Element>({
   const elementRef = useRef<T | null>(null)
 
   useEffect(() => {
-    if (unobserve.current) {
-      unobserve.current()
-      unobserve.current = undefined
-    }
+    if (hasIntersectionObserver) {
+      if (unobserve.current) {
+        unobserve.current()
+        unobserve.current = undefined
+      }
 
-    if (isDisabled || visible) return
+      if (isDisabled || visible) return
 
-    const el = elementRef.current
-    if (el && el.tagName) {
-      unobserve.current = observe(
-        el,
-        (isVisible) => isVisible && setVisible(isVisible),
-        { root: rootRef?.current, rootMargin }
-      )
-    }
+      const el = elementRef.current
+      if (el && el.tagName) {
+        unobserve.current = observe(
+          el,
+          (isVisible) => isVisible && setVisible(isVisible),
+          { root: rootRef?.current, rootMargin }
+        )
+      }
 
-    return () => {
-      unobserve.current?.()
-      unobserve.current = undefined
+      return () => {
+        unobserve.current?.()
+        unobserve.current = undefined
+      }
+    } else {
+      if (!visible) {
+        const idleCallback = requestIdleCallback(() => setVisible(true))
+        return () => cancelIdleCallback(idleCallback)
+      }
     }
   }, [isDisabled, rootMargin, rootRef, visible])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
   }, [])
-
-  useEffect(() => {
-    if (!hasIntersectionObserver) {
-      if (!visible) {
-        const idleCallback = requestIdleCallback(() => setVisible(true))
-        return () => cancelIdleCallback(idleCallback)
-      }
-    }
-  }, [visible])
 
   const setRef = useCallback((el: T | null) => {
     elementRef.current = el
