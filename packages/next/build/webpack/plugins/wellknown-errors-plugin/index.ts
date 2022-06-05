@@ -1,6 +1,7 @@
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfig } from '../../../../server/config-shared'
+
 import { getModuleBuildError } from './webpackModuleError'
-import { NextConfig } from '../../../../server/config-shared'
 
 export class WellKnownErrorsPlugin {
   config: NextConfig

@@ -35,7 +35,7 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference } from '../../build/utils'
+import { difference, withoutRSCExtensions } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
@@ -158,7 +158,6 @@ export default class HotReloader {
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
-  private runtime?: 'nodejs' | 'edge'
   private hasServerComponents: boolean
   private hasReactRoot: boolean
   public clientStats: webpack5.Stats | null
@@ -209,7 +208,6 @@ export default class HotReloader {
     this.serverPrevDocumentHash = null
 
     this.config = config
-    this.runtime = config.experimental.runtime
     this.hasReactRoot = !!process.env.__NEXT_REACT_ROOT
     this.hasServerComponents =
       this.hasReactRoot && !!config.experimental.serverComponents
@@ -384,17 +382,17 @@ export default class HotReloader {
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
+    const rawPageExtensions = this.hasServerComponents
+      ? withoutRSCExtensions(this.config.pageExtensions)
+      : this.config.pageExtensions
+
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = await webpackConfigSpan
         .traceChild('get-page-paths')
         .traceAsyncFn(() =>
           Promise.all([
-            findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-            findPageFile(
-              this.pagesDir,
-              '/_document',
-              this.config.pageExtensions
-            ),
+            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
+            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
           ])
         )
 
