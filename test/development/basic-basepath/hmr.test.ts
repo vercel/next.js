@@ -652,9 +652,9 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await browser.elementByCss('body').text()
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)
@@ -700,10 +700,10 @@ describe('basic HMR', () => {
         await next.patchFile(erroredPage, errorContent)
 
         await check(async () => {
+          await browser.refresh()
+          await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await browser.refresh()
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)

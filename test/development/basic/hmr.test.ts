@@ -717,9 +717,9 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
-          const text = await browser.elementByCss('body').text()
+          await waitFor(2000)
+          const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)
@@ -766,15 +766,12 @@ describe('basic HMR', () => {
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
-
-          await waitFor(2000)
-          const source = await getRedboxSource(browser)
-          return source
+          return getRedboxSource(browser)
         }, /an-expected-error-in-gip/)
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
