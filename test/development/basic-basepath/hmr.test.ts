@@ -384,7 +384,6 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent)
 
         await clickReloadOnFullRefreshWarning(browser)
-
         await check(
           () => getBrowserBodyText(browser),
           /This is the contact page/

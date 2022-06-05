@@ -672,8 +672,6 @@ export async function getRedboxSource(browser) {
               '#nextjs__container_errors_label, #nextjs__container_build_error_label'
             )
           )
-
-        console.log('portal', portal)
         const root = portal.shadowRoot
         return root
           .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')

@@ -37,7 +37,6 @@ describe('TypeScript HMR', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/hello')
-        // Don't show full refresh warnings
         await ignoreFullRefreshWarnings(browser)
         await check(() => getBrowserBodyText(browser), /Hello World/)
 
