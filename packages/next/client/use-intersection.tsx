@@ -23,7 +23,7 @@ type Observer = {
   elements: Map<Element, ObserveCallback>
 }
 
-const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
+const hasIntersectionObserver = typeof IntersectionObserver === 'function'
 
 export function useIntersection<T extends Element>({
   rootRef,
