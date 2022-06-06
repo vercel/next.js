@@ -362,6 +362,14 @@ function tests(context, locale = '') {
       `/_next/data/${context.buildId}/en/ssr-page-2.json`
     )
   })
+
+  it(`hard-navigates when the data request failed`, async () => {
+    const browser = await webdriver(context.appPort, `/error`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#throw-on-data').click()
+    await browser.waitForElementByCss('.refreshed')
+    expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
+  })
 }
 
 function readMiddlewareJSON(response) {
