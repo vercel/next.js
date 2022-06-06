@@ -36,6 +36,18 @@ export async function adapter(params: {
     },
   })
 
+  /**
+   * This allows to identify the request as a data request. The user doesn't
+   * need to know about this property neither use it. We add it for testing
+   * purposes.
+   */
+  if (buildId) {
+    Object.defineProperty(request, '__isData', {
+      enumerable: false,
+      value: true,
+    })
+  }
+
   const event = new NextFetchEvent({ request, page: params.page })
   const response = await params.handler(request, event)
 

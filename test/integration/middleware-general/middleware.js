@@ -173,6 +173,10 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
+  if (url.pathname === '/error-throw' && request.__isData) {
+    throw new Error('test error')
+  }
+
   const response = NextResponse.next()
   const original = new URL(request.url)
   response.headers.set('req-url-path', `${original.pathname}${original.search}`)
