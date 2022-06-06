@@ -67,6 +67,7 @@ For the initial page load, `getInitialProps` will run on the server only. `getIn
 
 - `getInitialProps` can **not** be used in children components, only in the default export of every page
 - If you are using server-side only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules), otherwise it'll slow down your app
+- Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side. Make sure that you don't pass any sensitive information via `props`.
 
 ## TypeScript
 

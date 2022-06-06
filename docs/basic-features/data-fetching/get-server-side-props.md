@@ -14,6 +14,8 @@ export async function getServerSideProps(context) {
 }
 ```
 
+> Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side. Make sure that you don't pass any sensitive information via `props`.
+
 ## When does getServerSideProps run
 
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
