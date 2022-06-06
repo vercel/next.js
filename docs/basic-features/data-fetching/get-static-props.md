@@ -14,9 +14,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-<div class="card">
-   Note that any props that are passed to the page component can be viewed on the client-side. Make sure that you don't pass any sensitive information like `auth-keys`.
-</div>
+> Note that any props that are passed to the page component can be viewed on the client-side. Make sure that you don't pass any sensitive information like `auth-keys`.
 
 ## When should I use getStaticProps?
 
