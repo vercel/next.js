@@ -4,6 +4,8 @@ import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RouterEvent } from '../../../client/router'
+import type { RedirectEffect } from '../../../client/get-middleware-effects'
+import type { RewriteEffect } from '../../../client/get-middleware-effects'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
@@ -44,7 +46,7 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
-import { getMiddlewareEffects } from '../../../client/get-middleware-effects'
+import { withMiddlewareEffects } from '../../../client/get-middleware-effects'
 
 declare global {
   interface Window {
@@ -67,14 +69,6 @@ interface NextHistoryState {
   url: string
   as: string
   options: TransitionOptions
-}
-
-interface PreflightData {
-  cache?: string | null
-  redirect?: string | null
-  refresh?: boolean
-  rewrite?: string | null
-  ssr?: boolean
 }
 
 export type HistoryState =
@@ -482,6 +476,16 @@ function fetchNextData({
           .text()
           .then((text) => {
             if (!response.ok) {
+              /**
+               * When the data response is a redirect because of a middleware
+               * we do not consider it an error. The headers must bring the
+               * mapped location.
+               * TODO: Change the status code in the handler.
+               */
+              if (hasMiddleware && [301, 302, 308].includes(response.status)) {
+                return { dataHref, response, text, json: {} }
+              }
+
               if (response.status === 404) {
                 if (tryToParseAsJSON(text)?.notFound) {
                   return {
@@ -578,8 +582,6 @@ export default class Router implements BaseRouter {
   sdc: NextDataCache = {}
   // In-flight Server Data Requests, for deduping
   sdr: NextDataCache = {}
-  // In-flight middleware preflight requests
-  sde: { [asPath: string]: object } = {}
 
   sub: Subscription
   clc: ComponentLoadCancel
@@ -1154,49 +1156,15 @@ export default class Router implements BaseRouter {
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    /**
-     * If the route update was triggered for client-side hydration and
-     * the rendered route is not dynamic do not check the preflight
-     * request as it is not necessary.
-     */
-    if (
-      (!options.shallow || (options as any)._h === 1) &&
-      ((options as any)._h !== 1 ||
-        isDynamicRoute(removeTrailingSlash(pathname)))
-    ) {
-      const effect = await this._preflightRequest({
-        as,
-        cache: process.env.NODE_ENV === 'production',
-        pages,
-        pathname,
-        query,
-        locale: nextState.locale,
-        isPreview: nextState.isPreview,
-      })
-
-      if (effect.type === 'rewrite') {
-        query = { ...query, ...effect.parsedAs.query }
-        resolvedAs = effect.parsedAs.pathname
-        pathname = effect.resolvedHref
-        parsed.pathname = effect.resolvedHref
-        url = formatWithValidation(parsed)
-      } else if (effect.type === 'redirect' && 'newAs' in effect) {
-        return this.change(method, effect.newUrl, effect.newAs, options)
-      } else if (effect.type === 'redirect' && effect.destination) {
-        window.location.href = effect.destination
-        return new Promise(() => {})
-      } else if (effect.type === 'refresh' && as !== window.location.pathname) {
-        window.location.href = as
-        return new Promise(() => {})
-      }
-    }
-
     const route = removeTrailingSlash(pathname)
 
     if (isDynamicRoute(route)) {
-      const matchInfo = matchHrefAndAsPath({
-        href: { pathname, query },
+      const matchInfo = await this.matchHrefAndAsPath({
+        as,
         asPath: resolvedAs,
+        href: { pathname, query },
+        isServerRender: this.isSsr,
+        locale: nextState.locale,
       })
 
       if (matchInfo.error) {
@@ -1243,6 +1211,17 @@ export default class Router implements BaseRouter {
         locale: nextState.locale,
         isPreview: nextState.isPreview,
       })
+
+      // If the routeInfo brings a redirect we simply apply it.
+      if ('type' in routeInfo) {
+        if ('newAs' in routeInfo) {
+          return this.change(method, routeInfo.newUrl, routeInfo.newAs, options)
+        } else {
+          window.location.href = routeInfo.destination
+          return new Promise(() => {})
+        }
+      }
+
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       const component: any = routeInfo.Component
@@ -1310,6 +1289,10 @@ export default class Router implements BaseRouter {
             locale: nextState.locale,
             isPreview: nextState.isPreview,
           })
+
+          if ('type' in routeInfo) {
+            throw new Error(`Unexpected middleware effect on /404`)
+          }
         }
       }
 
@@ -1508,9 +1491,9 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
     locale: string | undefined
     isPreview: boolean
-  }): Promise<PrivateRouteInfo> {
+  }): Promise<PrivateRouteInfo | RedirectEffect> {
     try {
-      const existingInfo: PrivateRouteInfo | undefined = this.components[route]
+      let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
@@ -1521,6 +1504,49 @@ export default class Router implements BaseRouter {
         process.env.NODE_ENV !== 'development'
           ? existingInfo
           : undefined
+
+      const data = await this.withMiddlewareEffects({
+        fetchData: () =>
+          fetchNextData({
+            dataHref: this.pageLoader.getDataHref({
+              href: formatWithValidation({ pathname, query }),
+              asPath: resolvedAs,
+              locale,
+            }),
+            hasMiddleware: true,
+            isServerRender: this.isSsr,
+            parseJSON: true,
+            inflightCache: cachedRouteInfo?.__N_SSG ? this.sdc : this.sdr,
+            persistCache: !!cachedRouteInfo?.__N_SSG && !isPreview,
+            isPrefetch: false,
+          }),
+        asPath: resolvedAs,
+        locale,
+      })
+
+      if (data?.effect?.type === 'redirect') {
+        return data.effect
+      }
+
+      if (data?.effect?.type === 'rewrite') {
+        route = removeTrailingSlash(data.effect.resolvedHref)
+        pathname = data.effect.resolvedHref
+        query = { ...query, ...data.effect.parsedAs.query }
+        resolvedAs = data.effect.parsedAs.pathname
+
+        // Check again the cache with the new destination.
+        existingInfo = this.components[route]
+        if (routeProps.shallow && existingInfo && this.route === route) {
+          return existingInfo
+        }
+
+        cachedRouteInfo =
+          existingInfo &&
+          !('initial' in existingInfo) &&
+          process.env.NODE_ENV !== 'development'
+            ? existingInfo
+            : undefined
+      }
 
       const routeInfo =
         cachedRouteInfo ||
@@ -1557,18 +1583,20 @@ export default class Router implements BaseRouter {
 
       const { props } = await this._getData(async () => {
         if (shouldFetchData && !useStreamedFlightData) {
-          const { json } = await fetchNextData({
-            dataHref: this.pageLoader.getDataHref({
-              href: formatWithValidation({ pathname, query }),
-              asPath: resolvedAs,
-              locale,
-            }),
-            isServerRender: this.isSsr,
-            parseJSON: true,
-            inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
-            persistCache: !!routeInfo.__N_SSG && !isPreview,
-            isPrefetch: false,
-          })
+          const { json } =
+            data ||
+            (await fetchNextData({
+              dataHref: this.pageLoader.getDataHref({
+                href: formatWithValidation({ pathname, query }),
+                asPath: resolvedAs,
+                locale,
+              }),
+              isServerRender: this.isSsr,
+              parseJSON: true,
+              inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
+              persistCache: !!routeInfo.__N_SSG && !isPreview,
+              isPrefetch: false,
+            }))
 
           return {
             props: json,
@@ -1644,6 +1672,75 @@ export default class Router implements BaseRouter {
         })
       )(cleanedAs)
     })
+  }
+
+  private async matchHrefAndAsPath(params: {
+    as: string
+    asPath: string
+    effect?: RewriteEffect
+    href: { pathname: string; query: ParsedUrlQuery }
+    isServerRender: boolean
+    locale?: string
+  }) {
+    const result = matchHrefAndAsPath(params)
+    if (result.error === 'mismatch') {
+      const data = await this.withMiddlewareEffects({
+        fetchData: () =>
+          fetchNextData({
+            dataHref: this.pageLoader.getDataHref({
+              asPath: params.asPath,
+              href: params.as,
+              locale: params.locale,
+            }),
+            hasMiddleware: true,
+            isServerRender: params.isServerRender,
+            parseJSON: true,
+            inflightCache: {},
+            persistCache: false,
+            isPrefetch: false,
+          }),
+        asPath: params.asPath,
+        locale: params.locale,
+      })
+
+      if (data?.effect?.type === 'rewrite') {
+        return {
+          effect: data.effect,
+          ...matchHrefAndAsPath({
+            asPath: data.effect.parsedAs.pathname,
+            href: {
+              pathname: data.effect.resolvedHref,
+              query: { ...params.href.query, ...data.effect.parsedAs.query },
+            },
+          }),
+        }
+      }
+    }
+    return result
+  }
+
+  private async withMiddlewareEffects(params: {
+    fetchData: () => Promise<FetchDataOutput>
+    locale?: string
+    asPath: string
+  }) {
+    if (await this.matchesMiddleware(params.asPath, params.locale)) {
+      return withMiddlewareEffects(params.fetchData(), {
+        pages: await this.pageLoader.getPageList(),
+        nextConfig: {
+          basePath: this.basePath,
+          i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
+          trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        },
+      }).catch(() => {
+        // TODO: Revisit this in the future.
+        // For now we will not consider middleware data errors to be fatal.
+        // maybe we should revisit in the future.
+        return null
+      })
+    }
+
+    return null
   }
 
   private set(
@@ -1797,22 +1894,48 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const effects = await this._preflightRequest({
-      as: addBasePath(asPath),
-      cache: true,
-      pages,
-      pathname,
-      query,
-      locale: this.locale,
-      isPreview: this.isPreview,
+    const locale =
+      typeof options.locale !== 'undefined'
+        ? options.locale || undefined
+        : this.locale
+
+    const data = await this.withMiddlewareEffects({
+      fetchData: () =>
+        fetchNextData({
+          dataHref: this.pageLoader.getDataHref({
+            href: formatWithValidation({ pathname, query }),
+            asPath: resolvedAs,
+            locale,
+          }),
+          hasMiddleware: true,
+          isServerRender: this.isSsr,
+          parseJSON: true,
+          inflightCache: this.sdr,
+          persistCache: false,
+          isPrefetch: false,
+        }),
+      asPath,
+      locale,
     })
 
-    if (effects.type === 'rewrite') {
-      parsed.pathname = effects.resolvedHref
-      pathname = effects.resolvedHref
-      query = { ...query, ...effects.parsedAs.query }
-      resolvedAs = effects.parsedAs.pathname
+    /**
+     * If there was a rewrite we apply the effects of the rewrite on the
+     * current parameters for the prefetch.
+     */
+    if (data?.effect.type === 'rewrite') {
+      parsed.pathname = data.effect.resolvedHref
+      pathname = data.effect.resolvedHref
+      query = { ...query, ...data.effect.parsedAs.query }
+      resolvedAs = data.effect.parsedAs.pathname
       url = formatWithValidation(parsed)
+    }
+
+    /**
+     * If there is a redirect to an external destination then we don't have
+     * to prefetch content as it will be unused.
+     */
+    if (data?.effect.type === 'redirect' && 'destination' in data.effect) {
+      return
     }
 
     const route = removeTrailingSlash(pathname)
@@ -1824,10 +1947,7 @@ export default class Router implements BaseRouter {
               dataHref: this.pageLoader.getDataHref({
                 href: url,
                 asPath: resolvedAs,
-                locale:
-                  typeof options.locale !== 'undefined'
-                    ? options.locale
-                    : this.locale,
+                locale: locale,
               }),
               isServerRender: false,
               parseJSON: true,
@@ -1905,101 +2025,6 @@ export default class Router implements BaseRouter {
       persistCache: false,
       isPrefetch: false,
     }).then(({ text }) => ({ data: text }))
-  }
-
-  async _preflightRequest(options: {
-    as: string
-    cache?: boolean
-    pages: string[]
-    pathname: string
-    query: ParsedUrlQuery
-    locale: string | undefined
-    isPreview: boolean
-  }) {
-    const matches = await this.matchesMiddleware(options.as, options.locale)
-    if (!matches) {
-      return { type: 'next' as const }
-    }
-
-    let preflight: PreflightData | undefined
-
-    try {
-      preflight = await this._getPreflightData({
-        isPreview: options.isPreview,
-        preflightHref: addLocale(options.as, options.locale),
-        shouldCache: options.cache,
-      })
-    } catch (err) {
-      // If preflight request fails, we need to do a hard-navigation.
-      return {
-        type: 'redirect' as const,
-        destination: options.as,
-      }
-    }
-
-    if (preflight.refresh && !preflight.ssr) {
-      return {
-        type: 'refresh' as const,
-      }
-    }
-
-    return getMiddlewareEffects(preflight, {
-      nextConfig: {
-        basePath: this.basePath,
-        i18n: { locales: this.locales },
-        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
-      },
-      pages: await this.pageLoader.getPageList(),
-      source: options.as,
-    })
-  }
-
-  _getPreflightData(params: {
-    preflightHref: string
-    shouldCache?: boolean
-    isPreview: boolean
-  }): Promise<PreflightData> {
-    const { preflightHref, shouldCache = false, isPreview } = params
-    const { href: cacheKey } = new URL(preflightHref, window.location.href)
-
-    if (
-      process.env.NODE_ENV === 'production' &&
-      !isPreview &&
-      shouldCache &&
-      this.sde[cacheKey]
-    ) {
-      return Promise.resolve(this.sde[cacheKey])
-    }
-
-    return fetch(preflightHref, {
-      method: 'HEAD',
-      credentials: 'same-origin',
-      headers: { 'x-middleware-preflight': '1' },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to preflight request`)
-        }
-
-        return {
-          cache: res.headers.get('x-middleware-cache'),
-          redirect: res.headers.get('Location'),
-          refresh: res.headers.has('x-middleware-refresh'),
-          rewrite: res.headers.get('x-middleware-rewrite'),
-          ssr: !!res.headers.get('x-middleware-ssr'),
-        }
-      })
-      .then((data) => {
-        if (shouldCache && data.cache !== 'no-cache') {
-          this.sde[cacheKey] = data
-        }
-
-        return data
-      })
-      .catch((err) => {
-        delete this.sde[cacheKey]
-        throw err
-      })
   }
 
   getInitialProps(

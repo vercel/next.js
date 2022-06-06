@@ -5,6 +5,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -72,11 +73,12 @@ function tests(context) {
 
     expect(
       res.headers
-        .get('location')
+        .get('x-nextjs-redirect')
         ?.endsWith(
           `/_next/data/${context.buildId}/es/new-home.json?override=internal`
         )
     ).toEqual(true)
+    expect(res.headers.get('location')).toEqual(null)
   })
 
   it(`should redirect to external urls with data requests and external redirects`, async () => {
@@ -87,7 +89,15 @@ function tests(context) {
       { redirect: 'manual' }
     )
 
-    expect(res.headers.get('location')).toEqual('https://example.com/')
+    expect(res.headers.get('x-nextjs-redirect')).toEqual('https://example.com/')
+    expect(res.headers.get('location')).toEqual(null)
+
+    const browser = await webdriver(context.appPort, '/')
+    await browser.elementByCss('#old-home-external').click()
+    await check(async () => {
+      expect(await browser.elementByCss('h1').text()).toEqual('Example Domain')
+      return 'yes'
+    }, 'yes')
   })
 }
 
