@@ -223,7 +223,7 @@ export function middleware() {
 
 ### Summary of changes
 
-- Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) to check if a Middleware is being invoked for a certain page match
+- Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) to check if a Middleware is being invoked for a certain page match
 
 ### Explanation
 
