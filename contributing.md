@@ -114,8 +114,6 @@ pnpm lint-fix
 Running examples can be done with:
 
 ```sh
-pnpm next ./test/integration/basic
-# OR
 pnpm next ./examples/basic-css/
 ```
 
