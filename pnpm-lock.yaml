@@ -354,7 +354,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.1.7-canary.30
+      '@next/eslint-plugin-next': 12.1.7-canary.31
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -410,12 +410,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.1.7-canary.30
-      '@next/polyfill-module': 12.1.7-canary.30
-      '@next/polyfill-nomodule': 12.1.7-canary.30
-      '@next/react-dev-overlay': 12.1.7-canary.30
-      '@next/react-refresh-utils': 12.1.7-canary.30
-      '@next/swc': 12.1.7-canary.30
+      '@next/env': 12.1.7-canary.31
+      '@next/polyfill-module': 12.1.7-canary.31
+      '@next/polyfill-nomodule': 12.1.7-canary.31
+      '@next/react-dev-overlay': 12.1.7-canary.31
+      '@next/react-refresh-utils': 12.1.7-canary.31
+      '@next/swc': 12.1.7-canary.31
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
       '@taskr/watch': 1.1.0
@@ -9598,7 +9598,7 @@ packages:
     dev: true
 
   /concat-map/0.0.1:
-    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
+    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
 
   /concat-stream/1.6.2:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
@@ -12491,7 +12491,7 @@ packages:
     dev: true
 
   /fs.realpath/1.0.0:
-    resolution: {integrity: sha1-FQStJSMVjKpA20onh8sBQRmU6k8=}
+    resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
   /fsevents/1.2.11:
     resolution: {integrity: sha512-+ux3lx6peh0BpvY0JebGyZoiR4D+oYzdPZMKJwkZ+sFkNJzpL7tXc/wehS49gUAxg3tmMHPHZkA8JU2rhhgDHw==}
@@ -13687,7 +13687,7 @@ packages:
     dev: true
 
   /inflight/1.0.6:
-    resolution: {integrity: sha1-Sb1jMdfQLQwJvJEKEHW6gWW1bfk=}
+    resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
     dependencies:
       once: 1.4.0
       wrappy: 1.0.2
@@ -17437,7 +17437,7 @@ packages:
     dev: true
 
   /once/1.4.0:
-    resolution: {integrity: sha1-WDsap3WWHUsROsF9nFC6753Xa9E=}
+    resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
     dependencies:
       wrappy: 1.0.2
 
@@ -18002,7 +18002,7 @@ packages:
     engines: {node: '>=8'}
 
   /path-is-absolute/1.0.1:
-    resolution: {integrity: sha1-F0uSaHNVNP+8es5r9TpanhtcX18=}
+    resolution: {integrity: sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==}
     engines: {node: '>=0.10.0'}
 
   /path-key/1.0.0:
