@@ -16,7 +16,6 @@ import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
@@ -164,6 +163,8 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
+      const AmpHtmlValidator =
+        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
@@ -270,7 +271,7 @@ export default class DevServer extends Server {
         }
       })
 
-      let wp = (this.webpackWatcher = new Watchpack())
+      const wp = (this.webpackWatcher = new Watchpack())
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
@@ -282,6 +283,7 @@ export default class DevServer extends Server {
 
       wp.on('aggregated', async () => {
         const routedMiddleware: string[] = []
+        let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
@@ -307,8 +309,15 @@ export default class DevServer extends Server {
             extensions: this.nextConfig.pageExtensions,
           })
 
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: this.nextConfig,
+            page: rootFile,
+          })
+
           if (rootFile === MIDDLEWARE_FILE) {
-            routedMiddleware.push(`/`)
+            middlewareMatcher = staticInfo.middleware?.pathMatcher
+            routedMiddleware.push('/')
             continue
           }
 
@@ -343,11 +352,6 @@ export default class DevServer extends Server {
             continue
           }
 
-          const staticInfo = await getPageStaticInfo({
-            pageFilePath: fileName,
-            nextConfig: this.nextConfig,
-          })
-
           runDependingOnPageType({
             page: pageName,
             pageRuntime: staticInfo.runtime,
@@ -362,13 +366,19 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-          match: getRouteMatcher(
-            getMiddlewareRegex(page, { catchAll: !ssrMiddleware.has(page) })
-          ),
-          page,
-          ssr: ssrMiddleware.has(page),
-        }))
+        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
+          return {
+            match: getRouteMatcher(
+              page === '/' && middlewareMatcher
+                ? { re: middlewareMatcher, groups: {} }
+                : getMiddlewareRegex(page, {
+                    catchAll: !ssrMiddleware.has(page),
+                  })
+            ),
+            page,
+            ssr: ssrMiddleware.has(page),
+          }
+        })
 
         try {
           // we serve a separate manifest with all pages for the client in
