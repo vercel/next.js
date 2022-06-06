@@ -37,7 +37,6 @@ import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -47,16 +46,14 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { ClientEntryPlugin } from './webpack/plugins/client-entry-plugin'
-import {
+import type {
   Feature,
   SWC_TARGET_TRIPLE,
-  TelemetryPlugin,
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
-import { getMiddlewareSourceMapPlugins } from './webpack/plugins/middleware-source-maps-plugin'
 import { loadBindings } from './swc'
 
 const watchOptions = Object.freeze({
@@ -357,6 +354,7 @@ export default async function getBaseWebpackConfig(
     dir,
     config
   )
+
   const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
   const hasRewrites =
@@ -607,21 +605,21 @@ export default async function getBaseWebpackConfig(
 
   if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
-      ...config.pageExtensions.reduce((prev, ext) => {
+      ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_app.js',
     ]
     customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
-      ...config.pageExtensions.reduce((prev, ext) => {
+      ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_error.${ext}`))
         return prev
       }, [] as string[]),
       'next/dist/pages/_error.js',
     ]
     customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
-      ...config.pageExtensions.reduce((prev, ext) => {
+      ...rawPageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
@@ -1428,7 +1426,7 @@ export default async function getBaseWebpackConfig(
       isEdgeServer &&
       !!config.experimental.middlewareSourceMaps &&
       !config.productionBrowserSourceMaps
-        ? getMiddlewareSourceMapPlugins()
+        ? require('./webpack/plugins/middleware-source-maps-plugin').getMiddlewareSourceMapPlugins()
         : []),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
@@ -1571,12 +1569,14 @@ export default async function getBaseWebpackConfig(
         !isLikeServerless &&
         (isNodeServer || isEdgeServer) &&
         !dev &&
-        new TraceEntryPointsPlugin({
-          appDir: dir,
-          esmExternals: config.experimental.esmExternals,
-          staticImageImports: !config.images.disableStaticImages,
-          outputFileTracingRoot: config.experimental.outputFileTracingRoot,
-        }),
+        new (require('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
+          {
+            appDir: dir,
+            esmExternals: config.experimental.esmExternals,
+            staticImageImports: !config.images.disableStaticImages,
+            outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+          }
+        ),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -1593,7 +1593,11 @@ export default async function getBaseWebpackConfig(
             const {
               NextJsRequireCacheHotReloader,
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
-            const devPlugins = [new NextJsRequireCacheHotReloader()]
+            const devPlugins = [
+              new NextJsRequireCacheHotReloader({
+                hasServerComponents: config.experimental.serverComponents,
+              }),
+            ]
 
             if (isClient || isEdgeServer) {
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
@@ -1667,7 +1671,7 @@ export default async function getBaseWebpackConfig(
             })),
       !dev &&
         isClient &&
-        new TelemetryPlugin(
+        new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
           new Map(
             [
               ['swcLoader', useSWCLoader],
@@ -1791,7 +1795,7 @@ export default async function getBaseWebpackConfig(
 
   const configVars = JSON.stringify({
     crossOrigin: config.crossOrigin,
-    pageExtensions: config.pageExtensions,
+    pageExtensions: rawPageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
@@ -2289,6 +2293,7 @@ export default async function getBaseWebpackConfig(
           value: entry[name],
           compilerType,
           name,
+          appDir: config.experimental.appDir,
         })
       }
 

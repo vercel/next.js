@@ -22,6 +22,7 @@ export interface RouteMeta {
 
 export interface EdgeMiddlewareMeta {
   page: string
+  matcherRegexp?: string
 }
 
 export interface EdgeSSRMeta {

@@ -114,8 +114,6 @@ pnpm lint-fix
 Running examples can be done with:
 
 ```sh
-pnpm next ./test/integration/basic
-# OR
 pnpm next ./examples/basic-css/
 ```
 
@@ -161,7 +159,7 @@ There are two options to develop with your local version of the codebase:
 3. In your app's root directory, run:
 
    ```sh
-   yarn
+   pnpm i
    ```
 
    to re-install all of the dependencies.

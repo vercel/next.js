@@ -1,6 +1,6 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import { DeprecationError } from './error'
+import { DeprecationSignatureError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
@@ -23,7 +23,6 @@ export async function adapter(params: {
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
-      page: params.request.page,
     },
   })
 
@@ -97,14 +96,14 @@ class NextRequestHint extends NextRequest {
   }
 
   get request() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 
   respondWith() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 
   waitUntil() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 }

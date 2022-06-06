@@ -154,11 +154,14 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
+  middleware?: { pathMatcher?: RegExp }
 }) {
   if (opts.page === MIDDLEWARE_FILE) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      matcherRegexp:
+        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -327,6 +330,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         nextConfig: config,
         pageFilePath,
         isDev,
+        page,
       })
 
       runDependingOnPageType({
@@ -376,6 +380,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isDev: false,
             isServerComponent,
             page,
+            middleware: staticInfo?.middleware,
           })
         },
       })
@@ -432,11 +437,13 @@ export function finalizeEntrypoint({
   compilerType,
   value,
   isServerComponent,
+  appDir,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
+  appDir?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -471,11 +478,19 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
+    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    if (appDir && entry.import.includes('flight')) {
+      return {
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        ...entry,
+      }
+    }
+
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
-          : 'main',
+          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
       ...entry,
     }
   }

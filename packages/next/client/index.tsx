@@ -30,7 +30,6 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
@@ -675,6 +674,7 @@ if (process.env.__NEXT_RSC) {
     createFromFetch,
     createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
+  const { RefreshContext } = require('./streaming/refresh')
 
   const encoder = new TextEncoder()
 

@@ -4,7 +4,7 @@
 
 Your [`middleware`](https://nextjs.org/docs/advanced-features/middleware) function returns a response body, which is not supported.
 
-Letting middleware respond to incoming requests would bypass Next.js routing mechanism, creating an unecessary escape hatch.
+Letting middleware respond to incoming requests would bypass Next.js routing mechanism, creating an unnecessary escape hatch.
 
 #### Possible Ways to Fix It
 
@@ -51,7 +51,9 @@ It is intended for use cases like:
       }
     }
 
-    return NextResponse.redirect(`/login?from=${req.nextUrl.pathname}`)
+    return NextResponse.redirect(
+      new URL(`/login?from=${req.nextUrl.pathname}`, req.url)
+    )
   }
   ```
 
@@ -78,7 +80,7 @@ It is intended for use cases like:
       headers: { 'response-greetings': 'Hej!' },
     })
     // configures cookies
-    response.cookies.set('hello', 'world')
+    res.cookies.set('hello', 'world')
     return res
   }
   ```
