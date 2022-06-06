@@ -1,15 +1,14 @@
-use std::ffi::OsStr;
-use std::ops::Deref;
-use std::path::Path;
+use std::collections::HashSet;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::Value;
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 
 use crate::{
+    asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},
@@ -85,8 +84,8 @@ pub async fn resolve_node_pre_gyp_files(
             Regex::new(r"\{libc\}").expect("create node_libc regex failed");
     }
     let config = resolve_raw(context, config_file_pattern, true).await?;
-    if let ResolveResult::Single(ref config_path, _) = config.deref() {
-        if let FileContent::Content(ref config_file) = config_path.content().await?.deref() {
+    if let ResolveResult::Single(ref config_path, _) = &*config {
+        if let FileContent::Content(ref config_file) = &*config_path.content().await? {
             let config_file_path = config_path.path();
             let config_file_dir = config_file_path.parent();
             let node_pre_gyp_config: NodePreGypConfigJson =
@@ -121,15 +120,17 @@ pub async fn resolve_node_pre_gyp_files(
                         )
                         .as_str(),
                     );
-                    AffectingResolvingAssetReferenceVc::new(resolved_file_vc).into()
+                    SourceAssetVc::new(resolved_file_vc.into()).into()
                 })
                 .collect();
-            return Ok(
-                ResolveResult::Single(SourceAssetVc::new(config_file_path).into(), assets).into(),
-            );
+            return Ok(ResolveResult::Alternatives(
+                assets,
+                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
+            )
+            .into());
         };
     }
-    Ok(ResolveResult::Unresolveable(vec![]).into())
+    Ok(ResolveResult::unresolveable().into())
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -164,17 +165,20 @@ pub async fn resolve_node_gyp_build_files(
     compile_target: Value<CompileTarget>,
 ) -> Result<ResolveResultVc> {
     lazy_static! {
-        static ref GYP_BUILD_TARGET_NAME: Regex = Regex::new(r#""target_name": "(.*?)""#)
-            .expect("create napi_build_version regex failed");
+        static ref GYP_BUILD_TARGET_NAME: Regex =
+            Regex::new(r#"['"]target_name['"]\s*:\s*(?:"(.*?)"|'(.*?)')"#)
+                .expect("create napi_build_version regex failed");
     }
     let binding_gyp_pat = PatternVc::new(Pattern::Constant("binding.gyp".to_owned()));
     let gyp_file = resolve_raw(context, binding_gyp_pat, true).await?;
-    if let ResolveResult::Single(ref binding_gyp, _) = gyp_file.deref() {
-        if let FileContent::Content(ref config_file) = binding_gyp.content().await?.deref() {
+    if let ResolveResult::Single(binding_gyp, gyp_file_references) = &*gyp_file {
+        let mut merged_references = gyp_file_references.clone();
+        if let FileContent::Content(config_file) = &*binding_gyp.content().await? {
             if let Some(captured) =
                 GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
             {
-                if let Some(found) = captured.get(1) {
+                let mut resolved: HashSet<AssetVc> = HashSet::with_capacity(captured.len());
+                for found in captured.iter().skip(1).filter_map(|capture| capture) {
                     let name = found.as_str();
                     let target_path = context.join("build").join("Release");
                     let resolved_prebuilt_file = resolve_raw(
@@ -183,10 +187,13 @@ pub async fn resolve_node_gyp_build_files(
                         true,
                     )
                     .await?;
-                    if let ResolveResult::Single(file, references) = resolved_prebuilt_file.deref()
-                    {
-                        return Ok(ResolveResult::Single(*file, references.to_owned()).into());
+                    if let ResolveResult::Single(file, references) = &*resolved_prebuilt_file {
+                        resolved.insert(SourceAssetVc::new(file.path().into()).into());
+                        merged_references.extend_from_slice(references);
                     }
+                }
+                if !resolved.is_empty() {
+                    return Ok(ResolveResult::Alternatives(resolved, merged_references).into());
                 }
             }
         }
@@ -194,25 +201,14 @@ pub async fn resolve_node_gyp_build_files(
     let arch = compile_target.arch();
     let platform = compile_target.platform();
     let prebuilt_dir = format!("{}-{}", platform, arch);
-    if let DirectoryContent::Entries(entries) = context
-        .join("prebuilds")
-        .join(&prebuilt_dir)
-        .read_dir()
-        .await?
-        .deref()
-    {
-        let references = entries
-            .iter()
-            .filter_map(|(name, entry)| {
-                if let DirectoryEntry::File(file) = entry {
-                    if Path::new(name).extension() == Some(OsStr::new("node")) {
-                        return Some(AffectingResolvingAssetReferenceVc::new(*file).into());
-                    }
-                }
-                None
-            })
-            .collect::<Vec<_>>();
-        return Ok(ResolveResult::Unresolveable(references).into());
-    };
-    Ok(ResolveResult::Unresolveable(vec![]).into())
+    Ok(resolve_raw(
+        context,
+        Pattern::Concatenation(vec![
+            Pattern::Constant(format!("prebuilds/{}/", prebuilt_dir)),
+            Pattern::Dynamic,
+            Pattern::Constant(".node".to_owned()),
+        ])
+        .into(),
+        true,
+    ))
 }

@@ -53,7 +53,7 @@ use turbopack::{
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", false))]
 // Could not find ffmpeg executable
 // #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
 // #[case::firebase("integration/firebase.js", false)] // hanging
