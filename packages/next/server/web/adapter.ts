@@ -100,6 +100,19 @@ export async function adapter(params: {
       redirectURL.buildId = buildId || redirectURL.buildId
       response.headers.set('Location', String(redirectURL))
     }
+
+    /**
+     * When the request is a data request we can't use the location header as
+     * it may end up with CORS error. Instead we map to an internal header so
+     * the client knows the destination.
+     */
+    if (buildId) {
+      response.headers.delete('Location')
+      response.headers.set(
+        'x-nextjs-redirect',
+        relativizeURL(String(redirectURL), String(requestUrl))
+      )
+    }
   }
 
   return {

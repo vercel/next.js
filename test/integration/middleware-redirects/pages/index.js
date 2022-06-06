@@ -8,6 +8,10 @@ export default function Home() {
         <a id="old-home">Redirect me to a new version of a page</a>
       </Link>
       <div />
+      <Link href="/old-home?override=external">
+        <a id="old-home-external">Redirect me to an external site</a>
+      </Link>
+      <div />
       <Link href="/blank-page?foo=bar">
         <a>Redirect me with URL params intact</a>
       </Link>

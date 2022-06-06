@@ -1,80 +1,122 @@
 import type { ParsedRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
+import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+import { parsePath } from '../shared/lib/router/utils/parse-path'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { resolveDynamicRoute } from './resolve-dynamic-route'
 
-type PreflightEffect =
-  | { type: 'rewrite'; parsedAs: ParsedRelativeUrl; resolvedHref: string }
-  | { type: 'redirect'; newUrl: string; newAs: string }
-  | { type: 'redirect'; destination: string }
-  | { type: 'next' }
+export async function withMiddlewareEffects<T extends DataOutput>(
+  promise: Promise<T>,
+  options: Params
+) {
+  const dataOutput = await promise
+  return {
+    ...dataOutput,
+    effect: getMiddlewareDataFromDataResponse(
+      dataOutput.dataHref,
+      dataOutput.response,
+      options
+    ),
+  }
+}
 
-interface Options {
-  source: string
-  nextConfig: {
+interface DataOutput {
+  dataHref: string
+  response: Response
+}
+
+interface Params {
+  nextConfig?: {
     basePath?: string
-    i18n?: { locales?: string[] }
+    i18n?: { locales?: string[]; defaultLocale?: string }
     trailingSlash?: boolean
   }
   pages: string[]
 }
 
-export function getMiddlewareEffects(
-  preflightData: { redirect?: string | null; rewrite?: string | null },
-  options: Options
-): PreflightEffect {
-  if (preflightData.rewrite) {
-    if (!preflightData.rewrite.startsWith('/')) {
+export type RedirectEffect =
+  | { type: 'redirect'; newAs: string; newUrl: string }
+  | { type: 'redirect'; destination: string }
+
+export type RewriteEffect = {
+  parsedAs: ParsedRelativeUrl
+  resolvedHref: string
+  type: 'rewrite'
+}
+
+export type NextEffect = {
+  type: 'next'
+}
+
+function getMiddlewareDataFromDataResponse(
+  source: string,
+  response: Response,
+  options: Params
+): RewriteEffect | RedirectEffect | NextEffect {
+  const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  if (rewriteTarget) {
+    if (rewriteTarget.startsWith('/')) {
+      const parsedRewrite = parseDestination(rewriteTarget, options)
       return {
-        type: 'redirect' as const,
-        destination: options.source,
+        type: 'rewrite' as const,
+        parsedAs: parsedRewrite.parsed,
+        resolvedHref: parsedRewrite.resolvedHref,
       }
     }
 
-    const parsedRewrite = parseDestination(preflightData.rewrite, options)
+    const src = parsePath(source)
+    const pathname = formatNextPathnameInfo({
+      ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
+      defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+      buildId: '',
+    })
+
     return {
-      type: 'rewrite' as const,
-      parsedAs: parsedRewrite.parsed,
-      resolvedHref: parsedRewrite.resolvedHref,
+      type: 'redirect' as const,
+      destination: `${pathname}${src.query}${src.hash}`,
     }
   }
 
-  if (preflightData.redirect) {
-    if (!preflightData.redirect.startsWith('/')) {
+  const redirectTarget = response.headers.get('x-nextjs-redirect')
+  if (redirectTarget) {
+    if (redirectTarget.startsWith('/')) {
+      const src = parsePath(redirectTarget)
+      const pathname = formatNextPathnameInfo({
+        ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
+        defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+        buildId: '',
+      })
+
       return {
         type: 'redirect' as const,
-        destination: preflightData.redirect,
+        newAs: `${pathname}${src.query}${src.hash}`,
+        newUrl: `${pathname}${src.query}${src.hash}`,
       }
     }
 
     return {
       type: 'redirect' as const,
-      newAs: preflightData.redirect,
-      newUrl: preflightData.redirect,
+      destination: redirectTarget,
     }
   }
 
-  return {
-    type: 'next' as const,
-  }
+  return { type: 'next' as const }
 }
 
-function parseDestination(destination: string, options: Options) {
+function parseDestination(destination: string, options: Params) {
   const parsed = parseRelativeUrl(destination)
-  const info = getNextPathnameInfo(parsed.pathname, {
+  const pathnameInfo = getNextPathnameInfo(parsed.pathname, {
     nextConfig: options.nextConfig,
     parseData: true,
   })
 
-  parsed.pathname = info.pathname
-  const fsPathname = removeTrailingSlash(info.pathname)
-  const resolvedHref = !options.pages.includes(fsPathname)
-    ? resolveDynamicRoute(fsPathname, options.pages)
-    : fsPathname
-
+  parsed.pathname = pathnameInfo.pathname
+  const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
   return {
-    resolvedHref,
+    resolvedHref: !options.pages.includes(fsPathname)
+      ? resolveDynamicRoute(fsPathname, options.pages)
+      : fsPathname,
     parsed,
   }
 }
