@@ -5,7 +5,6 @@ import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
-import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 
 export async function adapter(params: {
@@ -57,7 +56,7 @@ export async function adapter(params: {
 
   return {
     response: response || NextResponse.next(),
-    waitUntil: Promise.all(event[waitUntilSymbol]),
+    waitUntil: Promise.all(event.awaiting),
   }
 }
 
