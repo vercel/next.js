@@ -706,7 +706,11 @@ export default class NextNodeServer extends BaseServer {
           },
         }
       } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
+        // we should only not throw if the error is a ENOENT
+        // when attempting to find the page path
+        if (isError(err) && !(err.code === 'ENOENT' && 'page' in err)) {
+          throw err
+        }
       }
     }
     return null

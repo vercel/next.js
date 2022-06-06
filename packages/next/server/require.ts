@@ -15,6 +15,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
   err.code = 'ENOENT'
+  err.page = page
   return err
 }
 
