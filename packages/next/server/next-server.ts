@@ -1431,6 +1431,12 @@ function getMiddlewareMatcher(
     return stored
   }
 
+  if (typeof info.regexp !== 'string' || !info.regexp) {
+    throw new Error(
+      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+    )
+  }
+
   const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
   MiddlewareMatcherCache.set(info, matcher)
   return matcher
