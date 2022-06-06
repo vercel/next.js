@@ -324,6 +324,7 @@ export default async function getBaseWebpackConfig(
     dev = false,
     entrypoints,
     hasReactRoot,
+    isNextScriptImported = false,
     isDevFallback = false,
     pagesDir,
     reactProductionProfiling = false,
@@ -338,6 +339,7 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack5.EntryObject
     hasReactRoot: boolean
+    isNextScriptImported?: boolean
     isDevFallback?: boolean
     pagesDir: string
     reactProductionProfiling?: boolean
@@ -1507,6 +1509,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCRIPT_WORKERS': JSON.stringify(
           config.experimental.nextScriptWorkers && !dev
         ),
+        'process.env.__NEXT_SCRIPT_IMPORTED':
+          JSON.stringify(isNextScriptImported),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),

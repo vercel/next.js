@@ -79,6 +79,7 @@ import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
+import { checkNextScriptImport } from './check-next-script-import'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal } from '../trace'
@@ -354,6 +355,12 @@ export default async function build(
       const rootPaths = (
         await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
       ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+
+      // Check if any page is importing next/script.
+      // Used in webpack config to define an env variable in order to only include next/script code into main bundle if needed
+      const isNextScriptImported: boolean = await nextBuildSpan
+        .traceChild('is-next-script-imported')
+        .traceAsyncFn(() => checkNextScriptImport(pagePaths, pagesDir))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -716,6 +723,7 @@ export default async function build(
           buildId,
           config,
           hasReactRoot,
+          isNextScriptImported,
           pagesDir,
           reactProductionProfiling,
           rewrites,

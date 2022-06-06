@@ -14,7 +14,6 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -1255,9 +1254,16 @@ export default class Router implements BaseRouter {
       if (component && component.unstable_scriptLoader) {
         const scripts = [].concat(component.unstable_scriptLoader())
 
-        scripts.forEach((script: any) => {
-          handleClientScriptLoad(script.props)
-        })
+        if (scripts.length > 0) {
+          // Script code should already be present in main bundle if next/script is imported
+          const { handleClientScriptLoad } = await import(
+            /* webpackMode: "weak" */
+            '../../../client/script'
+          )
+          scripts.forEach((script: any) => {
+            handleClientScriptLoad(script.props)
+          })
+        }
       }
 
       // handle redirect on client-transition

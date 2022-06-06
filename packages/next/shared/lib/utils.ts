@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
+import type { ScriptProps } from '../../client/script'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -102,7 +103,7 @@ export type NEXT_DATA = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
-  scriptLoader?: any[]
+  scriptLoader?: ScriptProps[]
   isPreview?: boolean
   notFoundSrcPage?: string
   rsc?: boolean

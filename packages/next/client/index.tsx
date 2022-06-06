@@ -34,6 +34,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { initalizeScriptLoader } from './initialize-script-loader'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -252,9 +253,8 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
     }
   }
 
-  if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script')
-    initScriptLoader(initialData.scriptLoader)
+  if (initialData.scriptLoader && initialData.scriptLoader.length > 0) {
+    initalizeScriptLoader(initialData.scriptLoader)
   }
 
   pageLoader = new PageLoader(initialData.buildId, prefix)
