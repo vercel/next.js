@@ -713,7 +713,7 @@ export default class NextNodeServer extends BaseServer {
       } catch (err) {
         // we should only not throw if we failed to find the page
         // in the pages-manifest
-        if (isError(err) && !(err instanceof PageNotFoundError)) {
+        if (!(err instanceof PageNotFoundError)) {
           throw err
         }
       }
