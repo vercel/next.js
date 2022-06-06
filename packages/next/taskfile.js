@@ -6,6 +6,7 @@ const { relative, basename, resolve, join, dirname } = require('path')
 const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs-extra')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const escapeRegex = require('escape-string-regexp')
 
 export async function next__polyfill_nomodule(task, opts) {
