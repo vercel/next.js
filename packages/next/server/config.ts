@@ -637,6 +637,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
+    
+    if ((new Set(i18n.locales)).size !== i18n.locales.length) {
+      throw new Error(
+        `Specified i18n.locales contains duplicates.\nEach locale should be listed only once.`
+      )
+    }
 
     // make sure default Locale is at the front
     i18n.locales = [
