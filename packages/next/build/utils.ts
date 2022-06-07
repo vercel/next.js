@@ -1328,20 +1328,7 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.flatMap((extension) => [
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
-    path.join(folder, `src/${MIDDLEWARE_FILENAME}.${extension}`),
-  ])
-}
-
-export function isExpectedMiddlewareFile(
-  file: string,
-  pagesDir: string,
-  extensions: string[]
-) {
-  return extensions.some(
-    (extension) =>
-      file ===
-      `${path.resolve(pagesDir, '..', MIDDLEWARE_FILENAME)}.${extension}`
+  return extensions.map((extension) =>
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
   )
 }

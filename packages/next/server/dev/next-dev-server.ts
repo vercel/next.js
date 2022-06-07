@@ -69,7 +69,6 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   getPossibleMiddlewareFilenames,
-  isExpectedMiddlewareFile,
   isMiddlewareFile,
 } from '../../build/utils'
 
@@ -280,7 +279,7 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
       const files = getPossibleMiddlewareFilenames(
-        this.dir,
+        pathJoin(this.pagesDir, '..'),
         this.nextConfig.pageExtensions
       )
 
@@ -320,16 +319,10 @@ export default class DevServer extends Server {
             page: rootFile,
           })
 
-          if (
-            isExpectedMiddlewareFile(
-              fileName,
-              this.pagesDir,
-              this.nextConfig.pageExtensions
-            )
-          ) {
+          if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
             middlewareMatcher = staticInfo.middleware?.pathMatcher
-            routedMiddleware.push(`/`)
+            routedMiddleware.push('/')
             continue
           }
 
