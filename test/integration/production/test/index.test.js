@@ -313,7 +313,7 @@ describe('Production Usage', () => {
     expect(content).not.toContain('.currentScript')
   })
 
-  it('should not contain useAmp in main chunk', async () => {
+  it('should not contain amp, rsc APIs in main chunk', async () => {
     const globResult = await glob('main-*.js', {
       cwd: join(appDir, '.next/static/chunks'),
     })
@@ -328,6 +328,7 @@ describe('Production Usage', () => {
     )
 
     expect(content).not.toContain('useAmp')
+    expect(content).not.toContain('useRefreshRoot')
   })
 
   describe('With basic usage', () => {

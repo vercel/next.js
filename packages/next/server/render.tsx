@@ -313,18 +313,19 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function useFlightResponse({
-  id,
+  cachePrefix,
   req,
   pageData,
   inlinedDataWritable,
   serverComponentManifest,
 }: {
-  id: string
+  cachePrefix: string
   req: ReadableStream<Uint8Array>
   pageData: { current: string } | null
   inlinedDataWritable: WritableStream<Uint8Array>
   serverComponentManifest: any
 }) {
+  const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
@@ -391,15 +392,13 @@ function createServerComponentRenderer(
   }
 ) {
   function ServerComponentWrapper({ router, ...props }: any) {
-    const id = (React as any).useId()
-
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
       <Component {...props} />,
       serverComponentManifest
     )
 
     const response = useFlightResponse({
-      id: cachePrefix + ',' + id,
+      cachePrefix,
       req: reqStream,
       pageData,
       inlinedDataWritable: inlinedTransformStream.writable,
@@ -407,7 +406,6 @@ function createServerComponentRenderer(
     })
 
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
@@ -1457,6 +1455,7 @@ export async function renderToHTML(
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()
