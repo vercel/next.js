@@ -1455,6 +1455,7 @@ export async function renderToHTML(
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()

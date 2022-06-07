@@ -113,6 +113,22 @@ describe('Middleware Runtime', () => {
       })
     })
 
+    it('should have valid middleware field in manifest', async () => {
+      const manifest = await fs.readJSON(
+        join(context.appDir, '.next/server/middleware-manifest.json')
+      )
+      expect(manifest.middleware).toEqual({
+        '/': {
+          env: ['MIDDLEWARE_TEST'],
+          files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+          name: 'middleware',
+          page: '/',
+          regexp: '^/.*$',
+          wasm: [],
+        },
+      })
+    })
+
     it('should have middleware warning during build', () => {
       expect(context.buildLogs.output).toContain(middlewareWarning)
     })
