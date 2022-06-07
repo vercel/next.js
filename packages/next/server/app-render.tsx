@@ -360,15 +360,6 @@ export async function renderToHTML(
         )
       )
     }
-    // TODO: loading state
-    // const AfterWrap = WrappedComponent
-    // WrappedComponent = () => {
-    //   return (
-    //     <Suspense fallback={<>Loading...</>}>
-    //       <AfterWrap />
-    //     </Suspense>
-    //   )
-    // }
   }
 
   const AppRouter = ComponentMod.AppRouter
