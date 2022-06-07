@@ -1,6 +1,4 @@
-import React, { Component } from 'react'
-
-const isServer = typeof window === 'undefined'
+import React, { Children, useEffect, useLayoutEffect } from 'react'
 
 type State = JSX.Element[] | undefined
 
@@ -12,49 +10,47 @@ type SideEffectProps = {
   handleStateChange?: (state: State) => void
   headManager: any
   inAmpMode?: boolean
+  children: React.ReactNode
 }
 
-export default class extends Component<SideEffectProps> {
-  private _hasHeadManager: boolean
+export default function SideEffect(props: SideEffectProps) {
+  const { headManager, reduceComponentsToState } = props
 
-  emitChange = (): void => {
-    if (this._hasHeadManager) {
-      this.props.headManager.updateHead(
-        this.props.reduceComponentsToState(
-          [...this.props.headManager.mountedInstances],
-          this.props
-        )
-      )
+  function emitChange() {
+    if (headManager && headManager.mountedInstances) {
+      const headElements = Children.toArray(
+        headManager.mountedInstances
+      ).filter(Boolean) as React.ReactElement[]
+      headManager.updateHead(reduceComponentsToState(headElements, props))
     }
   }
 
-  constructor(props: any) {
-    super(props)
-    this._hasHeadManager =
-      this.props.headManager && this.props.headManager.mountedInstances
-
-    if (isServer && this._hasHeadManager) {
-      this.props.headManager.mountedInstances.add(this)
-      this.emitChange()
-    }
-  }
-  componentDidMount() {
-    if (this._hasHeadManager) {
-      this.props.headManager.mountedInstances.add(this)
-    }
-    this.emitChange()
-  }
-  componentDidUpdate() {
-    this.emitChange()
-  }
-  componentWillUnmount() {
-    if (this._hasHeadManager) {
-      this.props.headManager.mountedInstances.delete(this)
-    }
-    this.emitChange()
+  if (typeof window === 'undefined') {
+    headManager?.mountedInstances?.add(props.children)
+    emitChange()
   }
 
-  render() {
-    return null
-  }
+  useLayoutEffect(() => {
+    headManager?.mountedInstances?.add(props.children)
+    return () => {
+      headManager?.mountedInstances?.delete(props.children)
+    }
+  })
+
+  // Cache emitChange in headManager in layout effects and execute later in effects.
+  // Since `useEffect` is async effects emitChange will only keep the latest results.
+  useLayoutEffect(() => {
+    if (headManager) {
+      headManager._pendingUpdate = emitChange
+    }
+  })
+
+  useEffect(() => {
+    if (headManager && headManager._pendingUpdate) {
+      headManager._pendingUpdate()
+      headManager._pendingUpdate = null
+    }
+  })
+
+  return null
 }
