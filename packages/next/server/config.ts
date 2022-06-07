@@ -638,7 +638,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
     
-    if ((new Set(i18n.locales)).size !== i18n.locales.length) {
+    if ((new Set(i18n.locales.map(locale => locale.toLowerCase())).size !== i18n.locales.length) {
       throw new Error(
         `Specified i18n.locales contains duplicates.\nEach locale should be listed only once.`
       )
