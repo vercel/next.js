@@ -38,7 +38,7 @@ it('parse empty user agent', () => {
       cpu: { architecture: undefined },
       isBot: false,
     })
-  })
+  }
 })
 
 it('parse user agent from a NextRequest instance', () => {
