@@ -16,7 +16,7 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
-  VIEWS_DIR_ALIAS,
+  APP_DIR_ALIAS,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -60,7 +60,7 @@ export function createPagesMapping({
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
-  pagesType: 'pages' | 'root' | 'views'
+  pagesType: 'pages' | 'root' | 'app'
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
@@ -95,8 +95,8 @@ export function createPagesMapping({
         join(
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
-            : pagesType === 'views'
-            ? VIEWS_DIR_ALIAS
+            : pagesType === 'app'
+            ? APP_DIR_ALIAS
             : ROOT_DIR_ALIAS,
           pagePath
         )
@@ -140,8 +140,8 @@ interface CreateEntrypointsParams {
   rootDir: string
   rootPaths?: Record<string, string>
   target: 'server' | 'serverless' | 'experimental-serverless-trace'
-  viewsDir?: string
-  viewPaths?: Record<string, string>
+  appDir?: string
+  appPaths?: Record<string, string>
   pageExtensions: string[]
 }
 
@@ -154,11 +154,14 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
+  middleware?: { pathMatcher?: RegExp }
 }) {
   if (opts.page === MIDDLEWARE_FILE) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      matcherRegexp:
+        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -186,14 +189,14 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
-export function getViewsEntry(opts: {
+export function getAppEntry(opts: {
   name: string
   pagePath: string
-  viewsDir: string
+  appDir: string
   pageExtensions: string[]
 }) {
   return {
-    import: `next-view-loader?${stringify(opts)}!`,
+    import: `next-app-loader?${stringify(opts)}!`,
     layer: 'sc_server',
   }
 }
@@ -269,8 +272,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     rootDir,
     rootPaths,
     target,
-    viewsDir,
-    viewPaths,
+    appDir,
+    appPaths,
     pageExtensions,
   } = params
   const edgeServer: webpack5.EntryObject = {}
@@ -278,15 +281,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const client: webpack5.EntryObject = {}
 
   const getEntryHandler =
-    (mappings: Record<string, string>, pagesType: 'views' | 'pages' | 'root') =>
+    (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)
-          : pagesType === 'views'
-          ? posix.join('views', bundleFile)
+          : pagesType === 'app'
+          ? posix.join('app', bundleFile)
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
 
@@ -296,8 +299,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
-        if (absolutePagePath.startsWith(VIEWS_DIR_ALIAS) && viewsDir) {
-          return absolutePagePath.replace(VIEWS_DIR_ALIAS, viewsDir)
+        if (absolutePagePath.startsWith(APP_DIR_ALIAS) && appDir) {
+          return absolutePagePath.replace(APP_DIR_ALIAS, appDir)
         }
 
         if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
@@ -327,6 +330,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         nextConfig: config,
         pageFilePath,
         isDev,
+        page,
       })
 
       runDependingOnPageType({
@@ -344,11 +348,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onServer: () => {
-          if (pagesType === 'views' && viewsDir) {
-            server[serverBundlePath] = getViewsEntry({
+          if (pagesType === 'app' && appDir) {
+            server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
-              viewsDir,
+              appDir,
               pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
@@ -376,14 +380,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isDev: false,
             isServerComponent,
             page,
+            middleware: staticInfo?.middleware,
           })
         },
       })
     }
 
-  if (viewsDir && viewPaths) {
-    const entryHandler = getEntryHandler(viewPaths, 'views')
-    await Promise.all(Object.keys(viewPaths).map(entryHandler))
+  if (appDir && appPaths) {
+    const entryHandler = getEntryHandler(appPaths, 'app')
+    await Promise.all(Object.keys(appPaths).map(entryHandler))
   }
   if (rootPaths) {
     await Promise.all(
@@ -432,11 +437,13 @@ export function finalizeEntrypoint({
   compilerType,
   value,
   isServerComponent,
+  appDir,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
+  appDir?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -471,11 +478,19 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
+    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    if (appDir && entry.import.includes('flight')) {
+      return {
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        ...entry,
+      }
+    }
+
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
-          : 'main',
+          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
       ...entry,
     }
   }

@@ -29,6 +29,7 @@ describe('Middleware Runtime', () => {
     beforeAll(async () => {
       context.dev = true
       context.appPort = await findPort()
+      context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
           MIDDLEWARE_TEST: 'asdf',
@@ -83,6 +84,11 @@ describe('Middleware Runtime', () => {
         stdout: true,
       })
 
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
+
       context.buildLogs = {
         output: build.stdout + build.stderr,
         stderr: build.stderr,
@@ -103,6 +109,22 @@ describe('Middleware Runtime', () => {
         onStderr(msg) {
           context.logs.output += msg
           context.logs.stderr += msg
+        },
+      })
+    })
+
+    it('should have valid middleware field in manifest', async () => {
+      const manifest = await fs.readJSON(
+        join(context.appDir, '.next/server/middleware-manifest.json')
+      )
+      expect(manifest.middleware).toEqual({
+        '/': {
+          env: ['MIDDLEWARE_TEST'],
+          files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
+          name: 'middleware',
+          page: '/',
+          regexp: '^/.*$',
+          wasm: [],
         },
       })
     })
@@ -183,25 +205,30 @@ function tests(context, locale = '') {
   })
 
   it(`should accept a URL instance for fetch`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/fetch-url')
-    const response = readMiddlewareJSON(res)
-    expect(response).toHaveProperty('error.name')
-    expect(response.error.name).not.toBe('TypeError')
+    const response = await fetchViaHTTP(context.appPort, '/fetch-url')
+    const { error } = readMiddlewareJSON(response)
+    expect(error).toBeTruthy()
+    expect(error.message).not.toContain("Failed to construct 'URL'")
   })
 
   it(`should allow to abort a fetch request`, async () => {
-    const res = await fetchViaHTTP(context.appPort, '/abort-controller')
-    const response = readMiddlewareJSON(res)
-    expect('error' in response).toBe(true)
-    expect(response.error.name).toBe('AbortError')
-    expect(response.error.message).toBe('The user aborted a request.')
+    const response = await fetchViaHTTP(context.appPort, '/abort-controller')
+    const payload = readMiddlewareJSON(response)
+    expect('error' in payload).toBe(true)
+    expect(payload.error.name).toBe('AbortError')
+    expect(payload.error.message).toBe('The operation was aborted')
   })
 
   it(`should validate & parse request url from any route`, async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/static`)
+
     expect(res.headers.get('req-url-basepath')).toBe('')
     expect(res.headers.get('req-url-pathname')).toBe('/static')
-    expect(res.headers.get('req-url-params')).not.toBe('{}')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe(undefined)
+    expect(params).toEqual(undefined)
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     if (locale !== '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
@@ -210,10 +237,14 @@ function tests(context, locale = '') {
 
   it(`should validate & parse request url from a dynamic route with params`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/fr/1`)
+
     expect(res.headers.get('req-url-basepath')).toBe('')
     expect(res.headers.get('req-url-pathname')).toBe('/1')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"1"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe('/:locale/:id')
+    expect(params).toEqual({ locale: 'fr', id: '1' })
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('fr')
   })
@@ -221,9 +252,11 @@ function tests(context, locale = '') {
   it(`should validate & parse request url from a dynamic route with params and no query`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/fr/abc123`)
     expect(res.headers.get('req-url-basepath')).toBe('')
-    expect(res.headers.get('req-url-pathname')).toBe('/abc123')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"abc123"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+    expect(pathname).toBe('/:locale/:id')
+    expect(params).toEqual({ locale: 'fr', id: 'abc123' })
+
     expect(res.headers.get('req-url-query')).not.toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('fr')
   })
@@ -231,9 +264,12 @@ function tests(context, locale = '') {
   it(`should validate & parse request url from a dynamic route with params and query`, async () => {
     const res = await fetchViaHTTP(context.appPort, `/abc123?foo=bar`)
     expect(res.headers.get('req-url-basepath')).toBe('')
-    expect(res.headers.get('req-url-pathname')).toBe('/abc123')
-    expect(res.headers.get('req-url-params')).toBe('{"id":"abc123"}')
-    expect(res.headers.get('req-url-page')).toBe('/[id]')
+
+    const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+
+    expect(pathname).toBe('/:id')
+    expect(params).toEqual({ id: 'abc123' })
+
     expect(res.headers.get('req-url-query')).toBe('bar')
     expect(res.headers.get('req-url-locale')).toBe('en')
   })
@@ -244,16 +280,19 @@ function tests(context, locale = '') {
   })
 
   it('should throw when using Request with a relative URL', async () => {
-    const res = await fetchViaHTTP(context.appPort, `/url/relative-request`)
-    expect(readMiddlewareError(res)).toContain('Invalid URL')
+    const response = await fetchViaHTTP(
+      context.appPort,
+      `/url/relative-request`
+    )
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should throw when using NextRequest with a relative URL', async () => {
-    const res = await fetchViaHTTP(
+    const response = await fetchViaHTTP(
       context.appPort,
       `/url/relative-next-request`
     )
-    expect(readMiddlewareError(res)).toContain('Invalid URL')
+    expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
   it('should warn when using Response.redirect with a relative URL', async () => {
@@ -278,6 +317,18 @@ function tests(context, locale = '') {
       `/url/relative-next-rewrite`
     )
     expect(readMiddlewareError(response)).toContain(urlsError)
+  })
+
+  it('should trigger middleware for data requests', async () => {
+    const browser = await webdriver(context.appPort, `/ssr-page`)
+    const text = await browser.elementByCss('h1').text()
+    expect(text).toEqual('Bye Cruel World')
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/ssr-page.json`
+    )
+    const json = await res.json()
+    expect(json.pageProps.message).toEqual('Bye Cruel World')
   })
 }
 

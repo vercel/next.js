@@ -8,8 +8,9 @@ name: Build, test, and deploy
 
 env:
   NAPI_CLI_VERSION: 2.7.0
-  TURBO_VERSION: 1.2.9
+  TURBO_VERSION: 1.2.14
   RUST_TOOLCHAIN: nightly-2022-02-23
+  PNPM_VERSION: 7.1.6
 
 jobs:
   check-examples:
@@ -49,7 +50,22 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: npm i -g pnpm@${PNPM_VERSION}
+
+      - id: get-store-path
+        run: echo ::set-output name=STORE_PATH::$(pnpm store path)
+
+      - uses: actions/cache@v3
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - run: pnpm install
+      - run: pnpm run build
       - run: node run-tests.js --timings --write-timings -g 1/1
       - run: node ./scripts/fetch-tags.mjs ${{ github.sha }}
 
@@ -87,13 +103,15 @@ jobs:
           node-version: 16
           check-latest: true
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+
       - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
       - run: ./scripts/check-manifests.js
-      - run: yarn lint
+      - run: pnpm lint
 
   rust-check:
     runs-on: ubuntu-latest
@@ -248,7 +266,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -300,7 +318,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -355,7 +373,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -407,7 +425,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -462,7 +480,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -504,7 +522,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -549,7 +567,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -595,7 +613,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -635,17 +653,13 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: pnpm/action-setup@v2.2.1
-        with:
-          version: 6.32.2
-
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
@@ -744,7 +758,8 @@ jobs:
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       # test rsc hydration on firefox due to limited support of TransformStream api
-      - run: xvfb-run yarn jest test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
+      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: xvfb-run pnpm testheadless test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -904,6 +919,7 @@ jobs:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
@@ -937,7 +953,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1058,7 +1074,7 @@ jobs:
 
       # since the repo's dependencies aren't installed we need
       # to install napi globally
-      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: turbo run build-native --cache-dir=".turbo" -- --release
@@ -1132,7 +1148,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node ./scripts/setup-wasm.mjs
@@ -1150,34 +1166,35 @@ jobs:
       fail-fast: false
       matrix:
         settings:
+          # pnpm is aliased here temporarily until the build docker
+          # image is updated past Node.js v14.19 (current 14.18.1)
           - host: macos-latest
             target: 'x86_64-apple-darwin'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release
               strip -x packages/next-swc/native/next-swc.*.node
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release
             target: 'x86_64-pc-windows-msvc'
           - host: windows-latest
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
-            # Node.js in Baidu need to compatible with `GLIBC_2.12`
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
-              llvm-strip -x packages/next-swc/native/next-swc.*.node
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
+              strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -1186,7 +1203,7 @@ jobs:
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl &&
               strip packages/next-swc/native/next-swc.*.node
           - host: macos-latest
@@ -1197,19 +1214,20 @@ jobs:
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: >-
               set -e &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
+              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
           - host: ubuntu-18.04
             target: 'armv7-unknown-linux-gnueabihf'
@@ -1217,8 +1235,8 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: aarch64-linux-android
@@ -1227,7 +1245,7 @@ jobs:
               export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
               export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++"
               export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
               ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
@@ -1237,15 +1255,15 @@ jobs:
               export CC="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
               export CXX="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++"
               export PATH="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target armv7-linux-androideabi
               ${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/arm-linux-androideabi-strip packages/next-swc/native/next-swc.*.node
           - host: ubuntu-latest
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: >-
               set -e &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" &&
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
               rustup toolchain install "${RUST_TOOLCHAIN}" &&
               rustup default "${RUST_TOOLCHAIN}" &&
               rustup target add aarch64-unknown-linux-musl &&
@@ -1254,8 +1272,8 @@ jobs:
           - host: windows-latest
             target: 'aarch64-pc-windows-msvc'
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
+              turbo run build-native-no-plugin --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
@@ -1305,7 +1323,6 @@ jobs:
         with:
           node-version: 16
           check-latest: true
-          cache: yarn
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -1401,8 +1418,8 @@ jobs:
             whoami
             env
             freebsd-version
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-            yarn --cwd packages/next-swc build-native --release --target x86_64-unknown-freebsd
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
+            yarn --cwd=packages/next-swc build-native --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
@@ -1418,7 +1435,7 @@ jobs:
     strategy:
       matrix:
         target: [web, nodejs]
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/cache@v3
         id: restore-build
@@ -1440,7 +1457,7 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
       - name: Turbo cache
         id: turbo-cache
@@ -1486,7 +1503,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
+      - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
 
       - name: Install Rust
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -1543,6 +1560,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, build-native-test, check-trace-secrests]
     if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - name: Setup node
         uses: actions/setup-node@v3

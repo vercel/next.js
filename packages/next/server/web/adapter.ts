@@ -1,11 +1,12 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import { DeprecationError } from './error'
+import { DeprecationSignatureError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
-import { waitUntilSymbol } from './spec-compliant/fetch-event'
+import { waitUntilSymbol } from './spec-extension/fetch-event'
+import { NextURL } from './next-url'
 
 export async function adapter(params: {
   handler: NextMiddleware
@@ -22,12 +23,37 @@ export async function adapter(params: {
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
-      page: params.request.page,
     },
   })
 
   const event = new NextFetchEvent({ request, page: params.page })
   const response = await params.handler(request, event)
+
+  /**
+   * For rewrites we must always include the locale in the final pathname
+   * so we re-create the NextURL forcing it to include it when the it is
+   * an internal rewrite.
+   */
+  if (response?.headers.has('x-middleware-rewrite')) {
+    const url = new NextURL(response.headers.get('x-middleware-rewrite')!, {
+      forceLocale: true,
+      headers: params.request.headers,
+      nextConfig: params.request.nextConfig,
+    })
+
+    if (url.host === request.nextUrl.host) {
+      response.headers.set(
+        'x-middleware-rewrite',
+        String(
+          new NextURL(response.headers.get('x-middleware-rewrite')!, {
+            forceLocale: true,
+            headers: params.request.headers,
+            nextConfig: params.request.nextConfig,
+          })
+        )
+      )
+    }
+  }
 
   return {
     response: response || NextResponse.next(),
@@ -70,14 +96,14 @@ class NextRequestHint extends NextRequest {
   }
 
   get request() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 
   respondWith() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 
   waitUntil() {
-    throw new DeprecationError({ page: this.sourcePage })
+    throw new DeprecationSignatureError({ page: this.sourcePage })
   }
 }

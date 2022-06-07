@@ -4,7 +4,7 @@ export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const VIEW_PATHS_MANIFEST = 'view-paths-manifest.json'
+export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
@@ -83,7 +83,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'CountQueuingStrategy',
   'DecompressionStream',
   'DomException',
-  'Event',
   'EventTarget',
   'MessageChannel',
   'MessageEvent',

@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "12.1.7-canary.13",
+  "version": "12.1.7-canary.31",
   "keywords": [
     "react",
     "next",
@@ -24,10 +24,12 @@
     "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublish": "yarn release"
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "build": "pnpm release"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",
+    "@types/cross-spawn": "6.0.0",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",

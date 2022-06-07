@@ -1,6 +1,37 @@
-/* global globalThis */
+/* global globalThis, URLPattern */
 import { NextRequest, NextResponse } from 'next/server'
 import magicValue from 'shared-package'
+
+const PATTERNS = [
+  [
+    new URLPattern({ pathname: '/:locale/:id' }),
+    ({ pathname }) => ({
+      pathname: '/:locale/:id',
+      params: pathname.groups,
+    }),
+  ],
+  [
+    new URLPattern({ pathname: '/:id' }),
+    ({ pathname }) => ({
+      pathname: '/:id',
+      params: pathname.groups,
+    }),
+  ],
+]
+
+const params = (url) => {
+  const input = url.split('?')[0]
+  let result = {}
+
+  for (const [pattern, handler] of PATTERNS) {
+    const patternResult = pattern.exec(input)
+    if (patternResult !== null && 'pathname' in patternResult) {
+      result = handler(patternResult)
+      break
+    }
+  }
+  return result
+}
 
 export async function middleware(request) {
   const url = request.nextUrl
@@ -137,13 +168,22 @@ export async function middleware(request) {
     }
   }
 
+  if (url.pathname.startsWith('/_next')) {
+    return NextResponse.next()
+  }
+
+  if (url.pathname === '/ssr-page') {
+    url.pathname = '/ssr-page-2'
+    return NextResponse.rewrite(url)
+  }
+
   // Map metadata by default
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,
       'req-url-pathname': request.nextUrl.pathname,
-      'req-url-params': JSON.stringify(request.page.params),
-      'req-url-page': request.page.name,
+      'req-url-params':
+        url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
       'req-url-query': request.nextUrl.searchParams.get('foo'),
       'req-url-locale': request.nextUrl.locale,
     },
