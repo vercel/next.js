@@ -403,6 +403,15 @@ export const ST =
 
 export class DecodeError extends Error {}
 export class NormalizeError extends Error {}
+export class PageNotFoundError extends Error {
+  code: string
+
+  constructor(page: string) {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find module for page: ${page}`
+  }
+}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>
