@@ -51,7 +51,7 @@ export default function Playback({ playbackId, src, poster }) {
       loadTwitterWidget
     >
       <div className="flash-message">This video is ready for playback</div>
-      <VideoPlayer src={src} poster={poster} />
+      <VideoPlayer src={src} poster={poster} playbackId={playbackId} />
       <p>
         Go{' '}
         <Link href="/">
