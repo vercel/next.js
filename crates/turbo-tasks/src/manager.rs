@@ -375,6 +375,7 @@ impl<B: Backend> TurboTasks<B> {
                 listener.await;
             }
         }
+        self.backend.stop(self);
     }
 
     pub(crate) fn schedule_background_job<

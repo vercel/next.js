@@ -200,6 +200,11 @@ pub trait PersistedGraph: Sync + Send {
         &self,
         api: &dyn PersistedGraphApi,
     ) -> Result<(Vec<TaskId>, Vec<TaskId>)>;
+
+    /// Stop operations
+    fn stop(&self, api: &dyn PersistedGraphApi) -> Result<()> {
+        Ok(())
+    }
 }
 
 pub trait PersistedGraphApi {

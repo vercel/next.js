@@ -189,7 +189,16 @@ fn main() {
     if let Some(cache) = cache {
         run(
             &args,
-            || MemoryBackendWithPersistedGraph::new(RocksDbPersistedGraph::new(cache).unwrap()),
+            || {
+                let mut start = Instant::now();
+                let backend = MemoryBackendWithPersistedGraph::new(
+                    RocksDbPersistedGraph::new(cache).unwrap(),
+                );
+                let tt = TurboTasks::new(backend);
+                let elapsed = start.elapsed();
+                println!("restored cache {} ms", elapsed.as_millis());
+                tt
+            },
             |tt, _, duration| {
                 let mut start = Instant::now();
                 if *cache_fully {
@@ -219,7 +228,7 @@ fn main() {
     } else {
         run(
             &args,
-            || MemoryBackend::new(),
+            || TurboTasks::new(MemoryBackend::new()),
             |tt, root_task, _| {
                 if visualize_graph {
                     let mut stats = Stats::new();
@@ -241,7 +250,7 @@ fn main() {
 
 fn run<B: Backend + 'static>(
     args: &Args,
-    create_backend: impl Fn() -> B,
+    create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration),
 ) {
     let &CommonArgs {
@@ -285,7 +294,7 @@ fn run<B: Backend + 'static>(
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -312,7 +321,7 @@ fn run<B: Backend + 'static>(
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -335,7 +344,7 @@ fn run<B: Backend + 'static>(
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();

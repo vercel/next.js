@@ -414,7 +414,7 @@ macro_rules! table_base_internal {
                 let mut stats = $crate::table::CFStats::default();
                 stats.name = stringify!($name).to_string();
                 let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                let mut iter = self.db.raw_iterator_cf(cf);
+                let mut iter = self.db.raw_iterator_cf_opt(cf, $crate::table::get_default_read_options());
                 iter.seek_to_first();
                 while let (Some(key), Some(value)) = (iter.key(), iter.value()) {
                     stats.entries += 1;
@@ -449,7 +449,7 @@ macro_rules! table {
                 #[allow(unused_parens)]
                 pub fn get(&self) -> Result<Option<($($value),+)>> {
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    if let Some(value) = self.db.get_pinned_cf(cf, &[])? {
+                    if let Some(value) = self.db.get_pinned_cf_opt(cf, &[], &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
                         #[cfg(feature = "log_db")]
                         println!("DB get({}) = {:?}", stringify!($name), &value);
@@ -482,7 +482,7 @@ macro_rules! table {
             impl std::fmt::Debug for Api {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    if let Some(value) = self.db.get_pinned_cf(cf, &[]).unwrap() {
+                    if let Some(value) = self.db.get_pinned_cf_opt(cf, &[], &$crate::table::DEFAULT_READ_OPTIONS).unwrap() {
                         #[allow(unused_parens)]
                         let value: ($($value),+) = DefaultOptions::new().deserialize(&*value).unwrap();
                         std::fmt::Debug::fmt(&value, f)
@@ -511,7 +511,7 @@ macro_rules! table {
                     let mut result = Vec::new();
                     let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -534,7 +534,7 @@ macro_rules! table {
                     let end_bytes = Self::make_key::<($(&$key),+)>(&end)?;
                     assert_eq!(start_bytes.len(), end_bytes.len());
                     let key_len = start_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &start_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -561,7 +561,7 @@ macro_rules! table {
                     let mut key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     DefaultOptions::new().serialize_into(&mut key_bytes, value)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    let exists = self.db.get_pinned_cf(cf, key_bytes)?.is_some();
+                    let exists = self.db.get_pinned_cf_opt(cf, key_bytes, &$crate::table::DEFAULT_READ_OPTIONS)?.is_some();
                     #[cfg(feature = "log_db")]
                     println!("DB has({} {:?} {:?}) = {:?}", stringify!($name), &key, &value, exists);
                     Ok(exists)
@@ -638,7 +638,7 @@ macro_rules! table {
                     let mut result = Vec::new();
                     let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -659,7 +659,7 @@ macro_rules! table {
                     let mut result = Vec::new();
                     let value_bytes = Self::make_key::<($(&$value),+)>(&value)?;
                     let value_len = value_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &value_bytes);
                     let cf2 = self
                         .db
@@ -763,7 +763,7 @@ macro_rules! table {
                     let mut result = Vec::new();
                     let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let key_len = key_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &key_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -786,7 +786,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    if let Some(key) = self.db.get_pinned_cf(cf, &value_bytes)? {
+                    if let Some(key) = self.db.get_pinned_cf_opt(cf, &value_bytes, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let key = DefaultOptions::new().deserialize(&*key)?;
                         #[cfg(feature = "log_db")]
                         println!("DB get_key({} {:?}) = {:?}", stringify!($name), &value, &key);
@@ -805,7 +805,7 @@ macro_rules! table {
                     let end_bytes = Self::make_key::<($(&$key),+)>(&end)?;
                     assert_eq!(start_bytes.len(), end_bytes.len());
                     let key_len = start_bytes.len();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, &start_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -893,7 +893,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    if let Some(current_key) = self.db.get_pinned_cf(cf2, &keyed_value)? {
+                    if let Some(current_key) = self.db.get_pinned_cf_opt(cf2, &keyed_value, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         if &*current_key == only_key_bytes {
                             return Ok(());
                         }
@@ -940,7 +940,7 @@ macro_rules! table {
                 pub fn get_value(&self, key: ($(&$key),+)) -> Result<Option<($($value),+)>> {
                     let key = Self::make_key::<($(&$key),+)>(&key)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    if let Some(value) = self.db.get_pinned_cf(cf, &key)? {
+                    if let Some(value) = self.db.get_pinned_cf_opt(cf, &key, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
                         Ok(Some(value))
                     } else {
@@ -955,7 +955,7 @@ macro_rules! table {
                         .db
                         .cf_handle(concat!(stringify!($name), "_inverse"))
                         .unwrap();
-                    if let Some(key) = self.db.get_pinned_cf(cf, &value_bytes)? {
+                    if let Some(key) = self.db.get_pinned_cf_opt(cf, &value_bytes, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let key = DefaultOptions::new().deserialize(&*key)?;
                         #[cfg(feature = "log_db")]
                         println!("DB get_key({} {:?}) = {:?}", stringify!($name), &value, &key);
@@ -1056,7 +1056,7 @@ macro_rules! table {
                 ) -> Result<Option<($($value),+)>> {
                     let key_bytes = Self::make_key::<($(&$key),+)>(&key)?;
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    if let Some(value) = self.db.get_pinned_cf(cf, key_bytes)? {
+                    if let Some(value) = self.db.get_pinned_cf_opt(cf, key_bytes, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
                         #[cfg(feature = "log_db")]
                         println!("DB get({} {:?}) = {:?}", stringify!($name), &key, &value);
@@ -1109,7 +1109,7 @@ macro_rules! table {
                 ) -> Result<Vec<(($($key),+), ($($value),+))>> {
                     let mut result = Vec::new();
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    let mut iter = self.db.raw_iterator_cf(cf);
+                    let mut iter = self.db.raw_iterator_cf_opt(cf, $crate::table::get_default_read_options());
                     iter.seek_to_first();
                     while let(Some(key), Some(value)) = (iter.key(), iter.value()) {
                         let key = DefaultOptions::new().deserialize(&key)?;
@@ -1153,7 +1153,7 @@ macro_rules! table {
                     key_bytes: &[u8],
                 ) -> Result<Option<($($value),+)>> {
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
-                    if let Some(value) = self.db.get_pinned_cf(cf, key_bytes)? {
+                    if let Some(value) = self.db.get_pinned_cf_opt(cf, key_bytes, &$crate::table::DEFAULT_READ_OPTIONS)? {
                         let value = DefaultOptions::new().deserialize(&*value)?;
                         #[cfg(feature = "log_db")]
                         println!("DB get({} {:?}) = {:?}", stringify!($name), &key, &value);
@@ -1168,7 +1168,7 @@ macro_rules! table {
                 #[allow(unused_parens, dead_code)]
                 pub fn get_prefix(&self, prefix_bytes: &[u8], mut limit: usize) -> Result<(Vec<($($value),+)>, bool)> {
                     let mut result = Vec::new();
-                    let mut read_opt = rocksdb::ReadOptions::default();
+                    let mut read_opt = $crate::table::get_default_read_options();
                     Self::set_upper_bound_partial(&mut read_opt, prefix_bytes);
                     let cf = self.db.cf_handle(stringify!($name)).unwrap();
                     let mut iter = self.db.raw_iterator_cf_opt(cf, read_opt);
@@ -1306,7 +1306,14 @@ macro_rules! database {
     };
 }
 
+pub fn get_default_read_options() -> rocksdb::ReadOptions {
+    let mut opt = rocksdb::ReadOptions::default();
+    opt.set_verify_checksums(false);
+    opt
+}
+
 lazy_static! {
+    pub static ref DEFAULT_READ_OPTIONS: rocksdb::ReadOptions = get_default_read_options();
     pub static ref DEFAULT_WRITE_OPTIONS: rocksdb::WriteOptions = {
         let mut opt = rocksdb::WriteOptions::default();
         opt.disable_wal(true);

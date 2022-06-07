@@ -156,13 +156,13 @@ impl Add for TaskStateChange {
         match rhs {
             TaskStateChange::MakeDirty | TaskStateChange::MakeClean => {
                 list.retain(|i| {
-                    matches!(i, TaskStateChange::MakeClean | TaskStateChange::MakeDirty)
+                    !matches!(i, TaskStateChange::MakeClean | TaskStateChange::MakeDirty)
                 });
                 list.push(rhs);
             }
             TaskStateChange::Activate | TaskStateChange::Deactivate => {
                 list.retain(|i| {
-                    matches!(i, TaskStateChange::Activate | TaskStateChange::Deactivate)
+                    !matches!(i, TaskStateChange::Activate | TaskStateChange::Deactivate)
                 });
                 list.push(rhs);
             }
@@ -184,7 +184,7 @@ impl Add for TaskStateChange {
             }
             TaskStateChange::SetExternallyActive | TaskStateChange::UnsetExternallyActive => {
                 list.retain(|i| {
-                    matches!(
+                    !matches!(
                         i,
                         TaskStateChange::SetExternallyActive
                             | TaskStateChange::UnsetExternallyActive

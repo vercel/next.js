@@ -149,6 +149,7 @@ impl SlotContent {
 pub trait Backend: Sync + Send {
     fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
     fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
     fn try_start_task_execution(
