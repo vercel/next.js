@@ -1,4 +1,5 @@
 use std::{
+    cmp::Reverse,
     collections::{BinaryHeap, HashSet},
     fmt::Debug,
     future::Future,
@@ -115,11 +116,13 @@ pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph> {
     cache: flurry::HashMap<PersistentTaskType, TaskId>,
     background_job_id_factory: IdFactory<BackgroundJobId>,
     background_jobs: InfiniteVec<Option<BackgroundJob>>,
+    only_known_to_memory_tasks: flurry::HashSet<TaskId>,
     /// Tasks that were selected to persist
     persist_queue1: ConcurrentQueue<TaskId>,
     persist_queue1_queued: flurry::HashSet<TaskId>,
-    /// Task sorted by importance, shared to avoid lock contention
-    persist_queue2: [Mutex<BinaryHeap<(Duration, TaskId)>>; 64],
+    need_persisting: flurry::HashSet<TaskId>,
+    /// Task sorted by importance, sharded to avoid lock contention
+    persist_queue_by_duration: [Mutex<BinaryHeap<(Duration, TaskId)>>; 64],
     persist_capacity: AtomicUsize,
     persist_job: BackgroundJobId,
     partial_lookups: flurry::HashMap<PersistentTaskType, bool>,
@@ -142,9 +145,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             cache: flurry::HashMap::new(),
             background_job_id_factory,
             background_jobs: InfiniteVec::new_allocate_initial(),
+            only_known_to_memory_tasks: flurry::HashSet::new(),
             persist_queue1: ConcurrentQueue::unbounded(),
             persist_queue1_queued: flurry::HashSet::new(),
-            persist_queue2: [(); 64].map(|_| Mutex::new(BinaryHeap::new())),
+            need_persisting: flurry::HashSet::new(),
+            persist_queue_by_duration: [(); 64].map(|_| Mutex::new(BinaryHeap::new())),
             persist_capacity: AtomicUsize::new(num_cpus::get()),
             persist_job,
             partial_lookups: flurry::HashMap::new(),
@@ -711,97 +716,124 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn persist(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> bool {
         let persist_queue1_queued = self.persist_queue1_queued.pin();
         loop {
-            if let Ok(task) = self.persist_queue1.pop() {
+            if let Ok(mut task) = self.persist_queue1.pop() {
                 persist_queue1_queued.remove(&task);
-                let (mut state, task_info) = self.state_mut(task, turbo_tasks);
-                if let TaskState {
-                    ref mut persisted,
-                    ref mut mem_to_persisted_active,
-                    memory:
-                        Some(MemoryTaskState {
-                            freshness: TaskFreshness::Done,
-                            ref mut need_persist,
-                            ref output,
-                            ref mut has_changes,
-                            ref children,
-                            ref dependencies,
-                            ref slots,
-                            ref slot_mappings,
-                            ..
-                        }),
-                    ..
-                } = *state
-                {
-                    if *need_persist || persisted.is_none() {
-                        *need_persist = false;
-                        if let TaskType::Persistent(_task_type) = &task_info.task_type {
-                            if let &Some(Ok(output)) = &output {
-                                if *has_changes || persisted.is_none() {
-                                    let data = TaskData {
-                                        children: children.iter().cloned().collect(),
-                                        dependencies: dependencies.iter().cloned().collect(),
-                                        slots: slots.iter().map(|(s, _)| s.clone()).collect(),
-                                        slot_mappings: slot_mappings.clone(),
-                                        output: *output,
-                                    };
-                                    let externally_active =
-                                        task_info.active_parents.load(Ordering::Acquire) > 0;
-                                    let task_state =
-                                        turbo_tasks::persisted_graph::PersistTaskState {
-                                            externally_active,
+                let need_persisting = self.need_persisting.pin();
+                'outer: loop {
+                    need_persisting.remove(&task);
+                    let (mut state, task_info) = self.state_mut(task, turbo_tasks);
+                    if let TaskState {
+                        ref mut persisted,
+                        ref mut mem_to_persisted_active,
+                        memory:
+                            Some(MemoryTaskState {
+                                freshness: TaskFreshness::Done,
+                                ref mut need_persist,
+                                ref output,
+                                ref mut has_changes,
+                                ref children,
+                                ref dependencies,
+                                ref slots,
+                                ref slot_mappings,
+                                ..
+                            }),
+                        ..
+                    } = *state
+                    {
+                        if *need_persist || persisted.is_none() {
+                            *need_persist = false;
+                            if let TaskType::Persistent(_task_type) = &task_info.task_type {
+                                if let &Some(Ok(output)) = &output {
+                                    if *has_changes || persisted.is_none() {
+                                        for higher_prio_task in dependencies
+                                            .iter()
+                                            .map(|vc| vc.get_task_id())
+                                            .chain(children.iter().map(|t| *t))
+                                        {
+                                            if need_persisting.contains(&higher_prio_task) {
+                                                if persist_queue1_queued.insert(task) {
+                                                    self.persist_queue1.push(task).unwrap();
+                                                }
+                                                task = higher_prio_task;
+                                                continue 'outer;
+                                            }
+                                        }
+                                        if !dependencies.is_empty() {
+                                            let only_known_to_memory_tasks =
+                                                self.only_known_to_memory_tasks.pin();
+                                            for dep in dependencies.iter() {
+                                                let task = dep.get_task_id();
+                                                only_known_to_memory_tasks.remove(&task);
+                                            }
+                                        }
+                                        let data = TaskData {
+                                            children: children.iter().cloned().collect(),
+                                            dependencies: dependencies.iter().cloned().collect(),
+                                            slots: slots.iter().map(|(s, _)| s.clone()).collect(),
+                                            slot_mappings: slot_mappings.clone(),
+                                            output: *output,
                                         };
-                                    if let Some(PersistResult {
-                                        tasks_to_activate,
-                                        tasks_to_deactivate,
-                                    }) = self.pg_persist(task, data, task_state, turbo_tasks)
-                                    {
-                                        *persisted = Some(PersistedTaskState { clean: Some(true) });
-                                        *has_changes = false;
-                                        *mem_to_persisted_active = externally_active;
-                                        drop(state);
-                                        for task in tasks_to_activate {
-                                            self.activate_persisted(task, turbo_tasks);
+                                        let externally_active =
+                                            task_info.active_parents.load(Ordering::Acquire) > 0;
+                                        let task_state =
+                                            turbo_tasks::persisted_graph::PersistTaskState {
+                                                externally_active,
+                                            };
+                                        if let Some(PersistResult {
+                                            tasks_to_activate,
+                                            tasks_to_deactivate,
+                                        }) = self.pg_persist(task, data, task_state, turbo_tasks)
+                                        {
+                                            *persisted =
+                                                Some(PersistedTaskState { clean: Some(true) });
+                                            *has_changes = false;
+                                            *mem_to_persisted_active = externally_active;
+                                            drop(state);
+                                            for task in tasks_to_activate {
+                                                self.activate_persisted(task, turbo_tasks);
+                                            }
+                                            for task in tasks_to_deactivate {
+                                                self.schedule_background_job(
+                                                    BackgroundJob::DeactivatePersisted(task),
+                                                    turbo_tasks,
+                                                )
+                                            }
+                                            return true;
+                                        } else {
+                                            println!(
+                                                "task {task} failed to persist: {:?}",
+                                                task_info.task_type
+                                            );
                                         }
-                                        for task in tasks_to_deactivate {
-                                            self.schedule_background_job(
-                                                BackgroundJob::DeactivatePersisted(task),
-                                                turbo_tasks,
-                                            )
-                                        }
-                                        return true;
                                     } else {
-                                        println!(
-                                            "task {task} failed to persist: {:?}",
-                                            task_info.task_type
-                                        );
+                                        self.pg_make_clean(task, turbo_tasks);
+                                        return true;
                                     }
-                                } else {
-                                    self.pg_make_clean(task, turbo_tasks);
-                                    return true;
                                 }
                             }
                         }
                     }
+                    break;
                 }
                 continue;
             }
 
             let mut did_something = false;
-            for queue in self.persist_queue2.iter() {
+            for queue in self.persist_queue_by_duration.iter() {
                 let mut queue = queue.lock().unwrap();
                 if let Some((dur, task)) = queue.pop() {
                     let (state, _) = self.state_mut(task, turbo_tasks);
                     if let Some(MemoryTaskState { dependencies, .. }) = &state.memory {
-                        let dependencies = dependencies
-                            .iter()
-                            .map(|d| d.get_task_id())
-                            .collect::<HashSet<_>>();
-                        for dep in dependencies {
-                            if persist_queue1_queued.insert(dep) {
-                                self.persist_queue1.push(dep).unwrap();
-                                did_something = true;
-                            }
-                        }
+                        // let dependencies = dependencies
+                        //     .iter()
+                        //     .map(|d| d.get_task_id())
+                        //     .collect::<HashSet<_>>();
+                        // for dep in dependencies {
+                        //     if persist_queue1_queued.insert(dep) {
+                        //         self.persist_queue1.push(dep).unwrap();
+                        //         did_something = true;
+                        //     }
+                        // }
                         if persist_queue1_queued.insert(task) {
                             self.persist_queue1.push(task).unwrap();
                             did_something = true;
@@ -817,7 +849,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn has_persist_work(&self) -> bool {
         !self.persist_queue1.is_empty()
             || self
-                .persist_queue2
+                .persist_queue_by_duration
                 .iter()
                 .any(|q| !q.lock().unwrap().is_empty())
     }
@@ -1035,7 +1067,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             ..
         } = *state;
         let mem_state = memory.as_mut().unwrap();
-        let persisted_state = persisted.as_mut();
         mem_state.slot_mappings = slot_mappings;
         if mem_state.freshness == TaskFreshness::Dirty {
             return true;
@@ -1063,7 +1094,9 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         };
         mem_state.need_persist = true;
         let has_changes = mem_state.has_changes;
-        let is_dirty_persisted = persisted_state
+        let is_persisted = persisted.is_some();
+        let is_dirty_persisted = persisted
+            .as_ref()
             .map(|p| p.clean != Some(true))
             .unwrap_or_default();
         drop(state);
@@ -1073,7 +1106,9 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
 
         if let TaskType::Persistent(_) = task_info.task_type {
-            if has_changes {
+            if has_changes
+                && (is_persisted || !self.only_known_to_memory_tasks.pin().contains(&task))
+            {
                 for task in self.pg_make_dependent_dirty(RawVc::TaskOutput(task), turbo_tasks) {
                     let (mut state, _) = self.state_mut(task, turbo_tasks);
                     if !state.scheduled {
@@ -1085,7 +1120,8 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 }
             }
             if has_changes || is_dirty_persisted {
-                self.persist_queue2[*task % self.persist_queue2.len()]
+                self.need_persisting.pin().insert(task);
+                self.persist_queue_by_duration[*task % self.persist_queue_by_duration.len()]
                     .lock()
                     .unwrap()
                     .push((duration, task));
@@ -1241,46 +1277,44 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             println!("waiting (fresh task) {} waits on {}", reader, task);
             return Ok(Err(mem_state.event_slots.listen()));
         }
-        let (slot, dependent) = mem_state.slots.get_mut(index).ok_or_else(|| {
-            anyhow!(
-                "Cannot read non-existing slot {index} from {task} {:?} (reader: {:?})\nPG: {:?} \
-                 {}",
-                task_info.task_type,
-                self.tasks.get(*reader).as_ref().map(|t| &t.task_type),
-                self.pg_read(task, turbo_tasks).is_some(),
-                if let TaskType::Persistent(ty) = &task_info.task_type {
-                    self.pg_lookup_one(ty, turbo_tasks).is_some()
-                } else {
-                    false
-                }
-            )
-        })?;
-        match slot {
-            TaskSlot::Content(content) => {
-                let content = content.clone();
-                let need_dependency = dependent.insert(reader);
-                drop(state);
-                if need_dependency {
-                    let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
-                    let mem_state = state.memory.as_mut().unwrap();
-                    mem_state.dependencies.insert(RawVc::TaskSlot(task, index));
-                }
-                Ok(Ok(content))
-            }
-            TaskSlot::NeedComputation => {
-                if mem_state.freshness != TaskFreshness::Dirty {
-                    mem_state.freshness = TaskFreshness::Dirty;
-                    if !*scheduled {
-                        *scheduled = true;
-                        #[cfg(feature = "log_scheduled_tasks")]
-                        println!("schedule({task}) in try_read_task_slot[NeedComputation]");
-                        turbo_tasks.schedule(task);
+        if let Some((slot, dependent)) = mem_state.slots.get_mut(index) {
+            match slot {
+                TaskSlot::Content(content) => {
+                    let content = content.clone();
+                    let need_dependency = dependent.insert(reader);
+                    drop(state);
+                    if need_dependency {
+                        let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
+                        let mem_state = state.memory.as_mut().unwrap();
+                        mem_state.dependencies.insert(RawVc::TaskSlot(task, index));
                     }
+                    Ok(Ok(content))
                 }
-                #[cfg(feature = "log_running_tasks")]
-                println!("waiting (need computation) {} waits on {}", reader, task);
-                return Ok(Err(mem_state.event.listen()));
+                TaskSlot::NeedComputation => {
+                    if mem_state.freshness != TaskFreshness::Dirty {
+                        mem_state.freshness = TaskFreshness::Dirty;
+                        if !*scheduled {
+                            *scheduled = true;
+                            #[cfg(feature = "log_scheduled_tasks")]
+                            println!("schedule({task}) in try_read_task_slot[NeedComputation]");
+                            turbo_tasks.schedule(task);
+                        }
+                    }
+                    #[cfg(feature = "log_running_tasks")]
+                    println!("waiting (need computation) {} waits on {}", reader, task);
+                    return Ok(Err(mem_state.event.listen()));
+                }
             }
+        } else {
+            if !*scheduled {
+                *scheduled = true;
+                #[cfg(feature = "log_scheduled_tasks")]
+                println!("schedule({task}) in try_read_task_slot[Slot missing]");
+                turbo_tasks.schedule(task);
+            }
+            #[cfg(feature = "log_running_tasks")]
+            println!("waiting (incomplete task) {} waits on {}", reader, task);
+            return Ok(Err(mem_state.event_slots.listen()));
         }
     }
 
@@ -1378,7 +1412,12 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
-        let mem_state = state.memory.as_mut().unwrap();
+        let TaskState {
+            ref mut memory,
+            ref mut persisted,
+            ..
+        } = *state;
+        let mem_state = memory.as_mut().unwrap();
         mem_state.has_changes = true;
         let (slot, dependent) = mem_state
             .slots
@@ -1387,6 +1426,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             .unwrap();
         *slot = TaskSlot::Content(content);
         mem_state.event_slots.notify(usize::MAX);
+        let is_persisted = persisted.is_some();
         if !dependent.is_empty() {
             let dependent = take(dependent);
             drop(state);
@@ -1395,13 +1435,16 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             drop(state);
         }
         if let TaskType::Persistent(_) = task_info.task_type {
-            for task in self.pg_make_dependent_dirty(RawVc::TaskSlot(task, index), turbo_tasks) {
-                let (mut state, _) = self.state_mut(task, turbo_tasks);
-                if !state.scheduled {
-                    state.scheduled = true;
-                    #[cfg(feature = "log_scheduled_tasks")]
-                    println!("schedule({task}) in update_task_slot");
-                    turbo_tasks.schedule(task);
+            if is_persisted || !self.only_known_to_memory_tasks.pin().contains(&task) {
+                for task in self.pg_make_dependent_dirty(RawVc::TaskSlot(task, index), turbo_tasks)
+                {
+                    let (mut state, _) = self.state_mut(task, turbo_tasks);
+                    if !state.scheduled {
+                        state.scheduled = true;
+                        #[cfg(feature = "log_scheduled_tasks")]
+                        println!("schedule({task}) in update_task_slot");
+                        turbo_tasks.schedule(task);
+                    }
                 }
             }
         }
@@ -1445,6 +1488,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
         match cache.try_insert(task_type, task) {
             Ok(_) => {
+                self.only_known_to_memory_tasks.pin().insert(task);
                 #[cfg(feature = "log_scheduled_tasks")]
                 println!("schedule({task}) in get_or_create_persistent_task");
                 turbo_tasks.schedule(task);
@@ -1491,6 +1535,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         unsafe {
             self.tasks.set(*task, Some(new_task));
         }
+        self.only_known_to_memory_tasks.pin().insert(task);
         task
     }
 }

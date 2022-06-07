@@ -18,7 +18,7 @@ impl Default for TaskSlot {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TaskData {
     pub children: Vec<TaskId>,
     pub dependencies: Vec<RawVc>,

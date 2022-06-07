@@ -137,6 +137,10 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
     pub fn get(&self, idx: usize) -> &T {
         unsafe { self.get_mut(idx) }
     }
+
+    pub fn iter(&self) -> InfiniteVecIter<'_, T, INITIAL_CAPACITY_BITS> {
+        InfiniteVecIter { vec: self, idx: 0 }
+    }
 }
 
 impl<T: Default, const INITIAL_CAPACITY_BITS: u32> Drop for InfiniteVec<T, INITIAL_CAPACITY_BITS> {
@@ -149,6 +153,41 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> Drop for InfiniteVec<T, INITI
                 if !bucket_ptr.is_null() {
                     drop(unsafe { Box::from_raw(from_raw_parts_mut(bucket_ptr, bucket_size)) });
                 }
+            }
+        }
+    }
+}
+
+pub struct InfiniteVecIter<'a, T: Default, const INITIAL_CAPACITY_BITS: u32 = 6> {
+    vec: &'a InfiniteVec<T, INITIAL_CAPACITY_BITS>,
+    idx: usize,
+}
+
+impl<'a, T: Default, const INITIAL_CAPACITY_BITS: u32> Iterator
+    for InfiniteVecIter<'a, T, INITIAL_CAPACITY_BITS>
+{
+    type Item = (usize, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(self.idx);
+            if bucket_idx >= (usize::BITS - INITIAL_CAPACITY_BITS + 1) as u32 {
+                return None;
+            }
+            let bucket = unsafe { self.vec.buckets.get_unchecked(bucket_idx as usize) };
+            let bucket_ptr = bucket.0.load(Ordering::Acquire);
+            if bucket_ptr.is_null() {
+                if bucket_idx >= (usize::BITS - INITIAL_CAPACITY_BITS) as u32 {
+                    return None;
+                }
+                let size = get_bucket_size::<INITIAL_CAPACITY_BITS>(bucket_idx);
+                self.idx += size;
+            } else {
+                let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(self.idx, bucket_idx);
+                let item = unsafe { &*bucket_ptr.add(index) };
+                let result = (self.idx, item);
+                self.idx += 1;
+                return Some(result);
             }
         }
     }

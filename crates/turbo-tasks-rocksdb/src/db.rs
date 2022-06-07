@@ -3,8 +3,8 @@ use std::ops::Add;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     backend::{PersistentTaskType, SlotMappings},
-    persisted_graph::TaskSlot,
-    RawVc, TaskId,
+    persisted_graph::{TaskData, TaskSlot},
+    without_task_id_mapping, RawVc, TaskId,
 };
 
 use crate::table::{database, table};
@@ -215,8 +215,8 @@ pub struct PartialTaskData {
 table!(last_task_id, (usize), merge((usize): |a: usize, b| a + b, |a, b| a + b));
 table!(task_type, (usize) => (PersistentTaskType));
 table!(cache, raw => (usize));
-table!(state, (TaskId) => (TaskState), merge((TaskStateChange): |s, c| s + c, |c1, c2| c1 + c2));
-table!(data, (TaskId) => (PartialTaskData));
+table!(state, (TaskId) => (TaskState), merge((TaskStateChange): |s, c| s + c, |c1, c2| c1 + c2, without_task_id_mapping));
+table!(data, (TaskId) => (TaskData));
 table!(children, (TaskId) => (Vec<TaskId>));
 table!(dependencies, (TaskId) => (Vec<RawVc>));
 table!(dependents, (RawVc) => [TaskId], prefix(u8));

@@ -190,7 +190,7 @@ fn main() {
         run(
             &args,
             || {
-                let mut start = Instant::now();
+                let start = Instant::now();
                 let backend = MemoryBackendWithPersistedGraph::new(
                     RocksDbPersistedGraph::new(cache).unwrap(),
                 );
