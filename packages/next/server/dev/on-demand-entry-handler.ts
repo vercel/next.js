@@ -9,12 +9,12 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
-import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
+import { PageNotFoundError } from '../../shared/lib/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -376,7 +376,7 @@ async function findPagePathData(
     pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
 
     if (!pagePath) {
-      throw pageNotFoundError(normalizedPagePath)
+      throw new PageNotFoundError(normalizedPagePath)
     }
 
     const pageUrl = ensureLeadingSlash(
@@ -436,7 +436,7 @@ async function findPagePathData(
       page: normalizePathSep(page),
     }
   } else {
-    throw pageNotFoundError(normalizedPagePath)
+    throw new PageNotFoundError(normalizedPagePath)
   }
 }
 
@@ -445,6 +445,6 @@ function tryToNormalizePagePath(page: string) {
     return normalizePagePath(page)
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
 }
