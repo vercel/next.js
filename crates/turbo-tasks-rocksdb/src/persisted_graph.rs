@@ -65,7 +65,7 @@ pub struct RocksDbPersistedGraph {
     database: Database,
     task_id_forward_mapping: HashMap<TaskId, TaskId>,
     task_id_backward_mapping: HashMap<TaskId, TaskId>,
-    next_task_id: AtomicUsize,
+    last_task_id: AtomicUsize,
     #[cfg(feature = "unsafe_once_map")]
     cache_once: turbo_tasks::util::OnceConcurrentlyMap<[u8], Result<usize, SharedError>>,
     #[cfg(not(feature = "unsafe_once_map"))]
@@ -76,12 +76,12 @@ pub struct RocksDbPersistedGraph {
 impl RocksDbPersistedGraph {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let db = Database::open(path)?;
-        let next_id = db.next_task_id.get()?.unwrap_or_default();
+        let last_id = db.last_task_id.get()?.unwrap_or_default();
         Ok(Self {
             database: db,
             task_id_forward_mapping: HashMap::new(),
             task_id_backward_mapping: HashMap::new(),
-            next_task_id: AtomicUsize::new(next_id),
+            last_task_id: AtomicUsize::new(last_id),
             #[cfg(feature = "unsafe_once_map")]
             cache_once: turbo_tasks::util::OnceConcurrentlyMap::new(),
             #[cfg(not(feature = "unsafe_once_map"))]
@@ -92,6 +92,20 @@ impl RocksDbPersistedGraph {
 
     fn with_task_id_mapping<T>(&self, api: &dyn PersistedGraphApi, func: impl FnOnce() -> T) -> T {
         with_task_id_mapping(PgApiMapping::new(self, api), func)
+    }
+
+    fn with_read_only_task_id_mapping<T>(
+        &self,
+        api: &dyn PersistedGraphApi,
+        func: impl FnOnce() -> T,
+    ) -> T {
+        with_task_id_mapping(PgApiReadOnlyMapping::new(self, api), func)
+    }
+
+    fn get_task_type(&self, ty: &PersistentTaskType) -> Result<Option<usize>> {
+        let db = &self.database;
+        let ty_bytes = task_type_to_bytes(ty)?;
+        Ok(db.cache.get(&ty_bytes)?)
     }
 
     fn get_or_create_task_type(&self, ty: &PersistentTaskType) -> Result<usize> {
@@ -105,10 +119,10 @@ impl RocksDbPersistedGraph {
                 return Ok(id);
             }
             let b = &mut db.batch();
-            db.next_task_id
+            db.last_task_id
                 .merge(b, &1)
                 .map_err::<Error, _>(|e| e.into())?;
-            let id = self.next_task_id.fetch_add(1, Ordering::Relaxed);
+            let id = self.last_task_id.fetch_add(1, Ordering::Relaxed) + 1;
             db.task_type
                 .write(b, &id, ty)
                 .map_err::<Error, _>(|e| e.into())?;
@@ -201,7 +215,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<TaskId>> {
         self.stats.lookups.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        self.with_read_only_task_id_mapping(api, || {
             let db = &self.database;
             if let Some(id) = db.cache.get(&task_type_to_bytes(&task_type)?)? {
                 let task = PgApiMapping::new(self, api).backward(TaskId::from(id));
@@ -222,11 +236,11 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<bool> {
         self.stats.lookups.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        self.with_read_only_task_id_mapping(api, || {
             let db = &self.database;
             let db_result = db
                 .cache
-                .get_prefix(&task_type_to_bytes(&partial_task_type)?, 100)?;
+                .get_prefix(&task_type_to_bytes(&partial_task_type)?, 1000)?;
             let mapping = PgApiMapping::new(self, api);
             for id in db_result.0 {
                 mapping.backward(TaskId::from(id));
@@ -674,6 +688,51 @@ impl<'a> IdMapping<TaskId> for PgApiMapping<'a> {
         let _ = self.task_id_backward_mapping.try_insert(new_id, id);
         let _ = m.try_insert(id, new_id);
         new_id
+    }
+
+    fn backward(&self, id: TaskId) -> TaskId {
+        let m = &self.task_id_backward_mapping;
+        if let Some(r) = m.get(&id) {
+            return *r;
+        }
+        let ty = self.this.lookup_task_type(*id).unwrap();
+        let new_id = self.api.get_or_create_task_type(ty);
+        let _ = self.task_id_forward_mapping.try_insert(new_id, id);
+        let _ = m.try_insert(id, new_id);
+        new_id
+    }
+}
+
+struct PgApiReadOnlyMapping<'a> {
+    this: &'a RocksDbPersistedGraph,
+    task_id_forward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
+    task_id_backward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
+    api: &'a dyn PersistedGraphApi,
+}
+
+impl<'a> PgApiReadOnlyMapping<'a> {
+    fn new(this: &'a RocksDbPersistedGraph, api: &'a dyn PersistedGraphApi) -> Self {
+        Self {
+            this,
+            api,
+            task_id_backward_mapping: this.task_id_backward_mapping.pin(),
+            task_id_forward_mapping: this.task_id_forward_mapping.pin(),
+        }
+    }
+}
+
+impl<'a> IdMapping<TaskId> for PgApiReadOnlyMapping<'a> {
+    fn forward(&self, id: TaskId) -> TaskId {
+        let m = &self.task_id_forward_mapping;
+        if let Some(r) = m.get(&id) {
+            return *r;
+        }
+        let ty = self.api.lookup_task_type(id);
+        if let Some(id) = self.this.get_task_type(ty).unwrap() {
+            TaskId::from(id)
+        } else {
+            TaskId::from(0)
+        }
     }
 
     fn backward(&self, id: TaskId) -> TaskId {
