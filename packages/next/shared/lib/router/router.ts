@@ -1190,16 +1190,7 @@ export default class Router implements BaseRouter {
               }),
             asPath: resolvedAs,
             locale: nextState.locale,
-            getPageList: async () => this.pageLoader.getPageList(),
-            getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
-            nextConfig: {
-              basePath: this.basePath,
-              i18n: {
-                defaultLocale: this.defaultLocale,
-                locales: this.locales,
-              },
-              trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
-            },
+            router: this,
           }),
       })
 
@@ -1567,13 +1558,7 @@ export default class Router implements BaseRouter {
           }),
         asPath: resolvedAs,
         locale: locale,
-        getPageList: async () => this.pageLoader.getPageList(),
-        getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
-        nextConfig: {
-          basePath: this.basePath,
-          i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
-          trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
-        },
+        router: this,
       })
 
       if (
@@ -1885,13 +1870,7 @@ export default class Router implements BaseRouter {
         }),
       asPath: asPath,
       locale: locale,
-      getPageList: async () => this.pageLoader.getPageList(),
-      getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
-      nextConfig: {
-        basePath: this.basePath,
-        i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
-        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
-      },
+      router: this,
     })
 
     /**
@@ -2060,19 +2039,6 @@ export default class Router implements BaseRouter {
   }
 }
 
-interface MiddlewareEffectParams<T extends FetchDataOutput> {
-  asPath: string
-  fetchData: () => Promise<T>
-  getMiddlewareList: () => Promise<[location: string, isSSR: boolean][]>
-  getPageList: () => Promise<string[]>
-  locale?: string
-  nextConfig?: {
-    basePath?: string
-    i18n?: { locales?: string[]; defaultLocale?: string }
-    trailingSlash?: boolean
-  }
-}
-
 function matchesMiddleware(params: {
   fns: [location: string, isSSR: boolean][]
   asPath: string
@@ -2093,12 +2059,19 @@ function matchesMiddleware(params: {
   })
 }
 
+interface MiddlewareEffectParams<T extends FetchDataOutput> {
+  fetchData: () => Promise<T>
+  locale?: string
+  asPath: string
+  router: Router
+}
+
 async function withMiddlewareEffects<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ) {
   const matches = matchesMiddleware({
     asPath: options.asPath,
-    fns: await options.getMiddlewareList(),
+    fns: await options.router.pageLoader.getMiddlewareList(),
     locale: options.locale,
   })
 
@@ -2126,18 +2099,24 @@ async function getMiddlewareData<T extends FetchDataOutput>(
   response: Response,
   options: MiddlewareEffectParams<T>
 ) {
+  const nextConfig = {
+    basePath: options.router.basePath,
+    i18n: { locales: options.router.locales },
+    trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+  }
+
   const rewriteTarget = response.headers.get('x-nextjs-matched-path')
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
       const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
       const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
-        nextConfig: options.nextConfig,
+        nextConfig,
         parseData: true,
       })
 
       parsedRewriteTarget.pathname = pathnameInfo.pathname
       const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
-      const pages = await options.getPageList()
+      const pages = await options.router.pageLoader.getPageList()
       return {
         type: 'rewrite' as const,
         parsedAs: parsedRewriteTarget,
@@ -2149,8 +2128,8 @@ async function getMiddlewareData<T extends FetchDataOutput>(
 
     const src = parsePath(source)
     const pathname = formatNextPathnameInfo({
-      ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
-      defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+      ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
+      defaultLocale: options.router.defaultLocale,
       buildId: '',
     })
 
@@ -2165,8 +2144,8 @@ async function getMiddlewareData<T extends FetchDataOutput>(
     if (redirectTarget.startsWith('/')) {
       const src = parsePath(redirectTarget)
       const pathname = formatNextPathnameInfo({
-        ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
-        defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+        ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
+        defaultLocale: options.router.defaultLocale,
         buildId: '',
       })
 
