@@ -11,12 +11,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-
-export function pageNotFoundError(page: string): Error {
-  const err: any = new Error(`Cannot find module for page: ${page}`)
-  err.code = 'ENOENT'
-  return err
-}
+import { PageNotFoundError } from '../shared/lib/utils'
 
 export function getPagePath(
   page: string,
@@ -47,7 +42,7 @@ export function getPagePath(
     page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
 
   const checkManifest = (manifest: PagesManifest) => {
@@ -75,7 +70,7 @@ export function getPagePath(
   }
 
   if (!pagePath) {
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
   return join(serverBuildPath, pagePath)
 }
