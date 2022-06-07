@@ -640,7 +640,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     
     if ((new Set(i18n.locales.map(locale => locale.toLowerCase())).size !== i18n.locales.length) {
       throw new Error(
-        `Specified i18n.locales contains duplicates.\nEach locale should be listed only once.`
+        `Specified i18n.locales contains duplicates.\nEach locale should be listed only once.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
 
