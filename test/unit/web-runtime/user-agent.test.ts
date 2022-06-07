@@ -28,7 +28,7 @@ it('parse an user agent', () => {
 
 it('parse empty user agent', () => {
   expect.assertions(3)
-  ;[undefined, null, ''].forEach((input) => {
+  for (const input of [undefined, null, '']) {
     expect(userAgentFromString(input)).toStrictEqual({
       ua: '',
       browser: { name: undefined, version: undefined, major: undefined },
