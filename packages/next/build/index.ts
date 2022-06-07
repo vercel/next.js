@@ -11,7 +11,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path, { sep, join } from 'path'
+import path, { join } from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -351,13 +351,9 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      let rootPaths = await flatReaddir(dir, middlewareDetectionRegExp)
-      // if no middleware found at root, falls back to src/
-      if (rootPaths.length === 0) {
-        rootPaths = (
-          await flatReaddir(join(dir, 'src'), middlewareDetectionRegExp)
-        ).map((filePath) => join(sep, 'src', filePath))
-      }
+      const rootPaths = (
+        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files

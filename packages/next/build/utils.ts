@@ -1334,10 +1334,14 @@ export function getPossibleMiddlewareFilenames(
   ])
 }
 
-export function getPrevailingMiddlewareFile(
-  candidate: string,
-  existing?: string
+export function isExpectedMiddlewareFile(
+  file: string,
+  pagesDir: string,
+  extensions: string[]
 ) {
-  // /middleware should prevail on /src/middleware
-  return existing === `/${MIDDLEWARE_FILENAME}` ? existing : candidate
+  return extensions.some(
+    (extension) =>
+      file ===
+      `${path.resolve(pagesDir, '..', MIDDLEWARE_FILENAME)}.${extension}`
+  )
 }

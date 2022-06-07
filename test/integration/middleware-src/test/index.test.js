@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import { promises as fs } from 'fs'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -38,6 +38,10 @@ function runDoubleMiddlewareTests() {
 }
 
 async function writeRootMiddleware() {
+  await fs.cp(join(appDir, 'src/pages'), join(appDir, 'pages'), {
+    force: true,
+    recursive: true,
+  })
   await fs.writeFile(
     rootMiddlewareJSFile,
     `
@@ -65,6 +69,7 @@ return response
 async function removeRootMiddleware() {
   await fs.rm(rootMiddlewareJSFile, { force: true })
   await fs.rm(rootMiddlewareTSFile, { force: true })
+  await fs.rm(join(appDir, 'pages'), { force: true, recursive: true })
 }
 
 describe.each([

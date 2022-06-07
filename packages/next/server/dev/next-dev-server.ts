@@ -69,7 +69,7 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   getPossibleMiddlewareFilenames,
-  getPrevailingMiddlewareFile,
+  isExpectedMiddlewareFile,
   isMiddlewareFile,
 } from '../../build/utils'
 
@@ -320,11 +320,14 @@ export default class DevServer extends Server {
             page: rootFile,
           })
 
-          if (isMiddlewareFile(rootFile)) {
-            this.actualMiddlewareFile = getPrevailingMiddlewareFile(
-              rootFile,
-              this.actualMiddlewareFile
+          if (
+            isExpectedMiddlewareFile(
+              fileName,
+              this.pagesDir,
+              this.nextConfig.pageExtensions
             )
+          ) {
+            this.actualMiddlewareFile = rootFile
             middlewareMatcher = staticInfo.middleware?.pathMatcher
             routedMiddleware.push(`/`)
             continue
