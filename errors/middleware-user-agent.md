@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
 
 #### Possible Ways to Fix It
 
-You should to use the function `userAgent` instead:
+To parse the user agent, import `userAgent` function from `next/server` and give it your request:
 
 ```typescript
 // middleware.ts
