@@ -2,7 +2,12 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
+import {
+  CacheFs,
+  DecodeError,
+  execOnce,
+  PageNotFoundError,
+} from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -58,7 +63,7 @@ import BaseServer, {
   stringifyQuery,
   RoutingItem,
 } from './base-server'
-import { getPagePath, requireFontManifest, pageNotFoundError } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -706,7 +711,11 @@ export default class NextNodeServer extends BaseServer {
           },
         }
       } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
+        // we should only not throw if we failed to find the page
+        // in the pages-manifest
+        if (!(err instanceof PageNotFoundError)) {
+          throw err
+        }
       }
     }
     return null
@@ -1042,12 +1051,12 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(page))
     } catch (err) {
-      throw pageNotFoundError(page)
+      throw new PageNotFoundError(page)
     }
 
     let pageInfo = manifest.middleware[foundPage]
     if (!pageInfo) {
-      throw pageNotFoundError(foundPage)
+      throw new PageNotFoundError(foundPage)
     }
 
     return {
@@ -1420,6 +1429,12 @@ function getMiddlewareMatcher(
   const stored = MiddlewareMatcherCache.get(info)
   if (stored) {
     return stored
+  }
+
+  if (typeof info.regexp !== 'string' || !info.regexp) {
+    throw new Error(
+      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+    )
   }
 
   const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })

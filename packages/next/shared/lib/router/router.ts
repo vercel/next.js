@@ -110,6 +110,37 @@ function buildCancellationError() {
   })
 }
 
+function compareRouterStates(a: Router['state'], b: Router['state']) {
+  const stateKeys = Object.keys(a)
+  if (stateKeys.length !== Object.keys(b).length) return false
+
+  for (let i = stateKeys.length; i--; ) {
+    const key = stateKeys[i]
+    if (key === 'query') {
+      const queryKeys = Object.keys(a.query)
+      if (queryKeys.length !== Object.keys(b.query).length) {
+        return false
+      }
+      for (let j = queryKeys.length; j--; ) {
+        const queryKey = queryKeys[j]
+        if (
+          !b.query.hasOwnProperty(queryKey) ||
+          a.query[queryKey] !== b.query[queryKey]
+        ) {
+          return false
+        }
+      }
+    } else if (
+      !b.hasOwnProperty(key) ||
+      a[key as keyof Router['state']] !== b[key as keyof Router['state']]
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 /**
  * Detects whether a given url is routable by the Next.js router (browser only).
  */
@@ -1307,38 +1338,47 @@ export default class Router implements BaseRouter {
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      await this.set(
-        {
-          ...nextState,
-          route,
-          pathname,
-          query,
-          asPath: cleanedAs,
-          isFallback: false,
-        },
-        routeInfo,
-        forcedScroll ?? resetScroll
-      ).catch((e) => {
-        if (e.cancelled) error = error || e
-        else throw e
-      })
-
-      if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
-        throw error
+      const nextScroll = forcedScroll ?? resetScroll
+      const mergedNextState = {
+        ...nextState,
+        route,
+        pathname,
+        query,
+        asPath: cleanedAs,
+        isFallback: false,
       }
 
-      if (process.env.__NEXT_I18N_SUPPORT) {
-        if (nextState.locale) {
-          document.documentElement.lang = nextState.locale
+      // for query updates we can skip it if the state is unchanged and we don't
+      // need to scroll
+      // https://github.com/vercel/next.js/issues/37139
+      const canSkipUpdating =
+        (options as any)._h &&
+        !nextScroll &&
+        compareRouterStates(mergedNextState, this.state)
+
+      if (!canSkipUpdating) {
+        await this.set(mergedNextState, routeInfo, nextScroll).catch((e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        })
+
+        if (error) {
+          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          throw error
         }
-      }
-      Router.events.emit('routeChangeComplete', as, routeProps)
 
-      // A hash mark # is the optional last part of a URL
-      const hashRegex = /#.+$/
-      if (shouldScroll && hashRegex.test(as)) {
-        this.scrollToHash(as)
+        if (process.env.__NEXT_I18N_SUPPORT) {
+          if (nextState.locale) {
+            document.documentElement.lang = nextState.locale
+          }
+        }
+        Router.events.emit('routeChangeComplete', as, routeProps)
+
+        // A hash mark # is the optional last part of a URL
+        const hashRegex = /#.+$/
+        if (shouldScroll && hashRegex.test(as)) {
+          this.scrollToHash(as)
+        }
       }
 
       return true
