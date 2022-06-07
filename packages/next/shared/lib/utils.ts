@@ -47,7 +47,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
     }
   | {
       label: 'custom'

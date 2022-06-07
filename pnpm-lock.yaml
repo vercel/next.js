@@ -565,7 +565,7 @@ importers:
       uuid: 8.3.2
       vm-browserify: 1.1.2
       watchpack: 2.4.0
-      web-vitals: 2.1.0
+      web-vitals: 3.0.0-beta.2
       webpack-sources1: npm:webpack-sources@1.4.3
       webpack-sources3: npm:webpack-sources@3.2.3
       webpack4: npm:webpack@4.44.1
@@ -753,7 +753,7 @@ importers:
       uuid: 8.3.2
       vm-browserify: 1.1.2
       watchpack: 2.4.0
-      web-vitals: 2.1.0
+      web-vitals: 3.0.0-beta.2
       webpack-sources1: /webpack-sources/1.4.3
       webpack-sources3: /webpack-sources/3.2.3
       webpack4: /webpack/4.44.1
@@ -1058,7 +1058,7 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0
     dependencies:
-      '@babel/compat-data': 7.17.0
+      '@babel/compat-data': 7.17.10
       '@babel/core': 7.17.5
       '@babel/helper-validator-option': 7.16.7
       browserslist: 4.20.2
@@ -1071,7 +1071,7 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0
     dependencies:
-      '@babel/compat-data': 7.17.0
+      '@babel/compat-data': 7.17.10
       '@babel/core': 7.18.0
       '@babel/helper-validator-option': 7.16.7
       browserslist: 4.20.2
@@ -8823,7 +8823,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1
+      promise-inflight: 1.0.1_bluebird@3.7.2
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -15129,7 +15129,7 @@ packages:
     dev: true
 
   /json-schema/0.2.3:
-    resolution: {integrity: sha1-tIDIkuWaLwWVTOcnvT8qTogvnhM=}
+    resolution: {integrity: sha512-a3xHnILGMtk+hDOqNwHzF6e2fNbiMrXZvxKQiEv2MlgQP+pjIOzqAmKYD2mDpXYE/44M7g+n9p2bKkYWDUcXCQ==}
     dev: true
 
   /json-stable-stringify-without-jsonify/1.0.1:
@@ -19125,6 +19125,17 @@ packages:
         optional: true
     dev: true
 
+  /promise-inflight/1.0.1_bluebird@3.7.2:
+    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
+    peerDependencies:
+      bluebird: '*'
+    peerDependenciesMeta:
+      bluebird:
+        optional: true
+    dependencies:
+      bluebird: 3.7.2
+    dev: true
+
   /promise-polyfill/6.1.0:
     resolution: {integrity: sha1-36lpQ+qcEh/KTem1hoyznTRy4Fc=}
     dev: true
@@ -23107,8 +23118,8 @@ packages:
     resolution: {integrity: sha512-wYxSGajtmoP4WxfejAPIr4l0fVh+jeMXZb08wNc0tMg6xsfZXj3cECqIK0G7ZAqUq0PP8WlMDtaOGVBTAWztNw==}
     dev: true
 
-  /web-vitals/2.1.0:
-    resolution: {integrity: sha512-npEyJP8jHf3J71t1tRTEtz9FeKp8H2udWJUUq5ykfPhhstr//TUxiYhIEzLNwk4zv2ybAilMn7v7N6Mxmuitmg==}
+  /web-vitals/3.0.0-beta.2:
+    resolution: {integrity: sha512-W9OALsWK4RkA5GWvLhsfszy+Q29WJBB27Dnucc3eYP6/0kz1XsfMgm+4au9X/KjXMIo92ZRU1fWBaSdNsaVjJg==}
     dev: true
 
   /webidl-conversions/3.0.1:
