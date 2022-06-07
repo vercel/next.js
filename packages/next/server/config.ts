@@ -637,10 +637,24 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
-    
-    if ((new Set(i18n.locales.map(locale => locale.toLowerCase())).size !== i18n.locales.length) {
+
+    const normalizedLocales = new Set()
+    const duplicateLocales = new Set()
+
+    i18n.locales.forEach((locale) => {
+      const localeLower = locale.toLowerCase()
+      if (normalizedLocales.has(localeLower)) {
+        duplicateLocales.add(locale)
+      }
+      normalizedLocales.add(localeLower)
+    })
+
+    if (duplicateLocales.size > 0) {
       throw new Error(
-        `Specified i18n.locales contains duplicates.\nEach locale should be listed only once.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+        `Specified i18n.locales contains the following duplicate locales:\n` +
+          `${[...duplicateLocales].join(', ')}\n` +
+          `Each locale should be listed only once.\n` +
+          `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
 
