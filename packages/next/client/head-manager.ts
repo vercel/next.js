@@ -1,4 +1,4 @@
-import { scheduleMicrotask } from './queue-task'
+import React from 'react'
 
 export const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
@@ -128,7 +128,13 @@ export default function initHeadManager(): {
       updatePromise = null
       fn()
     }
-    const promise = (updatePromise = scheduleMicrotask(callback))
+
+    const promise = (updatePromise = Promise.resolve())
+    if (process.env.__NEXT_REACT_ROOT) {
+      ;(React as any).startTransition(callback)
+    } else {
+      promise.then(callback)
+    }
   }
 
   return {
