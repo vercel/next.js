@@ -60,12 +60,13 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
     info.pathname.startsWith('/_next/data/') &&
     info.pathname.endsWith('.json')
   ) {
-    const [buildId, ...rest] = info.pathname
+    const paths = info.pathname
       .replace(/^\/_next\/data\//, '')
       .replace(/\.json$/, '')
       .split('/')
 
-    info.pathname = rest[0] !== 'index' ? `/${rest.join('/')}` : '/'
+    const buildId = paths[0]
+    info.pathname = paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
     info.buildId = buildId
   }
 

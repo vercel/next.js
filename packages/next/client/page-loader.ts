@@ -1,7 +1,12 @@
 import type { ComponentType } from 'react'
-import type { DataHrefParams } from './get-data-href'
 import type { RouteLoader } from './route-loader'
-import { getDataHref } from './get-data-href'
+import { addBasePath } from './add-base-path'
+import { interpolateAs } from '../shared/lib/router/router'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { addLocale } from './add-locale'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import {
   createRouteLoader,
   getClientBuildManifest,
@@ -108,8 +113,35 @@ export default class PageLoader {
     }
   }
 
-  getDataHref(params: Omit<DataHrefParams, 'buildId'>): string {
-    return getDataHref({ ...params, buildId: this.buildId })
+  getDataHref(params: {
+    asPath: string
+    href: string
+    locale?: string | false
+  }): string {
+    const { asPath, href, locale } = params
+    const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
+    const { pathname: asPathname } = parseRelativeUrl(asPath)
+    const route = removeTrailingSlash(hrefPathname)
+    if (route[0] !== '/') {
+      throw new Error(`Route name should start with a "/", got "${route}"`)
+    }
+
+    const getHrefForSlug = (path: string) => {
+      const dataRoute = getAssetPathFromRoute(
+        removeTrailingSlash(addLocale(path, locale)),
+        '.json'
+      )
+      return addBasePath(
+        `/_next/data/${this.buildId}${dataRoute}${search}`,
+        true
+      )
+    }
+
+    return getHrefForSlug(
+      isDynamicRoute(route)
+        ? interpolateAs(hrefPathname, asPathname, query).result
+        : route
+    )
   }
 
   /**

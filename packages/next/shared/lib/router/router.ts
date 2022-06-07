@@ -4,8 +4,6 @@ import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RouterEvent } from '../../../client/router'
-import type { RedirectEffect } from '../../../client/get-middleware-effects'
-import type { RewriteEffect } from '../../../client/get-middleware-effects'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
@@ -18,7 +16,7 @@ import {
 } from '../../../client/route-loader'
 import { handleClientScriptLoad } from '../../../client/script'
 import isError, { getProperError } from '../../../lib/is-error'
-import { resolveDynamicRoute } from '../../../client/resolve-dynamic-route'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
 import {
@@ -46,7 +44,8 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
-import { withMiddlewareEffects } from '../../../client/get-middleware-effects'
+import { getNextPathnameInfo } from './utils/get-next-pathname-info'
+import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 
 declare global {
   interface Window {
@@ -195,56 +194,17 @@ export function interpolateAs(
   }
 }
 
-interface MatchHrefAndAsPathParams {
-  href: { pathname: string; query: ParsedUrlQuery }
-  asPath: string
-}
-
-function matchHrefAndAsPath(params: MatchHrefAndAsPathParams) {
-  const { pathname, query } = params.href
-  const route = removeTrailingSlash(pathname)
-  const regex = getRouteRegex(route)
-  const parsedAs = parseRelativeUrl(params.asPath)
-  const routeMatch = getRouteMatcher(regex)(parsedAs.pathname)
-  if (!routeMatch) {
-    return {
-      error: 'mismatch' as const,
-      asPathname: parsedAs.pathname,
-      missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-    }
-  }
-
-  if (route === parsedAs.pathname) {
-    const interpolated = interpolateAs(route, parsedAs.pathname, query)
-    if (!interpolated?.result) {
-      return {
-        error: 'interpolate' as const,
-        missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-      }
-    }
-
-    return {
-      as: formatWithValidation(
-        Object.assign({}, parsedAs, {
-          pathname: interpolated.result,
-          query: omitParmsFromQuery(query, interpolated.params!),
-        })
-      ),
-    }
-  }
-
-  return { routeMatch }
-}
-
-function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
-  const filteredQuery: ParsedUrlQuery = {}
-
-  Object.keys(query).forEach((key) => {
-    if (!params.includes(key)) {
-      filteredQuery[key] = query[key]
+function omit<T extends { [key: string]: any }, K extends keyof T>(
+  object: T,
+  keys: K[]
+): Omit<T, K> {
+  const omitted: { [key: string]: any } = {}
+  Object.keys(object).forEach((key) => {
+    if (!keys.includes(key as K)) {
+      omitted[key as string] = object[key]
     }
   })
-  return filteredQuery
+  return omitted as Omit<T, K>
 }
 
 /**
@@ -313,7 +273,7 @@ export function resolveHref(
         interpolatedAs = formatWithValidation({
           pathname: result,
           hash: finalUrl.hash,
-          query: omitParmsFromQuery(query, params),
+          query: omit(query, params),
         })
       }
     }
@@ -358,6 +318,25 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
     url: preparedUrl,
     as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
   }
+}
+
+function resolveDynamicRoute(pathname: string, pages: string[]) {
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
+  if (cleanPathname === '/404' || cleanPathname === '/_error') {
+    return pathname
+  }
+
+  // handle resolving href for dynamic routes
+  if (!pages.includes(cleanPathname!)) {
+    // eslint-disable-next-line array-callback-return
+    pages.some((page) => {
+      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
+        pathname = page
+        return true
+      }
+    })
+  }
+  return removeTrailingSlash(pathname)
 }
 
 export type BaseRouter = {
@@ -1190,12 +1169,38 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (isDynamicRoute(route)) {
-      const matchInfo = await this.matchHrefAndAsPath({
-        as,
-        asPath: resolvedAs,
+      const matchInfo = await matchHrefAndAsPath({
         href: { pathname, query },
-        isServerRender: this.isSsr,
-        locale: nextState.locale,
+        asPath: resolvedAs,
+        getData: () =>
+          withMiddlewareEffects({
+            fetchData: () =>
+              fetchNextData({
+                dataHref: this.pageLoader.getDataHref({
+                  asPath: resolvedAs,
+                  href: as,
+                  locale: nextState.locale,
+                }),
+                hasMiddleware: true,
+                isServerRender: this.isSsr,
+                parseJSON: true,
+                inflightCache: {},
+                persistCache: false,
+                isPrefetch: false,
+              }),
+            asPath: resolvedAs,
+            locale: nextState.locale,
+            getPageList: async () => this.pageLoader.getPageList(),
+            getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
+            nextConfig: {
+              basePath: this.basePath,
+              i18n: {
+                defaultLocale: this.defaultLocale,
+                locales: this.locales,
+              },
+              trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+            },
+          }),
       })
 
       if (matchInfo.error) {
@@ -1245,7 +1250,7 @@ export default class Router implements BaseRouter {
 
       // If the routeInfo brings a redirect we simply apply it.
       if ('type' in routeInfo) {
-        if ('newAs' in routeInfo) {
+        if (routeInfo.type === 'redirect-internal') {
           return this.change(method, routeInfo.newUrl, routeInfo.newAs, options)
         } else {
           window.location.href = routeInfo.destination
@@ -1531,7 +1536,7 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
     locale: string | undefined
     isPreview: boolean
-  }): Promise<PrivateRouteInfo | RedirectEffect> {
+  }) {
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
@@ -1545,7 +1550,7 @@ export default class Router implements BaseRouter {
           ? existingInfo
           : undefined
 
-      const data = await this.withMiddlewareEffects({
+      const data = await withMiddlewareEffects({
         fetchData: () =>
           fetchNextData({
             dataHref: this.pageLoader.getDataHref({
@@ -1561,10 +1566,20 @@ export default class Router implements BaseRouter {
             isPrefetch: false,
           }),
         asPath: resolvedAs,
-        locale,
+        locale: locale,
+        getPageList: async () => this.pageLoader.getPageList(),
+        getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
+        nextConfig: {
+          basePath: this.basePath,
+          i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
+          trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        },
       })
 
-      if (data?.effect?.type === 'redirect') {
+      if (
+        data?.effect?.type === 'redirect-internal' ||
+        data?.effect?.type === 'redirect-external'
+      ) {
         return data.effect
       }
 
@@ -1695,92 +1710,6 @@ export default class Router implements BaseRouter {
         routeProps
       )
     }
-  }
-
-  private async matchesMiddleware(asPath: string, locale?: string) {
-    const { pathname: asPathname } = parsePath(asPath)
-    const cleanedAs = removeLocale(
-      hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-      locale
-    )
-
-    const fns = await this.pageLoader.getMiddlewareList()
-    return fns.some(([middleware, isSSR]) => {
-      return getRouteMatcher(
-        getMiddlewareRegex(middleware, {
-          catchAll: !isSSR,
-        })
-      )(cleanedAs)
-    })
-  }
-
-  private async matchHrefAndAsPath(params: {
-    as: string
-    asPath: string
-    effect?: RewriteEffect
-    href: { pathname: string; query: ParsedUrlQuery }
-    isServerRender: boolean
-    locale?: string
-  }) {
-    const result = matchHrefAndAsPath(params)
-    if (result.error === 'mismatch') {
-      const data = await this.withMiddlewareEffects({
-        fetchData: () =>
-          fetchNextData({
-            dataHref: this.pageLoader.getDataHref({
-              asPath: params.asPath,
-              href: params.as,
-              locale: params.locale,
-            }),
-            hasMiddleware: true,
-            isServerRender: params.isServerRender,
-            parseJSON: true,
-            inflightCache: {},
-            persistCache: false,
-            isPrefetch: false,
-          }),
-        asPath: params.asPath,
-        locale: params.locale,
-      })
-
-      if (data?.effect?.type === 'rewrite') {
-        return {
-          effect: data.effect,
-          ...matchHrefAndAsPath({
-            asPath: data.effect.parsedAs.pathname,
-            href: {
-              pathname: data.effect.resolvedHref,
-              query: { ...params.href.query, ...data.effect.parsedAs.query },
-            },
-          }),
-        }
-      }
-    }
-    return result
-  }
-
-  private async withMiddlewareEffects(params: {
-    fetchData: () => Promise<FetchDataOutput>
-    locale?: string
-    asPath: string
-  }) {
-    if (await this.matchesMiddleware(params.asPath, params.locale)) {
-      return withMiddlewareEffects(params.fetchData(), {
-        pages: await this.pageLoader.getPageList(),
-        nextConfig: {
-          basePath: this.basePath,
-          i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
-          trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
-        },
-      }).catch(() => {
-        // TODO: Revisit this in the future.
-        // For now we will not consider middleware data errors to be fatal.
-        // maybe we should revisit in the future.
-        return null
-      })
-    }
-
-    return null
   }
 
   private set(
@@ -1939,7 +1868,7 @@ export default class Router implements BaseRouter {
         ? options.locale || undefined
         : this.locale
 
-    const data = await this.withMiddlewareEffects({
+    const data = await withMiddlewareEffects({
       fetchData: () =>
         fetchNextData({
           dataHref: this.pageLoader.getDataHref({
@@ -1954,8 +1883,15 @@ export default class Router implements BaseRouter {
           persistCache: false,
           isPrefetch: false,
         }),
-      asPath,
-      locale,
+      asPath: asPath,
+      locale: locale,
+      getPageList: async () => this.pageLoader.getPageList(),
+      getMiddlewareList: async () => this.pageLoader.getMiddlewareList(),
+      nextConfig: {
+        basePath: this.basePath,
+        i18n: { defaultLocale: this.defaultLocale, locales: this.locales },
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+      },
     })
 
     /**
@@ -1974,7 +1910,7 @@ export default class Router implements BaseRouter {
      * If there is a redirect to an external destination then we don't have
      * to prefetch content as it will be unused.
      */
-    if (data?.effect.type === 'redirect' && 'destination' in data.effect) {
+    if (data?.effect.type === 'redirect-external') {
       return
     }
 
@@ -2122,4 +2058,195 @@ export default class Router implements BaseRouter {
   get isPreview(): boolean {
     return this.state.isPreview
   }
+}
+
+interface MiddlewareEffectParams<T extends FetchDataOutput> {
+  asPath: string
+  fetchData: () => Promise<T>
+  getMiddlewareList: () => Promise<[location: string, isSSR: boolean][]>
+  getPageList: () => Promise<string[]>
+  locale?: string
+  nextConfig?: {
+    basePath?: string
+    i18n?: { locales?: string[]; defaultLocale?: string }
+    trailingSlash?: boolean
+  }
+}
+
+function matchesMiddleware(params: {
+  fns: [location: string, isSSR: boolean][]
+  asPath: string
+  locale?: string
+}) {
+  const { pathname: asPathname } = parsePath(params.asPath)
+  const cleanedAs = removeLocale(
+    hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
+    params.locale
+  )
+
+  return params.fns.some(([middleware, isSSR]) => {
+    return getRouteMatcher(
+      getMiddlewareRegex(middleware, {
+        catchAll: !isSSR,
+      })
+    )(cleanedAs)
+  })
+}
+
+async function withMiddlewareEffects<T extends FetchDataOutput>(
+  options: MiddlewareEffectParams<T>
+) {
+  const matches = matchesMiddleware({
+    asPath: options.asPath,
+    fns: await options.getMiddlewareList(),
+    locale: options.locale,
+  })
+
+  if (matches) {
+    try {
+      const data = await options.fetchData()
+      return {
+        ...data,
+        effect: await getMiddlewareData(data.dataHref, data.response, options),
+      }
+    } catch (error) {
+      /**
+       * TODO: Revisit this in the future.
+       * For now we will not consider middleware data errors to be fatal.
+       * maybe we should revisit in the future.
+       */
+    }
+  }
+
+  return null
+}
+
+async function getMiddlewareData<T extends FetchDataOutput>(
+  source: string,
+  response: Response,
+  options: MiddlewareEffectParams<T>
+) {
+  const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  if (rewriteTarget) {
+    if (rewriteTarget.startsWith('/')) {
+      const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
+      const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
+        nextConfig: options.nextConfig,
+        parseData: true,
+      })
+
+      parsedRewriteTarget.pathname = pathnameInfo.pathname
+      const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+      const pages = await options.getPageList()
+      return {
+        type: 'rewrite' as const,
+        parsedAs: parsedRewriteTarget,
+        resolvedHref: !pages.includes(fsPathname)
+          ? resolveDynamicRoute(fsPathname, pages)
+          : fsPathname,
+      }
+    }
+
+    const src = parsePath(source)
+    const pathname = formatNextPathnameInfo({
+      ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
+      defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+      buildId: '',
+    })
+
+    return {
+      type: 'redirect-external' as const,
+      destination: `${pathname}${src.query}${src.hash}`,
+    }
+  }
+
+  const redirectTarget = response.headers.get('x-nextjs-redirect')
+  if (redirectTarget) {
+    if (redirectTarget.startsWith('/')) {
+      const src = parsePath(redirectTarget)
+      const pathname = formatNextPathnameInfo({
+        ...getNextPathnameInfo(src.pathname, { ...options, parseData: true }),
+        defaultLocale: options.nextConfig?.i18n?.defaultLocale,
+        buildId: '',
+      })
+
+      return {
+        type: 'redirect-internal' as const,
+        newAs: `${pathname}${src.query}${src.hash}`,
+        newUrl: `${pathname}${src.query}${src.hash}`,
+      }
+    }
+
+    return {
+      type: 'redirect-external' as const,
+      destination: redirectTarget,
+    }
+  }
+
+  return { type: 'next' as const }
+}
+
+async function matchHrefAndAsPath(params: {
+  asPath: string
+  href: { pathname: string; query: ParsedUrlQuery }
+  getData: () => ReturnType<typeof withMiddlewareEffects>
+}) {
+  const result = matchHrefAndAsPathData(params)
+  if (result.error === 'mismatch') {
+    const data = await params.getData()
+    if (data?.effect?.type === 'rewrite') {
+      return {
+        effect: data.effect,
+        ...matchHrefAndAsPathData({
+          asPath: data.effect.parsedAs.pathname,
+          href: {
+            pathname: data.effect.resolvedHref,
+            query: { ...params.href.query, ...data.effect.parsedAs.query },
+          },
+        }),
+      }
+    }
+  }
+
+  return result
+}
+
+function matchHrefAndAsPathData(params: {
+  href: { pathname: string; query: ParsedUrlQuery }
+  asPath: string
+}) {
+  const { asPath, href } = params
+  const { pathname, query } = href
+  const route = removeTrailingSlash(pathname)
+  const regex = getRouteRegex(route)
+  const parsedAs = parseRelativeUrl(asPath)
+  const routeMatch = getRouteMatcher(regex)(parsedAs.pathname)
+  if (!routeMatch) {
+    return {
+      error: 'mismatch' as const,
+      asPathname: parsedAs.pathname,
+      missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
+    }
+  }
+
+  if (route === parsedAs.pathname) {
+    const interpolated = interpolateAs(route, parsedAs.pathname, query)
+    if (!interpolated?.result) {
+      return {
+        error: 'interpolate' as const,
+        missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
+      }
+    }
+
+    return {
+      as: formatWithValidation(
+        Object.assign({}, parsedAs, {
+          pathname: interpolated.result,
+          query: omit(query, interpolated.params!),
+        })
+      ),
+    }
+  }
+
+  return { routeMatch }
 }
