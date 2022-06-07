@@ -28,8 +28,10 @@ export default function SideEffect(props: SideEffectProps) {
   if (typeof window === 'undefined') {
     headManager?.mountedInstances?.add(props.children)
     emitChange()
+    return null
   }
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useLayoutEffect(() => {
     headManager?.mountedInstances?.add(props.children)
     return () => {
@@ -39,12 +41,14 @@ export default function SideEffect(props: SideEffectProps) {
 
   // Cache emitChange in headManager in layout effects and execute later in effects.
   // Since `useEffect` is async effects emitChange will only keep the latest results.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useLayoutEffect(() => {
     if (headManager) {
       headManager._pendingUpdate = emitChange
     }
   })
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (headManager && headManager._pendingUpdate) {
       headManager._pendingUpdate()
