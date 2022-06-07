@@ -472,7 +472,7 @@ function fetchNextData({
   isPrefetch: boolean
 }): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
-  const getData = async (params?: { method?: 'HEAD' | 'GET' }) =>
+  const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
       headers: isPrefetch ? { purpose: 'prefetch' } : {},
       method: params?.method ?? 'GET',
@@ -2066,35 +2066,47 @@ interface MiddlewareEffectParams<T extends FetchDataOutput> {
   router: Router
 }
 
-async function withMiddlewareEffects<T extends FetchDataOutput>(
+function withMiddlewareEffects<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ) {
-  const matches = matchesMiddleware({
-    asPath: options.asPath,
-    fns: await options.router.pageLoader.getMiddlewareList(),
-    locale: options.locale,
-  })
+  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
+    (fns) => {
+      const matches = matchesMiddleware({
+        asPath: options.asPath,
+        locale: options.locale,
+        fns: fns,
+      })
 
-  if (matches) {
-    try {
-      const data = await options.fetchData()
-      return {
-        ...data,
-        effect: await getMiddlewareData(data.dataHref, data.response, options),
+      if (matches) {
+        return options
+          .fetchData()
+          .then((data) =>
+            getMiddlewareData(data.dataHref, data.response, options).then(
+              (effect) => ({
+                dataHref: data.dataHref,
+                json: data.json,
+                response: data.response,
+                text: data.text,
+                effect,
+              })
+            )
+          )
+          .catch(() => {
+            /**
+             * TODO: Revisit this in the future.
+             * For now we will not consider middleware data errors to be fatal.
+             * maybe we should revisit in the future.
+             */
+            return null
+          })
       }
-    } catch (error) {
-      /**
-       * TODO: Revisit this in the future.
-       * For now we will not consider middleware data errors to be fatal.
-       * maybe we should revisit in the future.
-       */
-    }
-  }
 
-  return null
+      return null
+    }
+  )
 }
 
-async function getMiddlewareData<T extends FetchDataOutput>(
+function getMiddlewareData<T extends FetchDataOutput>(
   source: string,
   response: Response,
   options: MiddlewareEffectParams<T>
@@ -2116,14 +2128,15 @@ async function getMiddlewareData<T extends FetchDataOutput>(
 
       parsedRewriteTarget.pathname = pathnameInfo.pathname
       const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
-      const pages = await options.router.pageLoader.getPageList()
-      return {
-        type: 'rewrite' as const,
-        parsedAs: parsedRewriteTarget,
-        resolvedHref: !pages.includes(fsPathname)
-          ? resolveDynamicRoute(fsPathname, pages)
-          : fsPathname,
-      }
+      return Promise.resolve(options.router.pageLoader.getPageList()).then(
+        (pages) => ({
+          type: 'rewrite' as const,
+          parsedAs: parsedRewriteTarget,
+          resolvedHref: !pages.includes(fsPathname)
+            ? resolveDynamicRoute(fsPathname, pages)
+            : fsPathname,
+        })
+      )
     }
 
     const src = parsePath(source)
@@ -2133,10 +2146,10 @@ async function getMiddlewareData<T extends FetchDataOutput>(
       buildId: '',
     })
 
-    return {
+    return Promise.resolve({
       type: 'redirect-external' as const,
       destination: `${pathname}${src.query}${src.hash}`,
-    }
+    })
   }
 
   const redirectTarget = response.headers.get('x-nextjs-redirect')
@@ -2149,45 +2162,48 @@ async function getMiddlewareData<T extends FetchDataOutput>(
         buildId: '',
       })
 
-      return {
+      return Promise.resolve({
         type: 'redirect-internal' as const,
         newAs: `${pathname}${src.query}${src.hash}`,
         newUrl: `${pathname}${src.query}${src.hash}`,
-      }
+      })
     }
 
-    return {
+    return Promise.resolve({
       type: 'redirect-external' as const,
       destination: redirectTarget,
-    }
+    })
   }
 
-  return { type: 'next' as const }
+  return Promise.resolve({ type: 'next' as const })
 }
 
-async function matchHrefAndAsPath(params: {
+function matchHrefAndAsPath(params: {
   asPath: string
   href: { pathname: string; query: ParsedUrlQuery }
   getData: () => ReturnType<typeof withMiddlewareEffects>
 }) {
   const result = matchHrefAndAsPathData(params)
   if (result.error === 'mismatch') {
-    const data = await params.getData()
-    if (data?.effect?.type === 'rewrite') {
-      return {
-        effect: data.effect,
-        ...matchHrefAndAsPathData({
-          asPath: data.effect.parsedAs.pathname,
-          href: {
-            pathname: data.effect.resolvedHref,
-            query: { ...params.href.query, ...data.effect.parsedAs.query },
-          },
-        }),
+    return params.getData().then((data) => {
+      if (data?.effect?.type === 'rewrite') {
+        return Object.assign(
+          { effect: data.effect },
+          matchHrefAndAsPathData({
+            asPath: data.effect.parsedAs.pathname,
+            href: {
+              pathname: data.effect.resolvedHref,
+              query: { ...params.href.query, ...data.effect.parsedAs.query },
+            },
+          })
+        )
       }
-    }
+
+      return result
+    })
   }
 
-  return result
+  return Promise.resolve(result)
 }
 
 function matchHrefAndAsPathData(params: {
