@@ -4,6 +4,7 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -157,6 +158,33 @@ describe('Middleware Runtime', () => {
 })
 
 function tests(context, locale = '') {
+  // TODO: re-enable after fixing server-side resolving priority
+  it.skip('should rewrite the same for direct visit and client-transition', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/rewrite-1`)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Hello World')
+
+    const browser = await webdriver(context.appPort, `${locale}/`)
+    await browser.eval(`next.router.push('/rewrite-1')`)
+    await check(async () => {
+      const content = await browser.eval('document.documentElement.innerHTML')
+      return content.includes('Hello World') ? 'success' : content
+    }, 'success')
+  })
+
+  it('should rewrite correctly for non-SSG/SSP page', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/rewrite-2`)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('AboutA')
+
+    const browser = await webdriver(context.appPort, `${locale}/`)
+    await browser.eval(`next.router.push('/rewrite-2')`)
+    await check(async () => {
+      const content = await browser.eval('document.documentElement.innerHTML')
+      return content.includes('AboutA') ? 'success' : content
+    }, 'success')
+  })
+
   it('should respond with 400 on decode failure', async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/%2`)
     expect(res.status).toBe(400)
