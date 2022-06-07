@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Your middleware is interacting with `req.ua` and it's being deprecated
+Your middleware is interacting with `req.ua` and this feature needs to opt-in.
 
 ```typescript
 // middleware.ts
