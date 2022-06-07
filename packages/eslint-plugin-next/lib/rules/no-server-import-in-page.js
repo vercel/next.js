@@ -1,5 +1,9 @@
 const path = require('path')
 
+const middlewareRegExp = new RegExp(
+  `(?:^|${path.posix.sep})middleware\\.(?:t|j)s$`
+)
+
 module.exports = {
   meta: {
     docs: {
@@ -16,7 +20,7 @@ module.exports = {
         }
 
         const filename = context.getFilename()
-        if (filename.match(/(?:^|\/)middleware\.(?:t|j)s$/)) {
+        if (middlewareRegExp.test(filename)) {
           return
         }
 
