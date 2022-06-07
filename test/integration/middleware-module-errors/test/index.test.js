@@ -162,7 +162,9 @@ describe('Middleware importing Node.js modules', () => {
       try {
         const res = await fetchViaHTTP(context.appPort, '/about')
         expect(context.logs.stderr).toContain(
-          'nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+          `Nested Middleware is not allowed (found pages/about/_middleware).
+Please move your code to /middleware instead.
+Read More - https://nextjs.org/docs/messages/nested-middleware`
         )
         expect(res.status).toBe(200)
       } finally {
@@ -216,14 +218,16 @@ describe('Middleware importing Node.js modules', () => {
 
     it('fails when there is a not allowed middleware', async () => {
       const file = new File(join(__dirname, '../pages/about/_middleware.js'))
-      file.write(`export function middleware() {}`)
+      file.write(`export function middleware() {}\n`)
       const buildResult = await nextBuild(context.appDir, undefined, {
         stderr: true,
         stdout: true,
       })
 
       expect(buildResult.stderr).toContain(
-        'Error: nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+        `NestedMiddlewareError: Nested Middleware is not allowed (found pages/about/_middleware).
+Please move your code to /middleware instead.
+Read More - https://nextjs.org/docs/messages/nested-middleware`
       )
     })
   })

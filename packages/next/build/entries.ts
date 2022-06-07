@@ -28,7 +28,7 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { isServerComponentPage } from './utils'
+import { isServerComponentPage, NestedMiddlewareError } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -319,9 +319,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
         /[\\\\/]_middleware$/.test(page)
       ) {
-        throw new Error(
-          `nested Middleware is not allowed (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
-        )
+        throw new NestedMiddlewareError(page, rootDir, pagesDir)
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)

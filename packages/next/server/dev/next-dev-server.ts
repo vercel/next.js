@@ -69,6 +69,7 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
+import { NestedMiddlewareError } from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -347,7 +348,8 @@ export default class DevServer extends Server {
            */
           if (/[\\\\/]_middleware$/.test(pageName)) {
             Log.error(
-              `nested Middleware is not allowed (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
+              new NestedMiddlewareError(pageName, this.dir, this.pagesDir)
+                .message
             )
             continue
           }
