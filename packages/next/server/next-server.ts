@@ -395,17 +395,6 @@ export default class NextNodeServer extends BaseServer {
           }
 
           let path = `/${pathParts.join('/')}`
-          if (this.nextConfig.i18n) {
-            const { locales } = this.nextConfig.i18n
-            const { pathname, detectedLocale } = normalizeLocalePath(
-              path,
-              locales
-            )
-            if (detectedLocale) {
-              path = pathname
-              params.path.shift()
-            }
-          }
 
           if (!publicFiles.has(path)) {
             // In `next-dev-server.ts`, we ensure encoded paths match
@@ -1354,6 +1343,17 @@ export default class NextNodeServer extends BaseServer {
               res as NodeNextResponse,
               parsedDestination
             )
+          }
+
+          if (this.nextConfig.i18n) {
+            const localePathResult = normalizeLocalePath(
+              newUrl,
+              this.nextConfig.i18n.locales
+            )
+            if (localePathResult.detectedLocale) {
+              parsedDestination.query.__nextLocale =
+                localePathResult.detectedLocale
+            }
           }
 
           addRequestMeta(req, '_nextRewroteUrl', newUrl)
