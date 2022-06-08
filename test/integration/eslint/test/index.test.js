@@ -283,7 +283,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Error: Do not use `<img>` element. Use either Image from `next/image` or `<picture>` in conjunction with `<img>`.'
       )
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used.'
@@ -319,7 +319,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Error: Do not use `<img>` element. Use either Image from `next/image` or `<picture>` in conjunction with `<img>`.'
       )
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used.'
@@ -592,7 +592,7 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Do not use `<img>` element. Use either Image from `next/image` or `<picture>` in conjunction with `<img>`.'
       )
 
       expect(output).not.toContain('pages/index.js')
