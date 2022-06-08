@@ -4,6 +4,7 @@ import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
+import { pick } from '../../../lib/pick'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -134,17 +135,19 @@ async function createModuleContext(options: ModuleContextOptions) {
 
         if (typeof input === 'object' && 'url' in input) {
           return __fetch(input.url, {
-            method: input.method,
-            body: input.body,
-            cache: input.cache,
-            credentials: input.credentials,
-            integrity: input.integrity,
-            keepalive: input.keepalive,
-            mode: input.mode,
-            redirect: input.redirect,
-            referrer: input.referrer,
-            referrerPolicy: input.referrerPolicy,
-            signal: input.signal,
+            ...pick(input, [
+              'method',
+              'body',
+              'cache',
+              'credentials',
+              'integrity',
+              'keepalive',
+              'mode',
+              'redirect',
+              'referrer',
+              'referrerPolicy',
+              'signal',
+            ]),
             ...init,
             headers: {
               ...Object.fromEntries(input.headers),
