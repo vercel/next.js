@@ -25,7 +25,7 @@ import type {
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
-import ReactDOMServer from 'react-dom/server'
+import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -83,6 +83,12 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { clonableBodyForRequest } from './body-streams'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
+// Detect if streaming rendering mode is enabled
+const shouldUseReactRoot = !!(React as any).useId
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
+
 export * from './base-server'
 
 type ExpressMiddleware = (
@@ -125,13 +131,6 @@ export default class NextNodeServer extends BaseServer {
     }
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
-    }
-
-    // Make sure env of custom server is overridden.
-    // Use dynamic require to make sure it's executed in it's own context.
-    const shouldUseReactRoot = !!(ReactDOMServer as any).renderToPipeableStream
-    if (shouldUseReactRoot) {
-      process.env.__NEXT_REACT_ROOT = JSON.stringify(true)
     }
 
     if (!this.minimalMode) {
