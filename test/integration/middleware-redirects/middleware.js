@@ -2,8 +2,12 @@ export async function middleware(request) {
   const url = request.nextUrl
 
   if (url.pathname === '/old-home') {
-    url.pathname = '/new-home'
-    return Response.redirect(url)
+    if (url.searchParams.get('override') === 'external') {
+      return Response.redirect('https://example.com')
+    } else {
+      url.pathname = '/new-home'
+      return Response.redirect(url)
+    }
   }
 
   if (url.searchParams.get('foo') === 'bar') {

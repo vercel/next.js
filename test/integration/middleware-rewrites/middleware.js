@@ -97,4 +97,9 @@ export async function middleware(request) {
       return NextResponse.rewrite(url)
     }
   }
+
+  if (url.pathname.startsWith('/i18n')) {
+    url.searchParams.set('locale', url.locale)
+    return NextResponse.rewrite(url)
+  }
 }

@@ -1,9 +1,11 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -24,6 +26,7 @@ describe('Middleware Redirect', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort)
     })
 
@@ -36,6 +39,10 @@ describe('Middleware Redirect', () => {
     afterAll(() => killApp(context.app))
     beforeAll(async () => {
       await nextBuild(context.appDir)
+      context.buildId = await fs.readFile(
+        join(context.appDir, '.next/BUILD_ID'),
+        'utf8'
+      )
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort)
     })
@@ -55,6 +62,43 @@ function tests(context) {
       false
     )
   })
+
+  it(`should redirect to data urls with data requests and internal redirects`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/old-home.json`,
+      { override: 'internal' },
+      { redirect: 'manual' }
+    )
+
+    expect(
+      res.headers
+        .get('x-nextjs-redirect')
+        ?.endsWith(
+          `/_next/data/${context.buildId}/es/new-home.json?override=internal`
+        )
+    ).toEqual(true)
+    expect(res.headers.get('location')).toEqual(null)
+  })
+
+  it(`should redirect to external urls with data requests and external redirects`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/es/old-home.json`,
+      { override: 'external' },
+      { redirect: 'manual' }
+    )
+
+    expect(res.headers.get('x-nextjs-redirect')).toEqual('https://example.com/')
+    expect(res.headers.get('location')).toEqual(null)
+
+    const browser = await webdriver(context.appPort, '/')
+    await browser.elementByCss('#old-home-external').click()
+    await check(async () => {
+      expect(await browser.elementByCss('h1').text()).toEqual('Example Domain')
+      return 'yes'
+    }, 'yes')
+  })
 }
 
 function testsWithLocale(context, locale = '') {
@@ -73,6 +117,21 @@ function testsWithLocale(context, locale = '') {
       await browser.close()
     }
     expect($('.title').text()).toBe('Welcome to a new page')
+  })
+
+  it(`${label}should implement internal redirects`, async () => {
+    const browser = await webdriver(context.appPort, `${locale}`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#old-home').click()
+    await browser.waitForElementByCss('#new-home-title')
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/new-home`
+      )
+    } finally {
+      await browser.close()
+    }
   })
 
   it(`${label}should redirect cleanly with the original url param`, async () => {
