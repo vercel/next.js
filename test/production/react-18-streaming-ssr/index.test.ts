@@ -14,6 +14,8 @@ const react18Deps = {
   'react-dom': '^18.0.0',
 }
 
+jest.setTimeout(360 * 1000)
+
 describe('react 18 streaming SSR and RSC in minimal mode', () => {
   let next: NextInstance
 
