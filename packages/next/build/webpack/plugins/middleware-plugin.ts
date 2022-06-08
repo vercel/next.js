@@ -164,6 +164,10 @@ function getCodeAnalizer(params: {
       })
     }
 
+    /**
+     * Declares an environment variable that is being used in this module
+     * through this static analysis.
+     */
     const addUsedEnvVar = (envVarName: string) => {
       const buildInfo = getModuleBuildInfo(parser.state.module)
       if (buildInfo.nextUsedEnvVars === undefined) {
