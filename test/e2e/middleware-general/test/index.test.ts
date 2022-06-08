@@ -175,24 +175,27 @@ describe('Middleware Runtime', () => {
     }
   })
 
-  it('should set fetch user agent correctly', async () => {
-    const res = await fetchViaHTTP(
-      next.url,
-      `${locale}/fetch-user-agent-default`
-    )
+  if (!(global as any).isNextDeploy) {
+    // user agent differs on Vercel
+    it('should set fetch user agent correctly', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `${locale}/fetch-user-agent-default`
+      )
 
-    if (!(global as any).isNextDeploy) {
       expect(readMiddlewareJSON(res).headers['user-agent']).toBe(
         'Next.js Middleware'
       )
-    }
 
-    const res2 = await fetchViaHTTP(
-      next.url,
-      `${locale}/fetch-user-agent-crypto`
-    )
-    expect(readMiddlewareJSON(res2).headers['user-agent']).toBe('custom-agent')
-  })
+      const res2 = await fetchViaHTTP(
+        next.url,
+        `${locale}/fetch-user-agent-crypto`
+      )
+      expect(readMiddlewareJSON(res2).headers['user-agent']).toBe(
+        'custom-agent'
+      )
+    })
+  }
 
   it('should contain process polyfill', async () => {
     const res = await fetchViaHTTP(next.url, `/global`)
@@ -216,12 +219,15 @@ describe('Middleware Runtime', () => {
     expect('error' in readMiddlewareJSON(res)).toBe(false)
   })
 
-  it(`should accept a URL instance for fetch`, async () => {
-    const response = await fetchViaHTTP(next.url, '/fetch-url')
-    const { error } = readMiddlewareJSON(response)
-    expect(error).toBeTruthy()
-    expect(error.message).not.toContain("Failed to construct 'URL'")
-  })
+  if (!(global as any).isNextDeploy) {
+    it(`should accept a URL instance for fetch`, async () => {
+      const response = await fetchViaHTTP(next.url, '/fetch-url')
+      // TODO: why is an error expected here if it should work?
+      const { error } = readMiddlewareJSON(response)
+      expect(error).toBeTruthy()
+      expect(error.message).not.toContain("Failed to construct 'URL'")
+    })
+  }
 
   it(`should allow to abort a fetch request`, async () => {
     const response = await fetchViaHTTP(next.url, '/abort-controller')
@@ -234,7 +240,7 @@ describe('Middleware Runtime', () => {
   it(`should validate & parse request url from any route`, async () => {
     const res = await fetchViaHTTP(next.url, `${locale}/static`)
 
-    expect(res.headers.get('req-url-basepath')).toBe('')
+    expect(res.headers.get('req-url-basepath')).toBeFalsy()
     expect(res.headers.get('req-url-pathname')).toBe('/static')
 
     const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
@@ -250,7 +256,7 @@ describe('Middleware Runtime', () => {
   it(`should validate & parse request url from a dynamic route with params`, async () => {
     const res = await fetchViaHTTP(next.url, `/fr/1`)
 
-    expect(res.headers.get('req-url-basepath')).toBe('')
+    expect(res.headers.get('req-url-basepath')).toBeFalsy()
     expect(res.headers.get('req-url-pathname')).toBe('/1')
 
     const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
@@ -263,7 +269,7 @@ describe('Middleware Runtime', () => {
 
   it(`should validate & parse request url from a dynamic route with params and no query`, async () => {
     const res = await fetchViaHTTP(next.url, `/fr/abc123`)
-    expect(res.headers.get('req-url-basepath')).toBe('')
+    expect(res.headers.get('req-url-basepath')).toBeFalsy()
 
     const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
     expect(pathname).toBe('/:locale/:id')
@@ -275,7 +281,7 @@ describe('Middleware Runtime', () => {
 
   it(`should validate & parse request url from a dynamic route with params and query`, async () => {
     const res = await fetchViaHTTP(next.url, `/abc123?foo=bar`)
-    expect(res.headers.get('req-url-basepath')).toBe('')
+    expect(res.headers.get('req-url-basepath')).toBeFalsy()
 
     const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
 
@@ -291,20 +297,23 @@ describe('Middleware Runtime', () => {
     expect(readMiddlewareError(res)).toContain('Invalid URL')
   })
 
-  it('should throw when using Request with a relative URL', async () => {
-    const response = await fetchViaHTTP(next.url, `/url/relative-request`)
-    expect(readMiddlewareError(response)).toContain(urlsError)
-  })
-
   it('should throw when using NextRequest with a relative URL', async () => {
     const response = await fetchViaHTTP(next.url, `/url/relative-next-request`)
     expect(readMiddlewareError(response)).toContain(urlsError)
   })
 
-  it('should warn when using Response.redirect with a relative URL', async () => {
-    const response = await fetchViaHTTP(next.url, `/url/relative-redirect`)
-    expect(readMiddlewareError(response)).toContain(urlsError)
-  })
+  if (!(global as any).isNextDeploy) {
+    // these errors differ on Vercel
+    it('should throw when using Request with a relative URL', async () => {
+      const response = await fetchViaHTTP(next.url, `/url/relative-request`)
+      expect(readMiddlewareError(response)).toContain(urlsError)
+    })
+
+    it('should warn when using Response.redirect with a relative URL', async () => {
+      const response = await fetchViaHTTP(next.url, `/url/relative-redirect`)
+      expect(readMiddlewareError(response)).toContain(urlsError)
+    })
+  }
 
   it('should warn when using NextResponse.redirect with a relative URL', async () => {
     const response = await fetchViaHTTP(next.url, `/url/relative-next-redirect`)

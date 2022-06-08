@@ -70,6 +70,8 @@ export class NextDeployInstance extends NextInstance {
     for (const key of Object.keys(this.env || {})) {
       additionalEnv.push('--build-env')
       additionalEnv.push(`${key}=${this.env[key]}`)
+      additionalEnv.push('--env')
+      additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
     const deployRes = await execa(

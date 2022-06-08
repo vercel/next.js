@@ -25,12 +25,15 @@ describe('Middleware Rewrite', () => {
   testsWithLocale()
   testsWithLocale('/fr')
   function tests() {
-    it('includes the locale in rewrites by default', async () => {
-      const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
-      expect(
-        res.headers.get('x-middleware-rewrite')?.endsWith('/en/about')
-      ).toEqual(true)
-    })
+    if (!(global as any).isNextDeploy) {
+      // middleware effect headers aren't available here
+      it('includes the locale in rewrites by default', async () => {
+        const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
+        expect(
+          res.headers.get('x-middleware-rewrite')?.endsWith('/en/about')
+        ).toEqual(true)
+      })
+    }
 
     it('should override with rewrite internally correctly', async () => {
       const res = await fetchViaHTTP(
@@ -118,15 +121,18 @@ describe('Middleware Rewrite', () => {
       }, 'success')
     })
 
-    it(`warns about a query param deleted`, async () => {
-      await fetchViaHTTP(next.url, `/clear-query-params`, {
-        a: '1',
-        allowed: 'kept',
+    if (!(global as any).isNextDeploy) {
+      // runtime logs aren't currently available for deploy test
+      it(`warns about a query param deleted`, async () => {
+        await fetchViaHTTP(next.url, `/clear-query-params`, {
+          a: '1',
+          allowed: 'kept',
+        })
+        expect(next.cliOutput).toContain(
+          'Query params are no longer automatically merged for rewrites in middleware'
+        )
       })
-      expect(next.cliOutput).toContain(
-        'Query params are no longer automatically merged for rewrites in middleware'
-      )
-    })
+    }
 
     it('should allow to opt-out preflight caching', async () => {
       const browser = await webdriver(next.url, '/')

@@ -115,13 +115,13 @@ export class NextInstance {
                 require('next/package.json').version,
             },
             scripts: {
+              ...pkgScripts,
               build:
                 (pkgScripts['build'] || this.buildCommand || 'next build') +
                 ' && yarn post-build',
               // since we can't get the build id as a build artifact, make it
               // available under the static files
               'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
-              ...pkgScripts,
             },
           },
           null,

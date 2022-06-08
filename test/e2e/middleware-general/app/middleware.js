@@ -36,6 +36,11 @@ const params = (url) => {
 export async function middleware(request) {
   const url = request.nextUrl
 
+  // this is needed for tests to get the BUILD_ID
+  if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
+    return NextResponse.next()
+  }
+
   if (url.pathname.startsWith('/fetch-user-agent-default')) {
     try {
       const apiRoute = new URL(url)
