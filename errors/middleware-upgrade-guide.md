@@ -208,7 +208,7 @@ export function middleware() {
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
 
   // get all the details of a cookie
-  const [value, options] = response.cookies.getWithOptions('vercel')
+  const {value, options} = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
 
