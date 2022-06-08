@@ -395,6 +395,17 @@ export default class NextNodeServer extends BaseServer {
           }
 
           let path = `/${pathParts.join('/')}`
+          if (this.nextConfig.i18n) {
+            const { locales } = this.nextConfig.i18n
+            const { pathname, detectedLocale } = normalizeLocalePath(
+              path,
+              locales
+            )
+            if (detectedLocale) {
+              path = pathname
+              params.path.shift()
+            }
+          }
 
           if (!publicFiles.has(path)) {
             // In `next-dev-server.ts`, we ensure encoded paths match

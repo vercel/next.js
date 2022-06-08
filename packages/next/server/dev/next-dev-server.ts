@@ -6,6 +6,7 @@ import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
@@ -69,7 +70,6 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
-import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -914,11 +914,18 @@ export default class DevServer extends Server {
       match: getPathMatch('/:path*'),
       type: 'route',
       requireBasePath: false,
-      name: 'public folder catchall',
+      name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
+        }
+
+        if (this.nextConfig.i18n) {
+          const { locales } = this.nextConfig.i18n
+          if (normalizeLocalePath(pathname, locales).detectedLocale) {
+            params.path.shift()
+          }
         }
 
         // Used in development to check public directory paths

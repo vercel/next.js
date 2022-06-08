@@ -343,12 +343,13 @@ export default class Router {
             currentPathname += '/'
           }
         } else {
-          const pathname = isPublicFolderCatchall
-            ? localePathResult.pathname
-            : currentPathnameNoBasePath
           currentPathname = `${
             getRequestMeta(req, '_nextHadBasePath') ? activeBasePath : ''
-          }${activeBasePath && pathname === '/' ? '' : pathname}`
+          }${
+            activeBasePath && currentPathnameNoBasePath === '/'
+              ? ''
+              : currentPathnameNoBasePath
+          }`
         }
 
         let newParams = testRoute.match(currentPathname)
