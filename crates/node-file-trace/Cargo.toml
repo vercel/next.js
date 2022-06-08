@@ -15,7 +15,7 @@ bench = false
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
 "turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
-"turbopack" = { path = "../turbopack" }
+"turbopack" = { path = "../turbopack", features = ["node-native-binding"] }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 anyhow = "1.0.47"
 async-std = "1.10.0"

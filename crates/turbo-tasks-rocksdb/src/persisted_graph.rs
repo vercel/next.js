@@ -16,9 +16,7 @@ use turbo_tasks::{
     with_task_id_mapping, IdMapping, TaskId,
 };
 
-use super::{
-    db::{Database, PartialTaskData, TaskState, TaskStateChange},
-};
+use super::db::{Database, PartialTaskData, TaskState, TaskStateChange};
 
 fn task_type_to_bytes(ty: &PersistentTaskType) -> Result<Vec<u8>, bincode::Error> {
     let mut result = Vec::new();

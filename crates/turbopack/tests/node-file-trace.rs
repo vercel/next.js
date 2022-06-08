@@ -23,13 +23,13 @@ use turbopack::{
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
 #[case::apollo("integration/apollo.js", true)]
-#[case::argon2("integration/argon2.js", false)] // can't find *.node binding
+#[case::argon2("integration/argon2.js", true)]
 #[case::auth0("integration/auth0.js", true)]
 #[case::aws_sdk("integration/aws-sdk.js", true)]
 #[case::axios("integration/axios.js", true)]
 #[case::azure_cosmos("integration/azure-cosmos.js", true)]
 #[case::azure_storage("integration/azure-storage.js", true)]
-#[case::bcrypt("integration/bcrypt.js", false)] // can't find *.node binding
+#[case::bcrypt("integration/bcrypt.js", true)]
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
 #[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
@@ -53,7 +53,7 @@ use turbopack::{
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]
-#[case::ffmpeg("integration/ffmpeg.js", false)]
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", false))]
 // Could not find ffmpeg executable
 // #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
 // #[case::firebase("integration/firebase.js", false)] // hanging
@@ -69,13 +69,13 @@ use turbopack::{
 #[case::jimp("integration/jimp.js", true)]
 #[case::jugglingdb("integration/jugglingdb.js", false)] // doesn't understand define
 #[case::koa("integration/koa.js", true)]
-#[case::leveldown("integration/leveldown.js", false)] // can't find *.node binding
+#[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
 #[case::loopback("integration/loopback.js", false)] // node_modules/strong-globalize/cldr folder missing
 #[case::mailgun("integration/mailgun.js", true)]
 #[case::mariadb("integration/mariadb.js", true)]
 #[case::memcached("integration/memcached.js", true)]
-#[case::mongoose("integration/mongoose.js", false)] // Cannot find module './drivers/node-mongodb-native/connection'
+#[case::mongoose("integration/mongoose.js", true)]
 #[case::mysql("integration/mysql.js", true)]
 #[case::npm("integration/npm.js", false)]
 // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
@@ -96,7 +96,7 @@ use turbopack::{
 #[case::pug("integration/pug.js", true)]
 #[case::react("integration/react.js", true)]
 #[case::redis("integration/redis.js", true)]
-// #[case::remark_prism("integration/remark-prism.mjs", false)] // need to copy *.node extra files
+#[case::remark_prism("integration/remark-prism.mjs", true)]
 #[case::request("integration/request.js", true)]
 #[case::rxjs("integration/rxjs.js", true)]
 #[case::saslprep("integration/saslprep.js", false)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
@@ -108,6 +108,7 @@ use turbopack::{
 #[case::simple("integration/simple.js", true)]
 #[case::socket_io("integration/socket.io.js", true)]
 #[case::sparql_builder("integration/sparql-builder.js", true)]
+#[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
 #[case::tensorflow("integration/tensorflow.js", false)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]

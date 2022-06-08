@@ -1,0 +1,27 @@
+Collection = ???*0*
+- *0* require*1*(
+        `${(???*2* | "./drivers/node-mongodb-native")}/collection`
+    )
+  ⚠️  only constant argument is supported
+- *1* require: The require method from CommonJS
+- *2* ???*3*["MONGOOSE_DRIVER_PATH"]
+  ⚠️  property on unknown
+- *3* FreeVar(global)
+  ⚠️  unknown global
+
+Connection = ???*0*
+- *0* require*1*(
+        `${(???*2* | "./drivers/node-mongodb-native")}/connection`
+    )
+  ⚠️  only constant argument is supported
+- *1* require: The require method from CommonJS
+- *2* ???*3*["MONGOOSE_DRIVER_PATH"]
+  ⚠️  property on unknown
+- *3* FreeVar(global)
+  ⚠️  unknown global
+
+driver = (???*0* | "./drivers/node-mongodb-native")
+- *0* ???*1*["MONGOOSE_DRIVER_PATH"]
+  ⚠️  property on unknown
+- *1* FreeVar(global)
+  ⚠️  unknown global

@@ -215,6 +215,7 @@ pub async fn module_references(
                 link_value: &'a F,
                 is_typescript: bool,
                 references: &'a mut Vec<AssetReferenceVc>,
+                target: &'a CompileTarget,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
                     handler,
@@ -226,6 +227,7 @@ pub async fn module_references(
                     link_value,
                     is_typescript,
                     references,
+                    &target,
                 ))
             }
 
@@ -242,6 +244,7 @@ pub async fn module_references(
                 link_value: &F,
                 is_typescript: bool,
                 references: &mut Vec<AssetReferenceVc>,
+                target: &CompileTarget,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
                     JsValue::explain_args(&args, 10, 2)
@@ -260,6 +263,7 @@ pub async fn module_references(
                                 link_value,
                                 is_typescript,
                                 references,
+                                &target,
                             )
                             .await?;
                         }
@@ -504,6 +508,84 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    #[cfg(feature = "node-native-binding")]
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
+                        use crate::resolve::node_native_binding::NodePreGypConfigReferenceVc;
+
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            let pat = js_value_to_pattern(&first_arg);
+                            if !pat.has_constant_parts() {
+                                let (args, hints) = explain_args(&linked_args().await?);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
+                                            .to_string(),
+                                    ),
+                                );
+                                return Ok(());
+                            }
+                            references.push(
+                                NodePreGypConfigReferenceVc::new(
+                                    source.path().parent(),
+                                    pat.into(),
+                                    Value::new(*target),
+                                )
+                                .into(),
+                            );
+                            return Ok(());
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('@mapbox/node-pre-gyp').find({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
+                                    .to_string(),
+                            ),
+                        )
+                    }
+                    #[cfg(feature = "node-native-binding")]
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
+                        use crate::analyzer::ConstantValue;
+                        use crate::resolve::node_native_binding::NodeGypBuildReferenceVc;
+
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            if let JsValue::Constant(ConstantValue::Str(ref s)) = first_arg {
+                                let current_context = FileSystemPathVc::new(
+                                    source.path().fs(),
+                                    s.trim_start_matches("/ROOT/"),
+                                );
+                                references.push(
+                                    NodeGypBuildReferenceVc::new(
+                                        current_context,
+                                        Value::new(*target),
+                                    )
+                                    .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('node-gyp-build')({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -534,6 +616,7 @@ pub async fn module_references(
                             &link_value,
                             is_typescript,
                             &mut references,
+                            &target,
                         )
                         .await?;
                     }
@@ -567,6 +650,7 @@ pub async fn module_references(
                             &link_value,
                             is_typescript,
                             &mut references,
+                            &target,
                         )
                         .await?;
                     }
@@ -662,6 +746,10 @@ async fn value_visitor_inner(
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
+                #[cfg(feature = "node-native-binding")]
+                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+                #[cfg(feature = "node-native-binding")]
+                "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",
@@ -672,7 +760,7 @@ async fn value_visitor_inner(
                 "cross function analyzing is not yet supported",
             ),
             _ => {
-                let (mut v, m1) = replace_well_known(v, target);
+                let (mut v, m1) = replace_well_known(v, &target);
                 let m2 = replace_builtin(&mut v);
                 return Ok((v, m1 || m2));
             }

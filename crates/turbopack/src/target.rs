@@ -8,9 +8,126 @@ pub enum CompileTarget {
     Target(Target),
 }
 
+impl CompileTarget {
+    pub fn endianness(&self) -> &'static str {
+        if let CompileTarget::Target(Target { endianness, .. }) = self {
+            return endianness.to_str();
+        }
+        #[cfg(target_endian = "little")]
+        {
+            return "LE";
+        }
+        #[cfg(target_endian = "big")]
+        {
+            return "BE";
+        }
+    }
+
+    #[allow(unreachable_code)]
+    pub fn arch(&self) -> &'static str {
+        if let CompileTarget::Target(Target { arch, .. }) = self {
+            return arch.to_str();
+        }
+        #[cfg(target_arch = "x86")]
+        {
+            return "ia32";
+        }
+        #[cfg(target_arch = "x86_64")]
+        {
+            return "x64";
+        }
+        #[cfg(target_arch = "arm")]
+        {
+            return "arm";
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            return "arm64";
+        }
+        #[cfg(target_arch = "mips")]
+        {
+            return "mips";
+        }
+        #[cfg(target_arch = "powerpc")]
+        {
+            return "ppc";
+        }
+        #[cfg(target_arch = "powerpc64")]
+        {
+            return "ppc64";
+        }
+        #[cfg(target_arch = "s390x")]
+        {
+            return "s390x";
+        }
+        return "unknown";
+    }
+
+    #[allow(unreachable_code)]
+    pub fn platform(&self) -> &'static str {
+        if let CompileTarget::Target(Target { platform, .. }) = self {
+            return platform.to_str();
+        }
+        #[cfg(target_os = "windows")]
+        {
+            return "win32";
+        }
+        #[cfg(target_os = "linux")]
+        {
+            return "linux";
+        }
+        #[cfg(target_os = "macos")]
+        {
+            return "darwin";
+        }
+        #[cfg(target_os = "android")]
+        {
+            return "android";
+        }
+        #[cfg(target_os = "freebsd")]
+        {
+            return "freebsd";
+        }
+        #[cfg(target_os = "openbsd")]
+        {
+            return "openbsd";
+        }
+        #[cfg(target_os = "solaris")]
+        {
+            return "sunos";
+        }
+        return "unknown";
+    }
+
+    #[allow(unreachable_code)]
+    pub fn libc(&self) -> &'static str {
+        if let CompileTarget::Target(Target { libc, .. }) = self {
+            return libc.to_str();
+        }
+        #[cfg(target_env = "gnu")]
+        {
+            return "glibc";
+        }
+        #[cfg(target_env = "musl")]
+        {
+            return "musl";
+        }
+        #[cfg(target_env = "msvc")]
+        {
+            return "msvc";
+        }
+        #[cfg(target_env = "sgx")]
+        {
+            return "sgx";
+        }
+        return "unknown";
+    }
+}
+
 #[derive(
     PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
 )]
+#[non_exhaustive]
 pub struct Target {
     /// https://nodejs.org/api/os.html#osarch
     pub arch: Arch,
@@ -18,17 +135,16 @@ pub struct Target {
     pub platform: Platform,
     /// https://nodejs.org/api/os.html#endianness
     pub endianness: Endianness,
-
-    __private: (),
+    pub libc: Libc,
 }
 
 impl Target {
-    pub fn new(arch: Arch, platform: Platform, endianness: Endianness) -> Self {
+    pub fn new(arch: Arch, platform: Platform, endianness: Endianness, libc: Libc) -> Self {
         Self {
             arch,
             platform,
             endianness,
-            __private: (),
+            libc,
         }
     }
 }
@@ -52,7 +168,7 @@ pub enum Arch {
 }
 
 impl Arch {
-    pub fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &'static str {
         match self {
             Self::Arm => "arm",
             Self::Arm64 => "arm64",
@@ -85,7 +201,7 @@ pub enum Platform {
 }
 
 impl Platform {
-    pub fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &'static str {
         match self {
             Self::Aix => "aix",
             Self::Android => "android",
@@ -109,10 +225,30 @@ pub enum Endianness {
 }
 
 impl Endianness {
-    pub fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &'static str {
         match self {
             Self::Big => "BE",
             Self::Little => "LE",
+        }
+    }
+}
+
+#[derive(
+    PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize,
+)]
+#[repr(u8)]
+pub enum Libc {
+    Glibc,
+    Musl,
+    Unknown,
+}
+
+impl Libc {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Glibc => "glibc",
+            Self::Musl => "musl",
+            Self::Unknown => "unknown",
         }
     }
 }

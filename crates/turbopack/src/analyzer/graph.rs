@@ -13,7 +13,7 @@ use crate::{
     ecmascript::utils::unparen,
 };
 
-use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind};
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart};
 
 #[derive(Debug, Clone)]
 pub enum Effect {
@@ -195,6 +195,13 @@ impl EvalContext {
                     (l, r) => JsValue::add(vec![l, r]),
                 };
             }
+
+            Expr::Bin(BinExpr {
+                op: op!("||") | op!("??"),
+                left,
+                right,
+                ..
+            }) => JsValue::Alternatives(2, vec![self.eval(left), self.eval(right)]),
 
             Expr::Tpl(e) => return self.eval_tpl(e, false),
 
