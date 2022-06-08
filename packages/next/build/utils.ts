@@ -1331,3 +1331,17 @@ export function getPossibleMiddlewareFilenames(
     path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
   )
 }
+export class NestedMiddlewareError extends Error {
+  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+    super(
+      `Nested Middleware is not allowed, found:\n` +
+        `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
+        `Please move your code to a single file at ${path.join(
+          path.posix.sep,
+          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          'middleware'
+        )} instead.\n` +
+        `Read More - https://nextjs.org/docs/messages/nested-middleware`
+    )
+  }
+}
