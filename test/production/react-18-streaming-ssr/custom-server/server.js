@@ -2,7 +2,6 @@ const NextServer = require('next/dist/server/next-server').default
 const defaultNextConfig =
   require('next/dist/server/config-shared').defaultConfig
 const http = require('http')
-const path = require('path')
 
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
