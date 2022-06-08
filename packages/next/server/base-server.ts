@@ -1703,7 +1703,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
+          ? cachedData.html
+            ? cachedData.html
+            : RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }

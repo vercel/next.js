@@ -339,4 +339,13 @@ describe('Switchable runtime (dev)', () => {
       'This is a static RSC page.'
     )
   })
+
+  it('should support data urls in the edge runtime', async () => {
+    const result = await renderViaHTTP(
+      context.appPort,
+      '/_next/data/development/edge-ssr.json'
+    )
+
+    expect(result).toContain('"type":"SSR"')
+  })
 })

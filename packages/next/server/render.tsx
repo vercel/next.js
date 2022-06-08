@@ -501,7 +501,8 @@ export async function renderToHTML(
   }
 
   let renderServerComponentData = isServerComponent
-    ? query.__flight__ !== undefined
+    ? query.__flight__ !== undefined ||
+      (isDataReq && process.env.NEXT_RUNTIME === 'edge')
     : false
 
   const serverComponentProps =
@@ -1152,7 +1153,7 @@ export async function renderToHTML(
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
     // For server components, we still need to render the page to get the flight
     // data.
-    if (!serverComponentsStaticPageData) {
+    if (!isServerComponent) {
       return RenderResult.fromStatic(JSON.stringify(props))
     }
   }
