@@ -19,12 +19,13 @@ describe('Middleware fetches with any HTTP method', () => {
         'middleware.js': `
           import { NextResponse } from 'next/server';
 
+          const HTTP_ECHO_URL = 'https://http-echo-kou029w.vercel.app/';
+
           export default async (req) => {
             const kind = req.nextUrl.searchParams.get('kind')
             const handler = handlers[kind] ?? handlers['normal-fetch'];
 
-            const newUrl = new URL('/api/ping', req.url);
-            const response = await handler({url: String(newUrl), method: req.method});
+            const response = await handler({url: HTTP_ECHO_URL, method: req.method});
             const json = await response.text()
 
             const res = NextResponse.next();
