@@ -1,6 +1,10 @@
 import React from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
-import { AppRouterContext } from '../../shared/lib/app-router-context'
+import {
+  AppRouterContext,
+  AppTreeContext,
+  AppTreeUpdateContext,
+} from '../../shared/lib/app-router-context'
 import useRouter from './userouter.js'
 
 function createResponseCache() {
@@ -12,9 +16,9 @@ function fetchFlight(href: string, layoutPath?: string) {
   const flightUrl = new URL(href, location.origin.toString())
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
-  if (layoutPath) {
-    searchParams.append('__flight_router_path__', layoutPath)
-  }
+  // if (layoutPath) {
+  //   searchParams.append('__flight_router_path__', layoutPath)
+  // }
 
   return fetch(flightUrl.toString())
 }
@@ -30,17 +34,47 @@ export function fetchServerResponse(href: string, layoutPath?: string) {
   return response
 }
 
-export default function AppRouter({ initialUrl, layoutPath, children }: any) {
+export default function AppRouter({ initialUrl, children }: any) {
   const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
+  const [tree, setTree] = React.useState<any>({})
+
+  console.log(tree)
+
+  const treePatch = React.useCallback((updatePayload: any) => {
+    setTree(() => {
+      return {
+        current: updatePayload,
+      }
+    })
+  }, [])
+
+  if (typeof window !== 'undefined') {
+    // @ts-ignore TODO: this is for debugging
+    window.appRouter = appRouter
+  }
+
+  React.useEffect(() => {
+    window.history.replaceState(
+      {
+        ...window.history.state,
+        tree,
+      },
+      ''
+    )
+  }, [tree])
 
   const onPopState = React.useCallback(
     ({ state }: PopStateEvent) => {
       if (!state) {
         return
       }
+
       // @ts-ignore useTransition exists
       // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      React.startTransition(() => appRouter.replace(state.url))
+      React.startTransition(() => {
+        setTree(state.tree)
+        appRouter.replace(state.url)
+      })
     },
     [appRouter]
   )
@@ -55,12 +89,19 @@ export default function AppRouter({ initialUrl, layoutPath, children }: any) {
   // TODO: Check the RSC cache first for the page you want to navigate to
   if (current.url !== previousUrlRef.current?.url) {
     // eslint-disable-next-line
-    const data = fetchServerResponse(current.url, layoutPath)
+    const data = fetchServerResponse(current.url, '/')
     root = data.readRoot()
   }
+
   return (
     <AppRouterContext.Provider value={appRouter}>
-      {root ? root : children}
+      <AppTreeUpdateContext.Provider value={treePatch}>
+        <AppTreeContext.Provider
+          value={{ segmentPath: '', tree: tree.current }}
+        >
+          {root ? root : children}
+        </AppTreeContext.Provider>
+      </AppTreeUpdateContext.Provider>
     </AppRouterContext.Provider>
   )
 }

@@ -346,18 +346,22 @@ export async function renderToHTML(
         children
       )
 
-      // Pages don't need to be wrapped in a router
-      return React.createElement(
-        layout.Component,
-        props,
-        layout.path.endsWith('/page') ? (
-          chilrenWithLoading
-        ) : (
-          // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
-          <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
-            {chilrenWithLoading}
-          </LayoutRouter>
-        )
+      const path = () => {
+        const segments = layout.path.split('/')
+        const lastSegment = segments[segments.length - 1]
+
+        return lastSegment
+      }
+
+      return (
+        <LayoutRouter path={path()}>
+          {React.createElement(
+            layout.Component,
+            props,
+            // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
+            chilrenWithLoading
+          )}
+        </LayoutRouter>
       )
     }
   }
@@ -369,7 +373,7 @@ export async function renderToHTML(
     }
     return (
       // TODO: verify pathname passed is correct
-      <AppRouter initialUrl={pathname}>
+      <AppRouter initialUrl={pathname} path="/">
         <WrappedComponent />
       </AppRouter>
     )
