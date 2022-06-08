@@ -50,9 +50,9 @@ fn task_type_to_bytes(ty: &PersistentTaskType) -> Result<Vec<u8>, bincode::Error
 }
 
 #[derive(Default)]
-pub struct ReadsByFunction(pub InfiniteVec<AtomicUsize>);
+pub struct CountsByFunction(pub InfiniteVec<AtomicUsize>);
 
-impl Debug for ReadsByFunction {
+impl Debug for CountsByFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut m = f.debug_map();
         for (fn_id, count) in self.0.iter() {
@@ -69,10 +69,11 @@ impl Debug for ReadsByFunction {
 pub struct Stats {
     lookups: AtomicUsize,
     reads: AtomicUsize,
-    reads_by_function: ReadsByFunction,
+    reads_by_function: CountsByFunction,
     activates: AtomicUsize,
     deactivates: AtomicUsize,
     persists: AtomicUsize,
+    persists_by_function: CountsByFunction,
     cleans: AtomicUsize,
     dependent_dirty: AtomicUsize,
     dirties: AtomicUsize,
@@ -85,8 +86,8 @@ const AC_INACTIVE: u8 = 2;
 
 pub struct RocksDbPersistedGraph {
     database: Database,
-    task_id_forward_mapping: HashMap<TaskId, TaskId>,
-    task_id_backward_mapping: HashMap<TaskId, TaskId>,
+    task_id_forward_mapping: HashMap<TaskId, usize>,
+    task_id_backward_mapping: HashMap<usize, TaskId>,
     last_task_id: AtomicUsize,
     #[cfg(feature = "unsafe_once_map")]
     cache_once: turbo_tasks::util::OnceConcurrentlyMap<[u8], Result<usize, SharedError>>,
@@ -116,7 +117,7 @@ impl RocksDbPersistedGraph {
     }
 
     fn with_task_id_mapping<T>(&self, api: &dyn PersistedGraphApi, func: impl FnOnce() -> T) -> T {
-        with_task_id_mapping(PgApiMapping::new(self, api), func)
+        with_task_id_mapping(&PgApiMapping::new(self, api), func)
     }
 
     fn with_read_only_task_id_mapping<T>(
@@ -124,7 +125,7 @@ impl RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
         func: impl FnOnce() -> T,
     ) -> T {
-        with_task_id_mapping(PgApiReadOnlyMapping::new(self, api), func)
+        with_task_id_mapping(&PgApiReadOnlyMapping::new(self, api), func)
     }
 
     fn get_task_type(&self, ty: &PersistentTaskType) -> Result<Option<usize>> {
@@ -136,30 +137,30 @@ impl RocksDbPersistedGraph {
     fn get_or_create_task_type(&self, ty: &PersistentTaskType) -> Result<usize> {
         let db = &self.database;
         let ty_bytes = task_type_to_bytes(ty)?;
-        if let Some(id) = db.cache.get(&ty_bytes)? {
-            return Ok(id);
+        if let Some(db_task) = db.cache.get(&ty_bytes)? {
+            return Ok(db_task);
         }
         Ok(self.cache_once.action(&ty_bytes, || {
-            if let Some(id) = db.cache.get(&ty_bytes)? {
-                return Ok(id);
+            if let Some(db_task) = db.cache.get(&ty_bytes)? {
+                return Ok(db_task);
             }
             let b = &mut db.batch();
             db.last_task_id
                 .merge(b, &1)
                 .map_err::<Error, _>(|e| e.into())?;
-            let id = self.last_task_id.fetch_add(1, Ordering::Relaxed) + 1;
+            let db_task = self.last_task_id.fetch_add(1, Ordering::Relaxed) + 10000000;
             db.task_type
-                .write(b, &id, ty)
+                .write(b, &db_task, ty)
                 .map_err::<Error, _>(|e| e.into())?;
             b.write().map_err::<Error, _>(|e| e.into())?;
             // Need to write it in two steps due to unordered writes
             // Once it's in "cache" it can be discovered by lookups
             let b = &mut db.batch();
             db.cache
-                .write(b, &ty_bytes, &id)
+                .write(b, &ty_bytes, &db_task)
                 .map_err::<Error, _>(|e| e.into())?;
             b.write().map_err::<Error, _>(|e| e.into())?;
-            Ok(id)
+            Ok(db_task)
         })?)
     }
 
@@ -171,14 +172,14 @@ impl RocksDbPersistedGraph {
             .ok_or_else(|| anyhow!("Invalid task id {}", id))?)
     }
 
-    fn get_active(&self, task: TaskId) -> Result<bool> {
-        let ac = self.active_cache.get(*task);
+    fn get_active(&self, db_task: usize) -> Result<bool> {
+        let ac = self.active_cache.get(db_task);
         let ac_value = ac.load(Ordering::Acquire);
         if ac_value != AC_UNKNOWN {
             return Ok(ac_value == AC_ACTIVE);
         }
         let db = &self.database;
-        if let Some(TaskState { active, .. }) = db.state.get(&task)? {
+        if let Some(TaskState { active, .. }) = db.state.get(&db_task)? {
             ac.store(
                 if active { AC_ACTIVE } else { AC_INACTIVE },
                 Ordering::Release,
@@ -191,10 +192,11 @@ impl RocksDbPersistedGraph {
     fn print_db(&self, api: &dyn PersistedGraphApi) -> Result<()> {
         let db = &self.database;
         let mapping = PgApiMapping::new(self, api);
-        for (task, state) in db.state.get_all()? {
-            let ty = db.task_type.get(&*mapping.forward(task));
+        for (db_task, state) in db.state.get_all()? {
+            let ty = db.task_type.get(&db_task);
+            let task = mapping.backward(db_task);
             println!("# {task} {ty:?} {state:?}");
-            if let Ok(Some(children)) = db.children.get(&task) {
+            if let Ok(Some(children)) = db.children.get(&db_task) {
                 println!("# children: {children:?}");
             }
         }
@@ -208,21 +210,22 @@ impl PersistedGraph for RocksDbPersistedGraph {
         task: TaskId,
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<(TaskData, ReadTaskState)>> {
-        let db_task = PgApiReadOnlyMapping::new(self, api).forward(task);
-        if db_task == TaskId::from(0) {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        let db_task = mapping.forward(task);
+        if db_task == 0 {
             return Ok(None);
         }
         self.stats.reads.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        with_task_id_mapping(&mapping, || {
             let db = &self.database;
-            if let Some(data) = db.data.get(&task)? {
+            if let Some(data) = db.data.get(&db_task)? {
                 if let Some(TaskState {
                     internal: Some(InternalTaskState { clean }),
                     active_parents,
                     ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
-                    let ty = db.task_type.get(&*db_task)?.unwrap();
+                    let ty = db.task_type.get(&db_task)?.unwrap();
                     match ty {
                         PersistentTaskType::Native(f, _)
                         | PersistentTaskType::ResolveNative(f, _) => {
@@ -249,7 +252,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn is_persisted(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         let db_task = PgApiReadOnlyMapping::new(self, api).forward(task);
-        if db_task == TaskId::from(0) {
+        if db_task == 0 {
             return Ok(false);
         }
         let db = &self.database;
@@ -271,11 +274,11 @@ impl PersistedGraph for RocksDbPersistedGraph {
         self.stats.lookups.fetch_add(1, Ordering::Relaxed);
         self.with_read_only_task_id_mapping(api, || {
             let db = &self.database;
-            if let Some(id) = db.cache.get(&task_type_to_bytes(&task_type)?)? {
-                let task = PgApiMapping::new(self, api).backward(TaskId::from(id));
+            if let Some(db_task) = db.cache.get(&task_type_to_bytes(&task_type)?)? {
+                let task = PgApiMapping::new(self, api).backward(db_task);
                 if let Some(TaskState {
                     internal: Some(_), ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
                     return Ok(Some(task));
                 }
@@ -296,8 +299,8 @@ impl PersistedGraph for RocksDbPersistedGraph {
                 .cache
                 .get_prefix(&task_type_to_bytes(&partial_task_type)?, 1000)?;
             let mapping = PgApiMapping::new(self, api);
-            for id in db_result.0 {
-                mapping.backward(TaskId::from(id));
+            for db_task in db_result.0 {
+                mapping.backward(db_task);
             }
             Ok(db_result.1)
         })
@@ -311,63 +314,77 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<PersistResult>> {
         self.stats.persists.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             let db = &self.database;
             let mut tasks_to_deactivate = Vec::new();
             let mut tasks_to_activate = Vec::new();
             let b = &mut db.batch();
-            let ac = self.active_cache.get(*task);
+            let ac = self.active_cache.get(db_task);
             let old_active = {
                 match ac.load(Ordering::Acquire) {
                     AC_ACTIVE => true,
                     AC_INACTIVE => false,
-                    _ => db.state.get(&task)?.unwrap_or_default().active,
+                    _ => db.state.get(&db_task)?.unwrap_or_default().active,
                 }
             };
             if old_active {
                 // Task is and will stay active
-                if let Some(old_children) = db.children.get(&task)? {
+                if let Some(old_children) = db.children.get(&db_task)? {
                     // There are existing children that are active
                     // We need to compute a diff and update the active parents counts
                     let mut removed_children = old_children.into_iter().collect::<HashSet<_>>();
                     for child in data.children.iter() {
-                        if !removed_children.remove(child) {
+                        let db_child = mapping.forward(*child);
+                        if !removed_children.remove(&db_child) {
                             db.state.merge(
                                 b,
-                                &child,
+                                &db_child,
                                 &TaskStateChange::IncrementActiveParents(1),
                             )?;
                             tasks_to_activate.push(*child);
-                            db.pending_active_update.insert(b, &(), &child)?;
+                            db.pending_active_update.insert(b, &(), &db_child)?;
                         }
                     }
-                    for child in removed_children {
-                        db.state
-                            .merge(b, &child, &TaskStateChange::DecrementActiveParents(1))?;
-                        tasks_to_deactivate.push(child);
-                        db.pending_active_update.insert(b, &(), &child)?;
+                    for db_child in removed_children {
+                        db.state.merge(
+                            b,
+                            &db_child,
+                            &TaskStateChange::DecrementActiveParents(1),
+                        )?;
+                        tasks_to_deactivate.push(mapping.backward(db_child));
+                        db.pending_active_update.insert(b, &(), &db_child)?;
                     }
                 } else {
                     // Task had no children before
                     // No need for expensive diffing
                     for child in data.children.iter() {
-                        db.state
-                            .merge(b, &child, &TaskStateChange::IncrementActiveParents(1))?;
+                        let db_child = mapping.forward(*child);
+                        db.state.merge(
+                            b,
+                            &db_child,
+                            &TaskStateChange::IncrementActiveParents(1),
+                        )?;
                         tasks_to_activate.push(*child);
-                        db.pending_active_update.insert(b, &(), &child)?;
+                        db.pending_active_update.insert(b, &(), &db_child)?;
                     }
                 }
             } else if state.externally_active {
                 // Task was not active before, but will activate with this operation
                 for child in data.children.iter() {
+                    let db_child = mapping.forward(*child);
                     db.state
-                        .merge(b, &child, &TaskStateChange::IncrementActiveParents(1))?;
+                        .merge(b, &db_child, &TaskStateChange::IncrementActiveParents(1))?;
                     tasks_to_activate.push(*child);
-                    db.pending_active_update.insert(b, &(), &child)?;
+                    db.pending_active_update.insert(b, &(), &db_child)?;
                 }
             }
-            db.state
-                .merge(b, &task, &TaskStateChange::Persist(state.externally_active))?;
+            db.state.merge(
+                b,
+                &db_task,
+                &TaskStateChange::Persist(state.externally_active),
+            )?;
             ac.store(AC_ACTIVE, Ordering::Release);
             for slot in data.slots.iter_mut() {
                 if let TaskSlot::Content(ref c) = slot {
@@ -378,30 +395,45 @@ impl PersistedGraph for RocksDbPersistedGraph {
                     }
                 }
             }
-            if db.data.write(b, &task, &data).is_err() {
+            if db.data.write(b, &db_task, &data).is_err() {
                 b.cancel();
                 return Ok(None);
             }
-            db.children.write(b, &task, &data.children)?;
-            if let Some(old_dependencies) = db.dependencies.get(&task)? {
+            db.children.write(
+                b,
+                &db_task,
+                &data.children.iter().map(|c| mapping.forward(*c)).collect(),
+            )?;
+            if let Some(old_dependencies) = db.dependencies.get(&db_task)? {
                 // There are existing dependencies, we need to compute a diff
                 let mut removed_dependencies = old_dependencies.into_iter().collect::<HashSet<_>>();
                 for dep in data.dependencies.iter() {
                     if !removed_dependencies.remove(dep) {
-                        db.dependents.insert(b, dep, &task)?;
+                        db.dependents.insert(b, dep, &db_task)?;
                     }
                 }
                 for dep in removed_dependencies {
-                    db.dependents.remove(b, &dep, &task)?;
+                    db.dependents.remove(b, &dep, &db_task)?;
                 }
             } else {
                 for dep in data.dependencies.iter() {
-                    db.dependents.insert(b, dep, &task)?;
+                    db.dependents.insert(b, dep, &db_task)?;
                 }
             }
-            db.dependencies.write(b, &task, &data.dependencies)?;
-            db.pending_active_update.remove(b, &(), &task)?;
+            db.dependencies.write(b, &db_task, &data.dependencies)?;
+            db.pending_active_update.remove(b, &(), &db_task)?;
             b.write()?;
+            let ty = db.task_type.get(&db_task)?.unwrap();
+            match ty {
+                PersistentTaskType::Native(f, _) | PersistentTaskType::ResolveNative(f, _) => {
+                    self.stats
+                        .persists_by_function
+                        .0
+                        .get(*f)
+                        .fetch_add(1, Ordering::Relaxed);
+                }
+                _ => {}
+            }
             let result = PersistResult {
                 tasks_to_activate,
                 tasks_to_deactivate,
@@ -417,11 +449,13 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<ActivateResult>> {
         self.stats.activates.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             let db = &self.database;
             let b = &mut db.batch();
-            db.pending_active_update.remove(b, &(), &task)?;
-            let ac = self.active_cache.get(*task);
+            db.pending_active_update.remove(b, &(), &db_task)?;
+            let ac = self.active_cache.get(db_task);
             if ac.load(Ordering::Acquire) != AC_ACTIVE {
                 if let Some(TaskState {
                     internal,
@@ -429,27 +463,28 @@ impl PersistedGraph for RocksDbPersistedGraph {
                     active_parents,
                     externally_active,
                     ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
                     if !active && (active_parents > 0 || externally_active) {
-                        let children = db.children.get(&task)?.unwrap_or_default();
+                        let children = db.children.get(&db_task)?.unwrap_or_default();
                         let mut more_tasks_to_activate = Vec::new();
-                        for child in children {
+                        for db_child in children {
                             db.state.merge(
                                 b,
-                                &child,
+                                &db_child,
                                 &TaskStateChange::IncrementActiveParents(1),
                             )?;
-                            more_tasks_to_activate.push(child);
-                            db.pending_active_update.insert(b, &(), &child)?;
+                            more_tasks_to_activate.push(mapping.backward(db_child));
+                            db.pending_active_update.insert(b, &(), &db_child)?;
                         }
-                        db.state.merge(b, &task, &TaskStateChange::Activate)?;
+                        db.state.merge(b, &db_task, &TaskStateChange::Activate)?;
                         ac.store(AC_ACTIVE, Ordering::Release);
                         if let Some(InternalTaskState { clean: false }) = internal {
-                            db.potential_dirty_active_tasks.insert(b, &(), &task)?;
+                            db.potential_dirty_active_tasks.insert(b, &(), &db_task)?;
                         }
                         if internal.is_none() {
-                            db.potential_active_external_tasks.insert(b, &(), &task)?;
+                            db.potential_active_external_tasks
+                                .insert(b, &(), &db_task)?;
                         }
                         b.write()?;
                         let result = ActivateResult {
@@ -474,34 +509,36 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<DeactivateResult>> {
         self.stats.deactivates.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             let db = &self.database;
             let b = &mut db.batch();
-            db.pending_active_update.remove(b, &(), &task)?;
-            let ac = self.active_cache.get(*task);
+            db.pending_active_update.remove(b, &(), &db_task)?;
+            let ac = self.active_cache.get(db_task);
             if ac.load(Ordering::Acquire) != AC_INACTIVE {
                 if let Some(TaskState {
                     active,
                     active_parents,
                     externally_active,
                     ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
                     if active && active_parents == 0 && !externally_active {
-                        let children = db.children.get(&task)?.unwrap_or_default();
+                        let children = db.children.get(&db_task)?.unwrap_or_default();
                         let mut more_tasks_to_deactivate = Vec::new();
-                        for child in children {
+                        for db_child in children {
                             db.state.merge(
                                 b,
-                                &child,
+                                &db_child,
                                 &TaskStateChange::DecrementActiveParents(1),
                             )?;
-                            more_tasks_to_deactivate.push(child);
-                            db.pending_active_update.insert(b, &(), &child)?;
+                            more_tasks_to_deactivate.push(mapping.backward(db_child));
+                            db.pending_active_update.insert(b, &(), &db_child)?;
                         }
-                        db.state.merge(b, &task, &TaskStateChange::Deactivate)?;
+                        db.state.merge(b, &db_task, &TaskStateChange::Deactivate)?;
                         ac.store(AC_INACTIVE, Ordering::Release);
-                        db.potential_dirty_active_tasks.remove(b, &(), &task)?;
+                        db.potential_dirty_active_tasks.remove(b, &(), &db_task)?;
                         b.write()?;
                         let result = DeactivateResult {
                             more_tasks_to_deactivate,
@@ -518,15 +555,17 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         self.stats.flaggings.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             // println!("set_externally_active({task})");
             let db = &self.database;
             let b = &mut db.batch();
             db.state
-                .merge(b, &task, &TaskStateChange::SetExternallyActive)?;
-            db.externally_active_tasks.insert(b, &(), &task)?;
+                .merge(b, &db_task, &TaskStateChange::SetExternallyActive)?;
+            db.externally_active_tasks.insert(b, &(), &db_task)?;
             b.write()?;
-            let ac = self.active_cache.get(*task);
+            let ac = self.active_cache.get(db_task);
             let ac_value = ac.load(Ordering::Acquire);
             if ac_value == AC_ACTIVE {
                 return Ok(false);
@@ -535,7 +574,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
                 active,
                 active_parents,
                 ..
-            }) = db.state.get(&task)?
+            }) = db.state.get(&db_task)?
             {
                 if active && ac_value != AC_ACTIVE {
                     ac.store(AC_ACTIVE, Ordering::Release);
@@ -550,15 +589,17 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         self.stats.flaggings.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             // println!("unset_externally_active({task})");
             let db = &self.database;
             let b = &mut db.batch();
             db.state
-                .merge(b, &task, &TaskStateChange::UnsetExternallyActive)?;
-            db.externally_active_tasks.insert(b, &(), &task)?;
+                .merge(b, &db_task, &TaskStateChange::UnsetExternallyActive)?;
+            db.externally_active_tasks.insert(b, &(), &db_task)?;
             b.write()?;
-            let ac = self.active_cache.get(*task);
+            let ac = self.active_cache.get(db_task);
             let ac_value = ac.load(Ordering::Acquire);
             if ac_value == AC_INACTIVE {
                 return Ok(false);
@@ -567,7 +608,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
                 active,
                 active_parents,
                 ..
-            }) = db.state.get(&task)?
+            }) = db.state.get(&db_task)?
             {
                 if active && ac_value != AC_ACTIVE {
                     ac.store(AC_ACTIVE, Ordering::Release);
@@ -582,13 +623,15 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn make_dirty(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         self.stats.dirties.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
+            let db_task = mapping.forward(task);
             let db = &self.database;
             let b = &mut db.batch();
-            db.state.merge(b, &task, &TaskStateChange::MakeDirty)?;
-            db.potential_dirty_active_tasks.insert(b, &(), &task)?;
+            db.state.merge(b, &db_task, &TaskStateChange::MakeDirty)?;
+            db.potential_dirty_active_tasks.insert(b, &(), &db_task)?;
             b.write()?;
-            self.get_active(task)
+            self.get_active(db_task)
         })
     }
 
@@ -597,22 +640,25 @@ impl PersistedGraph for RocksDbPersistedGraph {
         vc: turbo_tasks::RawVc,
         api: &dyn PersistedGraphApi,
     ) -> Result<Vec<TaskId>> {
-        if PgApiReadOnlyMapping::new(self, api).forward(vc.get_task_id()) == TaskId::from(0) {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        let db_task = mapping.forward(vc.get_task_id());
+        if db_task == 0 {
             return Ok(Vec::new());
         }
         self.stats.dependent_dirty.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        with_task_id_mapping(&mapping, || {
             let db = &self.database;
             let b = &mut db.batch();
             let mut result = Vec::new();
             let tasks = db.dependents.get_all(&vc)?;
-            for task in tasks.iter() {
-                db.state.merge(b, task, &TaskStateChange::MakeDirty)?;
-                db.potential_dirty_active_tasks.insert(b, &(), &task)?;
+            for db_task in tasks.iter() {
+                db.state.merge(b, db_task, &TaskStateChange::MakeDirty)?;
+                db.potential_dirty_active_tasks.insert(b, &(), db_task)?;
             }
             b.write()?;
-            for task in tasks {
-                if self.get_active(task)? {
+            for db_task in tasks {
+                if self.get_active(db_task)? {
+                    let task = mapping.backward(db_task);
                     result.push(task);
                 }
             }
@@ -621,15 +667,17 @@ impl PersistedGraph for RocksDbPersistedGraph {
     }
 
     fn make_clean(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<()> {
-        if PgApiReadOnlyMapping::new(self, api).forward(task) == TaskId::from(0) {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        let db_task = mapping.forward(task);
+        if db_task == 0 {
             return Ok(());
         }
         self.stats.cleans.fetch_add(1, Ordering::Relaxed);
-        self.with_task_id_mapping(api, || {
+        with_task_id_mapping(mapping, || {
             let db = &self.database;
             let b = &mut db.batch();
-            db.state.merge(b, &task, &TaskStateChange::MakeClean)?;
-            db.potential_dirty_active_tasks.remove(b, &(), &task)?;
+            db.state.merge(b, &db_task, &TaskStateChange::MakeClean)?;
+            db.potential_dirty_active_tasks.remove(b, &(), &db_task)?;
             b.write()?;
 
             Ok(())
@@ -648,25 +696,28 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         // For startup
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
             let mut result = Vec::new();
             let db = &self.database;
             let b = &mut db.batch();
-            for task in db.potential_active_external_tasks.get_all(&())? {
+            for db_task in db.potential_active_external_tasks.get_all(&())? {
                 if let Some(TaskState {
                     internal, active, ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
-                    self.active_cache.get(*task).store(
+                    self.active_cache.get(db_task).store(
                         if active { AC_ACTIVE } else { AC_INACTIVE },
                         Ordering::Release,
                     );
                     if internal.is_none() && active {
+                        let task = mapping.backward(db_task);
                         result.push(task);
                         continue;
                     }
                 }
-                db.potential_active_external_tasks.remove(b, &(), &task)?;
+                db.potential_active_external_tasks
+                    .remove(b, &(), &db_task)?;
             }
             b.write()?;
             println!("{} active_external_tasks", result.len());
@@ -676,25 +727,27 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
     fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         // For startup
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
             let mut result = Vec::new();
             let db = &self.database;
             let b = &mut db.batch();
-            for task in db.potential_dirty_active_tasks.get_all(&())? {
+            for db_task in db.potential_dirty_active_tasks.get_all(&())? {
                 if let Some(TaskState {
                     internal, active, ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
-                    self.active_cache.get(*task).store(
+                    self.active_cache.get(db_task).store(
                         if active { AC_ACTIVE } else { AC_INACTIVE },
                         Ordering::Release,
                     );
                     if matches!(internal, Some(InternalTaskState { clean: false })) && active {
+                        let task = mapping.backward(db_task);
                         result.push(task);
                         continue;
                     }
                 }
-                db.potential_dirty_active_tasks.remove(b, &(), &task)?;
+                db.potential_dirty_active_tasks.remove(b, &(), &db_task)?;
             }
             b.write()?;
             println!("{} dirty_active_tasks", result.len());
@@ -707,33 +760,36 @@ impl PersistedGraph for RocksDbPersistedGraph {
         api: &dyn PersistedGraphApi,
     ) -> Result<(Vec<TaskId>, Vec<TaskId>)> {
         // For startup
-        self.with_task_id_mapping(api, || {
+        let mapping = PgApiReadOnlyMapping::new(self, api);
+        with_task_id_mapping(&mapping, || {
             let mut tasks_to_activate = Vec::new();
             let mut tasks_to_deactivate = Vec::new();
             let db = &self.database;
             let b = &mut db.batch();
-            for task in db.pending_active_update.get_all(&())? {
+            for db_task in db.pending_active_update.get_all(&())? {
                 if let Some(TaskState {
                     active_parents,
                     externally_active,
                     active,
                     ..
-                }) = db.state.get(&task)?
+                }) = db.state.get(&db_task)?
                 {
-                    self.active_cache.get(*task).store(
+                    self.active_cache.get(db_task).store(
                         if active { AC_ACTIVE } else { AC_INACTIVE },
                         Ordering::Release,
                     );
                     if !active && (active_parents > 0 || externally_active) {
+                        let task = mapping.backward(db_task);
                         tasks_to_activate.push(task);
                         continue;
                     }
                     if active && active_parents == 0 && !externally_active {
+                        let task = mapping.backward(db_task);
                         tasks_to_deactivate.push(task);
                         continue;
                     }
                 }
-                db.potential_dirty_active_tasks.remove(b, &(), &task)?;
+                db.potential_dirty_active_tasks.remove(b, &(), &db_task)?;
             }
             b.write()?;
             println!(
@@ -757,8 +813,8 @@ impl PersistedGraph for RocksDbPersistedGraph {
 
 struct PgApiMapping<'a> {
     this: &'a RocksDbPersistedGraph,
-    task_id_forward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
-    task_id_backward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
+    task_id_forward_mapping: flurry::HashMapRef<'a, TaskId, usize>,
+    task_id_backward_mapping: flurry::HashMapRef<'a, usize, TaskId>,
     api: &'a dyn PersistedGraphApi,
 }
 
@@ -774,24 +830,24 @@ impl<'a> PgApiMapping<'a> {
 }
 
 impl<'a> IdMapping<TaskId> for PgApiMapping<'a> {
-    fn forward(&self, id: TaskId) -> TaskId {
+    fn forward(&self, id: TaskId) -> usize {
         let m = &self.task_id_forward_mapping;
         if let Some(r) = m.get(&id) {
             return *r;
         }
         let ty = self.api.lookup_task_type(id);
-        let new_id = TaskId::from(self.this.get_or_create_task_type(ty).unwrap());
+        let new_id = self.this.get_or_create_task_type(ty).unwrap();
         let _ = self.task_id_backward_mapping.try_insert(new_id, id);
         let _ = m.try_insert(id, new_id);
         new_id
     }
 
-    fn backward(&self, id: TaskId) -> TaskId {
+    fn backward(&self, id: usize) -> TaskId {
         let m = &self.task_id_backward_mapping;
         if let Some(r) = m.get(&id) {
             return *r;
         }
-        let ty = self.this.lookup_task_type(*id).unwrap();
+        let ty = self.this.lookup_task_type(id).unwrap();
         let new_id = self.api.get_or_create_task_type(ty);
         let _ = self.task_id_forward_mapping.try_insert(new_id, id);
         let _ = m.try_insert(id, new_id);
@@ -801,8 +857,8 @@ impl<'a> IdMapping<TaskId> for PgApiMapping<'a> {
 
 struct PgApiReadOnlyMapping<'a> {
     this: &'a RocksDbPersistedGraph,
-    task_id_forward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
-    task_id_backward_mapping: flurry::HashMapRef<'a, TaskId, TaskId>,
+    task_id_forward_mapping: flurry::HashMapRef<'a, TaskId, usize>,
+    task_id_backward_mapping: flurry::HashMapRef<'a, usize, TaskId>,
     api: &'a dyn PersistedGraphApi,
 }
 
@@ -818,25 +874,25 @@ impl<'a> PgApiReadOnlyMapping<'a> {
 }
 
 impl<'a> IdMapping<TaskId> for PgApiReadOnlyMapping<'a> {
-    fn forward(&self, id: TaskId) -> TaskId {
+    fn forward(&self, id: TaskId) -> usize {
         let m = &self.task_id_forward_mapping;
         if let Some(r) = m.get(&id) {
             return *r;
         }
         let ty = self.api.lookup_task_type(id);
         if let Some(id) = self.this.get_task_type(ty).unwrap() {
-            TaskId::from(id)
+            id
         } else {
-            TaskId::from(0)
+            0
         }
     }
 
-    fn backward(&self, id: TaskId) -> TaskId {
+    fn backward(&self, id: usize) -> TaskId {
         let m = &self.task_id_backward_mapping;
         if let Some(r) = m.get(&id) {
             return *r;
         }
-        let ty = self.this.lookup_task_type(*id).unwrap();
+        let ty = self.this.lookup_task_type(id).unwrap();
         let new_id = self.api.get_or_create_task_type(ty);
         let _ = self.task_id_forward_mapping.try_insert(new_id, id);
         let _ = m.try_insert(id, new_id);

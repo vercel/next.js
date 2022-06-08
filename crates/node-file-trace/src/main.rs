@@ -208,7 +208,7 @@ fn main() {
                     println!("flushed cache {} ms", elapsed.as_millis());
                 } else {
                     let background_timeout =
-                        std::cmp::max(duration / 10, Duration::from_millis(100));
+                        std::cmp::max(duration / 5, Duration::from_millis(100));
                     let timed_out =
                         block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
                     block_on(tt.stop_and_wait());
@@ -286,6 +286,8 @@ fn run<B: Backend + 'static>(
             let dur = start.elapsed();
             println!("done in {} ms", dur.as_millis());
             final_finish(tt, root_task, dur);
+            let dur = start.elapsed();
+            println!("all done in {} ms", dur.as_millis());
         }
     };
 

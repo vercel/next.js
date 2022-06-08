@@ -123,8 +123,21 @@ make_serializable!(
 );
 
 pub trait IdMapping<T> {
-    fn forward(&self, id: T) -> T;
-    fn backward(&self, id: T) -> T;
+    fn forward(&self, id: T) -> usize;
+    fn backward(&self, id: usize) -> T;
+}
+
+impl<T, U> IdMapping<T> for &U
+where
+    U: IdMapping<T>,
+{
+    fn forward(&self, id: T) -> usize {
+        (**self).forward(id)
+    }
+
+    fn backward(&self, id: usize) -> T {
+        (**self).backward(id)
+    }
 }
 
 pub fn with_task_id_mapping<'a, T, M>(mapping: M, func: impl FnOnce() -> T) -> T
@@ -167,10 +180,10 @@ impl Serialize for TaskId {
         S: serde::Serializer,
     {
         TASK_ID_MAPPING.with(|cell| {
-            let mapped_id = *if let Some(mapping) = cell.borrow().as_ref() {
+            let mapped_id = if let Some(mapping) = cell.borrow().as_ref() {
                 mapping.forward(*self)
             } else {
-                *self
+                **self
             };
             serializer.serialize_u64(mapped_id as u64)
         })
@@ -196,11 +209,11 @@ impl<'de> Deserialize<'de> for TaskId {
                 E: serde::de::Error,
             {
                 TASK_ID_MAPPING.with(|cell| {
-                    let id = TaskId::from(v as usize);
+                    let id = v as usize;
                     let mapped_id = if let Some(mapping) = cell.borrow().as_ref() {
                         mapping.backward(id)
                     } else {
-                        id
+                        TaskId::from(id)
                     };
                     Ok(mapped_id)
                 })

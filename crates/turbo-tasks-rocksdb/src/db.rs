@@ -215,15 +215,15 @@ pub struct PartialTaskData {
 table!(last_task_id, (usize), merge((usize): |a: usize, b| a + b, |a, b| a + b));
 table!(task_type, (usize) => (PersistentTaskType));
 table!(cache, raw => (usize));
-table!(state, (TaskId) => (TaskState), merge((TaskStateChange): |s, c| s + c, |c1, c2| c1 + c2, without_task_id_mapping));
-table!(data, (TaskId) => (TaskData));
-table!(children, (TaskId) => (Vec<TaskId>));
-table!(dependencies, (TaskId) => (Vec<RawVc>));
-table!(dependents, (RawVc) => [TaskId], prefix(u8));
-table!(externally_active_tasks, (()) => [TaskId]);
-table!(potential_active_external_tasks, (()) => [TaskId]);
-table!(potential_dirty_active_tasks, (()) => [TaskId]);
-table!(pending_active_update, (()) => [TaskId]);
+table!(state, (usize) => (TaskState), merge((TaskStateChange): |s, c| s + c, |c1, c2| c1 + c2, without_task_id_mapping));
+table!(data, (usize) => (TaskData));
+table!(children, (usize) => (Vec<usize>));
+table!(dependencies, (usize) => (Vec<RawVc>));
+table!(dependents, (RawVc) => [usize], prefix(u8));
+table!(externally_active_tasks, (()) => [usize]);
+table!(potential_active_external_tasks, (()) => [usize]);
+table!(potential_dirty_active_tasks, (()) => [usize]);
+table!(pending_active_update, (()) => [usize]);
 
 database!(
     last_task_id,
