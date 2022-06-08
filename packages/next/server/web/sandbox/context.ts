@@ -134,6 +134,17 @@ async function createModuleContext(options: ModuleContextOptions) {
 
         if (typeof input === 'object' && 'url' in input) {
           return __fetch(input.url, {
+            method: input.method,
+            body: input.body,
+            cache: input.cache,
+            credentials: input.credentials,
+            integrity: input.integrity,
+            keepalive: input.keepalive,
+            mode: input.mode,
+            redirect: input.redirect,
+            referrer: input.referrer,
+            referrerPolicy: input.referrerPolicy,
+            signal: input.signal,
             ...init,
             headers: {
               ...Object.fromEntries(input.headers),
