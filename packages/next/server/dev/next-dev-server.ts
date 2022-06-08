@@ -921,13 +921,6 @@ export default class DevServer extends Server {
           throw new Error('pathname is undefined')
         }
 
-        if (this.nextConfig.i18n) {
-          const { locales } = this.nextConfig.i18n
-          if (normalizeLocalePath(pathname, locales).detectedLocale) {
-            params.path.shift()
-          }
-        }
-
         // Used in development to check public directory paths
         if (await this._beforeCatchAllRender(req, res, params, parsedUrl)) {
           return {

@@ -1356,17 +1356,6 @@ export default class NextNodeServer extends BaseServer {
             )
           }
 
-          if (this.nextConfig.i18n) {
-            const localePathResult = normalizeLocalePath(
-              newUrl,
-              this.nextConfig.i18n.locales
-            )
-            if (localePathResult.detectedLocale) {
-              parsedDestination.query.__nextLocale =
-                localePathResult.detectedLocale
-            }
-          }
-
           addRequestMeta(req, '_nextRewroteUrl', newUrl)
           addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 

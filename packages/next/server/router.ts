@@ -346,9 +346,9 @@ export default class Router {
           currentPathname = `${
             getRequestMeta(req, '_nextHadBasePath') ? activeBasePath : ''
           }${
-            activeBasePath && currentPathnameNoBasePath === '/'
+            activeBasePath && localePathResult.pathname === '/'
               ? ''
-              : currentPathnameNoBasePath
+              : localePathResult.pathname
           }`
         }
 
