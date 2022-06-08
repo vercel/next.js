@@ -70,6 +70,7 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   getPossibleMiddlewareFilenames,
   isMiddlewareFile,
+  NestedMiddlewareError,
 } from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
@@ -282,6 +283,7 @@ export default class DevServer extends Server {
         pathJoin(this.pagesDir, '..'),
         this.nextConfig.pageExtensions
       )
+      let nestedMiddleware: string[] = []
 
       wp.watch(files, directories, 0)
 
@@ -351,9 +353,7 @@ export default class DevServer extends Server {
            * warn without adding it so it doesn't make its way into the system.
            */
           if (/[\\\\/]_middleware$/.test(pageName)) {
-            Log.error(
-              `nested Middleware is not allowed (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
-            )
+            nestedMiddleware.push(pageName)
             continue
           }
 
@@ -368,6 +368,14 @@ export default class DevServer extends Server {
             },
           })
           routedPages.push(pageName)
+        }
+
+        if (nestedMiddleware.length > 0) {
+          Log.error(
+            new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
+              .message
+          )
+          nestedMiddleware = []
         }
 
         this.appPathRoutes = appPaths
