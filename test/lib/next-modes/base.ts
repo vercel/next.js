@@ -34,6 +34,7 @@ export class NextInstance {
   protected packageJson: PackageJson
   protected packageLockPath?: string
   protected basePath?: string
+  protected env?: Record<string, string>
 
   constructor({
     files,
@@ -44,6 +45,7 @@ export class NextInstance {
     startCommand,
     packageJson = {},
     packageLockPath,
+    env,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -57,6 +59,7 @@ export class NextInstance {
     installCommand?: InstallCommand
     buildCommand?: string
     startCommand?: string
+    env?: Record<string, string>
   }) {
     this.files = files
     this.dependencies = dependencies
@@ -69,6 +72,7 @@ export class NextInstance {
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
+    this.env = env
   }
 
   protected async createTestDir({
