@@ -14,8 +14,6 @@ const react18Deps = {
   'react-dom': '^18.0.0',
 }
 
-jest.setTimeout(360 * 1000)
-
 describe('react 18 streaming SSR and RSC in minimal mode', () => {
   let next: NextInstance
 
@@ -128,40 +126,40 @@ describe('react 18 streaming SSR with custom next configs', () => {
 
 describe('react 18 streaming SSR and RSC with custom server', () => {
   let next
-  afterEach(async () => {
-    try {
-      await next?.destroy()
-    } catch (_) {}
-  })
-  it('should render rsc correctly under custom server', async () => {
+  let server
+  let appPort
+  beforeAll(async () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'custom-server/pages')),
+        'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
       },
       nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
       dependencies: react18Deps,
     })
     await next.stop()
 
-    let server
-    let appPort
-    try {
-      appPort = await findPort()
-      server = await initNextServerScript(
-        join(__dirname, './custom-server/server.js'),
-        /Listening/,
-        {
-          ...process.env,
-          PORT: appPort,
-        },
-        undefined
-      )
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toContain('streaming')
-    } finally {
-      if (server) {
-        await killApp(server)
+    const testServer = join(next.testDir, 'server.js')
+    appPort = await findPort()
+    server = await initNextServerScript(
+      testServer,
+      /Listening/,
+      {
+        ...process.env,
+        PORT: appPort,
+      },
+      undefined,
+      {
+        cwd: next.testDir,
       }
-    }
+    )
+  })
+  afterAll(async () => {
+    await next.destroy()
+    if (server) await killApp(server)
+  })
+  it('should render rsc correctly under custom server', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toContain('streaming')
   })
 })

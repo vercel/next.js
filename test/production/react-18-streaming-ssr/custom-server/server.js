@@ -28,12 +28,11 @@ server.listen(currentPort, (err) => {
   const nextServer = new NextServer({
     hostname: 'localhost',
     port: currentPort,
-    dir: path.join(__dirname),
-    distDir: '.next',
     customServer: true,
     dev: false,
     conf: {
       ...defaultNextConfig,
+      distDir: '.next',
       experimental: {
         ...defaultNextConfig.experimental,
         serverComponents: true,
