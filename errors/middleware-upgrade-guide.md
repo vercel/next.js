@@ -212,7 +212,7 @@ export function middleware() {
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
 
-  // delete a cookie means mark it as expired
+  // deleting a cookie will mark it as expired
   response.cookies.delete('vercel')
 
   // clear all cookies means mark all of them as expired
