@@ -38,6 +38,43 @@ describe('i18n-static-files redirects', () => {
               destination: '/:path*',
               permanent: false,
             },
+
+            {
+              source: '/en/file2',
+              destination: '/file.txt',
+              locale: false,
+              permanent: false,
+            },
+            {
+              source: '/sv/file2',
+              destination: '/file.txt',
+              locale: false,
+              permanent: false,
+            },
+            {
+              source: '/en/path-matching2/:path',
+              destination: '/:path',
+              locale: false,
+              permanent: false,
+            },
+            {
+              source: '/sv/path-matching2/:path',
+              destination: '/:path',
+              locale: false,
+              permanent: false,
+            },
+            {
+              source: '/en/wildcard-path-matching2/:path*',
+              destination: '/en/:path*',
+              locale: false,
+              permanent: false,
+            },
+            {
+              source: '/sv/wildcard-path-matching2/:path*',
+              destination: '/sv/:path*',
+              locale: false,
+              permanent: false,
+            },
           ]
         },
       },
@@ -57,7 +94,26 @@ describe('i18n-static-files redirects', () => {
     ${'/wildcard-path-matching/file.txt'} | ${'/en'}
     ${'/wildcard-path-matching/file.txt'} | ${'/sv'}
   `(
-    'should redirect "$path" to static file, locale: "$locale"',
+    'should redirect "$locale$path" to static file',
+    async ({ path, locale }) => {
+      const res = await renderViaHTTP(next.url, `${locale}${path}`)
+      expect(res).toContain('hello from file.txt')
+    }
+  )
+
+  test.each`
+    path                                   | locale
+    ${'/file2'}                            | ${''}
+    ${'/file2'}                            | ${'/en'}
+    ${'/file2'}                            | ${'/sv'}
+    ${'/path-matching2/file.txt'}          | ${''}
+    ${'/path-matching2/file.txt'}          | ${'/en'}
+    ${'/path-matching2/file.txt'}          | ${'/sv'}
+    ${'/wildcard-path-matching2/file.txt'} | ${''}
+    ${'/wildcard-path-matching2/file.txt'} | ${'/en'}
+    ${'/wildcard-path-matching2/file.txt'} | ${'/sv'}
+  `(
+    'should redirect "$locale$path" to static file when redirect locale is false',
     async ({ path, locale }) => {
       const res = await renderViaHTTP(next.url, `${locale}${path}`)
       expect(res).toContain('hello from file.txt')
