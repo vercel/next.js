@@ -13,9 +13,9 @@ type SideEffectProps = {
   children: React.ReactNode
 }
 
-const useIsomorphicLayoutEffect =
-  typeof window === 'undefined' ? () => {} : useLayoutEffect
-const useIsomorphicEffect = typeof window === 'undefined' ? () => {} : useEffect
+const isServer = typeof window === 'undefined'
+const useClientOnlyLayoutEffect = isServer ? () => {} : useLayoutEffect
+const useClientOnlyEffect = isServer ? () => {} : useEffect
 
 export default function SideEffect(props: SideEffectProps) {
   const { headManager, reduceComponentsToState } = props
@@ -29,30 +29,44 @@ export default function SideEffect(props: SideEffectProps) {
     }
   }
 
-  if (typeof window === 'undefined') {
+  if (isServer) {
     headManager?.mountedInstances?.add(props.children)
     emitChange()
   }
 
-  useIsomorphicLayoutEffect(() => {
+  useClientOnlyLayoutEffect(() => {
     headManager?.mountedInstances?.add(props.children)
     return () => {
       headManager?.mountedInstances?.delete(props.children)
     }
   })
 
-  // Cache emitChange in headManager in layout effects and execute later in effects.
-  // Since `useEffect` is async effects emitChange will only keep the latest results.
-  useIsomorphicLayoutEffect(() => {
+  // We need to call `updateHead` method whenever the `SideEffect` is trigger in all
+  // life-cycles: mount, update, unmount. However, if there are multiple `SideEffect`s
+  // being rendered, we only trigger the method from the last one.
+  // This is ensured by keeping the last unflushed `updateHead` in the `_pendingUpdate`
+  // singleton in the layout effect pass, and actually trigger it in the effect pass.
+  useClientOnlyLayoutEffect(() => {
     if (headManager) {
       headManager._pendingUpdate = emitChange
     }
+    return () => {
+      if (headManager) {
+        headManager._pendingUpdate = emitChange
+      }
+    }
   })
 
-  useIsomorphicEffect(() => {
+  useClientOnlyEffect(() => {
     if (headManager && headManager._pendingUpdate) {
       headManager._pendingUpdate()
       headManager._pendingUpdate = null
+    }
+    return () => {
+      if (headManager && headManager._pendingUpdate) {
+        headManager._pendingUpdate()
+        headManager._pendingUpdate = null
+      }
     }
   })
 
