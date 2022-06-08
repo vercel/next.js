@@ -653,12 +653,6 @@ export default class DevServer extends Server {
         throw error
       }
       this.logErrorWithOriginalStack(error, undefined, 'edge-server')
-
-      const preflight =
-        params.request.method === 'HEAD' &&
-        params.request.headers['x-middleware-preflight']
-      if (preflight) throw error
-
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params

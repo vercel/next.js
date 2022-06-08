@@ -1,3 +1,7 @@
 export default function Account() {
-  return <p className="title">Welcome to a new page</p>
+  return (
+    <p id="new-home-title" className="title">
+      Welcome to a new page
+    </p>
+  )
 }
