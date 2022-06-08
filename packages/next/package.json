@@ -71,6 +71,7 @@
   },
   "dependencies": {
     "@next/env": "12.1.7-canary.31",
+    "@swc/helpers": "0.3.17",
     "caniuse-lite": "^1.0.30001332",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.2",
@@ -269,7 +270,7 @@
     "uuid": "8.3.2",
     "vm-browserify": "1.1.2",
     "watchpack": "2.4.0",
-    "web-vitals": "2.1.0",
+    "web-vitals": "3.0.0-beta.2",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "webpack4": "npm:webpack@4.44.1",
