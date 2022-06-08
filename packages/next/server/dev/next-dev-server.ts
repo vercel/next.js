@@ -283,6 +283,7 @@ export default class DevServer extends Server {
         pathJoin(this.pagesDir, '..'),
         this.nextConfig.pageExtensions
       )
+      let nestedMiddleware: string[] = []
 
       wp.watch(files, directories, 0)
 
@@ -352,10 +353,7 @@ export default class DevServer extends Server {
            * warn without adding it so it doesn't make its way into the system.
            */
           if (/[\\\\/]_middleware$/.test(pageName)) {
-            Log.error(
-              new NestedMiddlewareError(pageName, this.dir, this.pagesDir)
-                .message
-            )
+            nestedMiddleware.push(pageName)
             continue
           }
 
@@ -370,6 +368,14 @@ export default class DevServer extends Server {
             },
           })
           routedPages.push(pageName)
+        }
+
+        if (nestedMiddleware.length > 0) {
+          nestedMiddleware = []
+          Log.error(
+            new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
+              .message
+          )
         }
 
         this.appPathRoutes = appPaths

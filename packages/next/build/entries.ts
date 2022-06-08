@@ -282,6 +282,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
+  const nestedMiddleware: string[] = []
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -322,7 +323,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
         /[\\\\/]_middleware$/.test(page)
       ) {
-        throw new NestedMiddlewareError(page, rootDir, pagesDir)
+        nestedMiddleware.push(page)
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
@@ -397,6 +398,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     )
   }
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+
+  if (nestedMiddleware.length > 0) {
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+  }
 
   return {
     client,
