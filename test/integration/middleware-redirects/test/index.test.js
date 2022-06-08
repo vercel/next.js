@@ -74,9 +74,7 @@ function tests(context) {
     expect(
       res.headers
         .get('x-nextjs-redirect')
-        ?.endsWith(
-          `/_next/data/${context.buildId}/es/new-home.json?override=internal`
-        )
+        ?.endsWith(`/es/new-home?override=internal`)
     ).toEqual(true)
     expect(res.headers.get('location')).toEqual(null)
   })

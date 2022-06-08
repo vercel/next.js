@@ -461,7 +461,10 @@ function fetchNextData({
                * mapped location.
                * TODO: Change the status code in the handler.
                */
-              if (hasMiddleware && [301, 302, 308].includes(response.status)) {
+              if (
+                hasMiddleware &&
+                [301, 302, 307, 308].includes(response.status)
+              ) {
                 return { dataHref, response, text, json: {} }
               }
 
@@ -1084,7 +1087,15 @@ export default class Router implements BaseRouter {
       ? removeTrailingSlash(removeBasePath(pathname))
       : pathname
 
-    if (shouldResolveHref && pathname !== '/_error') {
+    // we don't attempt resolve asPath when we need to execute
+    // middleware as the resolving will occur server-side
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: as,
+      locale: nextState.locale,
+      router: this,
+    })
+
+    if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1137,60 +1148,59 @@ export default class Router implements BaseRouter {
 
     const route = removeTrailingSlash(pathname)
 
-    if (isDynamicRoute(route)) {
-      const matchInfo = await matchHrefAndAsPath({
-        href: { pathname, query },
-        asPath: resolvedAs,
-        getData: () =>
-          withMiddlewareEffects({
-            fetchData: () =>
-              fetchNextData({
-                dataHref: this.pageLoader.getDataHref({
-                  asPath: resolvedAs,
-                  href: as,
-                  locale: nextState.locale,
-                }),
-                hasMiddleware: true,
-                isServerRender: this.isSsr,
-                parseJSON: true,
-                inflightCache: {},
-                persistCache: false,
-                isPrefetch: false,
-              }),
-            asPath: resolvedAs,
-            locale: nextState.locale,
-            router: this,
-          }),
-      })
+    if (!isMiddlewareMatch && isDynamicRoute(route)) {
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
 
-      if (matchInfo.error) {
-        if (matchInfo.missingParams.length > 0) {
-          const missingParams = matchInfo.missingParams.join(', ')
+      const routeRegex = getRouteRegex(route)
+      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      const shouldInterpolate = route === asPathname
+      const interpolatedAs = shouldInterpolate
+        ? interpolateAs(route, asPathname, query)
+        : ({} as { result: undefined; params: undefined })
+
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
+        const missingParams = Object.keys(routeRegex.groups).filter(
+          (param) => !query[param]
+        )
+
+        if (missingParams.length > 0) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
               `${
-                matchInfo.error === 'interpolate'
+                shouldInterpolate
                   ? `Interpolating href`
                   : `Mismatching \`as\` and \`href\``
-              } failed to manually provide the params: ${missingParams} in the \`href\`'s \`query\``
+              } failed to manually provide ` +
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
-            (matchInfo.error === 'interpolate'
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams}) to be interpolated properly. `
-              : `The provided \`as\` value (${matchInfo.asPathname}) is incompatible with the \`href\` value (${route}). `) +
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
               `Read more: https://nextjs.org/docs/messages/${
-                matchInfo.error === 'interpolate'
+                shouldInterpolate
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'
               }`
           )
         }
-      } else if (matchInfo.as) {
-        as = matchInfo.as
+      } else if (shouldInterpolate) {
+        as = formatWithValidation(
+          Object.assign({}, parsedAs, {
+            pathname: interpolatedAs.result,
+            query: omit(query, interpolatedAs.params!),
+          })
+        )
       } else {
-        Object.assign(query, matchInfo.routeMatch)
+        // Merge params into `query`, overwriting any specified in search
+        Object.assign(query, routeMatch)
       }
     }
 
@@ -1506,6 +1516,7 @@ export default class Router implements BaseRouter {
           fetchNextData({
             dataHref: this.pageLoader.getDataHref({
               href: formatWithValidation({ pathname, query }),
+              skipInterpolation: true,
               asPath: resolvedAs,
               locale,
             }),
@@ -1818,6 +1829,7 @@ export default class Router implements BaseRouter {
         fetchNextData({
           dataHref: this.pageLoader.getDataHref({
             href: formatWithValidation({ pathname, query }),
+            skipInterpolation: true,
             asPath: resolvedAs,
             locale,
           }),
@@ -1999,71 +2011,65 @@ export default class Router implements BaseRouter {
   }
 }
 
-function matchesMiddleware(params: {
-  fns: [location: string, isSSR: boolean][]
-  asPath: string
-  locale?: string
-}) {
-  const { pathname: asPathname } = parsePath(params.asPath)
-  const cleanedAs = removeLocale(
-    hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-    params.locale
-  )
-
-  return params.fns.some(([middleware, isSSR]) => {
-    return getRouteMatcher(
-      getMiddlewareRegex(middleware, {
-        catchAll: !isSSR,
-      })
-    )(cleanedAs)
-  })
-}
-
 interface MiddlewareEffectParams<T extends FetchDataOutput> {
-  fetchData: () => Promise<T>
+  fetchData?: () => Promise<T>
   locale?: string
   asPath: string
   router: Router
 }
 
+function matchesMiddleware<T extends FetchDataOutput>(
+  options: MiddlewareEffectParams<T>
+): Promise<boolean> {
+  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
+    (fns) => {
+      const { pathname: asPathname } = parsePath(options.asPath)
+      const cleanedAs = removeLocale(
+        hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
+        options.locale
+      )
+
+      return fns.some(([middleware, isSSR]) => {
+        return getRouteMatcher(
+          getMiddlewareRegex(middleware, {
+            catchAll: !isSSR,
+          })
+        )(cleanedAs)
+      })
+    }
+  )
+}
+
 function withMiddlewareEffects<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ) {
-  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (fns) => {
-      const matches = matchesMiddleware({
-        asPath: options.asPath,
-        locale: options.locale,
-        fns: fns,
-      })
-
-      if (matches) {
-        return options
-          .fetchData()
-          .then((data) =>
-            getMiddlewareData(data.dataHref, data.response, options).then(
-              (effect) => ({
-                dataHref: data.dataHref,
-                json: data.json,
-                response: data.response,
-                text: data.text,
-                effect,
-              })
-            )
+  return matchesMiddleware(options).then((matches) => {
+    if (matches && options.fetchData) {
+      return options
+        .fetchData()
+        .then((data) =>
+          getMiddlewareData(data.dataHref, data.response, options).then(
+            (effect) => ({
+              dataHref: data.dataHref,
+              json: data.json,
+              response: data.response,
+              text: data.text,
+              effect,
+            })
           )
-          .catch(() => {
-            /**
-             * TODO: Revisit this in the future.
-             * For now we will not consider middleware data errors to be fatal.
-             * maybe we should revisit in the future.
-             */
-            return null
-          })
-      }
-
-      return null
+        )
+        .catch((err) => {
+          /**
+           * TODO: Revisit this in the future.
+           * For now we will not consider middleware data errors to be fatal.
+           * maybe we should revisit in the future.
+           */
+          return null
+        })
     }
-  )
+
+    return null
+  })
 }
 
 function getMiddlewareData<T extends FetchDataOutput>(
@@ -2078,6 +2084,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
       const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
@@ -2113,6 +2120,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   const redirectTarget = response.headers.get('x-nextjs-redirect')
+
   if (redirectTarget) {
     if (redirectTarget.startsWith('/')) {
       const src = parsePath(redirectTarget)
@@ -2136,72 +2144,4 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   return Promise.resolve({ type: 'next' as const })
-}
-
-function matchHrefAndAsPath(params: {
-  asPath: string
-  href: { pathname: string; query: ParsedUrlQuery }
-  getData: () => ReturnType<typeof withMiddlewareEffects>
-}) {
-  const result = matchHrefAndAsPathData(params)
-  if (result.error === 'mismatch') {
-    return params.getData().then((data) => {
-      if (data?.effect?.type === 'rewrite') {
-        return Object.assign(
-          { effect: data.effect },
-          matchHrefAndAsPathData({
-            asPath: data.effect.parsedAs.pathname,
-            href: {
-              pathname: data.effect.resolvedHref,
-              query: { ...params.href.query, ...data.effect.parsedAs.query },
-            },
-          })
-        )
-      }
-
-      return result
-    })
-  }
-
-  return Promise.resolve(result)
-}
-
-function matchHrefAndAsPathData(params: {
-  href: { pathname: string; query: ParsedUrlQuery }
-  asPath: string
-}) {
-  const { asPath, href } = params
-  const { pathname, query } = href
-  const route = removeTrailingSlash(pathname)
-  const regex = getRouteRegex(route)
-  const parsedAs = parseRelativeUrl(asPath)
-  const routeMatch = getRouteMatcher(regex)(parsedAs.pathname)
-  if (!routeMatch) {
-    return {
-      error: 'mismatch' as const,
-      asPathname: parsedAs.pathname,
-      missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-    }
-  }
-
-  if (route === parsedAs.pathname) {
-    const interpolated = interpolateAs(route, parsedAs.pathname, query)
-    if (!interpolated?.result) {
-      return {
-        error: 'interpolate' as const,
-        missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-      }
-    }
-
-    return {
-      as: formatWithValidation(
-        Object.assign({}, parsedAs, {
-          pathname: interpolated.result,
-          query: omit(query, interpolated.params!),
-        })
-      ),
-    }
-  }
-
-  return { routeMatch }
 }

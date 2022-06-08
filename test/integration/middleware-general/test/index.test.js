@@ -158,8 +158,29 @@ describe('Middleware Runtime', () => {
 })
 
 function tests(context, locale = '') {
-  // TODO: re-enable after fixing server-side resolving priority
-  it.skip('should rewrite the same for direct visit and client-transition', async () => {
+  it('should redirect the same for direct visit and client-transition', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/redirect-1`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+      '/somewhere-else'
+    )
+
+    const browser = await webdriver(context.appPort, `${locale}/`)
+    await browser.eval(`next.router.push('/redirect-1')`)
+    await check(async () => {
+      const pathname = await browser.eval('location.pathname')
+      return pathname === '/somewhere-else' ? 'success' : pathname
+    }, 'success')
+  })
+
+  it('should rewrite the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/rewrite-1`)
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Hello World')
@@ -387,7 +408,7 @@ function tests(context, locale = '') {
     expect(json.pageProps.message).toEqual('Bye Cruel World')
     expect(res.headers.get('x-nextjs-matched-path')).toBeNull()
     expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
-      `/_next/data/${context.buildId}/en/ssr-page-2.json`
+      `/en/ssr-page-2`
     )
   })
 

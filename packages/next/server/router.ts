@@ -209,12 +209,13 @@ export default class Router {
 
       const allRoutes = [
         ...this.headers,
+        ...this.fsRoutes.filter((r) => r.name === '_next/data catchall'),
         ...this.redirects,
-        ...this.rewrites.beforeFiles,
         ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
           ? [this.catchAllMiddleware]
           : []),
-        ...this.fsRoutes,
+        ...this.rewrites.beforeFiles,
+        ...this.fsRoutes.filter((r) => r.name !== '_next/data catchall'),
         // We only check the catch-all route if public page routes hasn't been
         // disabled
         ...(this.useFileSystemPublicRoutes

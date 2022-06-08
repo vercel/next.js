@@ -773,18 +773,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             }
           }
 
-          const parsedUrl = parseUrl(pathname, true)
-
-          await this.render(
-            req,
-            res,
-            pathname,
-            { ..._parsedUrl.query, _nextDataReq: '1' },
-            parsedUrl,
-            true
-          )
           return {
-            finished: true,
+            pathname,
+            query: { ..._parsedUrl.query, _nextDataReq: '1' },
+            finished: false,
           }
         },
       },
@@ -1210,6 +1202,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDataReq =
       !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
+    if (!!query._nextDataReq) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
+      )
+      // TODO: return empty JSON when not an SSG/SSP page?
+    }
     delete query._nextDataReq
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later

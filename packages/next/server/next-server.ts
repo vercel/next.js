@@ -1110,7 +1110,12 @@ export default class NextNodeServer extends BaseServer {
     const normalizedPathname = removeTrailingSlash(params.parsedUrl.pathname)
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    const query = urlQueryToSearchParams(params.parsed.query).toString()
+    const locale = params.parsed.query.__nextLocale
+    const url = `http://${this.hostname}:${this.port}${
+      locale ? `/${locale}` : ''
+    }${params.parsed.pathname}${query ? `?${query}` : ''}`
+
     if (!url.startsWith('http')) {
       throw new Error(
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'

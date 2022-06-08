@@ -19,6 +19,13 @@ export async function adapter(params: {
     nextConfig: params.request.nextConfig,
   })
 
+  const isDataReq = requestUrl.searchParams.has('_nextDataReq')
+  ;[...requestUrl.searchParams.keys()].forEach((key) => {
+    if (key.startsWith('_next') || key.startsWith('__next')) {
+      requestUrl.searchParams.delete(key)
+    }
+  })
+
   // Ensure users only see page requests, never data requests.
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
@@ -41,7 +48,7 @@ export async function adapter(params: {
    * need to know about this property neither use it. We add it for testing
    * purposes.
    */
-  if (buildId) {
+  if (isDataReq) {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
@@ -75,7 +82,7 @@ export async function adapter(params: {
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    if (buildId) {
+    if (isDataReq) {
       response.headers.set(
         'x-nextjs-matched-path',
         relativizeURL(String(rewriteUrl), String(requestUrl))
@@ -112,7 +119,7 @@ export async function adapter(params: {
      * it may end up with CORS error. Instead we map to an internal header so
      * the client knows the destination.
      */
-    if (buildId) {
+    if (isDataReq) {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',
