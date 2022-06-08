@@ -163,7 +163,7 @@ describe('Middleware importing Node.js modules', () => {
         const res = await fetchViaHTTP(context.appPort, '/about')
         expect(context.logs.stderr).toContain(
           `Nested Middleware is not allowed (found pages/about/_middleware).
-Please move your code to /middleware instead.
+Please move your code to /middleware file instead.
 Read More - https://nextjs.org/docs/messages/nested-middleware`
         )
         expect(res.status).toBe(200)
@@ -226,7 +226,7 @@ Read More - https://nextjs.org/docs/messages/nested-middleware`
 
       expect(buildResult.stderr).toContain(
         `NestedMiddlewareError: Nested Middleware is not allowed (found pages/about/_middleware).
-Please move your code to /middleware instead.
+Please move your code to /middleware file instead.
 Read More - https://nextjs.org/docs/messages/nested-middleware`
       )
     })

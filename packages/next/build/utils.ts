@@ -1316,10 +1316,11 @@ export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
 export class NestedMiddlewareError extends Error {
   constructor(nestedFileName: string, mainDir: string, pagesDir: string) {
     super(`Nested Middleware is not allowed (found pages${nestedFileName}).
-Please move your code to ${path.relative(
-      path.resolve(pagesDir, '..'),
-      mainDir
-    )}/middleware instead.
+Please move your code to ${path.join(
+      path.posix.sep,
+      path.relative(mainDir, path.resolve(pagesDir, '..')),
+      'middleware'
+    )} file instead.
 Read More - https://nextjs.org/docs/messages/nested-middleware`)
   }
 }
