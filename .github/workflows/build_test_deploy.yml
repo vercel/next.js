@@ -266,7 +266,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -318,7 +318,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -373,7 +373,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -425,7 +425,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -480,7 +480,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -522,7 +522,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -567,7 +567,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -613,7 +613,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -659,7 +659,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
@@ -953,7 +953,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1148,7 +1148,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node ./scripts/setup-wasm.mjs
