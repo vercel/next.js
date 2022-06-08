@@ -4,8 +4,6 @@ import Link from 'next/link'
 import { RouterProps } from './types'
 
 export const Nav: React.FC = () => {
-  const router = useRouter();
-  console.log(router);
   return (
     <nav className='nav'>
       <CustomLink to='home'>Home</CustomLink>
@@ -20,7 +18,6 @@ const CustomLink: React.FC<PropsWithChildren<{ to: string }>> = ({to, children})
   const { cacheStrategy } = router.query as RouterProps;
   const linkPathname = `/${to}/[cacheStrategy]`
   const className = `nav-link${pathname === linkPathname ? ' active' : ''}`
-  console.log(pathname, linkPathname, router)
   return (
     <div>
       <Link href={{
