@@ -69,6 +69,7 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { MIDDLEWARE_FILE } from '../../lib/constants'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -913,7 +914,7 @@ export default class DevServer extends Server {
       match: getPathMatch('/:path*'),
       type: 'route',
       requireBasePath: false,
-      name: 'catchall public directory route',
+      name: 'public folder catchall',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl
         if (!pathname) {
