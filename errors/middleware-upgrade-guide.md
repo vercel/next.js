@@ -45,7 +45,8 @@ Middleware will be invoked for **every route in the app**, and a custom matcher 
 
 ```typescript
 // middleware.ts
-import type { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   return NextResponse.rewrite(new URL('/about-2', request.url))
