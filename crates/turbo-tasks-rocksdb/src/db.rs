@@ -10,22 +10,25 @@ use turbo_tasks::{
 use crate::table::{database, table};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum TaskState {
-    Internal {
-        clean: bool,
-        active: bool,
-        active_parents: u32,
-        external_incoming: u32,
-    },
-    External {
-        external_outgoing: u32,
-    },
+pub struct InternalTaskState {
+    pub clean: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TaskState {
+    pub internal: Option<InternalTaskState>,
+    pub active: bool,
+    pub active_parents: u32,
+    pub externally_active: bool,
 }
 
 impl Default for TaskState {
     fn default() -> Self {
-        TaskState::External {
-            external_outgoing: 0,
+        TaskState {
+            internal: None,
+            active: false,
+            active_parents: 0,
+            externally_active: false,
         }
     }
 }
@@ -38,11 +41,9 @@ pub enum TaskStateChange {
     Deactivate,
     IncrementActiveParents(u32),
     DecrementActiveParents(u32),
-    AddExternalIncoming(u32),
-    RemoveExternalIncoming(u32),
-    AddExternalOutgoing(u32),
-    RemoveExternalOutgoing(u32),
-    ConvertToInternal { external_active_parents: u32 },
+    SetExternallyActive,
+    UnsetExternallyActive,
+    Persist(bool),
     Multiple(Vec<TaskStateChange>),
 }
 
@@ -62,71 +63,49 @@ impl Add<TaskStateChange> for TaskState {
             }
             return self;
         }
-        match &mut self {
-            TaskState::Internal {
-                clean,
-                active,
-                active_parents,
-                external_incoming,
-            } => match change {
-                TaskStateChange::MakeDirty => {
+        let TaskState {
+            ref mut active_parents,
+            ref mut externally_active,
+            ref mut active,
+            ref mut internal,
+        } = self;
+        match change {
+            TaskStateChange::MakeDirty => {
+                if let Some(InternalTaskState { ref mut clean, .. }) = internal {
                     *clean = false;
                 }
-                TaskStateChange::MakeClean => {
+            }
+            TaskStateChange::MakeClean => {
+                if let Some(InternalTaskState { ref mut clean, .. }) = internal {
                     *clean = true;
                 }
-                TaskStateChange::Activate => {
+            }
+            TaskStateChange::Activate => {
+                *active = true;
+            }
+            TaskStateChange::Deactivate => {
+                *active = false;
+            }
+            TaskStateChange::IncrementActiveParents(by) => {
+                *active_parents += by;
+            }
+            TaskStateChange::DecrementActiveParents(by) => {
+                *active_parents -= by;
+            }
+            TaskStateChange::SetExternallyActive => {
+                *externally_active = true;
+            }
+            TaskStateChange::UnsetExternallyActive => {
+                *externally_active = false;
+            }
+            TaskStateChange::Persist(is_externally_active) => {
+                *internal = Some(InternalTaskState { clean: true });
+                *externally_active = is_externally_active;
+                if is_externally_active {
                     *active = true;
                 }
-                TaskStateChange::Deactivate => {
-                    *active = false;
-                }
-                TaskStateChange::IncrementActiveParents(by) => {
-                    *active_parents += by;
-                }
-                TaskStateChange::DecrementActiveParents(by) => {
-                    *active_parents -= by;
-                }
-                TaskStateChange::AddExternalIncoming(by) => {
-                    *active_parents += by;
-                    *external_incoming += by
-                }
-                TaskStateChange::RemoveExternalIncoming(by) => {
-                    *active_parents -= by;
-                    *external_incoming -= by
-                }
-                TaskStateChange::AddExternalOutgoing(by) => *external_incoming -= by,
-                TaskStateChange::RemoveExternalOutgoing(by) => *external_incoming += by,
-                TaskStateChange::ConvertToInternal { .. } => {}
-                TaskStateChange::Multiple(_) => unreachable!(),
-            },
-            TaskState::External { external_outgoing } => match change {
-                TaskStateChange::MakeDirty
-                | TaskStateChange::MakeClean
-                | TaskStateChange::Activate
-                | TaskStateChange::Deactivate
-                | TaskStateChange::IncrementActiveParents(_)
-                | TaskStateChange::DecrementActiveParents(_)
-                | TaskStateChange::AddExternalIncoming(_)
-                | TaskStateChange::RemoveExternalIncoming(_) => {}
-                TaskStateChange::AddExternalOutgoing(by) => {
-                    *external_outgoing += by;
-                }
-                TaskStateChange::RemoveExternalOutgoing(by) => {
-                    *external_outgoing -= by;
-                }
-                TaskStateChange::ConvertToInternal {
-                    external_active_parents,
-                } => {
-                    return TaskState::Internal {
-                        clean: true,
-                        active: external_active_parents > 0,
-                        active_parents: external_active_parents,
-                        external_incoming: external_active_parents - *external_outgoing,
-                    }
-                }
-                TaskStateChange::Multiple(_) => unreachable!(),
-            },
+            }
+            TaskStateChange::Multiple(_) => unreachable!(),
         }
         self
     }
@@ -203,39 +182,17 @@ impl Add for TaskStateChange {
                     TaskStateChange::DecrementActiveParents
                 );
             }
-            TaskStateChange::AddExternalIncoming(by) => {
-                add_sum_to_list!(
-                    list,
-                    by as i32,
-                    TaskStateChange::AddExternalIncoming,
-                    TaskStateChange::RemoveExternalIncoming
-                );
+            TaskStateChange::SetExternallyActive | TaskStateChange::UnsetExternallyActive => {
+                list.retain(|i| {
+                    matches!(
+                        i,
+                        TaskStateChange::SetExternallyActive
+                            | TaskStateChange::UnsetExternallyActive
+                    )
+                });
+                list.push(rhs);
             }
-            TaskStateChange::RemoveExternalIncoming(by) => {
-                add_sum_to_list!(
-                    list,
-                    -(by as i32),
-                    TaskStateChange::AddExternalIncoming,
-                    TaskStateChange::RemoveExternalIncoming
-                );
-            }
-            TaskStateChange::AddExternalOutgoing(by) => {
-                add_sum_to_list!(
-                    list,
-                    by as i32,
-                    TaskStateChange::AddExternalOutgoing,
-                    TaskStateChange::RemoveExternalOutgoing
-                );
-            }
-            TaskStateChange::RemoveExternalOutgoing(by) => {
-                add_sum_to_list!(
-                    list,
-                    -(by as i32),
-                    TaskStateChange::AddExternalOutgoing,
-                    TaskStateChange::RemoveExternalOutgoing
-                );
-            }
-            TaskStateChange::ConvertToInternal { .. } => {
+            TaskStateChange::Persist { .. } => {
                 list.push(rhs);
             }
             TaskStateChange::Multiple(_) => unreachable!(),
@@ -263,8 +220,10 @@ table!(data, (TaskId) => (PartialTaskData));
 table!(children, (TaskId) => (Vec<TaskId>));
 table!(dependencies, (TaskId) => (Vec<RawVc>));
 table!(dependents, (RawVc) => [TaskId], prefix(u8));
-table!(external_incoming, (()) => [TaskId]);
-table!(external_outgoing, (()) => [TaskId]);
+table!(externally_active_tasks, (()) => [TaskId]);
+table!(potential_active_external_tasks, (()) => [TaskId]);
+table!(potential_dirty_active_tasks, (()) => [TaskId]);
+table!(pending_active_update, (()) => [TaskId]);
 
 database!(
     next_task_id,
@@ -275,6 +234,8 @@ database!(
     children,
     dependencies,
     dependents,
-    external_incoming,
-    external_outgoing
+    externally_active_tasks,
+    potential_active_external_tasks,
+    potential_dirty_active_tasks,
+    pending_active_update
 );

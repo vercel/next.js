@@ -28,12 +28,11 @@ pub struct TaskData {
 }
 pub struct ReadTaskState {
     pub clean: bool,
-    pub external_incoming: u32,
+    pub keeps_external_active: bool,
 }
 
 pub struct PersistTaskState {
-    pub clean: bool,
-    pub external_active_parents: u32,
+    pub externally_active: bool,
 }
 
 /*
@@ -63,20 +62,32 @@ Parent-child relationships:
 
 #[derive(Debug)]
 pub struct ActivateResult {
-    pub increased_external_outgoing: Vec<(TaskId, u32)>,
+    /// Keeps the external version of the task active
+    pub keeps_external_active: bool,
+
+    /// Task doesn't live in the persisted graph but
+    /// should be track externally
+    pub external: bool,
+
+    /// Task is dirty and need to be scheduled for execution
+    pub dirty: bool,
 
     /// Further tasks that need to be activated that
     /// didn't fit into that batch
     pub more_tasks_to_activate: Vec<TaskId>,
+}
 
-    /// Task is dirty and need to be scheduled for execution
-    pub dirty: bool,
+#[derive(Debug)]
+pub struct PersistResult {
+    /// Tasks that need to be activated
+    pub tasks_to_activate: Vec<TaskId>,
+
+    /// Tasks that need to be deactivated
+    pub tasks_to_deactivate: Vec<TaskId>,
 }
 
 #[derive(Debug)]
 pub struct DeactivateResult {
-    pub decreased_external_outgoing: Vec<(TaskId, u32)>,
-
     /// Further tasks that need to be deactivated that
     /// didn't fit into that batch
     pub more_tasks_to_deactivate: Vec<TaskId>,
@@ -111,16 +122,6 @@ pub trait PersistedGraph: Sync + Send {
 
     /// store a completed task into the persisted graph
     /// together with dependencies, children and slots.
-    /// Assumes children are already tracked as active_parents
-    /// when the task is active.
-    /// Removes "external incoming" for all children that are
-    /// in the persisted graph.
-    /// Before: external_active_parents = "external outgoing" + "memory only
-    /// parents" "memory only parents" should become "external incoming"
-    /// "external outgoing" should become "internal active parents"
-    /// So: active_parents = external_active_parents
-    /// external_incoming = external_active_parents - external_outgoing
-    /// external_outgoing = 0
     /// Returns false, if the task failed to persist.
     fn persist(
         &self,
@@ -128,9 +129,10 @@ pub trait PersistedGraph: Sync + Send {
         data: TaskData,
         state: PersistTaskState,
         api: &dyn PersistedGraphApi,
-    ) -> Result<bool>;
+    ) -> Result<Option<PersistResult>>;
 
-    /// Activate a task in the persisted graph when active_parents > 0.
+    /// Activate a task in the persisted graph when active_parents > 0 or it's
+    /// externally kept alive.
     #[must_use]
     fn activate_when_needed(
         &self,
@@ -138,7 +140,8 @@ pub trait PersistedGraph: Sync + Send {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<ActivateResult>>;
 
-    /// Deactivate a task in the persisted graph when active_parents == 0.
+    /// Deactivate a task in the persisted graph when active_parents == 0 and
+    /// it's not externally kept alive.
     #[must_use]
     fn deactivate_when_needed(
         &self,
@@ -146,27 +149,24 @@ pub trait PersistedGraph: Sync + Send {
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<DeactivateResult>>;
 
-    /// Increase the parent count due to an external parent.
-    /// Also tracks the count as "external incoming".
-    /// Returns true, when activate_when_needed should be called soonish.
+    /// Marks a task as kept alive by the consumer graph
+    /// (usually from memory to persisted graph)
+    /// Returns true when activate_when_needed should be called soonish
     #[must_use]
-    fn add_external_incoming(
-        &self,
-        task: TaskId,
-        by: u32,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<bool>;
+    fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
 
-    /// Decrease the parent count due to an external parent.
-    /// Also removes the "external incoming" tracking for that count.
-    /// Returns true, when deactivate_when_needed should be called soonish.
+    /// No longer marks a task as kept alive by the consumer graph
+    /// (usually from memory to persisted graph)
+    /// Returns true when deactivate_when_needed should be called soonish
     #[must_use]
-    fn remove_external_incoming(
-        &self,
-        task: TaskId,
-        by: u32,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<bool>;
+    fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
+
+    /// Removes all external keep alives that were not renewed this round.
+    /// This is usually called after the initial build has finished and all
+    /// external keep alives has been renewed.
+    #[must_use]
+    fn remove_outdated_externally_active(&self, api: &dyn PersistedGraphApi)
+        -> Result<Vec<TaskId>>;
 
     /// update the dirty flag for a stored task
     /// Returns true, when the task is active and should be scheduled
@@ -182,22 +182,24 @@ pub trait PersistedGraph: Sync + Send {
     #[must_use]
     fn make_dependent_dirty(&self, vc: RawVc, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
 
-    /// Removes outdated external incoming counts.
-    /// Returns the tasks for which deactivate_when_needed should be called
-    /// soonish.
+    /// Get all tasks that are active, but not persisted.
+    /// This is usually called at beginning to create and schedule
+    /// tasks that are missing in the persisted graph
     #[must_use]
-    fn remove_outdated_external_incoming(&self, api: &dyn PersistedGraphApi)
-        -> Result<Vec<TaskId>>;
-
-    /// Get all external task which are held active by the persistent graph.
-    /// Returns tasks and the count of "external outgoing"
-    #[must_use]
-    fn get_external_outgoing(&self, api: &dyn PersistedGraphApi) -> Result<Vec<(TaskId, usize)>>;
+    fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
 
     /// Get all tasks that are dirty and active.
-    /// They should probably be scheduled
+    /// This is usually called at the beginning to schedule these tasks.
     #[must_use]
     fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
+
+    /// Get tasks that have active update pending that need to be continued
+    /// returns (tasks_to_activate, tasks_to_deactivate)
+    #[must_use]
+    fn get_pending_active_update(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<(Vec<TaskId>, Vec<TaskId>)>;
 }
 
 pub trait PersistedGraphApi {
@@ -266,8 +268,8 @@ impl PersistedGraph for () {
         data: TaskData,
         state: PersistTaskState,
         api: &dyn PersistedGraphApi,
-    ) -> Result<bool> {
-        Ok(false)
+    ) -> Result<Option<PersistResult>> {
+        Ok(None)
     }
 
     fn activate_when_needed(
@@ -286,22 +288,19 @@ impl PersistedGraph for () {
         Ok(None)
     }
 
-    fn add_external_incoming(
-        &self,
-        task: TaskId,
-        by: u32,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<bool> {
+    fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
     }
 
-    fn remove_external_incoming(
-        &self,
-        task: TaskId,
-        by: u32,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<bool> {
+    fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
+    }
+
+    fn remove_outdated_externally_active(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<Vec<TaskId>> {
+        Ok(Vec::new())
     }
 
     fn make_dirty(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
@@ -316,18 +315,18 @@ impl PersistedGraph for () {
         Ok(Vec::new())
     }
 
-    fn remove_outdated_external_incoming(
-        &self,
-        api: &dyn PersistedGraphApi,
-    ) -> Result<Vec<TaskId>> {
-        Ok(Vec::new())
-    }
-
-    fn get_external_outgoing(&self, api: &dyn PersistedGraphApi) -> Result<Vec<(TaskId, usize)>> {
+    fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
     }
 
     fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
+    }
+
+    fn get_pending_active_update(
+        &self,
+        api: &dyn PersistedGraphApi,
+    ) -> Result<(Vec<TaskId>, Vec<TaskId>)> {
+        Ok((Vec::new(), Vec::new()))
     }
 }

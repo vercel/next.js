@@ -42,6 +42,9 @@ struct CommonArgs {
     #[clap(long)]
     cache: Option<String>,
 
+    #[clap(long)]
+    cache_fully: bool,
+
     #[clap(short, long)]
     watch: bool,
 }
@@ -179,6 +182,7 @@ fn main() {
         ref input,
         visualize_graph,
         ref cache,
+        ref cache_fully,
         ref context_directory,
         ..
     } = args.common();
@@ -188,18 +192,23 @@ fn main() {
             || MemoryBackendWithPersistedGraph::new(RocksDbPersistedGraph::new(cache).unwrap()),
             |tt, _, duration| {
                 let mut start = Instant::now();
-                let background_timeout = std::cmp::max(duration / 10, Duration::from_millis(100));
-                let timed_out =
-                    block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
-                let elapsed = start.elapsed();
-                if timed_out {
-                    println!("flushed cache partially {} ms", elapsed.as_millis());
-                    start = Instant::now();
+                if *cache_fully {
+                    block_on(tt.wait_background_done());
                     block_on(tt.stop_and_wait());
                     let elapsed = start.elapsed();
-                    println!("stopping {} ms", elapsed.as_millis());
+                    println!("flushed cache {} ms", elapsed.as_millis());
                 } else {
-                    println!("flushed cache completely {} ms", elapsed.as_millis());
+                    let background_timeout =
+                        std::cmp::max(duration / 10, Duration::from_millis(100));
+                    let timed_out =
+                        block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
+                    block_on(tt.stop_and_wait());
+                    let elapsed = start.elapsed();
+                    if timed_out {
+                        println!("flushed cache partially {} ms", elapsed.as_millis());
+                    } else {
+                        println!("flushed cache completely {} ms", elapsed.as_millis());
+                    }
                 }
                 start = Instant::now();
                 drop(tt);

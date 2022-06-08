@@ -111,7 +111,7 @@ macro_rules! table_internal_merge {
             let key = Self::make_key::<($(&$key),+)>(&key)?;
             let merge = DefaultOptions::new().serialize(merge)?;
             let cf = self.db.cf_handle(stringify!($name)).unwrap();
-            self.db.merge_cf(cf, &key, &merge)?;
+            self.db.merge_cf_opt(cf, &key, &merge, &$crate::table::DEFAULT_WRITE_OPTIONS)?;
             Ok(())
         }
     };
@@ -1103,6 +1103,24 @@ macro_rules! table {
                     Ok(())
                 }
 
+                #[allow(unused_parens, dead_code)]
+                pub fn get_all(
+                    &self,
+                ) -> Result<Vec<(($($key),+), ($($value),+))>> {
+                    let mut result = Vec::new();
+                    let cf = self.db.cf_handle(stringify!($name)).unwrap();
+                    let mut iter = self.db.raw_iterator_cf(cf);
+                    iter.seek_to_first();
+                    while let(Some(key), Some(value)) = (iter.key(), iter.value()) {
+                        let key = DefaultOptions::new().deserialize(&key)?;
+                        let value = DefaultOptions::new().deserialize(&value)?;
+                        result.push((key, value));
+                        iter.next();
+                    }
+                    iter.status()?;
+                    Ok(result)
+                }
+
                 $crate::table::table_internal_merge!($name, ($($key),+) + $merge);
             }
 
@@ -1278,11 +1296,8 @@ macro_rules! database {
                 fn drop(&mut self) {
                     let mut opt = rocksdb::FlushOptions::new();
                     opt.set_wait(true);
-                    println!("flushing...");
                     let _ = self.db.flush_opt(&opt);
-                    println!("flushed");
                     self.db.cancel_all_background_work(true);
-                    println!("cancelled background");
                 }
             }
         }
@@ -1292,7 +1307,7 @@ macro_rules! database {
 }
 
 lazy_static! {
-    static ref DEFAULT_WRITE_OPTIONS: rocksdb::WriteOptions = {
+    pub static ref DEFAULT_WRITE_OPTIONS: rocksdb::WriteOptions = {
         let mut opt = rocksdb::WriteOptions::default();
         opt.disable_wal(true);
         opt
