@@ -254,7 +254,6 @@ export async function renderToHTML(
       ? interopDefault(layoutOrPageMod)
       : undefined
 
-    console.log({ segment, layoutOrPageMod, Component })
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const Children: any = children ? createComponentTree(children) : () => <></>
 
