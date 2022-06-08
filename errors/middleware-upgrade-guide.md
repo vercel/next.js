@@ -51,10 +51,10 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   return NextResponse.rewrite(new URL('/about-2', request.url))
 }
-// Config with custom matcher
-// Pending: https://github.com/vercel/next.js/pull/37177
+
+// Supports both a single string value or an array of matchers
 export const config = {
-  matcher: '/about/:path*',
+  matcher: ['/about/:path*', '/dashboard/:path*'],
 }
 ```
 
