@@ -1245,7 +1245,6 @@ server.listen(currentPort, (err) => {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const addr = server.address()
   const nextServer = new NextServer({
     hostname: 'localhost',
     port: currentPort,
