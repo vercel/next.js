@@ -1907,7 +1907,7 @@ export default class Router implements BaseRouter {
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
       return getRouteMatcher(
         getMiddlewareRegex(middleware, {
-          catchAll: !isSSR,
+          ssr: isSSR,
         })
       )(cleanedAs)
     })

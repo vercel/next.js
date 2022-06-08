@@ -144,6 +144,20 @@ function buildGetSafeRouteKey() {
 }
 
 /**
+ * Returns a regular expression string that matches the data route with the given
+ * page route. Examples:
+ *   - `/`     -> `/_next/data/:buildId/index\.json`
+ *   - `/page` -> `/_next/data/:buildId/page\.json`
+ */
+function getDataUrlRegex(parameterizedRoute: string) {
+  return `/_next/data/([^/]+)${
+    parameterizedRoute.endsWith('/')
+      ? parameterizedRoute + 'index'
+      : parameterizedRoute
+  }\\.json`
+}
+
+/**
  * From a middleware normalized route this function generates a regular
  * expression for it. Temporarly we are using this to generate Edge Function
  * routes too. In such cases the route should not include a trailing catch-all.
@@ -152,23 +166,31 @@ function buildGetSafeRouteKey() {
 export function getMiddlewareRegex(
   normalizedRoute: string,
   options?: {
-    catchAll?: boolean
+    ssr?: boolean
   }
 ): RouteRegex {
   const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
-  const { catchAll = true } = options ?? {}
-  if (parameterizedRoute === '/') {
-    let catchAllRegex = catchAll ? '.*' : ''
+  const { ssr } = options ?? {}
+
+  if (ssr) {
     return {
-      groups: {},
-      re: new RegExp(`^/${catchAllRegex}$`),
+      groups,
+      re: new RegExp(
+        `^${parameterizedRoute}$|^${getDataUrlRegex(parameterizedRoute)}$`
+      ),
     }
   }
 
-  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
+  if (parameterizedRoute === '/') {
+    return {
+      groups: {},
+      re: new RegExp(`^/.*$`),
+    }
+  }
+
   return {
-    groups: groups,
-    re: new RegExp(`^${parameterizedRoute}${catchAllGroupedRegex}$`),
+    groups,
+    re: new RegExp(`^${parameterizedRoute}(?:(/.*)?)$`),
   }
 }
 
@@ -179,21 +201,30 @@ export function getMiddlewareRegex(
 export function getNamedMiddlewareRegex(
   normalizedRoute: string,
   options: {
-    catchAll?: boolean
+    ssr?: boolean
   }
 ) {
   const { parameterizedRoute } = getParametrizedRoute(normalizedRoute)
-  const { catchAll = true } = options
-  if (parameterizedRoute === '/') {
-    let catchAllRegex = catchAll ? '.*' : ''
+  const { ssr } = options
+
+  if (ssr) {
+    const { namedParameterizedRoute } =
+      getNamedParametrizedRoute(normalizedRoute)
     return {
-      namedRegex: `^/${catchAllRegex}$`,
+      namedRegex: `^${namedParameterizedRoute}$|^${getDataUrlRegex(
+        namedParameterizedRoute
+      )}$`,
+    }
+  }
+
+  if (parameterizedRoute === '/') {
+    return {
+      namedRegex: `^/.*$`,
     }
   }
 
   const { namedParameterizedRoute } = getNamedParametrizedRoute(normalizedRoute)
-  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
   return {
-    namedRegex: `^${namedParameterizedRoute}${catchAllGroupedRegex}$`,
+    namedRegex: `^${namedParameterizedRoute}(?:(/.*)?)$`,
   }
 }

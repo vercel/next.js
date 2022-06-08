@@ -392,7 +392,7 @@ function getCreateAssets(params: {
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        ssr: !!metadata.edgeSSR,
       })
       const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 

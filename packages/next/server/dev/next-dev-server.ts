@@ -367,16 +367,17 @@ export default class DevServer extends Server {
 
         this.appPathRoutes = appPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
+          const isSSR = !!ssrMiddleware.has(page)
           return {
             match: getRouteMatcher(
               page === '/' && middlewareMatcher
                 ? { re: middlewareMatcher, groups: {} }
                 : getMiddlewareRegex(page, {
-                    catchAll: !ssrMiddleware.has(page),
+                    ssr: isSSR,
                   })
             ),
             page,
-            ssr: ssrMiddleware.has(page),
+            ssr: isSSR,
           }
         })
 
