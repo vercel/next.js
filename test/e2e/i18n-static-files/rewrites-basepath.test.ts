@@ -2,7 +2,7 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 
-describe('i18n-static-files rewrites', () => {
+describe('i18n-static-files rewrites with basepath', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -17,6 +17,7 @@ describe('i18n-static-files rewrites', () => {
       },
       dependencies: {},
       nextConfig: {
+        basePath: '/basepath',
         i18n: {
           locales: ['en', 'sv'],
           defaultLocale: 'en',
@@ -91,7 +92,7 @@ describe('i18n-static-files rewrites', () => {
   `(
     'should rewrite "$locale$path" to static file',
     async ({ path, locale }) => {
-      const res = await renderViaHTTP(next.url, `${locale}${path}`)
+      const res = await renderViaHTTP(next.url, `/basepath${locale}${path}`)
       expect(res).toContain('hello from file.txt')
     }
   )
@@ -110,7 +111,7 @@ describe('i18n-static-files rewrites', () => {
   `(
     'should rewrite "$locale$path" to static file when rewrite locale is false',
     async ({ path, locale }) => {
-      const res = await renderViaHTTP(next.url, `${locale}${path}`)
+      const res = await renderViaHTTP(next.url, `/basepath${locale}${path}`)
       expect(res).toContain('hello from file.txt')
     }
   )
