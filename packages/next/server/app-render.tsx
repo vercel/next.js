@@ -224,26 +224,10 @@ export async function renderToHTML(
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
-  const componentPaths = Object.keys(ComponentMod.components)
-  const components = componentPaths
-    .filter((path) => {
-      // Rendering part of the page is only allowed for flight data
-      if (flightRouterPath) {
-        // TODO: check the actual path
-        const pathLength = path.length
-        return pathLength > flightRouterPath.length
-      }
-      return true
-    })
-    .sort()
-    .map((path) => {
-      const mod = ComponentMod.components[path]()
-      mod.Component = interopDefault(mod)
-      mod.path = path
-      return mod
-    })
 
-  const isSubtreeRender = components.length < componentPaths.length
+  const LayoutRouter = ComponentMod.LayoutRouter
+
+  const tree = ComponentMod.tree
 
   // Reads of this are cached on the `req` object, so this should resolve
   // instantly. There's no need to pass this data down from a previous
@@ -255,19 +239,40 @@ export async function renderToHTML(
   )
   const isPreview = previewData !== false
   const dataCache = new Map<string, Record>()
-  let WrappedComponent: any
 
-  for (let i = components.length - 1; i >= 0; i--) {
-    const dataCacheKey = i.toString()
-    const layout = components[i]
+  const createComponentTree = ({
+    parentSegmentPath = '',
+    segment,
+    layout,
+    loading,
+    page,
+    children,
+  }: any) => {
+    const Loading = loading ? interopDefault(loading()) : undefined
+    const layoutOrPageMod = layout ? layout() : page ? page() : undefined
+    const Component = layoutOrPageMod
+      ? interopDefault(layoutOrPageMod)
+      : undefined
+
+    console.log({ segment, layoutOrPageMod, Component })
+    // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
+    const Children: any = children ? createComponentTree(children) : () => <></>
+
+    // When this segment does not have a layout or page render the children without wrapping in a subrouter
+    // TODO: revisit this as it blocks `loading.js` without a colocated layout.
+    if (!Component) {
+      return Children
+    }
+
+    const dataCacheKey = parentSegmentPath + segment
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
     // getServerSideProps calls?
-    if (layout.getServerSideProps) {
+    if (layoutOrPageMod.getServerSideProps) {
       fetcher = () =>
         Promise.resolve(
-          layout.getServerSideProps!({
+          layoutOrPageMod.getServerSideProps!({
             req: req as any,
             res: res,
             query,
@@ -285,10 +290,10 @@ export async function renderToHTML(
         )
     }
     // TODO: implement layout specific caching for getStaticProps
-    if (layout.getStaticProps) {
+    if (layoutOrPageMod.getStaticProps) {
       fetcher = () =>
         Promise.resolve(
-          layout.getStaticProps!({
+          layoutOrPageMod.getStaticProps!({
             ...(pageIsDynamic
               ? { params: query as ParsedUrlQuery }
               : undefined),
@@ -308,13 +313,8 @@ export async function renderToHTML(
       preloadDataFetchingRecord(dataCache, dataCacheKey, fetcher)
     }
 
-    const LayoutRouter = ComponentMod.LayoutRouter
-    const getLoadingMod = ComponentMod.loadingComponents[layout.path]
-    const Loading = getLoadingMod ? interopDefault(getLoadingMod()) : null
-
-    // eslint-disable-next-line no-loop-func
-    const lastComponent = WrappedComponent
-    WrappedComponent = (props: any) => {
+    return () => {
+      let props
       if (fetcher) {
         // The data fetching was kicked off before rendering (see above)
         // if the data was not resolved yet the layout rendering will be suspended
@@ -333,51 +333,39 @@ export async function renderToHTML(
         }
       }
 
-      const children = React.createElement(
-        lastComponent || React.Fragment,
-        {},
-        null
-      )
-
-      // TODO: add tests for loading.js
-      const chilrenWithLoading = Loading ? (
-        <React.Suspense fallback={<Loading />}>{children}</React.Suspense>
-      ) : (
-        children
-      )
-
-      const path = () => {
-        const segments = layout.path.split('/')
-        const lastSegment = segments[segments.length - 1]
-
-        return lastSegment
-      }
-
       return (
-        <LayoutRouter path={path()}>
-          {React.createElement(
-            layout.Component,
-            props,
-            // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
-            chilrenWithLoading
-          )}
+        <LayoutRouter path={segment}>
+          <Component {...props}>
+            {Loading ? (
+              <React.Suspense fallback={<Loading />}>
+                <Children />
+              </React.Suspense>
+            ) : (
+              <Children />
+            )}
+          </Component>
         </LayoutRouter>
       )
     }
   }
 
+  const ComponentTree = createComponentTree(tree)
+
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
     if (flightRouterPath) {
-      return <WrappedComponent />
+      return <ComponentTree />
     }
     return (
       // TODO: verify pathname passed is correct
       <AppRouter initialUrl={pathname} path="/">
-        <WrappedComponent />
+        <ComponentTree />
       </AppRouter>
     )
   }
+
+  // TODO(@timneutkens): revisit this when implementing subpath rendering
+  const isSubtreeRender = false
 
   const bootstrapScripts = !isSubtreeRender
     ? buildManifest.rootMainFiles.map((src) => '/_next/' + src)
