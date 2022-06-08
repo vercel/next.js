@@ -241,12 +241,8 @@ export async function renderToHTML(
   const dataCache = new Map<string, Record>()
 
   const createComponentTree = ({
-    parentSegmentPath = '',
-    segment,
-    layout,
-    loading,
-    page,
-    children,
+    parentSegmentPath,
+    tree: { segment, layout, loading, page, children },
   }: any) => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
@@ -254,8 +250,15 @@ export async function renderToHTML(
       ? interopDefault(layoutOrPageMod)
       : undefined
 
+    const currentSegmentPath = parentSegmentPath + segment
+
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const Children: any = children ? createComponentTree(children) : () => <></>
+    const Children: any = children
+      ? createComponentTree({
+          parentSegmentPath: currentSegmentPath,
+          tree: children,
+        })
+      : () => <></>
 
     // When this segment does not have a layout or page render the children without wrapping in a subrouter
     // TODO: revisit this as it blocks `loading.js` without a colocated layout.
@@ -263,7 +266,7 @@ export async function renderToHTML(
       return Children
     }
 
-    const dataCacheKey = parentSegmentPath + segment
+    const dataCacheKey = currentSegmentPath
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
@@ -348,7 +351,29 @@ export async function renderToHTML(
     }
   }
 
-  const ComponentTree = createComponentTree(tree)
+  const filterTreeByFlightRouterPath = (treeToFilter: any) => {
+    if (typeof flightRouterPath === 'string') {
+      const segments = flightRouterPath.split('/')
+      const filteredTree = segments.reduce(
+        (currentTree: any, currentSegment: string) => {
+          if (currentTree.segment === currentSegment) {
+            return currentTree.children
+          }
+          return currentTree
+        },
+        treeToFilter
+      )
+
+      return filteredTree
+    }
+
+    return treeToFilter
+  }
+
+  const ComponentTree = createComponentTree({
+    parentSegmentPath: '',
+    tree: filterTreeByFlightRouterPath(tree),
+  })
 
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {

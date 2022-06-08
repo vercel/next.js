@@ -38,16 +38,12 @@ async function createTreeCodeFromPath({
     }
 
     // For segmentPath === '' avoid double `/`
-    const layoutPath = `${appDirPrefix}/${segmentPath}${
-      segmentPath === '' ? '' : '/'
-    }layout`
+    const layoutPath = `${appDirPrefix}${segmentPath}/layout`
     // For segmentPath === '' avoid double `/`
-    const loadingPath = `${appDirPrefix}/${segmentPath}${
-      segmentPath === '' ? '' : '/'
-    }loading`
-    console.log({ layoutPath, loadingPath })
-    let resolvedLayoutPath = await resolve(layoutPath)
-    let resolvedLoadingPath = await resolve(loadingPath)
+    const loadingPath = `${appDirPrefix}${segmentPath}/loading`
+
+    const resolvedLayoutPath = await resolve(layoutPath)
+    const resolvedLoadingPath = await resolve(loadingPath)
 
     // if we are in a new root app/(root) and a custom root layout was
     // not provided or a root layout app/layout is not present, we use
@@ -142,7 +138,6 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolve: resolver,
     removeExt: (p) => removeExtensions(extensions, p),
   })
-  console.log(treeCode)
 
   const result = `
     export ${treeCode}
@@ -152,6 +147,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const __next_app_webpack_require__ = __webpack_require__
   `
+
   return result
 }
 
