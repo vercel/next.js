@@ -45,7 +45,7 @@ export async function middleware(request) {
     try {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
-      const res = await fetch(apiRoute)
+      const res = await fetch(withLocalIp(apiRoute))
       return serializeData(await res.text())
     } catch (err) {
       return serializeError(err)
@@ -56,7 +56,7 @@ export async function middleware(request) {
     try {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
-      const res = await fetch(apiRoute, {
+      const res = await fetch(withLocalIp(apiRoute), {
         headers: {
           'user-agent': 'custom-agent',
         },
@@ -202,4 +202,8 @@ function serializeData(data) {
 
 function serializeError(error) {
   return new NextResponse(null, { headers: { error: error.message } })
+}
+
+function withLocalIp(url) {
+  return String(url).replace('localhost', '127.0.0.1')
 }
