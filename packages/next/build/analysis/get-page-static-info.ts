@@ -4,7 +4,7 @@ import { tryToExtractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
-import { MIDDLEWARE_FILE } from '../../lib/constants'
+import { isMiddlewareFile } from '../utils'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
@@ -46,7 +46,7 @@ export async function getPageStaticInfo(params: {
         : undefined
 
     const middlewareConfig =
-      params.page === MIDDLEWARE_FILE && getMiddlewareConfig(config)
+      isMiddlewareFile(params.page!) && getMiddlewareConfig(config)
 
     return {
       ssr,
