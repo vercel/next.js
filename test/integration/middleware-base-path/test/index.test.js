@@ -35,7 +35,6 @@ describe('Middleware base tests', () => {
     })
     afterAll(() => killApp(context.app))
     runTests()
-    runPreflightTests()
   })
 })
 
@@ -57,23 +56,5 @@ function runTests() {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('.title').text()).toBe('About Page')
-  })
-}
-
-function runPreflightTests() {
-  it('should redirect via preflight middleware request', async () => {
-    const browser = await webdriver(context.appPort, '/root')
-
-    try {
-      await browser.waitForCondition(
-        'next.router && Object.keys(next.router.sde).length == 4'
-      )
-      const redirect = await browser.eval(
-        `next.router.sde["http://localhost:${context.appPort}/root/redirect-me-to-about"].redirect`
-      )
-      expect(redirect).toBe('/root/about')
-    } finally {
-      await browser.close()
-    }
   })
 }

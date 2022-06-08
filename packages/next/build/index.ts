@@ -17,7 +17,6 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
-  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -96,6 +95,7 @@ import {
   isReservedPage,
   isCustomErrorPage,
   isServerComponentPage,
+  isMiddlewareFile,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -347,12 +347,13 @@ export default async function build(
           )
       }
 
-      const rootPaths = await flatReaddir(
-        dir,
-        new RegExp(
-          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
-        )
+      const middlewareDetectionRegExp = new RegExp(
+        `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
+
+      const rootPaths = (
+        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -431,7 +432,7 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
+      if (Object.keys(mappedRootPaths || {}).some(isMiddlewareFile)) {
         Log.warn(
           `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
         )
