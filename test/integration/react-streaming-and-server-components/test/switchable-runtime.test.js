@@ -183,6 +183,7 @@ describe('Switchable runtime (prod)', () => {
   ├ ○ /404
   ├ ℇ /edge
   ├ ℇ /edge-rsc
+  ├ ℇ /edge-ssr
   ├ ○ /node
   ├ ● /node-rsc
   ├ ● /node-rsc-isr
