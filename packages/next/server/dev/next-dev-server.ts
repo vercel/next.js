@@ -371,11 +371,11 @@ export default class DevServer extends Server {
         }
 
         if (nestedMiddleware.length > 0) {
-          nestedMiddleware = []
           Log.error(
             new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
               .message
           )
+          nestedMiddleware = []
         }
 
         this.appPathRoutes = appPaths
