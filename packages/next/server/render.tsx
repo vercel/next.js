@@ -479,7 +479,7 @@ export async function renderToHTML(
   > | null = null
 
   const serverComponentsStaticPageData: { current: string } | null =
-    isServerComponent && process.env.NEXT_RUNTIME !== 'edge'
+    isServerComponent && (process.env.NEXT_RUNTIME !== 'edge' || isDataReq)
       ? { current: '' }
       : null
 
@@ -501,8 +501,7 @@ export async function renderToHTML(
   }
 
   let renderServerComponentData = isServerComponent
-    ? query.__flight__ !== undefined ||
-      (isDataReq && process.env.NEXT_RUNTIME === 'edge')
+    ? query.__flight__ !== undefined
     : false
 
   const serverComponentProps =

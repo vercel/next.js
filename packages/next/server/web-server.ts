@@ -126,6 +126,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    renderOpts.disableOptimizedLoading = true
+    renderOpts.runtime = 'edge'
     return renderToHTML(
       {
         url: req.url,
@@ -135,11 +137,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       {} as any,
       pathname,
       query,
-      {
-        ...renderOpts,
-        disableOptimizedLoading: true,
-        runtime: 'edge',
-      }
+      renderOpts
     )
   }
   protected async sendRenderResult(
