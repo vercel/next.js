@@ -13,6 +13,10 @@ type SideEffectProps = {
   children: React.ReactNode
 }
 
+const useIsomorphicLayoutEffect =
+  typeof window === 'undefined' ? () => {} : useLayoutEffect
+const useIsomorphicEffect = typeof window === 'undefined' ? () => {} : useEffect
+
 export default function SideEffect(props: SideEffectProps) {
   const { headManager, reduceComponentsToState } = props
 
@@ -28,11 +32,9 @@ export default function SideEffect(props: SideEffectProps) {
   if (typeof window === 'undefined') {
     headManager?.mountedInstances?.add(props.children)
     emitChange()
-    return null
   }
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     headManager?.mountedInstances?.add(props.children)
     return () => {
       headManager?.mountedInstances?.delete(props.children)
@@ -41,15 +43,13 @@ export default function SideEffect(props: SideEffectProps) {
 
   // Cache emitChange in headManager in layout effects and execute later in effects.
   // Since `useEffect` is async effects emitChange will only keep the latest results.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (headManager) {
       headManager._pendingUpdate = emitChange
     }
   })
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     if (headManager && headManager._pendingUpdate) {
       headManager._pendingUpdate()
       headManager._pendingUpdate = null
