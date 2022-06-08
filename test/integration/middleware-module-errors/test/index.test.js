@@ -2,8 +2,10 @@
 
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
-import { join } from 'path'
+import fs from 'fs-extra'
+import { dirname, join } from 'path'
 import {
+  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -157,16 +159,30 @@ describe('Middleware importing Node.js modules', () => {
     })
 
     it('warns about nested middleware being not allowed', async () => {
-      const file = new File(join(__dirname, '../pages/about/_middleware.js'))
-      file.write(`export function middleware() {}`)
+      const aboutMiddleware = join(__dirname, '../pages/about/_middleware.js')
+      const apiMiddleware = join(__dirname, '../pages/api/_middleware.js')
+
+      await fs.ensureDir(dirname(aboutMiddleware))
+      await fs.ensureDir(dirname(apiMiddleware))
+      await fs.writeFile(aboutMiddleware, `export function middleware() {}`)
+      await fs.writeFile(apiMiddleware, `export function middleware() {}`)
+
       try {
         const res = await fetchViaHTTP(context.appPort, '/about')
-        expect(context.logs.stderr).toContain(
-          'nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
-        )
         expect(res.status).toBe(200)
+
+        await check(() => {
+          return context.logs.stderr.includes(
+            'Nested Middleware is not allowed, found:'
+          ) &&
+            context.logs.stderr.includes('pages/about/_middleware') &&
+            context.logs.stderr.includes('pages/api/_middleware')
+            ? 'success'
+            : context.logs.output
+        }, 'success')
       } finally {
-        file.delete()
+        await fs.remove(aboutMiddleware)
+        await fs.remove(apiMiddleware)
       }
     })
   })
@@ -215,16 +231,26 @@ describe('Middleware importing Node.js modules', () => {
     })
 
     it('fails when there is a not allowed middleware', async () => {
-      const file = new File(join(__dirname, '../pages/about/_middleware.js'))
-      file.write(`export function middleware() {}`)
+      const aboutMiddleware = join(__dirname, '../pages/about/_middleware.js')
+      const apiMiddleware = join(__dirname, '../pages/api/_middleware.js')
+
+      await fs.ensureDir(dirname(aboutMiddleware))
+      await fs.ensureDir(dirname(apiMiddleware))
+      await fs.writeFile(aboutMiddleware, `export function middleware() {}`)
+      await fs.writeFile(apiMiddleware, `export function middleware() {}`)
+
       const buildResult = await nextBuild(context.appDir, undefined, {
         stderr: true,
         stdout: true,
       })
+      await fs.remove(aboutMiddleware)
+      await fs.remove(apiMiddleware)
 
       expect(buildResult.stderr).toContain(
-        'Error: nested Middleware is not allowed (found pages/about/_middleware) - https://nextjs.org/docs/messages/nested-middleware'
+        'Nested Middleware is not allowed, found:'
       )
+      expect(buildResult.stderr).toContain('pages/about/_middleware')
+      expect(buildResult.stderr).toContain('pages/api/_middleware')
     })
   })
 })

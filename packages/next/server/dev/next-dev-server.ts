@@ -21,7 +21,6 @@ import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
-import { MIDDLEWARE_FILENAME } from '../../lib/constants'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -68,7 +67,11 @@ import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { MIDDLEWARE_FILE } from '../../lib/constants'
+import {
+  getPossibleMiddlewareFilenames,
+  isMiddlewareFile,
+  NestedMiddlewareError,
+} from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -101,6 +104,7 @@ export default class DevServer extends Server {
   private addedUpgradeListener = false
   private pagesDir: string
   private appDir?: string
+  private actualMiddlewareFile?: string
 
   /**
    * Since the dev server is stateful and middleware routes can be added and
@@ -275,9 +279,11 @@ export default class DevServer extends Server {
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
-      const files = this.nextConfig.pageExtensions.map((extension) =>
-        pathJoin(this.dir, `${MIDDLEWARE_FILENAME}.${extension}`)
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(this.pagesDir, '..'),
+        this.nextConfig.pageExtensions
       )
+      let nestedMiddleware: string[] = []
 
       wp.watch(files, directories, 0)
 
@@ -315,7 +321,8 @@ export default class DevServer extends Server {
             page: rootFile,
           })
 
-          if (rootFile === MIDDLEWARE_FILE) {
+          if (isMiddlewareFile(rootFile)) {
+            this.actualMiddlewareFile = rootFile
             middlewareMatcher = staticInfo.middleware?.pathMatcher
             routedMiddleware.push('/')
             continue
@@ -346,9 +353,7 @@ export default class DevServer extends Server {
            * warn without adding it so it doesn't make its way into the system.
            */
           if (/[\\\\/]_middleware$/.test(pageName)) {
-            Log.error(
-              `nested Middleware is not allowed (found pages${pageName}) - https://nextjs.org/docs/messages/nested-middleware`
-            )
+            nestedMiddleware.push(pageName)
             continue
           }
 
@@ -363,6 +368,14 @@ export default class DevServer extends Server {
             },
           })
           routedPages.push(pageName)
+        }
+
+        if (nestedMiddleware.length > 0) {
+          Log.error(
+            new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
+              .message
+          )
+          nestedMiddleware = []
         }
 
         this.appPathRoutes = appPaths
@@ -519,7 +532,7 @@ export default class DevServer extends Server {
       return false
     }
 
-    if (normalizedPath === MIDDLEWARE_FILE) {
+    if (isMiddlewareFile(normalizedPath)) {
       return findPageFile(
         this.dir,
         normalizedPath,
@@ -648,12 +661,6 @@ export default class DevServer extends Server {
         throw error
       }
       this.logErrorWithOriginalStack(error, undefined, 'edge-server')
-
-      const preflight =
-        params.request.method === 'HEAD' &&
-        params.request.headers['x-middleware-preflight']
-      if (preflight) throw error
-
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
@@ -837,11 +844,13 @@ export default class DevServer extends Server {
     pathname: string,
     isSSR?: boolean
   ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : MIDDLEWARE_FILE)
+    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
   }
 
   protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
-    return this.hotReloader!.ensurePage(isSSR ? pathname : MIDDLEWARE_FILE)
+    return this.hotReloader!.ensurePage(
+      isSSR ? pathname : this.actualMiddlewareFile!
+    )
   }
 
   generateRoutes() {
