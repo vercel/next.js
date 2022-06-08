@@ -164,18 +164,22 @@ function getCodeAnalizer(params: {
       })
     }
 
+    const addUsedEnvVar = (envVarName: string) => {
+      const buildInfo = getModuleBuildInfo(parser.state.module)
+      if (buildInfo.nextUsedEnvVars === undefined) {
+        buildInfo.nextUsedEnvVars = new Set()
+      }
+
+      buildInfo.nextUsedEnvVars.add(envVarName)
+    }
+
     /**
      * A handler for calls to `process.env` where we identify the name of the
      * ENV variable being assigned and store it in the module info.
      */
     const handleCallMemberChain = (_: unknown, members: string[]) => {
       if (members.length >= 2 && members[0] === 'env') {
-        const buildInfo = getModuleBuildInfo(parser.state.module)
-        if (buildInfo.nextUsedEnvVars === undefined) {
-          buildInfo.nextUsedEnvVars = new Set()
-        }
-
-        buildInfo.nextUsedEnvVars.add(members[1])
+        addUsedEnvVar(members[1])
         if (!isInMiddlewareLayer(parser)) {
           return true
         }
@@ -226,6 +230,37 @@ function getCodeAnalizer(params: {
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+
+    /**
+     * Support static analyzing environment variables through
+     * destructuring `process.env` or `process["env"]`:
+     *
+     * const { MY_ENV, "MY-ENV": myEnv } = process.env
+     *         ^^^^^^   ^^^^^^
+     */
+    hooks.declarator.tap(NAME, (declarator) => {
+      if (
+        declarator.init?.type === 'MemberExpression' &&
+        isProcessEnvMemberExpression(declarator.init) &&
+        declarator.id?.type === 'ObjectPattern'
+      ) {
+        for (const property of declarator.id.properties) {
+          if (property.type === 'RestElement') continue
+          if (
+            property.key.type === 'Literal' &&
+            typeof property.key.value === 'string'
+          ) {
+            addUsedEnvVar(property.key.value)
+          } else if (property.key.type === 'Identifier') {
+            addUsedEnvVar(property.key.name)
+          }
+        }
+
+        if (!isInMiddlewareLayer(parser)) {
+          return true
+        }
+      }
+    })
     registerUnsupportedApiHooks(parser, compilation)
   }
 }
@@ -537,4 +572,15 @@ function isNullLiteral(expr: any) {
 
 function isUndefinedIdentifier(expr: any) {
   return expr.name === 'undefined'
+}
+
+function isProcessEnvMemberExpression(memberExpression: any): boolean {
+  return (
+    memberExpression.object?.type === 'Identifier' &&
+    memberExpression.object.name === 'process' &&
+    ((memberExpression.property?.type === 'Literal' &&
+      memberExpression.property.value === 'env') ||
+      (memberExpression.property?.type === 'Identifier' &&
+        memberExpression.property.name === 'env'))
+  )
 }

@@ -32,6 +32,8 @@ describe('Middleware Runtime', () => {
       context.buildId = 'development'
       context.app = await launchApp(context.appDir, context.appPort, {
         env: {
+          ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+          'STRING-ENV-VAR': 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
           NEXT_RUNTIME: 'edge',
         },
@@ -99,6 +101,8 @@ describe('Middleware Runtime', () => {
       context.appPort = await findPort()
       context.app = await nextStart(context.appDir, context.appPort, {
         env: {
+          ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+          'STRING-ENV-VAR': 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
           NEXT_RUNTIME: 'edge',
         },
@@ -119,7 +123,7 @@ describe('Middleware Runtime', () => {
       )
       expect(manifest.middleware).toEqual({
         '/': {
-          env: ['MIDDLEWARE_TEST'],
+          env: ['MIDDLEWARE_TEST', 'ANOTHER_MIDDLEWARE_TEST', 'STRING-ENV-VAR'],
           files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
           name: 'middleware',
           page: '/',
@@ -187,6 +191,8 @@ function tests(context, locale = '') {
     expect(readMiddlewareJSON(res)).toEqual({
       process: {
         env: {
+          ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+          'STRING-ENV-VAR': 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
           NEXT_RUNTIME: 'edge',
         },
