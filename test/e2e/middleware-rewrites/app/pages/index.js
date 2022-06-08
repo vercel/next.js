@@ -15,6 +15,10 @@ export default function Home() {
         <a id="rewrite-me-to-about">Rewrite me to about</a>
       </Link>
       <div />
+      <Link href="/rewrite-to-config-rewrite">
+        <a id="rewrite-me-to-config-rewrite">Rewrite me to config Rewrite</a>
+      </Link>
+      <div />
       <Link href="/rewrite-me-to-vercel">
         <a>Rewrite me to Vercel</a>
       </Link>
