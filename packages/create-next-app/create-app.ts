@@ -20,6 +20,7 @@ import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
+import { moveFile } from 'move-file'
 
 export class DownloadError extends Error {}
 
@@ -29,12 +30,14 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  withSrc,
 }: {
   appPath: string
   packageManager: PackageManager
   example?: string
   examplePath?: string
   typescript?: boolean
+  withSrc?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const template = typescript ? 'typescript' : 'default'
@@ -291,6 +294,24 @@ export async function createApp({
         }
       },
     })
+    /**
+     * Move `pages`, and other directories except `public` to `src` if `withSrc` is true.
+     * https://nextjs.org/docs/advanced-features/src-directory
+     */
+    if (withSrc) {
+      await Promise.all(
+        fs
+          .readdirSync(root)
+          .filter(
+            (file) =>
+              !['public', 'node_modules'].includes(file) &&
+              fs.statSync(path.join(root, file)).isDirectory()
+          )
+          .map((dir) =>
+            moveFile(path.join(root, dir), path.join(root, 'src', dir))
+          )
+      )
+    }
   }
 
   if (tryGitInit(root)) {

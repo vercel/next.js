@@ -27,6 +27,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--with-src',
+    `
+
+  Initialize the project with a src directory.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -136,6 +143,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      withSrc: program.withSrc,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -158,6 +166,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       packageManager,
       typescript: program.typescript,
+      withSrc: program.withSrc,
     })
   }
 }
