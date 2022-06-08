@@ -1,4 +1,4 @@
-# Example app with FingerprintJS Pro
+# An example app with FingerprintJS Pro
 
 This example shows how to identify visitors using [FingerprintJS Pro](https://fingerprintjs.com/) with Next.js.
 
@@ -26,7 +26,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ### API key
 
-In order to identify visitors, you'll need a FingerprintJS Pro account (you can [sign up for free](https://dashboard.fingerprintjs.com/signup/)).
+To identify visitors, you'll need a FingerprintJS Pro account (you can [sign up for free](https://dashboard.fingerprintjs.com/signup/)).
 You can learn more about API keys in the [official FingerprintJS Pro documentation](https://dev.fingerprintjs.com/docs/quick-start-guide).
 
-When you obtain your own public key, you need to set up API key in environment variable `NEXT_PUBLIC_FPJS_PUBLIC_API_KEY`.
+Once you get public key, you need to set up the API key in the environment variable `NEXT_PUBLIC_FPJS_PUBLIC_API_KEY`.
