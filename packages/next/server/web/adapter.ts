@@ -49,7 +49,7 @@ export async function adapter(params: {
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  const response = await params.handler(request, event)
+  let response = await params.handler(request, event)
 
   /**
    * For rewrites we must always include the locale in the final pathname
@@ -95,6 +95,12 @@ export async function adapter(params: {
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
     })
+
+    /**
+     * Responses created from redirects have immutable headers so we have
+     * to clone the response to be able to modify it.
+     */
+    response = new Response(response.body, response)
 
     if (redirectURL.host === request.nextUrl.host) {
       redirectURL.buildId = buildId || redirectURL.buildId
