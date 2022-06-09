@@ -5,7 +5,7 @@
 import {
   Cookies,
   CookieSerializeOptions,
-} from 'next/dist/server/web/spec-extension/cookies'
+} from 'next/dist/web-cjs/spec-extension/cookies'
 
 it('create a empty cookies bag', async () => {
   const cookies = new Cookies()

@@ -1,7 +1,7 @@
 /**
  * @jest-environment @edge-runtime/jest-environment
  */
-import { NextURL } from 'next/dist/server/web/next-url'
+import { NextURL } from 'next/dist/web-cjs/next-url'
 
 // TODO Make NextURL extend URL
 it.skip('has the right shape and prototype', () => {

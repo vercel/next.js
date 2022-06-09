@@ -1,4 +1,4 @@
-import { splitCookiesString } from 'next/dist/server/web/utils'
+import { splitCookiesString } from 'next/dist/server/web-utils'
 import cookie, { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 function generateCookies(
