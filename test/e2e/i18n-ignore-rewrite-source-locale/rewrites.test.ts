@@ -1,7 +1,7 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import path, { join } from 'path'
+import path from 'path'
 import fs from 'fs-extra'
 
 const locales = ['', '/en', '/sv', '/nl']
