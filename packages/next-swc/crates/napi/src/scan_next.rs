@@ -2,11 +2,8 @@
 
 use anyhow::{Context, Error};
 use napi::{CallContext, JsString, JsUnknown};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use rayon::prelude::*;
+use std::{fs, path::PathBuf, sync::Arc};
 use swc_common::SourceMap;
 use swc_ecmascript::{
     ast::EsVersion,
@@ -21,13 +18,13 @@ use crate::util::MapErr;
 #[js_function(1)]
 pub fn scan_next_imports_js(cx: CallContext) -> napi::Result<JsUnknown> {
     let entry = cx.get::<JsString>(0)?.into_utf8()?.into_owned()?;
-    let result = scan_next_imports(entry.as_ref()).convert_err()?;
+    let result = scan_next_imports(entry.into()).convert_err()?;
 
     cx.env.to_js_value(&result)
 }
 
 #[allow(unused)]
-fn scan_next_imports(entry: &Path) -> Result<ScanResult, Error> {
+fn scan_next_imports(entry: PathBuf) -> Result<ScanResult, Error> {
     let worker = Worker {
         cm: Default::default(),
     };
@@ -38,19 +35,32 @@ struct Worker {
     cm: Arc<SourceMap>,
 }
 impl Worker {
-    fn scan_path(&self, entry: &Path) -> Result<ScanResult, Error> {
+    fn scan_path(&self, entry: PathBuf) -> Result<ScanResult, Error> {
         let metadata = fs::metadata(&entry)
             .with_context(|| format!("failed to get metadata of '{}'", entry.display()))?;
 
         if metadata.is_dir() {
-            let iter = fs::read_dir(entry)
+            let iter = fs::read_dir(&entry)
                 .with_context(|| format!("failed to read directory at '{}'", entry.display()))?;
+
+            return iter
+                .par_bridge()
+                .filter_map(Result::ok)
+                .map(|e| self.scan_path(e.path()))
+                .reduce(
+                    || Ok(ScanResult::default()),
+                    |a, b| {
+                        let mut a = a?;
+                        a.files.extend(b?.files);
+                        Ok(a)
+                    },
+                );
         } else if metadata.is_file() {
             if let Some(ext) = entry.extension() {
                 if ext == "js" || ext == "jsx" || ext == "ts" || ext == "tsx" {
                     let fm = self
                         .cm
-                        .load_file(entry)
+                        .load_file(&entry)
                         .with_context(|| format!("failed to load file '{}'", entry.display()))?;
 
                     let program = parse_file_as_program(
