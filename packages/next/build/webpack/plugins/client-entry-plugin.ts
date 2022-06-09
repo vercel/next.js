@@ -1,9 +1,6 @@
 import { stringify } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import {
-  EDGE_RUNTIME_WEBPACK,
-  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
-} from '../../../shared/lib/constants'
+import { EDGE_RUNTIME_WEBPACK } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
@@ -13,6 +10,7 @@ import {
 } from '../../../server/dev/on-demand-entry-handler'
 import { getPageStaticInfo } from '../../analysis/get-page-static-info'
 import { SERVER_RUNTIME } from '../../../lib/constants'
+import { getClientEntryName } from '../../utils'
 
 type Options = {
   dev: boolean
@@ -152,10 +150,7 @@ export class ClientEntryPlugin {
         // Inject the entry to the server compiler.
         const clientComponentEntryDep = (
           webpack as any
-        ).EntryPlugin.createDependency(
-          clientLoader,
-          name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
-        )
+        ).EntryPlugin.createDependency(clientLoader, getClientEntryName(name))
         promises.push(
           new Promise<void>((res, rej) => {
             compilation.addEntry(
@@ -163,7 +158,7 @@ export class ClientEntryPlugin {
               clientComponentEntryDep,
               this.isEdgeServer
                 ? {
-                    name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+                    name: getClientEntryName(name),
                     library: {
                       name: ['self._CLIENT_ENTRY'],
                       type: 'assign',
@@ -172,7 +167,7 @@ export class ClientEntryPlugin {
                     asyncChunks: false,
                   }
                 : {
-                    name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+                    name: getClientEntryName(name),
                     runtime: 'webpack-runtime',
                   },
               (err: any) => {

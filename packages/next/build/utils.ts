@@ -26,7 +26,10 @@ import {
   MIDDLEWARE_FILENAME,
   SERVER_RUNTIME,
 } from '../lib/constants'
-import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
+import {
+  EDGE_RUNTIME_WEBPACK,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+} from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -1350,4 +1353,16 @@ export class NestedMiddlewareError extends Error {
         `Read More - https://nextjs.org/docs/messages/nested-middleware`
     )
   }
+}
+
+// `pages/index` -> `chunks/index.__sc_client__`
+// `/app/index` -> `chunks/index.__sc_client__`
+export function getClientEntryName(name: string) {
+  const pagePrefixes = ['pages/', 'app/']
+  let page = name
+  pagePrefixes.forEach((prefix) => {
+    prefix = page.startsWith('/') ? `/${prefix}` : prefix
+    page = page.startsWith(prefix) ? page.slice(prefix.length) : page
+  })
+  return path.join('chunks', `${page}${NEXT_CLIENT_SSR_ENTRY_SUFFIX}`)
 }

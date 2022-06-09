@@ -3,7 +3,7 @@ import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
-import { NEXT_CLIENT_SSR_ENTRY_SUFFIX } from '../../../shared/lib/constants'
+import { getClientEntryName } from '../../utils'
 
 type Compiler = webpack5.Compiler
 type WebpackPluginInstance = webpack5.WebpackPluginInstance
@@ -57,7 +57,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(
       PLUGIN_NAME,
-      (file, { targetPath, content }) => {
+      (file, { targetPath, content, outputPath }) => {
         this.currentOutputPathsWebpack5.add(targetPath)
         deleteCache(targetPath)
         clearModuleContext(targetPath, content.toString('utf-8'))
@@ -69,10 +69,12 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         ) {
           // Also clear the potential __sc_client__ cache.
           // @TODO: Investigate why the client ssr bundle isn't emitted as an asset here.
-          const clientComponentsSSRTarget = targetPath.replace(
-            /\.js$/,
-            NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js'
+          const page = targetPath.replace(outputPath, '').replace('.js', '')
+          const clientComponentsSSRTarget = path.join(
+            outputPath,
+            getClientEntryName(page) + '.js'
           )
+
           if (deleteCache(clientComponentsSSRTarget)) {
             this.currentOutputPathsWebpack5.add(clientComponentsSSRTarget)
             clearModuleContext(

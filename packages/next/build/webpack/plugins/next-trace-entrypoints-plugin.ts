@@ -115,13 +115,13 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   // Here we output all traced assets and webpack chunks to a
   // ${page}.js.nft.json file
   async createTraceAssets(
-    compilation: any,
+    compilation: webpack5.Compilation,
     assets: any,
     span: Span,
     readlink: any,
     stat: any
   ) {
-    const outputPath = compilation.outputOptions.path
+    const outputPath = compilation.outputOptions.path!
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
@@ -130,7 +130,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
-
         for (const chunk of entrypoint
           .getEntrypointChunk()
           .getAllReferencedChunks()) {
@@ -474,7 +473,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
-          (assets: any, callback: any) => {
+          (assets, callback) => {
             this.createTraceAssets(
               compilation,
               assets,
