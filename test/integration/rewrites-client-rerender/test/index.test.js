@@ -21,6 +21,7 @@ const runTests = () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     expect(await browser.eval('window.__renders')).toEqual([undefined])
+    expect(await browser.eval('window.__route_change_complete')).toEqual(true)
   })
 
   it('should rerender with the correct query parameter if present', async () => {
