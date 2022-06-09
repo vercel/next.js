@@ -6,7 +6,7 @@ import fs from 'fs-extra'
 
 const locales = ['', '/en', '/sv', '/nl']
 
-describe('i18n-ignore-source-locale', () => {
+describe('i18n-ignore-rewrite-source-locale with basepath', () => {
   let next: NextInstance
 
   beforeAll(async () => {
