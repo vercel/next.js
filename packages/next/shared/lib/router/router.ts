@@ -2061,7 +2061,7 @@ function withMiddlewareEffects<T extends FetchDataOutput>(
             })
           )
         )
-        .catch((err) => {
+        .catch((_err) => {
           /**
            * TODO: Revisit this in the future.
            * For now we will not consider middleware data errors to be fatal.
