@@ -83,8 +83,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { clonableBodyForRequest } from './body-streams'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
-// Detect if streaming rendering mode is enabled
-const shouldUseReactRoot = !!(React as any).useId
+const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }

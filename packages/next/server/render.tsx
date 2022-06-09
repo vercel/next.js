@@ -88,12 +88,10 @@ let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 
 const DOCTYPE = '<!DOCTYPE html>'
-
-// Use `React.useId` to detect if using react 18 instead of using
-// `process.env.__NEXT_REACT_ROOT` since it might not be updated yet
-const ReactDOMServer = (React as any).useId
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
+const ReactDOMServer =
+  parseInt(React.version) >= 18
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')

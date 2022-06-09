@@ -3,6 +3,7 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 
 import './node-polyfill-fetch'
+import React from 'react'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -182,9 +183,7 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
-  // Make sure env of custom server is overridden.
-  // Use dynamic require to make sure it's executed in it's own context.
-  const shouldUseReactRoot = !!require('react').useId
+  const shouldUseReactRoot = parseInt(React.version) >= 18
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
