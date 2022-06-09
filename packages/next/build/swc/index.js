@@ -278,6 +278,7 @@ function loadNative() {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
+      scanNextPackageUsages: bindings.scanNextPackageUsages,
     }
     return nativeBindings
   }
@@ -323,6 +324,14 @@ export async function parse(src, options) {
   let bindings = await loadBindings()
   let parserOptions = getParserOptions(options)
   return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
+}
+
+export async function scanNextPackageUsages(entry) {
+  let bindings = await loadBindings()
+
+  return bindings
+    .scanNextPackageUsages(entry)
+    .then((result) => JSON.parse(result))
 }
 
 export function getBinaryMetadata() {
