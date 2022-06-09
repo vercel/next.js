@@ -1,6 +1,6 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import { DeprecationSignatureError } from './error'
+import { PageSignatureError } from './error'
 import { fromNodeHeaders } from '../server/web-utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
@@ -162,14 +162,14 @@ class NextRequestHint extends NextRequest {
   }
 
   get request() {
-    throw new DeprecationSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage })
   }
 
   respondWith() {
-    throw new DeprecationSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage })
   }
 
   waitUntil() {
-    throw new DeprecationSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage })
   }
 }

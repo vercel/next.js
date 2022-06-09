@@ -1,8 +1,20 @@
-import { createNext } from 'e2e-utils'
+import { join } from 'path'
+import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  initNextServerScript,
+  killApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 
-describe('react 18 streaming SSR in minimal mode', () => {
+const react18Deps = {
+  react: '^18.0.0',
+  'react-dom': '^18.0.0',
+}
+
+describe('react 18 streaming SSR and RSC in minimal mode', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -12,13 +24,15 @@ describe('react 18 streaming SSR in minimal mode', () => {
       files: {
         'pages/index.server.js': `
           export default function Page() {
-            return <p>static streaming</p>
+            return <p>streaming</p>
+          }
+          export async function getServerSideProps() {
+            return { props: {} }
           }
         `,
       },
       nextConfig: {
         experimental: {
-          reactRoot: true,
           serverComponents: true,
           runtime: 'nodejs',
         },
@@ -40,10 +54,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
           return config
         },
       },
-      dependencies: {
-        react: '18.1.0',
-        'react-dom': '18.1.0',
-      },
+      dependencies: react18Deps,
     })
   })
   afterAll(() => {
@@ -58,7 +69,7 @@ describe('react 18 streaming SSR in minimal mode', () => {
 
   it('should generate html response by streaming correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('static streaming')
+    expect(html).toContain('streaming')
   })
 
   it('should have generated a static 404 page', async () => {
@@ -76,49 +87,10 @@ describe('react 18 streaming SSR with custom next configs', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.js': `
-          export default function Page() {
-            return (
-              <div>
-                <style jsx>{\`p { color: blue } \`}</style>
-                <p>index</p>
-              </div>
-            )
-          }
-        `,
-        'pages/hello.js': `
-          import Link from 'next/link'
-
-          export default function Page() {
-            return (
-              <div>
-                <p>hello nextjs</p>
-                <Link href='/'><a>home></a></Link>
-              </div>
-            )
-          }
-        `,
-        'pages/multi-byte.js': `
-          export default function Page() {
-            return (
-              <div>
-                <p>{"マルチバイト".repeat(28)}</p>
-              </div>
-            );
-          }
-        `,
+        pages: new FileRef(join(__dirname, 'streaming-ssr/pages')),
       },
-      nextConfig: {
-        trailingSlash: true,
-        experimental: {
-          reactRoot: true,
-          runtime: 'edge',
-        },
-      },
-      dependencies: {
-        react: '18.1.0',
-        'react-dom': '18.1.0',
-      },
+      nextConfig: require(join(__dirname, 'streaming-ssr/next.config.js')),
+      dependencies: react18Deps,
       installCommand: 'npm install',
     })
   })
@@ -149,5 +121,45 @@ describe('react 18 streaming SSR with custom next configs', () => {
   it('should render multi-byte characters correctly in streaming', async () => {
     const html = await renderViaHTTP(next.url, '/multi-byte')
     expect(html).toContain('マルチバイト'.repeat(28))
+  })
+})
+
+describe('react 18 streaming SSR and RSC with custom server', () => {
+  let next
+  let server
+  let appPort
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        pages: new FileRef(join(__dirname, 'custom-server/pages')),
+        'server.js': new FileRef(join(__dirname, 'custom-server/server.js')),
+      },
+      nextConfig: require(join(__dirname, 'custom-server/next.config.js')),
+      dependencies: react18Deps,
+    })
+    await next.stop()
+
+    const testServer = join(next.testDir, 'server.js')
+    appPort = await findPort()
+    server = await initNextServerScript(
+      testServer,
+      /Listening/,
+      {
+        ...process.env,
+        PORT: appPort,
+      },
+      undefined,
+      {
+        cwd: next.testDir,
+      }
+    )
+  })
+  afterAll(async () => {
+    await next.destroy()
+    if (server) await killApp(server)
+  })
+  it('should render rsc correctly under custom server', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toContain('streaming')
   })
 })
