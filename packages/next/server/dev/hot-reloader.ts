@@ -563,6 +563,8 @@ export default class HotReloader {
 
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
+            const isInsideAppDir =
+              this.appDir && absolutePagePath.startsWith(this.appDir)
 
             const staticInfo = await getPageStaticInfo({
               pageFilePath: absolutePagePath,
@@ -593,7 +595,7 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent) {
+                if (isServerComponent || isInsideAppDir) {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
