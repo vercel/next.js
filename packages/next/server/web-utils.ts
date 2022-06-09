@@ -1,4 +1,4 @@
-import type { NodeHeaders } from './types'
+import type { NodeHeaders } from '../web/types'
 
 export function fromNodeHeaders(object: NodeHeaders): Headers {
   const headers = new Headers()

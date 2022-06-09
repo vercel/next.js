@@ -24,6 +24,7 @@ module.exports = function (task) {
       if (file.base.endsWith('.d.ts')) return
 
       const isClient = serverOrClient === 'client'
+      const isMiddleware = serverOrClient === 'middleware'
 
       const swcClientOptions = {
         module: {
@@ -89,7 +90,32 @@ module.exports = function (task) {
         },
       }
 
-      const swcOptions = isClient ? swcClientOptions : swcServerOptions
+      const swcMiddlewareOptions = {
+        module: {
+          type: 'es6',
+          ignoreDynamic: true,
+        },
+        jsc: {
+          loose: true,
+
+          target: 'es2016',
+          parser: {
+            syntax: 'typescript',
+            dynamicImport: true,
+            importAssertions: true,
+            tsx: file.base.endsWith('.tsx'),
+          },
+          experimental: {
+            keepImportAssertions,
+          },
+        },
+      }
+
+      const swcOptions = isClient
+        ? swcClientOptions
+        : isMiddleware
+        ? swcMiddlewareOptions
+        : swcServerOptions
 
       const filePath = path.join(file.dir, file.base)
       const fullFilePath = path.join(__dirname, filePath)

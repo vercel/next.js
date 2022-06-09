@@ -1,4 +1,4 @@
-import type { I18NConfig } from '../config-shared'
+import type { I18NConfig } from '../server/config-shared'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'

@@ -1,5 +1,5 @@
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import type { RequestData, FetchEventResult } from '../types'
+import type { WasmBinding } from '../../build/webpack/loaders/get-module-build-info'
+import type { RequestData, FetchEventResult } from '../../web/types'
 import { getModuleContext } from './context'
 
 export async function run(params: {

@@ -1,8 +1,8 @@
-import type { I18NConfig } from '../../config-shared'
+import type { I18NConfig } from '../../server/config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
-import { isBot } from '../../utils'
-import { toNodeHeaders, validateURL } from '../utils'
+import isBot from '../../server/is-bot'
+import { toNodeHeaders, validateURL } from '../../server/web-utils'
 import parseua from 'next/dist/compiled/ua-parser-js'
 import { DeprecationPageError } from '../error'
 

@@ -20,7 +20,7 @@ export default function middlewareLoader(this: any) {
   }
 
   return `
-        import { adapter, blockUnallowedResponse } from 'next/dist/server/web/adapter'
+        import { adapter, blockUnallowedResponse } from 'next/dist/web/adapter'
 
         // The condition is true when the "process" module is provided
         if (process !== global.process) {

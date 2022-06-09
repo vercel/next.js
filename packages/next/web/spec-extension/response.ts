@@ -1,6 +1,6 @@
-import type { I18NConfig } from '../../config-shared'
+import type { I18NConfig } from '../../server/config-shared'
 import { NextURL } from '../next-url'
-import { toNodeHeaders, validateURL } from '../utils'
+import { toNodeHeaders, validateURL } from '../../server/web-utils'
 
 import { NextCookies } from './cookies'
 

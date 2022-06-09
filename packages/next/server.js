@@ -1,6 +1,2 @@
-module.exports = {
-  NextRequest: require('next/dist/server/web/spec-extension/request')
-    .NextRequest,
-  NextResponse: require('next/dist/server/web/spec-extension/response')
-    .NextResponse,
-}
+export { NextRequest } from 'next/dist/web/spec-extension/request'
+export { NextResponse } from 'next/dist/web/spec-extension/response'

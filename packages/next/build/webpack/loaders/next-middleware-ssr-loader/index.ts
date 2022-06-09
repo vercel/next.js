@@ -47,7 +47,7 @@ export default async function middlewareSSRLoader(this: any) {
     : null
 
   const transformed = `
-    import { adapter } from 'next/dist/server/web/adapter'
+    import { adapter } from 'next/dist/web/adapter'
     import { RouterContext } from 'next/dist/shared/lib/router-context'
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'

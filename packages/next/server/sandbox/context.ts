@@ -1,10 +1,10 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
+import type { WasmBinding } from '../../build/webpack/loaders/get-module-build-info'
+import { EDGE_UNSUPPORTED_NODE_APIS } from '../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
-import { validateURL } from '../utils'
-import { pick } from '../../../lib/pick'
+import { validateURL } from '../web-utils'
+import { pick } from '../../lib/pick'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g

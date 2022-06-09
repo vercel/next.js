@@ -1,8 +1,8 @@
-import type { DomainLocale, I18NConfig } from '../config-shared'
-import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
-import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
-import { getHostname } from '../../shared/lib/get-hostname'
-import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
+import type { DomainLocale, I18NConfig } from '../server/config-shared'
+import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
+import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
+import { getHostname } from '../shared/lib/get-hostname'
+import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
 interface Options {
   base?: string | URL

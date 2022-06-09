@@ -1789,6 +1789,7 @@ export async function compile(task, opts) {
       'cli',
       'bin',
       'server',
+      'middleware',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
@@ -1839,6 +1840,14 @@ export async function server(task, opts) {
     .swc('server', { dev: opts.dev })
     .target('dist/server')
   notify('Compiled server files')
+}
+
+export async function middleware(task, opts) {
+  await task
+    .source(opts.src || 'web/**/*.+(js|ts|tsx)')
+    .swc('middleware', { dev: opts.dev })
+    .target('dist/web')
+  notify('Compiled middleware files')
 }
 
 export async function nextbuild(task, opts) {
@@ -1930,6 +1939,7 @@ export default async function (task) {
   await task.watch('bin/*', 'bin', opts)
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
   await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
+  await task.watch('web/**/*.+(js|ts|tsx)', 'middleware', opts)
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
   await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)

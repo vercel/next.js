@@ -1,11 +1,11 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { DeprecationSignatureError } from './error'
-import { fromNodeHeaders } from './utils'
+import { fromNodeHeaders } from '../server/web-utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
-import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
+import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 
