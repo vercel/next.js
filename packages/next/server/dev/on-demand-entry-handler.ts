@@ -206,6 +206,8 @@ export function onDemandEntryHandler({
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
           )
+          const isInsideAppDir =
+            appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
           const pageKey = `${type}${pagePathData.page}`
 
@@ -217,7 +219,7 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            if (type === 'client' && isServerComponent) {
+            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
               // Skip adding the client entry here.
             } else {
               entryAdded = true
