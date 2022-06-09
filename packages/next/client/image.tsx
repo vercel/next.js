@@ -457,7 +457,11 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+  if (
+    typeof window !== 'undefined' &&
+    loadedImageURLs.has(src) &&
+    layout !== 'raw'
+  ) {
     isLazy = false
   }
 
@@ -901,7 +905,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading = 'lazy',
+  loading,
   srcString,
   config,
   unoptimized,
@@ -915,6 +919,7 @@ const ImageElement = ({
   noscriptSizes,
   ...rest
 }: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
   return (
     <>
       <img

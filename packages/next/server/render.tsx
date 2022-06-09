@@ -43,7 +43,7 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -88,9 +88,10 @@ let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
+const ReactDOMServer =
+  parseInt(React.version) >= 18
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -313,20 +314,26 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function useFlightResponse({
-  id,
+  cachePrefix,
   req,
   pageData,
   inlinedDataWritable,
+  serverComponentManifest,
 }: {
-  id: string
+  cachePrefix: string
   req: ReadableStream<Uint8Array>
   pageData: { current: string } | null
   inlinedDataWritable: WritableStream<Uint8Array>
+  serverComponentManifest: any
 }) {
+  const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -386,22 +393,20 @@ function createServerComponentRenderer(
   }
 ) {
   function ServerComponentWrapper({ router, ...props }: any) {
-    const id = (React as any).useId()
-
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
       <Component {...props} />,
       serverComponentManifest
     )
 
     const response = useFlightResponse({
-      id: cachePrefix + ',' + id,
+      cachePrefix,
       req: reqStream,
       pageData,
       inlinedDataWritable: inlinedTransformStream.writable,
+      serverComponentManifest,
     })
 
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
@@ -484,11 +489,7 @@ export async function renderToHTML(
     const search = urlQueryToSearchParams(query).toString()
 
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return ComponentMod.__next_rsc__.__webpack_require__(ssrModuleId)
-    }
+    globalThis.__next_require__ = ComponentMod.__next_rsc__.__webpack_require__
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
 
@@ -1455,6 +1456,7 @@ export async function renderToHTML(
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()

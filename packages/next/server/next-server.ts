@@ -2,7 +2,12 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
+import {
+  CacheFs,
+  DecodeError,
+  execOnce,
+  PageNotFoundError,
+} from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -12,11 +17,15 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type {
+  Params,
+  RouteMatch,
+} from '../shared/lib/router/utils/route-matcher'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -55,7 +64,7 @@ import BaseServer, {
   stringifyQuery,
   RoutingItem,
 } from './base-server'
-import { getPagePath, requireFontManifest, pageNotFoundError } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -66,15 +75,18 @@ import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { MIDDLEWARE_FILENAME } from '../lib/constants'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
-import { getMiddlewareRegex } from '../shared/lib/router/utils/route-regex'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+
+const shouldUseReactRoot = parseInt(React.version) >= 18
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 export * from './base-server'
 
@@ -123,7 +135,6 @@ export default class NextNodeServer extends BaseServer {
     if (!this.minimalMode) {
       const { ImageOptimizerCache } =
         require('./image-optimizer') as typeof import('./image-optimizer')
-
       this.imageResponseCache = new ResponseCache(
         new ImageOptimizerCache({
           distDir: this.distDir,
@@ -706,7 +717,11 @@ export default class NextNodeServer extends BaseServer {
           },
         }
       } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
+        // we should only not throw if we failed to find the page
+        // in the pages-manifest
+        if (!(err instanceof PageNotFoundError)) {
+          throw err
+        }
       }
     }
     return null
@@ -1021,11 +1036,7 @@ export default class NextNodeServer extends BaseServer {
     ))
 
     return manifest.sortedMiddleware.map((page) => ({
-      match: getRouteMatcher(
-        getMiddlewareRegex(page, {
-          catchAll: manifest?.middleware?.[page].name === MIDDLEWARE_FILENAME,
-        })
-      ),
+      match: getMiddlewareMatcher(manifest.middleware[page]),
       page,
     }))
   }
@@ -1046,12 +1057,12 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(page))
     } catch (err) {
-      throw pageNotFoundError(page)
+      throw new PageNotFoundError(page)
     }
 
     let pageInfo = manifest.middleware[foundPage]
     if (!pageInfo) {
-      throw pageNotFoundError(foundPage)
+      throw new PageNotFoundError(foundPage)
     }
 
     return {
@@ -1287,17 +1298,6 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        const preflight =
-          req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-        if (preflight) {
-          res.statusCode = 200
-          res.send()
-          return {
-            finished: true,
-          }
-        }
-
         res.statusCode = result.response.status
         res.statusMessage = result.response.statusText
 
@@ -1411,4 +1411,28 @@ export default class NextNodeServer extends BaseServer {
       this.warnIfQueryParametersWereDeleted = () => {}
     }
   }
+}
+
+const MiddlewareMatcherCache = new WeakMap<
+  MiddlewareManifest['middleware'][string],
+  RouteMatch
+>()
+
+function getMiddlewareMatcher(
+  info: MiddlewareManifest['middleware'][string]
+): RouteMatch {
+  const stored = MiddlewareMatcherCache.get(info)
+  if (stored) {
+    return stored
+  }
+
+  if (typeof info.regexp !== 'string' || !info.regexp) {
+    throw new Error(
+      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+    )
+  }
+
+  const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
+  MiddlewareMatcherCache.set(info, matcher)
+  return matcher
 }
