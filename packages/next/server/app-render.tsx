@@ -250,7 +250,8 @@ export async function renderToHTML(
       ? interopDefault(layoutOrPageMod)
       : undefined
 
-    const currentSegmentPath = parentSegmentPath + segment
+    const currentSegmentPath =
+      parentSegmentPath + (parentSegmentPath === '/' ? '' : '/') + segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const Children: any = children
@@ -271,6 +272,7 @@ export async function renderToHTML(
 
     // TODO: pass a shared cache from previous getStaticProps/
     // getServerSideProps calls?
+    // TODO: update parameters particular to layout
     if (layoutOrPageMod.getServerSideProps) {
       fetcher = () =>
         Promise.resolve(
@@ -292,6 +294,7 @@ export async function renderToHTML(
         )
     }
     // TODO: implement layout specific caching for getStaticProps
+    // TODO: update parameters particular to layout
     if (layoutOrPageMod.getStaticProps) {
       fetcher = () =>
         Promise.resolve(
@@ -353,26 +356,33 @@ export async function renderToHTML(
 
   const filterTreeByFlightRouterPath = (treeToFilter: any) => {
     if (typeof flightRouterPath === 'string') {
-      const segments = flightRouterPath.split('/')
-      const filteredTree = segments.reduce(
-        (currentTree: any, currentSegment: string) => {
-          if (currentTree.segment === currentSegment) {
-            return currentTree.children
-          }
-          return currentTree
-        },
-        treeToFilter
-      )
+      let currentTree = treeToFilter
+      const segments =
+        flightRouterPath === '/' ? [''] : flightRouterPath.split('/')
+      for (let i = 0; i < segments.length; i++) {
+        const currentSegment = segments[i]
 
-      return filteredTree
+        if (currentTree.segment === currentSegment) {
+          currentTree = currentTree.children
+          continue
+        }
+
+        // If the segment does not match and it's not the last segment to resolve
+        // the flightRouterPath is incorrect and should not continue to rendering
+        throw new Error('Flight router path does not match up with the url')
+      }
+      return currentTree
     }
 
     return treeToFilter
   }
 
+  // This ensures flightRouterPath is valid and filters down the tree
+  const filteredTree = filterTreeByFlightRouterPath(tree)
+
   const ComponentTree = createComponentTree({
-    parentSegmentPath: '',
-    tree: filterTreeByFlightRouterPath(tree),
+    parentSegmentPath: flightRouterPath ? flightRouterPath : '',
+    tree: filteredTree,
   })
 
   const AppRouter = ComponentMod.AppRouter
