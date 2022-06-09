@@ -25,6 +25,7 @@ import type {
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -81,6 +82,11 @@ import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+
+const shouldUseReactRoot = parseInt(React.version) >= 18
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 export * from './base-server'
 
@@ -1289,17 +1295,6 @@ export default class NextNodeServer extends BaseServer {
         )) {
           if (key !== 'content-encoding' && value !== undefined) {
             res.setHeader(key, value)
-          }
-        }
-
-        const preflight =
-          req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-        if (preflight) {
-          res.statusCode = 200
-          res.send()
-          return {
-            finished: true,
           }
         }
 
