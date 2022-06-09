@@ -185,6 +185,8 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+
       - run: rm -rf .git && mv .git-bak .git
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
