@@ -563,6 +563,10 @@
           "path": "/errors/sharp-version-avif.md"
         },
         {
+          "title": "script-in-document-page",
+          "path": "/errors/no-script-in-document-page.md"
+        },
+        {
           "title": "before-interactive-script-outside-document",
           "path": "/errors/no-before-interactive-script-outside-document.md"
         },
