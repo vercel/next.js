@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use std::{fs, path::PathBuf, sync::Arc};
 use swc_common::SourceMap;
 use swc_ecmascript::{
-    ast::EsVersion,
+    ast::{EsVersion, ImportDecl},
     parser::{parse_file_as_program, EsConfig, Syntax, TsConfig},
     visit::{Visit, VisitWith},
 };
@@ -91,7 +91,10 @@ impl Worker {
                             images: Default::default(),
                             scripts: Default::default(),
                         };
-                        let mut v = Scanner { data: &mut data };
+                        let mut v = Scanner {
+                            cm: &self.cm,
+                            data: &mut data,
+                        };
                         p.visit_with(&mut v);
 
                         if !v.data.images.is_empty() || !v.data.scripts.is_empty() {
@@ -128,9 +131,27 @@ pub struct LineCol {
     pub col: usize,
 }
 
-#[derive(Debug)]
 struct Scanner<'a> {
+    cm: &'a Arc<SourceMap>,
     data: &'a mut FileScanResult,
 }
 
-impl Visit for Scanner<'_> {}
+impl Visit for Scanner<'_> {
+    fn visit_import_decl(&mut self, n: &ImportDecl) {
+        n.visit_children_with(self);
+
+        if &*n.src.value == "next/image" || &*n.src.value == "next/script" {
+            let loc = self.cm.lookup_char_pos(n.src.span.lo);
+            let loc = LineCol {
+                line: loc.line,
+                col: loc.col_display,
+            };
+
+            if &*n.src.value == "next/image" {
+                self.data.images.push(loc);
+            } else {
+                self.data.scripts.push(loc);
+            }
+        }
+    }
+}
