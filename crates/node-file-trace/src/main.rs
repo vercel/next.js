@@ -42,6 +42,9 @@ struct CommonArgs {
     #[clap(long)]
     cache: Option<String>,
 
+    #[clap(long)]
+    cache_fully: bool,
+
     #[clap(short, long)]
     watch: bool,
 }
@@ -179,27 +182,42 @@ fn main() {
         ref input,
         visualize_graph,
         ref cache,
+        ref cache_fully,
         ref context_directory,
         ..
     } = args.common();
     if let Some(cache) = cache {
         run(
             &args,
-            || MemoryBackendWithPersistedGraph::new(RocksDbPersistedGraph::new(cache).unwrap()),
+            || {
+                let start = Instant::now();
+                let backend = MemoryBackendWithPersistedGraph::new(
+                    RocksDbPersistedGraph::new(cache).unwrap(),
+                );
+                let tt = TurboTasks::new(backend);
+                let elapsed = start.elapsed();
+                println!("restored cache {} ms", elapsed.as_millis());
+                tt
+            },
             |tt, _, duration| {
                 let mut start = Instant::now();
-                let background_timeout = std::cmp::max(duration / 10, Duration::from_millis(100));
-                let timed_out =
-                    block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
-                let elapsed = start.elapsed();
-                if timed_out {
-                    println!("flushed cache partially {} ms", elapsed.as_millis());
-                    start = Instant::now();
+                if *cache_fully {
+                    block_on(tt.wait_background_done());
                     block_on(tt.stop_and_wait());
                     let elapsed = start.elapsed();
-                    println!("stopping {} ms", elapsed.as_millis());
+                    println!("flushed cache {} ms", elapsed.as_millis());
                 } else {
-                    println!("flushed cache completely {} ms", elapsed.as_millis());
+                    let background_timeout =
+                        std::cmp::max(duration / 5, Duration::from_millis(100));
+                    let timed_out =
+                        block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
+                    block_on(tt.stop_and_wait());
+                    let elapsed = start.elapsed();
+                    if timed_out {
+                        println!("flushed cache partially {} ms", elapsed.as_millis());
+                    } else {
+                        println!("flushed cache completely {} ms", elapsed.as_millis());
+                    }
                 }
                 start = Instant::now();
                 drop(tt);
@@ -210,7 +228,7 @@ fn main() {
     } else {
         run(
             &args,
-            || MemoryBackend::new(),
+            || TurboTasks::new(MemoryBackend::new()),
             |tt, root_task, _| {
                 if visualize_graph {
                     let mut stats = Stats::new();
@@ -232,7 +250,7 @@ fn main() {
 
 fn run<B: Backend + 'static>(
     args: &Args,
-    create_backend: impl Fn() -> B,
+    create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration),
 ) {
     let &CommonArgs {
@@ -268,6 +286,8 @@ fn run<B: Backend + 'static>(
             let dur = start.elapsed();
             println!("done in {} ms", dur.as_millis());
             final_finish(tt, root_task, dur);
+            let dur = start.elapsed();
+            println!("all done in {} ms", dur.as_millis());
         }
     };
 
@@ -276,7 +296,7 @@ fn run<B: Backend + 'static>(
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -303,7 +323,7 @@ fn run<B: Backend + 'static>(
             let dir = current_dir().unwrap();
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();
@@ -326,7 +346,7 @@ fn run<B: Backend + 'static>(
             let context = process_context(&dir, context_directory.as_ref()).unwrap();
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let tt = TurboTasks::new(create_backend());
+            let tt = create_tt();
             let task = tt.spawn_root_task(move || {
                 let context = context.clone();
                 let input = input.clone();

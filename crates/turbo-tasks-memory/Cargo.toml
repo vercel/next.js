@@ -20,4 +20,8 @@ num_cpus = "1.13.1"
 
 [features]
 unsafe_once_map = []
+log_running_tasks = []
+log_scheduled_tasks = []
+log_activate_tasks = []
+log_connect_tasks = []
 
