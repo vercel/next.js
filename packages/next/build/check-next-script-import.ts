@@ -5,12 +5,19 @@ export async function checkNextScriptImport(
   pagePaths: string[],
   pagesDir: string
 ): Promise<boolean> {
-  for (const page of pagePaths) {
-    const fileContent = await promises.readFile(join(pagesDir, page), 'utf8')
-    if (/import[^}]*.*('|")next\/script('|")/.test(fileContent)) {
-      return true
-    }
-  }
+  let isNextScriptImported = false
+  await Promise.all(
+    pagePaths.map(async (page) => {
+      if (isNextScriptImported) return
 
-  return false
+      const fileContent = await promises.readFile(join(pagesDir, page), 'utf8')
+      if (
+        fileContent.includes('next/script') ||
+        fileContent.includes('next/dist/client/script')
+      ) {
+        isNextScriptImported = true
+      }
+    })
+  )
+  return isNextScriptImported
 }

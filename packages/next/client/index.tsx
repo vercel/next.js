@@ -253,8 +253,10 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
     }
   }
 
-  if (initialData.scriptLoader && initialData.scriptLoader.length > 0) {
-    initalizeScriptLoader(initialData.scriptLoader)
+  if (process.env.__NEXT_SCRIPT_IMPORTED) {
+    if (initialData.scriptLoader && initialData.scriptLoader.length > 0) {
+      initalizeScriptLoader(initialData.scriptLoader)
+    }
   }
 
   pageLoader = new PageLoader(initialData.buildId, prefix)
