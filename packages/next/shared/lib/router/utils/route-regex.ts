@@ -212,7 +212,7 @@ export function getNamedMiddlewareRegex(
       getNamedParametrizedRoute(normalizedRoute)
     return {
       namedRegex: `^${namedParameterizedRoute}$|^${getDataUrlRegex(
-        namedParameterizedRoute
+        parameterizedRoute
       )}$`,
     }
   }
