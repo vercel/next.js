@@ -1188,7 +1188,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         'x-nextjs-matched-path',
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
       )
-      // TODO: return empty JSON when not an SSG/SSP page?
+      // return empty JSON when not an SSG/SSP page
+      if (!(isSSG || hasServerProps)) {
+        res.setHeader('content-type', 'application/json')
+        res.body('{}')
+        res.send()
+        return null
+      }
     }
     delete query._nextDataReq
 

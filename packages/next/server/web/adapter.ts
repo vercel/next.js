@@ -19,16 +19,19 @@ export async function adapter(params: {
     nextConfig: params.request.nextConfig,
   })
 
-  const isDataReq = requestUrl.searchParams.has('_nextDataReq')
-  ;[...requestUrl.searchParams.keys()].forEach((key) => {
-    if (key.startsWith('_next') || key.startsWith('__next')) {
-      requestUrl.searchParams.delete(key)
-    }
-  })
-
   // Ensure users only see page requests, never data requests.
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
+
+  const isDataReq =
+    requestUrl.searchParams.has('_nextDataReq') ||
+    params.request.headers['x-nextjs-data']
+
+  for (const key of [...requestUrl.searchParams.keys()]) {
+    if (key.startsWith('_next') || key.startsWith('__next')) {
+      requestUrl.searchParams.delete(key)
+    }
+  }
 
   const request = new NextRequestHint({
     page: params.page,

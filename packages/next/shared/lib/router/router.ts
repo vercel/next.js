@@ -406,7 +406,10 @@ function fetchRetry(
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
     method: options.method || 'GET',
-    headers: options.headers ?? {},
+    headers: {
+      ...options.headers,
+      'x-nextjs-data': '1',
+    },
   }).then((response) => {
     return !response.ok && attempts > 1 && response.status >= 500
       ? fetchRetry(url, attempts - 1, options)
