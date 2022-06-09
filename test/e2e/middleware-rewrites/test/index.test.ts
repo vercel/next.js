@@ -132,7 +132,9 @@ describe('Middleware Rewrite', () => {
       })
     }
 
-    it('should allow to opt-out preflight caching', async () => {
+    // TODO: do we want to allow skipping cache now that preflight is
+    // disabled?
+    it.skip('should allow to opt-out preflight caching', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.addCookie({ name: 'about-bypass', value: '1' })
       await browser.eval('window.__SAME_PAGE = true')
