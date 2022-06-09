@@ -38,8 +38,6 @@ export default function AppRouter({ initialUrl, children }: any) {
   const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
   const [tree, setTree] = React.useState<any>({})
 
-  console.log(tree)
-
   const treePatch = React.useCallback((updatePayload: any) => {
     setTree(() => {
       return {
