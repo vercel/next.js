@@ -1347,6 +1347,7 @@ dependencies = [
  "napi-derive",
  "next-swc",
  "once_cell",
+ "rayon",
  "serde",
  "serde_json",
  "swc",
