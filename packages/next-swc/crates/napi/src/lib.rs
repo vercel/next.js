@@ -80,6 +80,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
     )?;
     exports.create_named_method("teardownTraceSubscriber", util::teardown_trace_subscriber)?;
 
+    exports.create_named_method("scanNextPackageUsages", bundle::bundle)?;
+
     Ok(())
 }
 

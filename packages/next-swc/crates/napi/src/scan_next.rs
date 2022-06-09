@@ -1,6 +1,7 @@
 //! Scanner for `next/image` and `next/script`.
 
-use easy_error::{Error, ResultExt};
+use anyhow::{Context, Error};
+use napi::{CallContext, JsString, JsUnknown};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -15,7 +16,18 @@ use swc_ecmascript::{
 
 use serde::Serialize;
 
-pub fn scan_next_imports(entry: &Path) -> Result<ScanResult, Error> {
+use crate::util::MapErr;
+
+#[js_function(1)]
+pub fn scan_next_imports_js(cx: CallContext) -> napi::Result<JsUnknown> {
+    let entry = cx.get::<JsString>(0)?.into_utf8()?.into_owned()?;
+    let result = scan_next_imports(entry.as_ref()).convert_err()?;
+
+    cx.env.to_js_value(&result)
+}
+
+#[allow(unused)]
+fn scan_next_imports(entry: &Path) -> Result<ScanResult, Error> {
     let worker = Worker {
         cm: Default::default(),
     };
