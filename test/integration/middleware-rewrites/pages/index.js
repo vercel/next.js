@@ -11,8 +11,8 @@ export default function Home() {
         <a>A/B test homepage</a>
       </Link>
       <div />
-      <Link href="/rewrite-me-to-about">
-        <a>Rewrite me to about</a>
+      <Link href="/rewrite-me-to-about?override=internal">
+        <a id="rewrite-me-to-about">Rewrite me to about</a>
       </Link>
       <div />
       <Link href="/rewrite-me-to-vercel">

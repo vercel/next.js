@@ -5,7 +5,11 @@ export default function Home() {
     <div>
       <p className="title">Home Page</p>
       <Link href="/old-home">
-        <a>Redirect me to a new version of a page</a>
+        <a id="old-home">Redirect me to a new version of a page</a>
+      </Link>
+      <div />
+      <Link href="/old-home?override=external">
+        <a id="old-home-external">Redirect me to an external site</a>
       </Link>
       <div />
       <Link href="/blank-page?foo=bar">

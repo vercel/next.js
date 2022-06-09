@@ -42,10 +42,6 @@ export class NextRequest extends Request {
     return this[INTERNALS].ip
   }
 
-  public get preflight() {
-    return this.headers.get('x-middleware-preflight')
-  }
-
   public get nextUrl() {
     return this[INTERNALS].url
   }
