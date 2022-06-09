@@ -2,7 +2,11 @@
  * @jest-environment @edge-runtime/jest-environment
  */
 
-import { userAgentFromString, userAgent, NextRequest } from 'next/server'
+import {
+  userAgentFromString,
+  userAgent,
+} from 'next/dist/web-cjs/spec-extension/user-agent'
+import { NextRequest } from 'next/dist/web-cjs/spec-extension/request'
 
 const UA_STRING =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'
