@@ -1292,17 +1292,6 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        const preflight =
-          req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-        if (preflight) {
-          res.statusCode = 200
-          res.send()
-          return {
-            finished: true,
-          }
-        }
-
         res.statusCode = result.response.status
         res.statusMessage = result.response.statusText
 

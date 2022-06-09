@@ -30,6 +30,7 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
   isServerComponentPage,
+  NestedMiddlewareError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -281,6 +282,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
+  const nestedMiddleware: string[] = []
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -321,9 +323,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
         /[\\\\/]_middleware$/.test(page)
       ) {
-        throw new Error(
-          `nested Middleware is not allowed (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
-        )
+        nestedMiddleware.push(page)
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
@@ -398,6 +398,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     )
   }
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+
+  if (nestedMiddleware.length > 0) {
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+  }
 
   return {
     client,

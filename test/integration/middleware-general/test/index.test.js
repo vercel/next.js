@@ -4,6 +4,7 @@ import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -161,6 +162,33 @@ describe('Middleware Runtime', () => {
 })
 
 function tests(context, locale = '') {
+  // TODO: re-enable after fixing server-side resolving priority
+  it.skip('should rewrite the same for direct visit and client-transition', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/rewrite-1`)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('Hello World')
+
+    const browser = await webdriver(context.appPort, `${locale}/`)
+    await browser.eval(`next.router.push('/rewrite-1')`)
+    await check(async () => {
+      const content = await browser.eval('document.documentElement.innerHTML')
+      return content.includes('Hello World') ? 'success' : content
+    }, 'success')
+  })
+
+  it('should rewrite correctly for non-SSG/SSP page', async () => {
+    const res = await fetchViaHTTP(context.appPort, `${locale}/rewrite-2`)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('AboutA')
+
+    const browser = await webdriver(context.appPort, `${locale}/`)
+    await browser.eval(`next.router.push('/rewrite-2')`)
+    await check(async () => {
+      const content = await browser.eval('document.documentElement.innerHTML')
+      return content.includes('AboutA') ? 'success' : content
+    }, 'success')
+  })
+
   it('should respond with 400 on decode failure', async () => {
     const res = await fetchViaHTTP(context.appPort, `${locale}/%2`)
     expect(res.status).toBe(400)
@@ -335,6 +363,46 @@ function tests(context, locale = '') {
     )
     const json = await res.json()
     expect(json.pageProps.message).toEqual('Bye Cruel World')
+  })
+
+  it('should normalize data requests into page requests', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/send-url.json`
+    )
+    expect(res.headers.get('req-url-path')).toEqual('/send-url')
+  })
+
+  it('should keep non data requests in their original shape', async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/_next/static/${context.buildId}/_devMiddlewareManifest.json?foo=1`
+    )
+    expect(res.headers.get('req-url-path')).toEqual(
+      `/_next/static/${context.buildId}/_devMiddlewareManifest.json?foo=1`
+    )
+  })
+
+  it('should add a rewrite header on data requests for rewrites', async () => {
+    const res = await fetchViaHTTP(context.appPort, `/ssr-page`)
+    const dataRes = await fetchViaHTTP(
+      context.appPort,
+      `/_next/data/${context.buildId}/en/ssr-page.json`
+    )
+    const json = await dataRes.json()
+    expect(json.pageProps.message).toEqual('Bye Cruel World')
+    expect(res.headers.get('x-nextjs-matched-path')).toBeNull()
+    expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
+      `/_next/data/${context.buildId}/en/ssr-page-2.json`
+    )
+  })
+
+  it(`hard-navigates when the data request failed`, async () => {
+    const browser = await webdriver(context.appPort, `/error`)
+    await browser.eval('window.__SAME_PAGE = true')
+    await browser.elementByCss('#throw-on-data').click()
+    await browser.waitForElementByCss('.refreshed')
+    expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
   })
 }
 
