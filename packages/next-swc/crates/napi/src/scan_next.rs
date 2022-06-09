@@ -87,7 +87,7 @@ impl Worker {
 
                     if let Ok(p) = program {
                         let mut data = FileScanResult {
-                            file: entry.to_path_buf(),
+                            path: entry.to_path_buf(),
                             images: Default::default(),
                             scripts: Default::default(),
                         };
@@ -115,7 +115,7 @@ pub struct ScanResult {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileScanResult {
-    pub file: PathBuf,
+    pub path: PathBuf,
 
     pub images: Vec<LineCol>,
     pub scripts: Vec<LineCol>,
