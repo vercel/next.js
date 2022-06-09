@@ -761,6 +761,12 @@ export default async function build(
 
         webpackBuildStart = process.hrtime()
 
+        const useParallelBuilds = !!config.experimental?.parallelBuilds
+
+        if (useParallelBuilds) {
+          runWebpackSpan.setAttribute('parallelBuilds', true)
+        }
+
         // We run client and server compilation separately to optimize for memory usage
         await runWebpackSpan.traceAsyncFn(async () => {
           // If we are under the serverless build, we will have to run the client
@@ -780,44 +786,80 @@ export default async function build(
               )
             }
 
-            // Build client first
-            clientResult = await runCompiler(clientConfig, {
-              runWebpackSpan,
-            })
-
-            // Only continue if there were no errors
-            if (!clientResult.errors.length) {
-              serverResult = await runCompiler(configs[1], {
+            if (useParallelBuilds) {
+              [clientResult, serverResult, edgeServerResult] = await Promise.all(
+                [
+                  runCompiler(configs[0], {
+                    runWebpackSpan,
+                  }),
+                  runCompiler(configs[1], {
+                    runWebpackSpan,
+                  }),
+                  configs[2]
+                ? runCompiler(configs[2], { runWebpackSpan })
+                : null
+                ]
+              )
+            } else {
+              // Build client first
+              clientResult = await runCompiler(clientConfig, {
                 runWebpackSpan,
               })
-              edgeServerResult = configs[2]
-                ? await runCompiler(configs[2], { runWebpackSpan })
-                : null
+
+              // Only continue if there were no errors
+              if (!clientResult.errors.length) {
+                serverResult = await runCompiler(configs[1], {
+                  runWebpackSpan,
+                })
+                edgeServerResult = configs[2]
+                  ? await runCompiler(configs[2], { runWebpackSpan })
+                  : null
+              }
             }
           } else {
             // During the server compilations, entries of client components will be
             // injected to this set and then will be consumed by the client compiler.
             injectedClientEntries.clear()
 
-            serverResult = await runCompiler(configs[1], {
-              runWebpackSpan,
-            })
-            edgeServerResult = configs[2]
-              ? await runCompiler(configs[2], { runWebpackSpan })
-              : null
-
-            // Only continue if there were no errors
-            if (
-              !serverResult.errors.length &&
-              !edgeServerResult?.errors.length
-            ) {
+            const setClientEntries = () => {
               injectedClientEntries.forEach((value, key) => {
                 ;(clientConfig.entry as webpack.EntryObject)[key] = value
               })
+            }
 
-              clientResult = await runCompiler(clientConfig, {
+            if (useParallelBuilds) {
+              setClientEntries();
+
+              [serverResult, edgeServerResult, clientResult] = await Promise.all([
+                runCompiler(configs[1], {
+                  runWebpackSpan,
+                }),
+                configs[2]
+                  ? runCompiler(configs[2], { runWebpackSpan })
+                  : null,
+                runCompiler(clientConfig, {
+                  runWebpackSpan,
+                })
+              ]),
+            } else {
+              serverResult = await runCompiler(configs[1], {
                 runWebpackSpan,
               })
+              edgeServerResult = configs[2]
+                ? await runCompiler(configs[2], { runWebpackSpan })
+                : null
+
+              // Only continue if there were no errors
+              if (
+                !serverResult.errors.length &&
+                !edgeServerResult?.errors.length
+              ) {
+                setClientEntries()
+
+                clientResult = await runCompiler(clientConfig, {
+                  runWebpackSpan,
+                })
+              }
             }
           }
 

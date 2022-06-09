@@ -147,6 +147,7 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+  parallelBuilds?: boolean
 }
 
 /**
