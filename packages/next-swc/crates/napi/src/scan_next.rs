@@ -1,6 +1,7 @@
 //! Scanner for `next/image` and `next/script`.
 
 use anyhow::{Context, Error};
+use fxhash::FxHashMap;
 use napi::{CallContext, JsString};
 use rayon::prelude::*;
 use std::{fs, path::PathBuf, sync::Arc};
@@ -87,7 +88,6 @@ impl Worker {
 
                     if let Ok(p) = program {
                         let mut data = FileScanResult {
-                            path: entry.to_path_buf(),
                             images: Default::default(),
                             scripts: Default::default(),
                         };
@@ -98,7 +98,10 @@ impl Worker {
                         p.visit_with(&mut v);
 
                         if !v.data.images.is_empty() || !v.data.scripts.is_empty() {
-                            return Ok(ScanResult { files: vec![data] });
+                            let mut map = FxHashMap::default();
+                            map.insert(entry, data);
+
+                            return Ok(ScanResult { files: map });
                         }
                     }
                 }
@@ -112,14 +115,12 @@ impl Worker {
 #[derive(Debug, Default, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanResult {
-    pub files: Vec<FileScanResult>,
+    pub files: FxHashMap<PathBuf, FileScanResult>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileScanResult {
-    pub path: PathBuf,
-
     pub images: Vec<LineCol>,
     pub scripts: Vec<LineCol>,
 }
