@@ -44,6 +44,7 @@ use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 mod bundle;
 mod minify;
 mod parse;
+mod scan_next;
 mod transform;
 mod util;
 

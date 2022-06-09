@@ -31,6 +31,8 @@ impl Worker {
             .with_context(|| format!("failed to get metadata of '{}'", entry.display()))?;
 
         if metadata.is_dir() {
+            let iter = fs::read_dir(entry)
+                .with_context(|| format!("failed to read directory at '{}'", entry.display()))?;
         } else if metadata.is_file() {
             if let Some(ext) = entry.extension() {
                 if ext == "js" || ext == "jsx" || ext == "ts" || ext == "tsx" {

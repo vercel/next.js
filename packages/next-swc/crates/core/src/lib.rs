@@ -56,7 +56,6 @@ pub mod react_remove_properties;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
-pub mod scan_next;
 pub mod shake_exports;
 mod top_level_binding_collector;
 
