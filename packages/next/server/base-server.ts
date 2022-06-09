@@ -439,71 +439,55 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       if (
         this.minimalMode &&
-        req.headers['x-matched-path'] &&
         typeof req.headers['x-matched-path'] === 'string'
       ) {
-        const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-        const parsedMatchedPath = parseUrl(req.headers['x-matched-path'] || '')
-        const matchedPathIsDataUrl =
-          parsedMatchedPath.pathname?.includes('/_next/data')
-        const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+        try {
+          // x-matched-path is the source of truth, it tells what page
+          // should be rendered because we don't process rewrites in minimalMode
+          let matchedPath = new URL(
+            req.headers['x-matched-path'],
+            'http://localhost'
+          ).pathname
 
-        let parsedPath = parseUrl(
-          isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
-          true
-        )
-        let matchedPathname = parsedPath.pathname!
-
-        let matchedPathnameNoExt = isDataUrl
-          ? matchedPathname.replace(/\.json$/, '')
-          : matchedPathname
-
-        let srcPathname = isDataUrl
-          ? this.stripNextDataPath(
-              parsedMatchedPath.pathname?.replace(/\.json$/, '') ||
-                matchedPathnameNoExt
-            ) || '/'
-          : matchedPathnameNoExt
-
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            matchedPathname || '/',
-            this.nextConfig.i18n.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          if (matchedPath.startsWith(`/_next/data/${this.buildId}`)) {
+            parsedUrl.query._nextDataReq = '1'
           }
-        }
+          matchedPath = this.stripNextDataPath(matchedPath, false)
 
-        if (isDataUrl) {
-          matchedPathname = denormalizePagePath(matchedPathname)
-          matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
-          srcPathname = denormalizePagePath(srcPathname)
-        }
+          if (this.nextConfig.i18n) {
+            const localeResult = normalizeLocalePath(
+              matchedPath,
+              this.nextConfig.i18n.locales
+            )
+            matchedPath = localeResult.pathname
 
-        if (
-          !isDynamicRoute(srcPathname) &&
-          !(await this.hasPage(srcPathname))
-        ) {
-          for (const dynamicRoute of this.dynamicRoutes || []) {
-            if (dynamicRoute.match(srcPathname)) {
-              srcPathname = dynamicRoute.page
-              break
+            if (localeResult.detectedLocale) {
+              parsedUrl.query.__nextLocale = localeResult.detectedLocale
             }
           }
-        }
+          matchedPath = denormalizePagePath(matchedPath)
+          let srcPathname = matchedPath
 
-        const pageIsDynamic = isDynamicRoute(srcPathname)
-        const utils = getUtils({
-          pageIsDynamic,
-          page: srcPathname,
-          i18n: this.nextConfig.i18n,
-          basePath: this.nextConfig.basePath,
-          rewrites: this.customRoutes.rewrites,
-        })
+          if (
+            !isDynamicRoute(srcPathname) &&
+            !(await this.hasPage(srcPathname))
+          ) {
+            for (const dynamicRoute of this.dynamicRoutes || []) {
+              if (dynamicRoute.match(srcPathname)) {
+                srcPathname = dynamicRoute.page
+                break
+              }
+            }
+          }
 
-        try {
+          const pageIsDynamic = isDynamicRoute(srcPathname)
+          const utils = getUtils({
+            pageIsDynamic,
+            page: srcPathname,
+            i18n: this.nextConfig.i18n,
+            basePath: this.nextConfig.basePath,
+            rewrites: this.customRoutes.rewrites,
+          })
           // ensure parsedUrl.pathname includes URL before processing
           // rewrites or they won't match correctly
           if (defaultLocale && !pathnameInfo.locale) {
@@ -523,7 +507,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            Object.assign(parsedUrl.query, parsedPath.query)
             const paramsResult = utils.normalizeDynamicRouteParams(
               parsedUrl.query
             )
@@ -542,7 +525,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 parsedUrl.query.__nextLocale = opts.locale
               }
             } else {
-              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt) || {}
+              params = utils.dynamicRouteMatcher!(matchedPath) || {}
             }
 
             if (params) {
@@ -550,18 +533,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 params = utils.normalizeDynamicRouteParams(params).params
               }
 
-              matchedPathname = utils.interpolateDynamicPath(
-                matchedPathname,
-                params
-              )
+              matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
-            }
-
-            if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-              req.url = formatUrl({
-                ...parsedPath,
-                pathname: matchedPathname,
-              })
             }
             Object.assign(parsedUrl.query, params)
           }
@@ -572,6 +545,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
           }
+          parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
+            matchedPath === '/' && this.nextConfig.basePath ? '' : matchedPath
+          }`
+          url.pathname = parsedUrl.pathname
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
             res.statusCode = 400
@@ -579,13 +556,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           throw err
         }
-
-        parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
-          matchedPathname === '/' && this.nextConfig.basePath
-            ? ''
-            : matchedPathname
-        }`
-        url.pathname = parsedUrl.pathname
       }
 
       addRequestMeta(req, '__nextHadTrailingSlash', pathnameInfo.trailingSlash)
@@ -1202,6 +1172,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDataReq =
       !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
+    // normalize req.url when matched-path is non-data route
+    // but req.url is data route (revalidation)
+    if (
+      isSSG &&
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      req.url.includes('/_next/data')
+    ) {
+      req.url = this.stripNextDataPath(req.url)
+    }
+
     if (!!query._nextDataReq) {
       res.setHeader(
         'x-nextjs-matched-path',
@@ -1709,7 +1690,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
-  private stripNextDataPath(path: string) {
+  private stripNextDataPath(path: string, stripLocale = true) {
     if (path.includes(this.buildId)) {
       const splitPath = path.substring(
         path.indexOf(this.buildId) + this.buildId.length
@@ -1718,7 +1699,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
-    if (this.nextConfig.i18n) {
+    if (this.nextConfig.i18n && stripLocale) {
       const { locales } = this.nextConfig.i18n
       return normalizeLocalePath(path, locales).pathname
     }

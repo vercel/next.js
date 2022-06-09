@@ -415,11 +415,16 @@ describe('should set-up next', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -427,11 +432,16 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -442,7 +452,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-matched-path': '/dynamic/[slug]',
         'x-now-route-matches': '1=second&slug=second',
       },
     })
@@ -487,11 +497,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json`,
+      `/dynamic/[slug]?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': `/_next/data/${next.buildId}/dynamic/first.json`,
         },
       }
     )
@@ -580,11 +590,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/catch-all.json`,
+      '/catch-all/[[...rest]]',
       undefined,
       {
         headers: {
-          'x-matched-path': '/catch-all/[[...rest]]',
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
         },
       }
     )
@@ -707,11 +717,11 @@ describe('should set-up next', () => {
   it('should have correct resolvedUrl from dynamic route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/post-2.json`,
+      '/dynamic/[slug]',
       { slug: 'post-2' },
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]',
+          'x-matched-path': `/_next/data/${next.buildId}/dynamic/post-2.json`,
         },
       }
     )
@@ -988,8 +998,8 @@ describe('should set-up next', () => {
         matchedPath: '/fallback-false/first',
       },
       {
-        pathname: '/fallback-false/first',
-        matchedPath: `/_next/data/${next.buildId}/fallback-false/first.json`,
+        pathname: `/_next/data/${next.buildId}/fallback-false/first.json`,
+        matchedPath: '/fallback-false/first',
       },
     ]
     for (const check of toCheck) {
