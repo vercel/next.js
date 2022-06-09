@@ -4,7 +4,7 @@ export default function Errors() {
   return (
     <div>
       <Link href="/error-throw?message=refreshed">
-        <a id="throw-on-preflight">Throw on preflight</a>
+        <a id="throw-on-data">Throw on data</a>
       </Link>
     </div>
   )

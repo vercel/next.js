@@ -336,3 +336,21 @@ it('preserves the trailingSlash', async () => {
 
   expect(String(url)).toEqual('http://localhost:3000/es/')
 })
+
+it('allows to preserve a json request', async () => {
+  const url = new NextURL(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json',
+    {
+      nextConfig: {
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'es', 'fr'],
+        },
+      },
+    }
+  )
+
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json'
+  )
+})
