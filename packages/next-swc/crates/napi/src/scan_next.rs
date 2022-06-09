@@ -1,7 +1,7 @@
 //! Scanner for `next/image` and `next/script`.
 
 use anyhow::{Context, Error};
-use napi::{CallContext, JsString, JsUnknown};
+use napi::{CallContext, JsString};
 use rayon::prelude::*;
 use std::{fs, path::PathBuf, sync::Arc};
 use swc_common::SourceMap;
@@ -16,11 +16,14 @@ use serde::Serialize;
 use crate::util::MapErr;
 
 #[js_function(1)]
-pub fn scan_next_imports_js(cx: CallContext) -> napi::Result<JsUnknown> {
+pub fn scan_next_imports_js(cx: CallContext) -> napi::Result<JsString> {
     let entry = cx.get::<JsString>(0)?.into_utf8()?.into_owned()?;
     let result = scan_next_imports(entry.into()).convert_err()?;
 
-    cx.env.to_js_value(&result)
+    let result = serde_json::to_string(&result)
+        .context("failed to serialize result")
+        .convert_err()?;
+    cx.env.create_string(&result)
 }
 
 #[allow(unused)]
