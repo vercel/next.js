@@ -1695,6 +1695,7 @@ export default async function getBaseWebpackConfig(
               dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
             }.js`,
       library: isClient || isEdgeServer ? '_N_E' : undefined,
+      uniqueName: config.experimental.webpackCssExperiment ? '_N_E' : undefined,
       libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
@@ -2303,6 +2304,21 @@ export default async function getBaseWebpackConfig(
             ].filter<[Feature, boolean]>(Boolean as any)
           )
         ),
+      ...(config.experimental.webpackCssExperiment
+        ? [
+            new webpack.ids.DeterministicModuleIdsPlugin({
+              maxLength: 5,
+              failOnConflict: true,
+              fixedLength: true,
+              test: (m) => m.type.startsWith('css'),
+            }),
+            new webpack.experiments.ids.SyncModuleIdsPlugin({
+              test: (m) => m.type.startsWith('css'),
+              path: path.resolve(distDir, 'module-ids.json'),
+              mode: 'create',
+            }),
+          ]
+        : []),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
@@ -2357,6 +2373,7 @@ export default async function getBaseWebpackConfig(
           ...config.experimental.urlImports,
         }
       : undefined,
+    css: config.experimental.webpackCssExperiment,
   }
 
   webpack5Config.module!.parser = {
@@ -2730,9 +2747,11 @@ export default async function getBaseWebpackConfig(
   }
 
   const hasUserCssConfig =
-    webpackConfig.module?.rules?.some(
-      (rule: any) => canMatchCss(rule.test) || canMatchCss(rule.include)
-    ) ?? false
+    (config.experimental.webpackCssExperiment ||
+      webpackConfig.module?.rules?.some(
+        (rule: any) => canMatchCss(rule.test) || canMatchCss(rule.include)
+      )) ??
+    false
 
   if (hasUserCssConfig) {
     // only show warning for one build

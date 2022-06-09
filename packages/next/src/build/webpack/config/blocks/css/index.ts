@@ -563,6 +563,27 @@ export const css = curry(async function css(
     )
   }
 
+  if (ctx.experimental.webpackCssExperiment) {
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            test: regexSassModules,
+            issuerLayer: ctx.hasAppDir ? APP_LAYER_RULE : PAGES_LAYER_RULE,
+            use: require.resolve('next/dist/compiled/sass-loader'),
+            type: 'css/module',
+          },
+          {
+            test: regexSassGlobal,
+            issuerLayer: ctx.hasAppDir ? APP_LAYER_RULE : PAGES_LAYER_RULE,
+            use: require.resolve('next/dist/compiled/sass-loader'),
+            type: 'css',
+          },
+        ],
+      })
+    )
+  }
+
   const fn = pipe(...fns)
   return fn(config)
 })
