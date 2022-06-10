@@ -13,7 +13,7 @@ use swc_common::util::take::Take;
 use swc_common::{BytePos, SourceMap, DUMMY_SP};
 use swc_ecmascript::ast::{
     ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
-    JSXExpr, JSXExprContainer, JSXObject,
+    JSXExpr, JSXExprContainer, JSXObject, SourceMapperExt,
 };
 use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::{
