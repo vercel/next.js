@@ -38,7 +38,7 @@ describe('basePath', () => {
             },
             {
               source: '/rewrite-no-basepath',
-              destination: 'https://example.com',
+              destination: 'https://example.vercel.sh',
               basePath: false,
             },
             {
