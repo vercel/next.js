@@ -38,7 +38,6 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
 - `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
 - `ip` - Has the IP address of the `Request`
-- `ua` - Has the user agent
 - `geo` - (Optional) Has the geo location from the `Request`, provided by your hosting platform
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
@@ -145,6 +144,28 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
   res.cookies.set('hello', 'world') // can be called on an instance
   return res
+}
+```
+
+## userAgent
+
+The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature.
+
+`userAgent` is fully typed and can be imported from `next/server`.
+
+```ts
+import { userAgent } from 'next/server'
+```
+
+```typescript
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrites(url)
 }
 ```
 
