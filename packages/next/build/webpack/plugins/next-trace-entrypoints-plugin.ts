@@ -152,10 +152,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
         entryFilesMap.set(entrypoint, entryFiles)
       }
 
-      const inputFiles = [...chunksToTrace].filter(
-        (chunk) => !chunk.endsWith('.wasm')
-      )
-      const result = await nodeFileTrace(inputFiles, {
+      const result = await nodeFileTrace([...chunksToTrace], {
         base: this.tracingRoot,
         processCwd: this.appDir,
         readFile: async (path) => {
