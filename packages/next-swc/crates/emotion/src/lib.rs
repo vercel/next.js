@@ -21,7 +21,6 @@ use swc_ecmascript::{
         Callee, Expr, ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, JSXElement,
         KeyValueProp, MemberProp, ObjectLit, Pat, Prop, PropName, PropOrSpread, Tpl, VarDeclarator,
     },
-    codegen::util::SourceMapperExt,
     visit::{Fold, FoldWith},
 };
 use swc_trace_macro::swc_trace;
