@@ -111,6 +111,9 @@ export default class Router {
   setDynamicRoutes(routes: DynamicRoutes = []) {
     this.dynamicRoutes = routes
   }
+  setCatchallMiddleware(route?: Route) {
+    this.catchAllMiddleware = route
+  }
 
   addFsRoute(fsRoute: Route) {
     this.fsRoutes.unshift(fsRoute)
@@ -208,8 +211,10 @@ export default class Router {
       */
 
       const allRoutes = [
+        ...(this.catchAllMiddleware
+          ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
+          : []),
         ...this.headers,
-        ...this.fsRoutes.filter((r) => r.name === '_next/data catchall'),
         ...this.redirects,
         ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
           ? [this.catchAllMiddleware]

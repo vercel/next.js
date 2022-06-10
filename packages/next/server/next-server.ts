@@ -1216,8 +1216,14 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected generateCatchAllMiddlewareRoute(): Route | undefined {
+  protected generateCatchAllMiddlewareRoute(
+    devReady?: boolean
+  ): Route | undefined {
     if (this.minimalMode) return undefined
+
+    if ((!this.renderOpts.dev || devReady) && !this.getMiddleware().length) {
+      return undefined
+    }
 
     return {
       match: getPathMatch('/:path*'),

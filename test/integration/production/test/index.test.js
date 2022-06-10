@@ -741,11 +741,10 @@ describe('Production Usage', () => {
         window.__DATA_BE_GONE = 'true'
       })
       await browser.waitForElementByCss('#to-shadowed-page').click()
+      await browser.waitForElementByCss('.about-page')
 
-      await check(async () => {
-        const found = await browser.eval('window.__DATA_BE_GONE')
-        return found ? 'fail' : 'success'
-      }, 'success')
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
     })
   })
 

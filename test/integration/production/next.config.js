@@ -28,6 +28,11 @@ module.exports = {
         permanent: false,
       },
       {
+        source: '/shadowed-page',
+        destination: '/about',
+        permanent: false,
+      },
+      {
         source: '/redirect-query-test/:path',
         destination: '/about?foo=:path',
         permanent: false,
