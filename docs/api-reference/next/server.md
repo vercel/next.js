@@ -68,32 +68,23 @@ The `NextResponse` class extends the native [`Response`](https://developer.mozil
 
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
-- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with the cookies in the `Response`
+- `cookies` - The `Cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map), including methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
-```ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(request: NextRequest) {
-  // create an instance of the class to access the public methods. This uses `next()`,
-  // you could use `redirect()` or `rewrite()` as well
-  let response = NextResponse.next()
-  // get the cookies from the request
-  let cookieFromRequest = request.cookies.get('my-cookie')
-  // set the `cookie`
-  response.cookies.set('hello', 'world')
-  // set the `cookie` with options
-  const cookieWithOptions = response.cookies.set('hello', 'world', {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-    httpOnly: true,
-    sameSite: 'strict',
-    domain: 'example.com',
-  })
-  // clear the `cookie`
-  response.clearCookie('hello')
-
-  return response
+```typescript
+export function middleware() {
+  const response = new NextResponse()
+  // set a cookie
+  response.cookies.set('vercel', 'fast')
+  // set another cookie with options
+  response.cookies.set('nextjs', 'awesome', { path: '/test' })
+  // get all the details of a cookie
+  const { value, options } = response.cookies.getWithOptions('vercel')
+  console.log(value) // => 'fast'
+  console.log(options) // => { Path: '/test' }
+  // deleting a cookie will mark it as expired
+  response.cookies.delete('vercel')
+  // clear all cookies means mark all of them as expired
+  response.cookies.clear()
 }
 ```
 
