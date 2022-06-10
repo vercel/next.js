@@ -20,12 +20,13 @@ description: Learn how to use Next.js Middleware to run code before a request is
 
 </details>
 
-Next.js Middleware enables you to use code over configuration. This gives you full flexibility in Next.js, because you can run code _before_ a request is completed. Based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
+Next.js Middleware enables you to use code over configuration. This gives you full flexibility in Next.js, because you can run code _before_ a request is completed. Middleware runs _before_ the CDN cache lookup, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
 
 ## Summary of Next.js Middleware
 
-- You create a single `middleware.ts` file at your projects root with an exported function (the file extension can be either `.ts` or `.js`)
-- The function can be a default export and does **not** have to be named `middleware` (though this is a convention). You only need to make the function `async` if you are running asynchronous code
+- A single `middleware.ts` file is created at your projects root, with an exported function (the file extension can be either `.ts` or `.js`)
+- The function can be a named, or default export. If the function is a named export, then is **must** be called `middleware`. For a default export, you are free to name it anything you like
+- The function can be `async` if you are running asynchronous code
 - Next.js Middleware executes on _all_ requests, including `/_next`
 - Node.js APIs are [not supported in this environment](https://edge-runtime.vercel.sh/#developing-edge-functions-locally)
 
@@ -41,13 +42,13 @@ The [`NextResponse`](#nextresponse) API allows you to:
 - Set response cookies
 - Set response headers
 
-These tools enable you to implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/949f18cdd9b40b62278a0967a706fd4ace235f47/edge-functions) for code examples.
+These tools enable you to implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/main/edge-functions) for code examples.
 
 ### Deploying Next.js Middleware
 
-Next.js Middleware uses a [strict runtime](https://edge-runtime.vercel.sh/features) that supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/edge-functions).
+Next.js Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/edge-functions).
 
-## Usage
+## Using Next.js Middleware
 
 To begin using Next.js Middleware, follow the steps below:
 
@@ -68,7 +69,7 @@ import { NextResponse } from 'next/server’
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  return NextResponse.rewrite(new URL('/about-2', request.url));
+  return NextResponse.redirect(new URL('/about-2', request.url));
 }
 
 // config with custom matcher
@@ -106,20 +107,18 @@ Note that while the config option is the preferred method, **as it does not get 
 ```typescript
 // middleware.ts
 
-import { NextResponse } from 'next/server’
+import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-
-  if (request.nextUrl.pathname.startsWith(´/about´)) {
-    return NextResponse.rewrite(new URL('/about-2', request.url));
+  if (request.nextUrl.pathname.startsWith('/about')) {
+    return NextResponse.rewrite(new URL('/about-2', request.url))
   }
 
-  if (request.nextUrl.pathname.startsWith(´/dashboard´)) {
-    return NextResponse.rewrite(new URL('/dashboard/user', request.url));
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.rewrite(new URL('/dashboard/user', request.url))
   }
 }
-
 ```
 
 ### Using cookies in Next.js Middleware
@@ -130,7 +129,7 @@ The cookies API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaS
 // middleware.ts
 
 export function middleware() {
-  const response = new NextResponse()
+  const response = NextResponse.next()
   // set a cookie
   response.cookies.set('vercel', 'fast')
 
@@ -138,7 +137,7 @@ export function middleware() {
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
 
   // get all the details of a cookie
-  const [value, options] = response.cookies.getWithOptions('vercel')
+  const { value, options } = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
 
@@ -147,10 +146,12 @@ export function middleware() {
 
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
+
+  return response
 }
 ```
 
-### Page and asset matching
+### How to check if Next.js Middleware is invoked for pages
 
 To check if middleware is being invoked for certain pages or assets, you can use the web standard, [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) API. The following example shows how you can accomplish routing pattern matching using the URLPattern API.
 
