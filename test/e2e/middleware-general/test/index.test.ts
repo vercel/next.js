@@ -38,7 +38,7 @@ describe('Middleware Runtime', () => {
       buildCommand: 'yarn build',
       env: {
         ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-        'STRING-ENV-VAR': 'asdf3',
+        STRING_ENV_VAR: 'asdf3',
         MIDDLEWARE_TEST: 'asdf',
         NEXT_RUNTIME: 'edge',
       },
@@ -84,7 +84,7 @@ describe('Middleware Runtime', () => {
       )
       expect(manifest.middleware).toEqual({
         '/': {
-          env: ['MIDDLEWARE_TEST', 'ANOTHER_MIDDLEWARE_TEST', 'STRING-ENV-VAR'],
+          env: ['MIDDLEWARE_TEST', 'ANOTHER_MIDDLEWARE_TEST', 'STRING_ENV_VAR'],
           files: ['server/edge-runtime-webpack.js', 'server/middleware.js'],
           name: 'middleware',
           page: '/',
@@ -205,7 +205,7 @@ describe('Middleware Runtime', () => {
       process: {
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-          'STRING-ENV-VAR': 'asdf3',
+          STRING_ENV_VAR: 'asdf3',
           MIDDLEWARE_TEST: 'asdf',
           ...((global as any).isNextDeploy
             ? {}

@@ -79,9 +79,9 @@ export async function middleware(request) {
       console.log('missing ANOTHER_MIDDLEWARE_TEST')
     }
 
-    const { 'STRING-ENV-VAR': stringEnvVar } = process['env']
+    const { STRING_ENV_VAR: stringEnvVar } = process['env']
     if (!stringEnvVar) {
-      console.log('missing STRING-ENV-VAR')
+      console.log('missing STRING_ENV_VAR')
     }
 
     return serializeData(JSON.stringify({ process: { env: process.env } }))
