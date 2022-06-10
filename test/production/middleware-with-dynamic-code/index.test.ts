@@ -1,5 +1,8 @@
-import { createNext } from 'e2e-utils'
+import { createNext, FileRef } from 'e2e-utils'
+import { join } from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
+
+const DYNAMIC_CODE_EVAL_ERROR = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware middleware`
 
 describe('Middleware with Dynamic code invokations', () => {
   let next: NextInstance
@@ -8,6 +11,7 @@ describe('Middleware with Dynamic code invokations', () => {
     next = await createNext({
       files: {
         'lib/utils.js': '',
+        'lib/square.wasm': new FileRef(join(__dirname, 'square.wasm')),
         'pages/index.js': `
           export default function () { return <div>Hello, world!</div> }
         `,
@@ -32,6 +36,7 @@ describe('Middleware with Dynamic code invokations', () => {
   })
 
   afterAll(() => next.destroy())
+  beforeEach(() => next.stop())
 
   it('detects dynamic code nested in @apollo/react-hooks', async () => {
     await next.patchFile(
@@ -57,7 +62,7 @@ describe('Middleware with Dynamic code invokations', () => {
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/ts-invariant/lib/invariant.esm.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware middleware`)
+${DYNAMIC_CODE_EVAL_ERROR}`)
   })
 
   it('detects dynamic code nested in has', async () => {
@@ -71,10 +76,10 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/function-bind/implementation.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware middleware`)
+${DYNAMIC_CODE_EVAL_ERROR}`)
     expect(next.cliOutput).toContain(`
 ./node_modules/has/src/index.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware middleware`)
+${DYNAMIC_CODE_EVAL_ERROR}`)
   })
 
   it('detects dynamic code nested in qs', async () => {
@@ -88,7 +93,7 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
     await expect(next.start()).rejects.toThrow()
     expect(next.cliOutput).toContain(`
 ./node_modules/get-intrinsic/index.js
-Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware middleware`)
+${DYNAMIC_CODE_EVAL_ERROR}`)
   })
 
   it('does not detects dynamic code nested in @aws-sdk/client-s3 (legit Function.bind)', async () => {
@@ -106,8 +111,47 @@ Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware
     expect(next.cliOutput).not.toContain(
       `./node_modules/@aws-sdk/smithy-client/dist-es/lazy-json.js`
     )
-    expect(next.cliOutput).not.toContain(
-      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware middleware`
+    expect(next.cliOutput).not.toContain(DYNAMIC_CODE_EVAL_ERROR)
+  })
+
+  it('does not determine WebAssembly.instantiate with a module parameter as dynamic code execution (legit)', async () => {
+    await next.patchFile(
+      'lib/utils.js',
+      `
+        import wasm from './square.wasm?module'
+        const instance = WebAssembly.instantiate(wasm)
+      `
     )
+    await next.start()
+
+    expect(next.cliOutput).not.toContain(DYNAMIC_CODE_EVAL_ERROR)
+  })
+
+  // Actually this causes a dynamic code evaluation however, we can't determine the type of
+  // first parameter of WebAssembly.instanntiate statically.
+  it('does not determine WebAssembly.instantiate with a buffer parameter as dynamic code execution', async () => {
+    await next.patchFile(
+      'lib/utils.js',
+      `
+        const instance = WebAssembly.instantiate(new Uint8Array([0, 1, 2, 3]))
+      `
+    )
+    await next.start()
+
+    expect(next.cliOutput).not.toContain(DYNAMIC_CODE_EVAL_ERROR)
+  })
+
+  it('detects use of WebAssembly.compile', async () => {
+    await next.patchFile(
+      'lib/utils.js',
+      `
+        const module = WebAssembly.compile(new Uint8Array([0, 1, 2, 3]))
+      `
+    )
+
+    await expect(next.start()).rejects.toThrow()
+    expect(next.cliOutput).toContain(`
+./lib/utils.js
+${DYNAMIC_CODE_EVAL_ERROR}`)
   })
 })
