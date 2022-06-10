@@ -149,7 +149,34 @@ export function middleware(req: NextRequest) {
 
 ## userAgent
 
-The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature.
+The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature. It has the following properties:
+
+```typescript
+interface UserAgent {
+  isBot: boolean
+  ua: string
+  browser: {
+    name?: string
+    version?: string
+  }
+  device: {
+    model?: string
+    type?: string
+    vendor?: string
+  }
+  engine: {
+    name?: string
+    version?: string
+  }
+  os: {
+    name?: string
+    version?: string
+  }
+  cpu: {
+    architecture?: string
+  }
+}
+```
 
 `userAgent` is fully typed and can be imported from `next/server`.
 
