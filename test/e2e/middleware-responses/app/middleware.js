@@ -12,6 +12,11 @@ export async function middleware(request, ev) {
   const encoder = new TextEncoder()
   const next = NextResponse.next()
 
+  // this is needed for tests to get the BUILD_ID
+  if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
+    return NextResponse.next()
+  }
+
   // Header based on query param
   if (url.searchParams.get('nested-header') === 'true') {
     next.headers.set('x-nested-header', 'valid')
