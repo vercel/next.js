@@ -497,11 +497,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/dynamic/[slug]?slug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${next.buildId}/dynamic/first.json`,
+          'x-matched-path': `/dynamic/[slug]`,
         },
       }
     )
@@ -590,11 +590,12 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/catch-all/[[...rest]]',
+      `/_next/data/${next.buildId}/catch-all.json`,
+
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
+          'x-matched-path': '/catch-all/[[...rest]]',
         },
       }
     )
@@ -717,11 +718,11 @@ describe('should set-up next', () => {
   it('should have correct resolvedUrl from dynamic route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/dynamic/[slug]',
+      `/_next/data/${next.buildId}/dynamic/post-2.json`,
       { slug: 'post-2' },
       {
         headers: {
-          'x-matched-path': `/_next/data/${next.buildId}/dynamic/post-2.json`,
+          'x-matched-path': '/dynamic/[slug]',
         },
       }
     )
@@ -998,8 +999,8 @@ describe('should set-up next', () => {
         matchedPath: '/fallback-false/first',
       },
       {
-        pathname: `/_next/data/${next.buildId}/fallback-false/first.json`,
-        matchedPath: '/fallback-false/first',
+        pathname: '/fallback-false/first',
+        matchedPath: `/_next/data/${next.buildId}/fallback-false/first.json`,
       },
     ]
     for (const check of toCheck) {

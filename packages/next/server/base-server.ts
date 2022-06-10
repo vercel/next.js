@@ -449,7 +449,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           ).pathname
 
-          if (matchedPath.startsWith(`/_next/data/${this.buildId}`)) {
+          let urlPathname = new URL(req.url, 'http://localhost').pathname
+
+          // For ISR  the URL is normalized to the prerenderPath so if
+          // it's a data request the URL path will be the data URL,
+          // basePath is already stripped by this point
+          if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query._nextDataReq = '1'
           }
           matchedPath = this.stripNextDataPath(matchedPath, false)
@@ -1172,13 +1177,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDataReq =
       !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
-    // normalize req.url when matched-path is non-data route
-    // but req.url is data route (revalidation)
+    // normalize req.url for SSG paths as it is not exposed
+    // to getStaticProps and the asPath should not expose /_next/data
     if (
       isSSG &&
       this.minimalMode &&
       req.headers['x-matched-path'] &&
-      req.url.includes('/_next/data')
+      req.url.startsWith('/_next/data')
     ) {
       req.url = this.stripNextDataPath(req.url)
     }

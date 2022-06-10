@@ -259,12 +259,11 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/dynamic/[slug]?slug=first',
-
+      `/_next/data/${buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${buildId}/dynamic/first.json`,
+          'x-matched-path': '/dynamic/[slug]',
         },
       }
     )
@@ -353,11 +352,11 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/catch-all/[[...rest]]',
+      `/_next/data/${buildId}/catch-all.json`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${buildId}/catch-all.json`,
+          'x-matched-path': '/catch-all/[[...rest]]',
         },
       }
     )

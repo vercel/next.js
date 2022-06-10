@@ -215,7 +215,7 @@ export default class Router {
           ? [this.catchAllMiddleware]
           : []),
         ...this.rewrites.beforeFiles,
-        ...this.fsRoutes.filter((r) => r.name !== '_next/data catchall'),
+        ...this.fsRoutes,
         // We only check the catch-all route if public page routes hasn't been
         // disabled
         ...(this.useFileSystemPublicRoutes

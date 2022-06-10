@@ -376,11 +376,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/dynamic/[slug]?slug=first',
+      `/_next/data/${next.buildId}/en/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${next.buildId}/en/dynamic/first.json`,
+          'x-matched-path': '/dynamic/[slug]',
         },
       }
     )
@@ -469,11 +469,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      '/en/catch-all/[[...rest]]',
+      `/_next/data/${next.buildId}/en/catch-all.json`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${next.buildId}/en/catch-all.json`,
+          'x-matched-path': '/en/catch-all/[[...rest]]',
         },
       }
     )

@@ -33,6 +33,54 @@ describe('Middleware Rewrite', () => {
       ).toEqual(true)
     })
 
+    it('should rewrite correctly when navigating via history', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#override-with-internal-rewrite').click()
+      await check(() => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /Welcome Page A/)
+
+      await browser.refresh()
+      await browser.back()
+      await browser.waitForElementByCss('#override-with-internal-rewrite')
+      await browser.forward()
+      await check(() => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /Welcome Page A/)
+    })
+
+    it('should return HTML/data correctly for pre-rendered page', async () => {
+      for (const slug of [
+        'first',
+        'build-time-1',
+        'build-time-2',
+        'build-time-3',
+      ]) {
+        const res = await fetchViaHTTP(next.url, `/fallback-true-blog/${slug}`)
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#props').text())?.params).toEqual({
+          slug,
+        })
+
+        const dataRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/en/fallback-true-blog/${slug}.json`,
+          undefined,
+          {
+            headers: {
+              'x-nextjs-data': '1',
+            },
+          }
+        )
+        expect(dataRes.status).toBe(200)
+        expect((await dataRes.json())?.pageProps?.params).toEqual({
+          slug,
+        })
+      }
+    })
+
     it('should override with rewrite internally correctly', async () => {
       const res = await fetchViaHTTP(
         next.url,
@@ -61,7 +109,7 @@ describe('Middleware Rewrite', () => {
         next.url,
         `/_next/data/${next.buildId}/es/about.json`,
         { override: 'internal' },
-        { redirect: 'manual' }
+        { redirect: 'manual', headers: { 'x-nextjs-data': '1' } }
       )
       const json = await res.json()
       expect(json.pageProps).toEqual({ abtest: true })
@@ -94,7 +142,8 @@ describe('Middleware Rewrite', () => {
     it(`should rewrite to the external url for incoming data request externally rewritten`, async () => {
       const browser = await webdriver(
         next.url,
-        `/_next/data/${next.buildId}/es/about.json?override=external`
+        `/_next/data/${next.buildId}/es/about.json?override=external`,
+        undefined
       )
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
@@ -132,11 +181,10 @@ describe('Middleware Rewrite', () => {
       })
     }
 
-    // TODO: do we want to allow skipping cache now that preflight is
-    // disabled?
-    it.skip('should allow to opt-out preflight caching', async () => {
+    it('should allow to opt-out prefetch caching', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.addCookie({ name: 'about-bypass', value: '1' })
+      await browser.refresh()
       await browser.eval('window.__SAME_PAGE = true')
       await browser.elementByCss('#link-with-rewritten-url').click()
       await browser.waitForElementByCss('.refreshed')

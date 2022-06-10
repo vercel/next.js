@@ -514,7 +514,11 @@ function fetchNextData({
             }
           })
           .then((data) => {
-            if (!persistCache || process.env.NODE_ENV !== 'production') {
+            if (
+              !persistCache ||
+              process.env.NODE_ENV !== 'production' ||
+              data.response.headers.get('x-middleware-cache') === 'no-cache'
+            ) {
               delete inflightCache[cacheKey]
             }
             return data
@@ -563,10 +567,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: PrivateRouteInfo }
-  // Static Data Cache
+  // Server Data Cache
   sdc: NextDataCache = {}
-  // In-flight Server Data Requests, for deduping
-  sdr: NextDataCache = {}
 
   sub: Subscription
   clc: ComponentLoadCancel
@@ -715,14 +717,29 @@ export default class Router implements BaseRouter {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }
-        ;(options as any)._shouldResolveHref = as !== pathname
+        const asPath = getURL()
 
-        this.changeState(
-          'replaceState',
-          formatWithValidation({ pathname: addBasePath(pathname), query }),
-          getURL(),
-          options
-        )
+        matchesMiddleware({
+          router: this,
+          locale,
+          asPath,
+        }).then((matches) => {
+          // if middleware matches we leave resolving to the change function
+          // as the server needs to resolve for correct priority
+          ;(options as any)._shouldResolveHref = as !== pathname
+
+          this.changeState(
+            'replaceState',
+            matches
+              ? asPath
+              : formatWithValidation({
+                  pathname: addBasePath(pathname),
+                  query,
+                }),
+            asPath,
+            options
+          )
+        })
       }
 
       window.addEventListener('popstate', this.onPopState)
@@ -1526,8 +1543,8 @@ export default class Router implements BaseRouter {
             hasMiddleware: true,
             isServerRender: this.isSsr,
             parseJSON: true,
-            inflightCache: cachedRouteInfo?.__N_SSG ? this.sdc : this.sdr,
-            persistCache: !!cachedRouteInfo?.__N_SSG && !isPreview,
+            inflightCache: this.sdc,
+            persistCache: !isPreview,
             isPrefetch: false,
           }),
         asPath: resolvedAs,
@@ -1574,6 +1591,12 @@ export default class Router implements BaseRouter {
           })
         ))
 
+      // TODO: cache _next/data request for automatic static pages
+      // with middleware, we will need to detect getInitialProps?
+      if (!routeInfo.__N_SSG && data?.dataHref) {
+        delete this.sdc[data?.dataHref]
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(routeInfo.Component)) {
@@ -1607,7 +1630,7 @@ export default class Router implements BaseRouter {
               }),
               isServerRender: this.isSsr,
               parseJSON: true,
-              inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
+              inflightCache: this.sdc,
               persistCache: !!routeInfo.__N_SSG && !isPreview,
               isPrefetch: false,
             }))
@@ -1839,7 +1862,7 @@ export default class Router implements BaseRouter {
           hasMiddleware: true,
           isServerRender: this.isSsr,
           parseJSON: true,
-          inflightCache: this.sdr,
+          inflightCache: this.sdc,
           persistCache: false,
           isPrefetch: false,
         }),
