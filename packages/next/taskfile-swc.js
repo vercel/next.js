@@ -95,10 +95,14 @@ module.exports = function (task) {
           type: 'es6',
           ignoreDynamic: true,
         },
+        env: {
+          targets: {
+            node: '12.0.0',
+          },
+        },
         jsc: {
           loose: true,
 
-          target: 'es2016',
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
