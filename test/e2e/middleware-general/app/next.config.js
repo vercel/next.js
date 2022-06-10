@@ -3,6 +3,15 @@ module.exports = {
     locales: ['en', 'fr', 'nl'],
     defaultLocale: 'en',
   },
+  redirects() {
+    return [
+      {
+        source: '/redirect-1',
+        destination: '/somewhere-else',
+        permanent: false,
+      },
+    ]
+  },
   rewrites() {
     return [
       {
