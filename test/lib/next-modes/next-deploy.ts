@@ -65,6 +65,15 @@ export class NextDeployInstance extends NextInstance {
     }
     require('console').log(`Deploying project at ${this.testDir}`)
 
+    const additionalEnv = []
+
+    for (const key of Object.keys(this.env || {})) {
+      additionalEnv.push('--build-env')
+      additionalEnv.push(`${key}=${this.env[key]}`)
+      additionalEnv.push('--env')
+      additionalEnv.push(`${key}=${this.env[key]}`)
+    }
+
     const deployRes = await execa(
       'vercel',
       [
@@ -75,6 +84,7 @@ export class NextDeployInstance extends NextInstance {
         'FORCE_RUNTIME_TAG=canary',
         '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
+        ...additionalEnv,
         '--force',
         ...vercelFlags,
       ],
