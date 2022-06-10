@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
-use crate::{
+use turbopack_core::{
     asset::{Asset, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::ResolveResultVc,

@@ -12,13 +12,17 @@ use turbo_tasks_memory::{
     viz::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::emit;
 use turbopack::rebase::RebasedAssetVc;
-use turbopack::source_asset::SourceAssetVc;
+use turbopack::{emit, register, GraphOptionsVc};
+use turbopack_core::context::AssetContext;
+use turbopack_core::source_asset::SourceAssetVc;
+use turbopack_ecmascript::target::CompileTarget;
 
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 
 fn main() {
+    register();
+
     let tt = TurboTasks::new(MemoryBackend::new());
     block_on(async {
         let start = Instant::now();
@@ -36,7 +40,11 @@ fn main() {
                 let entry = FileSystemPathVc::new(fs, "demo/index.js");
 
                 let source = SourceAssetVc::new(entry);
-                let module = turbopack::module(source.into());
+                let context = turbopack::ModuleAssetContextVc::new(
+                    input,
+                    GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                );
+                let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module.into(), input, output);
                 emit(rebased.into());
 

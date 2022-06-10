@@ -1,9 +1,9 @@
-use crate::{
+use turbo_tasks::Vc;
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbopack_core::{
     asset::{Asset, AssetVc},
     reference::AssetReferenceVc,
 };
-use turbo_tasks::Vc;
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 #[turbo_tasks::value(Asset)]
 #[derive(PartialEq, Eq)]

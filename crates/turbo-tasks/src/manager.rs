@@ -390,7 +390,7 @@ impl<B: Backend> TurboTasks<B> {
             .fetch_add(1, Ordering::AcqRel);
         Builder::new()
             .spawn(async move {
-                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
+                unsafe { set_turbo_tasks(this.clone()) };
                 if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     let listener = this.event.listen();
                     if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
@@ -648,6 +648,10 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
 
 pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
     TURBO_TASKS.with(|c| Arc::downgrade(c.borrow().as_ref().unwrap()))
+}
+
+pub unsafe fn set_turbo_tasks(tt: Arc<dyn TurboTasksApi>) {
+    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
 }
 
 /// Get an [Invalidator] that can be used to invalidate the current [Task]

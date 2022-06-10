@@ -2,10 +2,9 @@ use anyhow::Result;
 use json::object;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileMeta, FileSystemPathVc};
-use turbopack::{
-    all_assets,
+use turbopack_core::{
     asset::{Asset, AssetVc},
-    reference::AssetReferenceVc,
+    reference::{all_assets, AssetReferenceVc},
 };
 
 #[turbo_tasks::value(shared, Asset)]

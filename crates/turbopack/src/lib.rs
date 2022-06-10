@@ -9,36 +9,71 @@
 #![recursion_limit = "256"]
 
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     mem::swap,
 };
 
 use anyhow::Result;
-use asset::{AssetVc, AssetsSet, AssetsSetVc};
+use ecmascript::{target::CompileTargetVc, typescript::resolve::TypescriptTypesAssetReferenceVc};
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
 use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
-use reference::all_referenced_assets;
+use resolve::{resolve_options, typescript_resolve_options};
 use turbo_tasks::{CompletionVc, Value};
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_core::reference::all_referenced_assets;
+use turbopack_core::{asset::AssetVc, resolve::parse::RequestVc};
+use turbopack_core::{
+    context::{AssetContext, AssetContextVc},
+    resolve::{options::ResolveOptionsVc, ResolveResultVc},
+};
 
-// TODO move into ecmascript?
-pub mod analyzer;
-pub mod asset;
-pub mod ecmascript;
-mod errors;
 mod graph;
 pub mod json;
 pub mod module_options;
 pub mod rebase;
-pub mod reference;
-pub mod resolve;
-pub mod source_asset;
-pub mod target;
-mod utils;
+mod resolve;
+
+pub use turbopack_ecmascript as ecmascript;
+
+#[turbo_tasks::value]
+#[derive(PartialEq, Eq)]
+pub struct GraphOptions {
+    pub typescript: bool,
+    pub node_gyp: bool,
+    pub compile_target: CompileTargetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl GraphOptionsVc {
+    #[turbo_tasks::function]
+    pub fn new(typescript: bool, node_gyp: bool, compile_target: CompileTargetVc) -> Self {
+        Self::slot(GraphOptions {
+            typescript,
+            node_gyp,
+            compile_target,
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn compile_target(self) -> Result<CompileTargetVc> {
+        Ok(self.await?.compile_target)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_typescript(self) -> Result<GraphOptionsVc> {
+        let o = self.await?;
+        if o.typescript {
+            Ok(self)
+        } else {
+            Ok(Self::new(true, o.node_gyp, o.compile_target))
+        }
+    }
+}
 
 #[turbo_tasks::function]
-pub async fn module(source: AssetVc) -> Result<AssetVc> {
+async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetVc> {
     let path = source.path();
     let options = module_options(path.parent());
     let options = options.await?;
@@ -78,22 +113,25 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
             })
             .unwrap_or_else(|| &ModuleType::Raw)
         {
-            ModuleType::Ecmascript => ecmascript::ModuleAssetVc::new(
+            ModuleType::Ecmascript => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
-                Value::new(ecmascript::ModuleAssetType::Ecmascript),
-                Value::new(target::CompileTarget::Current),
+                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+                Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
+                graph_options.compile_target(),
             )
             .into(),
-            ModuleType::Typescript => ecmascript::ModuleAssetVc::new(
+            ModuleType::Typescript => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
-                Value::new(ecmascript::ModuleAssetType::Typescript),
-                Value::new(target::CompileTarget::Current),
+                ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
+                Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
+                graph_options.compile_target(),
             )
             .into(),
-            ModuleType::TypescriptDeclaration => ecmascript::ModuleAssetVc::new(
+            ModuleType::TypescriptDeclaration => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
-                Value::new(ecmascript::ModuleAssetType::TypescriptDeclaration),
-                Value::new(target::CompileTarget::Current),
+                ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
+                Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
+                graph_options.compile_target(),
             )
             .into(),
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),
@@ -102,6 +140,73 @@ pub async fn module(source: AssetVc) -> Result<AssetVc> {
             ModuleType::Custom(_) => todo!(),
         },
     )
+}
+
+#[turbo_tasks::value(AssetContext)]
+#[derive(PartialEq, Eq)]
+pub struct ModuleAssetContext {
+    context: FileSystemPathVc,
+    options: GraphOptionsVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleAssetContextVc {
+    #[turbo_tasks::function]
+    pub fn new(context: FileSystemPathVc, options: GraphOptionsVc) -> Self {
+        Self::slot(ModuleAssetContext { context, options })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetContext for ModuleAssetContext {
+    #[turbo_tasks::function]
+    fn context_path(&self) -> FileSystemPathVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn resolve_options(&self) -> Result<ResolveOptionsVc> {
+        Ok(if self.options.await?.typescript {
+            typescript_resolve_options(self.context)
+        } else {
+            resolve_options(self.context)
+        })
+    }
+
+    #[turbo_tasks::function]
+    async fn resolve_asset(
+        &self,
+        context_path: FileSystemPathVc,
+        request: RequestVc,
+        resolve_options: ResolveOptionsVc,
+    ) -> Result<ResolveResultVc> {
+        let result =
+            turbopack_core::resolve::resolve(context_path, request, resolve_options).await?;
+        let mut result = result
+            .map(
+                |a| module(a, self.options).resolve(),
+                |i| async move { Ok(i) },
+            )
+            .await?;
+        if self.options.await?.typescript {
+            let types_reference = TypescriptTypesAssetReferenceVc::new(
+                ModuleAssetContextVc::new(context_path, self.options).into(),
+                request,
+            );
+            result.add_reference(types_reference.into());
+        }
+        Ok(result.into())
+    }
+
+    #[turbo_tasks::function]
+    fn process(&self, asset: AssetVc) -> AssetVc {
+        module(asset, self.options)
+    }
+
+    #[turbo_tasks::function]
+    fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc {
+        ModuleAssetContextVc::new(path, self.options).into()
+    }
 }
 
 #[turbo_tasks::function]
@@ -287,32 +392,10 @@ async fn print_references(list: ReferencesListVc) -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::function]
-pub async fn all_assets(asset: AssetVc) -> Result<AssetsSetVc> {
-    let mut queue = VecDeque::new();
-    queue.push_back(all_referenced_assets(asset));
-    let mut assets = HashSet::new();
-    assets.insert(asset);
-    while let Some(references) = queue.pop_front() {
-        for asset in references.await?.assets.iter() {
-            if assets.insert(*asset) {
-                queue.push_back(all_referenced_assets(*asset));
-            }
-        }
-    }
-    Ok(AssetsSet {
-        assets: assets.into_iter().collect(),
-    }
-    .into())
-}
-
-#[doc(hidden)]
-pub mod __internals {
-    pub use super::analyzer::test_utils;
-}
-
 pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
+    turbopack_core::register();
+    turbopack_ecmascript::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

@@ -202,6 +202,7 @@ pub trait PersistedGraph: Sync + Send {
     ) -> Result<(Vec<TaskId>, Vec<TaskId>)>;
 
     /// Stop operations
+    #[allow(unused_variables)]
     fn stop(&self, api: &dyn PersistedGraphApi) -> Result<()> {
         Ok(())
     }
@@ -241,96 +242,100 @@ B+C?
 impl PersistedGraph for () {
     fn read(
         &self,
-        task: TaskId,
-        api: &dyn PersistedGraphApi,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Option<(TaskData, ReadTaskState)>> {
         Ok(None)
     }
 
     fn lookup(
         &self,
-        partial_task_type: &PersistentTaskType,
-        api: &dyn PersistedGraphApi,
+        _partial_task_type: &PersistentTaskType,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<bool> {
         Ok(false)
     }
 
     fn lookup_one(
         &self,
-        task_type: &PersistentTaskType,
-        api: &dyn PersistedGraphApi,
+        _task_type: &PersistentTaskType,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Option<TaskId>> {
         Ok(None)
     }
 
-    fn is_persisted(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
+    fn is_persisted(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
     }
 
     fn persist(
         &self,
-        task: TaskId,
-        data: TaskData,
-        state: PersistTaskState,
-        api: &dyn PersistedGraphApi,
+        _task: TaskId,
+        _data: TaskData,
+        _state: PersistTaskState,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Option<PersistResult>> {
         Ok(None)
     }
 
     fn activate_when_needed(
         &self,
-        task: TaskId,
-        api: &dyn PersistedGraphApi,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Option<ActivateResult>> {
         Ok(None)
     }
 
     fn deactivate_when_needed(
         &self,
-        task: TaskId,
-        api: &dyn PersistedGraphApi,
+        _task: TaskId,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Option<DeactivateResult>> {
         Ok(None)
     }
 
-    fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
+    fn set_externally_active(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
     }
 
-    fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
+    fn unset_externally_active(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
     }
 
     fn remove_outdated_externally_active(
         &self,
-        api: &dyn PersistedGraphApi,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
     }
 
-    fn make_dirty(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool> {
+    fn make_dirty(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<bool> {
         Ok(false)
     }
 
-    fn make_clean(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<()> {
+    fn make_clean(&self, _task: TaskId, _api: &dyn PersistedGraphApi) -> Result<()> {
         Ok(())
     }
 
-    fn make_dependent_dirty(&self, vc: RawVc, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
+    fn make_dependent_dirty(
+        &self,
+        _vc: RawVc,
+        _api: &dyn PersistedGraphApi,
+    ) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
     }
 
-    fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
+    fn get_active_external_tasks(&self, _api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
     }
 
-    fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
+    fn get_dirty_active_tasks(&self, _api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>> {
         Ok(Vec::new())
     }
 
     fn get_pending_active_update(
         &self,
-        api: &dyn PersistedGraphApi,
+        _api: &dyn PersistedGraphApi,
     ) -> Result<(Vec<TaskId>, Vec<TaskId>)> {
         Ok((Vec::new(), Vec::new()))
     }

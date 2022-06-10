@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     manager::{
-        read_task_output, read_task_output_untracked, read_task_slot, read_task_slot_untracked,
-        TurboTasksApi,
+        read_task_output, read_task_output_untracked, read_task_slot_untracked, TurboTasksApi,
     },
     turbo_tasks, TaskId,
 };

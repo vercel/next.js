@@ -52,6 +52,10 @@ pub mod macro_helpers {
     pub use super::manager::{find_slot_by_key, find_slot_by_type};
 }
 
+pub mod test_helpers {
+    pub use super::manager::set_turbo_tasks;
+}
+
 pub fn register() {
     vc::VALUE_TYPE.register("turbo_tasks::Vc");
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
