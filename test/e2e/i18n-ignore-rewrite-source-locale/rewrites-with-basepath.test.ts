@@ -70,22 +70,25 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
     }
   )
 
-  test.each(locales)(
-    'get _next/static/ files by skipping locale in rewrite, locale: %s',
-    async (locale) => {
-      const chunks = (
-        await fs.readdir(path.join(next.testDir, '.next', 'static', 'chunks'))
-      ).filter((f) => f.endsWith('.js'))
+  // build artifacts aren't available on deploy
+  if (!(global as any).isNextDeploy) {
+    test.each(locales)(
+      'get _next/static/ files by skipping locale in rewrite, locale: %s',
+      async (locale) => {
+        const chunks = (
+          await fs.readdir(path.join(next.testDir, '.next', 'static', 'chunks'))
+        ).filter((f) => f.endsWith('.js'))
 
-      await Promise.all(
-        chunks.map(async (file) => {
-          const res = await fetchViaHTTP(
-            next.url,
-            `/basepath${locale}/rewrite-files/_next/static/chunks/${file}`
-          )
-          expect(res.status).toBe(200)
-        })
-      )
-    }
-  )
+        await Promise.all(
+          chunks.map(async (file) => {
+            const res = await fetchViaHTTP(
+              next.url,
+              `/basepath${locale}/rewrite-files/_next/static/chunks/${file}`
+            )
+            expect(res.status).toBe(200)
+          })
+        )
+      }
+    )
+  }
 })
