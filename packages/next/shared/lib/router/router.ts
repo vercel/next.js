@@ -1384,6 +1384,9 @@ export default class Router implements BaseRouter {
         if (shouldScroll && hashRegex.test(as)) {
           this.scrollToHash(as)
         }
+      } else {
+        // Still send the event to notify the inital load.
+        Router.events.emit('routeChangeComplete', as, routeProps)
       }
 
       return true

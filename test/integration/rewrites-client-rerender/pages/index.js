@@ -1,5 +1,9 @@
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import Router, { useRouter } from 'next/router'
+
+Router.events.on('routeChangeComplete', (url) => {
+  window.__route_change_complete = url === '/'
+})
 
 export default function Index() {
   const { query } = useRouter()
