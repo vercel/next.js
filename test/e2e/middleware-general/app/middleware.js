@@ -131,7 +131,7 @@ export async function middleware(request) {
     const response = {}
 
     try {
-      await fetch('https://example.com', { signal })
+      await fetch('https://example.vercel.sh', { signal })
     } catch (err) {
       response.error = {
         name: err.name,
