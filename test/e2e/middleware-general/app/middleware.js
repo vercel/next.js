@@ -36,11 +36,16 @@ const params = (url) => {
 export async function middleware(request) {
   const url = request.nextUrl
 
+  // this is needed for tests to get the BUILD_ID
+  if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
+    return NextResponse.next()
+  }
+
   if (url.pathname.startsWith('/fetch-user-agent-default')) {
     try {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
-      const res = await fetch(apiRoute)
+      const res = await fetch(withLocalIp(apiRoute))
       return serializeData(await res.text())
     } catch (err) {
       return serializeError(err)
@@ -51,7 +56,7 @@ export async function middleware(request) {
     try {
       const apiRoute = new URL(url)
       apiRoute.pathname = '/api/headers'
-      const res = await fetch(apiRoute, {
+      const res = await fetch(withLocalIp(apiRoute), {
         headers: {
           'user-agent': 'custom-agent',
         },
@@ -74,9 +79,9 @@ export async function middleware(request) {
       console.log('missing ANOTHER_MIDDLEWARE_TEST')
     }
 
-    const { 'STRING-ENV-VAR': stringEnvVar } = process['env']
+    const { STRING_ENV_VAR: stringEnvVar } = process['env']
     if (!stringEnvVar) {
-      console.log('missing STRING-ENV-VAR')
+      console.log('missing STRING_ENV_VAR')
     }
 
     return serializeData(JSON.stringify({ process: { env: process.env } }))
@@ -210,4 +215,8 @@ function serializeData(data) {
 
 function serializeError(error) {
   return new NextResponse(null, { headers: { error: error.message } })
+}
+
+function withLocalIp(url) {
+  return String(url).replace('localhost', '127.0.0.1')
 }
