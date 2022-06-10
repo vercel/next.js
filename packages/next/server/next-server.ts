@@ -707,7 +707,7 @@ export default class NextNodeServer extends BaseServer {
             ...(components.getStaticProps
               ? ({
                   amp: query.amp,
-                  _nextDataReq: query._nextDataReq,
+                  __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
                   __flight__: query.__flight__,

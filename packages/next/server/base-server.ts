@@ -455,7 +455,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
           if (urlPathname.startsWith(`/_next/data/`)) {
-            parsedUrl.query._nextDataReq = '1'
+            parsedUrl.query.__nextDataReq = '1'
           }
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
@@ -750,7 +750,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           return {
             pathname,
-            query: { ..._parsedUrl.query, _nextDataReq: '1' },
+            query: { ..._parsedUrl.query, __nextDataReq: '1' },
             finished: false,
           }
         },
@@ -1103,7 +1103,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (
       !internalRender &&
       !this.minimalMode &&
-      !query._nextDataReq &&
+      !query.__nextDataReq &&
       (req.url?.match(/^\/_next\//) ||
         (this.hasStaticDir && req.url!.match(/^\/static\//)))
     ) {
@@ -1175,7 +1175,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Toggle whether or not this is a Data request
     const isDataReq =
-      !!query._nextDataReq && (isSSG || hasServerProps || isServerComponent)
+      !!query.__nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
@@ -1188,7 +1188,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.url = this.stripNextDataPath(req.url)
     }
 
-    if (!!query._nextDataReq) {
+    if (!!query.__nextDataReq) {
       res.setHeader(
         'x-nextjs-matched-path',
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
@@ -1204,7 +1204,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     }
-    delete query._nextDataReq
+    delete query.__nextDataReq
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(

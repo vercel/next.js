@@ -437,10 +437,9 @@ function fetchRetry(
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
     method: options.method || 'GET',
-    headers: {
-      ...options.headers,
+    headers: Object.assign({}, options.headers, {
       'x-nextjs-data': '1',
-    },
+    }),
   }).then((response) => {
     return !response.ok && attempts > 1 && response.status >= 500
       ? fetchRetry(url, attempts - 1, options)
@@ -1634,9 +1633,10 @@ export default class Router implements BaseRouter {
           })
         ))
 
-      // TODO: cache _next/data request for automatic static pages
-      // with middleware, we will need to detect getInitialProps?
-      if (!routeInfo.__N_SSG && data?.dataHref) {
+      // TODO: we only bust the data cache for SSP routes
+      // although middleware can skip cache per request with
+      // x-middleware-cache: no-cache
+      if (routeInfo.__N_SSP && data?.dataHref) {
         delete this.sdc[data?.dataHref]
       }
 

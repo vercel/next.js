@@ -23,12 +23,11 @@ export async function adapter(params: {
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq =
-    requestUrl.searchParams.has('_nextDataReq') ||
-    params.request.headers['x-nextjs-data']
+  const isDataReq = params.request.headers['x-nextjs-data']
 
+  // clean-up any internal query params
   for (const key of [...requestUrl.searchParams.keys()]) {
-    if (key.startsWith('_next') || key.startsWith('__next')) {
+    if (key.startsWith('__next')) {
       requestUrl.searchParams.delete(key)
     }
   }
