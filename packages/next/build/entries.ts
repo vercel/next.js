@@ -327,6 +327,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
+      const isInsideAppDir = appDir && absolutePagePath.startsWith(appDir)
 
       const staticInfo = await getPageStaticInfo({
         nextConfig: config,
@@ -339,7 +340,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          if (isServerComponent) {
+          if (isServerComponent || isInsideAppDir) {
             // We skip the initial entries for server component pages and let the
             // server compiler inject them instead.
           } else {
