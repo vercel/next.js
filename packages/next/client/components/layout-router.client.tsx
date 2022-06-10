@@ -1,27 +1,23 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useContext, useCallback } from 'react'
 import {
-  // AppRouterContext,
   AppTreeContext,
   AppTreeUpdateContext,
+  AppRouterCacheContext,
 } from '../../shared/lib/app-router-context'
-// import { fetchServerResponse } from './app-router.client.js'
-// import useRouter from './userouter.js'
 
-// TODO:
-// What is the next segment for this router?
-// What is the parallel router (for lookup in history state)?
-// If you have children or another prop name for parallel router does not exist because it has not seen before
-// Use the props as the initial value to fill in the history state, this would cause a replaceState to update the tree
-// Should probably be batched (wrapper around history)
-export default function LayoutRouter({ path, children }: any) {
-  // const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
-  const { segmentPath, tree } = React.useContext(AppTreeContext)
+function ReadRootComponent({ children }: any) {
+  // let root = readRoot()
+
+  return children
+}
+export default function LayoutRouter({ path, children, loading }: any) {
+  const { segmentPath, tree } = useContext(AppTreeContext)
   const currentSegmentPath =
     (segmentPath === '' || segmentPath === '/' ? '/' : segmentPath + '/') + path
 
-  const treePatchParent = React.useContext(AppTreeUpdateContext)
+  const treePatchParent = useContext(AppTreeUpdateContext)
 
-  const treePatch = React.useCallback(
+  const treePatch = useCallback(
     (updatePayload: any) => {
       treePatchParent({
         ...tree,
@@ -32,9 +28,12 @@ export default function LayoutRouter({ path, children }: any) {
   )
 
   useEffect(() => {
-    treePatchParent({
-      path,
-    })
+    if (!tree) {
+      treePatchParent({
+        path,
+        children: tree.children,
+      })
+    }
   }, [path])
 
   let root
@@ -47,9 +46,15 @@ export default function LayoutRouter({ path, children }: any) {
 
   // `tree` only exists in the browser hence why this is conditional
   const renderChildren = root ? root : children
+  const renderChildrenWithLoading = loading ? (
+    <React.Suspense fallback={loading}>
+      <ReadRootComponent>{renderChildren}</ReadRootComponent>
+    </React.Suspense>
+  ) : (
+    renderChildren
+  )
 
   return (
-    // <AppRouterContext.Provider value={appRouter}>
     <>
       {tree ? (
         <AppTreeUpdateContext.Provider value={treePatch}>
@@ -59,13 +64,12 @@ export default function LayoutRouter({ path, children }: any) {
               tree: tree.children,
             }}
           >
-            {renderChildren}
+            {renderChildrenWithLoading}
           </AppTreeContext.Provider>
         </AppTreeUpdateContext.Provider>
       ) : (
-        renderChildren
+        renderChildrenWithLoading
       )}
     </>
-    // </AppRouterContext.Provider>
   )
 }

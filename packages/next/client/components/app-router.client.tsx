@@ -34,15 +34,14 @@ export function fetchServerResponse(href: string, layoutPath?: string) {
   return response
 }
 
-export default function AppRouter({ initialUrl, children }: any) {
+export default function AppRouter({ initialUrl, initialTree, children }: any) {
+  console.log({ initialTree })
   const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
-  const [tree, setTree] = React.useState<any>({})
+  const [tree, setTree] = React.useState<any>(initialTree)
 
   const treePatch = React.useCallback((updatePayload: any) => {
     setTree(() => {
-      return {
-        current: updatePayload,
-      }
+      return updatePayload
     })
   }, [])
 
@@ -94,9 +93,7 @@ export default function AppRouter({ initialUrl, children }: any) {
   return (
     <AppRouterContext.Provider value={appRouter}>
       <AppTreeUpdateContext.Provider value={treePatch}>
-        <AppTreeContext.Provider
-          value={{ segmentPath: '', tree: tree.current }}
-        >
+        <AppTreeContext.Provider value={{ segmentPath: '', tree: tree }}>
           {root ? root : children}
         </AppTreeContext.Provider>
       </AppTreeUpdateContext.Provider>

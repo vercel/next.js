@@ -338,18 +338,16 @@ export async function renderToHTML(
         }
       }
 
+      // TODO: Ensure LayoutRouter and other children are not passed when it's a page
       return (
-        <LayoutRouter path={segment}>
-          <Component {...props}>
-            {Loading ? (
-              <React.Suspense fallback={<Loading />}>
-                <Children />
-              </React.Suspense>
-            ) : (
-              <Children />
-            )}
-          </Component>
-        </LayoutRouter>
+        <Component {...props}>
+          <LayoutRouter
+            path={segment}
+            loading={Loading ? <Loading /> : undefined}
+          >
+            <Children />
+          </LayoutRouter>
+        </Component>
       )
     }
   }
@@ -385,6 +383,17 @@ export async function renderToHTML(
     tree: filteredTree,
   })
 
+  const createSegmentTree = (treeNode: any) => {
+    const segmentTree: any = {}
+    segmentTree.segment = treeNode.segment
+    if (treeNode.children) {
+      segmentTree.children = createSegmentTree(treeNode.children)
+    }
+    return segmentTree
+  }
+
+  const segmentTree = createSegmentTree(tree)
+
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
     if (flightRouterPath) {
@@ -392,7 +401,7 @@ export async function renderToHTML(
     }
     return (
       // TODO: verify pathname passed is correct
-      <AppRouter initialUrl={pathname} path="/">
+      <AppRouter initialUrl={pathname} path="/" initialTree={segmentTree}>
         <ComponentTree />
       </AppRouter>
     )
