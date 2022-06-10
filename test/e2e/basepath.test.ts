@@ -757,7 +757,9 @@ describe('basePath', () => {
           .waitForElementByCss('#other-page-title')
 
         const eventLog = await browser.eval('window._getEventLog()')
-        expect(eventLog).toEqual([
+        expect(
+          eventLog.filter((item) => item[1]?.endsWith('/other-page'))
+        ).toEqual([
           ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
           ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
           ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
