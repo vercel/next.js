@@ -804,7 +804,7 @@ describe('Client Navigation', () => {
 
   describe('with hash changes with state', () => {
     describe('when passing state via hash change', () => {
-      it.only('should increment the history state counter', async () => {
+      it('should increment the history state counter', async () => {
         const browser = await webdriver(
           context.appPort,
           '/nav/hash-changes-with-state#'
