@@ -401,7 +401,7 @@ export async function renderToHTML(
     }
     return (
       // TODO: verify pathname passed is correct
-      <AppRouter initialUrl={pathname} path="/" initialTree={segmentTree}>
+      <AppRouter path="/" initialTree={segmentTree}>
         <ComponentTree />
       </AppRouter>
     )
