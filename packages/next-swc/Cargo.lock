@@ -1244,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "handlebars",
  "once_cell",
@@ -2330,7 +2330,7 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "styled_components"
-version = "0.31.0"
+version = "0.32.0"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -2347,7 +2347,7 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "easy-error",
  "swc_common",
@@ -3139,7 +3139,7 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "base64 0.13.0",
  "byteorder",
