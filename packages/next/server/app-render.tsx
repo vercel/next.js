@@ -262,9 +262,16 @@ export async function renderToHTML(
         })
       : () => <></>
 
-    // When this segment does not have a layout or page render the children without wrapping in a subrouter
-    // TODO: revisit this as it blocks `loading.js` without a colocated layout.
+    // When this segment does not have a layout or page render the children without wrapping in a layout router
     if (!Component) {
+      // If the segment has a loading.js still wrap with a loading component
+      if (Loading) {
+        return (
+          <React.Suspense fallback={<Loading />}>
+            <Children />
+          </React.Suspense>
+        )
+      }
       return Children
     }
 
