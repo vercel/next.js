@@ -19,6 +19,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
+import { stripInternalQueries } from './utils'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -219,8 +220,8 @@ export async function renderToHTML(
 
   const isFlight = query.__flight__ !== undefined
   const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
-  delete query.__flight__
-  delete query.__flight_router_path__
+
+  stripInternalQueries(query)
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)

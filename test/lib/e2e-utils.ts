@@ -124,6 +124,7 @@ export async function createNext(opts: {
   packageJson?: PackageJson
   startCommand?: string
   packageLockPath?: string
+  env?: Record<string, string>
 }): Promise<NextInstance> {
   try {
     if (nextInstance) {

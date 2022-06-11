@@ -12,8 +12,6 @@ import { stringify } from 'querystring'
 import {
   API_ROUTE,
   DOT_NEXT_ALIAS,
-  MIDDLEWARE_FILE,
-  MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
@@ -28,7 +26,12 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { isServerComponentPage } from './utils'
+import {
+  isMiddlewareFile,
+  isMiddlewareFilename,
+  isServerComponentPage,
+  NestedMiddlewareError,
+} from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -156,7 +159,7 @@ export function getEdgeServerEntry(opts: {
   pages: { [page: string]: string }
   middleware?: { pathMatcher?: RegExp }
 }) {
-  if (opts.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -279,6 +282,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
+  const nestedMiddleware: string[] = []
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -319,12 +323,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
         /[\\\\/]_middleware$/.test(page)
       ) {
-        throw new Error(
-          `nested Middleware is not allowed (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
-        )
+        nestedMiddleware.push(page)
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
+      const isInsideAppDir = appDir && absolutePagePath.startsWith(appDir)
 
       const staticInfo = await getPageStaticInfo({
         nextConfig: config,
@@ -337,7 +340,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          if (isServerComponent) {
+          if (isServerComponent || isInsideAppDir) {
             // We skip the initial entries for server component pages and let the
             // server compiler inject them instead.
           } else {
@@ -397,6 +400,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   }
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
+  if (nestedMiddleware.length > 0) {
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+  }
+
   return {
     client,
     server,
@@ -411,7 +418,7 @@ export function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: PageRuntime
 }) {
-  if (params.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(params.page)) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
     return [params.onServer()]
@@ -462,7 +469,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: name === MIDDLEWARE_FILENAME ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,

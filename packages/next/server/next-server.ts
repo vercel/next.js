@@ -2,7 +2,12 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import { CacheFs, DecodeError, execOnce } from '../shared/lib/utils'
+import {
+  CacheFs,
+  DecodeError,
+  execOnce,
+  PageNotFoundError,
+} from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -20,6 +25,7 @@ import type {
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
+import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -58,7 +64,7 @@ import BaseServer, {
   stringifyQuery,
   RoutingItem,
 } from './base-server'
-import { getPagePath, requireFontManifest, pageNotFoundError } from './require'
+import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
@@ -76,6 +82,11 @@ import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { clonableBodyForRequest } from './body-streams'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
+
+const shouldUseReactRoot = parseInt(React.version) >= 18
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 export * from './base-server'
 
@@ -696,7 +707,7 @@ export default class NextNodeServer extends BaseServer {
             ...(components.getStaticProps
               ? ({
                   amp: query.amp,
-                  _nextDataReq: query._nextDataReq,
+                  __nextDataReq: query.__nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
                   __flight__: query.__flight__,
@@ -706,7 +717,11 @@ export default class NextNodeServer extends BaseServer {
           },
         }
       } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
+        // we should only not throw if we failed to find the page
+        // in the pages-manifest
+        if (!(err instanceof PageNotFoundError)) {
+          throw err
+        }
       }
     }
     return null
@@ -1042,12 +1057,12 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(page))
     } catch (err) {
-      throw pageNotFoundError(page)
+      throw new PageNotFoundError(page)
     }
 
     let pageInfo = manifest.middleware[foundPage]
     if (!pageInfo) {
-      throw pageNotFoundError(foundPage)
+      throw new PageNotFoundError(foundPage)
     }
 
     return {
@@ -1101,7 +1116,12 @@ export default class NextNodeServer extends BaseServer {
     const normalizedPathname = removeTrailingSlash(params.parsedUrl.pathname)
 
     // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    const query = urlQueryToSearchParams(params.parsed.query).toString()
+    const locale = params.parsed.query.__nextLocale
+    const url = `http://${this.hostname}:${this.port}${
+      locale ? `/${locale}` : ''
+    }${params.parsed.pathname}${query ? `?${query}` : ''}`
+
     if (!url.startsWith('http')) {
       throw new Error(
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
@@ -1196,8 +1216,14 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected generateCatchAllMiddlewareRoute(): Route | undefined {
+  protected generateCatchAllMiddlewareRoute(
+    devReady?: boolean
+  ): Route | undefined {
     if (this.minimalMode) return undefined
+
+    if ((!this.renderOpts.dev || devReady) && !this.getMiddleware().length) {
+      return undefined
+    }
 
     return {
       match: getPathMatch('/:path*'),
@@ -1280,17 +1306,6 @@ export default class NextNodeServer extends BaseServer {
         )) {
           if (key !== 'content-encoding' && value !== undefined) {
             res.setHeader(key, value)
-          }
-        }
-
-        const preflight =
-          req.method === 'HEAD' && req.headers['x-middleware-preflight']
-
-        if (preflight) {
-          res.statusCode = 200
-          res.send()
-          return {
-            finished: true,
           }
         }
 
@@ -1420,6 +1435,12 @@ function getMiddlewareMatcher(
   const stored = MiddlewareMatcherCache.get(info)
   if (stored) {
     return stored
+  }
+
+  if (typeof info.regexp !== 'string' || !info.regexp) {
+    throw new Error(
+      `Invariant: invalid regexp for middleware ${JSON.stringify(info)}`
+    )
   }
 
   const matcher = getRouteMatcher({ re: new RegExp(info.regexp), groups: {} })
