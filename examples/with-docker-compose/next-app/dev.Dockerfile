@@ -1,9 +1,9 @@
-  
-FROM node:16-alpine
+FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package.json yarn.lock* .
+# Copy lock files if file exists
+COPY package.json yarn.lock* package-lock.json* .
 
 RUN yarn install
 

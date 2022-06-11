@@ -1,8 +1,9 @@
-FROM node:16-alpine
+FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package.json yarn.lock* .
+# Copy lock files if file exists
+COPY package.json yarn.lock* package-lock.json* .
 
 # Omit --production flag for TypeScript devDependencies
 RUN yarn install
@@ -18,6 +19,9 @@ ARG ENV_VARIABLE
 ENV ENV_VARIABLE=${ENV_VARIABLE}
 ARG NEXT_PUBLIC_ENV_VARIABLE
 ENV NEXT_PUBLIC_ENV_VARIABLE=${NEXT_PUBLIC_ENV_VARIABLE}
+
+# Uncomment the following line to disable telemetry at build time
+# ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN yarn build
 
