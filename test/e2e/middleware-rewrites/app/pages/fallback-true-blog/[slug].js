@@ -10,7 +10,13 @@ export default function Page(props) {
 
 export function getStaticPaths() {
   return {
-    paths: ['/fallback-true-blog/first'],
+    paths: [
+      '/fallback-true-blog/first',
+      '/fallback-true-blog/build-time-1',
+      '/fallback-true-blog/build-time-2',
+      '/fallback-true-blog/build-time-3',
+      '/fallback-true-blog/build-time-4',
+    ],
     fallback: true,
   }
 }
