@@ -356,7 +356,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.1.7-canary.33
+      '@next/eslint-plugin-next': 12.1.7-canary.35
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -412,12 +412,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.1.7-canary.33
-      '@next/polyfill-module': 12.1.7-canary.33
-      '@next/polyfill-nomodule': 12.1.7-canary.33
-      '@next/react-dev-overlay': 12.1.7-canary.33
-      '@next/react-refresh-utils': 12.1.7-canary.33
-      '@next/swc': 12.1.7-canary.33
+      '@next/env': 12.1.7-canary.35
+      '@next/polyfill-module': 12.1.7-canary.35
+      '@next/polyfill-nomodule': 12.1.7-canary.35
+      '@next/react-dev-overlay': 12.1.7-canary.35
+      '@next/react-refresh-utils': 12.1.7-canary.35
+      '@next/swc': 12.1.7-canary.35
       '@swc/helpers': 0.3.17
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -458,7 +458,7 @@ importers:
       '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.33.4
-      '@vercel/nft': 0.19.1
+      '@vercel/nft': 0.20.0
       acorn: 8.5.0
       amphtml-validator: 1.0.35
       arg: 4.1.0
@@ -650,7 +650,7 @@ importers:
       '@types/webpack-sources1': /@types/webpack-sources/0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.33.4
-      '@vercel/nft': 0.19.1
+      '@vercel/nft': 0.20.0
       acorn: 8.5.0
       amphtml-validator: 1.0.35
       arg: 4.1.0
@@ -6188,8 +6188,8 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft/0.19.1:
-    resolution: {integrity: sha512-klR5oN7S3WJsZz0r6Xsq7o8YlFEyU3/00VmlpZzIPVFzKfbcEjXo/sVR5lQBUqNKuOzhcbxaFtzW9aOyHjmPYA==}
+  /@vercel/nft/0.20.0:
+    resolution: {integrity: sha512-+lxsJP/sG4E8UkhfrJC6evkLLfUpZrjXxqEdunr3Q9kiECi8JYBGz6B5EpU1+MmeNnRoSphLcLh/1tI998ye4w==}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
@@ -7718,7 +7718,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1_bluebird@3.7.2
+      promise-inflight: 1.0.1
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -11411,7 +11411,7 @@ packages:
     resolution: {integrity: sha512-dsKNQNdj6xA3T+QlADDA7mOSlX0qiMINjn0cgr+eGHGsbSHzTabcIogz2+p/iqP1Xs6EP/sS2SbqH+brGTbq0g==}
 
   /gauge/2.7.4:
-    resolution: {integrity: sha1-LANAXHU4w51+s3sxcCLjJfsBi/c=}
+    resolution: {integrity: sha512-14x4kjc6lkD3ltw589k0NrPD6cCNTD6CWoVUNpB85+DrtONoZn+Rug6xZU5RvSC4+TZPxA5AnBibQYAvZn41Hg==}
     dependencies:
       aproba: 1.2.0
       console-control-strings: 1.1.0
@@ -12023,7 +12023,7 @@ packages:
       has-symbols: 1.0.2
 
   /has-unicode/2.0.1:
-    resolution: {integrity: sha1-4Ob+aijPUROIVeCG0Wkedx3iqLk=}
+    resolution: {integrity: sha512-8Rf9Y83NBReMnx0gFzA8JImQACstCYWUplepDa9xprwwtmgEZUF0h/i5xSA625zB/I37EtrswSST6OXxwaaIJQ==}
     dev: true
 
   /has-value/0.3.1:
@@ -12910,14 +12910,14 @@ packages:
     dev: true
 
   /is-fullwidth-code-point/1.0.0:
-    resolution: {integrity: sha1-754xOG8DGn8NZDr4L95QxFfvAMs=}
+    resolution: {integrity: sha512-1pqUqRjkhPJ9miNq9SwMfdvi6lBJcd6eFxvfaivQhaH3SgisfiuudvFntdKOmxuee/77l+FPjKrQjWvmPjWrRw==}
     engines: {node: '>=0.10.0'}
     dependencies:
       number-is-nan: 1.0.1
     dev: true
 
   /is-fullwidth-code-point/2.0.0:
-    resolution: {integrity: sha1-o7MKXE8ZkYMWeqq5O+764937ZU8=}
+    resolution: {integrity: sha512-VHskAKYM8RfSFXwee5t5cbN5PZeq1Wrh6qd5bkyiXIf6UQcN6w/A0eXM9r6t8d+GYOh+o6ZhiEnb88LN/Y8m2w==}
     engines: {node: '>=4'}
     dev: true
 
@@ -16164,7 +16164,7 @@ packages:
     dev: true
 
   /number-is-nan/1.0.1:
-    resolution: {integrity: sha1-CXtgK1NCKlIsGvuHkDGDNpQaAR0=}
+    resolution: {integrity: sha512-4jbtZXNAsfZbAHiiqjLPBiCl16dES1zI4Hpzzxw61Tk+loF+sBDBKx1ICKKKwIqQ7M0mFn1TmkN7euSncWgHiQ==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -16177,7 +16177,7 @@ packages:
     dev: true
 
   /object-assign/4.1.1:
-    resolution: {integrity: sha1-IQmtx5ZYh8/AXLvUQsrIv7s2CGM=}
+    resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
 
   /object-copy/0.1.0:
@@ -16429,7 +16429,7 @@ packages:
     dev: true
 
   /os-homedir/1.0.2:
-    resolution: {integrity: sha1-/7xJiDNuDoM94MFox+8VISGqf7M=}
+    resolution: {integrity: sha512-B5JU3cabzk8c67mRRd3ECmROafjYMXbuzlwtqdM8IbS8ktlTix8aFGb2bAGKrSRIlnfKwovGUUr72JUPyOb6kQ==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -16439,7 +16439,7 @@ packages:
     dev: true
 
   /os-tmpdir/1.0.2:
-    resolution: {integrity: sha1-u+Z0BseaqFxc/sdm/lc0VV36EnQ=}
+    resolution: {integrity: sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==}
     engines: {node: '>=0.10.0'}
 
   /osenv/0.1.5:
@@ -18019,17 +18019,6 @@ packages:
         optional: true
     dev: true
 
-  /promise-inflight/1.0.1_bluebird@3.7.2:
-    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
-    peerDependencies:
-      bluebird: '*'
-    peerDependenciesMeta:
-      bluebird:
-        optional: true
-    dependencies:
-      bluebird: 3.7.2
-    dev: true
-
   /promise-polyfill/6.1.0:
     resolution: {integrity: sha1-36lpQ+qcEh/KTem1hoyznTRy4Fc=}
     dev: true
@@ -19604,7 +19593,7 @@ packages:
     dev: true
 
   /set-blocking/2.0.0:
-    resolution: {integrity: sha1-BF+XgtARrppoA93TgrJDkrPYkPc=}
+    resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==}
     dev: true
 
   /set-immediate-shim/1.0.1:
@@ -19866,7 +19855,7 @@ packages:
       source-map: 0.6.1
 
   /source-map-url/0.4.0:
-    resolution: {integrity: sha1-PpNdfd1zYxuXZZlW1VEo6HtQhKM=}
+    resolution: {integrity: sha512-liJwHPI9x9d9w5WSIjM58MqGmmb7XzNqwdUA3kSBQ4lmDngexlKwawGzK3J1mKXi6+sysoMDlpVyZh9sv5vRfw==}
     deprecated: See https://github.com/lydell/source-map-url#deprecated
     requiresBuild: true
 
@@ -19878,7 +19867,7 @@ packages:
     dev: true
 
   /source-map/0.5.7:
-    resolution: {integrity: sha1-igOdLRAh0i0eoUyA2OpGi6LvP8w=}
+    resolution: {integrity: sha512-LbrmJOMUSdEVxIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ==}
     engines: {node: '>=0.10.0'}
 
   /source-map/0.6.1:
@@ -19979,7 +19968,7 @@ packages:
     dev: true
 
   /sprintf-js/1.0.3:
-    resolution: {integrity: sha1-BOaSb2YolTVPPdAVIDYzuFcpfiw=}
+    resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
 
   /sshpk/1.16.1:
     resolution: {integrity: sha512-HXXqVUq7+pcKeLqqZj6mHFUMvXtOJt1uoUx09pFW6011inTMxqI8BA8PM95myrIyyKwdnzjdFjLiE6KBPVtJIg==}
@@ -20033,7 +20022,7 @@ packages:
     dev: true
 
   /static-extend/0.1.2:
-    resolution: {integrity: sha1-YICcOcv/VTNyJv1eC1IPNB8ftcY=}
+    resolution: {integrity: sha512-72E9+uLc27Mt718pMHt9VMNiAL4LMsmDbBva8mxWUCkT07fSzEGMYUCk0XWY6lp0j6RBAG4cJ3mWuZv2OE3s0g==}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:
@@ -20132,7 +20121,7 @@ packages:
     dev: true
 
   /string-width/1.0.2:
-    resolution: {integrity: sha1-EYvfW4zcUaKn5w0hHgfisLmxB9M=}
+    resolution: {integrity: sha512-0XsVpQLnVCXHJfyEs8tC0zpTVIr5PKKsQtkT29IwupnPTjtPmQ3xT/4yCREF9hYkV/3M3kzcUTSAZT6a6h81tw==}
     engines: {node: '>=0.10.0'}
     dependencies:
       code-point-at: 1.1.0
@@ -20231,14 +20220,14 @@ packages:
     dev: true
 
   /strip-ansi/3.0.1:
-    resolution: {integrity: sha1-ajhfuIU9lS1f8F0Oiq+UJ43GPc8=}
+    resolution: {integrity: sha512-VhumSSbBqDTP8p2ZLKj40UjBCV4+v8bUSEpUb4KjRgWk9pbqGF4REFj6KEagidb2f/M6AzC0EmFyDNGaw9OCzg==}
     engines: {node: '>=0.10.0'}
     dependencies:
       ansi-regex: 2.1.1
     dev: true
 
   /strip-ansi/4.0.0:
-    resolution: {integrity: sha1-qEeQIusaw2iocTibY1JixQXuNo8=}
+    resolution: {integrity: sha512-4XaJ2zQdCzROZDivEVIDPkcQn8LMFSa8kj8Gxb/Lnwzv9A8VctNZ+lfivC/sV3ivW8ElJTERXZoPBRrZKkNKow==}
     engines: {node: '>=4'}
     dependencies:
       ansi-regex: 3.0.0
@@ -20311,7 +20300,7 @@ packages:
       min-indent: 1.0.1
 
   /strip-json-comments/2.0.1:
-    resolution: {integrity: sha1-PFMZQukIwml8DsNEhYwobHygpgo=}
+    resolution: {integrity: sha512-4gB8na07fecVVkOI6Rs4e7T6NOTki5EmL7TUduTs6bu3EdnSycntVJ4re8kgZA+wx9IueI2Y11bfbgwtzuE0KQ==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -20833,7 +20822,7 @@ packages:
     dev: true
 
   /to-arraybuffer/1.0.1:
-    resolution: {integrity: sha1-fSKbH8xjfkZsoIEYCDanqr/4P0M=}
+    resolution: {integrity: sha512-okFlQcoGTi4LQBG/PgSYblw9VOyptsz2KJZqc6qtgGdes8VktzUQkj4BI2blit072iS8VODNcMA+tvnS9dnuMA==}
     dev: true
 
   /to-fast-properties/2.0.0:
@@ -20841,7 +20830,7 @@ packages:
     engines: {node: '>=4'}
 
   /to-object-path/0.3.0:
-    resolution: {integrity: sha1-KXWIt7Dn4KwI4E5nL4XB9JmeF68=}
+    resolution: {integrity: sha512-9mWHdnGRuh3onocaHzukyvCZhzvr6tiflAy/JRFXcJX0TjgfWA9pk9t8CMbzmBE4Jfw58pXbkngtBtqYxzNEyg==}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:
@@ -20858,7 +20847,7 @@ packages:
     dev: true
 
   /to-regex-range/2.1.1:
-    resolution: {integrity: sha1-fIDBe53+vlmeJzZ+DU3VWQFB2zg=}
+    resolution: {integrity: sha512-ZZWNfCjUokXXDGXFpZehJIkZqq91BcULFq/Pi7M5i4JnxXdhMKAK682z8bCW3o8Hj1wuuzoKcW3DfVzaP6VuNg==}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:

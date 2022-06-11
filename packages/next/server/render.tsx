@@ -83,14 +83,16 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
 import { htmlEscapeJsonString } from './htmlescape'
+import { stripInternalQueries } from './utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
+const ReactDOMServer =
+  parseInt(React.version) >= 18
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -483,6 +485,21 @@ export async function renderToHTML(
       ? { current: '' }
       : null
 
+  let renderServerComponentData = isServerComponent
+    ? query.__flight__ !== undefined
+    : false
+
+  const serverComponentProps =
+    isServerComponent && query.__props__
+      ? JSON.parse(query.__props__ as string)
+      : undefined
+
+  const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
+
+  stripInternalQueries(query)
+
+  // next internal queries should be stripped out
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = urlQueryToSearchParams(query).toString()
@@ -499,18 +516,6 @@ export async function renderToHTML(
       serverComponentManifest,
     })
   }
-
-  let renderServerComponentData = isServerComponent
-    ? query.__flight__ !== undefined
-    : false
-
-  const serverComponentProps =
-    isServerComponent && query.__props__
-      ? JSON.parse(query.__props__ as string)
-      : undefined
-
-  delete query.__flight__
-  delete query.__props__
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -535,13 +540,6 @@ export async function renderToHTML(
   }
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
-
-  const isFallback = !!query.__nextFallback
-  const notFoundSrcPage = query.__nextNotFoundSrcPage
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport

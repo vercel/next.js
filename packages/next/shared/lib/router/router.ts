@@ -81,6 +81,37 @@ function buildCancellationError() {
   })
 }
 
+function compareRouterStates(a: Router['state'], b: Router['state']) {
+  const stateKeys = Object.keys(a)
+  if (stateKeys.length !== Object.keys(b).length) return false
+
+  for (let i = stateKeys.length; i--; ) {
+    const key = stateKeys[i]
+    if (key === 'query') {
+      const queryKeys = Object.keys(a.query)
+      if (queryKeys.length !== Object.keys(b.query).length) {
+        return false
+      }
+      for (let j = queryKeys.length; j--; ) {
+        const queryKey = queryKeys[j]
+        if (
+          !b.query.hasOwnProperty(queryKey) ||
+          a.query[queryKey] !== b.query[queryKey]
+        ) {
+          return false
+        }
+      }
+    } else if (
+      !b.hasOwnProperty(key) ||
+      a[key as keyof Router['state']] !== b[key as keyof Router['state']]
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 /**
  * Detects whether a given url is routable by the Next.js router (browser only).
  */
@@ -406,7 +437,9 @@ function fetchRetry(
     // https://github.com/github/fetch#caveats
     credentials: 'same-origin',
     method: options.method || 'GET',
-    headers: options.headers ?? {},
+    headers: Object.assign({}, options.headers, {
+      'x-nextjs-data': '1',
+    }),
   }).then((response) => {
     return !response.ok && attempts > 1 && response.status >= 500
       ? fetchRetry(url, attempts - 1, options)
@@ -461,7 +494,10 @@ function fetchNextData({
                * mapped location.
                * TODO: Change the status code in the handler.
                */
-              if (hasMiddleware && [301, 302, 308].includes(response.status)) {
+              if (
+                hasMiddleware &&
+                [301, 302, 307, 308].includes(response.status)
+              ) {
                 return { dataHref, response, text, json: {} }
               }
 
@@ -508,7 +544,11 @@ function fetchNextData({
             }
           })
           .then((data) => {
-            if (!persistCache || process.env.NODE_ENV !== 'production') {
+            if (
+              !persistCache ||
+              process.env.NODE_ENV !== 'production' ||
+              data.response.headers.get('x-middleware-cache') === 'no-cache'
+            ) {
               delete inflightCache[cacheKey]
             }
             return data
@@ -557,10 +597,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: PrivateRouteInfo }
-  // Static Data Cache
+  // Server Data Cache
   sdc: NextDataCache = {}
-  // In-flight Server Data Requests, for deduping
-  sdr: NextDataCache = {}
 
   sub: Subscription
   clc: ComponentLoadCancel
@@ -709,14 +747,29 @@ export default class Router implements BaseRouter {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
         const options: TransitionOptions = { locale }
-        ;(options as any)._shouldResolveHref = as !== pathname
+        const asPath = getURL()
 
-        this.changeState(
-          'replaceState',
-          formatWithValidation({ pathname: addBasePath(pathname), query }),
-          getURL(),
-          options
-        )
+        matchesMiddleware({
+          router: this,
+          locale,
+          asPath,
+        }).then((matches) => {
+          // if middleware matches we leave resolving to the change function
+          // as the server needs to resolve for correct priority
+          ;(options as any)._shouldResolveHref = as !== pathname
+
+          this.changeState(
+            'replaceState',
+            matches
+              ? asPath
+              : formatWithValidation({
+                  pathname: addBasePath(pathname),
+                  query,
+                }),
+            asPath,
+            options
+          )
+        })
       }
 
       window.addEventListener('popstate', this.onPopState)
@@ -1084,7 +1137,15 @@ export default class Router implements BaseRouter {
       ? removeTrailingSlash(removeBasePath(pathname))
       : pathname
 
-    if (shouldResolveHref && pathname !== '/_error') {
+    // we don't attempt resolve asPath when we need to execute
+    // middleware as the resolving will occur server-side
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: as,
+      locale: nextState.locale,
+      router: this,
+    })
+
+    if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1137,60 +1198,59 @@ export default class Router implements BaseRouter {
 
     const route = removeTrailingSlash(pathname)
 
-    if (isDynamicRoute(route)) {
-      const matchInfo = await matchHrefAndAsPath({
-        href: { pathname, query },
-        asPath: resolvedAs,
-        getData: () =>
-          withMiddlewareEffects({
-            fetchData: () =>
-              fetchNextData({
-                dataHref: this.pageLoader.getDataHref({
-                  asPath: resolvedAs,
-                  href: as,
-                  locale: nextState.locale,
-                }),
-                hasMiddleware: true,
-                isServerRender: this.isSsr,
-                parseJSON: true,
-                inflightCache: {},
-                persistCache: false,
-                isPrefetch: false,
-              }),
-            asPath: resolvedAs,
-            locale: nextState.locale,
-            router: this,
-          }),
-      })
+    if (!isMiddlewareMatch && isDynamicRoute(route)) {
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
 
-      if (matchInfo.error) {
-        if (matchInfo.missingParams.length > 0) {
-          const missingParams = matchInfo.missingParams.join(', ')
+      const routeRegex = getRouteRegex(route)
+      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      const shouldInterpolate = route === asPathname
+      const interpolatedAs = shouldInterpolate
+        ? interpolateAs(route, asPathname, query)
+        : ({} as { result: undefined; params: undefined })
+
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
+        const missingParams = Object.keys(routeRegex.groups).filter(
+          (param) => !query[param]
+        )
+
+        if (missingParams.length > 0) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
               `${
-                matchInfo.error === 'interpolate'
+                shouldInterpolate
                   ? `Interpolating href`
                   : `Mismatching \`as\` and \`href\``
-              } failed to manually provide the params: ${missingParams} in the \`href\`'s \`query\``
+              } failed to manually provide ` +
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
-            (matchInfo.error === 'interpolate'
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams}) to be interpolated properly. `
-              : `The provided \`as\` value (${matchInfo.asPathname}) is incompatible with the \`href\` value (${route}). `) +
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
               `Read more: https://nextjs.org/docs/messages/${
-                matchInfo.error === 'interpolate'
+                shouldInterpolate
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'
               }`
           )
         }
-      } else if (matchInfo.as) {
-        as = matchInfo.as
+      } else if (shouldInterpolate) {
+        as = formatWithValidation(
+          Object.assign({}, parsedAs, {
+            pathname: interpolatedAs.result,
+            query: omit(query, interpolatedAs.params!),
+          })
+        )
       } else {
-        Object.assign(query, matchInfo.routeMatch)
+        // Merge params into `query`, overwriting any specified in search
+        Object.assign(query, routeMatch)
       }
     }
 
@@ -1312,38 +1372,50 @@ export default class Router implements BaseRouter {
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      await this.set(
-        {
-          ...nextState,
-          route,
-          pathname,
-          query,
-          asPath: cleanedAs,
-          isFallback: false,
-        },
-        routeInfo,
-        forcedScroll ?? resetScroll
-      ).catch((e) => {
-        if (e.cancelled) error = error || e
-        else throw e
-      })
-
-      if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
-        throw error
+      const nextScroll = forcedScroll ?? resetScroll
+      const mergedNextState = {
+        ...nextState,
+        route,
+        pathname,
+        query,
+        asPath: cleanedAs,
+        isFallback: false,
       }
 
-      if (process.env.__NEXT_I18N_SUPPORT) {
-        if (nextState.locale) {
-          document.documentElement.lang = nextState.locale
+      // for query updates we can skip it if the state is unchanged and we don't
+      // need to scroll
+      // https://github.com/vercel/next.js/issues/37139
+      const canSkipUpdating =
+        (options as any)._h &&
+        !nextScroll &&
+        compareRouterStates(mergedNextState, this.state)
+
+      if (!canSkipUpdating) {
+        await this.set(mergedNextState, routeInfo, nextScroll).catch((e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        })
+
+        if (error) {
+          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          throw error
         }
-      }
-      Router.events.emit('routeChangeComplete', as, routeProps)
 
-      // A hash mark # is the optional last part of a URL
-      const hashRegex = /#.+$/
-      if (shouldScroll && hashRegex.test(as)) {
-        this.scrollToHash(as)
+        if (process.env.__NEXT_I18N_SUPPORT) {
+          if (nextState.locale) {
+            document.documentElement.lang = nextState.locale
+          }
+        }
+        Router.events.emit('routeChangeComplete', as, routeProps)
+
+        // A hash mark # is the optional last part of a URL
+        const hashRegex = /#.+$/
+        if (shouldScroll && hashRegex.test(as)) {
+          this.scrollToHash(as)
+        }
+      } else {
+        // Still send the event to notify the inital load.
+        Router.events.emit('routeChangeComplete', as, routeProps)
       }
 
       return true
@@ -1506,14 +1578,15 @@ export default class Router implements BaseRouter {
           fetchNextData({
             dataHref: this.pageLoader.getDataHref({
               href: formatWithValidation({ pathname, query }),
+              skipInterpolation: true,
               asPath: resolvedAs,
               locale,
             }),
             hasMiddleware: true,
             isServerRender: this.isSsr,
             parseJSON: true,
-            inflightCache: cachedRouteInfo?.__N_SSG ? this.sdc : this.sdr,
-            persistCache: !!cachedRouteInfo?.__N_SSG && !isPreview,
+            inflightCache: this.sdc,
+            persistCache: !isPreview,
             isPrefetch: false,
           }),
         asPath: resolvedAs,
@@ -1560,6 +1633,13 @@ export default class Router implements BaseRouter {
           })
         ))
 
+      // TODO: we only bust the data cache for SSP routes
+      // although middleware can skip cache per request with
+      // x-middleware-cache: no-cache
+      if (routeInfo.__N_SSP && data?.dataHref) {
+        delete this.sdc[data?.dataHref]
+      }
+
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(routeInfo.Component)) {
@@ -1593,7 +1673,7 @@ export default class Router implements BaseRouter {
               }),
               isServerRender: this.isSsr,
               parseJSON: true,
-              inflightCache: routeInfo.__N_SSG ? this.sdc : this.sdr,
+              inflightCache: this.sdc,
               persistCache: !!routeInfo.__N_SSG && !isPreview,
               isPrefetch: false,
             }))
@@ -1818,13 +1898,14 @@ export default class Router implements BaseRouter {
         fetchNextData({
           dataHref: this.pageLoader.getDataHref({
             href: formatWithValidation({ pathname, query }),
+            skipInterpolation: true,
             asPath: resolvedAs,
             locale,
           }),
           hasMiddleware: true,
           isServerRender: this.isSsr,
           parseJSON: true,
-          inflightCache: this.sdr,
+          inflightCache: this.sdc,
           persistCache: false,
           isPrefetch: false,
         }),
@@ -1999,71 +2080,65 @@ export default class Router implements BaseRouter {
   }
 }
 
-function matchesMiddleware(params: {
-  fns: [location: string, isSSR: boolean][]
-  asPath: string
-  locale?: string
-}) {
-  const { pathname: asPathname } = parsePath(params.asPath)
-  const cleanedAs = removeLocale(
-    hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-    params.locale
-  )
-
-  return params.fns.some(([middleware, isSSR]) => {
-    return getRouteMatcher(
-      getMiddlewareRegex(middleware, {
-        catchAll: !isSSR,
-      })
-    )(cleanedAs)
-  })
-}
-
 interface MiddlewareEffectParams<T extends FetchDataOutput> {
-  fetchData: () => Promise<T>
+  fetchData?: () => Promise<T>
   locale?: string
   asPath: string
   router: Router
 }
 
+function matchesMiddleware<T extends FetchDataOutput>(
+  options: MiddlewareEffectParams<T>
+): Promise<boolean> {
+  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
+    (fns) => {
+      const { pathname: asPathname } = parsePath(options.asPath)
+      const cleanedAs = removeLocale(
+        hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
+        options.locale
+      )
+
+      return fns.some(([middleware, isSSR]) => {
+        return getRouteMatcher(
+          getMiddlewareRegex(middleware, {
+            catchAll: !isSSR,
+          })
+        )(cleanedAs)
+      })
+    }
+  )
+}
+
 function withMiddlewareEffects<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ) {
-  return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (fns) => {
-      const matches = matchesMiddleware({
-        asPath: options.asPath,
-        locale: options.locale,
-        fns: fns,
-      })
-
-      if (matches) {
-        return options
-          .fetchData()
-          .then((data) =>
-            getMiddlewareData(data.dataHref, data.response, options).then(
-              (effect) => ({
-                dataHref: data.dataHref,
-                json: data.json,
-                response: data.response,
-                text: data.text,
-                effect,
-              })
-            )
+  return matchesMiddleware(options).then((matches) => {
+    if (matches && options.fetchData) {
+      return options
+        .fetchData()
+        .then((data) =>
+          getMiddlewareData(data.dataHref, data.response, options).then(
+            (effect) => ({
+              dataHref: data.dataHref,
+              json: data.json,
+              response: data.response,
+              text: data.text,
+              effect,
+            })
           )
-          .catch(() => {
-            /**
-             * TODO: Revisit this in the future.
-             * For now we will not consider middleware data errors to be fatal.
-             * maybe we should revisit in the future.
-             */
-            return null
-          })
-      }
-
-      return null
+        )
+        .catch((_err) => {
+          /**
+           * TODO: Revisit this in the future.
+           * For now we will not consider middleware data errors to be fatal.
+           * maybe we should revisit in the future.
+           */
+          return null
+        })
     }
-  )
+
+    return null
+  })
 }
 
 function getMiddlewareData<T extends FetchDataOutput>(
@@ -2078,6 +2153,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
       const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
@@ -2113,6 +2189,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   const redirectTarget = response.headers.get('x-nextjs-redirect')
+
   if (redirectTarget) {
     if (redirectTarget.startsWith('/')) {
       const src = parsePath(redirectTarget)
@@ -2136,72 +2213,4 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   return Promise.resolve({ type: 'next' as const })
-}
-
-function matchHrefAndAsPath(params: {
-  asPath: string
-  href: { pathname: string; query: ParsedUrlQuery }
-  getData: () => ReturnType<typeof withMiddlewareEffects>
-}) {
-  const result = matchHrefAndAsPathData(params)
-  if (result.error === 'mismatch') {
-    return params.getData().then((data) => {
-      if (data?.effect?.type === 'rewrite') {
-        return Object.assign(
-          { effect: data.effect },
-          matchHrefAndAsPathData({
-            asPath: data.effect.parsedAs.pathname,
-            href: {
-              pathname: data.effect.resolvedHref,
-              query: { ...params.href.query, ...data.effect.parsedAs.query },
-            },
-          })
-        )
-      }
-
-      return result
-    })
-  }
-
-  return Promise.resolve(result)
-}
-
-function matchHrefAndAsPathData(params: {
-  href: { pathname: string; query: ParsedUrlQuery }
-  asPath: string
-}) {
-  const { asPath, href } = params
-  const { pathname, query } = href
-  const route = removeTrailingSlash(pathname)
-  const regex = getRouteRegex(route)
-  const parsedAs = parseRelativeUrl(asPath)
-  const routeMatch = getRouteMatcher(regex)(parsedAs.pathname)
-  if (!routeMatch) {
-    return {
-      error: 'mismatch' as const,
-      asPathname: parsedAs.pathname,
-      missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-    }
-  }
-
-  if (route === parsedAs.pathname) {
-    const interpolated = interpolateAs(route, parsedAs.pathname, query)
-    if (!interpolated?.result) {
-      return {
-        error: 'interpolate' as const,
-        missingParams: Object.keys(regex.groups).filter((key) => !query[key]),
-      }
-    }
-
-    return {
-      as: formatWithValidation(
-        Object.assign({}, parsedAs, {
-          pathname: interpolated.result,
-          query: omit(query, interpolated.params!),
-        })
-      ),
-    }
-  }
-
-  return { routeMatch }
 }
