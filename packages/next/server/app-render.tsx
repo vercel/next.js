@@ -246,6 +246,7 @@ export async function renderToHTML(
     tree: { segment, layout, loading, page, children },
   }: any) => {
     const Loading = loading ? interopDefault(loading()) : undefined
+    const isPage = typeof page !== 'undefined'
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
     const Component = layoutOrPageMod
       ? interopDefault(layoutOrPageMod)
@@ -346,8 +347,10 @@ export async function renderToHTML(
         }
       }
 
-      // TODO: Ensure LayoutRouter and other children are not passed when it's a page
-      return (
+      // When the segment is a page skip the children as only layouts require children to be rendered
+      return isPage ? (
+        <Component {...props} />
+      ) : (
         <Component {...props}>
           <LayoutRouter
             path={segment}
