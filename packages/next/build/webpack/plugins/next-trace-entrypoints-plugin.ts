@@ -126,6 +126,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
       const chunksToTrace = new Set<string>()
+      const isTraceable = (file: string) => !file.endsWith('.wasm')
 
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
@@ -134,14 +135,18 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           .getEntrypointChunk()
           .getAllReferencedChunks()) {
           for (const file of chunk.files) {
-            const filePath = nodePath.join(outputPath, file)
-            chunksToTrace.add(filePath)
-            entryFiles.add(filePath)
+            if (isTraceable(file)) {
+              const filePath = nodePath.join(outputPath, file)
+              chunksToTrace.add(filePath)
+              entryFiles.add(filePath)
+            }
           }
           for (const file of chunk.auxiliaryFiles) {
-            const filePath = nodePath.join(outputPath, file)
-            chunksToTrace.add(filePath)
-            entryFiles.add(filePath)
+            if (isTraceable(file)) {
+              const filePath = nodePath.join(outputPath, file)
+              chunksToTrace.add(filePath)
+              entryFiles.add(filePath)
+            }
           }
         }
         entryFilesMap.set(entrypoint, entryFiles)

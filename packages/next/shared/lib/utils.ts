@@ -47,7 +47,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
     }
   | {
       label: 'custom'
@@ -185,7 +185,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
@@ -197,15 +197,15 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
+  query: Partial<{
     [key: string]: string | string[]
-  }
+  }>
   /**
    * Object of `cookies` from header
    */
-  cookies: {
+  cookies: Partial<{
     [key: string]: string
-  }
+  }>
 
   body: any
 
@@ -289,6 +289,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
     return result
   }) as T
 }
+
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
@@ -398,6 +403,15 @@ export const ST =
 
 export class DecodeError extends Error {}
 export class NormalizeError extends Error {}
+export class PageNotFoundError extends Error {
+  code: string
+
+  constructor(page: string) {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find module for page: ${page}`
+  }
+}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

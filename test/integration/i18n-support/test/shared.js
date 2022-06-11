@@ -77,6 +77,19 @@ export function runTests(ctx) {
     }
   })
 
+  it('should 404 for locale prefixed public folder files', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}/${locale}/files/texts/file.txt`,
+        undefined,
+        { redirect: 'manual' }
+      )
+      expect(res.status).toBe(404)
+      expect(await res.text()).toContain('could not be found')
+    }
+  })
+
   it('should redirect external domain correctly', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,

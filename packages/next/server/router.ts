@@ -1,17 +1,18 @@
 import type { ParsedUrlQuery } from 'querystring'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type {
+  RouteMatch,
+  Params,
+} from '../shared/lib/router/utils/route-matcher'
 
 import { getNextInternalQuery, NextUrlWithParsedQuery } from './request-meta'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
-
-export type Params = { [param: string]: any }
-
-export type RouteMatch = (pathname: string | null | undefined) => false | Params
 
 type RouteResult = {
   finished: boolean
@@ -41,24 +42,6 @@ export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
 export type PageChecker = (pathname: string) => Promise<boolean>
 
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
-
-export function hasBasePath(pathname: string, basePath: string): boolean {
-  return (
-    typeof pathname === 'string' &&
-    (pathname === basePath || pathname.startsWith(basePath + '/'))
-  )
-}
-
-export function replaceBasePath(pathname: string, basePath: string): string {
-  // ensure basePath is only stripped if it matches exactly
-  // and doesn't contain extra chars e.g. basePath /docs
-  // should replace for /docs, /docs/, /docs/a but not /docsss
-  if (hasBasePath(pathname, basePath)) {
-    pathname = pathname.slice(basePath.length)
-    if (!pathname.startsWith('/')) pathname = `/${pathname}`
-  }
-  return pathname
-}
 
 export default class Router {
   basePath: string
@@ -128,6 +111,9 @@ export default class Router {
   setDynamicRoutes(routes: DynamicRoutes = []) {
     this.dynamicRoutes = routes
   }
+  setCatchallMiddleware(route?: Route) {
+    this.catchAllMiddleware = route
+  }
 
   addFsRoute(fsRoute: Route) {
     this.fsRoutes.unshift(fsRoute)
@@ -162,7 +148,7 @@ export default class Router {
 
       const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
         const originalFsPathname = checkParsedUrl.pathname
-        const fsPathname = replaceBasePath(originalFsPathname!, this.basePath)
+        const fsPathname = removePathPrefix(originalFsPathname!, this.basePath)
 
         for (const fsRoute of this.fsRoutes) {
           const fsParams = fsRoute.match(fsPathname)
@@ -225,12 +211,15 @@ export default class Router {
       */
 
       const allRoutes = [
+        ...(this.catchAllMiddleware
+          ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
+          : []),
         ...this.headers,
         ...this.redirects,
-        ...this.rewrites.beforeFiles,
         ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
           ? [this.catchAllMiddleware]
           : []),
+        ...this.rewrites.beforeFiles,
         ...this.fsRoutes,
         // We only check the catch-all route if public page routes hasn't been
         // disabled
@@ -248,7 +237,7 @@ export default class Router {
                   parsedCheckerUrl
                 ) => {
                   let { pathname } = parsedCheckerUrl
-                  pathname = removePathTrailingSlash(pathname || '/')
+                  pathname = removeTrailingSlash(pathname || '/')
 
                   if (!pathname) {
                     return { finished: false }
@@ -313,7 +302,7 @@ export default class Router {
           isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
         const keepLocale = isCustomRoute
 
-        const currentPathnameNoBasePath = replaceBasePath(
+        const currentPathnameNoBasePath = removePathPrefix(
           currentPathname,
           this.basePath
         )

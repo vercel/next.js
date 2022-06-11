@@ -16,11 +16,13 @@ export class NextDevInstance extends NextInstance {
     return this._cliOutput || ''
   }
 
-  public async start() {
+  public async start(useDirArg: boolean = false) {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    let startArgs = ['yarn', 'next']
+    let startArgs = ['yarn', 'next', useDirArg && this.testDir].filter(
+      Boolean
+    ) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
@@ -28,11 +30,12 @@ export class NextDevInstance extends NextInstance {
 
     await new Promise<void>((resolve) => {
       this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
-        cwd: this.testDir,
+        cwd: useDirArg ? process.cwd() : this.testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,
         env: {
           ...process.env,
+          ...this.env,
           NODE_ENV: '' as any,
           __NEXT_TEST_MODE: '1',
           __NEXT_RAND_PORT: '1',

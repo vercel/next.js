@@ -30,6 +30,9 @@ describe('should set-up next', () => {
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
@@ -159,15 +162,7 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(
-          next.testDir,
-          'standalone/.next/server/pages/middleware/_middleware.js'
-        )
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+        join(next.testDir, 'standalone/.next/server/middleware.js')
       )
     ).toBe(true)
   })
@@ -420,11 +415,16 @@ describe('should set-up next', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -432,11 +432,16 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -447,7 +452,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-matched-path': '/dynamic/[slug]',
         'x-now-route-matches': '1=second&slug=second',
       },
     })
@@ -492,11 +497,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json`,
+      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': `/dynamic/[slug]`,
         },
       }
     )
@@ -586,6 +591,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       `/_next/data/${next.buildId}/catch-all.json`,
+
       undefined,
       {
         headers: {

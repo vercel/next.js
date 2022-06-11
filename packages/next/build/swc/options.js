@@ -51,9 +51,11 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
+      externalHelpers: !process.versions.pnp,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
+        plugins: nextConfig?.experimental?.swcPlugins ?? undefined,
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -70,7 +72,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
+            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -117,11 +119,11 @@ function getBaseSWCOptions({
 }
 
 function getEmotionOptions(nextConfig, development) {
-  if (!nextConfig?.experimental?.emotion) {
+  if (!nextConfig?.compiler?.emotion) {
     return null
   }
   let autoLabel = false
-  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+  switch (nextConfig?.compiler?.emotion?.autoLabel) {
     case 'never':
       autoLabel = false
       break

@@ -4,18 +4,18 @@ import type { FetchEventResult } from '../web/types'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
-import type { Params } from '../router'
-import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
+import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Server as HTTPServer } from 'http'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
@@ -33,18 +33,14 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
-import {
-  getRouteMatcher,
-  getRouteRegex,
-  getSortedRoutes,
-  isDynamicRoute,
-} from '../../shared/lib/router/utils'
 import Server, { WrappedBuildError } from '../next-server'
+import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
-import { hasBasePath, replaceBasePath } from '../router-utils'
+import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -58,25 +54,31 @@ import {
   createOriginalStackFrame,
   getSourceById,
   parseStack,
-} from 'next/dist/compiled/@next/react-dev-overlay/middleware'
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
-import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
-import { isCustomErrorPage, isReservedPage } from '../../build/utils'
-import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import {
-  getPageStaticInfo,
-  invalidatePageRuntimeCache,
-} from '../../build/entries'
+  getMiddlewareRegex,
+  getRouteRegex,
+} from '../../shared/lib/router/utils/route-regex'
+import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
+import { runDependingOnPageType } from '../../build/entries'
+import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
+import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizeViewPath } from '../../shared/lib/router/utils/view-paths'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  getPossibleMiddlewareFilenames,
+  isMiddlewareFile,
+  NestedMiddlewareError,
+} from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/client').ReactDevOverlay
+      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -101,7 +103,15 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
   private pagesDir: string
-  private viewsDir?: string
+  private appDir?: string
+  private actualMiddlewareFile?: string
+
+  /**
+   * Since the dev server is stateful and middleware routes can be added and
+   * removed over time, we need to keep a list of all of the middleware
+   * routing items to be returned in `getMiddleware()`
+   */
+  private middleware?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -157,6 +167,8 @@ export default class DevServer extends Server {
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
+      const AmpHtmlValidator =
+        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(
@@ -182,12 +194,12 @@ export default class DevServer extends Server {
 
     this.isCustomServer = !options.isNextDevCommand
     // TODO: hot-reload root/pages dirs?
-    const { pages: pagesDir, views: viewsDir } = findPagesDir(
+    const { pages: pagesDir, appDir } = findPagesDir(
       this.dir,
-      this.nextConfig.experimental.viewsDir
+      this.nextConfig.experimental.appDir
     )
     this.pagesDir = pagesDir
-    this.viewsDir = viewsDir
+    this.appDir = appDir
   }
 
   protected getBuildId(): string {
@@ -245,10 +257,6 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexMiddleware = new RegExp(
-      `[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
-    )
-
     const regexPageExtension = new RegExp(
       `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
     )
@@ -267,54 +275,70 @@ export default class DevServer extends Server {
         }
       })
 
-      let wp = (this.webpackWatcher = new Watchpack())
-      const toWatch = [this.pagesDir!]
+      const wp = (this.webpackWatcher = new Watchpack())
+      const pages = [this.pagesDir]
+      const app = this.appDir ? [this.appDir] : []
+      const directories = [...pages, ...app]
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(this.pagesDir, '..'),
+        this.nextConfig.pageExtensions
+      )
+      let nestedMiddleware: string[] = []
 
-      if (this.viewsDir) {
-        toWatch.push(this.viewsDir)
-      }
-      wp.watch([], toWatch, 0)
+      wp.watch(files, directories, 0)
 
       wp.on('aggregated', async () => {
-        const routedMiddleware = []
+        const routedMiddleware: string[] = []
+        let middlewareMatcher: RegExp | undefined
         const routedPages: string[] = []
         const knownFiles = wp.getTimeInfoEntries()
-        const viewPaths: Record<string, string> = {}
+        const appPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
 
-        for (const [fileName, { accuracy, safeTime }] of knownFiles) {
-          if (accuracy === undefined || !regexPageExtension.test(fileName)) {
+        for (const [fileName, meta] of knownFiles) {
+          if (
+            meta?.accuracy === undefined ||
+            !regexPageExtension.test(fileName)
+          ) {
             continue
           }
-          let pageName: string = ''
-          let isViewPath = false
 
-          if (
-            this.viewsDir &&
-            normalizePathSep(fileName).startsWith(
-              normalizePathSep(this.viewsDir)
-            )
-          ) {
-            isViewPath = true
-            pageName = absolutePathToPage(
-              this.viewsDir,
-              fileName,
-              this.nextConfig.pageExtensions,
-              false
-            )
-          } else {
-            pageName = absolutePathToPage(
-              this.pagesDir,
-              fileName,
-              this.nextConfig.pageExtensions
-            )
+          const isAppPath = Boolean(
+            this.appDir &&
+              normalizePathSep(fileName).startsWith(
+                normalizePathSep(this.appDir)
+              )
+          )
+
+          const rootFile = absolutePathToPage(fileName, {
+            pagesDir: this.dir,
+            extensions: this.nextConfig.pageExtensions,
+          })
+
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: this.nextConfig,
+            page: rootFile,
+          })
+
+          if (isMiddlewareFile(rootFile)) {
+            this.actualMiddlewareFile = rootFile
+            middlewareMatcher = staticInfo.middleware?.pathMatcher
+            routedMiddleware.push('/')
+            continue
           }
 
-          if (isViewPath) {
+          let pageName = absolutePathToPage(fileName, {
+            pagesDir: isAppPath ? this.appDir! : this.pagesDir,
+            extensions: this.nextConfig.pageExtensions,
+            keepIndex: isAppPath,
+          })
+
+          if (isAppPath) {
             // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeViewPath(pageName)
-            viewPaths[pageName] = originalPageName
+            pageName = normalizeAppPath(pageName)
+            appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
               continue
@@ -324,40 +348,50 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
-          if (regexMiddleware.test(fileName)) {
-            routedMiddleware.push(
-              `/${relative(this.pagesDir, fileName).replace(/\\+/g, '/')}`
-                .replace(/^\/+/g, '/')
-                .replace(regexMiddleware, '/')
-            )
+          /**
+           * If there is a middleware that is not declared in the root we will
+           * warn without adding it so it doesn't make its way into the system.
+           */
+          if (/[\\\\/]_middleware$/.test(pageName)) {
+            nestedMiddleware.push(pageName)
             continue
           }
 
-          invalidatePageRuntimeCache(fileName, safeTime)
-          const pageRuntimeConfig = (
-            await getPageStaticInfo(fileName, this.nextConfig)
-          ).runtime
-          const isEdgeRuntime = pageRuntimeConfig === 'edge'
-
-          if (
-            isEdgeRuntime &&
-            !(isReservedPage(pageName) || isCustomErrorPage(pageName))
-          ) {
-            routedMiddleware.push(pageName)
-            ssrMiddleware.add(pageName)
-          }
-
+          runDependingOnPageType({
+            page: pageName,
+            pageRuntime: staticInfo.runtime,
+            onClient: () => {},
+            onServer: () => {},
+            onEdgeServer: () => {
+              routedMiddleware.push(pageName)
+              ssrMiddleware.add(pageName)
+            },
+          })
           routedPages.push(pageName)
         }
 
-        this.viewPathRoutes = viewPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-          match: getRouteMatcher(
-            getMiddlewareRegex(page, !ssrMiddleware.has(page))
-          ),
-          page,
-          ssr: ssrMiddleware.has(page),
-        }))
+        if (nestedMiddleware.length > 0) {
+          Log.error(
+            new NestedMiddlewareError(nestedMiddleware, this.dir, this.pagesDir)
+              .message
+          )
+          nestedMiddleware = []
+        }
+
+        this.appPathRoutes = appPaths
+        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
+          return {
+            match: getRouteMatcher(
+              page === '/' && middlewareMatcher
+                ? { re: middlewareMatcher, groups: {} }
+                : getMiddlewareRegex(page, {
+                    catchAll: !ssrMiddleware.has(page),
+                  })
+            ),
+            page,
+            ssr: ssrMiddleware.has(page),
+          }
+        })
 
         try {
           // we serve a separate manifest with all pages for the client in
@@ -381,6 +415,9 @@ export default class DevServer extends Server {
             }))
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
+          this.router.setCatchallMiddleware(
+            this.generateCatchAllMiddlewareRoute(true)
+          )
 
           if (!resolved) {
             resolve()
@@ -412,9 +449,10 @@ export default class DevServer extends Server {
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
-      [this.pagesDir!, this.viewsDir].filter(Boolean) as string[],
+      [this.pagesDir!, this.appDir].filter(Boolean) as string[],
       false,
-      this.nextConfig
+      this.nextConfig.typescript.tsconfigPath,
+      this.nextConfig.images.disableStaticImages
     )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
@@ -439,7 +477,7 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
-      viewsDir: this.viewsDir,
+      appDir: this.appDir,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -497,10 +535,18 @@ export default class DevServer extends Server {
       return false
     }
 
-    // check viewsDir first if enabled
-    if (this.viewsDir) {
+    if (isMiddlewareFile(normalizedPath)) {
+      return findPageFile(
+        this.dir,
+        normalizedPath,
+        this.nextConfig.pageExtensions
+      ).then(Boolean)
+    }
+
+    // check appDir first if enabled
+    if (this.appDir) {
       const pageFile = await findPageFile(
-        this.viewsDir,
+        this.appDir,
         normalizedPath,
         this.nextConfig.pageExtensions
       )
@@ -594,7 +640,7 @@ export default class DevServer extends Server {
   async runMiddleware(params: {
     request: BaseNextRequest
     response: BaseNextResponse
-    parsedUrl: ParsedNextUrl
+    parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
     try {
@@ -614,13 +660,10 @@ export default class DevServer extends Server {
       )
       return result
     } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
       this.logErrorWithOriginalStack(error, undefined, 'edge-server')
-
-      const preflight =
-        params.request.method === 'HEAD' &&
-        params.request.headers['x-middleware-preflight']
-      if (preflight) throw error
-
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
@@ -641,11 +684,11 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
-    if (basePath && hasBasePath(parsedUrl.pathname || '/', basePath)) {
+    if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
       originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = replaceBasePath(parsedUrl.pathname || '/', basePath)
+      parsedUrl.pathname = removePathPrefix(parsedUrl.pathname || '/', basePath)
     }
 
     const { pathname } = parsedUrl
@@ -788,16 +831,12 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getViewPathsManifest(): undefined {
+  protected getAppPathsManifest(): undefined {
     return undefined
   }
 
-  protected getMiddleware(): never[] {
-    return []
-  }
-
-  protected getMiddlewareManifest(): undefined {
-    return undefined
+  protected getMiddleware() {
+    return this.middleware ?? []
   }
 
   protected getServerComponentManifest() {
@@ -808,12 +847,12 @@ export default class DevServer extends Server {
     pathname: string,
     isSSR?: boolean
   ): Promise<boolean> {
-    return this.hasPage(isSSR ? pathname : getMiddlewareFilepath(pathname))
+    return this.hasPage(isSSR ? pathname : this.actualMiddlewareFile!)
   }
 
   protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
     return this.hotReloader!.ensurePage(
-      isSSR ? pathname : getMiddlewareFilepath(pathname)
+      isSSR ? pathname : this.actualMiddlewareFile!
     )
   }
 
@@ -869,10 +908,10 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify(
-              this.middleware?.map((middleware) => [
+              this.getMiddleware().map((middleware) => [
                 middleware.page,
                 !!middleware.ssr,
-              ]) || []
+              ])
             )
           )
           .send()
@@ -1101,10 +1140,4 @@ export default class DevServer extends Server {
 
     return false
   }
-}
-
-function getMiddlewareFilepath(pathname: string) {
-  return pathname.endsWith('/')
-    ? `${pathname}_middleware`
-    : `${pathname}/_middleware`
 }

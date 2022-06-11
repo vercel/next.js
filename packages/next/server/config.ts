@@ -457,6 +457,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     ).styledComponents
   }
 
+  if (result.experimental && 'emotion' in (result.experimental as any)) {
+    Log.warn(
+      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.emotion = (result.experimental as any).emotion
+  }
+
   if (
     result.experimental &&
     'reactRemoveProperties' in (result.experimental as any)
@@ -481,6 +489,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result.swcMinify) {
     Log.warn(
       'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+    )
+  }
+
+  if (result.experimental?.swcMinifyDebugOptions) {
+    Log.warn(
+      'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
     )
   }
 
@@ -621,6 +635,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (!i18n.locales.includes(i18n.defaultLocale)) {
       throw new Error(
         `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
+    const normalizedLocales = new Set()
+    const duplicateLocales = new Set()
+
+    i18n.locales.forEach((locale) => {
+      const localeLower = locale.toLowerCase()
+      if (normalizedLocales.has(localeLower)) {
+        duplicateLocales.add(locale)
+      }
+      normalizedLocales.add(localeLower)
+    })
+
+    if (duplicateLocales.size > 0) {
+      throw new Error(
+        `Specified i18n.locales contains the following duplicate locales:\n` +
+          `${[...duplicateLocales].join(', ')}\n` +
+          `Each locale should be listed only once.\n` +
+          `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
 

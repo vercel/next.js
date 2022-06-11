@@ -1,6 +1,5 @@
 import _JSXStyle from "next/dist/shared/lib/styled-jsx";
-const darken = (c)=>c
-;
+const darken = (c)=>c;
 const color = 'red';
 const otherColor = 'green';
 const mediumScreen = '680px';
@@ -89,5 +88,4 @@ export default (({ display  })=><div className={"jsx-ee922fe7eac00c5e " + _JSXSt
 
     {}
 
-  </div>
-);
+  </div>);

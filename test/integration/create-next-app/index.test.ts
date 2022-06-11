@@ -431,6 +431,13 @@ describe('create next app', () => {
   })
 
   it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
     await usingTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(

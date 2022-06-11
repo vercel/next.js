@@ -19,7 +19,7 @@ import '../server/node-polyfill-fetch'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
@@ -60,7 +60,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  viewsDir?: boolean
+  appDir?: boolean
 }
 
 interface ExportPageResults {
@@ -85,7 +85,7 @@ interface RenderOpts {
   locale?: string
   defaultLocale?: string
   trailingSlash?: boolean
-  viewsDir?: boolean
+  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -99,7 +99,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  viewsDir,
+  appDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -275,7 +275,7 @@ export default async function exportPage({
           page,
           serverless,
           serverComponents,
-          viewsDir
+          appDir
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,
