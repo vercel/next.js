@@ -49,7 +49,7 @@ impl Asset for RebasedAsset {
         for reference in input_references.iter() {
             references.push(
                 RebasedAssetReference {
-                    reference: reference.resolve().await?,
+                    reference: *reference,
                     input_dir: self.input_dir,
                     output_dir: self.output_dir,
                 }
@@ -80,7 +80,7 @@ impl AssetReference for RebasedAssetReference {
                     async move { Ok(asset) }
                 },
                 |reference| {
-                    let reference = RebasedAssetReference {
+                    let reference: AssetReferenceVc = RebasedAssetReference {
                         reference: reference,
                         input_dir: self.input_dir,
                         output_dir: self.output_dir,
@@ -91,5 +91,13 @@ impl AssetReference for RebasedAssetReference {
             )
             .await?
             .into())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "rebased {}",
+            self.reference.description().await?
+        )))
     }
 }

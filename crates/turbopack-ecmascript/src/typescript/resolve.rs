@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::resolve::{apply_cjs_specific_options, cjs_resolve, handle_resolve_error};
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -177,14 +177,15 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
         None
     };
     let result = if let Some(types_request) = types_request {
-        let result1 = context.resolve_asset(context_path, request, options);
+        let result1 = resolve(context_path, request, options);
         if !*result1.is_unresolveable().await? {
             return Ok(result1);
         }
-        context.resolve_asset(context_path, types_request, options)
+        resolve(context_path, types_request, options)
     } else {
-        context.resolve_asset(context_path, request, options)
+        resolve(context_path, request, options)
     };
+    let result = context.process_resolve_result(result);
     handle_resolve_error(result, "type request", context_path, request).await
 }
 
@@ -200,6 +201,14 @@ impl AssetReference for TypescriptTypesAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         type_resolve(self.request, self.context)
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "typescript types {}",
+            self.request.to_string().await?,
+        )))
     }
 }
 

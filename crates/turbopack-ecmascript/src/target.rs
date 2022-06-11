@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
@@ -6,6 +8,15 @@ use turbo_tasks::trace::TraceRawVcs;
 pub enum CompileTarget {
     Current,
     Target(Target),
+}
+
+impl Display for CompileTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompileTarget::Current => write!(f, "current target"),
+            CompileTarget::Target(t) => write!(f, "{:?}", t),
+        }
+    }
 }
 
 impl CompileTarget {

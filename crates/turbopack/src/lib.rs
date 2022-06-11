@@ -20,7 +20,7 @@ use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
 use resolve::{resolve_options, typescript_resolve_options};
-use turbo_tasks::{CompletionVc, Value};
+use turbo_tasks::{CompletionVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::reference::all_referenced_assets;
 use turbopack_core::{asset::AssetVc, resolve::parse::RequestVc};
@@ -196,6 +196,18 @@ impl AssetContext for ModuleAssetContext {
             result.add_reference(types_reference.into());
         }
         Ok(result.into())
+    }
+
+    #[turbo_tasks::function]
+    async fn process_resolve_result(&self, result: ResolveResultVc) -> Result<ResolveResultVc> {
+        Ok(result
+            .await?
+            .map(
+                |a| module(a, self.options).resolve(),
+                |i| async move { Ok(i) },
+            )
+            .await?
+            .into())
     }
 
     #[turbo_tasks::function]

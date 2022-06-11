@@ -2,7 +2,7 @@ pub mod resolve;
 
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
@@ -148,6 +148,14 @@ impl AssetReference for CompilerReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "compiler reference {}",
+            self.request.to_string().await?
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -169,6 +177,14 @@ impl AssetReference for TsExtendsReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(self.config, Vec::new()).into()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "tsconfig extends {}",
+            self.config.path().to_string().await?,
+        )))
     }
 }
 
@@ -193,6 +209,14 @@ impl AssetReference for TsNodeRequireReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "tsconfig tsnode require {}",
+            self.request.to_string().await?
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -215,5 +239,13 @@ impl AssetReference for TsConfigTypesReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         type_resolve(self.request, self.context)
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "tsconfig types {}",
+            self.request.to_string().await?,
+        )))
     }
 }

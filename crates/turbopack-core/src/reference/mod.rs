@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
+use turbo_tasks::Vc;
 
 use crate::{
     asset::{AssetVc, AssetsSet, AssetsSetVc},
@@ -12,6 +13,7 @@ pub trait AssetReference {
     fn resolve_reference(&self) -> ResolveResultVc;
     // TODO think about different types
     // fn kind(&self) -> AssetReferenceTypeVc;
+    fn description(&self) -> Vc<String>;
 }
 
 #[turbo_tasks::function]

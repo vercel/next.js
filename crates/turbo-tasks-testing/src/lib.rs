@@ -106,8 +106,7 @@ impl TurboTasksApi for VcStorage {
 }
 
 impl VcStorage {
-    pub fn with<T>(f: impl FnOnce() -> T) -> T {
+    pub fn install() {
         unsafe { set_turbo_tasks(Arc::new(VcStorage::default())) }
-        f()
     }
 }

@@ -1958,8 +1958,9 @@ mod tests {
                         let val = val.clone();
                         println!("linking {} {id}", input.display());
                         let start = Instant::now();
-                        let mut res = turbo_tasks_testing::VcStorage::with(|| {
-                            block_on(link(
+                        let mut res = block_on(async {
+                            turbo_tasks_testing::VcStorage::install();
+                            link(
                                 &var_graph,
                                 val,
                                 &(|val| {
@@ -1975,9 +1976,10 @@ mod tests {
                                     ))
                                 }),
                                 &cache,
-                            ))
-                            .unwrap()
-                        });
+                            )
+                            .await
+                        })
+                        .unwrap();
                         let time = start.elapsed().as_millis();
                         if time > 1 {
                             println!("linking {} {id} took {} ms", input.display(), time);

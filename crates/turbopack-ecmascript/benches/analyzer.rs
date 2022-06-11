@@ -62,15 +62,17 @@ pub fn benchmark(c: &mut Criterion) {
                     b.iter(|| {
                         let cache = Mutex::new(LinkCache::new());
                         for val in var_graph.values.values() {
-                            VcStorage::with(|| {
-                                block_on(link(
+                            block_on(async {
+                                VcStorage::install();
+                                link(
                                     &var_graph,
                                     val.clone(),
                                     &(|val| Box::pin(visitor(val, CompileTarget::Current.into()))),
                                     &cache,
-                                ))
-                                .unwrap()
-                            });
+                                )
+                                .await
+                            })
+                            .unwrap();
                         }
                     });
                 });

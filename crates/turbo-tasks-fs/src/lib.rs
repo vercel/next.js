@@ -12,11 +12,13 @@ use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
 
+#[cfg(unix)]
+use std::io::Read;
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display},
     fs::{self, create_dir_all},
-    io::{ErrorKind, Read, Write},
+    io::{ErrorKind, Write},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{

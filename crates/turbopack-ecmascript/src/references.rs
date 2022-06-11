@@ -29,6 +29,7 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
+use turbo_tasks::ValueToString;
 use turbo_tasks::{util::try_join_all, Value, Vc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::context::AssetContextVc;
@@ -1027,6 +1028,14 @@ impl AssetReference for PackageJsonReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "package.json {}",
+            self.package_json.to_string().await?,
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -1055,6 +1064,14 @@ impl AssetReference for TsConfigReference {
         )
         .into()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "tsconfig {}",
+            self.tsconfig.to_string().await?,
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -1078,6 +1095,14 @@ impl AssetReference for EsmAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         esm_resolve(self.request, self.context)
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "import {}",
+            self.request.to_string().await?,
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -1100,6 +1125,14 @@ impl AssetReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         cjs_resolve(self.request, self.context)
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "require {}",
+            self.request.to_string().await?,
+        )))
     }
 }
 
@@ -1134,6 +1167,14 @@ impl AssetReference for TsReferencePathAssetReference {
             },
         )
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "typescript reference path comment {}",
+            self.path,
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -1160,6 +1201,14 @@ impl AssetReference for TsReferenceTypeAssetReference {
             self.context,
         )
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "typescript reference type comment {}",
+            self.module,
+        )))
+    }
 }
 
 #[turbo_tasks::value(AssetReference)]
@@ -1184,5 +1233,13 @@ impl AssetReference for SourceAssetReference {
         let context = self.source.path().parent();
 
         Ok(resolve_raw(context, self.path, false))
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "raw asset {}",
+            self.path.to_string().await?,
+        )))
     }
 }

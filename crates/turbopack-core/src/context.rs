@@ -16,5 +16,6 @@ pub trait AssetContext {
         resolve_options: ResolveOptionsVc,
     ) -> ResolveResultVc;
     fn process(&self, asset: AssetVc) -> AssetVc;
+    fn process_resolve_result(&self, result: ResolveResultVc) -> ResolveResultVc;
     fn with_context_path(&self, path: FileSystemPathVc) -> AssetContextVc;
 }

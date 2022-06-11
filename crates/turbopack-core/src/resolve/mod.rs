@@ -771,4 +771,12 @@ impl AssetReference for AffectingResolvingAssetReference {
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new()).into()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "resolving is affected by {}",
+            self.file.to_string().await?
+        )))
+    }
 }
