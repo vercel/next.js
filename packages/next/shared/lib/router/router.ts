@@ -1704,7 +1704,11 @@ export default class Router implements BaseRouter {
 
       // we kick off a HEAD request in the background
       // when a non-prefetch request is made to signal revalidation
-      if (!this.isPreview && routeInfo.__N_SSG) {
+      if (
+        !this.isPreview &&
+        routeInfo.__N_SSG &&
+        process.env.NODE_ENV !== 'development'
+      ) {
         fetchNextData(
           Object.assign({}, fetchNextDataParams, {
             isBackground: true,

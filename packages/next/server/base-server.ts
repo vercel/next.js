@@ -530,9 +530,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             if (paramsResult.hasValidParams) {
               params = paramsResult.params
-            } else if (req.headers['x-now-route-matches']) {
+            }
+
+            if (
+              req.headers['x-now-route-matches'] &&
+              (!paramsResult.hasValidParams ||
+                (isDynamicRoute(matchedPath) &&
+                  isDynamicRoute(normalizedUrlPath)))
+            ) {
               const opts: Record<string, string> = {}
-              params = utils.getParamsFromRouteMatches(
+              const routeParams = utils.getParamsFromRouteMatches(
                 req,
                 opts,
                 parsedUrl.query.__nextLocale || ''
@@ -540,6 +547,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
+              }
+              paramsResult = utils.normalizeDynamicRouteParams(routeParams)
+
+              if (paramsResult.hasValidParams) {
+                params = paramsResult.params
               }
             }
 
