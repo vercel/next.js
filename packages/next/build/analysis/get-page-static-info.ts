@@ -5,6 +5,7 @@ import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isMiddlewareFile } from '../utils'
+import * as Log from '../output/log'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
@@ -38,12 +39,16 @@ export async function getPageStaticInfo(params: {
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
 
-    const runtime =
-      config?.runtime === 'edge'
-        ? 'edge'
-        : ssr || ssg
-        ? config?.runtime || nextConfig.experimental?.runtime
-        : undefined
+    let runtime = ['experimental-edge', 'edge'].includes(config?.runtime)
+      ? 'edge'
+      : ssr || ssg
+      ? config?.runtime || nextConfig.experimental?.runtime
+      : undefined
+
+    if (runtime === 'experimental-edge' || runtime === 'edge') {
+      warnAboutExperimentalEdgeApiFunctions()
+      runtime = 'edge'
+    }
 
     const middlewareConfig =
       isMiddlewareFile(params.page!) && getMiddlewareConfig(config)
@@ -174,3 +179,13 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
     return regexes
   }
 }
+
+function warnAboutExperimentalEdgeApiFunctions() {
+  if (warnedAboutExperimentalEdgeApiFunctions) {
+    return
+  }
+  Log.warn(`You are using an experimental edge runtime, the API might change.`)
+  warnedAboutExperimentalEdgeApiFunctions = true
+}
+
+let warnedAboutExperimentalEdgeApiFunctions = false
