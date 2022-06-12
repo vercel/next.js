@@ -1674,7 +1674,7 @@ export default class Router implements BaseRouter {
               isServerRender: this.isSsr,
               parseJSON: true,
               inflightCache: this.sdc,
-              persistCache: !!routeInfo.__N_SSG && !isPreview,
+              persistCache: !isPreview,
               isPrefetch: false,
             }))
 
@@ -1906,8 +1906,8 @@ export default class Router implements BaseRouter {
           isServerRender: this.isSsr,
           parseJSON: true,
           inflightCache: this.sdc,
-          persistCache: false,
-          isPrefetch: false,
+          persistCache: !this.isPreview,
+          isPrefetch: true,
         }),
       asPath: asPath,
       locale: locale,
