@@ -517,7 +517,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               parsedUrl.query
             )
 
-            if (!paramsResult.hasValidParams) {
+            if (
+              !isDynamicRoute(normalizedUrlPath) ||
+              !isDynamicRoute(matchedPath)
+            ) {
               // we favor matching against req.url although if there's a
               // rewrite and it's SSR we use the x-matched-path instead
               let matcherRes = utils.dynamicRouteMatcher?.(normalizedUrlPath)
@@ -525,7 +528,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (!matcherRes) {
                 matcherRes = utils.dynamicRouteMatcher?.(matchedPath)
               }
-              paramsResult = utils.normalizeDynamicRouteParams(matcherRes || {})
+              const parsedResult = utils.normalizeDynamicRouteParams(
+                matcherRes || {}
+              )
+
+              if (parsedResult.hasValidParams) {
+                if (paramsResult.hasValidParams) {
+                  Object.assign(paramsResult.params, parsedResult.params)
+                } else {
+                  paramsResult = parsedResult
+                }
+              }
             }
 
             if (paramsResult.hasValidParams) {
@@ -559,7 +572,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (!paramsResult.hasValidParams) {
                 params = utils.normalizeDynamicRouteParams(params).params
               }
-
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
