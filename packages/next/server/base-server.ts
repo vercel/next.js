@@ -457,6 +457,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query.__nextDataReq = '1'
           }
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
           if (this.nextConfig.i18n) {
@@ -512,9 +513,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            const paramsResult = utils.normalizeDynamicRouteParams(
+            let paramsResult = utils.normalizeDynamicRouteParams(
               parsedUrl.query
             )
+
+            if (!paramsResult.hasValidParams) {
+              // we favor matching against req.url although if there's a
+              // rewrite and it's SSR we use the x-matched-path instead
+              let matcherRes = utils.dynamicRouteMatcher?.(normalizedUrlPath)
+
+              if (!matcherRes) {
+                matcherRes = utils.dynamicRouteMatcher?.(matchedPath)
+              }
+              paramsResult = utils.normalizeDynamicRouteParams(matcherRes || {})
+            }
 
             if (paramsResult.hasValidParams) {
               params = paramsResult.params
@@ -529,8 +541,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
               }
-            } else {
-              params = utils.dynamicRouteMatcher!(matchedPath) || {}
             }
 
             if (params) {
