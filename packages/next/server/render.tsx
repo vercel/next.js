@@ -551,10 +551,7 @@ export async function renderToHTML(
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
-  if (
-    renderOpts.nextExport &&
-    (hasPageGetInitialProps || defaultAppGetInitialProps)
-  ) {
+  if (renderOpts.nextExport && hasPageGetInitialProps) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
         `while running "next export". It's recommended to use getStaticProps` +
