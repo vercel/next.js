@@ -456,6 +456,17 @@ interface FetchDataOutput {
   text: string
 }
 
+interface FetchNextDataParams {
+  dataHref: string
+  isServerRender: boolean
+  parseJSON: boolean | undefined
+  hasMiddleware?: boolean
+  inflightCache: NextDataCache
+  persistCache: boolean
+  isPrefetch: boolean
+  isBackground?: boolean
+}
+
 function fetchNextData({
   dataHref,
   inflightCache,
@@ -464,15 +475,8 @@ function fetchNextData({
   isServerRender,
   parseJSON,
   persistCache,
-}: {
-  dataHref: string
-  isServerRender: boolean
-  parseJSON: boolean | undefined
-  hasMiddleware?: boolean
-  inflightCache: NextDataCache
-  persistCache: boolean
-  isPrefetch: boolean
-}): Promise<FetchDataOutput> {
+  isBackground,
+}: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
@@ -560,18 +564,11 @@ function fetchNextData({
       })
 
   if (inflightCache[cacheKey] !== undefined) {
-    // we kick off a HEAD request in the background
-    // when a non-prefetch request is made to signal revalidation
-    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
-      backgroundCache[cacheKey] = getData({ method: 'HEAD' })
-        .catch(() => {})
-        .then(() => {
-          delete backgroundCache[cacheKey]
-        })
-    }
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = getData())
+  return (inflightCache[cacheKey] = getData(
+    isBackground ? { method: 'HEAD' } : {}
+  ))
 }
 
 function tryToParseAsJSON(text: string) {
@@ -1573,22 +1570,23 @@ export default class Router implements BaseRouter {
           ? existingInfo
           : undefined
 
+      const fetchNextDataParams: FetchNextDataParams = {
+        dataHref: this.pageLoader.getDataHref({
+          href: formatWithValidation({ pathname, query }),
+          skipInterpolation: true,
+          asPath: resolvedAs,
+          locale,
+        }),
+        hasMiddleware: true,
+        isServerRender: this.isSsr,
+        parseJSON: true,
+        inflightCache: this.sdc,
+        persistCache: !isPreview,
+        isPrefetch: false,
+      }
+
       const data = await withMiddlewareEffects({
-        fetchData: () =>
-          fetchNextData({
-            dataHref: this.pageLoader.getDataHref({
-              href: formatWithValidation({ pathname, query }),
-              skipInterpolation: true,
-              asPath: resolvedAs,
-              locale,
-            }),
-            hasMiddleware: true,
-            isServerRender: this.isSsr,
-            parseJSON: true,
-            inflightCache: this.sdc,
-            persistCache: !isPreview,
-            isPrefetch: false,
-          }),
+        fetchData: () => fetchNextData(fetchNextDataParams),
         asPath: resolvedAs,
         locale: locale,
         router: this,
@@ -1632,13 +1630,6 @@ export default class Router implements BaseRouter {
             __N_RSC: !!res.mod.__next_rsc__,
           })
         ))
-
-      // TODO: we only bust the data cache for SSP routes
-      // although middleware can skip cache per request with
-      // x-middleware-cache: no-cache
-      if (routeInfo.__N_SSP && data?.dataHref) {
-        delete this.sdc[data?.dataHref]
-      }
 
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -1699,6 +1690,29 @@ export default class Router implements BaseRouter {
           ),
         }
       })
+
+      // Only bust the data cache for SSP routes although
+      // middleware can skip cache per request with
+      // x-middleware-cache: no-cache as well
+      if (routeInfo.__N_SSP && fetchNextDataParams.dataHref) {
+        const cacheKey = new URL(
+          fetchNextDataParams.dataHref,
+          window.location.href
+        ).href
+        delete this.sdc[cacheKey]
+      }
+
+      // we kick off a HEAD request in the background
+      // when a non-prefetch request is made to signal revalidation
+      if (!this.isPreview && routeInfo.__N_SSG) {
+        fetchNextData(
+          Object.assign({}, fetchNextDataParams, {
+            isBackground: true,
+            persistCache: false,
+            inflightCache: backgroundCache,
+          })
+        ).catch(() => {})
+      }
 
       if (routeInfo.__N_RSC) {
         props.pageProps = Object.assign(props.pageProps, {
