@@ -15,7 +15,7 @@ describe('Export with getInitialProps', () => {
       { stderr: true }
     )
     expect(stderr).toContain(
-      'https://nextjs.org/docs/messages/getinitialprops-export'
+      'https://nextjs.org/docs/messages/get-initial-props-export'
     )
   })
 })
