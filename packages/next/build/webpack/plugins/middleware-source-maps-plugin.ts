@@ -1,5 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FILENAME } from '../../../lib/constants'
+import { MIDDLEWARE_LOCATION_REGEXP } from '../../../lib/constants'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 /**
@@ -10,7 +10,10 @@ export const getMiddlewareSourceMapPlugins = () => {
   return [
     new webpack.SourceMapDevToolPlugin({
       filename: '[file].map',
-      include: [new RegExp(`${MIDDLEWARE_FILENAME}.`), /^edge-chunks\//],
+      include: [
+        new RegExp(`^${MIDDLEWARE_LOCATION_REGEXP}\\.`),
+        /^edge-chunks\//,
+      ],
     }),
     new MiddlewareSourceMapsPlugin(),
   ]
