@@ -363,7 +363,9 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              routedMiddleware.push(pageName)
+              if (!pageName.startsWith('/api/')) {
+                routedMiddleware.push(pageName)
+              }
               ssrMiddleware.add(pageName)
             },
           })
