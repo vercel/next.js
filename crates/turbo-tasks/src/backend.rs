@@ -155,6 +155,15 @@ pub trait Backend: Sync + Send {
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
     fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
+    fn get_task_description(&self, task: TaskId) -> String;
+    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static>: Future<Output = ()>
+        + Send
+        + 'static;
+    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+        &self,
+        task: TaskId,
+        future: T,
+    ) -> Self::ExecutionScopeFuture<T>;
     fn try_start_task_execution(
         &self,
         task: TaskId,

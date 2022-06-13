@@ -1,10 +1,6 @@
 mod nft_json;
 
 use anyhow::{anyhow, Context, Result};
-use async_std::{
-    future::timeout,
-    task::{block_on, spawn},
-};
 use clap::Parser;
 use std::{
     collections::BTreeSet,
@@ -16,6 +12,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use tokio::time::timeout;
 use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
@@ -188,7 +185,10 @@ fn process_input(dir: &PathBuf, context: &String, input: &Vec<String>) -> Result
         .collect()
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
+    #[cfg(debug_assertions)]
+    console_subscriber::init();
     register();
 
     let args = Args::parse();
@@ -213,19 +213,20 @@ fn main() {
                 println!("restored cache {} ms", elapsed.as_millis());
                 tt
             },
-            |tt, _, duration| {
+            |tt, _, duration| async move {
                 let mut start = Instant::now();
                 if *cache_fully {
-                    block_on(tt.wait_background_done());
-                    block_on(tt.stop_and_wait());
+                    tt.wait_background_done().await;
+                    tt.stop_and_wait().await;
                     let elapsed = start.elapsed();
                     println!("flushed cache {} ms", elapsed.as_millis());
                 } else {
                     let background_timeout =
                         std::cmp::max(duration / 5, Duration::from_millis(100));
-                    let timed_out =
-                        block_on(timeout(background_timeout, tt.wait_background_done())).is_err();
-                    block_on(tt.stop_and_wait());
+                    let timed_out = timeout(background_timeout, tt.wait_background_done())
+                        .await
+                        .is_err();
+                    tt.stop_and_wait().await;
                     let elapsed = start.elapsed();
                     if timed_out {
                         println!("flushed cache partially {} ms", elapsed.as_millis());
@@ -239,11 +240,12 @@ fn main() {
                 println!("writing cache {} ms", elapsed.as_millis());
             },
         )
+        .await;
     } else {
         run(
             &args,
             || TurboTasks::new(MemoryBackend::new()),
-            |tt, root_task, _| {
+            |tt, root_task, _| async move {
                 if visualize_graph {
                     let mut stats = Stats::new();
                     let b = tt.backend();
@@ -259,13 +261,14 @@ fn main() {
                 }
             },
         )
+        .await;
     }
 }
 
-fn run<B: Backend + 'static>(
+async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: &Args,
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
-    final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration),
+    final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
 ) {
     let &CommonArgs {
         ref input,
@@ -275,31 +278,24 @@ fn run<B: Backend + 'static>(
     } = args.common();
 
     let start = Instant::now();
-    let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| {
+    let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
         if watch {
-            let handle = spawn({
-                let tt = tt.clone();
-                async move {
-                    tt.wait_done().await;
-                    println!("done in {} ms", start.elapsed().as_millis());
+            tt.wait_done().await;
+            println!("done in {} ms", start.elapsed().as_millis());
 
-                    loop {
-                        let (elapsed, count) = tt.wait_done().await;
-                        if elapsed.as_millis() >= 10 {
-                            println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-                        } else {
-                            println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-                        }
-                    }
+            loop {
+                let (elapsed, count) = tt.wait_next_done().await;
+                if elapsed.as_millis() >= 10 {
+                    println!("updated {} tasks in {} ms", count, elapsed.as_millis());
+                } else {
+                    println!("updated {} tasks in {} µs", count, elapsed.as_micros());
                 }
-            });
-
-            block_on(handle);
+            }
         } else {
-            block_on(tt.wait_done());
+            tt.wait_done().await;
             let dur = start.elapsed();
             println!("done in {} ms", dur.as_millis());
-            final_finish(tt, root_task, dur);
+            final_finish(tt, root_task, dur).await;
             let dur = start.elapsed();
             println!("all done in {} ms", dur.as_millis());
         }
@@ -331,7 +327,7 @@ fn run<B: Backend + 'static>(
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task);
+            finish(tt, task).await;
         }
         Args::Annotate { common: _ } => {
             let dir = current_dir().unwrap();
@@ -350,7 +346,7 @@ fn run<B: Backend + 'static>(
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task);
+            finish(tt, task).await;
         }
         Args::Build {
             ref output_directory,
@@ -377,7 +373,7 @@ fn run<B: Backend + 'static>(
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task);
+            finish(tt, task).await;
         }
         Args::Size { common: _ } => todo!(),
     }

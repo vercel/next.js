@@ -7,7 +7,7 @@ pub async fn add(a: I32ValueVc, b: I32ValueVc) -> Result<I32ValueVc> {
     let a = a.await?.value;
     let b = b.await?.value;
     println!("{} + {} = ...", a, b);
-    async_std::task::sleep(Duration::from_millis(500)).await;
+    tokio::task::sleep(Duration::from_millis(500)).await;
     println!("{} + {} = {}", a, b, a + b);
     Ok(I32ValueVc::new(a + b))
 }
@@ -17,7 +17,7 @@ pub async fn max_new(a: I32ValueVc, b: I32ValueVc) -> Result<I32ValueVc> {
     let a = a.await?.value;
     let b = b.await?.value;
     println!("max({}, {}) = ...", a, b);
-    async_std::task::sleep(Duration::from_millis(500)).await;
+    tokio::task::sleep(Duration::from_millis(500)).await;
     let max = if a > b { a } else { b };
     println!("max({}, {}) = {}", a, b, max);
     Ok(I32ValueVc::new(max))
@@ -28,7 +28,7 @@ pub async fn max_reuse(a_ref: I32ValueVc, b_ref: I32ValueVc) -> Result<I32ValueV
     let a = a_ref.await?.value;
     let b = b_ref.await?.value;
     println!("max({}, {}) = ...", a, b);
-    async_std::task::sleep(Duration::from_millis(500)).await;
+    tokio::task::sleep(Duration::from_millis(500)).await;
     println!("max({}, {}) = {}", a, b, a + b);
     Ok(if a > b { a_ref } else { b_ref })
 }

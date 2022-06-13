@@ -13,9 +13,8 @@ lazy_static = "1.4.0"
 anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-async-std = "1.10.0"
+tokio = "1.11.0"
 notify = "4.0.17"
-threadpool = "1.8.1"
 concurrent-queue = "1.2.2"
 json = "0.12.4"
 serde = { version = "1.0.136", features = ["rc"] }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     backend::{PersistentTaskType, SlotMappings},
     persisted_graph::{TaskData, TaskSlot},
-    without_task_id_mapping, RawVc, TaskId,
+    without_task_id_mapping, RawVc,
 };
 
 use crate::table::{database, table};

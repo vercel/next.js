@@ -13,5 +13,5 @@ bench = false
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
-async-std = "1.10.0"
+tokio = "1.11.0"
 event-listener = "2.5.2"

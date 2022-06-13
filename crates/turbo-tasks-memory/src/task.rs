@@ -1,5 +1,4 @@
 use anyhow::Result;
-use async_std::task_local;
 use event_listener::{Event, EventListener};
 #[cfg(feature = "report_expensive")]
 use std::time::Instant;
@@ -16,6 +15,7 @@ use std::{
         Mutex, RwLock,
     },
 };
+use tokio::task_local;
 use turbo_tasks::{
     backend::{PersistentTaskType, SlotMappings},
     get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId, TaskInput, TraitTypeId,
@@ -27,7 +27,7 @@ pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 task_local! {
     /// Vc that are read during task execution
     /// These will be stored as dependencies when the execution has finished
-    static DEPENDENCIES_TO_TRACK: RefCell<HashSet<RawVc>> = Default::default();
+    pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<HashSet<RawVc>>;
 }
 
 /// Different Task types
@@ -274,6 +274,24 @@ impl Task {
             }),
             active_parents: AtomicU32::new(1),
             execution_data: Default::default(),
+        }
+    }
+
+    pub(crate) fn get_description(&self) -> String {
+        match &self.ty {
+            TaskType::Root(..) => "root".to_string(),
+            TaskType::Once(..) => "once".to_string(),
+            TaskType::Native(native_fn, _) => registry::get_function(*native_fn).name.clone(),
+            TaskType::ResolveNative(native_fn) => {
+                format!("[resolve] {}", registry::get_function(*native_fn).name)
+            }
+            TaskType::ResolveTrait(trait_type, fn_name) => {
+                format!(
+                    "[resolve trait] {} in trait {}",
+                    fn_name,
+                    registry::get_trait(*trait_type).name
+                )
+            }
         }
     }
 
@@ -833,20 +851,7 @@ impl Display for Task {
         write!(
             f,
             "Task({}, {})",
-            match &self.ty {
-                TaskType::Root(..) => "root".to_string(),
-                TaskType::Once(..) => "once".to_string(),
-                TaskType::Native(native_fn, _) => registry::get_function(*native_fn).name.clone(),
-                TaskType::ResolveNative(native_fn) =>
-                    format!("[resolve] {}", registry::get_function(*native_fn).name),
-                TaskType::ResolveTrait(trait_type, fn_name) => {
-                    format!(
-                        "[resolve trait] {} in trait {}",
-                        fn_name,
-                        registry::get_trait(*trait_type).name
-                    )
-                }
-            },
+            self.get_description(),
             Task::state_string(&state)
         )
     }

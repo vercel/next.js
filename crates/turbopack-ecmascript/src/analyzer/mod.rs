@@ -1862,7 +1862,6 @@ pub mod test_utils {
 mod tests {
     use std::{path::PathBuf, sync::Mutex, time::Instant};
 
-    use async_std::task::block_on;
     use swc_common::Mark;
     use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
@@ -1884,94 +1883,94 @@ mod tests {
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
 
         testing::run_test(false, |cm, handler| {
-            let fm = cm.load_file(&input).unwrap();
+            let r = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .unwrap();
+            r.block_on(async move {
+                let fm = cm.load_file(&input).unwrap();
 
-            let mut m = parse_file_as_program(
-                &fm,
-                Default::default(),
-                EsVersion::latest(),
-                None,
-                &mut vec![],
-            )
-            .map_err(|err| err.into_diagnostic(&handler).emit())?;
+                let mut m = parse_file_as_program(
+                    &fm,
+                    Default::default(),
+                    EsVersion::latest(),
+                    None,
+                    &mut vec![],
+                )
+                .map_err(|err| err.into_diagnostic(&handler).emit())?;
 
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
-            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
+                m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-            let eval_context = EvalContext::new(&m, unresolved_mark);
+                let eval_context = EvalContext::new(&m, unresolved_mark);
 
-            let var_graph = create_graph(&m, &eval_context);
+                let var_graph = create_graph(&m, &eval_context);
 
-            let mut named_values = var_graph
-                .values
-                .clone()
-                .into_iter()
-                .map(|((id, ctx), value)| {
-                    let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
-                    if unique {
-                        (id.to_string(), value)
-                    } else {
-                        (format!("{id}{ctx:?}"), value)
-                    }
-                })
-                .collect::<Vec<_>>();
-            named_values.sort_by(|a, b| a.0.cmp(&b.0));
-
-            fn explain_all(values: &Vec<(String, JsValue)>) -> String {
-                values
-                    .iter()
-                    .map(|(id, value)| {
-                        let (explainer, hints) = value.explain(10, 5);
-                        format!("{id} = {explainer}{hints}")
+                let mut named_values = var_graph
+                    .values
+                    .clone()
+                    .into_iter()
+                    .map(|((id, ctx), value)| {
+                        let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
+                        if unique {
+                            (id.to_string(), value)
+                        } else {
+                            (format!("{id}{ctx:?}"), value)
+                        }
                     })
-                    .collect::<Vec<_>>()
-                    .join("\n\n")
-            }
+                    .collect::<Vec<_>>();
+                named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-            {
-                // Dump snapshot of graph
+                fn explain_all(values: &Vec<(String, JsValue)>) -> String {
+                    values
+                        .iter()
+                        .map(|(id, value)| {
+                            let (explainer, hints) = value.explain(10, 5);
+                            format!("{id} = {explainer}{hints}")
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n\n")
+                }
 
-                NormalizedOutput::from(format!("{:#?}", named_values))
-                    .compare_to_file(&graph_snapshot_path)
-                    .unwrap();
-                NormalizedOutput::from(explain_all(&named_values))
-                    .compare_to_file(&graph_explained_snapshot_path)
-                    .unwrap();
-            }
+                {
+                    // Dump snapshot of graph
 
-            {
-                // Dump snapshot of resolved
+                    NormalizedOutput::from(format!("{:#?}", named_values))
+                        .compare_to_file(&graph_snapshot_path)
+                        .unwrap();
+                    NormalizedOutput::from(explain_all(&named_values))
+                        .compare_to_file(&graph_explained_snapshot_path)
+                        .unwrap();
+                }
 
-                let start = Instant::now();
-                let cache = Mutex::new(LinkCache::new());
-                let resolved = named_values
-                    .iter()
-                    .map(|(id, val)| {
+                {
+                    // Dump snapshot of resolved
+
+                    let start = Instant::now();
+                    let cache = Mutex::new(LinkCache::new());
+                    let mut resolved = Vec::new();
+                    for (id, val) in named_values.iter() {
                         let val = val.clone();
                         println!("linking {} {id}", input.display());
                         let start = Instant::now();
-                        let mut res = block_on(async {
-                            turbo_tasks_testing::VcStorage::install();
-                            link(
-                                &var_graph,
-                                val,
-                                &(|val| {
-                                    Box::pin(super::test_utils::visitor(
-                                        val,
-                                        CompileTarget::Target(Target::new(
-                                            Arch::X64,
-                                            Platform::Linux,
-                                            Endianness::Little,
-                                            Libc::Glibc,
-                                        ))
-                                        .into(),
+                        let mut res = turbo_tasks_testing::VcStorage::with(link(
+                            &var_graph,
+                            val,
+                            &(|val| {
+                                Box::pin(super::test_utils::visitor(
+                                    val,
+                                    CompileTarget::Target(Target::new(
+                                        Arch::X64,
+                                        Platform::Linux,
+                                        Endianness::Little,
+                                        Libc::Glibc,
                                     ))
-                                }),
-                                &cache,
-                            )
-                            .await
-                        })
+                                    .into(),
+                                ))
+                            }),
+                            &cache,
+                        ))
+                        .await
                         .unwrap();
                         let time = start.elapsed().as_millis();
                         if time > 1 {
@@ -1979,27 +1978,27 @@ mod tests {
                         }
                         res.normalize();
 
-                        (id.clone(), res)
-                    })
-                    .collect::<Vec<_>>();
-                let time = start.elapsed().as_millis();
-                if time > 1 {
-                    println!("linking {} took {} ms", input.display(), time);
+                        resolved.push((id.clone(), res));
+                    }
+                    let time = start.elapsed().as_millis();
+                    if time > 1 {
+                        println!("linking {} took {} ms", input.display(), time);
+                    }
+
+                    let start = Instant::now();
+                    let time = start.elapsed().as_millis();
+                    let explainer = explain_all(&resolved);
+                    if time > 1 {
+                        println!("explaining {} took {} ms", input.display(), time);
+                    }
+
+                    NormalizedOutput::from(explainer)
+                        .compare_to_file(&resolved_explained_snapshot_path)
+                        .unwrap();
                 }
 
-                let start = Instant::now();
-                let time = start.elapsed().as_millis();
-                let explainer = explain_all(&resolved);
-                if time > 1 {
-                    println!("explaining {} took {} ms", input.display(), time);
-                }
-
-                NormalizedOutput::from(explainer)
-                    .compare_to_file(&resolved_explained_snapshot_path)
-                    .unwrap();
-            }
-
-            Ok(())
+                Ok(())
+            })
         })
         .unwrap();
     }

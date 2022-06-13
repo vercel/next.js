@@ -55,7 +55,7 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
     }
 
     pub fn new() -> Self {
-        let mut buckets = [null_mut(); BUCKETS];
+        let buckets = [null_mut(); BUCKETS];
         let buckets = buckets.map(|p| (AtomicPtr::new(p), Mutex::new(())));
         InfiniteVec { buckets }
     }

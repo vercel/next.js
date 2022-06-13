@@ -5,7 +5,6 @@ use std::{
     time::Duration,
 };
 
-use async_std::task::block_on;
 use criterion::Criterion;
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver;
@@ -60,19 +59,19 @@ pub fn benchmark(c: &mut Criterion) {
                     b.iter(|| create_graph(&m, &eval_context));
                 });
                 group.bench_function("link", move |b| {
-                    b.iter(|| {
+                    let r = tokio::runtime::Builder::new_current_thread()
+                        .build()
+                        .unwrap();
+                    b.to_async(r).iter(|| async {
                         let cache = Mutex::new(LinkCache::new());
                         for val in var_graph.values.values() {
-                            block_on(async {
-                                VcStorage::install();
-                                link(
-                                    &var_graph,
-                                    val.clone(),
-                                    &(|val| Box::pin(visitor(val, CompileTarget::Current.into()))),
-                                    &cache,
-                                )
-                                .await
-                            })
+                            VcStorage::with(link(
+                                &var_graph,
+                                val.clone(),
+                                &(|val| Box::pin(visitor(val, CompileTarget::Current.into()))),
+                                &cache,
+                            ))
+                            .await
                             .unwrap();
                         }
                     });

@@ -1,8 +1,9 @@
-use std::{collections::HashSet, future::Future, pin::Pin};
+use std::{cell::RefCell, collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use event_listener::EventListener;
 use flurry::HashMap as FHashMap;
+use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
     backend::{
         Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
@@ -12,7 +13,10 @@ use turbo_tasks::{
     RawVc, TaskId, TurboTasksBackendApi,
 };
 
-use crate::{output::Output, task::Task};
+use crate::{
+    output::Output,
+    task::{Task, DEPENDENCIES_TO_TRACK},
+};
 
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
@@ -81,6 +85,20 @@ impl Backend for MemoryBackend {
                 task.invalidate(self, turbo_tasks);
             });
         }
+    }
+
+    fn get_task_description(&self, task: TaskId) -> String {
+        self.with_task(task, |task| task.get_description())
+    }
+
+    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static> =
+        TaskLocalFuture<RefCell<HashSet<RawVc>>, T>;
+    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+        &self,
+        _task: TaskId,
+        future: T,
+    ) -> Self::ExecutionScopeFuture<T> {
+        DEPENDENCIES_TO_TRACK.scope(Default::default(), future)
     }
 
     fn try_start_task_execution(
@@ -283,7 +301,10 @@ impl Backend for MemoryBackend {
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
         let task = match task_type {
-            TransientTaskType::Root(f) => Task::new_root(id, f),
+            TransientTaskType::Root(f) => Task::new_root(id, move || {
+                let future = f();
+                future
+            }),
             TransientTaskType::Once(f) => Task::new_once(id, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet

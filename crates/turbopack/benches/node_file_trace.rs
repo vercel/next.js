@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use criterion::{async_executor::AsyncStdExecutor, Criterion};
+use criterion::Criterion;
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_tasks::{NothingVc, TurboTasks};
@@ -46,7 +46,11 @@ pub fn benchmark(c: &mut Criterion) {
                 group.bench_function("emit_with_completion RebasedAsset", move |b| {
                     let tests_root = tests_root.clone();
                     let input = input.clone();
-                    b.to_async(AsyncStdExecutor).iter(move || {
+                    let r = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
+                    b.to_async(r).iter(move || {
                         let tt = TurboTasks::new(MemoryBackend::new());
                         let tests_root = tests_root.clone();
                         let input = input.clone();
@@ -81,7 +85,11 @@ pub fn benchmark(c: &mut Criterion) {
             group.bench_function("emit module", move |b| {
                 let tests_root = tests_root.clone();
                 let input = input.clone();
-                b.to_async(AsyncStdExecutor).iter(move || {
+                let r = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                b.to_async(r).iter(move || {
                     let tt = TurboTasks::new(MemoryBackend::new());
                     let tests_root = tests_root.clone();
                     let input = input.clone();

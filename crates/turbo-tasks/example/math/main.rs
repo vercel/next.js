@@ -3,7 +3,7 @@
 #![feature(into_future)]
 
 use anyhow::Result;
-use async_std::task::{block_on, sleep, spawn};
+use tokio::task::{block_on, sleep, spawn};
 use log::LoggingOptions;
 use math::{add, max_new};
 use random::RandomIdVc;
@@ -53,7 +53,7 @@ fn main() {
                 }
 
                 loop {
-                    let (elapsed, count) = tt.wait_done().await;
+                    let (elapsed, count) = tt.wait_next_done().await;
                     if elapsed.as_millis() >= 10 {
                         println!("updated {} tasks in {} ms", count, elapsed.as_millis());
                     } else {

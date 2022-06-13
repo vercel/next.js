@@ -3,7 +3,6 @@
 #![feature(into_future)]
 
 use anyhow::Result;
-use async_std::task::{block_on, spawn};
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
@@ -15,7 +14,8 @@ use turbo_tasks_fs::{
     FileSystemVc,
 };
 
-fn main() {
+#[tokio::main]
+async fn main() {
     register();
     include!(concat!(
         env!("OUT_DIR"),
@@ -23,41 +23,33 @@ fn main() {
     ));
 
     let tt = TurboTasks::new(MemoryBackend::new());
-    block_on(async {
-        let start = Instant::now();
+    let start = Instant::now();
 
-        tt.spawn_root_task(|| {
-            Box::pin(async {
-                let root = current_dir().unwrap().to_str().unwrap().to_string();
-                let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
-                disk_fs.await?.start_watching()?;
+    tt.spawn_root_task(|| {
+        Box::pin(async {
+            let root = current_dir().unwrap().to_str().unwrap().to_string();
+            let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
+            disk_fs.await?.start_watching()?;
 
-                // Smart Pointer cast
-                let fs: FileSystemVc = disk_fs.into();
-                let input = FileSystemPathVc::new(fs, "demo");
-                let dir_hash = hash_directory(input);
-                print_hash(dir_hash);
-                Ok(NothingVc::new().into())
-            })
-        });
-        spawn({
-            let tt = tt.clone();
-            async move {
-                tt.wait_done().await;
-                println!("done in {} ms", start.elapsed().as_millis());
-
-                loop {
-                    let (elapsed, count) = tt.wait_done().await;
-                    if elapsed.as_millis() >= 10 {
-                        println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-                    } else {
-                        println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-                    }
-                }
-            }
+            // Smart Pointer cast
+            let fs: FileSystemVc = disk_fs.into();
+            let input = FileSystemPathVc::new(fs, "demo");
+            let dir_hash = hash_directory(input);
+            print_hash(dir_hash);
+            Ok(NothingVc::new().into())
         })
-        .await;
     });
+    tt.wait_done().await;
+    println!("done in {} ms", start.elapsed().as_millis());
+
+    loop {
+        let (elapsed, count) = tt.wait_next_done().await;
+        if elapsed.as_millis() >= 10 {
+            println!("updated {} tasks in {} ms", count, elapsed.as_millis());
+        } else {
+            println!("updated {} tasks in {} µs", count, elapsed.as_micros());
+        }
+    }
 }
 
 #[turbo_tasks::function]

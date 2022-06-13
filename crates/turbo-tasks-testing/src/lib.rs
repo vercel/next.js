@@ -1,9 +1,12 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    future::Future,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use turbo_tasks::{
-    backend::SlotContent, test_helpers::set_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
+    backend::SlotContent, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
     TurboTasksCallApi,
 };
 
@@ -15,32 +18,32 @@ pub struct VcStorage {
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
-        inputs: Vec<turbo_tasks::TaskInput>,
+        _func: turbo_tasks::FunctionId,
+        _inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
         unreachable!()
     }
 
     fn native_call(
         &self,
-        func: turbo_tasks::FunctionId,
-        inputs: Vec<turbo_tasks::TaskInput>,
+        _func: turbo_tasks::FunctionId,
+        _inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
         unreachable!()
     }
 
     fn trait_call(
         &self,
-        trait_type: turbo_tasks::TraitTypeId,
-        trait_fn_name: String,
-        inputs: Vec<turbo_tasks::TaskInput>,
+        _trait_type: turbo_tasks::TraitTypeId,
+        _trait_fn_name: String,
+        _inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
         unreachable!()
     }
 }
 
 impl TurboTasksApi for VcStorage {
-    fn invalidate(&self, task: TaskId) {
+    fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }
 
@@ -48,20 +51,20 @@ impl TurboTasksApi for VcStorage {
         // ignore
     }
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>> {
+    fn try_read_task_output(&self, _task: TaskId) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
-        task: TaskId,
+        _task: TaskId,
     ) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }
 
     fn try_read_task_slot(
         &self,
-        task: TaskId,
+        _task: TaskId,
         index: usize,
     ) -> Result<Result<SlotContent, EventListener>> {
         self.read_current_task_slot(index).map(|c| Ok(c))
@@ -77,13 +80,13 @@ impl TurboTasksApi for VcStorage {
 
     unsafe fn try_read_own_task_slot(
         &self,
-        current_task: TaskId,
+        _current_task: TaskId,
         index: usize,
     ) -> Result<SlotContent> {
         self.read_current_task_slot(index)
     }
 
-    fn get_fresh_slot(&self, task: TaskId) -> usize {
+    fn get_fresh_slot(&self, _task: TaskId) -> usize {
         let mut slots = self.slots.lock().unwrap();
         let i = slots.len();
         slots.push(SlotContent(None));
@@ -106,7 +109,7 @@ impl TurboTasksApi for VcStorage {
 }
 
 impl VcStorage {
-    pub fn install() {
-        unsafe { set_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0)) }
+    pub fn with<T>(f: impl Future<Output = T>) -> impl Future<Output = T> {
+        unsafe { with_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0), f) }
     }
 }

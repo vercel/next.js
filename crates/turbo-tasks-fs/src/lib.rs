@@ -25,18 +25,18 @@ use std::{
         mpsc::{channel, RecvError, TryRecvError},
         Arc, Mutex, MutexGuard,
     },
-    thread::{self, sleep},
+    thread::sleep,
     time::Duration,
 };
 
 use anyhow::{anyhow, bail, Context, Result};
-use async_std::task::block_on;
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
-use threadpool::ThreadPool;
-use turbo_tasks::{trace::TraceRawVcs, CompletionVc, Invalidator, ValueToString, Vc};
+use turbo_tasks::{
+    spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc, Invalidator, ValueToString, Vc,
+};
 use util::{join_path, normalize_path};
 
 #[turbo_tasks::value_trait]
@@ -46,43 +46,6 @@ pub trait FileSystem {
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn to_string(&self) -> Vc<String>;
-}
-
-const POOL_THREAD_COUNT: usize = 30;
-
-mod pool_ser {
-    use serde::{de::Visitor, Deserializer, Serializer};
-
-    use super::*;
-
-    pub fn serialize<S>(_: &Mutex<ThreadPool>, ser: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        ser.serialize_unit()
-    }
-
-    pub fn deserialize<'de, D>(de: D) -> Result<Mutex<ThreadPool>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct V;
-        impl<'de> Visitor<'de> for V {
-            type Value = Mutex<ThreadPool>;
-
-            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "a ThreadPool")
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Mutex::new(ThreadPool::new(POOL_THREAD_COUNT)))
-            }
-        }
-        de.deserialize_unit(V)
-    }
 }
 
 mod watcher_ser {
@@ -131,9 +94,6 @@ pub struct DiskFileSystem {
     #[trace_ignore]
     #[serde(with = "watcher_ser")]
     watcher: Mutex<Option<RecommendedWatcher>>,
-    #[trace_ignore]
-    #[serde(with = "pool_ser")]
-    pool: Mutex<ThreadPool>,
 }
 
 impl DiskFileSystem {
@@ -177,7 +137,7 @@ impl DiskFileSystem {
 
         watcher_guard.replace(watcher);
 
-        thread::spawn(move || {
+        spawn_thread(move || {
             let mut batched_invalidate_path = HashSet::new();
             let mut batched_invalidate_path_dir = HashSet::new();
             let mut batched_invalidate_path_and_children = HashSet::new();
@@ -306,7 +266,6 @@ fn path_to_key(path: &Path) -> String {
 impl DiskFileSystemVc {
     #[turbo_tasks::function]
     pub fn new(name: String, root: String) -> Result<Self> {
-        let pool = Mutex::new(ThreadPool::new(POOL_THREAD_COUNT));
         // create the directory for the filesystem on disk, if it doesn't exist
         create_dir_all(&root)?;
 
@@ -316,7 +275,6 @@ impl DiskFileSystemVc {
             invalidators: Arc::new(InvalidatorMap::new()),
             dir_invalidators: Arc::new(InvalidatorMap::new()),
             watcher: Mutex::new(None),
-            pool,
         };
 
         Ok(Self::slot(instance))
@@ -325,13 +283,7 @@ impl DiskFileSystemVc {
 
 impl DiskFileSystem {
     async fn execute<T: Send + 'static>(&self, func: impl FnOnce() -> T + Send + 'static) -> T {
-        let (tx, rx) = async_std::channel::bounded(1);
-        {
-            self.pool.lock().unwrap().execute(move || {
-                block_on(tx.send(func())).unwrap();
-            });
-        }
-        rx.recv().await.unwrap()
+        spawn_blocking(func).await
     }
 }
 

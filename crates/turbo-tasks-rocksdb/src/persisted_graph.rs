@@ -20,7 +20,7 @@ use turbo_tasks::{
 
 use crate::db::InternalTaskState;
 
-use super::db::{Database, PartialTaskData, TaskState, TaskStateChange};
+use super::db::{Database, TaskState, TaskStateChange};
 
 fn task_type_to_bytes(ty: &PersistentTaskType) -> Result<Vec<u8>, bincode::Error> {
     let mut result = Vec::new();

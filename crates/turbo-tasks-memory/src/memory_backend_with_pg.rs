@@ -1,5 +1,4 @@
 use std::{
-    cmp::Reverse,
     collections::{BinaryHeap, HashSet},
     fmt::Debug,
     future::Future,
@@ -985,6 +984,20 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         for task in tasks {
             self.invalidate_task(task, turbo_tasks);
         }
+    }
+
+    fn get_task_description(&self, task: TaskId) -> String {
+        let task_info = self.tasks.get(*task).as_ref().unwrap();
+        format!("{:?}", task_info.task_type)
+    }
+
+    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static> = T;
+    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+        &self,
+        _task: TaskId,
+        future: T,
+    ) -> Self::ExecutionScopeFuture<T> {
+        future
     }
 
     fn try_start_task_execution(
