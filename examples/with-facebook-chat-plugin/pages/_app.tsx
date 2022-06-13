@@ -1,7 +1,7 @@
 import type { AppProps } from 'next/app'
 import Script from 'next/script'
 
-const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID
+const FACEBOOK_PAGE_ID = process.env.NEXT_PUBLIC_FACEBOOK_PAGE_ID
 const ATTRIBUTION = ''
 
 function MyApp({ Component, pageProps }: AppProps) {

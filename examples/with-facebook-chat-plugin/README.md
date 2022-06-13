@@ -20,4 +20,4 @@ Next, copy the `.env.local.example` file in this directory to `.env.local` (whic
 cp .env.local.example .env.local
 ```
 
-Set the `FACEBOOK_PAGE_ID` variable in `.env.local` to match your Facebook page's ID.
+Set the `NEXT_PUBLIC_FACEBOOK_PAGE_ID` variable in `.env.local` to match your Facebook page's ID.
