@@ -49,9 +49,11 @@ export class NextInstance {
     packageLockPath,
     env,
   }: {
-    files: {
-      [filename: string]: string | FileRef
-    }
+    files:
+      | FileRef
+      | {
+          [filename: string]: string | FileRef
+        }
     dependencies?: {
       [name: string]: string
     }
