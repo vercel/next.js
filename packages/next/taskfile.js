@@ -6,6 +6,8 @@ const { relative, basename, resolve, join, dirname } = require('path')
 const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs-extra')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const escapeRegex = require('escape-string-regexp')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -80,7 +82,14 @@ export async function ncc_node_html_parser(task, opts) {
   fs.writeFileSync(
     filePath,
     content.replace(
-      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return E}))}else ',
+      new RegExp(
+        escapeRegex(
+          'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return '
+        ) +
+          '\\w' +
+          escapeRegex('}))}else '),
+        'g'
+      ),
       ''
     )
   )

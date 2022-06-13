@@ -7,7 +7,7 @@ export default function ClientComponentRoute() {
   }, [count])
   return (
     <>
-      <p>hello from root/client-component-route. count: {count}</p>
+      <p>hello from app/client-component-route. count: {count}</p>
     </>
   )
 }

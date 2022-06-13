@@ -13,15 +13,6 @@ import {
   getMiddlewareManifest,
 } from './route-loader'
 
-function normalizeRoute(route: string): string {
-  if (route[0] !== '/') {
-    throw new Error(`Route name should start with a "/", got "${route}"`)
-  }
-
-  if (route === '/') return route
-  return route.replace(/\/$/, '')
-}
-
 declare global {
   interface Window {
     __DEV_MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
@@ -122,51 +113,38 @@ export default class PageLoader {
     }
   }
 
-  /**
-   * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
-   * @returns {string}
-   */
-  getDataHref({
-    href,
-    asPath,
-    ssg,
-    flight,
-    locale,
-  }: {
-    href: string
+  getDataHref(params: {
     asPath: string
-    ssg?: boolean
-    flight?: boolean
+    href: string
     locale?: string | false
+    skipInterpolation?: boolean
   }): string {
+    const { asPath, href, locale } = params
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
-    const route = normalizeRoute(hrefPathname)
+    const route = removeTrailingSlash(hrefPathname)
+    if (route[0] !== '/') {
+      throw new Error(`Route name should start with a "/", got "${route}"`)
+    }
 
     const getHrefForSlug = (path: string) => {
-      if (flight) {
-        return path + search + (search ? `&` : '?') + '__flight__=1'
-      }
-
       const dataRoute = getAssetPathFromRoute(
         removeTrailingSlash(addLocale(path, locale)),
         '.json'
       )
       return addBasePath(
-        `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`,
+        `/_next/data/${this.buildId}${dataRoute}${search}`,
         true
       )
     }
 
-    const isDynamic: boolean = isDynamicRoute(route)
-    const interpolatedRoute = isDynamic
-      ? interpolateAs(hrefPathname, asPathname, query).result
-      : ''
-
-    return isDynamic
-      ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
-      : getHrefForSlug(route)
+    return getHrefForSlug(
+      params.skipInterpolation
+        ? asPathname
+        : isDynamicRoute(route)
+        ? interpolateAs(hrefPathname, asPathname, query).result
+        : route
+    )
   }
 
   /**
