@@ -533,7 +533,7 @@ describe('Required Server Files', () => {
   })
 
   it('should match the root dynamic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },
