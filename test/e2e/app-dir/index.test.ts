@@ -329,6 +329,38 @@ describe('views dir', () => {
           'Hello World'
         )
       })
+
+      it('should render loading.js in initial html for slow layout and page', async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          '/slow-layout-and-page-with-loading/slow'
+        )
+        const $ = cheerio.load(html)
+
+        expect($('#loading-layout').text()).toBe('Loading layout...')
+        expect($('#loading-page').text()).toBe('Loading page...')
+      })
+
+      it('should render loading.js in browser for slow layout and page', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/slow-layout-and-page-with-loading/slow',
+          {
+            waitHydration: false,
+          }
+        )
+        // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+        // expect(await browser.elementByCss('#loading-layout').text()).toBe('Loading...')
+        // expect(await browser.elementByCss('#loading-page').text()).toBe('Loading...')
+
+        expect(await browser.elementByCss('#slow-layout-message').text()).toBe(
+          'hello from slow layout'
+        )
+
+        expect(await browser.elementByCss('#slow-page-message').text()).toBe(
+          'hello from slow page'
+        )
+      })
     })
   })
 })
