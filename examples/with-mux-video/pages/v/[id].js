@@ -1,4 +1,4 @@
-import MuxPlayer from '@mux-elements/mux-player-react';
+import MuxPlayer from '@mux-elements/mux-player-react'
 import Link from 'next/link'
 import Layout from '../../components/layout'
 import Spinner from '../../components/spinner'
@@ -50,7 +50,7 @@ export default function Playback({ playbackId, poster }) {
       loadTwitterWidget
     >
       <div className="flash-message">This video is ready for playback</div>
-      <MuxPlayer style={{width: '100%'}} playbackId={playbackId} />
+      <MuxPlayer style={{ width: '100%' }} playbackId={playbackId} />
       <p>
         Go{' '}
         <Link href="/">
