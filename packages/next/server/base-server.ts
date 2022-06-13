@@ -457,6 +457,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query.__nextDataReq = '1'
           }
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
           if (this.nextConfig.i18n) {
@@ -512,15 +513,46 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            const paramsResult = utils.normalizeDynamicRouteParams(
+            let paramsResult = utils.normalizeDynamicRouteParams(
               parsedUrl.query
             )
 
+            if (
+              !isDynamicRoute(normalizedUrlPath) ||
+              !isDynamicRoute(matchedPath)
+            ) {
+              // we favor matching against req.url although if there's a
+              // rewrite and it's SSR we use the x-matched-path instead
+              let matcherRes = utils.dynamicRouteMatcher?.(normalizedUrlPath)
+
+              if (!matcherRes) {
+                matcherRes = utils.dynamicRouteMatcher?.(matchedPath)
+              }
+              const parsedResult = utils.normalizeDynamicRouteParams(
+                matcherRes || {}
+              )
+
+              if (parsedResult.hasValidParams) {
+                if (paramsResult.hasValidParams) {
+                  Object.assign(paramsResult.params, parsedResult.params)
+                } else {
+                  paramsResult = parsedResult
+                }
+              }
+            }
+
             if (paramsResult.hasValidParams) {
               params = paramsResult.params
-            } else if (req.headers['x-now-route-matches']) {
+            }
+
+            if (
+              req.headers['x-now-route-matches'] &&
+              (!paramsResult.hasValidParams ||
+                (isDynamicRoute(matchedPath) &&
+                  isDynamicRoute(normalizedUrlPath)))
+            ) {
               const opts: Record<string, string> = {}
-              params = utils.getParamsFromRouteMatches(
+              const routeParams = utils.getParamsFromRouteMatches(
                 req,
                 opts,
                 parsedUrl.query.__nextLocale || ''
@@ -529,15 +561,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
               }
-            } else {
-              params = utils.dynamicRouteMatcher!(matchedPath) || {}
+              paramsResult = utils.normalizeDynamicRouteParams(routeParams)
+
+              if (paramsResult.hasValidParams) {
+                params = paramsResult.params
+              }
             }
 
             if (params) {
               if (!paramsResult.hasValidParams) {
                 params = utils.normalizeDynamicRouteParams(params).params
               }
-
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
