@@ -142,34 +142,24 @@ export function middleware(req: NextRequest) {
 
 The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature. It has the following properties:
 
-```typescript
-interface UserAgent {
-  isBot: boolean
-  ua: string
-  browser: {
-    name?: string
-    version?: string
-  }
-  device: {
-    model?: string
-    type?: string
-    vendor?: string
-  }
-  engine: {
-    name?: string
-    version?: string
-  }
-  os: {
-    name?: string
-    version?: string
-  }
-  cpu: {
-    architecture?: string
-  }
-}
-```
+- `isBot`: Whether the request comes from a known bot
+- `browser`
+  - `name`: The name of the browser, or `undefined`
+  - `version`: The version of the browser, determined dynamically, or `undefined`
+- `device`
+  - `model`: The model of the device, determined dynamically, or `undefined`
+  - `type`: The type of the browser, can be one of the following values: `console`, `mobile`, `tablet`, `smarttv`, `wearable`, `embedded`, or `undefined`
+  - `vendor`: The vendor of the device, determined dynamically, or `undefined`
+- `engine`
+  - `name`: The name of the browser engine, could be one of the following values: `Amaya`, `Blink`, `EdgeHTML`, `Flow`, `Gecko`, `Goanna`, `iCab`, `KHTML`, `Links`, `Lynx`, `NetFront`, `NetSurf`, `Presto`, `Tasman`, `Trident`, `w3m`, `WebKit` or `undefined`
+  - `version`: The version of the browser engine, determined dynamically, or `undefined`
+- `os`
+  - `name`: The name of the OS, could be `undefined`
+  - `version`: The version of the OS, determined dynamically, or `undefined`
+- `cpu`
+  - `architecture`: The architecture of the CPU, could be one of the following values: `68k`, `amd64`, `arm`, `arm64`, `armhf`, `avr`, `ia32`, `ia64`, `irix`, `irix64`, `mips`, `mips64`, `pa-risc`, `ppc`, `sparc`, `sparc64` or `undefined`
 
-`userAgent` is fully typed and can be imported from `next/server`.
+`userAgent` is fully typed and can be imported from `next/server`:
 
 ```ts
 import { userAgent } from 'next/server'
