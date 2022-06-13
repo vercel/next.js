@@ -738,18 +738,18 @@ export default class DevServer extends Server {
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
-        const frame = frames[0]
+        const frame = frames.find(({ file }) => !file?.startsWith('eval'))!
 
         if (frame.lineNumber && frame?.file) {
-          const compilation =
-            stats === 'server'
-              ? this.hotReloader?.serverStats?.compilation
-              : this.hotReloader?.edgeServerStats?.compilation
-
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+
+          const compilation =
+            frame.file!.startsWith('(middleware)') && stats === 'server'
+              ? this.hotReloader?.serverStats?.compilation
+              : this.hotReloader?.edgeServerStats?.compilation
 
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
