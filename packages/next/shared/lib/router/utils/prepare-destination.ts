@@ -121,6 +121,7 @@ export function prepareDestination(args: {
   const query = Object.assign({}, args.query)
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextDataReq
 
   let escapedDestination = args.destination
 
