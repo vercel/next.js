@@ -9,6 +9,7 @@ import type {
   NullLiteral,
   NumericLiteral,
   ObjectExpression,
+  RegExpLiteral,
   StringLiteral,
   VariableDeclaration,
 } from '@swc/core'
@@ -119,6 +120,10 @@ function isKeyValueProperty(node: Node): node is KeyValueProperty {
   return node.type === 'KeyValueProperty'
 }
 
+function isRegExpLiteral(node: Node): node is RegExpLiteral {
+  return node.type === 'RegExpLiteral'
+}
+
 class UnsupportedValueError extends Error {}
 class NoSuchDeclarationError extends Error {}
 
@@ -134,6 +139,9 @@ function extractValue(node: Node): any {
   } else if (isNumericLiteral(node)) {
     // e.g. 123
     return node.value
+  } else if (isRegExpLiteral(node)) {
+    // e.g. /abc/i
+    return new RegExp(node.pattern, node.flags)
   } else if (isIdentifier(node)) {
     switch (node.value) {
       case 'undefined':

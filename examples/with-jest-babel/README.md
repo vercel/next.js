@@ -15,7 +15,7 @@ npx create-next-app --example with-jest-babel with-jest-babel-app
 # or
 yarn create next-app --example with-jest-babel with-jest-babel-app
 # or
-pnpm create next-app -- --example with-jest-babel with-jest-babel-app
+pnpm create next-app --example with-jest-babel with-jest-babel-app
 ```
 
 ## Run Jest Tests

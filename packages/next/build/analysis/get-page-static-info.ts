@@ -3,11 +3,18 @@ import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import { isMiddlewareFile } from '../utils'
+
+interface MiddlewareConfig {
+  pathMatcher: RegExp
+}
 
 export interface PageStaticInfo {
   runtime?: PageRuntime
   ssg?: boolean
   ssr?: boolean
+  middleware?: Partial<MiddlewareConfig>
 }
 
 /**
@@ -21,38 +28,31 @@ export async function getPageStaticInfo(params: {
   nextConfig: Partial<NextConfig>
   pageFilePath: string
   isDev?: boolean
+  page?: string
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps/.test(fileContent)) {
+  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
-    if (config?.runtime === 'edge') {
-      return {
-        runtime: config.runtime,
-        ssr: ssr,
-        ssg: ssg,
-      }
-    }
 
-    // For Node.js runtime, we do static optimization.
-    if (config?.runtime === 'nodejs') {
-      return {
-        runtime: ssr || ssg ? config.runtime : undefined,
-        ssr: ssr,
-        ssg: ssg,
-      }
-    }
+    const runtime =
+      config?.runtime === 'edge'
+        ? 'edge'
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
+        : undefined
 
-    // When the runtime is required because there is ssr or ssg we fallback
-    if (ssr || ssg) {
-      return {
-        runtime: nextConfig.experimental?.runtime,
-        ssr: ssr,
-        ssg: ssg,
-      }
+    const middlewareConfig =
+      isMiddlewareFile(params.page!) && getMiddlewareConfig(config)
+
+    return {
+      ssr,
+      ssg,
+      ...(middlewareConfig && { middleware: middlewareConfig }),
+      ...(runtime && { runtime }),
     }
   }
 
@@ -115,5 +115,62 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     if (shouldThrow) {
       throw error
     }
+  }
+}
+
+function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
+  const result: Partial<MiddlewareConfig> = {}
+
+  if (config.matcher) {
+    result.pathMatcher = new RegExp(
+      getMiddlewareRegExpStrings(config.matcher).join('|')
+    )
+
+    if (result.pathMatcher.source.length > 4096) {
+      throw new Error(
+        `generated matcher config must be less than 4096 characters.`
+      )
+    }
+  }
+
+  return result
+}
+
+function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
+  if (Array.isArray(matcherOrMatchers)) {
+    return matcherOrMatchers.flatMap((x) => getMiddlewareRegExpStrings(x))
+  }
+
+  if (typeof matcherOrMatchers !== 'string') {
+    throw new Error(
+      '`matcher` must be a path matcher or an array of path matchers'
+    )
+  }
+
+  let matcher: string = matcherOrMatchers
+
+  if (!matcher.startsWith('/')) {
+    throw new Error('`matcher`: path matcher must start with /')
+  }
+
+  const parsedPage = tryToParsePath(matcher)
+  if (parsedPage.error) {
+    throw new Error(`Invalid path matcher: ${matcher}`)
+  }
+
+  const dataMatcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
+
+  const parsedDataRoute = tryToParsePath(dataMatcher)
+  if (parsedDataRoute.error) {
+    throw new Error(`Invalid data path matcher: ${dataMatcher}`)
+  }
+
+  const regexes = [parsedPage.regexStr, parsedDataRoute.regexStr].filter(
+    (x): x is string => !!x
+  )
+  if (regexes.length < 2) {
+    throw new Error("Can't parse matcher")
+  } else {
+    return regexes
   }
 }

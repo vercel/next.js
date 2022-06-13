@@ -8,8 +8,6 @@ import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
-  delBasePath,
-  hasBasePath,
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -32,9 +30,10 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { removeBasePath } from './remove-base-path'
+import { hasBasePath } from './has-base-path'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -86,6 +85,10 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
+
+  // Ignore the module ID transform in client.
+  // @ts-ignore
+;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -167,7 +170,7 @@ class Container extends React.Component<{
     } else {
       const {
         ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/client')
+      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -202,7 +205,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
 
   // make sure not to attempt stripping basePath for 404s
   if (hasBasePath(asPath)) {
-    asPath = delBasePath(asPath)
+    asPath = removeBasePath(asPath)
   }
 
   if (process.env.__NEXT_I18N_SUPPORT) {
@@ -347,7 +350,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   if (process.env.NODE_ENV === 'development') {
     const {
       getNodeError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/client')
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -671,6 +674,7 @@ if (process.env.__NEXT_RSC) {
     createFromFetch,
     createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
+  const { RefreshContext } = require('./streaming/refresh')
 
   const encoder = new TextEncoder()
 

@@ -12,11 +12,9 @@ import { stringify } from 'querystring'
 import {
   API_ROUTE,
   DOT_NEXT_ALIAS,
-  MIDDLEWARE_FILE,
-  MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
-  VIEWS_DIR_ALIAS,
+  APP_DIR_ALIAS,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -28,7 +26,12 @@ import {
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/utils'
 import { warn } from './output/log'
-import { isServerComponentPage } from './utils'
+import {
+  isMiddlewareFile,
+  isMiddlewareFilename,
+  isServerComponentPage,
+  NestedMiddlewareError,
+} from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -60,7 +63,7 @@ export function createPagesMapping({
   isDev: boolean
   pageExtensions: string[]
   pagePaths: string[]
-  pagesType: 'pages' | 'root' | 'views'
+  pagesType: 'pages' | 'root' | 'app'
 }): { [page: string]: string } {
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
@@ -95,8 +98,8 @@ export function createPagesMapping({
         join(
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
-            : pagesType === 'views'
-            ? VIEWS_DIR_ALIAS
+            : pagesType === 'app'
+            ? APP_DIR_ALIAS
             : ROOT_DIR_ALIAS,
           pagePath
         )
@@ -140,8 +143,8 @@ interface CreateEntrypointsParams {
   rootDir: string
   rootPaths?: Record<string, string>
   target: 'server' | 'serverless' | 'experimental-serverless-trace'
-  viewsDir?: string
-  viewPaths?: Record<string, string>
+  appDir?: string
+  appPaths?: Record<string, string>
   pageExtensions: string[]
 }
 
@@ -154,11 +157,14 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
+  middleware?: { pathMatcher?: RegExp }
 }) {
-  if (opts.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
+      matcherRegexp:
+        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -186,14 +192,14 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
-export function getViewsEntry(opts: {
+export function getAppEntry(opts: {
   name: string
   pagePath: string
-  viewsDir: string
+  appDir: string
   pageExtensions: string[]
 }) {
   return {
-    import: `next-view-loader?${stringify(opts)}!`,
+    import: `next-app-loader?${stringify(opts)}!`,
     layer: 'sc_server',
   }
 }
@@ -269,24 +275,25 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     rootDir,
     rootPaths,
     target,
-    viewsDir,
-    viewPaths,
+    appDir,
+    appPaths,
     pageExtensions,
   } = params
   const edgeServer: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
+  const nestedMiddleware: string[] = []
 
   const getEntryHandler =
-    (mappings: Record<string, string>, pagesType: 'views' | 'pages' | 'root') =>
+    (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join('pages', bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)
-          : pagesType === 'views'
-          ? posix.join('views', bundleFile)
+          : pagesType === 'app'
+          ? posix.join('app', bundleFile)
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
 
@@ -296,8 +303,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
         }
 
-        if (absolutePagePath.startsWith(VIEWS_DIR_ALIAS) && viewsDir) {
-          return absolutePagePath.replace(VIEWS_DIR_ALIAS, viewsDir)
+        if (absolutePagePath.startsWith(APP_DIR_ALIAS) && appDir) {
+          return absolutePagePath.replace(APP_DIR_ALIAS, appDir)
         }
 
         if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
@@ -316,24 +323,24 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
         /[\\\\/]_middleware$/.test(page)
       ) {
-        throw new Error(
-          `nested Middleware is not allowed (found pages${page}) - https://nextjs.org/docs/messages/nested-middleware`
-        )
+        nestedMiddleware.push(page)
       }
 
       const isServerComponent = serverComponentRegex.test(absolutePagePath)
+      const isInsideAppDir = appDir && absolutePagePath.startsWith(appDir)
 
       const staticInfo = await getPageStaticInfo({
         nextConfig: config,
         pageFilePath,
         isDev,
+        page,
       })
 
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
         onClient: () => {
-          if (isServerComponent) {
+          if (isServerComponent || isInsideAppDir) {
             // We skip the initial entries for server component pages and let the
             // server compiler inject them instead.
           } else {
@@ -344,11 +351,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           }
         },
         onServer: () => {
-          if (pagesType === 'views' && viewsDir) {
-            server[serverBundlePath] = getViewsEntry({
+          if (pagesType === 'app' && appDir) {
+            server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
-              viewsDir,
+              appDir,
               pageExtensions,
             })
           } else if (isTargetLikeServerless(target)) {
@@ -376,14 +383,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             isDev: false,
             isServerComponent,
             page,
+            middleware: staticInfo?.middleware,
           })
         },
       })
     }
 
-  if (viewsDir && viewPaths) {
-    const entryHandler = getEntryHandler(viewPaths, 'views')
-    await Promise.all(Object.keys(viewPaths).map(entryHandler))
+  if (appDir && appPaths) {
+    const entryHandler = getEntryHandler(appPaths, 'app')
+    await Promise.all(Object.keys(appPaths).map(entryHandler))
   }
   if (rootPaths) {
     await Promise.all(
@@ -391,6 +399,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     )
   }
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+
+  if (nestedMiddleware.length > 0) {
+    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir)
+  }
 
   return {
     client,
@@ -406,7 +418,7 @@ export function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: PageRuntime
 }) {
-  if (params.page === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(params.page)) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
     return [params.onServer()]
@@ -432,11 +444,13 @@ export function finalizeEntrypoint({
   compilerType,
   value,
   isServerComponent,
+  appDir,
 }: {
   compilerType?: 'client' | 'server' | 'edge-server'
   name: string
   value: ObjectValue<webpack5.EntryObject>
   isServerComponent?: boolean
+  appDir?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -455,7 +469,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: name === MIDDLEWARE_FILENAME ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -471,11 +485,19 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
+    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    if (appDir && entry.import.includes('flight')) {
+      return {
+        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+        ...entry,
+      }
+    }
+
     return {
       dependOn:
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
-          : 'main',
+          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
       ...entry,
     }
   }

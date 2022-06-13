@@ -7,21 +7,18 @@ const A = ()=><div className={"jsx-498d4e86e548e679"}>
 
     <_JSXStyle id={"498d4e86e548e679"}>{`p.jsx-498d4e86e548e679{color:${color}}`}</_JSXStyle>
 
-  </div>
-;
+  </div>;
 const B = ()=><div className={"jsx-d051a1c8140076ed"}>
 
     <p className={"jsx-d051a1c8140076ed"}>test</p>
 
     <_JSXStyle id={"d051a1c8140076ed"}>{`p.jsx-d051a1c8140076ed{color:${otherColor}}`}</_JSXStyle>
 
-  </div>
-;
+  </div>;
 export default (()=><div >
 
     <A />
 
     <B />
 
-  </div>
-);
+  </div>);

@@ -9,12 +9,12 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
-import { pageNotFoundError } from '../require'
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { MIDDLEWARE_FILE, MIDDLEWARE_FILENAME } from '../../lib/constants'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
+import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
+import { PageNotFoundError } from '../../shared/lib/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -65,7 +65,7 @@ export function onDemandEntryHandler({
   pagesBufferLength,
   pagesDir,
   rootDir,
-  viewsDir,
+  appDir,
   watcher,
 }: {
   maxInactiveAge: number
@@ -74,7 +74,7 @@ export function onDemandEntryHandler({
   pagesBufferLength: number
   pagesDir: string
   rootDir: string
-  viewsDir?: string
+  appDir?: string
   watcher: any
 }) {
   invalidator = new Invalidator(watcher)
@@ -98,9 +98,10 @@ export function onDemandEntryHandler({
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         pagePaths.push(`${type}${page}`)
-      } else if (root && entrypoint.name === 'root') {
-        pagePaths.push(`${type}/${entrypoint.name}`)
-      } else if (entrypoint.name === MIDDLEWARE_FILENAME) {
+      } else if (
+        (root && entrypoint.name === 'root') ||
+        isMiddlewareFilename(entrypoint.name)
+      ) {
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
@@ -113,7 +114,7 @@ export function onDemandEntryHandler({
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!viewsDir
+    const root = !!appDir
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -195,7 +196,7 @@ export function onDemandEntryHandler({
         pagesDir,
         page,
         nextConfig.pageExtensions,
-        viewsDir
+        appDir
       )
 
       let entryAdded = false
@@ -205,6 +206,8 @@ export function onDemandEntryHandler({
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
           )
+          const isInsideAppDir =
+            appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
           const pageKey = `${type}${pagePathData.page}`
 
@@ -216,7 +219,7 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            if (type === 'client' && isServerComponent) {
+            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
               // Skip adding the client entry here.
             } else {
               entryAdded = true
@@ -366,16 +369,16 @@ async function findPagePathData(
   pagesDir: string,
   page: string,
   extensions: string[],
-  viewsDir?: string
+  appDir?: string
 ) {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
-  if (normalizedPagePath === MIDDLEWARE_FILE) {
+  if (isMiddlewareFile(normalizedPagePath)) {
     pagePath = await findPageFile(rootDir, normalizedPagePath, extensions)
 
     if (!pagePath) {
-      throw pageNotFoundError(normalizedPagePath)
+      throw new PageNotFoundError(normalizedPagePath)
     }
 
     const pageUrl = ensureLeadingSlash(
@@ -391,9 +394,9 @@ async function findPagePathData(
     }
   }
 
-  // Check viewsDir first falling back to pagesDir
-  if (viewsDir) {
-    pagePath = await findPageFile(viewsDir, normalizedPagePath, extensions)
+  // Check appDir first falling back to pagesDir
+  if (appDir) {
+    pagePath = await findPageFile(appDir, normalizedPagePath, extensions)
     if (pagePath) {
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
@@ -403,8 +406,8 @@ async function findPagePathData(
       )
 
       return {
-        absolutePagePath: join(viewsDir, pagePath),
-        bundlePath: posix.join('views', normalizePagePath(pageUrl)),
+        absolutePagePath: join(appDir, pagePath),
+        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
         page: posix.normalize(pageUrl),
       }
     }
@@ -435,7 +438,7 @@ async function findPagePathData(
       page: normalizePathSep(page),
     }
   } else {
-    throw pageNotFoundError(normalizedPagePath)
+    throw new PageNotFoundError(normalizedPagePath)
   }
 }
 
@@ -444,6 +447,6 @@ function tryToNormalizePagePath(page: string) {
     return normalizePagePath(page)
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
 }

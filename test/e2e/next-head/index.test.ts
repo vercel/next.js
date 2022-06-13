@@ -14,10 +14,6 @@ describe('should set-up next', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
       },
-      dependencies: {
-        react: '17',
-        'react-dom': '17',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -61,5 +57,14 @@ describe('should set-up next', () => {
           .getAttribute('content')
       ).toBe('hello')
     }
+  })
+
+  it('should have current head tags from a _document getInitialProps', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    const $ = cheerio.load(html)
+
+    expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe(
+      'hello'
+    )
   })
 })

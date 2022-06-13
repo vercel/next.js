@@ -34,6 +34,7 @@ export class NextInstance {
   protected packageJson: PackageJson
   protected packageLockPath?: string
   protected basePath?: string
+  protected env?: Record<string, string>
 
   constructor({
     files,
@@ -44,6 +45,7 @@ export class NextInstance {
     startCommand,
     packageJson = {},
     packageLockPath,
+    env,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -57,6 +59,7 @@ export class NextInstance {
     installCommand?: InstallCommand
     buildCommand?: string
     startCommand?: string
+    env?: Record<string, string>
   }) {
     this.files = files
     this.dependencies = dependencies
@@ -69,6 +72,7 @@ export class NextInstance {
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
+    this.env = env
   }
 
   protected async createTestDir({
@@ -77,7 +81,7 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    console.log(`Creating test directory with isolated next...`)
+    require('console').log(`Creating test directory with isolated next...`)
 
     const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
     const tmpDir = skipIsolatedNext
@@ -111,13 +115,13 @@ export class NextInstance {
                 require('next/package.json').version,
             },
             scripts: {
+              ...pkgScripts,
               build:
                 (pkgScripts['build'] || this.buildCommand || 'next build') +
                 ' && yarn post-build',
               // since we can't get the build id as a build artifact, make it
               // available under the static files
               'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
-              ...pkgScripts,
             },
           },
           null,
@@ -129,7 +133,8 @@ export class NextInstance {
         process.env.NEXT_TEST_STARTER &&
         !this.dependencies &&
         !this.installCommand &&
-        !this.packageJson
+        !this.packageJson &&
+        !(global as any).isNextDeploy
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {
@@ -140,7 +145,7 @@ export class NextInstance {
           this.packageLockPath
         )
       }
-      console.log('created next.js install, writing test files')
+      require('console').log('created next.js install, writing test files')
     }
 
     for (const filename of Object.keys(this.files)) {
@@ -218,7 +223,7 @@ export class NextInstance {
         `
       )
     }
-    console.log(`Test directory created at ${this.testDir}`)
+    require('console').log(`Test directory created at ${this.testDir}`)
   }
 
   public async clean() {
@@ -252,7 +257,7 @@ export class NextInstance {
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
-            console.error('tree-kill', err)
+            require('console').error('tree-kill', err)
           }
           resolve()
         })
@@ -260,7 +265,7 @@ export class NextInstance {
       this.childProcess.kill('SIGKILL')
       await exitPromise
       this.childProcess = undefined
-      console.log(`Stopped next server`)
+      require('console').log(`Stopped next server`)
     }
   }
 
@@ -294,7 +299,7 @@ export class NextInstance {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }
-    console.log(`destroyed next instance`)
+    require('console').log(`destroyed next instance`)
   }
 
   public get url() {

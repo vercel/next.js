@@ -163,6 +163,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   setBlurComplete: (b: boolean) => void
   setIntersection: (img: HTMLImageElement | null) => void
   isVisible: boolean
+  noscriptSizes: string | undefined
 }
 
 function getWidths(
@@ -456,7 +457,11 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+  if (
+    typeof window !== 'undefined' &&
+    loadedImageURLs.has(src) &&
+    layout !== 'raw'
+  ) {
     isLazy = false
   }
 
@@ -830,6 +835,7 @@ export default function Image({
     setBlurComplete,
     setIntersection,
     isVisible,
+    noscriptSizes: sizes,
     ...rest,
   }
   return (
@@ -899,7 +905,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading = 'lazy',
+  loading,
   srcString,
   config,
   unoptimized,
@@ -910,8 +916,10 @@ const ImageElement = ({
   onLoad,
   onError,
   isVisible,
+  noscriptSizes,
   ...rest
 }: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
   return (
     <>
       <img
@@ -982,7 +990,7 @@ const ImageElement = ({
               layout,
               width: widthInt,
               quality: qualityInt,
-              sizes: imgAttributes.sizes,
+              sizes: noscriptSizes,
               loader,
             })}
             {...(layout === 'raw'

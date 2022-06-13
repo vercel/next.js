@@ -351,6 +351,7 @@ export function getUtils({
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
       const defaultValue = defaultRouteMatches![key]
+      const isOptional = defaultRouteRegex!.groups[key].optional
 
       const isDefaultValue = Array.isArray(defaultValue)
         ? defaultValue.some((defaultVal) => {
@@ -360,14 +361,14 @@ export function getUtils({
           })
         : value?.includes(defaultValue as string)
 
-      if (isDefaultValue || typeof value === 'undefined') {
+      if (isDefaultValue || (typeof value === 'undefined' && !isOptional)) {
         hasValidParams = false
       }
 
       // non-provided optional values should be undefined so normalize
       // them to undefined
       if (
-        defaultRouteRegex!.groups[key].optional &&
+        isOptional &&
         (!value ||
           (Array.isArray(value) &&
             value.length === 1 &&

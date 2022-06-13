@@ -13,6 +13,14 @@ import rule from '@next/eslint-plugin-next/lib/rules/no-server-import-in-page'
 })
 const ruleTester = new RuleTester()
 
+const errors = [
+  {
+    message:
+      '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
+    type: 'ImportDeclaration',
+  },
+]
+
 ruleTester.run('no-server-import-in-page', rule, {
   valid: [
     {
@@ -34,6 +42,15 @@ ruleTester.run('no-server-import-in-page', rule, {
       filename: `${path.sep}middleware.js`,
     },
     {
+      code: `import { NextFetchEvent, NextRequest } from "next/server"
+
+      export function middleware(req, ev) {
+        return new Response('Hello, world!')
+      }
+    `,
+      filename: `middleware.ts`,
+    },
+    {
       code: `import NextDocument from "next/document"
 
       export function middleware(req, ev) {
@@ -49,7 +66,7 @@ ruleTester.run('no-server-import-in-page', rule, {
         return new Response('Hello, world!')
       }
     `,
-      filename: 'middleware.page.tsx',
+      filename: path.join('ws', 'vercel-front/front/middleware.ts'),
     },
   ],
   invalid: [
@@ -59,13 +76,7 @@ ruleTester.run('no-server-import-in-page', rule, {
       export const Test = () => <p>Test</p>
       `,
       filename: 'components/test.js',
-      errors: [
-        {
-          message:
-            '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
-          type: 'ImportDeclaration',
-        },
-      ],
+      errors,
     },
     {
       code: `import { NextFetchEvent, NextRequest } from "next/server"
@@ -73,13 +84,7 @@ ruleTester.run('no-server-import-in-page', rule, {
       export const Test = () => <p>Test</p>
       `,
       filename: 'pages/test.js',
-      errors: [
-        {
-          message:
-            '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
-          type: 'ImportDeclaration',
-        },
-      ],
+      errors,
     },
     {
       code: `import { NextFetchEvent, NextRequest } from "next/server"
@@ -87,13 +92,17 @@ ruleTester.run('no-server-import-in-page', rule, {
       export const Test = () => <p>Test</p>
       `,
       filename: `pages${path.sep}test.js`,
-      errors: [
-        {
-          message:
-            '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
-          type: 'ImportDeclaration',
-        },
-      ],
+      errors,
+    },
+    {
+      code: `import { NextFetchEvent, NextRequest } from "next/server"
+
+      export function middleware(req, ev) {
+        return new Response('Hello, world!')
+      }
+    `,
+      filename: 'middleware.page.tsx',
+      errors,
     },
   ],
 })

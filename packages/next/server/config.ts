@@ -492,6 +492,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if (result.experimental?.swcMinifyDebugOptions) {
+    Log.warn(
+      'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+    )
+  }
+
   if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
@@ -629,6 +635,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (!i18n.locales.includes(i18n.defaultLocale)) {
       throw new Error(
         `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
+    const normalizedLocales = new Set()
+    const duplicateLocales = new Set()
+
+    i18n.locales.forEach((locale) => {
+      const localeLower = locale.toLowerCase()
+      if (normalizedLocales.has(localeLower)) {
+        duplicateLocales.add(locale)
+      }
+      normalizedLocales.add(localeLower)
+    })
+
+    if (duplicateLocales.size > 0) {
+      throw new Error(
+        `Specified i18n.locales contains the following duplicate locales:\n` +
+          `${[...duplicateLocales].join(', ')}\n` +
+          `Each locale should be listed only once.\n` +
+          `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
 

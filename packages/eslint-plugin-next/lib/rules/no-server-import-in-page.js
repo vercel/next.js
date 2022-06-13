@@ -1,6 +1,7 @@
 const path = require('path')
 
 const url = 'https://nextjs.org/docs/messages/no-server-import-in-page'
+const middlewareRegExp = new RegExp(`^middleware\\.(?:t|j)s$`)
 
 module.exports = {
   meta: {
@@ -18,11 +19,7 @@ module.exports = {
         }
 
         const filename = context.getFilename()
-        if (
-          filename.startsWith('middleware.') ||
-          filename.startsWith(`${path.sep}middleware.`) ||
-          filename.startsWith(`${path.posix.sep}middleware.`)
-        ) {
+        if (middlewareRegExp.test(path.basename(filename))) {
           return
         }
 
