@@ -36,4 +36,5 @@ If you want to specifically display a font using a `auto, `block`, or `fallback`
 ### Useful Links
 
 - [Controlling Font Performance with font-display](https://developers.google.com/web/updates/2016/02/font-display)
-- [Font-display: a small explainer on web fonts and performance](https://font-display.glitch.me/)
+- [Google Fonts API Docs](https://developers.google.com/fonts/docs/css2#use_font-display)
+- [CSS `font-display` property](https://www.w3.org/TR/css-fonts-4/#font-display-desc)
