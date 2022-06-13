@@ -340,7 +340,10 @@ export function getUtils({
     }
   }
 
-  function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
+  function normalizeDynamicRouteParams(
+    params: ParsedUrlQuery,
+    ignoreOptional?: boolean
+  ) {
     let hasValidParams = true
     if (!defaultRouteRegex) return { params, hasValidParams: false }
 
@@ -361,7 +364,10 @@ export function getUtils({
           })
         : value?.includes(defaultValue as string)
 
-      if (isDefaultValue || (typeof value === 'undefined' && !isOptional)) {
+      if (
+        isDefaultValue ||
+        (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+      ) {
         hasValidParams = false
       }
 
