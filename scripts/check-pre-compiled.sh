@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 cd packages/next
 
 cp node_modules/webpack5/lib/hmr/HotModuleReplacement.runtime.js bundles/webpack/packages/

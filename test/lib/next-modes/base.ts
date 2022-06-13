@@ -34,6 +34,7 @@ export class NextInstance {
   protected packageJson: PackageJson
   protected packageLockPath?: string
   protected basePath?: string
+  protected env?: Record<string, string>
 
   constructor({
     files,
@@ -44,6 +45,7 @@ export class NextInstance {
     startCommand,
     packageJson = {},
     packageLockPath,
+    env,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -57,6 +59,7 @@ export class NextInstance {
     installCommand?: InstallCommand
     buildCommand?: string
     startCommand?: string
+    env?: Record<string, string>
   }) {
     this.files = files
     this.dependencies = dependencies
@@ -69,6 +72,7 @@ export class NextInstance {
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
+    this.env = env
   }
 
   protected async createTestDir({
@@ -111,13 +115,13 @@ export class NextInstance {
                 require('next/package.json').version,
             },
             scripts: {
+              ...pkgScripts,
               build:
                 (pkgScripts['build'] || this.buildCommand || 'next build') +
                 ' && yarn post-build',
               // since we can't get the build id as a build artifact, make it
               // available under the static files
               'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
-              ...pkgScripts,
             },
           },
           null,
