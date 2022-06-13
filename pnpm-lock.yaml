@@ -2,7 +2,7 @@ lockfileVersion: 5.4
 
 overrides:
   browserslist: 4.20.2
-  caniuse-lite: 1.0.30001332
+  caniuse-lite: 1.0.30001346
   '@babel/core': 7.18.0
   '@babel/parser': 7.18.0
   '@babel/types': 7.18.0
@@ -471,7 +471,7 @@ importers:
       browserslist: 4.20.2
       buffer: 5.6.0
       bytes: 3.1.1
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       chalk: 2.4.2
       ci-info: github:watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
@@ -576,7 +576,7 @@ importers:
     dependencies:
       '@next/env': link:../next-env
       '@swc/helpers': 0.3.17
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       postcss: 8.4.5
       styled-jsx: 5.0.2_@babel+core@7.18.0
       use-sync-external-store: 1.1.0
@@ -7595,7 +7595,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -7611,7 +7611,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -7624,7 +7624,7 @@ packages:
     hasBin: true
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       normalize-range: 0.1.2
       num2fraction: 1.2.2
       picocolors: 0.2.1
@@ -8099,7 +8099,7 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       electron-to-chromium: 1.4.144
       escalade: 3.1.1
       node-releases: 2.0.5
@@ -8376,13 +8376,13 @@ packages:
     resolution: {integrity: sha512-bsTwuIg/BZZK/vreVTYYbSWoe2F+71P7K5QGEX+pT250DZbfU1MQ5prOKpPR+LL6uWKK3KMwMCAS74QB3Um1uw==}
     dependencies:
       browserslist: 4.20.2
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
     dev: true
 
-  /caniuse-lite/1.0.30001332:
-    resolution: {integrity: sha512-10T30NYOEQtN6C11YGg411yebhvpnC6Z102+B95eAsN0oB6KUs01ivE8u+G6FMIRtIrVlYXhL+LUwQ3/hXwDWw==}
+  /caniuse-lite/1.0.30001346:
+    resolution: {integrity: sha512-q6ibZUO2t88QCIPayP/euuDREq+aMAxFE5S70PkrLh0iTDj/zEhgvJRKC2+CvXY6EWc6oQwUR48lL5vCW6jiXQ==}
 
   /capital-case/1.0.4:
     resolution: {integrity: sha512-ds37W8CytHgwnhGGTi88pcPyR15qoNkOpYwmMMfnWqqWgESapLqvDx6huFjQ5vqWSn2Z06173XNA7LtMOeUh1A==}
@@ -9661,7 +9661,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.1
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       postcss: 8.2.13
     dev: true
 
@@ -9670,7 +9670,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      caniuse-lite: 1.0.30001332
+      caniuse-lite: 1.0.30001346
       postcss: 8.4.5
     dev: true
 

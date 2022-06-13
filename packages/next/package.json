@@ -72,7 +72,7 @@
   "dependencies": {
     "@next/env": "12.1.7-canary.35",
     "@swc/helpers": "0.3.17",
-    "caniuse-lite": "^1.0.30001332",
+    "caniuse-lite": "^1.0.30001346",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.2",
     "use-sync-external-store": "1.1.0"
@@ -279,7 +279,7 @@
   },
   "resolutions": {
     "browserslist": "4.20.2",
-    "caniuse-lite": "1.0.30001332"
+    "caniuse-lite": "1.0.30001346"
   },
   "engines": {
     "node": ">=12.22.0"

@@ -199,7 +199,7 @@
   },
   "resolutions": {
     "browserslist": "4.20.2",
-    "caniuse-lite": "1.0.30001332",
+    "caniuse-lite": "1.0.30001346",
     "@babel/core": "7.18.0",
     "@babel/parser": "7.18.0",
     "@babel/types": "7.18.0",
