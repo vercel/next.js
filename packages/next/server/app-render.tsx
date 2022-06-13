@@ -267,7 +267,7 @@ export async function renderToHTML(
     if (!Component) {
       // If the segment has a loading.js still wrap with a loading component
       if (Loading) {
-        return (
+        return () => (
           <React.Suspense fallback={<Loading />}>
             <Children />
           </React.Suspense>
