@@ -281,14 +281,14 @@ describe('views dir', () => {
     })
 
     describe('Loading', () => {
-      it('should render loading.js in initial html', async () => {
+      it('should render loading.js in initial html for slow page', async () => {
         const html = await renderViaHTTP(next.url, '/slow-page-with-loading')
         const $ = cheerio.load(html)
 
         expect($('#loading').text()).toBe('Loading...')
       })
 
-      it('should render loading.js in browser', async () => {
+      it('should render loading.js in browser for slow page', async () => {
         const browser = await webdriver(next.url, '/slow-page-with-loading', {
           waitHydration: false,
         })
@@ -297,6 +297,36 @@ describe('views dir', () => {
 
         expect(await browser.elementByCss('#slow-page-message').text()).toBe(
           'hello from slow page'
+        )
+      })
+
+      it('should render loading.js in initial html for slow layout', async () => {
+        const html = await renderViaHTTP(
+          next.url,
+          '/slow-layout-with-loading/slow'
+        )
+        const $ = cheerio.load(html)
+
+        expect($('#loading').text()).toBe('Loading...')
+      })
+
+      it('should render loading.js in browser for slow layout', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/slow-layout-with-loading/slow',
+          {
+            waitHydration: false,
+          }
+        )
+        // TODO: `await webdriver()` causes waiting for the full page to complete streaming. At that point "Loading..." is replaced by the actual content
+        // expect(await browser.elementByCss('#loading').text()).toBe('Loading...')
+
+        expect(await browser.elementByCss('#slow-layout-message').text()).toBe(
+          'hello from slow layout'
+        )
+
+        expect(await browser.elementByCss('#page-message').text()).toBe(
+          'Hello World'
         )
       })
     })

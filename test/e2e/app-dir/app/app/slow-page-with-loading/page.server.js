@@ -7,6 +7,6 @@ export async function getServerSideProps() {
   }
 }
 
-export default function slowPage(props) {
+export default function SlowPage(props) {
   return <h1 id="slow-page-message">{props.message}</h1>
 }
