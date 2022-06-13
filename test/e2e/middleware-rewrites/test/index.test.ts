@@ -194,6 +194,31 @@ describe('Middleware Rewrite', () => {
       expect(await element.text()).toEqual('About Bypassed Page')
     })
 
+    if (!(global as any).isNextDev) {
+      it('should cache data requests correctly', async () => {
+        const browser = await webdriver(next.url, '/')
+
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          for (const url of [
+            '/en/about.json?override=external',
+            '/en/about.json?override=internal',
+            '/en/rewrite-me-external-twice.json',
+            '/en/rewrite-me-to-about.json?override=internal',
+            '/en/rewrite-me-to-vercel.json',
+            '/en/rewrite-to-ab-test.json',
+          ]) {
+            if (!hrefs.some((href) => href.includes(url))) {
+              return JSON.stringify(hrefs, null, 2)
+            }
+          }
+          return 'yes'
+        }, 'yes')
+      })
+    }
+
     it(`should allow to rewrite keeping the locale in pathname`, async () => {
       const res = await fetchViaHTTP(next.url, '/fr/country', {
         country: 'spain',
