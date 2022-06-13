@@ -4,10 +4,10 @@ Server Components allow us to render React components on the server. This is fun
 
 ### Enable React Server Components
 
-To use React Server Components, ensure you have React 18 installed:
+To use React Server Components, ensure you have the latest React installed:
 
 ```jsx
-npm install next@canary react@rc react-dom@rc
+npm install next@canary react@latest react-dom@latest
 ```
 
 Then, update your `next.config.js`:
@@ -32,7 +32,11 @@ To run a component on the server, append `.server.js` to the end of the filename
 
 For client components, append `.client.js` to the filename. For example, `./components/avatar.client.js`.
 
-You can then import other server or client components from any server component. Note: a server component **can not** be imported by a client component. Components without "server/client" extensions will be treated as shared components and can be used and rendered by both sides, depending on where it is imported. For example:
+Server components can import server components and client components.
+
+Client components **cannot** import server components.
+
+Components without a `server` or `client` extension will be treated as shared components and can be imported by server components and client components. For example:
 
 ```jsx
 // pages/home.server.js
@@ -90,15 +94,7 @@ export default function Document() {
 
 ### `next/app`
 
-If you're using `_app.js`, the usage is the same as [Custom App](/docs/advanced-features/custom-app).
-If you're using `_app.server.js` as a server component, see the example below where it only receives the `children` prop as React elements. You can wrap any other client or server components around `children` to customize the layout of your app.
-
-```js
-// pages/_app.server.js
-export default function App({ children }) {
-  return children
-}
-```
+The usage of `_app.js` is the same as [Custom App](/docs/advanced-features/custom-app). Using custom app as server component such as `_app.server.js` is not recommended, to keep align with non server components apps for client specific things like global CSS imports.
 
 ### Routing
 

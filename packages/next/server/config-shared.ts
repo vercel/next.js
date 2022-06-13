@@ -5,6 +5,7 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
+  RemotePattern,
 } from '../shared/lib/image-config'
 
 export type PageRuntime = 'nodejs' | 'edge' | undefined
@@ -65,6 +66,8 @@ export interface WebpackConfigContext {
   totalPages: number
   /** The webpack configuration */
   webpack: any
+  /** The current server runtime */
+  nextRuntime?: 'nodejs' | 'edge'
 }
 
 export interface NextJsWebpackConfig {
@@ -76,6 +79,12 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
+  browsersListForSwc?: boolean
+  manualClientBasePath?: boolean
+  newNextLinkBehavior?: boolean
+  // custom path to a cache handler to use
+  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
@@ -92,6 +101,7 @@ export interface ExperimentalConfig {
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
+  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
@@ -111,15 +121,9 @@ export interface ExperimentalConfig {
   outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
+    remotePatterns: RemotePattern[]
   }
   middlewareSourceMaps?: boolean
-  emotion?:
-    | boolean
-    | {
-        sourceMap?: boolean
-        autoLabel?: 'dev-only' | 'always' | 'never'
-        labelFormat?: string
-      }
   modularizeImports?: Record<
     string,
     {
@@ -128,6 +132,21 @@ export interface ExperimentalConfig {
       skipDefaultConversion?: boolean
     }
   >
+  swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
+
+  /**
+   * The option for the minifier of [SWC compiler](https://swc.rs).
+   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
+   *
+   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   */
+  swcMinifyDebugOptions?: {
+    compress?: object
+    mangle?: object
+  }
+  swcPlugins?: Array<[string, Record<string, unknown>]>
+  largePageDataBytes?: number
 }
 
 /**
@@ -403,6 +422,13 @@ export interface NextConfig extends Record<string, any> {
           exclude?: string[]
         }
     styledComponents?: boolean
+    emotion?:
+      | boolean
+      | {
+          sourceMap?: boolean
+          autoLabel?: 'dev-only' | 'always' | 'never'
+          labelFormat?: string
+        }
   }
 
   /**
@@ -464,6 +490,11 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
+    // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
+    browsersListForSwc: false,
+    // TODO: change default in next major release (current v12.1.5)
+    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -485,6 +516,7 @@ export const defaultConfig: NextConfig = {
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
+    appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     serverComponents: false,
@@ -493,7 +525,10 @@ export const defaultConfig: NextConfig = {
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
+      remotePatterns: [],
     },
+    forceSwcTransforms: false,
+    largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
 

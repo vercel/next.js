@@ -1,7 +1,7 @@
 import { SpanId } from './shared'
 import { reporter } from './report'
 
-const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
+const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
 let count = 0
 const getId = () => {
   count++
@@ -58,12 +58,12 @@ export class Span {
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
     const end: bigint = stopTime || process.hrtime.bigint()
-    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_SEC
+    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
     this.status = SpanStatus.Stopped
     if (duration > Number.MAX_SAFE_INTEGER) {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
-    const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC
+    const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
     reporter.report(
       this.name,
       Number(duration),

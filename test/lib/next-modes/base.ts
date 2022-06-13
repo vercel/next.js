@@ -32,6 +32,9 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson: PackageJson
+  protected packageLockPath?: string
+  protected basePath?: string
+  protected env?: Record<string, string>
 
   constructor({
     files,
@@ -41,6 +44,8 @@ export class NextInstance {
     buildCommand,
     startCommand,
     packageJson = {},
+    packageLockPath,
+    env,
   }: {
     files: {
       [filename: string]: string | FileRef
@@ -49,10 +54,12 @@ export class NextInstance {
       [name: string]: string
     }
     packageJson?: PackageJson
+    packageLockPath?: string
     nextConfig?: NextConfig
     installCommand?: InstallCommand
     buildCommand?: string
     startCommand?: string
+    env?: Record<string, string>
   }) {
     this.files = files
     this.dependencies = dependencies
@@ -61,16 +68,20 @@ export class NextInstance {
     this.buildCommand = buildCommand
     this.startCommand = startCommand
     this.packageJson = packageJson
+    this.packageLockPath = packageLockPath
     this.events = {}
     this.isDestroyed = false
     this.isStopping = false
+    this.env = env
   }
 
-  protected async createTestDir() {
+  protected async createTestDir({
+    skipInstall = false,
+  }: { skipInstall?: boolean } = {}) {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    console.log(`Creating test directory with isolated next...`)
+    require('console').log(`Creating test directory with isolated next...`)
 
     const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
     const tmpDir = skipIsolatedNext
@@ -81,25 +92,61 @@ export class NextInstance {
       `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
     )
 
-    if (
-      process.env.NEXT_TEST_STARTER &&
-      !this.dependencies &&
-      !this.installCommand
-    ) {
-      await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-    } else if (!skipIsolatedNext) {
-      this.testDir = await createNextInstall(
-        {
-          react: '17.0.2',
-          'react-dom': '17.0.2',
-          ...this.dependencies,
-          ...((this.packageJson.dependencies as object | undefined) || {}),
-        },
-        this.installCommand,
-        this.packageJson
-      )
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const finalDependencies = {
+      react: reactVersion,
+      'react-dom': reactVersion,
+      ...this.dependencies,
+      ...((this.packageJson.dependencies as object | undefined) || {}),
     }
-    console.log('created next.js install, writing test files')
+
+    if (skipInstall) {
+      const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+      await fs.ensureDir(this.testDir)
+      await fs.writeFile(
+        path.join(this.testDir, 'package.json'),
+        JSON.stringify(
+          {
+            ...this.packageJson,
+            dependencies: {
+              ...finalDependencies,
+              next:
+                process.env.NEXT_TEST_VERSION ||
+                require('next/package.json').version,
+            },
+            scripts: {
+              ...pkgScripts,
+              build:
+                (pkgScripts['build'] || this.buildCommand || 'next build') +
+                ' && yarn post-build',
+              // since we can't get the build id as a build artifact, make it
+              // available under the static files
+              'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+            },
+          },
+          null,
+          2
+        )
+      )
+    } else {
+      if (
+        process.env.NEXT_TEST_STARTER &&
+        !this.dependencies &&
+        !this.installCommand &&
+        !this.packageJson &&
+        !(global as any).isNextDeploy
+      ) {
+        await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+      } else if (!skipIsolatedNext) {
+        this.testDir = await createNextInstall(
+          finalDependencies,
+          this.installCommand,
+          this.packageJson,
+          this.packageLockPath
+        )
+      }
+      require('console').log('created next.js install, writing test files')
+    }
 
     for (const filename of Object.keys(this.files)) {
       const item = this.files[filename]
@@ -113,12 +160,23 @@ export class NextInstance {
       }
     }
 
-    if (this.nextConfig) {
+    const nextConfigFile = Object.keys(this.files).find((file) =>
+      file.startsWith('next.config.')
+    )
+
+    if (nextConfigFile && this.nextConfig) {
+      throw new Error(
+        `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+      )
+    }
+
+    if (this.nextConfig || ((global as any).isNextDeploy && !nextConfigFile)) {
       const functions = []
 
       await fs.writeFile(
         path.join(this.testDir, 'next.config.js'),
-        'module.exports = ' +
+        `
+        module.exports = ` +
           JSON.stringify(
             {
               ...this.nextConfig,
@@ -141,7 +199,31 @@ export class NextInstance {
       )
     }
 
-    console.log(`Test directory created at ${this.testDir}`)
+    if ((global as any).isNextDeploy) {
+      const fileName = path.join(
+        this.testDir,
+        nextConfigFile || 'next.config.js'
+      )
+      const content = await fs.readFile(fileName, 'utf8')
+
+      if (content.includes('basePath')) {
+        this.basePath =
+          content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+      }
+
+      await fs.writeFile(
+        fileName,
+        `${content}\n` +
+          `
+          // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
+          // env variable during deploy
+          if (process.env.NEXT_PRIVATE_TEST_MODE) {
+            process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
+          }
+        `
+      )
+    }
+    require('console').log(`Test directory created at ${this.testDir}`)
   }
 
   public async clean() {
@@ -161,7 +243,7 @@ export class NextInstance {
     return {}
   }
   public async setup(): Promise<void> {}
-  public async start(): Promise<void> {}
+  public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
     if (this.childProcess) {
@@ -175,7 +257,7 @@ export class NextInstance {
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
-            console.error('tree-kill', err)
+            require('console').error('tree-kill', err)
           }
           resolve()
         })
@@ -183,7 +265,7 @@ export class NextInstance {
       this.childProcess.kill('SIGKILL')
       await exitPromise
       this.childProcess = undefined
-      console.log(`Stopped next server`)
+      require('console').log(`Stopped next server`)
     }
   }
 
@@ -217,7 +299,7 @@ export class NextInstance {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }
-    console.log(`destroyed next instance`)
+    require('console').log(`destroyed next instance`)
   }
 
   public get url() {

@@ -22,13 +22,21 @@ describe('basic HMR', () => {
         pages: new FileRef(join(__dirname, 'hmr/pages')),
         components: new FileRef(join(__dirname, 'hmr/components')),
       },
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())
+
+  it('should show hydration error correctly', async () => {
+    const browser = await webdriver(next.url, '/hydration-error')
+    await check(async () => {
+      const logs = await browser.log()
+      return logs.some((log) =>
+        log.message.includes('messages/react-hydration-error')
+      )
+        ? 'success'
+        : JSON.stringify(logs, null, 2)
+    }, 'success')
+  })
 
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, '/auto-export-is-ready')
@@ -589,6 +597,8 @@ describe('basic HMR', () => {
           )
         )
 
+        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -597,7 +607,9 @@ describe('basic HMR', () => {
             'Unknown'
           )
         ).toMatch(
-          'Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.'
+          `Objects are not valid as a React child (found: ${
+            isReact17 ? '/search/' : '[object RegExp]'
+          }). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -765,5 +777,12 @@ describe('basic HMR', () => {
         }
       }
     })
+  })
+
+  it('should have client HMR events in trace file', async () => {
+    const traceData = await next.readFile('.next/trace')
+    expect(traceData).toContain('client-hmr-latency')
+    expect(traceData).toContain('client-error')
+    expect(traceData).toContain('client-success')
   })
 })
