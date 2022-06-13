@@ -468,4 +468,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   }
 )
 
+Link.displayName = 'Link'
+
 export default Link
