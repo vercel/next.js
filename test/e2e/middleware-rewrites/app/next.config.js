@@ -7,11 +7,16 @@ module.exports = {
     return {
       beforeFiles: [
         {
-          source: '/config-rewrite-1',
+          source: '/beforefiles-rewrite',
           destination: '/ab-test/a',
         },
       ],
-      afterFiles: [],
+      afterFiles: [
+        {
+          source: '/afterfiles-rewrite',
+          destination: '/ab-test/b',
+        },
+      ],
       fallback: [],
     }
   },
