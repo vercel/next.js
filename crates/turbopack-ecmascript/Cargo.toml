@@ -1,5 +1,5 @@
 [package]
-name = "turbopack"
+name = "turbopack-ecmascript"
 version = "0.1.0"
 edition = "2021"
 autobenches = false
@@ -12,10 +12,9 @@ bench = false
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
+"turbopack-core" = { path = "../turbopack-core" }
 "turbo-tasks" = { path = "../turbo-tasks" }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
-"turbopack-ecmascript" = { path = "../turbopack-ecmascript" }
-"turbopack-core" = { path = "../turbopack-core" }
 async-std = "1.10.0"
 regex = "1.5.4"
 rand = "0.8.5"
@@ -27,6 +26,7 @@ url = "2.2.2"
 indexmap = "1.8.0"
 serde = "1.0.136"
 serde_regex = "1.1.0"
+serde_json = "1.0.81"
 
 [dependencies.swc_common]
 version = "0.17.25"
@@ -46,6 +46,7 @@ rstest = "0.12.0"
 criterion = { version = "0.3.5", features = ["async_std"] }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
 "turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
+"turbo-tasks-testing" = { path = "../turbo-tasks-testing" }
 testing = "0.19.1"
 
 [build-dependencies]

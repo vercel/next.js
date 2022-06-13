@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 
-use crate::{asset::AssetVc, reference::all_referenced_assets};
+use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
 #[turbo_tasks::value(shared)]
 #[derive(PartialEq, Eq)]

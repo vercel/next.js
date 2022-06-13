@@ -7,9 +7,11 @@ use turbo_tasks::{NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, NullFileSystem, NullFileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit, emit_with_completion, module, rebase::RebasedAssetVc, register,
-    source_asset::SourceAssetVc,
+    emit, emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc,
+    ModuleAssetContextVc,
 };
+use turbopack_core::{context::AssetContext, source_asset::SourceAssetVc};
+use turbopack_ecmascript::target::CompileTarget;
 
 pub fn benchmark(c: &mut Criterion) {
     register();
@@ -59,7 +61,11 @@ pub fn benchmark(c: &mut Criterion) {
                                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
                                 let source = SourceAssetVc::new(input);
-                                let module = module(source.into());
+                                let context = ModuleAssetContextVc::new(
+                                    input_dir,
+                                    GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                                );
+                                let module = context.process(source.into());
                                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
                                 emit_with_completion(rebased.into()).await?;
@@ -90,7 +96,11 @@ pub fn benchmark(c: &mut Criterion) {
                             let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
                             let source = SourceAssetVc::new(input);
-                            let module = module(source.into());
+                            let context = ModuleAssetContextVc::new(
+                                input_dir,
+                                GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                            );
+                            let module = context.process(source.into());
                             let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
                             emit(rebased.into());

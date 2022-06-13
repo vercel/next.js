@@ -10,15 +10,18 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use async_std::{future::timeout, process::Command, task::block_on};
 use difference::{Changeset, Difference};
+use lazy_static::lazy_static;
+use regex::Regex;
 use rstest::*;
 use turbo_tasks::{TurboTasks, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{MemoryBackend, MemoryBackendWithPersistedGraph};
 use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 use turbopack::{
-    asset::Asset, emit_with_completion, module, rebase::RebasedAssetVc, register,
-    source_asset::SourceAssetVc,
+    emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc, ModuleAssetContextVc,
 };
+use turbopack_core::{asset::Asset, context::AssetContext, source_asset::SourceAssetVc};
+use turbopack_ecmascript::target::CompileTarget;
 
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
@@ -53,7 +56,10 @@ use turbopack::{
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", false))]
+#[cfg_attr(
+    target_arch = "x86_64",
+    case::ffmpeg_js("integration/ffmpeg.js", false)
+)]
 // Could not find ffmpeg executable
 // #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
 // #[case::firebase("integration/firebase.js", false)] // hanging
@@ -172,7 +178,11 @@ fn node_file_trace(
             let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
             let source = SourceAssetVc::new(input);
-            let module = module(source.into());
+            let context = ModuleAssetContextVc::new(
+                input_dir,
+                GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+            );
+            let module = context.process(source.into());
             let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
             let output_path = rebased.path();
@@ -299,12 +309,22 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        stderr: clean_stderr(String::from_utf8_lossy(&output.stderr).as_ref()),
     };
 
     println!("File: {}\n{}", f.display(), output,);
 
     Ok(CommandOutputVc::slot(output))
+}
+
+fn clean_stderr(str: &str) -> String {
+    lazy_static! {
+        static ref EXPERIMENTAL_WARNING: Regex =
+            Regex::new(r"\(node:\d+\) ExperimentalWarning:").unwrap();
+    }
+    EXPERIMENTAL_WARNING
+        .replace_all(str, "(node:XXXX) ExperimentalWarning:")
+        .to_string()
 }
 
 fn diff(expected: &str, actual: &str) -> String {

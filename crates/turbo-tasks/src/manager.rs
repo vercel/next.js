@@ -650,6 +650,11 @@ pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
     TURBO_TASKS.with(|c| Arc::downgrade(c.borrow().as_ref().unwrap()))
 }
 
+pub unsafe fn set_turbo_tasks_for_testing(tt: Arc<dyn TurboTasksApi>, current_task: TaskId) {
+    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
+    CURRENT_TASK_ID.with(|c| c.set(Some(current_task)));
+}
+
 /// Get an [Invalidator] that can be used to invalidate the current [Task]
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {

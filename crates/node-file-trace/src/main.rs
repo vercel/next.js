@@ -24,7 +24,11 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend, MemoryBackendWithPersistedGraph};
 use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 use turbopack::{
-    all_assets, asset::AssetVc, emit, module, rebase::RebasedAssetVc, source_asset::SourceAssetVc,
+    ecmascript::target::CompileTarget, emit, rebase::RebasedAssetVc, GraphOptionsVc,
+    ModuleAssetContextVc,
+};
+use turbopack_core::{
+    asset::AssetVc, context::AssetContextVc, reference::all_assets, source_asset::SourceAssetVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -101,36 +105,46 @@ async fn create_fs(name: &str, context: &str, watch: bool) -> Result<FileSystemV
     Ok(fs.into())
 }
 
-async fn add_glob_results(result: ReadGlobResultVc, list: &mut Vec<AssetVc>) -> Result<()> {
+async fn add_glob_results(
+    context: AssetContextVc,
+    result: ReadGlobResultVc,
+    list: &mut Vec<AssetVc>,
+) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
         match entry {
             DirectoryEntry::File(path) => {
                 let source = SourceAssetVc::new(*path).into();
-                list.push(module(source));
+                list.push(context.process(source));
             }
             _ => {}
         }
     }
     for result in result.inner.values() {
         fn recurse<'a>(
+            context: AssetContextVc,
             result: ReadGlobResultVc,
             list: &'a mut Vec<AssetVc>,
         ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-            Box::pin(add_glob_results(result, list))
+            Box::pin(add_glob_results(context, result, list))
         }
         // Boxing for async recursion
-        recurse(*result, list).await?;
+        recurse(context, *result, list).await?;
     }
     Ok(())
 }
 
 async fn input_to_modules<'a>(fs: FileSystemVc, input: &'a Vec<String>) -> Result<Vec<AssetVc>> {
     let root = FileSystemPathVc::new(fs, "");
+    let context = ModuleAssetContextVc::new(
+        root,
+        GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+    )
+    .into();
     let mut list = Vec::new();
     for input in input.iter() {
         let glob = GlobVc::new(input);
-        add_glob_results(root.read_glob(glob, false), &mut list).await?;
+        add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
     }
     Ok(list)
 }
