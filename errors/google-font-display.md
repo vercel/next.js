@@ -33,4 +33,5 @@ If you want to specifically display a font using a `block` or `fallback` strateg
 
 ### Useful Links
 
-- [Font-display](https://font-display.glitch.me/)
+- [Google Fonts API Docs](https://developers.google.com/fonts/docs/css2#use_font-display)
+- [CSS `font-display` property](https://www.w3.org/TR/css-fonts-4/#font-display-desc)
