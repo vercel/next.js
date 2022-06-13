@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::resolve::{apply_cjs_specific_options, cjs_resolve, handle_resolve_error};
+use crate::resolve::handle_resolve_error;
 use anyhow::Result;
 use json::JsonValue;
 use turbo_tasks::{Value, ValueToString, Vc};
@@ -10,11 +10,10 @@ use turbopack_core::{
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        find_context_file,
         options::{ConditionValue, ResolveIntoPackage, ResolveModules, ResolveOptionsVc},
         options::{ImportMap, ImportMapping},
         parse::{Request, RequestVc},
-        resolve, FindContextFileResult, ResolveResult, ResolveResultVc,
+        resolve, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };

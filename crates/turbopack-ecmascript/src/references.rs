@@ -60,6 +60,7 @@ pub async fn module_references(
     context: AssetContextVc,
     ty: Value<ModuleAssetType>,
     target: CompileTargetVc,
+    node_native_bindings: bool,
 ) -> Result<Vc<Vec<AssetReferenceVc>>> {
     let mut references = Vec::new();
     let path = source.path();
@@ -217,6 +218,7 @@ pub async fn module_references(
                 is_typescript: bool,
                 references: &'a mut Vec<AssetReferenceVc>,
                 target: CompileTargetVc,
+                node_native_bindings: bool,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
                     handler,
@@ -230,6 +232,7 @@ pub async fn module_references(
                     is_typescript,
                     references,
                     target,
+                    node_native_bindings,
                 ))
             }
 
@@ -248,6 +251,7 @@ pub async fn module_references(
                 is_typescript: bool,
                 references: &mut Vec<AssetReferenceVc>,
                 target: CompileTargetVc,
+                node_native_bindings: bool,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
                     JsValue::explain_args(&args, 10, 2)
@@ -268,6 +272,7 @@ pub async fn module_references(
                                 is_typescript,
                                 references,
                                 target,
+                                node_native_bindings,
                             )
                             .await?;
                         }
@@ -506,7 +511,6 @@ pub async fn module_references(
                             ),
                         )
                     }
-                    #[cfg(feature = "node-native-binding")]
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
                         use crate::resolve::node_native_binding::NodePreGypConfigReferenceVc;
 
@@ -549,7 +553,6 @@ pub async fn module_references(
                             ),
                         )
                     }
-                    #[cfg(feature = "node-native-binding")]
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
                         use crate::analyzer::ConstantValue;
                         use crate::resolve::node_native_binding::NodeGypBuildReferenceVc;
@@ -586,7 +589,8 @@ pub async fn module_references(
             }
 
             let cache = Mutex::new(LinkCache::new());
-            let linker = |value| value_visitor(source, context, value, target);
+            let linker =
+                |value| value_visitor(source, context, value, target, node_native_bindings);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
             for effect in var_graph.effects.iter() {
@@ -611,6 +615,7 @@ pub async fn module_references(
                             is_typescript,
                             &mut references,
                             target,
+                            node_native_bindings,
                         )
                         .await?;
                     }
@@ -646,6 +651,7 @@ pub async fn module_references(
                             is_typescript,
                             &mut references,
                             target,
+                            node_native_bindings,
                         )
                         .await?;
                     }
@@ -670,8 +676,9 @@ async fn value_visitor(
     context: AssetContextVc,
     v: JsValue,
     target: CompileTargetVc,
+    node_native_bindings: bool,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, m) = value_visitor_inner(source, context, v, target).await?;
+    let (mut v, m) = value_visitor_inner(source, context, v, target, node_native_bindings).await?;
     v.normalize_shallow();
     Ok((v, m))
 }
@@ -681,6 +688,7 @@ async fn value_visitor_inner(
     context: AssetContextVc,
     v: JsValue,
     target: CompileTargetVc,
+    node_native_bindings: bool,
 ) -> Result<(JsValue, bool)> {
     Ok((
         match v {
@@ -741,10 +749,12 @@ async fn value_visitor_inner(
                 "child_process" => JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                #[cfg(feature = "node-native-binding")]
-                "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                #[cfg(feature = "node-native-binding")]
-                "node-gyp-build" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
+                "@mapbox/node-pre-gyp" if node_native_bindings => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)
+                }
+                "node-gyp-build" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
+                }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",

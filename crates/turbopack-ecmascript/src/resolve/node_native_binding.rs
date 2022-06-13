@@ -4,10 +4,10 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 
-use crate::target::{CompileTarget, CompileTargetVc, Platform};
+use crate::target::{CompileTargetVc, Platform};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},

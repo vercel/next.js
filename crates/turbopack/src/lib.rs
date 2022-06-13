@@ -20,7 +20,7 @@ use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
 use resolve::{resolve_options, typescript_resolve_options};
-use turbo_tasks::{CompletionVc, Value, ValueToString};
+use turbo_tasks::{CompletionVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::reference::all_referenced_assets;
 use turbopack_core::{asset::AssetVc, resolve::parse::RequestVc};
@@ -41,17 +41,21 @@ pub use turbopack_ecmascript as ecmascript;
 #[derive(PartialEq, Eq)]
 pub struct GraphOptions {
     pub typescript: bool,
-    pub node_gyp: bool,
+    pub node_native_bindings: bool,
     pub compile_target: CompileTargetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl GraphOptionsVc {
     #[turbo_tasks::function]
-    pub fn new(typescript: bool, node_gyp: bool, compile_target: CompileTargetVc) -> Self {
+    pub fn new(
+        typescript: bool,
+        node_native_bindings: bool,
+        compile_target: CompileTargetVc,
+    ) -> Self {
         Self::slot(GraphOptions {
             typescript,
-            node_gyp,
+            node_native_bindings,
             compile_target,
         })
     }
@@ -62,12 +66,17 @@ impl GraphOptionsVc {
     }
 
     #[turbo_tasks::function]
+    pub async fn node_native_bindings(self) -> Result<Vc<bool>> {
+        Ok(Vc::slot(self.await?.node_native_bindings))
+    }
+
+    #[turbo_tasks::function]
     pub async fn with_typescript(self) -> Result<GraphOptionsVc> {
         let o = self.await?;
         if o.typescript {
             Ok(self)
         } else {
-            Ok(Self::new(true, o.node_gyp, o.compile_target))
+            Ok(Self::new(true, o.node_native_bindings, o.compile_target))
         }
     }
 }
@@ -118,6 +127,7 @@ async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetV
                 ModuleAssetContextVc::new(path.parent(), graph_options).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
                 graph_options.compile_target(),
+                *graph_options.node_native_bindings().await?,
             )
             .into(),
             ModuleType::Typescript => turbopack_ecmascript::ModuleAssetVc::new(
@@ -125,6 +135,7 @@ async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetV
                 ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
                 graph_options.compile_target(),
+                *graph_options.node_native_bindings().await?,
             )
             .into(),
             ModuleType::TypescriptDeclaration => turbopack_ecmascript::ModuleAssetVc::new(
@@ -132,6 +143,7 @@ async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetV
                 ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
                 graph_options.compile_target(),
+                *graph_options.node_native_bindings().await?,
             )
             .into(),
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),

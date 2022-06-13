@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
+#![recursion_limit = "256"]
 
 pub mod analyzer;
 mod errors;
@@ -39,6 +40,7 @@ pub struct ModuleAsset {
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
     pub target: CompileTargetVc,
+    pub node_native_bindings: bool
 }
 
 #[turbo_tasks::value_impl]
@@ -49,12 +51,14 @@ impl ModuleAssetVc {
         context: AssetContextVc,
         ty: Value<ModuleAssetType>,
         target: CompileTargetVc,
+        node_native_bindings: bool
     ) -> Self {
         Self::slot(ModuleAsset {
             source,
             context,
             ty: ty.into_value(),
             target: target,
+            node_native_bindings
         })
     }
 }
@@ -71,7 +75,7 @@ impl Asset for ModuleAsset {
     }
     #[turbo_tasks::function]
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(self.source, self.context, Value::new(self.ty), self.target)
+        module_references(self.source, self.context, Value::new(self.ty), self.target, self.node_native_bindings)
     }
 }
 

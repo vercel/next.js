@@ -813,7 +813,6 @@ impl JsValue {
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
-                    #[cfg(feature = "node-native-binding")]
                     WellKnownObjectKind::NodePreGyp => (
                       "@mapbox/node-pre-gyp",
                       "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
@@ -875,12 +874,10 @@ impl JsValue {
                         format!("os.endianness"),
                         "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
                     ),
-                    #[cfg(feature = "node-native-binding")]
                     WellKnownFunctionKind::NodePreGypFind => (
                         format!("find"),
                         "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
                     ),
-                    #[cfg(feature = "node-native-binding")]
                     WellKnownFunctionKind::NodeGypBuild => (
                         format!("node-gyp-build"),
                         "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
@@ -1783,7 +1780,6 @@ pub enum WellKnownObjectKind {
     ChildProcess,
     OsModule,
     NodeProcess,
-    #[cfg(feature = "node-native-binding")]
     NodePreGyp,
 }
 
@@ -1802,9 +1798,7 @@ pub enum WellKnownFunctionKind {
     OsArch,
     OsPlatform,
     OsEndianness,
-    #[cfg(feature = "node-native-binding")]
     NodePreGypFind,
-    #[cfg(feature = "node-native-binding")]
     NodeGypBuild,
 }
 
@@ -1849,9 +1843,7 @@ pub mod test_utils {
                 "path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
                 "os" => JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                #[cfg(feature = "node-native-binding")]
                 "@mapbox/node-pre-gyp" => JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                #[cfg(feature = "node-native-binding")]
                 "node-pre-gyp" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild),
                 _ => return Ok((v, false)),
             },
@@ -1886,6 +1878,7 @@ mod tests {
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
+        crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");

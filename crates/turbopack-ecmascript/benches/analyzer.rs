@@ -19,6 +19,7 @@ use turbopack_ecmascript::analyzer::{
 use turbopack_ecmascript::target::CompileTarget;
 
 pub fn benchmark(c: &mut Criterion) {
+    turbopack_ecmascript::register();
     let mut tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     tests_dir.push("tests");
     tests_dir.push("analyzer");

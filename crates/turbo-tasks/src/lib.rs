@@ -53,7 +53,7 @@ pub mod macro_helpers {
 }
 
 pub mod test_helpers {
-    pub use super::manager::set_turbo_tasks;
+    pub use super::manager::set_turbo_tasks_for_testing;
 }
 
 pub fn register() {

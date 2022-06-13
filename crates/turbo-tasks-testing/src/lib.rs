@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use turbo_tasks::{
-    backend::SlotContent, test_helpers::set_turbo_tasks, RawVc, TaskId, TurboTasksApi,
+    backend::SlotContent, test_helpers::set_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
     TurboTasksCallApi,
 };
 
@@ -45,7 +45,7 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn notify_scheduled_tasks(&self) {
-        unreachable!()
+        // ignore
     }
 
     fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>> {
@@ -107,6 +107,6 @@ impl TurboTasksApi for VcStorage {
 
 impl VcStorage {
     pub fn install() {
-        unsafe { set_turbo_tasks(Arc::new(VcStorage::default())) }
+        unsafe { set_turbo_tasks_for_testing(Arc::new(VcStorage::default()), TaskId::from(0)) }
     }
 }

@@ -253,7 +253,6 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::ChildProcess => child_process_module_member(prop),
         WellKnownObjectKind::OsModule => os_module_member(prop),
         WellKnownObjectKind::NodeProcess => node_process_member(prop, target).await?,
-        #[cfg(feature = "node-native-binding")]
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
@@ -363,7 +362,6 @@ async fn node_process_member(prop: JsValue, target: CompileTargetVc) -> Result<J
     })
 }
 
-#[cfg(feature = "node-native-binding")]
 fn node_pre_gyp(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("find") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind),
