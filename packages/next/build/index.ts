@@ -721,6 +721,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          middlewareRegex: entrypoints.middlewareRegex,
         }
 
         const configs = await runWebpackSpan
@@ -2201,18 +2202,6 @@ export default async function build(
           'utf8'
         )
       }
-
-      await promises.writeFile(
-        path.join(
-          distDir,
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          '_middlewareManifest.js'
-        ),
-        `self.__MIDDLEWARE_MANIFEST=${devalue(
-          middlewareManifest.clientInfo
-        )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-      )
 
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images

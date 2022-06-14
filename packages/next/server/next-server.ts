@@ -1137,7 +1137,7 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     middlewareBetaWarning()
-    const normalizedPathname = removeTrailingSlash(params.parsedUrl.pathname)
+    const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     // For middleware to "fetch" we must always provide an absolute URL
     const query = urlQueryToSearchParams(params.parsed.query).toString()
@@ -1269,7 +1269,7 @@ export default class NextNodeServer extends BaseServer {
         })
 
         parsedUrl.pathname = pathnameInfo.pathname
-        const normalizedPathname = removeTrailingSlash(parsedUrl.pathname)
+        const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
         if (!middleware.some((m) => m.match(normalizedPathname))) {
           return { finished: false }
         }
