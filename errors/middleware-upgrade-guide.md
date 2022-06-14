@@ -16,7 +16,7 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 1. [No Nested Middleware](#no-nested-middleware)
 2. [No Response Body](#no-response-body)
 3. [Cookies API Revamped](#cookies-api-revamped)
-4. [New user agent helper](#new-user-agent-helper)
+4. [New User-Agent Helper](#new-user-agent-helper)
 5. [No More Page Match Data](#no-more-page-match-data)
 6. [Executing Middleware on Internal Next.js Requests](#executing-middleware-on-internal-nextjs-requests)
 
@@ -218,17 +218,16 @@ export function middleware() {
   response.cookies.clear()
 }
 ```
-## New user agent helper
+## New User-Agent Helper
 
 ### Summary of changes
 
-- User agent no longer available on the request object
-- New helper introduced
-- Reduces Middleware size by 17kB
+- Accessing the user agent is no longer available on the request object
+- We've added a new `userAgent` helper to reduce Middleware size by `17kb`
 
 ### Explanation
 
-To help reduce the size of your Middleware, we have extracted the user agent from the request, and created a new helper to interact with the user agent object. 
+To help reduce the size of your Middleware, we have extracted the user agent from the request object and created a new helper `userAgent`. 
 
 The helper is imported from `next/server` and allows you to opt in to using the user agent. The helper gives you access to the same properties that were available from the request object.
 
