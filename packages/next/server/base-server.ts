@@ -529,6 +529,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
               if (matcherParams) {
+                utils.normalizeDynamicRouteParams(matcherParams)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
               }

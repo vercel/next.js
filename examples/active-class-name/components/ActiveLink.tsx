@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
-import PropTypes from 'prop-types'
-import Link from 'next/link'
-import React, { Children } from 'react'
+import Link, { LinkProps } from 'next/link'
+import React, { useState, useEffect, ReactElement, Children } from 'react'
 
-const ActiveLink = ({ children, activeClassName, ...props }) => {
+type ActiveLinkProps = LinkProps & {
+  children: ReactElement
+  activeClassName: string
+}
+
+const ActiveLink = ({
+  children,
+  activeClassName,
+  ...props
+}: ActiveLinkProps) => {
   const { asPath, isReady } = useRouter()
 
   const child = Children.only(children)
@@ -16,8 +23,10 @@ const ActiveLink = ({ children, activeClassName, ...props }) => {
     if (isReady) {
       // Dynamic route will be matched via props.as
       // Static route will be matched via props.href
-      const linkPathname = new URL(props.as || props.href, location.href)
-        .pathname
+      const linkPathname = new URL(
+        (props.as || props.href) as string,
+        location.href
+      ).pathname
 
       // Using URL().pathname to get rid of query and hash
       const activePathname = new URL(asPath, location.href).pathname
@@ -49,10 +58,6 @@ const ActiveLink = ({ children, activeClassName, ...props }) => {
       })}
     </Link>
   )
-}
-
-ActiveLink.propTypes = {
-  activeClassName: PropTypes.string.isRequired,
 }
 
 export default ActiveLink

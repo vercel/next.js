@@ -323,7 +323,8 @@ export default class DevServer extends Server {
 
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
-            middlewareMatcher = staticInfo.middleware?.pathMatcher
+            middlewareMatcher =
+              staticInfo.middleware?.pathMatcher || new RegExp('.*')
             routedMiddleware.push('/')
             continue
           }
@@ -391,6 +392,7 @@ export default class DevServer extends Server {
                   })
             ),
             page,
+            re: middlewareMatcher,
             ssr: ssrMiddleware.has(page),
           }
         })
@@ -911,7 +913,7 @@ export default class DevServer extends Server {
           .body(
             JSON.stringify(
               this.getMiddleware().map((middleware) => [
-                middleware.page,
+                (middleware as any).re.source,
                 !!middleware.ssr,
               ])
             )

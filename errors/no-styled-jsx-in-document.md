@@ -1,5 +1,7 @@
 # No styled-jsx in Document
 
+> Prevent usage of `styled-jsx` in `pages/_document.js`.
+
 ### Why This Error Occurred
 
 Custom CSS like `styled-jsx` is not allowed in a [Custom Document](https://nextjs.org/docs/advanced-features/custom-document).
