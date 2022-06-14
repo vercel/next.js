@@ -468,7 +468,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn notify_scheduled_tasks(&self) {
-        TASKS_TO_NOTIFY.with(|tasks| {
+        let _ = TASKS_TO_NOTIFY.try_with(|tasks| {
             let tasks = tasks.take();
             if tasks.is_empty() {
                 return;
