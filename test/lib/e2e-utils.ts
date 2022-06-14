@@ -111,9 +111,11 @@ if (typeof afterAll === 'function') {
  * to prevent relying on modules that shouldn't be
  */
 export async function createNext(opts: {
-  files: {
-    [filename: string]: string | FileRef
-  }
+  files:
+    | FileRef
+    | {
+        [filename: string]: string | FileRef
+      }
   dependencies?: {
     [name: string]: string
   }

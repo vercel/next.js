@@ -1029,6 +1029,23 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).query).toEqual({
+      slug: 'slug-1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+    expect($2('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($2('#router').text()).query).toEqual({
+      slug: '[slug]',
+    })
   })
 
   it('should have correct asPath on dynamic SSG page correctly', async () => {

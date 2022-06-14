@@ -517,27 +517,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               parsedUrl.query
             )
 
+            // for prerendered ISR paths we attempt parsing the route
+            // params from the URL directly as route-matches may not
+            // contain the correct values due to the filesystem path
+            // matching before the dynamic route has been matched
             if (
-              !isDynamicRoute(normalizedUrlPath) ||
-              !isDynamicRoute(matchedPath)
+              !paramsResult.hasValidParams &&
+              pageIsDynamic &&
+              !isDynamicRoute(normalizedUrlPath)
             ) {
-              // we favor matching against req.url although if there's a
-              // rewrite and it's SSR we use the x-matched-path instead
-              let matcherRes = utils.dynamicRouteMatcher?.(normalizedUrlPath)
+              let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
-              if (!matcherRes) {
-                matcherRes = utils.dynamicRouteMatcher?.(matchedPath)
-              }
-              const parsedResult = utils.normalizeDynamicRouteParams(
-                matcherRes || {}
-              )
-
-              if (parsedResult.hasValidParams) {
-                if (paramsResult.hasValidParams) {
-                  Object.assign(paramsResult.params, parsedResult.params)
-                } else {
-                  paramsResult = parsedResult
-                }
+              if (matcherParams) {
+                Object.assign(paramsResult.params, matcherParams)
+                paramsResult.hasValidParams = true
               }
             }
 
@@ -547,9 +540,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             if (
               req.headers['x-now-route-matches'] &&
-              (!paramsResult.hasValidParams ||
-                (isDynamicRoute(matchedPath) &&
-                  isDynamicRoute(normalizedUrlPath)))
+              isDynamicRoute(matchedPath) &&
+              !paramsResult.hasValidParams
             ) {
               const opts: Record<string, string> = {}
               const routeParams = utils.getParamsFromRouteMatches(
@@ -561,17 +553,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
               }
-              paramsResult = utils.normalizeDynamicRouteParams(routeParams)
+              paramsResult = utils.normalizeDynamicRouteParams(
+                routeParams,
+                true
+              )
 
               if (paramsResult.hasValidParams) {
                 params = paramsResult.params
               }
             }
 
+            // handle the actual dynamic route name being requested
+            if (
+              pageIsDynamic &&
+              utils.defaultRouteMatches &&
+              normalizedUrlPath === srcPathname &&
+              !paramsResult.hasValidParams &&
+              !utils.normalizeDynamicRouteParams({ ...params }, true)
+                .hasValidParams
+            ) {
+              params = utils.defaultRouteMatches
+            }
+
             if (params) {
-              if (!paramsResult.hasValidParams) {
-                params = utils.normalizeDynamicRouteParams(params).params
-              }
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
