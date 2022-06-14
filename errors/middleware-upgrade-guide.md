@@ -16,8 +16,9 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 1. [No Nested Middleware](#no-nested-middleware)
 2. [No Response Body](#no-response-body)
 3. [Cookies API Revamped](#cookies-api-revamped)
-4. [No More Page Match Data](#no-more-page-match-data)
-5. [Executing Middleware on Internal Next.js Requests](#executing-middleware-on-internal-nextjs-requests)
+4. [New user agent helper](#new-user-agent-helper)
+5. [No More Page Match Data](#no-more-page-match-data)
+6. [Executing Middleware on Internal Next.js Requests](#executing-middleware-on-internal-nextjs-requests)
 
 ## No Nested Middleware
 
@@ -41,7 +42,7 @@ Based on customer feedback, we have replaced this API with a single root Middlew
 
 You should declare **one single Middleware file** in your application, which should be located at the root of the project directory (**not** inside of the `pages` directory), and named **without** an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
 
-Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*`, the custom matcher is defined in an exported config object:
+Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*` and `/dashboard/:path*`, the custom matcher is defined in an exported config object:
 
 ```typescript
 // middleware.ts
@@ -58,7 +59,7 @@ export const config = {
 }
 ```
 
-While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. The following example shows how you can merge two previously nested Middleware:
+While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. One advantage of using conditionals is defining explicit ordering for when Middleware executes. The following example shows how you can merge two previously nested Middleware:
 
 ```typescript
 // <root>/middleware.js
@@ -86,8 +87,6 @@ export function middleware(request: NextRequest) {
 ### Explanation
 
 To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
-
-Beta customers had explored using Middleware to handle authorization for their application. However, to ensure both the HTML and data payload (JSON file) are protected, we recommend checking authorization at the page level.
 
 The following patterns will no longer work:
 
@@ -217,6 +216,53 @@ export function middleware() {
 
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
+}
+```
+## New user agent helper
+
+### Summary of changes
+
+- User agent no longer available on the request object
+- New helper introduced
+- Reduces Middleware size by 17kB
+
+### Explanation
+
+To help reduce the size of your Middleware, we have extracted the user agent from the request, and created a new helper to interact with the user agent object. 
+
+The helper is imported from `next/server` and allows you to opt in to using the user agent. The helper gives you access to the same properties that were available from the request object.
+
+### How to upgrade
+
+- Import the `userAgent` helper from `next/server`
+- Destructure the properties you need to work with
+
+#### Before
+
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrites(url)
+}
+```
+
+#### After
+
+```typescript
+// middleware.ts
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrites(url)
 }
 ```
 
