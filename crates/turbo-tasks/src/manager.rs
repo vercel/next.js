@@ -1,24 +1,23 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     collections::HashSet,
     fmt::Debug,
     future::Future,
     hash::Hash,
+    mem::take,
     pin::Pin,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex, Weak,
     },
+    thread,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
-use async_std::{
-    task::{Builder, JoinHandle},
-    task_local,
-};
 use event_listener::{Event, EventListener};
 use serde::{de::Visitor, Deserialize, Serialize};
+use tokio::{runtime::Handle, spawn, task::JoinHandle, task_local};
 
 use crate::{
     backend::{Backend, PersistentTaskType, SlotContent, SlotMappings, TransientTaskType},
@@ -142,16 +141,16 @@ pub struct TurboTasks<B: Backend + 'static> {
 // TODO implement our own thread pool and make these thread locals instead
 task_local! {
     /// The current TurboTasks instance
-    static TURBO_TASKS: RefCell<Option<Arc<dyn TurboTasksApi>>> = RefCell::new(None);
+    static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
-    static PREVIOUS_SLOTS: Cell<SlotMappings> = Default::default();
+    static PREVIOUS_SLOTS: RefCell<SlotMappings>;
 
-    static CURRENT_TASK_ID: Cell<Option<TaskId>> = Cell::new(None);
+    static CURRENT_TASK_ID: TaskId;
 
     /// Affected [Task]s, that are tracked during task execution
     /// These tasks will be invalidated when the execution finishes
     /// or before reading a slot value
-    static TASKS_TO_NOTIFY: RefCell<Vec<TaskId>> = Default::default();
+    static TASKS_TO_NOTIFY: RefCell<Vec<TaskId>>;
 }
 
 impl<B: Backend> TurboTasks<B> {
@@ -281,61 +280,77 @@ impl<B: Backend> TurboTasks<B> {
             *self.start.lock().unwrap() = Some(Instant::now());
         }
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-        Builder::new()
-            // that's expensive
-            // .name(format!("{:?} {:?}", &*task, &*task as *const Task))
-            .spawn(async move {
-                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
-                loop {
-                    if this.stopped.load(Ordering::Acquire) {
-                        break;
-                    }
-                    if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this)
-                    {
-                        // Setup thread locals
-                        let has_slot_mappings = execution.slot_mappings.is_some();
-                        PREVIOUS_SLOTS
-                            .with(|cell| cell.set(execution.slot_mappings.unwrap_or_default()));
-                        CURRENT_TASK_ID.with(|c| c.set(Some(task_id)));
-                        let result = execution.future.await;
-                        if let Err(err) = &result {
-                            println!("{} errored {}", task_id, err);
-                        }
-                        let slot_mappings = if has_slot_mappings {
-                            PREVIOUS_SLOTS.with(|cell| Some(cell.take()))
-                        } else {
-                            None
-                        };
-                        let reexecute = this.backend.task_execution_completed(
-                            task_id,
-                            slot_mappings,
-                            result,
-                            &*this,
-                        );
-                        this.notify_scheduled_tasks_internal();
-                        if !reexecute {
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                if this
-                    .currently_scheduled_tasks
-                    .fetch_sub(1, Ordering::AcqRel)
-                    == 1
-                {
-                    // That's not super race-condition-safe, but it's only for statistical
-                    // reasons
-                    let total = this.scheduled_tasks.load(Ordering::Acquire);
-                    this.scheduled_tasks.store(0, Ordering::Release);
-                    if let Some(start) = *this.start.lock().unwrap() {
-                        *this.last_update.lock().unwrap() = Some((start.elapsed(), total));
-                    }
-                    this.event.notify(usize::MAX);
-                }
-            })
-            .unwrap()
+        tokio::task::Builder::new()
+            .name(&this.backend.get_task_description(task_id))
+            .spawn(TURBO_TASKS.scope(
+                this.clone(),
+                CURRENT_TASK_ID.scope(
+                    task_id,
+                    TASKS_TO_NOTIFY.scope(
+                        Default::default(),
+                        self.backend.execution_scope(task_id, async move {
+                            loop {
+                                if this.stopped.load(Ordering::Acquire) {
+                                    break;
+                                }
+                                if let Some(execution) =
+                                    this.backend.try_start_task_execution(task_id, &*this)
+                                {
+                                    // Setup thread locals
+                                    let has_slot_mappings = execution.slot_mappings.is_some();
+
+                                    let slot_mappings =
+                                        RefCell::new(execution.slot_mappings.unwrap_or_default());
+                                    let (result, slot_mappings) = PREVIOUS_SLOTS
+                                        .scope(slot_mappings, async {
+                                            let result = execution.future.await;
+                                            let slot_mappings = if has_slot_mappings {
+                                                Some(
+                                                    PREVIOUS_SLOTS
+                                                        .with(|s| take(&mut *s.borrow_mut())),
+                                                )
+                                            } else {
+                                                None
+                                            };
+                                            (result, slot_mappings)
+                                        })
+                                        .await;
+                                    if let Err(err) = &result {
+                                        println!("{} errored {}", task_id, err);
+                                    }
+                                    let reexecute = this.backend.task_execution_completed(
+                                        task_id,
+                                        slot_mappings,
+                                        result,
+                                        &*this,
+                                    );
+                                    this.notify_scheduled_tasks_internal();
+                                    if !reexecute {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+                            if this
+                                .currently_scheduled_tasks
+                                .fetch_sub(1, Ordering::AcqRel)
+                                == 1
+                            {
+                                // That's not super race-condition-safe, but it's only for
+                                // statistical reasons
+                                let total = this.scheduled_tasks.load(Ordering::Acquire);
+                                this.scheduled_tasks.store(0, Ordering::Release);
+                                if let Some(start) = *this.start.lock().unwrap() {
+                                    *this.last_update.lock().unwrap() =
+                                        Some((start.elapsed(), total));
+                                }
+                                this.event.notify(usize::MAX);
+                            }
+                        }),
+                    ),
+                ),
+            ))
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {
@@ -343,6 +358,12 @@ impl<B: Backend> TurboTasks<B> {
         if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
             listener.await;
         }
+        self.last_update.lock().unwrap().unwrap()
+    }
+
+    pub async fn wait_next_done(&self) -> (Duration, usize) {
+        let listener = self.event.listen();
+        listener.await;
         self.last_update.lock().unwrap().unwrap()
     }
 
@@ -388,28 +409,25 @@ impl<B: Backend> TurboTasks<B> {
         let this = self.pin();
         self.currently_scheduled_background_jobs
             .fetch_add(1, Ordering::AcqRel);
-        Builder::new()
-            .spawn(async move {
-                TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(this.clone()));
+        spawn(TURBO_TASKS.scope(this.clone(), async move {
+            if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                let listener = this.event.listen();
                 if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                    let listener = this.event.listen();
-                    if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                        listener.await;
-                    }
+                    listener.await;
                 }
-                let this2 = this.clone();
-                if !this.stopped.load(Ordering::Acquire) {
-                    func(this).await;
-                }
-                if this2
-                    .currently_scheduled_background_jobs
-                    .fetch_sub(1, Ordering::AcqRel)
-                    == 1
-                {
-                    this2.event_background.notify(usize::MAX);
-                }
-            })
-            .unwrap();
+            }
+            let this2 = this.clone();
+            if !this.stopped.load(Ordering::Acquire) {
+                func(this).await;
+            }
+            if this2
+                .currently_scheduled_background_jobs
+                .fetch_sub(1, Ordering::AcqRel)
+                == 1
+            {
+                this2.event_background.notify(usize::MAX);
+            }
+        }));
     }
 
     fn notify_scheduled_tasks_internal(&self) {
@@ -450,7 +468,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn notify_scheduled_tasks(&self) {
-        TASKS_TO_NOTIFY.with(|tasks| {
+        let _ = TASKS_TO_NOTIFY.try_with(|tasks| {
             let tasks = tasks.take();
             if tasks.is_empty() {
                 return;
@@ -561,27 +579,33 @@ impl<B: Backend> TaskIdProvider for TurboTasks<B> {
 }
 
 fn current_task(from: &str) -> TaskId {
-    if let Some(id) = CURRENT_TASK_ID.with(|c| c.get()) {
-        id
-    } else {
-        panic!(
+    match CURRENT_TASK_ID.try_with(|id| *id) {
+        Ok(id) => id,
+        Err(_) => panic!(
             "{} can only be used in the context of turbo_tasks task execution",
             from
-        );
+        ),
     }
 }
 
 pub struct Invalidator {
     task: TaskId,
     turbo_tasks: Weak<dyn TurboTasksApi>,
+    handle: Handle,
 }
 
 impl Invalidator {
     pub fn invalidate(self) {
-        let Invalidator { task, turbo_tasks } = self;
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate(task);
-        }
+        let Invalidator {
+            task,
+            turbo_tasks,
+            handle,
+        } = self;
+        handle.spawn(async move {
+            if let Some(turbo_tasks) = turbo_tasks.upgrade() {
+                turbo_tasks.invalidate(task);
+            }
+        });
     }
 }
 
@@ -615,6 +639,7 @@ impl<'de> Deserialize<'de> for Invalidator {
                 Ok(Invalidator {
                     task: TaskId::deserialize(deserializer)?,
                     turbo_tasks: weak_turbo_tasks(),
+                    handle: tokio::runtime::Handle::current(),
                 })
             }
         }
@@ -633,35 +658,50 @@ pub fn trait_call(trait_type: TraitTypeId, trait_fn_name: String, inputs: Vec<Ta
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
-    TURBO_TASKS.with(|c| (*c.borrow()).clone()).unwrap()
+    TURBO_TASKS.with(|arc| arc.clone())
 }
 
 pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T {
-    TURBO_TASKS.with(|c| {
-        if let Some(arc) = c.borrow().as_ref() {
-            func(arc)
-        } else {
-            panic!("Outside of TurboTasks");
-        }
-    })
+    TURBO_TASKS.with(|arc| func(arc))
 }
 
 pub fn weak_turbo_tasks() -> Weak<dyn TurboTasksApi> {
-    TURBO_TASKS.with(|c| Arc::downgrade(c.borrow().as_ref().unwrap()))
+    TURBO_TASKS.with(|arc| Arc::downgrade(arc))
 }
 
-pub unsafe fn set_turbo_tasks_for_testing(tt: Arc<dyn TurboTasksApi>, current_task: TaskId) {
-    TURBO_TASKS.with(|c| (*c.borrow_mut()) = Some(tt));
-    CURRENT_TASK_ID.with(|c| c.set(Some(current_task)));
+pub unsafe fn with_turbo_tasks_for_testing<T>(
+    tt: Arc<dyn TurboTasksApi>,
+    current_task: TaskId,
+    f: impl Future<Output = T>,
+) -> impl Future<Output = T> {
+    TURBO_TASKS.scope(
+        tt,
+        CURRENT_TASK_ID.scope(current_task, PREVIOUS_SLOTS.scope(Default::default(), f)),
+    )
 }
 
 /// Get an [Invalidator] that can be used to invalidate the current [Task]
 /// based on external events.
 pub fn get_invalidator() -> Invalidator {
+    let handle = tokio::runtime::Handle::current();
     Invalidator {
         task: current_task("turbo_tasks::get_invalidator()"),
         turbo_tasks: weak_turbo_tasks(),
+        handle,
     }
+}
+
+pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
+    tokio::task::spawn_blocking(func).await.unwrap()
+}
+
+pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
+    let handle = tokio::runtime::Handle::current();
+    thread::spawn(move || {
+        let guard = handle.enter();
+        func();
+        drop(guard);
+    });
 }
 
 pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {
@@ -774,9 +814,9 @@ pub fn find_slot_by_key<
     type_id: ValueTypeId,
     key: K,
 ) -> CurrentSlotRef {
-    PREVIOUS_SLOTS.with(|cell| {
+    PREVIOUS_SLOTS.with(|c| {
         let current_task = current_task("slotting turbo_tasks values");
-        let mut map = cell.take();
+        let mut map = c.borrow_mut();
         let index = *map
             .by_key
             .entry((
@@ -784,7 +824,6 @@ pub fn find_slot_by_key<
                 SharedValue(Some(K::get_value_type_id()), Arc::new(key)),
             ))
             .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_slot(current_task)));
-        cell.set(map);
         CurrentSlotRef {
             current_task,
             index,
@@ -796,7 +835,7 @@ pub fn find_slot_by_key<
 pub fn find_slot_by_type(type_id: ValueTypeId) -> CurrentSlotRef {
     PREVIOUS_SLOTS.with(|cell| {
         let current_task = current_task("slotting turbo_tasks values");
-        let mut map = cell.take();
+        let mut map = cell.borrow_mut();
         let (ref mut current_index, ref mut list) = map.by_type.entry(type_id).or_default();
         let index = if let Some(i) = list.get(*current_index) {
             *i
@@ -806,7 +845,6 @@ pub fn find_slot_by_type(type_id: ValueTypeId) -> CurrentSlotRef {
             index
         };
         *current_index += 1;
-        cell.set(map);
         CurrentSlotRef {
             current_task,
             index,

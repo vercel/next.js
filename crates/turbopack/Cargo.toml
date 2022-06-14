@@ -16,7 +16,7 @@ anyhow = "1.0.47"
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 "turbopack-ecmascript" = { path = "../turbopack-ecmascript" }
 "turbopack-core" = { path = "../turbopack-core" }
-async-std = "1.10.0"
+tokio = "1.11.0"
 regex = "1.5.4"
 rand = "0.8.5"
 json = "0.12.4"
@@ -40,10 +40,10 @@ features = ["parser", "utils", "visit"]
 version = "0.4"
 
 [dev-dependencies]
-async-std = { version = "1.10.0", features = ["unstable"] }
+tokio = "1.11.0"
 difference = "2.0"
 rstest = "0.12.0"
-criterion = { version = "0.3.5", features = ["async_std"] }
+criterion = { version = "0.3.5", features = ["tokio"] }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
 "turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
 testing = "0.19.1"

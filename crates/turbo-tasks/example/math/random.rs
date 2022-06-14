@@ -15,8 +15,8 @@ pub async fn random(id: RandomIdVc) -> Result<I32ValueVc> {
     let invalidator = turbo_tasks::get_invalidator();
     let dur = id.duration;
     if id.counter.fetch_sub(1, Ordering::SeqCst) > 1 {
-        async_std::task::spawn(async move {
-            async_std::task::sleep(dur).await;
+        tokio::task::spawn(async move {
+            tokio::task::sleep(dur).await;
             println!("invalidate random number...");
             invalidator.invalidate();
         });

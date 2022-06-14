@@ -13,7 +13,7 @@ lazy_static = "1.4.0"
 anyhow = "1.0.47"
 "turbo-tasks" = { path = "../turbo-tasks" }
 event-listener = "2.5.2"
-async-std = "1.10.0"
+tokio = "1.11.0"
 rocksdb = { version = "0.18.0", features = [] }
 serde = "1.0.136"
 bincode = "1.3.3"

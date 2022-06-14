@@ -4,6 +4,7 @@
 #![feature(try_trait_v2)]
 #![feature(hash_drain_filter)]
 #![deny(unsafe_op_in_unsafe_fn)]
+#![feature(generic_associated_types)]
 
 pub mod backend;
 mod completion;
@@ -36,8 +37,9 @@ pub use id::{
 };
 pub use lazy_static::lazy_static;
 pub use manager::{
-    dynamic_call, get_invalidator, trait_call, turbo_tasks, Invalidator, TaskIdProvider,
-    TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi,
+    dynamic_call, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
+    Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
+    TurboTasksCallApi,
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
@@ -53,7 +55,7 @@ pub mod macro_helpers {
 }
 
 pub mod test_helpers {
-    pub use super::manager::set_turbo_tasks_for_testing;
+    pub use super::manager::with_turbo_tasks_for_testing;
 }
 
 pub fn register() {
