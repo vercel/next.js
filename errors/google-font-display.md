@@ -31,10 +31,10 @@ Specifying `display=optional` minimizes the risk of invisible text or layout shi
 
 ### When Not To Use It
 
-If you want to specifically display a font using a `auto, `block`, or `fallback` strategy, then you can disable this rule.
+If you want to specifically display a font using an `auto`, `block`, or `fallback` strategy, then you can disable this rule.
 
 ### Useful Links
 
-- [Controlling Font Performance with font-display](https://developers.google.com/web/updates/2016/02/font-display)
+- [Controlling Font Performance with font-display](https://developer.chrome.com/blog/font-display/)
 - [Google Fonts API Docs](https://developers.google.com/fonts/docs/css2#use_font-display)
 - [CSS `font-display` property](https://www.w3.org/TR/css-fonts-4/#font-display-desc)
