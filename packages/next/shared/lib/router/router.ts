@@ -35,7 +35,7 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
+import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -385,6 +385,7 @@ export type CompletePrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  route?: string
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
@@ -1186,14 +1187,13 @@ export default class Router implements BaseRouter {
             `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
-
       window.location.href = as
       return false
     }
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    const route = removeTrailingSlash(pathname)
+    let route = removeTrailingSlash(pathname)
 
     if (!isMiddlewareMatch && isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1265,6 +1265,10 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
       })
 
+      if ('route' in routeInfo) {
+        pathname = routeInfo.route || route
+      }
+
       // If the routeInfo brings a redirect we simply apply it.
       if ('type' in routeInfo) {
         if (routeInfo.type === 'redirect-internal') {
@@ -1314,7 +1318,6 @@ export default class Router implements BaseRouter {
             )
             return this.change(method, newUrl, newAs, options)
           }
-
           window.location.href = destination
           return new Promise(() => {})
         }
@@ -1742,6 +1745,7 @@ export default class Router implements BaseRouter {
       }
 
       routeInfo.props = props
+      routeInfo.route = route
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
@@ -2109,19 +2113,15 @@ function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
   return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (fns) => {
+    (items) => {
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = removeLocale(
         hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
         options.locale
       )
 
-      return fns.some(([middleware, isSSR]) => {
-        return getRouteMatcher(
-          getMiddlewareRegex(middleware, {
-            catchAll: !isSSR,
-          })
-        )(cleanedAs)
+      return items.some(([regex]) => {
+        return new RegExp(regex).test(cleanedAs)
       })
     }
   )
@@ -2170,7 +2170,11 @@ function getMiddlewareData<T extends FetchDataOutput>(
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
 
-  const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  // TODO: ensure x-nextjs-matched-path is always present instead of both
+  // variants
+  const rewriteTarget =
+    response.headers.get('x-nextjs-matched-path') ||
+    response.headers.get('x-matched-path')
 
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
