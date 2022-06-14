@@ -470,6 +470,7 @@ impl Task {
         &self,
         slot_mappings: Option<SlotMappings>,
         backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
             let mut execution_data = self.execution_data.lock().unwrap();
@@ -507,6 +508,15 @@ impl Task {
         if clear_dependencies {
             self.clear_dependencies(backend)
         }
+
+        // TODO enabled these lines once "Once" tasks correctly bring values up to date
+        // on reading eventually consistent doesn't work for them...
+
+        // if let TaskType::Once(_) = self.ty {
+        //     let job =
+        // backend.create_background_job(BackgroundJob::RemoveTask(self.id));
+        //     turbo_tasks.schedule_backend_background_job(job);
+        // }
         schedule_task
     }
 
@@ -643,6 +653,7 @@ impl Task {
     }
 
     pub(crate) fn execute(&self, tt: &dyn TurboTasksBackendApi) -> NativeTaskFuture {
+        println!("execute {}", self.get_description());
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {
@@ -652,14 +663,7 @@ impl Task {
                     .take()
                     .expect("Task can only be executed once");
                 // let task = self.clone();
-                Box::pin(async move {
-                    let result = future.await;
-                    // TODO wait for full completion
-                    // if task.active_parents.fetch_sub(1, Ordering::Relaxed) == 1 {
-                    //     task.deactivate(1, tt);
-                    // }
-                    result
-                })
+                Box::pin(future)
             }
             TaskType::Native(_, bound_fn) => bound_fn(),
             TaskType::ResolveNative(ref native_fn) => {
