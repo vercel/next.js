@@ -4,7 +4,6 @@ import { tryToExtractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
-import { isMiddlewareFile } from '../utils'
 import * as Log from '../output/log'
 
 interface MiddlewareConfig {
@@ -50,8 +49,7 @@ export async function getPageStaticInfo(params: {
       runtime = 'edge'
     }
 
-    const middlewareConfig =
-      isMiddlewareFile(params.page!) && getMiddlewareConfig(config)
+    const middlewareConfig = getMiddlewareConfig(config)
 
     return {
       ssr,
@@ -163,6 +161,8 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
 
+  // TODO: is the dataMatcher still needed now that we normalize this
+  // away while resolving routes
   const dataMatcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
 
   const parsedDataRoute = tryToParsePath(dataMatcher)
