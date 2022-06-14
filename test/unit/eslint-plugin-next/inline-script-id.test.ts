@@ -12,7 +12,7 @@ import { RuleTester } from 'eslint'
 })
 
 const errorMessage =
-  'next/script components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id'
+  '`next/script` components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id'
 
 const ruleTester = new RuleTester()
 ruleTester.run('inline-script-id', rule, {
