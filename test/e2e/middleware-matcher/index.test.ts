@@ -30,7 +30,9 @@ describe('Middleware can set the matcher in its config', () => {
   it('adds the header for a matched data path', async () => {
     const response = await fetchViaHTTP(
       next.url,
-      `/_next/data/${next.buildId}/with-middleware.json`
+      `/_next/data/${next.buildId}/with-middleware.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
     )
     expect(await response.json()).toMatchObject({
       pageProps: {
@@ -51,7 +53,9 @@ describe('Middleware can set the matcher in its config', () => {
   it('adds the header for another matched data path', async () => {
     const response = await fetchViaHTTP(
       next.url,
-      `/_next/data/${next.buildId}/another-middleware.json`
+      `/_next/data/${next.buildId}/another-middleware.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
     )
     expect(await response.json()).toMatchObject({
       pageProps: {
@@ -64,7 +68,9 @@ describe('Middleware can set the matcher in its config', () => {
   it('does not add the header for root data request', async () => {
     const response = await fetchViaHTTP(
       next.url,
-      `/_next/data/${next.buildId}/index.json`
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
     )
     expect(await response.json()).toMatchObject({
       pageProps: {
@@ -176,7 +182,9 @@ describe('using a single matcher', () => {
   it('adds the headers for a matched data path', async () => {
     const response = await fetchViaHTTP(
       next.url,
-      `/_next/data/${next.buildId}/middleware/works.json`
+      `/_next/data/${next.buildId}/middleware/works.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
     )
     expect(await response.json()).toMatchObject({
       pageProps: {
