@@ -3,11 +3,18 @@ import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import * as Log from '../output/log'
+
+interface MiddlewareConfig {
+  pathMatcher: RegExp
+}
 
 export interface PageStaticInfo {
   runtime?: PageRuntime
   ssg?: boolean
   ssr?: boolean
+  middleware?: Partial<MiddlewareConfig>
 }
 
 /**
@@ -21,38 +28,34 @@ export async function getPageStaticInfo(params: {
   nextConfig: Partial<NextConfig>
   pageFilePath: string
   isDev?: boolean
+  page?: string
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (/runtime|getStaticProps|getServerSideProps/.test(fileContent)) {
+  if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
-    if (config?.runtime === 'edge') {
-      return {
-        runtime: config.runtime,
-        ssr: ssr,
-        ssg: ssg,
-      }
+
+    let runtime = ['experimental-edge', 'edge'].includes(config?.runtime)
+      ? 'edge'
+      : ssr || ssg
+      ? config?.runtime || nextConfig.experimental?.runtime
+      : undefined
+
+    if (runtime === 'experimental-edge' || runtime === 'edge') {
+      warnAboutExperimentalEdgeApiFunctions()
+      runtime = 'edge'
     }
 
-    // For Node.js runtime, we do static optimization.
-    if (config?.runtime === 'nodejs') {
-      return {
-        runtime: ssr || ssg ? config.runtime : undefined,
-        ssr: ssr,
-        ssg: ssg,
-      }
-    }
+    const middlewareConfig = getMiddlewareConfig(config)
 
-    // When the runtime is required because there is ssr or ssg we fallback
-    if (ssr || ssg) {
-      return {
-        runtime: nextConfig.experimental?.runtime,
-        ssr: ssr,
-        ssg: ssg,
-      }
+    return {
+      ssr,
+      ssg,
+      ...(middlewareConfig && { middleware: middlewareConfig }),
+      ...(runtime && { runtime }),
     }
   }
 
@@ -117,3 +120,61 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     }
   }
 }
+
+function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
+  const result: Partial<MiddlewareConfig> = {}
+
+  if (config.matcher) {
+    result.pathMatcher = new RegExp(
+      getMiddlewareRegExpStrings(config.matcher).join('|')
+    )
+
+    if (result.pathMatcher.source.length > 4096) {
+      throw new Error(
+        `generated matcher config must be less than 4096 characters.`
+      )
+    }
+  }
+
+  return result
+}
+
+function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
+  if (Array.isArray(matcherOrMatchers)) {
+    return matcherOrMatchers.flatMap((x) => getMiddlewareRegExpStrings(x))
+  }
+
+  if (typeof matcherOrMatchers !== 'string') {
+    throw new Error(
+      '`matcher` must be a path matcher or an array of path matchers'
+    )
+  }
+
+  let matcher: string = matcherOrMatchers
+
+  if (!matcher.startsWith('/')) {
+    throw new Error('`matcher`: path matcher must start with /')
+  }
+
+  const parsedPage = tryToParsePath(matcher)
+  if (parsedPage.error) {
+    throw new Error(`Invalid path matcher: ${matcher}`)
+  }
+
+  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
+  if (regexes.length < 1) {
+    throw new Error("Can't parse matcher")
+  } else {
+    return regexes
+  }
+}
+
+function warnAboutExperimentalEdgeApiFunctions() {
+  if (warnedAboutExperimentalEdgeApiFunctions) {
+    return
+  }
+  Log.warn(`You are using an experimental edge runtime, the API might change.`)
+  warnedAboutExperimentalEdgeApiFunctions = true
+}
+
+let warnedAboutExperimentalEdgeApiFunctions = false

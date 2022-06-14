@@ -1,15 +1,14 @@
+import MuxPlayer from '@mux-elements/mux-player-react'
 import Link from 'next/link'
 import Layout from '../../components/layout'
-import VideoPlayer from '../../components/video-player'
 import Spinner from '../../components/spinner'
 import { MUX_HOME_PAGE_URL } from '../../constants'
 import { useRouter } from 'next/router'
 
 export function getStaticProps({ params: { id: playbackId } }) {
-  const src = `https://stream.mux.com/${playbackId}.m3u8`
   const poster = `https://image.mux.com/${playbackId}/thumbnail.png`
 
-  return { props: { playbackId, src, poster } }
+  return { props: { playbackId, poster } }
 }
 
 export function getStaticPaths() {
@@ -33,7 +32,7 @@ const Code = ({ children }) => (
   </>
 )
 
-export default function Playback({ playbackId, src, poster }) {
+export default function Playback({ playbackId, poster }) {
   const router = useRouter()
 
   if (router.isFallback) {
@@ -51,7 +50,7 @@ export default function Playback({ playbackId, src, poster }) {
       loadTwitterWidget
     >
       <div className="flash-message">This video is ready for playback</div>
-      <VideoPlayer src={src} poster={poster} />
+      <MuxPlayer style={{ width: '100%' }} playbackId={playbackId} />
       <p>
         Go{' '}
         <Link href="/">
