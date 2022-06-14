@@ -80,6 +80,7 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { getErrorSource } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
 import { htmlEscapeJsonString } from './htmlescape'
@@ -1675,15 +1676,15 @@ function errorToJSON(err: Error) {
   return {
     name: err.name,
     message: stripAnsi(err.message),
+    source: getErrorSource(err) || 'server',
     stack: err.stack,
-    middleware: (err as any).middleware,
   }
 }
 
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number } {
+): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
   if (dev) {
     return errorToJSON(err)
   }
