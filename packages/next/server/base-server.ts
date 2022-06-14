@@ -82,6 +82,7 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   ssr?: boolean
+  re?: RegExp
 }
 
 export interface Options {
@@ -199,7 +200,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllMiddlewareRoute(): Route[]
   protected abstract generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -213,7 +214,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params | null
+    params?: Params
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -237,7 +238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse,
     query: ParsedUrlQuery,
-    params: Params | boolean,
+    params: Params | undefined,
     page: string,
     builtPagePath: string
   ): Promise<boolean>
@@ -714,7 +715,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route | undefined
+    catchAllMiddleware: Route[]
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -938,12 +939,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: ParsedUrlQuery
   ): Promise<boolean> {
     let page = pathname
-    let params: Params | false = false
+    let params: Params | undefined = undefined
     let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname)
+        params = dynamicRoute.match(pathname) || undefined
         if (dynamicRoute.page.startsWith('/api') && params) {
           page = dynamicRoute.page
           pageFound = true
@@ -1872,7 +1873,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.router.catchAllMiddleware &&
+      this.router.catchAllMiddleware[0] &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

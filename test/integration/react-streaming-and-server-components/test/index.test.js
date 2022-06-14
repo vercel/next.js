@@ -99,32 +99,6 @@ const edgeRuntimeBasicSuite = {
           expect(fs.existsSync(requiredFilePath)).toBe(true)
         })
       })
-
-      it('should have clientInfo in middleware manifest', async () => {
-        const middlewareManifestPath = join(
-          distDir,
-          'server',
-          'middleware-manifest.json'
-        )
-        const content = JSON.parse(
-          await fs.readFile(middlewareManifestPath, 'utf8')
-        )
-        for (const item of [
-          ['/', true],
-          ['/next-api/image', true],
-          ['/next-api/link', true],
-          ['/routes/[dynamic]', true],
-        ]) {
-          expect(
-            content.clientInfo.some((infoItem) => {
-              return (
-                item[1] === infoItem[1] && new RegExp(infoItem[0]).test(item[0])
-              )
-            })
-          ).toBe(true)
-        }
-        expect(content.clientInfo).not.toContainEqual([['/404', true]])
-      })
     }
   },
   beforeAll: () => {
