@@ -1,19 +1,8 @@
 import Head from 'next/head'
 import Image from 'next/image'
-import { GetServerSideProps } from 'next'
 import styles from '../styles/Home.module.css'
 
-type Props = {
-  serverOnlyVariable: string
-}
-
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  return {
-    props: { serverOnlyVariable: process.env.ENV_VARIABLE },
-  }
-}
-
-export default function Home({ serverOnlyVariable }: Props) {
+export default function Home() {
   return (
     <div className={styles.container}>
       <Head>
@@ -25,18 +14,6 @@ export default function Home({ serverOnlyVariable }: Props) {
         <h1 className={styles.title}>
           Welcome to <a href="https://nextjs.org">Next.js</a> on Docker Compose!
         </h1>
-
-        <div className={styles.grid}>
-          <div className={styles.card}>
-            <h3>Public Environment Variables</h3>
-            <p>{process.env.NEXT_PUBLIC_ENV_VARIABLE ? `✅` : `❌`}</p>
-          </div>
-
-          <div className={styles.card}>
-            <h3>Server-Only Environment Variables</h3>
-            <p>{serverOnlyVariable ? `✅` : `❌`}</p>
-          </div>
-        </div>
 
         <p className={styles.description}>
           Get started by editing{' '}
