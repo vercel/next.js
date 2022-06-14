@@ -9,8 +9,6 @@ const bucket = Cosmic().bucket({
   read_key: READ_KEY,
 })
 
-const is404 = (error) => /not found/i.test(error.message)
-
 export async function getPreviewPostBySlug(slug) {
   const params = {
     query: {
