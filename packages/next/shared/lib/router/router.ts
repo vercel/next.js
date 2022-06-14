@@ -2120,7 +2120,7 @@ function matchesMiddleware<T extends FetchDataOutput>(
         options.locale
       )
 
-      return items?.some(([regex]) => {
+      return !!items?.some(([regex]) => {
         return new RegExp(regex).test(cleanedAs)
       })
     }

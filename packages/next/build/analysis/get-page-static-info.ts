@@ -161,19 +161,8 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
 
-  // TODO: is the dataMatcher still needed now that we normalize this
-  // away while resolving routes
-  const dataMatcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
-
-  const parsedDataRoute = tryToParsePath(dataMatcher)
-  if (parsedDataRoute.error) {
-    throw new Error(`Invalid data path matcher: ${dataMatcher}`)
-  }
-
-  const regexes = [parsedPage.regexStr, parsedDataRoute.regexStr].filter(
-    (x): x is string => !!x
-  )
-  if (regexes.length < 2) {
+  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
+  if (regexes.length < 1) {
     throw new Error("Can't parse matcher")
   } else {
     return regexes
