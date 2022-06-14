@@ -93,7 +93,6 @@ import {
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
   isServerComponentPage,
   isMiddlewareFile,
 } from './utils'
@@ -1256,10 +1255,7 @@ export default async function build(
                 isHybridAmp,
                 ssgPageRoutes,
                 initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
+                runtime: pageRuntime,
                 pageDuration: undefined,
                 ssgPageDurations: undefined,
               })

@@ -115,7 +115,13 @@ const edgeRuntimeBasicSuite = {
           ['/next-api/link', true],
           ['/routes/[dynamic]', true],
         ]) {
-          expect(content.clientInfo).toContainEqual(item)
+          expect(
+            content.clientInfo.some((infoItem) => {
+              return (
+                item[1] === infoItem[1] && new RegExp(infoItem[0]).test(item[0])
+              )
+            })
+          ).toBe(true)
         }
         expect(content.clientInfo).not.toContainEqual([['/404', true]])
       })
