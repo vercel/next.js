@@ -34,7 +34,7 @@ export function useIntersection<T extends Element>({
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-  const elementRef = useRef<T | null>(null)
+  const [element, setElement] = useState<T | null>(null)
 
   useEffect(() => {
     if (hasIntersectionObserver) {
@@ -45,10 +45,9 @@ export function useIntersection<T extends Element>({
 
       if (isDisabled || visible) return
 
-      const el = elementRef.current
-      if (el && el.tagName) {
+      if (element && element.tagName) {
         unobserve.current = observe(
-          el,
+          element,
           (isVisible) => isVisible && setVisible(isVisible),
           { root: rootRef?.current, rootMargin }
         )
@@ -64,17 +63,13 @@ export function useIntersection<T extends Element>({
         return () => cancelIdleCallback(idleCallback)
       }
     }
-  }, [isDisabled, rootMargin, rootRef, visible])
+  }, [element, isDisabled, rootMargin, rootRef, visible])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
   }, [])
 
-  const setRef = useCallback((el: T | null) => {
-    elementRef.current = el
-  }, [])
-
-  return [setRef, visible, resetVisible]
+  return [setElement, visible, resetVisible]
 }
 
 function observe(
