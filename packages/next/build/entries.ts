@@ -170,6 +170,15 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
+  if (opts.page.startsWith('/api/')) {
+    const loaderParams: MiddlewareLoaderOptions = {
+      absolutePagePath: opts.absolutePagePath,
+      page: opts.page,
+    }
+
+    return `next-edge-function-loader?${stringify(loaderParams)}!`
+  }
+
   const loaderParams: MiddlewareSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -421,7 +430,9 @@ export function runDependingOnPageType<T>(params: {
   if (isMiddlewareFile(params.page)) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
-    return [params.onServer()]
+    return params.pageRuntime === 'edge'
+      ? [params.onEdgeServer()]
+      : [params.onServer()]
   } else if (params.page === '/_document') {
     return [params.onServer()]
   } else if (

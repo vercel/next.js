@@ -35,7 +35,7 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
+import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -385,6 +385,7 @@ export type CompletePrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  route?: string
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
@@ -456,6 +457,17 @@ interface FetchDataOutput {
   text: string
 }
 
+interface FetchNextDataParams {
+  dataHref: string
+  isServerRender: boolean
+  parseJSON: boolean | undefined
+  hasMiddleware?: boolean
+  inflightCache: NextDataCache
+  persistCache: boolean
+  isPrefetch: boolean
+  isBackground?: boolean
+}
+
 function fetchNextData({
   dataHref,
   inflightCache,
@@ -464,15 +476,8 @@ function fetchNextData({
   isServerRender,
   parseJSON,
   persistCache,
-}: {
-  dataHref: string
-  isServerRender: boolean
-  parseJSON: boolean | undefined
-  hasMiddleware?: boolean
-  inflightCache: NextDataCache
-  persistCache: boolean
-  isPrefetch: boolean
-}): Promise<FetchDataOutput> {
+  isBackground,
+}: FetchNextDataParams): Promise<FetchDataOutput> {
   const { href: cacheKey } = new URL(dataHref, window.location.href)
   const getData = (params?: { method?: 'HEAD' | 'GET' }) =>
     fetchRetry(dataHref, isServerRender ? 3 : 1, {
@@ -560,18 +565,11 @@ function fetchNextData({
       })
 
   if (inflightCache[cacheKey] !== undefined) {
-    // we kick off a HEAD request in the background
-    // when a non-prefetch request is made to signal revalidation
-    if (!isPrefetch && persistCache && !backgroundCache[cacheKey]) {
-      backgroundCache[cacheKey] = getData({ method: 'HEAD' })
-        .catch(() => {})
-        .then(() => {
-          delete backgroundCache[cacheKey]
-        })
-    }
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = getData())
+  return (inflightCache[cacheKey] = getData(
+    isBackground ? { method: 'HEAD' } : {}
+  ))
 }
 
 function tryToParseAsJSON(text: string) {
@@ -1189,14 +1187,13 @@ export default class Router implements BaseRouter {
             `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
-
       window.location.href = as
       return false
     }
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    const route = removeTrailingSlash(pathname)
+    let route = removeTrailingSlash(pathname)
 
     if (!isMiddlewareMatch && isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1268,6 +1265,10 @@ export default class Router implements BaseRouter {
         isPreview: nextState.isPreview,
       })
 
+      if ('route' in routeInfo) {
+        pathname = routeInfo.route || route
+      }
+
       // If the routeInfo brings a redirect we simply apply it.
       if ('type' in routeInfo) {
         if (routeInfo.type === 'redirect-internal') {
@@ -1317,7 +1318,6 @@ export default class Router implements BaseRouter {
             )
             return this.change(method, newUrl, newAs, options)
           }
-
           window.location.href = destination
           return new Promise(() => {})
         }
@@ -1573,22 +1573,23 @@ export default class Router implements BaseRouter {
           ? existingInfo
           : undefined
 
+      const fetchNextDataParams: FetchNextDataParams = {
+        dataHref: this.pageLoader.getDataHref({
+          href: formatWithValidation({ pathname, query }),
+          skipInterpolation: true,
+          asPath: resolvedAs,
+          locale,
+        }),
+        hasMiddleware: true,
+        isServerRender: this.isSsr,
+        parseJSON: true,
+        inflightCache: this.sdc,
+        persistCache: !isPreview,
+        isPrefetch: false,
+      }
+
       const data = await withMiddlewareEffects({
-        fetchData: () =>
-          fetchNextData({
-            dataHref: this.pageLoader.getDataHref({
-              href: formatWithValidation({ pathname, query }),
-              skipInterpolation: true,
-              asPath: resolvedAs,
-              locale,
-            }),
-            hasMiddleware: true,
-            isServerRender: this.isSsr,
-            parseJSON: true,
-            inflightCache: this.sdc,
-            persistCache: !isPreview,
-            isPrefetch: false,
-          }),
+        fetchData: () => fetchNextData(fetchNextDataParams),
         asPath: resolvedAs,
         locale: locale,
         router: this,
@@ -1633,13 +1634,6 @@ export default class Router implements BaseRouter {
           })
         ))
 
-      // TODO: we only bust the data cache for SSP routes
-      // although middleware can skip cache per request with
-      // x-middleware-cache: no-cache
-      if (routeInfo.__N_SSP && data?.dataHref) {
-        delete this.sdc[data?.dataHref]
-      }
-
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('next/dist/compiled/react-is')
         if (!isValidElementType(routeInfo.Component)) {
@@ -1674,7 +1668,7 @@ export default class Router implements BaseRouter {
               isServerRender: this.isSsr,
               parseJSON: true,
               inflightCache: this.sdc,
-              persistCache: !!routeInfo.__N_SSG && !isPreview,
+              persistCache: !isPreview,
               isPrefetch: false,
             }))
 
@@ -1700,6 +1694,33 @@ export default class Router implements BaseRouter {
         }
       })
 
+      // Only bust the data cache for SSP routes although
+      // middleware can skip cache per request with
+      // x-middleware-cache: no-cache as well
+      if (routeInfo.__N_SSP && fetchNextDataParams.dataHref) {
+        const cacheKey = new URL(
+          fetchNextDataParams.dataHref,
+          window.location.href
+        ).href
+        delete this.sdc[cacheKey]
+      }
+
+      // we kick off a HEAD request in the background
+      // when a non-prefetch request is made to signal revalidation
+      if (
+        !this.isPreview &&
+        routeInfo.__N_SSG &&
+        process.env.NODE_ENV !== 'development'
+      ) {
+        fetchNextData(
+          Object.assign({}, fetchNextDataParams, {
+            isBackground: true,
+            persistCache: false,
+            inflightCache: backgroundCache,
+          })
+        ).catch(() => {})
+      }
+
       if (routeInfo.__N_RSC) {
         props.pageProps = Object.assign(props.pageProps, {
           __flight__: useStreamedFlightData
@@ -1724,6 +1745,7 @@ export default class Router implements BaseRouter {
       }
 
       routeInfo.props = props
+      routeInfo.route = route
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
@@ -1906,8 +1928,8 @@ export default class Router implements BaseRouter {
           isServerRender: this.isSsr,
           parseJSON: true,
           inflightCache: this.sdc,
-          persistCache: false,
-          isPrefetch: false,
+          persistCache: !this.isPreview,
+          isPrefetch: true,
         }),
       asPath: asPath,
       locale: locale,
@@ -2091,19 +2113,15 @@ function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
   return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (fns) => {
+    (items) => {
       const { pathname: asPathname } = parsePath(options.asPath)
       const cleanedAs = removeLocale(
         hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
         options.locale
       )
 
-      return fns.some(([middleware, isSSR]) => {
-        return getRouteMatcher(
-          getMiddlewareRegex(middleware, {
-            catchAll: !isSSR,
-          })
-        )(cleanedAs)
+      return items?.some(([regex]) => {
+        return new RegExp(regex).test(cleanedAs)
       })
     }
   )
@@ -2152,7 +2170,15 @@ function getMiddlewareData<T extends FetchDataOutput>(
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
 
-  const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  // TODO: ensure x-nextjs-matched-path is always present instead of both
+  // variants
+  let rewriteTarget = response.headers.get('x-nextjs-matched-path')
+
+  const matchedPath = response.headers.get('x-matched-path')
+
+  if (!rewriteTarget && !matchedPath?.includes('__next_data_catchall')) {
+    rewriteTarget = matchedPath
+  }
 
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {

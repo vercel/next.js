@@ -16,7 +16,7 @@ const ruleTester = new RuleTester()
 const errors = [
   {
     message:
-      'next/server should not be imported outside of Middleware. Read more: https://nextjs.org/docs/messages/no-server-import-in-page',
+      '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
     type: 'ImportDeclaration',
   },
 ]

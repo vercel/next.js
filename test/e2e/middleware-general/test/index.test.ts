@@ -118,7 +118,6 @@ describe('Middleware Runtime', () => {
     })
   }
 
-  // TODO: re-enable after fixing server-side resolving priority
   it('should redirect the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(
       next.url,
@@ -141,7 +140,6 @@ describe('Middleware Runtime', () => {
     }, 'success')
   })
 
-  // TODO: re-enable after fixing server-side resolving priority
   it('should rewrite the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(next.url, `${locale}/rewrite-1`)
     expect(res.status).toBe(200)
