@@ -624,6 +624,12 @@ impl Invalidator {
     }
 }
 
+impl TraceRawVcs for Invalidator {
+    fn trace_raw_vcs(&self, context: &mut crate::trace::TraceRawVcsContext) {
+        // nothing here
+    }
+}
+
 impl Serialize for Invalidator {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

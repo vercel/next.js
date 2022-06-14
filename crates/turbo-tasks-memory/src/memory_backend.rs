@@ -147,7 +147,7 @@ impl Backend for MemoryBackend {
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(task, |output| unsafe { output.read_untracked() })
     }
