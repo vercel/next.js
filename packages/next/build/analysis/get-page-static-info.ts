@@ -4,7 +4,6 @@ import { tryToExtractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
-import { isMiddlewareFile } from '../utils'
 import * as Log from '../output/log'
 
 interface MiddlewareConfig {
