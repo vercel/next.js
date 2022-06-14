@@ -5,7 +5,7 @@ use turbo_tasks::TurboTasks;
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{ecmascript::target::CompileTarget, GraphOptionsVc, ModuleAssetContextVc};
-use turbopack_core::{context::AssetContextVc, source_asset::SourceAssetVc};
+use turbopack_core::{context::AssetContextVc, lazy::LazyAssetVc, source_asset::SourceAssetVc};
 use turbopack_dev_server::DevServerVc;
 
 #[tokio::main]
@@ -24,18 +24,21 @@ async fn main() {
     let tt = TurboTasks::new(MemoryBackend::new());
     let server = tt
         .run_once(async move {
-            let fs = DiskFileSystemVc::new("project".to_string(), dir).into();
+            let disk_fs = DiskFileSystemVc::new("project".to_string(), dir);
+            let fs = disk_fs.into();
             let root = FileSystemPathVc::new(fs, "demo");
             let source_asset =
                 SourceAssetVc::new(FileSystemPathVc::new(fs, "demo/index.js")).into();
             let context: AssetContextVc = ModuleAssetContextVc::new(
                 root,
-                GraphOptionsVc::new(true, false, CompileTarget::Current.into()),
+                GraphOptionsVc::new(false, false, CompileTarget::Current.into()),
             )
             .into();
             let module = context.process(source_asset);
+            let lazy_asset = LazyAssetVc::new(module).into();
 
-            let server = DevServerVc::new(root, module);
+            let server = DevServerVc::new(root, lazy_asset);
+            disk_fs.await?.start_watching()?;
             server.listen().await
         })
         .await
