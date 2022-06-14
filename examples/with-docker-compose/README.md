@@ -32,7 +32,7 @@ Install [Docker Desktop](https://docs.docker.com/get-docker) for Mac, Windows, o
 First, run the development server:
 
 ```bash
-# Create a network, which allows containers to communicate 
+# Create a network, which allows containers to communicate
 # with each other, by using their container name as a hostname
 docker network create my_network
 
@@ -54,7 +54,7 @@ Multistage builds are highly recommended in production. Combined with the Next 1
 First, run the production server (Final image approximately 110 MB).
 
 ```bash
-# Create a network, which allows containers to communicate 
+# Create a network, which allows containers to communicate
 # with each other, by using their container name as a hostname
 docker network create my_network
 
@@ -68,7 +68,7 @@ docker-compose -f docker-compose.prod.yml up -d
 Alternatively, run the production server without without multistage builds (Final image approximately 1 GB).
 
 ```bash
-# Create a network, which allows containers to communicate 
+# Create a network, which allows containers to communicate
 # with each other, by using their container name as a hostname
 docker network create my_network
 

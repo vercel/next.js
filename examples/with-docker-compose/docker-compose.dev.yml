@@ -20,7 +20,7 @@ services:
 
   # Add more containers below (nginx, postgres, etc.)
 
-# Define a network, which allows containers to communicate 
+# Define a network, which allows containers to communicate
 # with each other, by using their container name as a hostname
 networks:
   my_network:
