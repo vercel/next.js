@@ -1230,6 +1230,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
+      !isServerComponent &&
       !!req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200)
     ) {
