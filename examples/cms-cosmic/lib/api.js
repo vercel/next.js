@@ -13,7 +13,7 @@ export async function getPreviewPostBySlug(slug) {
   const params = {
     query: {
       slug,
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug',
     status: 'all',
@@ -23,7 +23,7 @@ export async function getPreviewPostBySlug(slug) {
     const data = await bucket.getObjects(params)
     return data.objects[0]
   } catch (err) {
-    // Don't throw if an slug doesn't exist
+    // 404 if slug not found
     return <ErrorPage statusCode={err.status} />
   }
 }
@@ -31,7 +31,7 @@ export async function getPreviewPostBySlug(slug) {
 export async function getAllPostsWithSlug() {
   const params = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug',
   }
@@ -42,7 +42,7 @@ export async function getAllPostsWithSlug() {
 export async function getAllPostsForHome(preview) {
   const params = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     props: 'title,slug,metadata,created_at',
     sort: '-created_at',
@@ -54,16 +54,16 @@ export async function getAllPostsForHome(preview) {
 
 export async function getPostAndMorePosts(slug, preview) {
   const singleObjectParams = {
-    query: { 
+    query: {
       slug,
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug,title,metadata,created_at',
     ...(preview && { status: 'all' }),
   }
   const moreObjectParams = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     limit: 3,
     props: 'title,slug,metadata,created_at',
@@ -74,6 +74,7 @@ export async function getPostAndMorePosts(slug, preview) {
     const data = await bucket.getObjects(singleObjectParams)
     object = data.objects[0]
   } catch (err) {
+    // 404 if slug not found
     return <ErrorPage statusCode={err.status} />
   }
   const moreObjects = await bucket.getObjects(moreObjectParams)
