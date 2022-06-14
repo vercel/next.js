@@ -465,7 +465,7 @@ function getCreateAssets(params: {
 
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => [
-        key,
+        middlewareManifest.middleware[key].regexp,
         !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
       ]
     )

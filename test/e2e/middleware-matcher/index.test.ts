@@ -1,73 +1,15 @@
-import { createNext } from 'e2e-utils'
+import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP } from 'next-test-utils'
+import { join } from 'path'
+import webdriver from 'next-webdriver'
 
 describe('Middleware can set the matcher in its config', () => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page({ message }) { 
-            return <div>
-              <p>root page</p>
-              <p>{message}</p>
-            </div>
-          } 
-
-          export const getServerSideProps = () => {
-            return {
-              props: {
-                message: "Hello, world."
-              }
-            }
-          }
-        `,
-        'pages/with-middleware/index.js': `
-          export default function Page({ message }) { 
-            return <div>
-              <p>This should run the middleware</p>
-              <p>{message}</p>
-            </div>
-          } 
-
-          export const getServerSideProps = () => {
-            return {
-              props: {
-                message: "Hello, cruel world."
-              }
-            }
-          }
-        `,
-        'pages/another-middleware/index.js': `
-          export default function Page({ message }) { 
-            return <div>
-              <p>This should also run the middleware</p>
-              <p>{message}</p>
-            </div>
-          } 
-
-          export const getServerSideProps = () => {
-            return {
-              props: {
-                message: "Hello, magnificent world."
-              }
-            }
-          }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export const config = {
-            matcher: ['/with-middleware/:path*', '/another-middleware/:path*']
-          };
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
-        `,
-      },
+      files: new FileRef(join(__dirname, 'app')),
       dependencies: {},
     })
   })
@@ -131,6 +73,60 @@ describe('Middleware can set the matcher in its config', () => {
     })
     expect(response.headers.get('X-From-Middleware')).toBeNull()
   })
+
+  it('should load matches in client manifest correctly', async () => {
+    const browser = await webdriver(next.url, '/')
+
+    await check(async () => {
+      const manifest = await browser.eval(
+        (global as any).isNextDev
+          ? 'window.__DEV_MIDDLEWARE_MANIFEST'
+          : 'window.__MIDDLEWARE_MANIFEST'
+      )
+
+      return Array.isArray(manifest) &&
+        manifest?.[0]?.[0].includes('with-middleware') &&
+        manifest?.[0]?.[0].includes('another-middleware')
+        ? 'success'
+        : manifest
+    }, 'success')
+  })
+
+  it('should navigate correctly with matchers', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.elementByCss('#to-another-middleware').click()
+    await browser.waitForElementByCss('#another-middleware')
+
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      message: 'Hello, magnificent world.',
+    })
+
+    await browser.elementByCss('#to-index').click()
+    await browser.waitForElementByCss('#index')
+
+    await browser.elementByCss('#to-blog-slug-1').click()
+    await browser.waitForElementByCss('#blog')
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      message: 'Hello, magnificent world.',
+      params: {
+        slug: 'slug-1',
+      },
+    })
+
+    await browser.elementByCss('#to-blog-slug-2').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /"slug":"slug-2"/
+    )
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      message: 'Hello, magnificent world.',
+      params: {
+        slug: 'slug-2',
+      },
+    })
+  })
 })
 
 describe('using a single matcher', () => {
@@ -170,6 +166,7 @@ describe('using a single matcher', () => {
     })
   })
   afterAll(() => next.destroy())
+
   it('adds the header for a matched path', async () => {
     const response = await fetchViaHTTP(next.url, '/middleware/works')
     expect(await response.text()).toContain('Hello from /middleware/works')
