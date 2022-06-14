@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/gtag.js": "0.0.10",
-    "next": "12.1.6",
+    "next": "latest",
     "react": "18.1.0",
     "react-dom": "18.1.0"
   },
@@ -19,7 +19,7 @@
     "@types/react": "16.9.17",
     "@types/react-dom": "16.9.4",
     "eslint": "7.24.0",
-    "eslint-config-next": "12.1.6",
+    "eslint-config-next": "latest",
     "typescript": "4.6.3"
   }
 }
