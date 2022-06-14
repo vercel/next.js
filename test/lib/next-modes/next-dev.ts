@@ -35,6 +35,7 @@ export class NextDevInstance extends NextInstance {
         shell: false,
         env: {
           ...process.env,
+          ...this.env,
           NODE_ENV: '' as any,
           __NEXT_TEST_MODE: '1',
           __NEXT_RAND_PORT: '1',

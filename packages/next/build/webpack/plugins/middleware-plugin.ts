@@ -14,24 +14,26 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
+interface EdgeFunctionDefinition {
+  env: string[]
+  files: string[]
+  name: string
+  page: string
+  regexp: string
+  wasm?: WasmBinding[]
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
   clientInfo: [location: string, isSSR: boolean][]
-  middleware: {
-    [page: string]: {
-      env: string[]
-      files: string[]
-      name: string
-      page: string
-      regexp: string
-      wasm?: WasmBinding[]
-    }
-  }
+  middleware: { [page: string]: EdgeFunctionDefinition }
+  functions: { [page: string]: EdgeFunctionDefinition }
 }
 
 interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
+  edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
@@ -42,6 +44,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   clientInfo: [],
   middleware: {},
+  functions: {},
   version: 1,
 }
 
@@ -165,17 +168,25 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * Declares an environment variable that is being used in this module
+     * through this static analysis.
+     */
+    const addUsedEnvVar = (envVarName: string) => {
+      const buildInfo = getModuleBuildInfo(parser.state.module)
+      if (buildInfo.nextUsedEnvVars === undefined) {
+        buildInfo.nextUsedEnvVars = new Set()
+      }
+
+      buildInfo.nextUsedEnvVars.add(envVarName)
+    }
+
+    /**
      * A handler for calls to `process.env` where we identify the name of the
      * ENV variable being assigned and store it in the module info.
      */
     const handleCallMemberChain = (_: unknown, members: string[]) => {
       if (members.length >= 2 && members[0] === 'env') {
-        const buildInfo = getModuleBuildInfo(parser.state.module)
-        if (buildInfo.nextUsedEnvVars === undefined) {
-          buildInfo.nextUsedEnvVars = new Set()
-        }
-
-        buildInfo.nextUsedEnvVars.add(members[1])
+        addUsedEnvVar(members[1])
         if (!isInMiddlewareLayer(parser)) {
           return true
         }
@@ -226,6 +237,37 @@ function getCodeAnalizer(params: {
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+
+    /**
+     * Support static analyzing environment variables through
+     * destructuring `process.env` or `process["env"]`:
+     *
+     * const { MY_ENV, "MY-ENV": myEnv } = process.env
+     *         ^^^^^^   ^^^^^^
+     */
+    hooks.declarator.tap(NAME, (declarator) => {
+      if (
+        declarator.init?.type === 'MemberExpression' &&
+        isProcessEnvMemberExpression(declarator.init) &&
+        declarator.id?.type === 'ObjectPattern'
+      ) {
+        for (const property of declarator.id.properties) {
+          if (property.type === 'RestElement') continue
+          if (
+            property.key.type === 'Literal' &&
+            typeof property.key.value === 'string'
+          ) {
+            addUsedEnvVar(property.key.value)
+          } else if (property.key.type === 'Identifier') {
+            addUsedEnvVar(property.key.name)
+          }
+        }
+
+        if (!isInMiddlewareLayer(parser)) {
+          return true
+        }
+      }
+    })
     registerUnsupportedApiHooks(parser, compilation)
   }
 }
@@ -310,6 +352,8 @@ function getExtractMetadata(params: {
           entryMetadata.edgeSSR = buildInfo.nextEdgeSSR
         } else if (buildInfo?.nextEdgeMiddleware) {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
+        } else if (buildInfo?.nextEdgeApiFunction) {
+          entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
         }
 
         /**
@@ -386,23 +430,32 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
-      const page = metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
       const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 
-      middlewareManifest.middleware[page] = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
+      }
+
+      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
       }
     }
 
@@ -412,7 +465,7 @@ function getCreateAssets(params: {
 
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => [
-        key,
+        middlewareManifest.middleware[key].regexp,
         !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
       ]
     )
@@ -537,4 +590,15 @@ function isNullLiteral(expr: any) {
 
 function isUndefinedIdentifier(expr: any) {
   return expr.name === 'undefined'
+}
+
+function isProcessEnvMemberExpression(memberExpression: any): boolean {
+  return (
+    memberExpression.object?.type === 'Identifier' &&
+    memberExpression.object.name === 'process' &&
+    ((memberExpression.property?.type === 'Literal' &&
+      memberExpression.property.value === 'env') ||
+      (memberExpression.property?.type === 'Identifier' &&
+        memberExpression.property.name === 'env'))
+  )
 }
