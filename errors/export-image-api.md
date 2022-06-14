@@ -15,6 +15,16 @@ This is because Next.js optimizes images on-demand, as users request them (not a
 - [Configure the loader](https://nextjs.org/docs/api-reference/next/image#loader-configuration) in `next.config.js`.
 - Use the [`loader`](https://nextjs.org/docs/api-reference/next/image#loader) prop for each instance of `next/image`.
 
+If you do not wish to use Image Optimization, it can be disabled with the following `next.config.js`:
+
+```js
+module.exports = {
+  images: {
+    loader: 'unoptimized',
+  },
+}
+```
+
 ### Useful Links
 
 - [Deployment Documentation](https://nextjs.org/docs/deployment#managed-nextjs-with-vercel)

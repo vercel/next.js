@@ -64,6 +64,7 @@ const loaders = new Map<
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['custom', customLoader],
+  ['unoptimized', (p: ImageLoaderProps) => p.src],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -417,6 +418,10 @@ export default function Image({
     }
     // Remove property so it's not spread on <img>
     delete rest.loader
+  }
+
+  if (loader === defaultImageLoader && config.loader === 'unoptimized') {
+    unoptimized = true
   }
 
   let staticSrc = ''
