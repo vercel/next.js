@@ -565,7 +565,7 @@
         {
           "path": "/errors/no-script-in-document-page.md",
           "redirect": {
-            "destination": "/errors/no-script-in-document.md"
+            "destination": "/errors/no-script-in-document"
           }
         },
         {
@@ -579,13 +579,13 @@
         {
           "path": "/errors/no-script-in-head-component.md",
           "redirect": {
-            "destination": "/errors/no-script-component-in-head.md"
+            "destination": "/errors/no-script-component-in-head"
           }
         },
         {
           "path": "/errors/no-script-component-in-head-component.md",
           "redirect": {
-            "destination": "/errors/no-script-component-in-head.md"
+            "destination": "/errors/no-script-component-in-head"
           }
         },
         {
