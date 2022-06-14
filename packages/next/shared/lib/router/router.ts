@@ -2172,9 +2172,13 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   // TODO: ensure x-nextjs-matched-path is always present instead of both
   // variants
-  const rewriteTarget =
-    response.headers.get('x-nextjs-matched-path') ||
-    response.headers.get('x-matched-path')
+  let rewriteTarget = response.headers.get('x-nextjs-matched-path')
+
+  const matchedPath = response.headers.get('x-matched-path')
+
+  if (!rewriteTarget && !matchedPath?.includes('__next_data_catchall')) {
+    rewriteTarget = matchedPath
+  }
 
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
