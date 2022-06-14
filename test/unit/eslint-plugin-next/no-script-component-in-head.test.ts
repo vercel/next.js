@@ -32,7 +32,7 @@ ruleTester.run('no-script-in-head', rule, {
       code: `
       import Head from "next/head";
       import Script from "next/script";
-      
+
       export default function Index() {
         return (
             <Head>
@@ -44,7 +44,7 @@ ruleTester.run('no-script-in-head', rule, {
       errors: [
         {
           message:
-            "next/script shouldn't be used inside next/head. See: https://nextjs.org/docs/messages/no-script-component-in-head-component",
+            '`next/script` should not be used in `next/head` component. Move `<Script />` outside of `<Head>` instead. See: https://nextjs.org/docs/messages/no-script-component-in-head-component',
         },
       ],
     },
