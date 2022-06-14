@@ -23,6 +23,15 @@ export async function adapter(params: {
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
+  const isDataReq = params.request.headers['x-nextjs-data']
+
+  // clean-up any internal query params
+  for (const key of [...requestUrl.searchParams.keys()]) {
+    if (key.startsWith('__next')) {
+      requestUrl.searchParams.delete(key)
+    }
+  }
+
   const request = new NextRequestHint({
     page: params.page,
     input: String(requestUrl),
@@ -41,7 +50,7 @@ export async function adapter(params: {
    * need to know about this property neither use it. We add it for testing
    * purposes.
    */
-  if (buildId) {
+  if (isDataReq) {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
@@ -75,7 +84,7 @@ export async function adapter(params: {
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    if (buildId) {
+    if (isDataReq) {
       response.headers.set(
         'x-nextjs-matched-path',
         relativizeURL(String(rewriteUrl), String(requestUrl))
@@ -112,7 +121,7 @@ export async function adapter(params: {
      * it may end up with CORS error. Instead we map to an internal header so
      * the client knows the destination.
      */
-    if (buildId) {
+    if (isDataReq) {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',

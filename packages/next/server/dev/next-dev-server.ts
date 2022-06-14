@@ -323,7 +323,8 @@ export default class DevServer extends Server {
 
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
-            middlewareMatcher = staticInfo.middleware?.pathMatcher
+            middlewareMatcher =
+              staticInfo.middleware?.pathMatcher || new RegExp('.*')
             routedMiddleware.push('/')
             continue
           }
@@ -363,7 +364,9 @@ export default class DevServer extends Server {
             onClient: () => {},
             onServer: () => {},
             onEdgeServer: () => {
-              routedMiddleware.push(pageName)
+              if (!pageName.startsWith('/api/')) {
+                routedMiddleware.push(pageName)
+              }
               ssrMiddleware.add(pageName)
             },
           })
@@ -389,6 +392,7 @@ export default class DevServer extends Server {
                   })
             ),
             page,
+            re: middlewareMatcher,
             ssr: ssrMiddleware.has(page),
           }
         })
@@ -415,6 +419,9 @@ export default class DevServer extends Server {
             }))
 
           this.router.setDynamicRoutes(this.dynamicRoutes)
+          this.router.setCatchallMiddleware(
+            this.generateCatchAllMiddlewareRoute(true)
+          )
 
           if (!resolved) {
             resolve()
@@ -906,7 +913,7 @@ export default class DevServer extends Server {
           .body(
             JSON.stringify(
               this.getMiddleware().map((middleware) => [
-                middleware.page,
+                (middleware as any).re.source,
                 !!middleware.ssr,
               ])
             )

@@ -117,6 +117,7 @@ export default class PageLoader {
     asPath: string
     href: string
     locale?: string | false
+    skipInterpolation?: boolean
   }): string {
     const { asPath, href, locale } = params
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
@@ -138,7 +139,9 @@ export default class PageLoader {
     }
 
     return getHrefForSlug(
-      isDynamicRoute(route)
+      params.skipInterpolation
+        ? asPathname
+        : isDynamicRoute(route)
         ? interpolateAs(hrefPathname, asPathname, query).result
         : route
     )
