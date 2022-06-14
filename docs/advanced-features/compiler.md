@@ -7,9 +7,10 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                         |
-| --------- | --------------------------------------------------------------- |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12). |
+| Version   | Changes                                                                                                                            |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
 </details>
 
@@ -30,21 +31,7 @@ We chose to build on SWC for a few reasons:
 - **WebAssembly:** Rust's support for WASM is essential for supporting all possible platforms and taking Next.js development everywhere.
 - **Community:** The Rust community and ecosystem are amazing and still growing.
 
-## Experimental Features
-
-### Minification
-
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
-
-```js
-// next.config.js
-
-module.exports = {
-  swcMinify: true,
-}
-```
-
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+## Supported Features
 
 ### Styled Components
 
@@ -56,7 +43,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     // ssr and displayName are configured by default
     styledComponents: true,
   },
@@ -94,9 +81,85 @@ const customJestConfig = {
 module.exports = createJestConfig(customJestConfig)
 ```
 
+### Relay
+
+To enable [Relay](https://relay.dev/) support:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    relay: {
+      // This should match relay.config.js
+      src: './',
+      artifactDirectory: './__generated__',
+      language: 'typescript',
+    },
+  },
+}
+```
+
+NOTE: In Next.js all JavaScript files in `pages` directory are considered routes. So, for `relay-compiler` you'll need to specify `artifactDirectory` configuration settings outside of the `pages`, otherwise `relay-compiler` will generate files next to the source file in the `__generated__` directory, and this file will be considered a route, which will break production builds.
+
+### Remove React Properties
+
+Allows to remove JSX properties. This is often used for testing. Similar to `babel-plugin-react-remove-properties`.
+
+To remove properties matching the default regex `^data-test`:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    reactRemoveProperties: true,
+  },
+}
+```
+
+To remove custom properties:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    // The regexes defined here are processed in Rust so the syntax is different from
+    // JavaScript `RegExp`s. See https://docs.rs/regex.
+    reactRemoveProperties: { properties: ['^data-custom$'] },
+  },
+}
+```
+
+### Remove Console
+
+This transform allows for removing all `console.*` calls in application code (not `node_modules`). Similar to `babel-plugin-transform-remove-console`.
+
+Remove all `console.*` calls:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: true,
+  },
+}
+```
+
+Remove `console.*` output except `console.error`:
+
+```js
+// next.config.js
+module.exports = {
+  compiler: {
+    removeConsole: {
+      exclude: ['error'],
+    },
+  },
+}
+```
+
 ### Legacy Decorators
 
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json`. Legacy decorators are commonly used with older versions of libraries like `mobx`.
 
 This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
 
@@ -119,10 +182,198 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": true
+    "jsxImportSource": 'preact'
   }
 }
 ```
+
+### Emotion
+
+We're working to port `@emotion/babel-plugin` to the Next.js Compiler.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
+
+```js
+// next.config.js
+
+module.exports = {
+  compiler: {
+    emotion: boolean | {
+      // default is true. It will be disabled when build type is production.
+      sourceMap?: boolean,
+      // default is 'dev-only'.
+      autoLabel?: 'never' | 'dev-only' | 'always',
+      // default is '[local]'.
+      // Allowed values: `[local]` `[filename]` and `[dirname]`
+      // This option only works when autoLabel is set to 'dev-only' or 'always'.
+      // It allows you to define the format of the resulting label.
+      // The format is defined via string where variable parts are enclosed in square brackets [].
+      // For example labelFormat: "my-classname--[local]", where [local] will be replaced with the name of the variable the result is assigned to.
+      labelFormat?: string,
+    },
+  },
+}
+```
+
+Only `importMap` in `@emotion/babel-plugin` is not supported for now.
+
+## Experimental Features
+
+### Minification
+
+You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
+
+```js
+// next.config.js
+
+module.exports = {
+  swcMinify: true,
+}
+```
+
+If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
+### Minifier debug options
+
+While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcMinifyDebugOptions: {
+      compress: {
+        defaults: true,
+        side_effects: false,
+      },
+    },
+  },
+  swcMinify: true,
+}
+```
+
+If your app works with the options above, it means `side_effects` is the problematic option.
+See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
+
+### Modularize Imports
+
+Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
+
+Transforms member style imports:
+
+```js
+import { Row, Grid as MyGrid } from 'react-bootstrap'
+import { merge } from 'lodash'
+```
+
+...into default style imports:
+
+```js
+import Row from 'react-bootstrap/lib/Row'
+import MyGrid from 'react-bootstrap/lib/Grid'
+import merge from 'lodash/merge'
+```
+
+Config for the above transform:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    modularizeImports: {
+      'react-bootstrap': {
+        transform: 'react-bootstrap/lib/{{member}}',
+      },
+      lodash: {
+        transform: 'lodash/{{member}}',
+      },
+    },
+  },
+}
+```
+
+Advanced transformations:
+
+- Using regular expressions
+
+Similar to `babel-plugin-transform-imports`, but the transform is templated with [handlebars](https://docs.rs/handlebars) and regular expressions are in Rust [regex](https://docs.rs/regex/latest/regex/) crate's syntax.
+
+The config:
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    modularizeImports: {
+      'my-library/?(((\\w*)?/?)*)': {
+        transform: 'my-library/{{ matches.[1] }}/{{member}}',
+      },
+    },
+  },
+}
+```
+
+Cause this code:
+
+```js
+import { MyModule } from 'my-library'
+import { App } from 'my-library/components'
+import { Header, Footer } from 'my-library/components/App'
+```
+
+To become:
+
+```js
+import MyModule from 'my-library/MyModule'
+import App from 'my-library/components/App'
+import Header from 'my-library/components/App/Header'
+import Footer from 'my-library/components/App/Footer'
+```
+
+- Handlebars templating
+
+This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
+
+1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
+2. `member`: Has type `string`. The name of the member import.
+3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+
+### SWC Trace profiling
+
+You can generate SWC's internal transform traces as chromium's [trace event format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?mode=html#%21=).
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcTraceProfiling: true,
+  },
+}
+```
+
+Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
+
+### Experimental SWC plugin support
+
+You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcPlugins: [
+      ['plugin', {
+        ..pluginOptions
+      }]
+    ]
+  }
+}
+```
+
+`swcPlugins` accepts an array of tuples for configuring plugins. A tuple for the plugin contains the path to the plugin and an object for plugin configuration. The path to the plugin can be an npm module package name or an absolute path to the `.wasm` binary itself.
 
 ## Unsupported Features
 

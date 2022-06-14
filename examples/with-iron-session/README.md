@@ -10,7 +10,7 @@ It uses current best practices for authentication in the Next.js ecosystem and r
 
 **Features of the example:**
 
-- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) examples.
+- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props) examples.
 - The logged in status is synchronized between browser windows/tabs using **`useUser`** hook and the [`swr`](https://swr.vercel.app/).
 - The layout is based on the user's logged-in/out status.
 - The session data is signed and encrypted in a cookie (this is done automatically by `iron-session`).
@@ -21,26 +21,22 @@ It uses current best practices for authentication in the Next.js ecosystem and r
 - Multiple encryption keys (passwords) to allow for seamless updates or just password rotation.
 - Full TypeScript support, including session data.
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
-
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session&project-name=with-iron-session&repository-name=with-iron-session)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-iron-session with-iron-session-app
 # or
 yarn create next-app --example with-iron-session with-iron-session-app
+# or
+pnpm create next-app --example with-iron-session with-iron-session-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

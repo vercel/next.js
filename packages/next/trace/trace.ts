@@ -1,10 +1,12 @@
-import { customAlphabet } from 'next/dist/compiled/nanoid/index.cjs'
 import { SpanId } from './shared'
 import { reporter } from './report'
 
-const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
-const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 8)
-const getId = () => Buffer.from(nanoid(), 'utf8').toString('hex')
+const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
+let count = 0
+const getId = () => {
+  count++
+  return count
+}
 
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
@@ -20,6 +22,7 @@ export class Span {
   duration: number | null
   attrs: { [key: string]: any }
   status: SpanStatus
+  now: number
 
   _start: bigint
 
@@ -41,6 +44,12 @@ export class Span {
     this.status = SpanStatus.Started
     this.id = getId()
     this._start = startTime || process.hrtime.bigint()
+    // hrtime cannot be used to reconstruct tracing span's actual start time
+    // since it does not have relation to clock time:
+    // `These times are relative to an arbitrary time in the past, and not related to the time of day and therefore not subject to clock drift`
+    // https://nodejs.org/api/process.html#processhrtimetime
+    // Capturing current datetime as additional metadata for external reconstruction.
+    this.now = Date.now()
   }
 
   // Durations are reported as microseconds. This gives 1000x the precision
@@ -49,19 +58,20 @@ export class Span {
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
     const end: bigint = stopTime || process.hrtime.bigint()
-    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_SEC
+    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
     this.status = SpanStatus.Stopped
     if (duration > Number.MAX_SAFE_INTEGER) {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
-    const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC
+    const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
     reporter.report(
       this.name,
       Number(duration),
       Number(timestamp),
       this.id,
       this.parentId,
-      this.attrs
+      this.attrs,
+      this.now
     )
   }
 
@@ -83,7 +93,7 @@ export class Span {
     this.attrs[key] = String(value)
   }
 
-  traceFn(fn: any) {
+  traceFn<T>(fn: () => T): T {
     try {
       return fn()
     } finally {

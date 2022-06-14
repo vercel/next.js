@@ -1,8 +1,8 @@
 # Sentry
 
-_Note: `@sentry/nextjs` is not yet guaranteed to be compatible with the newly-released Next.js 12. This example therefore uses Next.js 11._
+_Note: Currently, the minimum Next.js supported version of `@sentry/nextjs` is 10.0.8._
 
-This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/).
+This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/). This example contains the following:
 
 - `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
 - `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
@@ -39,6 +39,8 @@ To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/can
 npx create-next-app --example with-sentry nextjs-sentry-example
 # or
 yarn create next-app --example with-sentry nextjs-sentry-example
+# or
+pnpm create next-app --example with-sentry nextjs-sentry-example
 ```
 
 Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/nextjs/#configure), which will create and populate the settings files needed by `@sentry/nextjs` to initialize the SDK and upload source maps to Sentry:
@@ -46,6 +48,8 @@ Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/n
 ```bash
 npx @sentry/wizard -i nextjs
 ```
+
+_Beware that above command creates files extended with `.wizardcopy.js` as the example already contains the config files. Thus after running the wizard, replace example files with those newly created._
 
 Once the files are created, you can further configure your app by adding [SDK settings](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/) to `sentry.server.config.js` and `sentry.client.config.js`, and [`SentryWebpackPlugin` settings](https://github.com/getsentry/sentry-webpack-plugin#options) to `next.config.js`.
 

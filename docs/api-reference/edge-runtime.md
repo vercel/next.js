@@ -26,7 +26,7 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 
 ### Environment
 
-- `process.env`: Holds an object with all environment variables for both production and development in the exact same way as any other page or API in Next.js
+- `process.env`: Holds an object with all environment variables for both `next dev` and `next build` in the exact same way as any other page or API in Next.js
 
 ### Fetch
 
@@ -81,10 +81,6 @@ The following JavaScript language features are disabled, and **will not work:**
 
 - [`eval`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval): Evaluates JavaScript code represented as a string
 - [`new Function(evalString)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function): Creates a new function with the code provided as an argument
-
-The following Web APIs are currently not supported, but will be in the future:
-
-- [`AbortController`](https://developer.mozilla.org/en-US/docs/Web/API/AbortController): Abort one or more Web requests when desired
 
 ## Related
 

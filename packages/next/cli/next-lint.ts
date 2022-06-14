@@ -2,7 +2,7 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { join } from 'path'
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 
 import { cliCommand } from '../bin/next'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'

@@ -3,7 +3,6 @@ import WebSocket from 'ws'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import getPort from 'get-port'
-import clone from 'clone'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -24,8 +23,7 @@ const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = await getPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
+    { ...process.env },
     { PORT: `${context.appPort}` },
     optEnv
   )

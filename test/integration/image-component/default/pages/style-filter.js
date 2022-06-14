@@ -9,7 +9,7 @@ const Page = () => {
       <h1>Image Style Filter</h1>
 
       <Image
-        className={style.opacity50}
+        className={style.overrideImg}
         id="img-plain"
         src="/test.jpg"
         width={400}
@@ -17,7 +17,7 @@ const Page = () => {
       />
 
       <Image
-        className={style.opacity50}
+        className={style.overrideImg}
         id="img-blur"
         placeholder="blur"
         src={img}

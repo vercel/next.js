@@ -10,6 +10,8 @@ The easiest way to get started with Next.js is by using `create-next-app`. This 
 npx create-next-app@latest
 # or
 yarn create next-app
+# or
+pnpm create next-app
 ```
 
 You can create a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md) with the `--ts, --typescript` flag:
@@ -18,6 +20,8 @@ You can create a [TypeScript project](https://github.com/vercel/next.js/blob/can
 npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
+# or
+pnpm create next-app --ts
 ```
 
 ### Options
@@ -25,9 +29,12 @@ yarn create next-app --typescript
 `create-next-app` comes with the following options:
 
 - **--ts, --typescript** - Initialize as a TypeScript project.
-- **-e, --example [name]|[github-url]** - An example to bootstrap the app with. You can use an example name from the [Next.js repo](https://github.com/vercel/next.js/tree/master/examples) or a GitHub URL. The URL can use any branch and/or subdirectory.
+- **-e, --example [name]|[github-url]** - An example to bootstrap the app with. You can use an example name from the [Next.js repo](https://github.com/vercel/next.js/tree/canary/examples) or a GitHub URL. The URL can use any branch and/or subdirectory.
 - **--example-path [path-to-example]** - In a rare case, your GitHub URL might contain a branch name with a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar). In this case, you must specify the path to the example separately: `--example-path foo/bar`
-- **--use-npm** - Explicitly tell the CLI to bootstrap the app using npm. To bootstrap using yarn we recommend running `yarn create next-app`
+- **--use-npm** - Explicitly tell the CLI to bootstrap the app using npm
+- **--use-pnpm** - Explicitly tell the CLI to bootstrap the app using pnpm
+
+Note: To bootstrap using `yarn` we recommend running `yarn create next-app`
 
 ### Why use Create Next App?
 

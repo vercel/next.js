@@ -4,6 +4,7 @@ export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PAGES_MANIFEST = 'pages-manifest.json'
+export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
@@ -25,6 +26,15 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+export const MODERN_BROWSERSLIST_TARGET = [
+  'chrome 61',
+  'edge 16',
+  'firefox 60',
+  'opera 48',
+  'safari 11',
+]
+export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
+export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
 // server/middleware-flight-manifest.js
 export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
@@ -36,6 +46,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-root`
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js
@@ -44,8 +55,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
-// server/middleware-flight-runtime.js
-export const MIDDLEWARE_SSR_RUNTIME_WEBPACK = 'middleware-ssr-runtime'
+export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
@@ -58,3 +68,29 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 ]
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+
+// comparing
+// https://nextjs.org/docs/api-reference/edge-runtime
+// with
+// https://nodejs.org/docs/latest/api/globals.html
+export const EDGE_UNSUPPORTED_NODE_APIS = [
+  'clearImmediate',
+  'setImmediate',
+  'BroadcastChannel',
+  'Buffer',
+  'ByteLengthQueuingStrategy',
+  'CompressionStream',
+  'CountQueuingStrategy',
+  'DecompressionStream',
+  'DomException',
+  'MessageChannel',
+  'MessageEvent',
+  'MessagePort',
+  'ReadableByteStreamController',
+  'ReadableStreamBYOBRequest',
+  'ReadableStreamDefaultController',
+  'TextDecoderStream',
+  'TextEncoderStream',
+  'TransformStreamDefaultController',
+  'WritableStreamDefaultController',
+]

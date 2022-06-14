@@ -7,7 +7,7 @@ export function RouteAnnouncer() {
 
   // Only announce the path change, but not for the first load because screen
   // reader will do that automatically.
-  const initialPathLoaded = React.useRef(false)
+  const previouslyLoadedPath = React.useRef(asPath)
 
   // Every time the path changes, announce the new page’s title following this
   // priority: first the document title (from head), otherwise the first h1, or
@@ -17,10 +17,9 @@ export function RouteAnnouncer() {
   // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
   React.useEffect(
     () => {
-      if (!initialPathLoaded.current) {
-        initialPathLoaded.current = true
-        return
-      }
+      // If the path hasn't change, we do nothing.
+      if (previouslyLoadedPath.current === asPath) return
+      previouslyLoadedPath.current = asPath
 
       if (document.title) {
         setRouteAnnouncement(document.title)

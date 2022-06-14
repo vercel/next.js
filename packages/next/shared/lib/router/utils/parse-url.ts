@@ -1,4 +1,5 @@
 import type { ParsedUrlQuery } from 'querystring'
+
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 

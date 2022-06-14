@@ -12,13 +12,14 @@ const localEndpoint = {
 
 type Event = {
   traceId: string
-  parentId?: string
+  parentId?: number
   name: string
-  id: string
+  id: number
   timestamp: number
   duration: number
   localEndpoint?: typeof localEndpoint
   tags?: Object
+  startTime?: number
 }
 
 // Batch events as zipkin allows for multiple events to be sent in one go
@@ -119,9 +120,10 @@ const reportToLocalHost = (
   name: string,
   duration: number,
   timestamp: number,
-  id: string,
-  parentId?: string,
-  attrs?: Object
+  id: number,
+  parentId?: number,
+  attrs?: Object,
+  startTime?: number
 ) => {
   const distDir = traceGlobals.get('distDir')
   const phase = traceGlobals.get('phase')
@@ -161,6 +163,7 @@ const reportToLocalHost = (
     timestamp,
     duration,
     tags: attrs,
+    startTime,
   })
 }
 

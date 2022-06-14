@@ -10,6 +10,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-vitest">Next.js with Vitest</a></li>
   </ul>
 </details>
 
@@ -232,7 +233,7 @@ Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another 
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
@@ -262,10 +263,10 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
-To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`:
+To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash
-npm install --save-dev jest @testing-library/react @testing-library/jest-dom react-test-renderer
+npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
 Create a `jest.config.js` file in your project's root directory and add the following:
@@ -281,9 +282,11 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
+  testEnvironment: 'jest-environment-jsdom',
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
@@ -308,10 +311,17 @@ Here are the recommended options to configure Jest for Next.js:
 ```jsx
 // jest.config.js
 module.exports = {
+  collectCoverage: true,
+  // on node 14.x coverage provider v8 offers good speed and more or less good report
+  coverageProvider: 'v8',
   collectCoverageFrom: [
     '**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
+    '!<rootDir>/out/**',
+    '!<rootDir>/.next/**',
+    '!<rootDir>/*.config.js',
+    '!<rootDir>/coverage/**',
   ],
   moduleNameMapper: {
     // Handle CSS imports (with CSS modules)
@@ -323,12 +333,13 @@ module.exports = {
 
     // Handle image imports
     // https://jestjs.io/docs/webpack#handling-static-assets
-    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': `<rootDir>/__mocks__/fileMock.js`,
+    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i': `<rootDir>/__mocks__/fileMock.js`,
 
     // Handle module aliases
     '^@/components/(.*)$': '<rootDir>/components/$1',
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Add more setup options before each test is run
+  // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   testEnvironment: 'jsdom',
   transform: {
@@ -347,23 +358,21 @@ You can learn more about each configuration option in the [Jest docs](https://je
 
 **Handling stylesheets and image imports**
 
-Styleheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
+Stylesheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
 ```js
 // __mocks__/fileMock.js
-module.exports = 'test-file-stub'
+module.exports = {
+  src: '/img.jpg',
+  height: 24,
+  width: 24,
+  blurDataURL: 'data:image/png;base64,imagedata',
+}
 ```
 
 ```js
 // __mocks__/styleMock.js
 module.exports = {}
-```
-
-If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
-
-```js
-// __mocks__/fileMock.js
-module.exports = '/test-file-stub'
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
@@ -430,18 +439,14 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
 
-For example, we can add a test to check if the `<Index />` component successfully renders a heading:
+For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
 ```jsx
 // __tests__/index.test.jsx
 
-/**
- * @jest-environment jsdom
- */
-
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
+import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {
@@ -456,19 +461,17 @@ describe('Home', () => {
 })
 ```
 
-> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
-
-Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
+Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
 ```jsx
 // __tests__/snapshot.js
-import React from 'react'
-import renderer from 'react-test-renderer'
-import Index from '../pages/index'
+
+import { render } from '@testing-library/react'
+import Home from '../pages/index'
 
 it('renders homepage unchanged', () => {
-  const tree = renderer.create(<Index />).toJSON()
-  expect(tree).toMatchSnapshot()
+  const { container } = render(<Home />)
+  expect(container).toMatchSnapshot()
 })
 ```
 

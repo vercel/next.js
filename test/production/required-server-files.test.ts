@@ -11,6 +11,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  waitFor,
 } from 'next-test-utils'
 
 describe('should set-up next', () => {
@@ -18,15 +19,29 @@ describe('should set-up next', () => {
   let server
   let appPort
   let errors = []
+  let stderr = ''
   let requiredFilesManifest
 
   beforeAll(async () => {
+    // test build against environment with next support
+    process.env.NOW_BUILDER = '1'
+
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
+        ),
+        '.env': new FileRef(join(__dirname, 'required-server-files/.env')),
+        '.env.local': new FileRef(
+          join(__dirname, 'required-server-files/.env.local')
+        ),
+        '.env.production': new FileRef(
+          join(__dirname, 'required-server-files/.env.production')
         ),
       },
       nextConfig: {
@@ -37,16 +52,33 @@ describe('should set-up next', () => {
           outputStandalone: true,
         },
         async rewrites() {
-          return [
-            {
-              source: '/some-catch-all/:path*',
-              destination: '/',
-            },
-            {
-              source: '/to-dynamic/:path',
-              destination: '/dynamic/:path',
-            },
-          ]
+          return {
+            beforeFiles: [],
+            fallback: [
+              {
+                source: '/an-ssg-path',
+                destination: '/hello.txt',
+              },
+              {
+                source: '/fallback-false/:path',
+                destination: '/hello.txt',
+              },
+            ],
+            afterFiles: [
+              {
+                source: '/some-catch-all/:path*',
+                destination: '/',
+              },
+              {
+                source: '/to-dynamic/post-2',
+                destination: '/dynamic/post-2?hello=world',
+              },
+              {
+                source: '/to-dynamic/:path',
+                destination: '/dynamic/:path',
+              },
+            ],
+          }
         },
       },
     })
@@ -98,6 +130,7 @@ describe('should set-up next', () => {
           if (msg.includes('top-level')) {
             errors.push(msg)
           }
+          stderr += msg
         },
       }
     )
@@ -105,6 +138,33 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should warn when "next" is imported directly', async () => {
+    await renderViaHTTP(appPort, '/gssp')
+    await check(
+      () => stderr,
+      /"next" should not be imported directly, imported in/
+    )
+  })
+
+  it('`compress` should be `true` by default', async () => {
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
+  })
+
+  it('should output middleware correctly', async () => {
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
+      )
+    ).toBe(true)
+    expect(
+      await fs.pathExists(
+        join(next.testDir, 'standalone/.next/server/middleware.js')
+      )
+    ).toBe(true)
   })
 
   it('should output required-server-files manifest correctly', async () => {
@@ -118,7 +178,98 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
   })
 
+  it('should de-dupe HTML/data requests', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-nextjs-cache')).toBeFalsy()
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    expect(res2.headers.get('x-nextjs-cache')).toBeFalsy()
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).toBe(props.gspCalls)
+
+    const res3 = await fetchViaHTTP(appPort, '/index', undefined, {
+      redirect: 'manual',
+      headers: {
+        'x-matched-path': '/index',
+      },
+    })
+    expect(res3.status).toBe(200)
+    const $2 = cheerio.load(await res3.text())
+    const props3 = JSON.parse($2('#props').text())
+    expect(props3.gspCalls).toBeDefined()
+
+    const res4 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/index.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res4.status).toBe(200)
+    const { pageProps: props4 } = await res4.json()
+    expect(props4.gspCalls).toBe(props3.gspCalls)
+  })
+
+  it('should cap de-dupe previousCacheItem expires time', async () => {
+    const res = await fetchViaHTTP(appPort, '/gsp-long-revalidate', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    const props = JSON.parse($('#props').text())
+    expect(props.gspCalls).toBeDefined()
+
+    await waitFor(1000)
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/gsp-long-revalidate.json`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(200)
+    const { pageProps: props2 } = await res2.json()
+    expect(props2.gspCalls).not.toBe(props.gspCalls)
+  })
+
+  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+    const previewProps = JSON.parse(
+      await next.readFile('standalone/.next/prerender-manifest.json')
+    ).preview
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/only-generated-1',
+      undefined,
+      {
+        headers: {
+          'x-prerender-revalidate': previewProps.previewModeId,
+          'x-prerender-revalidate-if-generated': '1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+  })
+
   it('should set correct SWR headers with notFound gsp', async () => {
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -129,6 +280,7 @@ describe('should set-up next', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
+    await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
@@ -156,6 +308,8 @@ describe('should set-up next', () => {
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
     })
+    await next.patchFile('standalone/data.txt', 'show')
+
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
       's-maxage=1, stale-while-revalidate'
@@ -163,18 +317,18 @@ describe('should set-up next', () => {
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
+    const html = await renderViaHTTP(appPort, '/gssp')
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/')
+    const html2 = await renderViaHTTP(appPort, '/gssp')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
@@ -207,6 +361,7 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
+    await waitFor(2000)
     const html2 = await renderViaHTTP(appPort, '/fallback/first')
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -237,34 +392,39 @@ describe('should set-up next', () => {
   it('should render SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#index').text()).toBe('index page')
+    expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
     const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/',
+        'x-matched-path': '/gssp',
       },
     })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#index').text()).toBe('index page')
+    expect($2('#gssp').text()).toBe('getServerSideProps page')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -272,11 +432,16 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -287,7 +452,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-matched-path': '/dynamic/[slug]',
         'x-now-route-matches': '1=second&slug=second',
       },
     })
@@ -329,14 +494,67 @@ describe('should set-up next', () => {
     expect(data2.random).not.toBe(data.random)
   })
 
+  it('should favor valid route params over routes-matches', async () => {
+    const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
+      headers: {
+        'x-matched-path': '/fallback/first',
+        'x-now-route-matches': '1=fallback%2ffirst',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#fallback').text()).toBe('fallback page')
+    expect($('#slug').text()).toBe('first')
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(appPort, `/fallback/second`, undefined, {
+      headers: {
+        'x-matched-path': '/fallback/[slug]',
+        'x-now-route-matches': '1=fallback%2fsecond',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#fallback').text()).toBe('fallback page')
+    expect($2('#slug').text()).toBe('second')
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should favor valid route params over routes-matches optional', async () => {
+    const html = await renderViaHTTP(appPort, '/optional-ssg', undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg',
+        'x-now-route-matches': '1=optional-ssg',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+    expect(data.params).toEqual({})
+
+    const html2 = await renderViaHTTP(appPort, `/optional-ssg`, undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg',
+        'x-now-route-matches': '1=optional-ssg%2fanother',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.params).toEqual({})
+  })
+
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json`,
+      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': `/dynamic/[slug]`,
         },
       }
     )
@@ -404,7 +622,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(
       appPort,
-      '/catch-all/[[..rest]]',
+      '/catch-all/[[...rest]]',
       undefined,
       {
         headers: {
@@ -426,6 +644,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       `/_next/data/${next.buildId}/catch-all.json`,
+
       undefined,
       {
         headers: {
@@ -501,7 +720,7 @@ describe('should set-up next', () => {
       },
       {
         headers: {
-          'x-matched-path': '/',
+          'x-matched-path': '/gssp',
         },
       }
     )
@@ -524,6 +743,45 @@ describe('should set-up next', () => {
     )
     expect(res.status).toBe(400)
     expect(await res.text()).toContain('Bad Request')
+  })
+
+  it('should have correct resolvedUrl from rewrite', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-1', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-1')
+  })
+
+  it('should have correct resolvedUrl from rewrite with added query', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-dynamic/post-2', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+      },
+    })
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+    expect($('#resolved-url').text()).toBe('/dynamic/post-2')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/to-dynamic/post-2')
+  })
+
+  it('should have correct resolvedUrl from dynamic route', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/dynamic/post-2.json`,
+      { slug: 'post-2' },
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.pageProps.resolvedUrl).toBe('/dynamic/post-2')
   })
 
   it('should bubble error correctly for gip page', async () => {
@@ -611,6 +869,86 @@ describe('should set-up next', () => {
     expect(props.params).toEqual({})
   })
 
+  it('should normalize optional revalidations correctly for SSG page', async () => {
+    const reqs = [
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg.json`,
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        },
+        query: { rest: '' },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '1=',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/.json`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/optional-ssg/[[...rest]]`,
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+      {
+        path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
+        headers: {
+          'x-matched-path': `/optional-ssg/[[...rest]]`,
+          'x-now-route-matches': '',
+          'x-vercel-id': 'cle1::',
+        },
+      },
+    ]
+
+    for (const req of reqs) {
+      console.error('checking', req)
+      const res = await fetchViaHTTP(appPort, req.path, req.query, {
+        headers: req.headers,
+      })
+
+      const content = await res.text()
+      let props
+
+      try {
+        const data = JSON.parse(content)
+        props = data.pageProps
+      } catch (_) {
+        props = JSON.parse(cheerio.load(content)('#__NEXT_DATA__').text()).props
+          .pageProps
+      }
+      expect(props.params).toEqual({})
+    }
+  })
+
   it('should normalize optional values correctly for SSG page with encoded slash', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -650,6 +988,23 @@ describe('should set-up next', () => {
     expect(json.url).toBe('/api/optional?another=value')
   })
 
+  it('should normalize index optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional/index',
+      { rest: 'index', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.url).toBe('/api/optional/index?another=value')
+  })
+
   it('should match the index page correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       headers: {
@@ -663,8 +1018,8 @@ describe('should set-up next', () => {
     expect($('#index').text()).toBe('index page')
   })
 
-  it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+  it('should match the root dynamic page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },
@@ -674,5 +1029,75 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).query).toEqual({
+      slug: 'slug-1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+    expect($2('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($2('#router').text()).query).toEqual({
+      slug: '[slug]',
+    })
+  })
+
+  it('should have correct asPath on dynamic SSG page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/an-ssg-path', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).asPath).toBe('/an-ssg-path')
+  })
+
+  it('should have correct asPath on dynamic SSG page fallback correctly', async () => {
+    const toCheck = [
+      {
+        pathname: '/fallback-false/first',
+        matchedPath: '/fallback-false/first',
+      },
+      {
+        pathname: '/fallback-false/first',
+        matchedPath: `/_next/data/${next.buildId}/fallback-false/first.json`,
+      },
+    ]
+    for (const check of toCheck) {
+      console.warn('checking', check)
+      const res = await fetchViaHTTP(appPort, check.pathname, undefined, {
+        headers: {
+          'x-matched-path': check.matchedPath,
+        },
+        redirect: 'manual',
+      })
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('#page').text()).toBe('blog slug')
+      expect($('#asPath').text()).toBe('/fallback-false/first')
+      expect($('#pathname').text()).toBe('/fallback-false/[slug]')
+      expect(JSON.parse($('#query').text())).toEqual({ slug: 'first' })
+    }
+  })
+
+  it('should copy and read .env file', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/env')
+
+    const envVariables = await res.json()
+
+    expect(envVariables.env).not.toBeUndefined()
+    expect(envVariables.envProd).not.toBeUndefined()
+    expect(envVariables.envLocal).toBeUndefined()
   })
 })

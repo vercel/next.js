@@ -64,4 +64,17 @@ describe('Page Extensions', () => {
       '@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now'
     )
   })
+
+  it('should not throw if .d.ts file inside the pages folder', async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { pageExtensions: ['js', 'ts', 'tsx'] }`
+    )
+
+    const { stdout } = await runNextCommand(['build', appDir], { stdout: true })
+
+    await fs.remove(nextConfig)
+
+    expect(stdout).toContain('Compiled successfully')
+  })
 })

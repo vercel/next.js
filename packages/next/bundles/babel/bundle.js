@@ -40,6 +40,10 @@ function generator() {
   return require('@babel/generator')
 }
 
+function parser() {
+  return require('@babel/parser')
+}
+
 function eslintParser() {
   return require('next/dist/compiled/babel-packages').eslintParser()
 }
@@ -66,6 +70,10 @@ function pluginSyntaxBigint() {
 
 function pluginSyntaxDynamicImport() {
   return require('next/dist/compiled/babel-packages').pluginSyntaxDynamicImport()
+}
+
+function pluginSyntaxImportAssertions() {
+  return require('next/dist/compiled/babel-packages').pluginSyntaxImportAssertions()
 }
 
 function pluginSyntaxJsx() {
@@ -112,12 +120,14 @@ module.exports = {
   generator,
   traverse,
   eslintParser,
+  parser,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,
   pluginProposalNumericSeparator,
   pluginProposalObjectRestSpread,
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
+  pluginSyntaxImportAssertions,
   pluginSyntaxJsx,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,

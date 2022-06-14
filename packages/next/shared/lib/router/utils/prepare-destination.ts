@@ -1,14 +1,16 @@
 import type { IncomingMessage } from 'http'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
-import type { Params } from '../../../../server/router'
+import type { Params } from './route-matcher'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
+import type { BaseNextRequest } from '../../../../server/base-http'
+
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 
 export function matchHas(
-  req: IncomingMessage,
+  req: BaseNextRequest | IncomingMessage,
   has: RouteHas[],
   query: Params
 ): false | Params {
@@ -107,7 +109,7 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return compile(`/${value}`, { validate: false })(params).substr(1)
+  return compile(`/${value}`, { validate: false })(params).slice(1)
 }
 
 export function prepareDestination(args: {
@@ -119,6 +121,7 @@ export function prepareDestination(args: {
   const query = Object.assign({}, args.query)
   delete query.__nextLocale
   delete query.__nextDefaultLocale
+  delete query.__nextDataReq
 
   let escapedDestination = args.destination
 
@@ -215,6 +218,7 @@ export function prepareDestination(args: {
 
   return {
     newUrl,
+    destQuery,
     parsedDestination,
   }
 }

@@ -1852,4 +1852,26 @@ describe('CSS Support', () => {
       }
     })
   })
+
+  describe('Data URLs', () => {
+    const workDir = join(fixturesDir, 'data-url')
+
+    it('should compile successfully', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
+
+    it('should have emitted expected files', async () => {
+      const cssFolder = join(workDir, '.next/static/css')
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /background:url\("data:[^"]+"\)/
+      )
+    })
+  })
 })

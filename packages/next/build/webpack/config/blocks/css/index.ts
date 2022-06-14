@@ -1,6 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
@@ -139,7 +138,7 @@ export const css = curry(async function css(
     ...sassOptions
   } = ctx.sassOptions
 
-  const lazyPostCSSInitalizer = () =>
+  const lazyPostCSSInitializer = () =>
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
@@ -165,8 +164,9 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('next/dist/compiled/resolve-url-loader'),
+      loader: require.resolve('../../../loaders/resolve-url-loader/index'),
       options: {
+        postcss: lazyPostCSSInitializer,
         // Source maps are not required here, but we may as well emit
         // them.
         sourceMap: true,
@@ -216,7 +216,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, lazyPostCSSInitalizer),
+          use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
         }),
       ],
     })
@@ -241,7 +241,7 @@ export const css = curry(async function css(
           },
           use: getCssModuleLoader(
             ctx,
-            lazyPostCSSInitalizer,
+            lazyPostCSSInitializer,
             sassPreprocessors
           ),
         }),
@@ -303,7 +303,7 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+            use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
           }),
         ],
       })
@@ -321,7 +321,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
             }),
           ],
         })
@@ -339,7 +339,7 @@ export const css = curry(async function css(
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(
                 ctx,
-                lazyPostCSSInitalizer,
+                lazyPostCSSInitializer,
                 sassPreprocessors
               ),
             }),
@@ -413,6 +413,8 @@ export const css = curry(async function css(
 
   if (ctx.isClient && ctx.isProduction) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
+    const MiniCssExtractPlugin =
+      require('../../../plugins/mini-css-extract-plugin').default
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat

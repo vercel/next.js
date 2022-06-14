@@ -1,12 +1,14 @@
 const path = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-server-import-in-page'
+const middlewareRegExp = new RegExp(`^middleware\\.(?:t|j)s$`)
+
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Disallow importing next/server outside of pages/_middleware.js',
+      description: 'Prevent usage of `next/server` outside of `middleware.js`.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-server-import-in-page',
+      url,
     },
   },
   create: function (context) {
@@ -16,20 +18,14 @@ module.exports = {
           return
         }
 
-        const paths = context.getFilename().split('pages')
-        const page = paths[paths.length - 1]
-
-        if (
-          !page ||
-          page.includes(`${path.sep}_middleware`) ||
-          page.includes(`${path.posix.sep}_middleware`)
-        ) {
+        const filename = context.getFilename()
+        if (middlewareRegExp.test(path.basename(filename))) {
           return
         }
 
         context.report({
           node,
-          message: `next/server should not be imported outside of pages/_middleware.js. See https://nextjs.org/docs/messages/no-server-import-in-page.`,
+          message: `\`next/server\` should not be used outside of \`middleware.js\`. See: ${url}`,
         })
       },
     }

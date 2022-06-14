@@ -1,4 +1,5 @@
-/** @license React vundefined
+/**
+ * @license React
  * react-server-dom-webpack.development.js
  *
  * Copyright (c) Facebook, Inc. and its affiliates.
@@ -12,6 +13,8 @@
 if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
+
+var React = require('react');
 
 function createStringDecoder() {
   return new TextDecoder();
@@ -31,7 +34,11 @@ function parseModel(response, json) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function resolveModuleReference(moduleData) {
+function resolveModuleReference(bundlerConfig, moduleData) {
+  if (bundlerConfig) {
+    return bundlerConfig[moduleData.id][moduleData.name];
+  }
+
   return moduleData;
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
@@ -49,7 +56,7 @@ function preloadModule(moduleData) {
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = __webpack_chunk_load__(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
 
       var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
       var reject = chunkCache.set.bind(chunkCache, chunkId);
@@ -75,7 +82,7 @@ function requireModule(moduleData) {
     }
   }
 
-  var moduleExports = __webpack_require__(moduleData.id);
+  var moduleExports = globalThis.__next_require__(moduleData.id);
 
   if (moduleData.name === '*') {
     // This is a placeholder value that represents that the caller imported this
@@ -95,45 +102,20 @@ function requireModule(moduleData) {
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types. If there is no native Symbol
-// nor polyfill, then a plain number is used for performance.
-var REACT_ELEMENT_TYPE = 0xeac7;
-var REACT_PORTAL_TYPE = 0xeaca;
-var REACT_FRAGMENT_TYPE = 0xeacb;
-var REACT_STRICT_MODE_TYPE = 0xeacc;
-var REACT_PROFILER_TYPE = 0xead2;
-var REACT_PROVIDER_TYPE = 0xeacd;
-var REACT_CONTEXT_TYPE = 0xeace;
-var REACT_FORWARD_REF_TYPE = 0xead0;
-var REACT_SUSPENSE_TYPE = 0xead1;
-var REACT_SUSPENSE_LIST_TYPE = 0xead8;
-var REACT_MEMO_TYPE = 0xead3;
-var REACT_LAZY_TYPE = 0xead4;
-var REACT_SCOPE_TYPE = 0xead7;
-var REACT_DEBUG_TRACING_MODE_TYPE = 0xeae1;
-var REACT_OFFSCREEN_TYPE = 0xeae2;
-var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
-var REACT_CACHE_TYPE = 0xeae4;
+// The Symbol used to tag the ReactElement-like types.
+var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_LAZY_TYPE = Symbol.for('react.lazy');
+var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 
-if (typeof Symbol === 'function' && Symbol.for) {
-  var symbolFor = Symbol.for;
-  REACT_ELEMENT_TYPE = symbolFor('react.element');
-  REACT_PORTAL_TYPE = symbolFor('react.portal');
-  REACT_FRAGMENT_TYPE = symbolFor('react.fragment');
-  REACT_STRICT_MODE_TYPE = symbolFor('react.strict_mode');
-  REACT_PROFILER_TYPE = symbolFor('react.profiler');
-  REACT_PROVIDER_TYPE = symbolFor('react.provider');
-  REACT_CONTEXT_TYPE = symbolFor('react.context');
-  REACT_FORWARD_REF_TYPE = symbolFor('react.forward_ref');
-  REACT_SUSPENSE_TYPE = symbolFor('react.suspense');
-  REACT_SUSPENSE_LIST_TYPE = symbolFor('react.suspense_list');
-  REACT_MEMO_TYPE = symbolFor('react.memo');
-  REACT_LAZY_TYPE = symbolFor('react.lazy');
-  REACT_SCOPE_TYPE = symbolFor('react.scope');
-  REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
-  REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
-  REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
-  REACT_CACHE_TYPE = symbolFor('react.cache');
+var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+var ContextRegistry = ReactSharedInternals.ContextRegistry;
+function getOrCreateServerContext(globalName) {
+  if (!ContextRegistry[globalName]) {
+    ContextRegistry[globalName] = React.createServerContext(globalName, REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+  }
+
+  return ContextRegistry[globalName];
 }
 
 var PENDING = 0;
@@ -387,9 +369,10 @@ function parseModelTuple(response, value) {
 
   return value;
 }
-function createResponse() {
+function createResponse(bundlerConfig) {
   var chunks = new Map();
   var response = {
+    _bundlerConfig: bundlerConfig,
     _chunks: chunks,
     readRoot: readRoot
   };
@@ -405,11 +388,15 @@ function resolveModel(response, id, model) {
     resolveModelChunk(chunk, model);
   }
 }
+function resolveProvider(response, id, contextName) {
+  var chunks = response._chunks;
+  chunks.set(id, createInitializedChunk(response, getOrCreateServerContext(contextName).Provider));
+}
 function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
   var moduleMetaData = parseModel(response, model);
-  var moduleReference = resolveModuleReference(moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
+  var moduleReference = resolveModuleReference(response._bundlerConfig, moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
   // For now we preload all modules as early as possible since it's likely
   // that we'll need them.
 
@@ -472,6 +459,12 @@ function processFullRow(response, row) {
     case 'M':
       {
         resolveModule(response, id, text);
+        return;
+      }
+
+    case 'P':
+      {
+        resolveProvider(response, id, text);
         return;
       }
 
@@ -539,11 +532,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1() {
+function createResponse$1(bundlerConfig) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
   var stringDecoder =  createStringDecoder() ;
-  var response = createResponse();
+  var response = createResponse(bundlerConfig);
   response._partialRow = '';
 
   {
@@ -579,14 +572,14 @@ function startReadingFromStream(response, stream) {
   reader.read().then(progress, error);
 }
 
-function createFromReadableStream(stream) {
-  var response = createResponse$1();
+function createFromReadableStream(stream, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   startReadingFromStream(response, stream);
   return response;
 }
 
-function createFromFetch(promiseForResponse) {
-  var response = createResponse$1();
+function createFromFetch(promiseForResponse, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   promiseForResponse.then(function (r) {
     startReadingFromStream(response, r.body);
   }, function (e) {
@@ -595,8 +588,8 @@ function createFromFetch(promiseForResponse) {
   return response;
 }
 
-function createFromXHR(request) {
-  var response = createResponse$1();
+function createFromXHR(request, options) {
+  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null);
   var processedLength = 0;
 
   function progress(e) {

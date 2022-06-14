@@ -1,4 +1,4 @@
-import cssnanoSimple from 'cssnano-simple'
+import cssnanoSimple from 'next/dist/compiled/cssnano-simple'
 import postcssScss from 'next/dist/compiled/postcss-scss'
 import postcss, { Parser } from 'postcss'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
