@@ -491,7 +491,15 @@ pub struct FileSystemPath {
 
 impl FileSystemPath {
     pub fn is_inside(&self, context: &FileSystemPath) -> bool {
-        self.fs == context.fs && self.path.starts_with(&context.path)
+        if self.fs == context.fs && self.path.starts_with(&context.path) {
+            if context.path.is_empty() {
+                true
+            } else {
+                self.path.as_bytes().get(context.path.len()) == Some(&b'/')
+            }
+        } else {
+            false
+        }
     }
 
     pub fn is_root(&self) -> bool {

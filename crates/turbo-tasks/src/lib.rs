@@ -37,7 +37,7 @@ pub use id::{
 };
 pub use lazy_static::lazy_static;
 pub use manager::{
-    dynamic_call, get_invalidator, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
+    dynamic_call, get_invalidator, spawn, spawn_blocking, spawn_thread, trait_call, turbo_tasks,
     Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
     TurboTasksCallApi,
 };

@@ -40,6 +40,13 @@ impl TurboTasksCallApi for VcStorage {
     ) -> RawVc {
         unreachable!()
     }
+
+    fn run_once(
+        &self,
+        _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> TaskId {
+        unreachable!()
+    }
 }
 
 impl TurboTasksApi for VcStorage {

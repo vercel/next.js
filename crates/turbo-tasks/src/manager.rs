@@ -17,7 +17,7 @@ use std::{
 use anyhow::Result;
 use event_listener::{Event, EventListener};
 use serde::{de::Visitor, Deserialize, Serialize};
-use tokio::{runtime::Handle, spawn, task::JoinHandle, task_local};
+use tokio::{runtime::Handle, task::JoinHandle, task_local};
 
 use crate::{
     backend::{Backend, PersistentTaskType, SlotContent, SlotMappings, TransientTaskType},
@@ -26,7 +26,7 @@ use crate::{
     raw_vc::RawVc,
     task_input::{SharedReference, SharedValue, TaskInput},
     trace::TraceRawVcs,
-    TaskId, Typed, TypedForInput, ValueTypeId, Vc,
+    NothingVc, TaskId, Typed, TypedForInput, ValueTypeId, Vc,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -38,6 +38,11 @@ pub trait TurboTasksCallApi: Sync + Send {
         trait_fn_name: String,
         inputs: Vec<TaskInput>,
     ) -> RawVc;
+
+    fn run_once(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> TaskId;
 }
 
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
@@ -212,7 +217,7 @@ impl<B: Backend> TurboTasks<B> {
         id
     }
 
-    pub async fn run_once<T: TraceRawVcs + Sync + Send + 'static>(
+    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
@@ -409,7 +414,7 @@ impl<B: Backend> TurboTasks<B> {
         let this = self.pin();
         self.currently_scheduled_background_jobs
             .fetch_add(1, Ordering::AcqRel);
-        spawn(TURBO_TASKS.scope(this.clone(), async move {
+        tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
             if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                 let listener = this.event.listen();
                 if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
@@ -459,6 +464,16 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         self.trait_call(trait_type, trait_fn_name, inputs)
+    }
+
+    fn run_once(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> TaskId {
+        self.spawn_once_task(async move {
+            future.await?;
+            Ok(NothingVc::new().into())
+        })
     }
 }
 
@@ -693,6 +708,14 @@ pub fn get_invalidator() -> Invalidator {
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
     tokio::task::spawn_blocking(func).await.unwrap()
+}
+
+pub async fn spawn<T: Send + 'static>(future: T) -> T::Output
+where
+    T: Future + Send + 'static,
+    T::Output: Send + 'static,
+{
+    tokio::task::spawn(future).await.unwrap()
 }
 
 pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
