@@ -349,7 +349,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const {
-      getNodeError,
+      getServerError,
     } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
@@ -368,15 +368,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-
-          // Errors from the middleware are reported as client-side errors
-          // since the middleware is compiled using the client compiler
-          if (initialData.err && 'middleware' in initialData.err) {
-            throw error
-          }
-
-          const node = getNodeError(error)
-          throw node
+          throw getServerError(error, initialErr!.source)
         })
       }
       // We replaced the server-side error with a client-side error, and should
