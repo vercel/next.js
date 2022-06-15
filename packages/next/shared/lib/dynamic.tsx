@@ -16,16 +16,18 @@ export type LoadableGeneratedOptions = {
   modules?(): LoaderMap
 }
 
-export type DynamicOptionsLoadingProps = {
-  error?: Error | null
-  isLoading?: boolean
-  pastDelay?: boolean
-  retry?: () => void
-  timedOut?: boolean
-}
-
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
+  loading?: ({
+    error,
+    isLoading,
+    pastDelay,
+  }: {
+    error?: Error | null
+    isLoading?: boolean
+    pastDelay?: boolean
+    retry?: () => void
+    timedOut?: boolean
+  }) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
