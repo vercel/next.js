@@ -16,11 +16,11 @@ module.exports = {
     return [
       {
         source: '/rewrite-1',
-        destination: '/ssr-page',
+        destination: '/ssr-page?from=config',
       },
       {
         source: '/rewrite-2',
-        destination: '/about/a',
+        destination: '/about/a?from=next-config',
       },
       {
         source: '/sha',
@@ -28,7 +28,7 @@ module.exports = {
       },
       {
         source: '/rewrite-3',
-        destination: '/blog/middleware-rewrite',
+        destination: '/blog/middleware-rewrite?hello=config',
       },
     ]
   },

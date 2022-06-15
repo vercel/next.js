@@ -356,6 +356,7 @@ export type CompletePrivateRouteInfo = {
   error?: any
   route?: string
   resolvedAs?: string
+  query?: ParsedUrlQuery
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
@@ -1237,6 +1238,7 @@ export default class Router implements BaseRouter {
 
       if ('route' in routeInfo && routeInfo.route !== route) {
         pathname = routeInfo.route || route
+        query = Object.assign({}, routeInfo.query || {}, query)
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
@@ -1741,6 +1743,7 @@ export default class Router implements BaseRouter {
 
       routeInfo.props = props
       routeInfo.route = route
+      routeInfo.query = query
       routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
 
@@ -2171,10 +2174,10 @@ function getMiddlewareData<T extends FetchDataOutput>(
     i18n: { locales: options.router.locales },
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
+  const rewriteHeader = response.headers.get('x-nextjs-rewrite')
 
   let rewriteTarget =
-    response.headers.get('x-nextjs-rewrite') ||
-    response.headers.get('x-nextjs-matched-path')
+    rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
   const matchedPath = response.headers.get('x-matched-path')
 
@@ -2197,7 +2200,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
       ]).then(([pages, { __rewrites: rewrites }]: any) => {
         let as = parsedRewriteTarget.pathname
 
-        if (isDynamicRoute(as)) {
+        if (!rewriteHeader || isDynamicRoute(as)) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
             { parseData: true }
@@ -2218,7 +2221,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
           if (result.matchedPage) {
             parsedRewriteTarget.pathname = result.parsedAs.pathname
-            parsedRewriteTarget.query = result.parsedAs.query
+            Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
           }
         }
 

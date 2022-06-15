@@ -158,6 +158,7 @@ describe('Middleware Runtime', () => {
 
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'from-middleware',
+      some: 'middleware',
     })
     expect(
       JSON.parse(await browser.elementByCss('#props').text()).params
@@ -178,6 +179,8 @@ describe('Middleware Runtime', () => {
 
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'middleware-rewrite',
+      hello: 'config',
+      some: 'middleware',
     })
     expect(
       JSON.parse(await browser.elementByCss('#props').text()).params
@@ -198,6 +201,7 @@ describe('Middleware Runtime', () => {
 
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       slug: 'middleware-rewrite',
+      hello: 'config',
     })
     expect(
       JSON.parse(await browser.elementByCss('#props').text()).params
