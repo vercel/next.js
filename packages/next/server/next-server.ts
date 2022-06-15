@@ -1332,6 +1332,15 @@ export default class NextNodeServer extends BaseServer {
         for (const [key, value] of Object.entries(
           toNodeHeaders(result.response.headers)
         )) {
+          if (
+            [
+              'x-middleware-rewrite',
+              'x-middleware-redirect',
+              'x-middleware-refresh',
+            ].includes(key)
+          ) {
+            continue
+          }
           if (key !== 'content-encoding' && value !== undefined) {
             res.setHeader(key, value)
           }

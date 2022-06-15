@@ -1239,10 +1239,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
       )
       // return empty JSON when not an SSG/SSP page and not an error
-      if (
-        !(isSSG || hasServerProps) &&
-        (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
-      ) {
+      if (!(isSSG || hasServerProps)) {
         res.setHeader('content-type', 'application/json')
         res.body('{}')
         res.send()

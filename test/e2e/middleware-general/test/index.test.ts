@@ -118,6 +118,96 @@ describe('Middleware Runtime', () => {
     })
   }
 
+  it('should have correct dynamic route params on client-transition to dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/blog/first")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'first',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'first',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/blog/first')
+
+    await browser.eval('window.next.router.push("/blog/second")')
+    await check(() => browser.elementByCss('body').text(), /"slug":"second"/)
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'second',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'second',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/blog/second')
+  })
+
+  it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'from-middleware',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'from-middleware',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe(
+      '/rewrite-to-dynamic'
+    )
+  })
+
+  it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-to-config-rewrite")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe(
+      '/rewrite-to-config-rewrite'
+    )
+  })
+
+  it('should have correct route params for rewrite from config dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-3")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-3')
+  })
+
   it('should redirect the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(
       next.url,
