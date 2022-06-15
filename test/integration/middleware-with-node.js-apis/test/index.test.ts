@@ -2,6 +2,7 @@
 
 import { remove } from 'fs-extra'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -80,10 +81,18 @@ describe('Middleware using Node.js API', () => {
       const res = await fetchViaHTTP(appPort, `/${api}`)
       await waitFor(500)
       expect(res.status).toBe(500)
-      expect(output)
-        .toContain(`NodejsRuntimeApiInMiddlewareWarning: You're using a Node.js API (${api}) which is not supported in the Edge Runtime that Middleware uses.
+      await check(
+        () =>
+          output.includes(`NodejsRuntimeApiInMiddlewareWarning: You're using a Node.js API (${api}) which is not supported in the Edge Runtime that Middleware uses.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-      expect(output).toContain(`TypeError: ${error}`)
+            ? 'success'
+            : output,
+        'success'
+      )
+      await check(
+        () => (output.includes(`TypeError: ${error}`) ? 'success' : output),
+        'success'
+      )
     })
   })
 
