@@ -7,7 +7,7 @@ module.exports = {
     return [
       {
         source: '/redirect-1',
-        destination: '/somewhere-else',
+        destination: '/somewhere/else',
         permanent: false,
       },
     ]
@@ -21,6 +21,14 @@ module.exports = {
       {
         source: '/rewrite-2',
         destination: '/about/a',
+      },
+      {
+        source: '/sha',
+        destination: '/shallow',
+      },
+      {
+        source: '/rewrite-3',
+        destination: '/blog/middleware-rewrite',
       },
     ]
   },

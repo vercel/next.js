@@ -24,6 +24,7 @@ describe('Middleware Rewrite', () => {
   tests()
   testsWithLocale()
   testsWithLocale('/fr')
+
   function tests() {
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
@@ -270,6 +271,41 @@ describe('Middleware Rewrite', () => {
       await browser.waitForElementByCss('.ja')
       await browser.elementByCss('#link-en2').click()
       await browser.waitForElementByCss('.en')
+    })
+
+    it('should allow to rewrite to a `beforeFiles` rewrite config', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/rewrite-to-beforefiles-rewrite`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Welcome Page A')
+
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#rewrite-to-beforefiles-rewrite').click()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Welcome Page A/
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `/rewrite-to-beforefiles-rewrite`
+      )
+    })
+
+    it('should allow to rewrite to a `afterFiles` rewrite config', async () => {
+      const res = await fetchViaHTTP(next.url, `/rewrite-to-afterfiles-rewrite`)
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Welcome Page B')
+
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#rewrite-to-afterfiles-rewrite').click()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Welcome Page B/
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `/rewrite-to-afterfiles-rewrite`
+      )
     })
   }
 
