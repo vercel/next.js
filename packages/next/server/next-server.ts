@@ -1135,7 +1135,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
-  }): Promise<FetchEventResult | null> {
+  }) {
     middlewareBetaWarning()
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
@@ -1233,6 +1233,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
+      return { finished: true }
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
@@ -1274,7 +1275,7 @@ export default class NextNodeServer extends BaseServer {
           return { finished: false }
         }
 
-        let result: FetchEventResult | null = null
+        let result: Awaited<ReturnType<typeof this.runMiddleware>>
 
         try {
           result = await this.runMiddleware({
@@ -1302,8 +1303,8 @@ export default class NextNodeServer extends BaseServer {
           return { finished: true }
         }
 
-        if (result === null) {
-          return { finished: true }
+        if ('finished' in result) {
+          return result
         }
 
         if (result.response.headers.has('x-middleware-rewrite')) {

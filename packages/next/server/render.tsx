@@ -1672,18 +1672,27 @@ export async function renderToHTML(
 }
 
 function errorToJSON(err: Error) {
+  let source: 'server' | 'edge-server' = 'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
   return {
     name: err.name,
+    source,
     message: stripAnsi(err.message),
     stack: err.stack,
-    middleware: (err as any).middleware,
   }
 }
 
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number } {
+): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
   if (dev) {
     return errorToJSON(err)
   }
