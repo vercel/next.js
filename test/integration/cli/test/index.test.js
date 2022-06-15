@@ -403,7 +403,7 @@ describe('CLI Usage', () => {
         }
       )
       expect(stderr).toContain(
-        'Invalid keep alive timeout provided, expected a non negative number'
+        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
       )
     })
 
@@ -415,7 +415,7 @@ describe('CLI Usage', () => {
         }
       )
       expect(stderr).toContain(
-        'Invalid keep alive timeout provided, expected a non negative number'
+        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
       )
     })
 
@@ -427,7 +427,7 @@ describe('CLI Usage', () => {
         }
       )
       expect(stderr).toContain(
-        'Invalid keep alive timeout provided, expected a non negative number'
+        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
       )
     })
 

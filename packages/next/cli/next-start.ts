@@ -68,7 +68,7 @@ const nextStart: cliCommand = (argv) => {
       keepAliveTimeoutArg < 0)
   ) {
     printAndExit(
-      'Invalid keep alive timeout provided, expected a non negative number',
+      `Invalid --keepAliveTimeout, expected a non negative number but received "${keepAliveTimeoutArg}"`,
       1
     )
   }
