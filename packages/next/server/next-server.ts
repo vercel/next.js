@@ -24,7 +24,7 @@ import type {
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
-import { IncomingMessage, request, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
