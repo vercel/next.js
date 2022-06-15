@@ -907,6 +907,7 @@ export default class HotReloader {
         rootDirectory: this.dir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
       }),
     ]
   }

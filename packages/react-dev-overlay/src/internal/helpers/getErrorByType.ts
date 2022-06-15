@@ -1,6 +1,6 @@
 import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
 import { SupportedErrorEvent } from '../container/Errors'
-import { isNodeError } from './nodeStackFrames'
+import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
 
 export type ReadyRuntimeError = {
@@ -22,8 +22,8 @@ export async function getErrorByType(
         runtime: true,
         error: event.reason,
         frames: await getOriginalStackFrames(
-          isNodeError(event.reason),
-          event.frames
+          event.frames,
+          getErrorSource(event.reason)
         ),
       }
     }

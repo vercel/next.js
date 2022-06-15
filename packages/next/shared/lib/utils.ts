@@ -92,7 +92,7 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number }
+  err?: Error & { statusCode?: number; source?: 'server' | 'edge-server' }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean

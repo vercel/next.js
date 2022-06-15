@@ -129,14 +129,14 @@ describe('Middleware Runtime', () => {
     )
     expect(res.status).toBe(307)
     expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
-      '/somewhere-else'
+      '/somewhere/else'
     )
 
     const browser = await webdriver(next.url, `${locale}/`)
     await browser.eval(`next.router.push('/redirect-1')`)
     await check(async () => {
       const pathname = await browser.eval('location.pathname')
-      return pathname === '/somewhere-else' ? 'success' : pathname
+      return pathname === '/somewhere/else' ? 'success' : pathname
     }, 'success')
   })
 
@@ -146,11 +146,13 @@ describe('Middleware Runtime', () => {
     expect(await res.text()).toContain('Hello World')
 
     const browser = await webdriver(next.url, `${locale}/`)
+    await browser.eval('window.beforeNav = 1')
     await browser.eval(`next.router.push('/rewrite-1')`)
     await check(async () => {
       const content = await browser.eval('document.documentElement.innerHTML')
       return content.includes('Hello World') ? 'success' : content
     }, 'success')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should rewrite correctly for non-SSG/SSP page', async () => {
@@ -365,7 +367,9 @@ describe('Middleware Runtime', () => {
     const res = await fetchViaHTTP(next.url, `/ssr-page`)
     const dataRes = await fetchViaHTTP(
       next.url,
-      `/_next/data/${next.buildId}/en/ssr-page.json`
+      `/_next/data/${next.buildId}/en/ssr-page.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
     )
     const json = await dataRes.json()
     expect(json.pageProps.message).toEqual('Bye Cruel World')

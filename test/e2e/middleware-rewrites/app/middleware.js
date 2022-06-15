@@ -22,6 +22,16 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname === '/rewrite-to-beforefiles-rewrite') {
+    url.pathname = '/beforefiles-rewrite'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrite-to-afterfiles-rewrite') {
+    url.pathname = '/afterfiles-rewrite'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname.startsWith('/to-blog')) {
     const slug = url.pathname.split('/').pop()
     url.pathname = `/fallback-true-blog/${slug}`
