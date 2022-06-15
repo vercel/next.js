@@ -6,19 +6,19 @@
     "start": "next start"
   },
   "dependencies": {
-    "@emotion/react": "^11.1.5",
-    "@emotion/styled": "11.3.0",
+    "@emotion/react": "^11.8.2",
+    "@emotion/styled": "11.8.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "tailwindcss-filters": "3.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.13.15",
-    "@emotion/babel-plugin": "11.3.0",
-    "autoprefixer": "^10.2.6",
+    "@emotion/babel-plugin": "11.7.2",
+    "autoprefixer": "^10.4.4",
     "next": "latest",
-    "postcss": "^8.3.5",
-    "tailwindcss": "^2.2.4",
+    "postcss": "^8.4.12",
+    "tailwindcss": "2.1.4",
     "xwind": "0.8.0"
   }
 }

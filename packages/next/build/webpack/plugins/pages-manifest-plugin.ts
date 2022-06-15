@@ -1,7 +1,7 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   PAGES_MANIFEST,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -20,23 +20,23 @@ export default class PagesManifestPlugin implements webpack.Plugin {
   serverless: boolean
   dev: boolean
   isEdgeRuntime: boolean
-  rootEnabled: boolean
+  appDirEnabled: boolean
 
   constructor({
     serverless,
     dev,
     isEdgeRuntime,
-    rootEnabled,
+    appDirEnabled,
   }: {
     serverless: boolean
     dev: boolean
     isEdgeRuntime: boolean
-    rootEnabled: boolean
+    appDirEnabled: boolean
   }) {
     this.serverless = serverless
     this.dev = dev
     this.isEdgeRuntime = isEdgeRuntime
-    this.rootEnabled = rootEnabled
+    this.appDirEnabled = appDirEnabled
   }
 
   createAssets(compilation: any, assets: any) {
@@ -45,7 +45,10 @@ export default class PagesManifestPlugin implements webpack.Plugin {
     const rootPaths: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.rootEnabled)
+      const pagePath = getRouteFromEntrypoint(
+        entrypoint.name,
+        this.appDirEnabled
+      )
 
       if (!pagePath) {
         continue
@@ -60,7 +63,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             file.endsWith('.js')
         )
 
-      // Skip _app.server entry which is empty
+      // Skip entries which are empty
       if (!files.length) {
         continue
       }
@@ -74,7 +77,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
       file = normalizePathSep(file)
 
-      if (entrypoint.name.startsWith('views/')) {
+      if (entrypoint.name.startsWith('app/')) {
         rootPaths[pagePath] = file
       } else {
         pages[pagePath] = file
@@ -104,9 +107,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       )
     )
 
-    if (this.rootEnabled) {
+    if (this.appDirEnabled) {
       assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + VIEW_PATHS_MANIFEST
+        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + APP_PATHS_MANIFEST
       ] = new sources.RawSource(
         JSON.stringify(
           {

@@ -55,7 +55,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width
 
 When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
-The `width` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `width` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ### height
 
@@ -65,7 +65,7 @@ When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `heigh
 
 When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
-The `height` property is required, except for [statically imported images](#local-images), or those with `layout="fill"`.
+The `height` property is required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images), or those with `layout="fill"`.
 
 ## Optional Props
 
@@ -75,13 +75,13 @@ The `<Image />` component accepts a number of additional properties beyond those
 
 The layout behavior of the image as the viewport changes size.
 
-| `layout`                                 | Behavior                                                   | `srcSet`                                                                                                    | `sizes`  | Has wrapper and sizer |
-| ---------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
-| `intrinsic` (default)                    | Scale *down* to fit width of container, up to image size   | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
-| `fixed`                                  | Sized to `width` and `height` exactly                      | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
-| `responsive`                             | Scale to fit width of container                            | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
-| `fill`                                   | Grow in both X and Y axes to fill container                | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
-| `raw`[\*](#experimental-raw-layout-mode) | Insert the image element with no automatic layout behavior | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
+| `layout`                                 | Behavior                                                 | `srcSet`                                                                                                    | `sizes`  | Has wrapper and sizer |
+| ---------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | --------------------- |
+| `intrinsic` (default)                    | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `fixed`                                  | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                            | N/A      | yes                   |
+| `responsive`                             | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `fill`                                   | Grow in both X and Y axes to fill container              | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw`  | yes                   |
+| `raw`[\*](#experimental-raw-layout-mode) | Raw `<img>` without styles and native lazy loading       | Behaves like `responsive` if the image has the `sizes` prop, and like `fixed` if it does not                | optional | no                    |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
@@ -485,7 +485,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 - `STALE` - the path is in the cache but exceeded the revalidate time so it will be updated in the background
 - `HIT` - the path is in the cache and has not exceeded the revalidate time
 
-The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream server's `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
+The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
 - You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
@@ -503,7 +503,11 @@ module.exports = {
 }
 ```
 
-If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
+The expiration (or rather Max Age) of the optimized image is defined by either the `minimumCacheTTL` or the upstream image `Cache-Control` header, whichever is larger.
+
+If you need to change the caching behavior per image, you can configure [`headers`](/docs/api-reference/next.config.js/headers) to set the `Cache-Control` header on the upstream image (e.g. `/some-asset.jpg`, not `/_next/image` itself).
+
+There is no mechanism to invalidate the cache at this time, so its best to keep `minimumCacheTTL` low. Otherwise you may need to manually change the [`src`](#src) prop or delete `<distDir>/cache/images`.
 
 ### Disable Static Imports
 

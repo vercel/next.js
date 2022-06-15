@@ -32,6 +32,13 @@ type DocumentFiles = {
   allFiles: readonly string[]
 }
 
+type HeadHTMLProps = React.DetailedHTMLProps<
+  React.HTMLAttributes<HTMLHeadElement>,
+  HTMLHeadElement
+>
+
+type HeadProps = OriginProps & HeadHTMLProps
+
 function getDocumentFiles(
   buildManifest: BuildManifest,
   pathname: string,
@@ -393,13 +400,7 @@ function AmpStyles({
   )
 }
 
-export class Head extends Component<
-  OriginProps &
-    React.DetailedHTMLProps<
-      React.HTMLAttributes<HTMLHeadElement>,
-      HTMLHeadElement
-    >
-> {
+export class Head extends Component<HeadProps> {
   static contextType = HtmlContext
 
   context!: React.ContextType<typeof HtmlContext>
@@ -555,8 +556,13 @@ export class Head extends Component<
           !script.src && (script.dangerouslySetInnerHTML || script.children)
       )
       .map((file: ScriptProps, index: number) => {
-        const { strategy, children, dangerouslySetInnerHTML, ...scriptProps } =
-          file
+        const {
+          strategy,
+          children,
+          dangerouslySetInnerHTML,
+          src,
+          ...scriptProps
+        } = file
         let html = ''
 
         if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
@@ -790,7 +796,7 @@ export class Head extends Component<
     )
 
     return (
-      <head {...this.props}>
+      <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
           <>
             <style
@@ -919,10 +925,6 @@ export class NextScript extends Component<OriginProps> {
 
   context!: React.ContextType<typeof HtmlContext>
 
-  // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
-  static safariNomoduleFix =
-    '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
-
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)
   }
@@ -940,20 +942,20 @@ export class NextScript extends Component<OriginProps> {
   }
 
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
-    const { __NEXT_DATA__ } = context
+    const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
+      const bytes = Buffer.from(data).byteLength
+      const prettyBytes = require('../lib/pretty-bytes').default
 
-      if (process.env.NODE_ENV === 'development') {
-        const bytes = Buffer.from(data).byteLength
-        const prettyBytes = require('../lib/pretty-bytes').default
-        if (bytes > 128 * 1000) {
-          console.warn(
-            `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
-              bytes
-            )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
-          )
-        }
+      if (largePageDataBytes && bytes > largePageDataBytes) {
+        console.warn(
+          `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
+            bytes
+          )} which exceeds the threshold of ${prettyBytes(
+            largePageDataBytes
+          )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
+        )
       }
 
       return htmlEscapeJsonString(data)
@@ -1074,4 +1076,15 @@ export class NextScript extends Component<OriginProps> {
 
 function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
+
+function getHeadHTMLProps(props: HeadProps) {
+  const { crossOrigin, nonce, ...restProps } = props
+
+  // This assignment is necessary for additional type checking to avoid unsupported attributes in <head>
+  const headProps: HeadHTMLProps & {
+    [P in Exclude<keyof HeadProps, keyof HeadHTMLProps>]?: never
+  } = restProps
+
+  return headProps
 }

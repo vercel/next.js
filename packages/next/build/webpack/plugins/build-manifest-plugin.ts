@@ -96,14 +96,14 @@ export default class BuildManifestPlugin {
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private exportRuntime: boolean
-  private rootEnabled: boolean
+  private appDirEnabled: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     exportRuntime?: boolean
-    rootEnabled: boolean
+    appDirEnabled: boolean
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -112,7 +112,7 @@ export default class BuildManifestPlugin {
       afterFiles: [],
       fallback: [],
     }
-    this.rootEnabled = options.rootEnabled
+    this.appDirEnabled = options.appDirEnabled
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
@@ -152,7 +152,7 @@ export default class BuildManifestPlugin {
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      if (this.rootEnabled) {
+      if (this.appDirEnabled) {
         assetMap.rootMainFiles = [
           ...new Set(
             getEntrypointFiles(
@@ -193,7 +193,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
-        ...(this.rootEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
+        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT] : []),
       ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
@@ -224,13 +224,6 @@ export default class BuildManifestPlugin {
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
-
-        const srcEmptyMiddlewareManifest = `self.__MIDDLEWARE_MANIFEST=[];self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-        const middlewareManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_middlewareManifest.js`
-        assetMap.lowPriorityFiles.push(middlewareManifestPath)
-        assets[middlewareManifestPath] = new sources.RawSource(
-          srcEmptyMiddlewareManifest
-        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)

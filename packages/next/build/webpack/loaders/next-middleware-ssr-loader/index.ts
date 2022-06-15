@@ -4,7 +4,6 @@ import { stringifyRequest } from '../../stringify-request'
 export type MiddlewareSSRLoaderQuery = {
   absolute500Path: string
   absoluteAppPath: string
-  absoluteAppServerPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolutePagePath: string
@@ -22,7 +21,6 @@ export default async function middlewareSSRLoader(this: any) {
     buildId,
     absolutePagePath,
     absoluteAppPath,
-    absoluteAppServerPath,
     absoluteDocumentPath,
     absolute500Path,
     absoluteErrorPath,
@@ -42,10 +40,6 @@ export default async function middlewareSSRLoader(this: any) {
 
   const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAppPath = stringifyRequest(this, absoluteAppPath)
-  const stringifiedAppServerPath = absoluteAppServerPath
-    ? stringifyRequest(this, absoluteAppServerPath)
-    : null
-
   const stringifiedErrorPath = stringifyRequest(this, absoluteErrorPath)
   const stringifiedDocumentPath = stringifyRequest(this, absoluteDocumentPath)
   const stringified500Path = absolute500Path
@@ -54,16 +48,11 @@ export default async function middlewareSSRLoader(this: any) {
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
-    import { RouterContext } from 'next/dist/shared/lib/router-context'
-
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
     import Document from ${stringifiedDocumentPath}
 
     const appMod = require(${stringifiedAppPath})
-    const appServerMod = ${
-      stringifiedAppServerPath ? `require(${stringifiedAppServerPath})` : 'null'
-    }
     const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${
@@ -85,7 +74,6 @@ export default async function middlewareSSRLoader(this: any) {
       buildManifest,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
-      appServerMod,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
     })

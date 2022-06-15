@@ -3,6 +3,7 @@ import webdriver from 'next-webdriver'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
+import cheerio from 'cheerio'
 import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
@@ -29,7 +30,30 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toMatch(/<\/body><\/html>$/)
+
     expect(scriptTagContent).toBe(';')
+
+    const inlineFlightContents = []
+    const $ = cheerio.load(homeHTML)
+    $('script').each((index, tag) => {
+      const content = $(tag).text()
+      if (content) inlineFlightContents.push(content)
+    })
+
+    const internalQueries = [
+      '__nextFallback',
+      '__nextLocale',
+      '__nextDefaultLocale',
+      '__nextIsNotFound',
+      '__flight__',
+      '__props__',
+      '__flight_router_path__',
+    ]
+
+    const hasNextInternalQuery = inlineFlightContents.some((content) =>
+      internalQueries.some((query) => content.includes(query))
+    )
+    expect(hasNextInternalQuery).toBe(false)
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -129,6 +153,7 @@ export default function (context, { runtime, env }) {
     expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
     expect(dynamicRoute2HTML).toContain('query: dynamic2')
     expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute1HTML).toContain('router pathname: /routes/[dynamic]')
   })
 
   it('should be able to navigate between rsc pages', async () => {
@@ -268,6 +293,13 @@ export default function (context, { runtime, env }) {
     const content = getNodeBySelector(html, '#__next').text()
 
     expect(content).toContain('This should be in red')
+  })
+
+  it('should SSR styled-jsx correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/styled-jsx')
+    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+
+    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {
