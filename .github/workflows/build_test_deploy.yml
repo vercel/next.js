@@ -401,8 +401,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
-    matrix:
-      group: [1, 2]
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
