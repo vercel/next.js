@@ -301,6 +301,10 @@ export default class NextNodeServer extends BaseServer {
     ]
   }
 
+  protected generateClientErrorRoute(): Route | undefined {
+    return undefined
+  }
+
   protected generateStaticRoutes(): Route[] {
     return this.hasStaticDir
       ? [

@@ -36,7 +36,7 @@ import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
-import Router from '../router'
+import Router, { Route } from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
@@ -970,6 +970,30 @@ export default class DevServer extends Server {
     })
 
     return { fsRoutes, ...otherRoutes }
+  }
+
+  protected generateClientErrorRoute(): Route | undefined {
+    return {
+      match: getPathMatch('/_next/client-error'),
+      type: 'route',
+      name: 'next client error',
+      fn: async (req, res) => {
+        if (req.method === 'POST') {
+          const { message, stackTrace } = await req.parseBody('1mb')
+          Log.warn(message)
+          if (stackTrace) {
+            console.warn(stackTrace)
+          }
+          res.statusCode = 200
+        } else {
+          res.statusCode = 405
+        }
+        res.send()
+        return {
+          finished: true,
+        }
+      },
+    }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
