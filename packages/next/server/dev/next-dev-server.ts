@@ -770,12 +770,8 @@ export default class DevServer extends Server {
           const src = getErrorSource(err)
           if (src === 'edge-server') {
             compilation = this.hotReloader?.edgeServerStats?.compilation
-          } else if (src === 'server') {
-            compilation = this.hotReloader?.serverStats?.compilation
           } else {
-            compilation = frame.file!.includes('(middleware)')
-              ? this.hotReloader?.edgeServerStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
+            compilation = this.hotReloader?.serverStats?.compilation
           }
 
           const source = await getSourceById(
