@@ -51,6 +51,7 @@ describe('Middleware using Node.js API', () => {
       output = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStdout(msg) {
           output += msg
         },
@@ -65,7 +66,7 @@ describe('Middleware using Node.js API', () => {
     it.each([
       {
         api: 'Buffer',
-        error: `Cannot read properties of undefined (reading 'from')`,
+        error: `Cannot read property 'from' of undefined`,
       },
       ...unsupportedFunctions.map((api) => ({
         api,
