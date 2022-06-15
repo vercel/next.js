@@ -82,13 +82,13 @@ describe('Export with custom loader next/image component', () => {
   })
 })
 
-describe('Export with custom loader next/image component', () => {
+describe('Export with unoptimized next/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
       JSON.stringify({
         images: {
-          loader: 'unoptimized',
+          unoptimized: true,
         },
       })
     )

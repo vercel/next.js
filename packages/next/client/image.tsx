@@ -64,7 +64,6 @@ const loaders = new Map<
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['custom', customLoader],
-  ['unoptimized', (p: ImageLoaderProps) => p.src],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -420,10 +419,6 @@ export default function Image({
     delete rest.loader
   }
 
-  if (loader === defaultImageLoader && config.loader === 'unoptimized') {
-    unoptimized = true
-  }
-
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -468,6 +463,9 @@ export default function Image({
     layout !== 'raw'
   ) {
     isLazy = false
+  }
+  if (config.unoptimized) {
+    unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)

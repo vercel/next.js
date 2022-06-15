@@ -341,7 +341,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
-      images.loader !== 'unoptimized' &&
       images.path === imageConfigDefault.path
     ) {
       throw new Error(
@@ -420,6 +419,17 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified images.contentSecurityPolicy should be a string
           ', '
         )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    if (
+      typeof images.unoptimized !== 'undefined' &&
+      typeof images.unoptimized !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.unoptimized should be a boolean
+          ', '
+        )}), received  (${images.unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
   }

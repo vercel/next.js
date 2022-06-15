@@ -4,7 +4,6 @@ export const VALID_LOADERS = [
   'cloudinary',
   'akamai',
   'custom',
-  'unoptimized',
 ] as const
 
 export type LoaderValue = typeof VALID_LOADERS[number]
@@ -75,6 +74,9 @@ export type ImageConfigComplete = {
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentSecurityPolicy: string
+
+  /** @see [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
+  unoptimized: boolean | undefined
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -90,4 +92,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
+  unoptimized: undefined,
 }
