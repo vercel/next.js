@@ -3,10 +3,17 @@ import webdriver from 'next-webdriver'
 import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
+import cheerio from 'cheerio'
 import { getNodeBySelector } from './utils'
 
 export default function (context, { runtime, env }) {
   const distDir = join(context.appDir, '.next')
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
@@ -22,7 +29,31 @@ export default function (context, { runtime, env }) {
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toMatch(/<\/body><\/html>$/)
+
     expect(scriptTagContent).toBe(';')
+
+    const inlineFlightContents = []
+    const $ = cheerio.load(homeHTML)
+    $('script').each((index, tag) => {
+      const content = $(tag).text()
+      if (content) inlineFlightContents.push(content)
+    })
+
+    const internalQueries = [
+      '__nextFallback',
+      '__nextLocale',
+      '__nextDefaultLocale',
+      '__nextIsNotFound',
+      '__flight__',
+      '__props__',
+      '__flight_router_path__',
+    ]
+
+    const hasNextInternalQuery = inlineFlightContents.some((content) =>
+      internalQueries.some((query) => content.includes(query))
+    )
+    expect(hasNextInternalQuery).toBe(false)
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
@@ -69,14 +100,16 @@ export default function (context, { runtime, env }) {
     expect(sharedClientModule[0][1]).toBe(sharedClientModule[1][1])
     expect(sharedServerModule[0][1]).not.toBe(sharedClientModule[0][1])
 
+    // Note: This is currently unsupported because packages from another layer
+    // will not be re-initialized by webpack.
     // Should import 2 module instances for node_modules too.
-    const modFromClient = main.match(
-      /node_modules instance from \.client\.js:(\d+)/
-    )
-    const modFromServer = main.match(
-      /node_modules instance from \.server\.js:(\d+)/
-    )
-    expect(modFromClient[1]).not.toBe(modFromServer[1])
+    // const modFromClient = main.match(
+    //   /node_modules instance from \.client\.js:(\d+)/
+    // )
+    // const modFromServer = main.match(
+    //   /node_modules instance from \.server\.js:(\d+)/
+    // )
+    // expect(modFromClient[1]).not.toBe(modFromServer[1])
   })
 
   it('should support next/link in server components', async () => {
@@ -120,6 +153,7 @@ export default function (context, { runtime, env }) {
     expect(dynamicRoute1HTML).toContain('pathname: /routes/dynamic')
     expect(dynamicRoute2HTML).toContain('query: dynamic2')
     expect(dynamicRoute2HTML).toContain('pathname: /routes/dynamic')
+    expect(dynamicRoute1HTML).toContain('router pathname: /routes/[dynamic]')
   })
 
   it('should be able to navigate between rsc pages', async () => {
@@ -155,6 +189,12 @@ export default function (context, { runtime, env }) {
       `document.querySelector('#content').innerText`
     )
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should escape streaming data correctly', async () => {
+    const browser = await webdriver(context.appPort, '/escaping-rsc')
+    const manipulated = await browser.eval(`window.__manipulated_by_injection`)
+    expect(manipulated).toBe(undefined)
   })
 
   // Disable next/image for nodejs runtime temporarily
@@ -253,6 +293,13 @@ export default function (context, { runtime, env }) {
     const content = getNodeBySelector(html, '#__next').text()
 
     expect(content).toContain('This should be in red')
+  })
+
+  it('should SSR styled-jsx correctly', async () => {
+    const html = await renderViaHTTP(context.appPort, '/styled-jsx')
+    const styledJsxClass = getNodeBySelector(html, 'h1').attr('class')
+
+    expect(html).toContain(`h1.${styledJsxClass}{color:red}`)
   })
 
   it('should handle 404 requests and missing routes correctly', async () => {

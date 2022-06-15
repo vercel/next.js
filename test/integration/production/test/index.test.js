@@ -105,7 +105,7 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
@@ -311,6 +311,24 @@ describe('Production Usage', () => {
     )
 
     expect(content).not.toContain('.currentScript')
+  })
+
+  it('should not contain amp, rsc APIs in main chunk', async () => {
+    const globResult = await glob('main-*.js', {
+      cwd: join(appDir, '.next/static/chunks'),
+    })
+
+    if (!globResult || globResult.length !== 1) {
+      throw new Error('could not find main js chunk')
+    }
+
+    const content = await fs.readFile(
+      join(appDir, '.next/static/chunks', globResult[0]),
+      'utf8'
+    )
+
+    expect(content).not.toContain('useAmp')
+    expect(content).not.toContain('useRefreshRoot')
   })
 
   describe('With basic usage', () => {

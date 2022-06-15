@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -9,8 +8,6 @@ import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
-  delBasePath,
-  hasBasePath,
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -33,13 +30,14 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import {
-  flushBufferedVitalsMetrics,
-  trackWebVitalMetric,
-} from './streaming/vitals'
-import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { removeBasePath } from './remove-base-path'
+import { hasBasePath } from './has-base-path'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -87,7 +85,10 @@ let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isRSCPage: boolean
+
+  // Ignore the module ID transform in client.
+  // @ts-ignore
+;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -169,7 +170,7 @@ class Container extends React.Component<{
     } else {
       const {
         ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/client')
+      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -204,7 +205,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
 
   // make sure not to attempt stripping basePath for 404s
   if (hasBasePath(asPath)) {
-    asPath = delBasePath(asPath)
+    asPath = removeBasePath(asPath)
   }
 
   if (process.env.__NEXT_I18N_SUPPORT) {
@@ -288,38 +289,38 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    const exportedReportWebVitals = mod && mod.reportWebVitals
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }: any): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      const webVitals: NextWebVitalsMetric = {
-        id: id || uniqueID,
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
         name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
       }
-      exportedReportWebVitals?.(webVitals)
-      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -332,7 +333,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
-    isRSCPage = !!pageEntrypoint.exports.__next_rsc__
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -349,8 +349,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const {
-      getNodeError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/client')
+      getServerError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -368,15 +368,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-
-          // Errors from the middleware are reported as client-side errors
-          // since the middleware is compiled using the client compiler
-          if (initialData.err && 'middleware' in initialData.err) {
-            throw error
-          }
-
-          const node = getNodeError(error)
-          throw node
+          throw getServerError(error, initialErr!.source)
         })
       }
       // We replaced the server-side error with a client-side error, and should
@@ -549,8 +541,7 @@ function renderReactElement(
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      const ReactDOMClient = require('react-dom/client')
-      reactRoot = ReactDOMClient.hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
@@ -649,12 +640,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isRSCPage) {
-    const { Component, err: _, router: __, ...props } = appProps
-    return <Component {...props} />
-  } else {
-    return <App {...appProps} />
-  }
+  return <App {...appProps} />
 }
 
 const wrapApp =
@@ -680,6 +666,7 @@ if (process.env.__NEXT_RSC) {
     createFromFetch,
     createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
+  const { RefreshContext } = require('./streaming/refresh')
 
   const encoder = new TextEncoder()
 
@@ -1031,8 +1018,6 @@ function Root({
   // don't cause any hydration delay:
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {

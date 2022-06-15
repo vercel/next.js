@@ -26,6 +26,18 @@ describe('basic HMR', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should show hydration error correctly', async () => {
+    const browser = await webdriver(next.url, '/hydration-error')
+    await check(async () => {
+      const logs = await browser.log()
+      return logs.some((log) =>
+        log.message.includes('messages/react-hydration-error')
+      )
+        ? 'success'
+        : JSON.stringify(logs, null, 2)
+    }, 'success')
+  })
+
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, '/auto-export-is-ready')
 
@@ -765,5 +777,12 @@ describe('basic HMR', () => {
         }
       }
     })
+  })
+
+  it('should have client HMR events in trace file', async () => {
+    const traceData = await next.readFile('.next/trace')
+    expect(traceData).toContain('client-hmr-latency')
+    expect(traceData).toContain('client-error')
+    expect(traceData).toContain('client-success')
   })
 })

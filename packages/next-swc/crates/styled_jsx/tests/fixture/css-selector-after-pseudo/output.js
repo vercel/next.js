@@ -1,4 +1,4 @@
-import _JSXStyle from "styled-jsx/style";
+import _JSXStyle from "next/dist/shared/lib/styled-jsx";
 function NavigationItem({ active , className ,  }) {
     return <span className={"jsx-2342aae4628612c6" + " " + (cn({
         active

@@ -78,7 +78,8 @@ function runTests(dev = false) {
     }
   })
 
-  it('can render async AMP pages', async () => {
+  // TODO: investigate this test flaking
+  it.skip('can render async AMP pages', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/config')

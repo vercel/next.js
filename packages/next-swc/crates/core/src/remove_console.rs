@@ -3,8 +3,6 @@ use swc_atoms::JsWord;
 use swc_common::collections::AHashSet;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
 
 use crate::top_level_binding_collector::collect_top_level_decls;

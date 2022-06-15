@@ -40,6 +40,17 @@ const Page = () => {
           loading="eager"
         ></Image>
       </div>
+      <div id="image-container4">
+        <Image
+          id="raw4"
+          src="/test.png"
+          width="400"
+          height="400"
+          layout="raw"
+          loading="eager"
+          style={{ width: '50%', height: 'auto' }}
+        ></Image>
+      </div>
     </div>
   )
 }

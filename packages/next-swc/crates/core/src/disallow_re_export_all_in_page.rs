@@ -1,6 +1,6 @@
+use swc_common::errors::HANDLER;
 use swc_common::pass::Optional;
 use swc_ecmascript::ast::ExportAll;
-use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::{noop_fold_type, Fold};
 
 pub fn disallow_re_export_all_in_page(is_page_file: bool) -> impl Fold {

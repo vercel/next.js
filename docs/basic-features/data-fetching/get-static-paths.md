@@ -37,6 +37,8 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 `getStaticPaths` will only run during build in production, it will not be called during runtime. You can validate code written inside `getStaticPaths` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
 
+### How does getStaticProps run with regards to getStaticPaths
+
 - `getStaticProps` runs during `next build` for any `paths` returned during build
 - `getStaticProps` runs in the background when using `fallback: true`
 - `getStaticProps` is called before initial render when using `fallback: blocking`
