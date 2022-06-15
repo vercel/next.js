@@ -394,6 +394,54 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
+
+    test('--keepAliveTimeout string arg', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'string'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
+
+    test('--keepAliveTimeout negative number', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout=-100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
+
+    test('--keepAliveTimeout Infinity', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'Infinity'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
+
+    test('--keepAliveTimeout happy path', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', '100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).not.toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
   })
 
   describe('export', () => {

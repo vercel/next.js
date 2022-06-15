@@ -61,15 +61,21 @@ const nextStart: cliCommand = (argv) => {
   }
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
-  let keepAliveTimeout: number | undefined
-
-  if (keepAliveTimeoutArg) {
-    keepAliveTimeout = Math.ceil(keepAliveTimeoutArg)
-    keepAliveTimeout = Number.isFinite(keepAliveTimeoutArg)
-      ? keepAliveTimeoutArg
-      : undefined
-    keepAliveTimeout = keepAliveTimeoutArg < 0 ? 0 : undefined
+  if (
+    typeof keepAliveTimeoutArg !== 'undefined' &&
+    (Number.isNaN(keepAliveTimeoutArg) ||
+      !Number.isFinite(keepAliveTimeoutArg) ||
+      keepAliveTimeoutArg < 0)
+  ) {
+    printAndExit(
+      'Invalid keep alive timeout provided, expected a non negative number',
+      1
+    )
   }
+
+  const keepAliveTimeout = keepAliveTimeoutArg
+    ? Math.ceil(keepAliveTimeoutArg)
+    : undefined
 
   startServer({
     dir,
