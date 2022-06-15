@@ -341,6 +341,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
+      images.loader !== 'unoptimized' &&
       images.path === imageConfigDefault.path
     ) {
       throw new Error(
