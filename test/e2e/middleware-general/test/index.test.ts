@@ -212,6 +212,18 @@ describe('Middleware Runtime', () => {
     expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-3')
   })
 
+  it('should have correct route params for rewrite from config non-dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-1")')
+
+    await check(() => browser.elementByCss('body').text(), /Hello World/)
+
+    expect(await browser.eval('window.next.router.query')).toEqual({
+      from: 'config',
+    })
+  })
+
   it('should redirect the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(
       next.url,

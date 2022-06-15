@@ -2200,7 +2200,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
       ]).then(([pages, { __rewrites: rewrites }]: any) => {
         let as = parsedRewriteTarget.pathname
 
-        if (!rewriteHeader || isDynamicRoute(as)) {
+        if (
+          isDynamicRoute(as) ||
+          (!rewriteHeader &&
+            pages.includes(
+              normalizeLocalePath(removeBasePath(as), options.router.locales)
+                .pathname
+            ))
+        ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
             { parseData: true }
