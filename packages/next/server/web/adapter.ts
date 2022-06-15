@@ -86,7 +86,7 @@ export async function adapter(params: {
      */
     if (isDataReq) {
       response.headers.set(
-        'x-nextjs-matched-path',
+        'x-nextjs-rewrite',
         relativizeURL(String(rewriteUrl), String(requestUrl))
       )
     }

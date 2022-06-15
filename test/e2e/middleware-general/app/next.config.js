@@ -22,6 +22,10 @@ module.exports = {
         source: '/rewrite-2',
         destination: '/about/a',
       },
+      {
+        source: '/rewrite-3',
+        destination: '/blog/middleware-rewrite',
+      },
     ]
   },
 }
