@@ -98,13 +98,10 @@ async function createNextInstall(
       stdio: ['ignore', 'inherit', 'inherit'],
     })
   } else {
-    await execa('yarn', ['install'], {
+    await execa('pnpm', ['install'], {
       cwd: installDir,
       stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
-      },
+      env: process.env,
     })
   }
 
