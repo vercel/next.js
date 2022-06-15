@@ -1873,6 +1873,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
+      this.router.catchAllMiddleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {
