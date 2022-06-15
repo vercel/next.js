@@ -427,9 +427,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       typeof images.unoptimized !== 'boolean'
     ) {
       throw new Error(
-        `Specified images.unoptimized should be a boolean
-          ', '
-        )}), received  (${images.unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        `Specified images.unoptimized should be a boolean, received (${images.unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
   }
