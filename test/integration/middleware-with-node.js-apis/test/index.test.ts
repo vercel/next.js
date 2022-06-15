@@ -67,7 +67,9 @@ describe('Middleware using Node.js API', () => {
     it.each([
       {
         api: 'Buffer',
-        error: `Cannot read property 'from' of undefined`,
+        error: process.version.startsWith('v16')
+          ? `Cannot read properties of undefined (reading 'from')`
+          : `Cannot read property 'from' of undefined`,
       },
       ...unsupportedFunctions.map((api) => ({
         api,
