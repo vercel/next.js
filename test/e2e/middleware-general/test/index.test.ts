@@ -476,6 +476,34 @@ describe('Middleware Runtime', () => {
     await browser.waitForElementByCss('.refreshed')
     expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
   })
+
+  it('allows shallow linking with middleware', async () => {
+    const browser = await webdriver(next.url, '/sha')
+    const getMessageContents = () =>
+      browser.elementById('message-contents').text()
+    const ssrMessage = await getMessageContents()
+    const requests: string[] = []
+
+    browser.on('request', (x) => {
+      requests.push(x.url())
+    })
+
+    browser.elementById('deep-link').click()
+    browser.waitForElementByCss('[data-query-hello="goodbye"]')
+    const deepLinkMessage = await getMessageContents()
+    expect(deepLinkMessage).not.toEqual(ssrMessage)
+
+    // Changing the route with a shallow link should not cause a server request
+    browser.elementById('shallow-link').click()
+    browser.waitForElementByCss('[data-query-hello="world"]')
+    expect(await getMessageContents()).toEqual(deepLinkMessage)
+
+    // Check that no server requests were made to ?hello=world,
+    // as it's a shallow request.
+    expect(requests).toEqual([
+      `${next.url}/_next/data/${next.buildId}/en/sha.json?hello=goodbye`,
+    ])
+  })
 })
 
 function readMiddlewareJSON(response) {

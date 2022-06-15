@@ -41,6 +41,11 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/sha') {
+    url.pathname = '/shallow'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname.startsWith('/fetch-user-agent-default')) {
     try {
       const apiRoute = new URL(url)

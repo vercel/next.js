@@ -1361,7 +1361,8 @@ export default class Router implements BaseRouter {
       }
 
       // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && nextState.route === route
+      const isValidShallowRoute =
+        options.shallow && nextState.route === (routeInfo.route ?? route)
 
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
@@ -1524,7 +1525,7 @@ export default class Router implements BaseRouter {
   }
 
   async getRouteInfo({
-    route,
+    route: requestedRoute,
     pathname,
     query,
     as,
@@ -1542,6 +1543,14 @@ export default class Router implements BaseRouter {
     locale: string | undefined
     isPreview: boolean
   }) {
+    /**
+     * This `route` binding can change if there's a rewrite
+     * so we keep a reference to the original requested route
+     * so we can store the cache for it and avoid re-requesting every time
+     * for shallow routing purposes.
+     */
+    let route = requestedRoute
+
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
@@ -1593,7 +1602,11 @@ export default class Router implements BaseRouter {
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
         if (routeProps.shallow && existingInfo && this.route === route) {
-          return existingInfo
+          // If we have a match with the current route due to rewrite,
+          // we can copy the existing information to the rewritten one.
+          // Then, we return the information along with the matched route.
+          this.components[requestedRoute] = { ...existingInfo, route }
+          return { ...existingInfo, route }
         }
 
         cachedRouteInfo =
@@ -1730,6 +1743,12 @@ export default class Router implements BaseRouter {
       routeInfo.route = route
       routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
+
+      // If the route was rewritten in the process of fetching data,
+      // we update the cache to allow hitting the same data for shallow requests.
+      if (route !== requestedRoute) {
+        this.components[requestedRoute] = { ...routeInfo, route }
+      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
