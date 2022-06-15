@@ -5,7 +5,9 @@ As we work on improving Middleware for General Availability (GA), we've made som
 This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
 
 - Currently use the beta Next.js Middleware features
-- Choose to upgrade to the next stable version of Next.js
+- Choose to upgrade to the next stable version of Next.js (`v12.2`)
+
+You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
 
 ## Using Next.js Middleware on Vercel
 
