@@ -26,6 +26,10 @@ module.exports = {
         source: '/sha',
         destination: '/shallow',
       },
+      {
+        source: '/rewrite-3',
+        destination: '/blog/middleware-rewrite',
+      },
     ]
   },
 }
