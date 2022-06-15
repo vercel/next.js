@@ -68,7 +68,7 @@ export const createHeaderRoute = ({
 }: {
   rule: Header
   restrictedRedirectPaths: string[]
-}) => {
+}): Route => {
   const headerRoute = getCustomRoute({
     type: 'header',
     rule,
@@ -76,13 +76,16 @@ export const createHeaderRoute = ({
   })
   return {
     match: headerRoute.match,
+    matchesBasePath: true,
+    matchesLocale: true,
+    matchesLocaleAPIRoutes: true,
+    matchesTrailingSlash: true,
     has: headerRoute.has,
     type: headerRoute.type,
     name: `${headerRoute.type} ${headerRoute.source} header route`,
     fn: async (_req, res, params, _parsedUrl) => {
       const hasParams = Object.keys(params).length > 0
-
-      for (const header of (headerRoute as Header).headers) {
+      for (const header of headerRoute.headers) {
         let { key, value } = header
         if (hasParams) {
           key = compileNonPath(key, params)
@@ -92,7 +95,7 @@ export const createHeaderRoute = ({
       }
       return { finished: false }
     },
-  } as Route
+  }
 }
 
 export const createRedirectRoute = ({
@@ -101,7 +104,7 @@ export const createRedirectRoute = ({
 }: {
   rule: Redirect
   restrictedRedirectPaths: string[]
-}) => {
+}): Route => {
   const redirectRoute = getCustomRoute({
     type: 'redirect',
     rule,
@@ -111,6 +114,10 @@ export const createRedirectRoute = ({
     internal: redirectRoute.internal,
     type: redirectRoute.type,
     match: redirectRoute.match,
+    matchesBasePath: true,
+    matchesLocale: redirectRoute.internal ? undefined : true,
+    matchesLocaleAPIRoutes: true,
+    matchesTrailingSlash: true,
     has: redirectRoute.has,
     statusCode: redirectRoute.statusCode,
     name: `Redirect route ${redirectRoute.source}`,
@@ -134,10 +141,7 @@ export const createRedirectRoute = ({
       }
 
       res
-        .redirect(
-          updatedDestination,
-          getRedirectStatus(redirectRoute as Redirect)
-        )
+        .redirect(updatedDestination, getRedirectStatus(redirectRoute))
         .body(updatedDestination)
         .send()
 
@@ -145,7 +149,7 @@ export const createRedirectRoute = ({
         finished: true,
       }
     },
-  } as Route
+  }
 }
 
 // since initial query values are decoded by querystring.parse
