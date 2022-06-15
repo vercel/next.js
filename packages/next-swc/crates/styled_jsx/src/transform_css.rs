@@ -511,7 +511,7 @@ where
 
     let mut tokens = vec![];
 
-    while let Ok(t) = lexer.next() {
+    while let Some(t) = lexer.next() {
         tokens.push(t);
     }
 
