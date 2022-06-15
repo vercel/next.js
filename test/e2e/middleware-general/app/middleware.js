@@ -41,6 +41,11 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/sha') {
+    url.pathname = '/shallow'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname.startsWith('/fetch-user-agent-default')) {
     try {
       const apiRoute = new URL(url)
@@ -50,6 +55,18 @@ export async function middleware(request) {
     } catch (err) {
       return serializeError(err)
     }
+  }
+
+  if (url.pathname === '/rewrite-to-dynamic') {
+    url.pathname = '/blog/from-middleware'
+    url.searchParams.set('some', 'middleware')
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrite-to-config-rewrite') {
+    url.pathname = '/rewrite-3'
+    url.searchParams.set('some', 'middleware')
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname.startsWith('/fetch-user-agent-crypto')) {

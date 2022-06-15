@@ -1,6 +1,5 @@
 import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
-import type { FetchEventResult } from '../web/types'
 import type { FindComponentsResult } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
@@ -52,6 +51,7 @@ import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
 import {
   createOriginalStackFrame,
+  getErrorSource,
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -383,16 +383,16 @@ export default class DevServer extends Server {
 
         this.appPathRoutes = appPaths
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
+          const middlewareRegex =
+            page === '/' && middlewareMatcher
+              ? { re: middlewareMatcher, groups: {} }
+              : getMiddlewareRegex(page, {
+                  catchAll: !ssrMiddleware.has(page),
+                })
           return {
-            match: getRouteMatcher(
-              page === '/' && middlewareMatcher
-                ? { re: middlewareMatcher, groups: {} }
-                : getMiddlewareRegex(page, {
-                    catchAll: !ssrMiddleware.has(page),
-                  })
-            ),
+            match: getRouteMatcher(middlewareRegex),
             page,
-            re: middlewareMatcher,
+            re: middlewareRegex.re,
             ssr: ssrMiddleware.has(page),
           }
         })
@@ -646,34 +646,47 @@ export default class DevServer extends Server {
     response: BaseNextResponse
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
-  }): Promise<FetchEventResult | null> {
+  }) {
     try {
       const result = await super.runMiddleware({
         ...params,
         onWarning: (warn) => {
-          this.logErrorWithOriginalStack(warn, 'warning', 'edge-server')
+          this.logErrorWithOriginalStack(warn, 'warning')
         },
       })
 
-      result?.waitUntil.catch((error) =>
-        this.logErrorWithOriginalStack(
-          error,
-          'unhandledRejection',
-          'edge-server'
-        )
-      )
+      if ('finished' in result) {
+        return result
+      }
+
+      result.waitUntil.catch((error) => {
+        this.logErrorWithOriginalStack(error, 'unhandledRejection')
+      })
       return result
     } catch (error) {
       if (error instanceof DecodeError) {
         throw error
       }
-      this.logErrorWithOriginalStack(error, undefined, 'edge-server')
+      this.logErrorWithOriginalStack(error)
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
+
+      /**
+       * When there is a failure for an internal Next.js request from
+       * middleware we bypass the error without finishing the request
+       * so we can serve the required chunks to render the error.
+       */
+      if (
+        request.url.includes('/_next/static') ||
+        request.url.includes('/__nextjs_original-stack-frame')
+      ) {
+        return { finished: false }
+      }
+
       response.statusCode = 500
       this.renderError(err, request, response, parsedUrl.pathname)
-      return null
+      return { finished: true }
     }
   }
 
@@ -737,26 +750,33 @@ export default class DevServer extends Server {
 
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
-    stats: 'server' | 'edge-server' = 'server'
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning'
   ) {
     let usedOriginalStack = false
 
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
-        const frame = frames[0]
+        const frame = frames.find(({ file }) => !file?.startsWith('eval'))!
 
         if (frame.lineNumber && frame?.file) {
-          const compilation =
-            stats === 'server'
-              ? this.hotReloader?.serverStats?.compilation
-              : this.hotReloader?.edgeServerStats?.compilation
-
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+
+          let compilation: any
+
+          const src = getErrorSource(err)
+          if (src === 'edge-server') {
+            compilation = this.hotReloader?.edgeServerStats?.compilation
+          } else if (src === 'server') {
+            compilation = this.hotReloader?.serverStats?.compilation
+          } else {
+            compilation = frame.file!.includes('(middleware)')
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : this.hotReloader?.serverStats?.compilation
+          }
 
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),

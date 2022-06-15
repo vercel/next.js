@@ -1,5 +1,6 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
@@ -116,7 +117,7 @@ async function createModuleContext(options: ModuleContextOptions) {
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
           warnedEvals.add(key)
-          options.onWarning(warning)
+          options.onWarning(getServerError(warning, 'edge-server'))
         }
         return fn()
       }
