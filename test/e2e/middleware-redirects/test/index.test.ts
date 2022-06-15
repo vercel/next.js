@@ -146,8 +146,7 @@ describe('Middleware Redirect', () => {
       const browser = await webdriver(next.url, `${locale}`)
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
-      const body = await browser.elementByCss('body').text()
-      expect(body).toBe('ok')
+      await check(() => browser.elementByCss('body').text(), 'ok')
     })
   }
 })

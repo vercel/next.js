@@ -292,6 +292,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
   const nestedMiddleware: string[] = []
+  let middlewareRegex: string | undefined = undefined
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -344,6 +345,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         isDev,
         page,
       })
+
+      if (isMiddlewareFile(page)) {
+        middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+      }
 
       runDependingOnPageType({
         page,
@@ -417,6 +422,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     client,
     server,
     edgeServer,
+    middlewareRegex,
   }
 }
 

@@ -2,6 +2,7 @@
 
 import { remove } from 'fs-extra'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -51,6 +52,7 @@ describe('Middleware using Node.js API', () => {
       output = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStdout(msg) {
           output += msg
         },
@@ -65,7 +67,9 @@ describe('Middleware using Node.js API', () => {
     it.each([
       {
         api: 'Buffer',
-        error: `Cannot read properties of undefined (reading 'from')`,
+        error: process.version.startsWith('v16')
+          ? `Cannot read properties of undefined (reading 'from')`
+          : `Cannot read property 'from' of undefined`,
       },
       ...unsupportedFunctions.map((api) => ({
         api,
@@ -79,10 +83,18 @@ describe('Middleware using Node.js API', () => {
       const res = await fetchViaHTTP(appPort, `/${api}`)
       await waitFor(500)
       expect(res.status).toBe(500)
-      expect(output)
-        .toContain(`NodejsRuntimeApiInMiddlewareWarning: You're using a Node.js API (${api}) which is not supported in the Edge Runtime that Middleware uses.
+      await check(
+        () =>
+          output.includes(`NodejsRuntimeApiInMiddlewareWarning: You're using a Node.js API (${api}) which is not supported in the Edge Runtime that Middleware uses.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-      expect(output).toContain(`TypeError: ${error}`)
+            ? 'success'
+            : output,
+        'success'
+      )
+      await check(
+        () => (output.includes(`TypeError: ${error}`) ? 'success' : output),
+        'success'
+      )
     })
   })
 

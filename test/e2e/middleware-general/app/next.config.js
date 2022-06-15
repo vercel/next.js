@@ -7,7 +7,7 @@ module.exports = {
     return [
       {
         source: '/redirect-1',
-        destination: '/somewhere-else',
+        destination: '/somewhere/else',
         permanent: false,
       },
     ]

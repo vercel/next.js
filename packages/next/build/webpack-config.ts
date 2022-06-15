@@ -331,6 +331,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = 'server',
     appDir,
+    middlewareRegex,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -345,6 +346,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
     target?: string
     appDir?: string
+    middlewareRegex?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -1465,6 +1467,9 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
+          middlewareRegex || ''
+        ),
         'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
           config.experimental.manualClientBasePath
         ),
