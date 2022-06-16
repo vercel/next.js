@@ -15,15 +15,6 @@ import {
 describe('pnpm support', () => {
   let next: NextInstance | undefined
 
-  beforeAll(async () => {
-    try {
-      const version = await execa('pnpm', ['--version'])
-      console.warn(`using pnpm version`, version.stdout)
-    } catch (_) {
-      // install pnpm if not available
-      await execa('npm', ['i', '-g', 'pnpm@latest'])
-    }
-  })
   afterEach(async () => {
     try {
       await next?.destroy()
@@ -44,7 +35,6 @@ describe('pnpm support', () => {
           start: 'next start',
         },
       },
-      installCommand: 'pnpm install',
       buildCommand: 'pnpm run build',
     })
 
