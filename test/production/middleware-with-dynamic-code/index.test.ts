@@ -1,7 +1,7 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('Middleware with Dynamic code invokations', () => {
+describe('Middleware with Dynamic code invocations', () => {
   let next: NextInstance
 
   beforeAll(async () => {
