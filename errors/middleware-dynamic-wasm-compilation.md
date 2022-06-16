@@ -1,4 +1,4 @@
-# Dynamic WASM complication is not available in Middlewares
+# Dynamic WASM compilation is not available in Middlewares
 
 #### Why This Error Occurred
 
