@@ -32,12 +32,14 @@ module.exports = {
     // set the Content-Security-Policy header
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // the following are experimental features, and may cause breaking changes
-    experimental: {
+  },
+  experimental: {
+    images: {
       // limit of 50 objects
       remotePatterns: [],
       // when true, every image will be unoptimized
       unoptimized: false,
-    },
+    }
   },
 }
 ```
