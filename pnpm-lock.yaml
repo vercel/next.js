@@ -33,7 +33,7 @@ importers:
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55
       '@swc/core': 1.2.148
-      '@swc/helpers': 0.3.17
+      '@swc/helpers': 0.4.2
       '@testing-library/react': 13.0.0
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
@@ -183,7 +183,7 @@ importers:
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55_@swc+core@1.2.148
       '@swc/core': 1.2.148
-      '@swc/helpers': 0.3.17
+      '@swc/helpers': 0.4.2
       '@testing-library/react': 13.0.0_biqbaboplfbrettd7655fr4n2y
       '@types/cheerio': 0.22.16
       '@types/fs-extra': 8.1.0
@@ -418,7 +418,7 @@ importers:
       '@next/react-dev-overlay': 12.1.7-canary.42
       '@next/react-refresh-utils': 12.1.7-canary.42
       '@next/swc': 12.1.7-canary.42
-      '@swc/helpers': 0.3.17
+      '@swc/helpers': 0.4.2
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
       '@taskr/watch': 1.1.0
@@ -575,7 +575,7 @@ importers:
       ws: 8.2.3
     dependencies:
       '@next/env': link:../next-env
-      '@swc/helpers': 0.3.17
+      '@swc/helpers': 0.4.2
       caniuse-lite: 1.0.30001332
       postcss: 8.4.5
       styled-jsx: 5.0.2_@babel+core@7.18.0
@@ -5311,8 +5311,8 @@ packages:
       '@swc/core-win32-x64-msvc': 1.2.148
     dev: true
 
-  /@swc/helpers/0.3.17:
-    resolution: {integrity: sha512-tb7Iu+oZ+zWJZ3HJqwx8oNwSDIU440hmVMDPhpACWQWnrZHK99Bxs70gT1L2dnr5Hg50ZRWEFkQCAnOVVV0z1Q==}
+  /@swc/helpers/0.4.2:
+    resolution: {integrity: sha512-556Az0VX7WR6UdoTn4htt/l3zPQ7bsQWK+HqdG4swV7beUCxo/BqmvbOpUkTIm/9ih86LIf1qsUnywNL3obGHw==}
     dependencies:
       tslib: 2.4.0
 
@@ -18250,7 +18250,7 @@ packages:
     dev: true
 
   /querystring/0.2.0:
-    resolution: {integrity: sha1-sgmEkgO7Jd+CDadW50cAWHhSFiA=}
+    resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
     engines: {node: '>=0.4.x'}
     deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
     dev: true
@@ -21012,7 +21012,7 @@ packages:
       typescript: 4.6.3
 
   /tty-browserify/0.0.0:
-    resolution: {integrity: sha1-oVe6QC2iTpv5V/mqadUk7tQpAaY=}
+    resolution: {integrity: sha512-JVa5ijo+j/sOoHGjw0sxw734b1LhBkQ3bvUGNdxnVXDCX81Yx7TFgnZygxrIIWn23hbfTaMYLwRmAxFyDuFmIw==}
     dev: true
 
   /tty-browserify/0.0.1:
