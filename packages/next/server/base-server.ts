@@ -1238,16 +1238,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         'x-nextjs-matched-path',
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
       )
-      // return empty JSON when not an SSG/SSP page and not an error
-      if (
-        !(isSSG || hasServerProps) &&
-        (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
-      ) {
-        res.setHeader('content-type', 'application/json')
-        res.body('{}')
-        res.send()
-        return null
-      }
     }
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
@@ -1881,6 +1871,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       return response
     }
+
+    if (
+      this.router.catchAllMiddleware &&
+      !!ctx.req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
+      )
+      res.statusCode = 200
+      res.setHeader('content-type', 'application/json')
+      res.body('{}')
+      res.send()
+      return null
+    }
+
     res.statusCode = 404
     return this.renderErrorToResponse(ctx, null)
   }

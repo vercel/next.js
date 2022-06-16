@@ -116,7 +116,128 @@ describe('Middleware Runtime', () => {
         )
       }
     })
+
+    it('should not run middleware for on-demand revalidate', async () => {
+      const bypassToken = (
+        await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+      ).preview.previewModeId
+
+      const res = await fetchViaHTTP(next.url, '/ssg/first', undefined, {
+        headers: {
+          'x-prerender-revalidate': bypassToken,
+        },
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-middleware')).toBeFalsy()
+      expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
+    })
   }
+
+  it('should have correct dynamic route params on client-transition to dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/blog/first")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'first',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'first',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/blog/first')
+
+    await browser.eval('window.next.router.push("/blog/second")')
+    await check(() => browser.elementByCss('body').text(), /"slug":"second"/)
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'second',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'second',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/blog/second')
+  })
+
+  it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'from-middleware',
+      some: 'middleware',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'from-middleware',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe(
+      '/rewrite-to-dynamic'
+    )
+  })
+
+  it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-to-config-rewrite")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'middleware-rewrite',
+      hello: 'config',
+      some: 'middleware',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe(
+      '/rewrite-to-config-rewrite'
+    )
+  })
+
+  it('should have correct route params for rewrite from config dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-3")')
+    await browser.waitForElementByCss('#blog')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'middleware-rewrite',
+      hello: 'config',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'middleware-rewrite',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/blog/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/rewrite-3')
+  })
+
+  it('should have correct route params for rewrite from config non-dynamic route', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval('window.next.router.push("/rewrite-1")')
+
+    await check(() => browser.elementByCss('body').text(), /Hello World/)
+
+    expect(await browser.eval('window.next.router.query')).toEqual({
+      from: 'config',
+    })
+  })
 
   it('should redirect the same for direct visit and client-transition', async () => {
     const res = await fetchViaHTTP(
@@ -385,6 +506,34 @@ describe('Middleware Runtime', () => {
     await browser.elementByCss('#throw-on-data').click()
     await browser.waitForElementByCss('.refreshed')
     expect(await browser.eval('window.__SAME_PAGE')).toBeUndefined()
+  })
+
+  it('allows shallow linking with middleware', async () => {
+    const browser = await webdriver(next.url, '/sha')
+    const getMessageContents = () =>
+      browser.elementById('message-contents').text()
+    const ssrMessage = await getMessageContents()
+    const requests: string[] = []
+
+    browser.on('request', (x) => {
+      requests.push(x.url())
+    })
+
+    browser.elementById('deep-link').click()
+    browser.waitForElementByCss('[data-query-hello="goodbye"]')
+    const deepLinkMessage = await getMessageContents()
+    expect(deepLinkMessage).not.toEqual(ssrMessage)
+
+    // Changing the route with a shallow link should not cause a server request
+    browser.elementById('shallow-link').click()
+    browser.waitForElementByCss('[data-query-hello="world"]')
+    expect(await getMessageContents()).toEqual(deepLinkMessage)
+
+    // Check that no server requests were made to ?hello=world,
+    // as it's a shallow request.
+    expect(requests).toEqual([
+      `${next.url}/_next/data/${next.buildId}/en/sha.json?hello=goodbye`,
+    ])
   })
 })
 
