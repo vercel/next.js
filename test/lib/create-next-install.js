@@ -98,7 +98,7 @@ async function createNextInstall(
       stdio: ['ignore', 'inherit', 'inherit'],
     })
   } else {
-    await execa('pnpm', ['install'], {
+    await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
       cwd: installDir,
       stdio: ['ignore', 'inherit', 'inherit'],
       env: process.env,
