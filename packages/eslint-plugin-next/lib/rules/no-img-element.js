@@ -22,6 +22,10 @@ module.exports = {
           return
         }
 
+        if (node.parent?.parent?.openingElement?.name?.name === 'picture') {
+          return
+        }
+
         context.report({
           node,
           message: `Do not use \`<img>\` element. Use \`<Image />\` from \`next/image\` instead. See: ${url}`,
