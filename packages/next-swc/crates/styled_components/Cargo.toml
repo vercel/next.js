@@ -6,7 +6,7 @@ include = ["Cargo.toml", "src/**/*.rs"]
 license = "Apache-2.0"
 name = "styled_components"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.33.0"
+version = "0.34.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
