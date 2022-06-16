@@ -3,7 +3,6 @@ import { join } from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 describe('Middleware with Dynamic code invocations', () => {
-
   const DYNAMIC_CODE_EVAL_ERROR = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware middleware`
 
   let next: NextInstance
