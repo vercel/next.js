@@ -2,9 +2,9 @@ import { createNext, FileRef } from 'e2e-utils'
 import { join } from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-const DYNAMIC_CODE_EVAL_ERROR = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware middleware`
+describe('Middleware with Dynamic code invocations', () => {
+  const DYNAMIC_CODE_EVAL_ERROR = `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware middleware`
 
-describe('Middleware with Dynamic code invokations', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -31,6 +31,7 @@ describe('Middleware with Dynamic code invokations', () => {
         has: 'latest',
         qs: 'latest',
       },
+      installCommand: 'yarn install',
     })
     await next.stop()
   })
