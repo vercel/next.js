@@ -11,7 +11,6 @@ env:
   TURBO_VERSION: 1.2.14
   RUST_TOOLCHAIN: nightly-2022-02-23
   PNPM_VERSION: 7.1.6
-  PLAYWRIGHT_CHROMIUM: 1.22.2
 
 jobs:
   check-examples:
@@ -276,7 +275,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -331,7 +330,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type development
@@ -389,7 +388,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -444,7 +443,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
@@ -502,7 +501,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -547,7 +546,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node run-tests.js --type production
@@ -595,7 +594,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -644,7 +643,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
@@ -693,7 +692,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
@@ -1002,7 +1001,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         name: Install pnpm
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         name: Install playwright dependencies
 
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
@@ -1197,7 +1196,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g playwright-chromium@{PLAYWRIGHT_CHROMIUM} && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node ./scripts/setup-wasm.mjs
