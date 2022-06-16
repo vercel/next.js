@@ -699,6 +699,10 @@
         {
           "title": "get-initial-props-export",
           "path": "/errors/get-initial-props-export.md"
+        },
+        {
+          "title": "middleware-dynamic-wasm-compilation",
+          "path": "/errors/middleware-dynamic-wasm-compilation.md"
         }
       ]
     }
