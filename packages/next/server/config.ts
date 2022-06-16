@@ -9,8 +9,9 @@ import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
-  NextConfigComplete,
   normalizeConfig,
+  ExperimentalConfig,
+  NextConfigComplete,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -77,13 +78,18 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (
-        key === 'experimental' &&
-        value !== defaultConfig[key] &&
-        typeof value === 'object' &&
-        Object.keys(value).length > 0
-      ) {
-        experimentalWarning(configFileName, Object.keys(value))
+      if (key === 'experimental' && typeof value === 'object') {
+        const enabledExperimentalFeatures = (
+          Object.keys(value) as (keyof ExperimentalConfig)[]
+        ).filter(
+          // defaultConfig is pre-defined, thus defaultConfig.experimental can not be undefined
+          (featureName) =>
+            value[featureName] !== defaultConfig.experimental![featureName]
+        )
+
+        if (enabledExperimentalFeatures.length > 0) {
+          experimentalWarning(configFileName, Object.keys(value))
+        }
       }
 
       if (key === 'distDir') {
