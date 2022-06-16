@@ -25,6 +25,7 @@
     "axios": "^0.21.2",
     "azure-storage": "^2.10.3",
     "bcrypt": "^5.0.1",
+    "better-sqlite3": "^7.5.3",
     "browserify-middleware": "^8.1.1",
     "bull": "^3.10.0",
     "camaro": "^6.1.0",

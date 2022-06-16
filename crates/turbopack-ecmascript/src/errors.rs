@@ -8,5 +8,6 @@ pub mod failed_to_analyse {
         pub const PATH_METHOD: &'static str = "TP1006";
         pub const NODE_PRE_GYP_FIND: &'static str = "TP1100";
         pub const NODE_GYP_BUILD: &'static str = "TP1101";
+        pub const NODE_BINDINGS: &'static str = "TP1102";
     }
 }

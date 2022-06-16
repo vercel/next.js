@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 
-use crate::target::{CompileTargetVc, Platform};
+use crate::{
+    references::SourceAssetReferenceVc,
+    target::{CompileTargetVc, Platform},
+};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -228,4 +231,88 @@ pub async fn resolve_node_gyp_build_files(
         .into(),
         true,
     ))
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+pub struct NodeBindingsReference {
+    pub context: FileSystemPathVc,
+    pub file_name: String,
+}
+
+#[turbo_tasks::value_impl]
+impl NodeBindingsReferenceVc {
+    #[turbo_tasks::function]
+    pub fn new(context: FileSystemPathVc, file_name: String) -> Self {
+        Self::slot(NodeBindingsReference { context, file_name })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for NodeBindingsReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> ResolveResultVc {
+        resolve_node_bindings_files(self.context, self.file_name.clone())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "bindings in {}",
+            self.context.to_string().await?,
+        )))
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn resolve_node_bindings_files(
+    context: FileSystemPathVc,
+    file_name: String,
+) -> Result<ResolveResultVc> {
+    lazy_static! {
+        static ref BINDINGS_TRY: [&'static str; 5] = [
+            "build/bindings",
+            "build/Release",
+            "build/Release/bindings",
+            "out/Release/bindings",
+            "Release/bindings",
+        ];
+    }
+    let mut root_context = context;
+    loop {
+        if let ResolveResult::Single(file, _) = &*resolve_raw(
+            root_context,
+            Pattern::Constant("package.json".to_owned()).into(),
+            true,
+        )
+        .await?
+        {
+            if let FileContent::Content(_) = &*file.content().await? {
+                break;
+            }
+        };
+        let current_context = root_context.await?;
+        let parent = root_context.parent();
+        let parent_context = parent.await?;
+        if parent_context.path == current_context.path {
+            break;
+        }
+        root_context = parent;
+    }
+    let bindings_try: HashSet<AssetVc> = BINDINGS_TRY
+        .iter()
+        .map(|try_dir| {
+            SourceAssetVc::new(root_context.join(&format!("{}/{}", try_dir, &file_name))).into()
+        })
+        .collect();
+
+    Ok(ResolveResult::Alternatives(
+        bindings_try,
+        vec![SourceAssetReferenceVc::new(
+            SourceAssetVc::new(root_context).into(),
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(file_name)]).into(),
+        )
+        .into()],
+    )
+    .into())
 }

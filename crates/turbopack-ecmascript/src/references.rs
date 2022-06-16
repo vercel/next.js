@@ -608,6 +608,32 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings) => {
+                        use crate::analyzer::ConstantValue;
+                        use crate::resolve::node_native_binding::NodeBindingsReferenceVc;
+
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            if let JsValue::Constant(ConstantValue::Str(ref s)) = first_arg {
+                                references.push(
+                                    NodeBindingsReferenceVc::new(source.path(), s.to_string())
+                                        .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('bindings')({args}) is not statically analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_BINDINGS.to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -779,6 +805,9 @@ async fn value_visitor_inner(
                 }
                 "node-gyp-build" if node_native_bindings => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
+                }
+                "bindings" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
                 }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),

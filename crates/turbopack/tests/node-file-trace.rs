@@ -33,6 +33,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::azure_cosmos("integration/azure-cosmos.js", true)]
 #[case::azure_storage("integration/azure-storage.js", true)]
 #[case::bcrypt("integration/bcrypt.js", true)]
+#[case::better_sqlite3("integration/better-sqlite3.js", true)]
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
 #[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]

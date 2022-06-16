@@ -882,6 +882,10 @@ impl JsValue {
                         format!("node-gyp-build"),
                         "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
                     ),
+                    WellKnownFunctionKind::NodeBindings => (
+                        format!("bindings"),
+                        "The Node.js bindings module: https://github.com/TooTallNate/node-bindings"
+                    )
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1800,6 +1804,7 @@ pub enum WellKnownFunctionKind {
     OsEndianness,
     NodePreGypFind,
     NodeGypBuild,
+    NodeBindings,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
