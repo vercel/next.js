@@ -788,7 +788,7 @@ function runTests(mode) {
     )
     expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
     expect(await browser.elementById('raw1').getAttribute('style')).toMatch(
-      'filter:blur(20px);background-size:cover;'
+      'background-size:cover;background-position:0% 0%;'
     )
     expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
     expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
@@ -825,7 +825,7 @@ function runTests(mode) {
       'lazy'
     )
     expect(await browser.elementById('raw2').getAttribute('style')).toMatch(
-      'filter:blur(20px);background-size:cover;'
+      'background-size:cover;background-position:0% 0%;'
     )
     expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
     expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
