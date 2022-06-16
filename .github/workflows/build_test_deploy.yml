@@ -348,6 +348,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -378,7 +379,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -400,6 +401,10 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -430,7 +435,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -542,6 +547,7 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -572,7 +578,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -587,7 +593,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        group: [1, 2]
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -618,7 +624,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
