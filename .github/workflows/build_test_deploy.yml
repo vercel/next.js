@@ -98,13 +98,11 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ needs.build.outputs.docsChange != 'docs only change' }}
         with:
           node-version: 16
           check-latest: true
 
       - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/cache@v3
         id: restore-build
