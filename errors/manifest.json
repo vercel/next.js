@@ -5,7 +5,7 @@
       "heading": true,
       "routes": [
         {
-          "title": "middleware-upgrade-guid",
+          "title": "middleware-upgrade-guide",
           "path": "/errors/middleware-upgrade-guide.md"
         },
         {
