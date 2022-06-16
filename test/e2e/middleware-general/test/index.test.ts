@@ -116,6 +116,21 @@ describe('Middleware Runtime', () => {
         )
       }
     })
+
+    it('should not run middleware for on-demand revalidate', async () => {
+      const bypassToken = (
+        await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+      ).preview.previewModeId
+
+      const res = await fetchViaHTTP(next.url, '/ssg/first', undefined, {
+        headers: {
+          'x-prerender-revalidate': bypassToken,
+        },
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-middleware')).toBeFalsy()
+      expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
+    })
   }
 
   it('should have correct dynamic route params on client-transition to dynamic route', async () => {

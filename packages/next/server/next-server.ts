@@ -82,6 +82,7 @@ import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
+import { checkIsManualRevalidate } from './api-utils'
 
 const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
@@ -1137,6 +1138,14 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }) {
     middlewareBetaWarning()
+
+    // middleware is skipped for on-demand revalidate requests
+    if (
+      checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
+        .isManualRevalidate
+    ) {
+      return { finished: false }
+    }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     // For middleware to "fetch" we must always provide an absolute URL
