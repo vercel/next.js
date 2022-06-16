@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import path from 'path'
-import execa from 'execa'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
