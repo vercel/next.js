@@ -1,3 +1,4 @@
+/* eslint-disable no-redeclare */
 import type {
   Header,
   Redirect,
@@ -19,15 +20,27 @@ import { stringify as stringifyQs } from 'querystring'
 import { format as formatUrl } from 'url'
 import { normalizeRepeatedSlashes } from '../shared/lib/utils'
 
-export const getCustomRoute = ({
-  type,
-  rule,
-  restrictedRedirectPaths,
-}: {
+export function getCustomRoute(params: {
+  rule: Header
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Header
+export function getCustomRoute(params: {
+  rule: Rewrite
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Rewrite
+export function getCustomRoute(params: {
+  rule: Redirect
+  type: RouteType
+  restrictedRedirectPaths: string[]
+}): Route & Redirect
+export function getCustomRoute(params: {
   rule: Rewrite | Redirect | Header
   type: RouteType
   restrictedRedirectPaths: string[]
-}) => {
+}): (Route & Rewrite) | (Route & Header) | (Route & Rewrite) {
+  const { rule, type, restrictedRedirectPaths } = params
   const match = getPathMatch(rule.source, {
     strict: true,
     removeUnnamedParams: true,
@@ -46,7 +59,7 @@ export const getCustomRoute = ({
     match,
     name: type,
     fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
-  } as Route & Rewrite & Header
+  }
 }
 
 export const createHeaderRoute = ({
