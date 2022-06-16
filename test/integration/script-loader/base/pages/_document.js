@@ -15,19 +15,26 @@ export default function Document() {
           id="scriptBeforeInteractive"
           src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
           strategy="beforeInteractive"
-        ></Script>
+        />
         <Script
-          id="inline-before"
+          id="bi-inline-in-doc-in-head"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
-            __html: `console.log('inline beforeInteractive')`,
+            __html: `console.log('bi-inline-in-doc-in-head')`,
           }}
-        ></Script>
+        />
       </Head>
       <body>
         <Main />
         <NextScript />
         <div id="text" />
+        <Script
+          id="bi-inline-in-doc-out-head"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `console.log('bi-inline-in-doc-out-head')`,
+          }}
+        />
       </body>
     </Html>
   )
