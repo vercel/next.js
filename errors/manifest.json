@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "middleware-upgrade-guide",
+          "path": "/errors/middleware-upgrade-guide.md"
+        },
+        {
           "title": "react-hydration-error",
           "path": "/errors/react-hydration-error.md"
         },
