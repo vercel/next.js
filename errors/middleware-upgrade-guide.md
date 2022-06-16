@@ -209,7 +209,7 @@ export function middleware() {
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
 
   // get all the details of a cookie
-  const {value, options} = response.cookies.getWithOptions('vercel')
+  const { value, options } = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
 
@@ -220,6 +220,7 @@ export function middleware() {
   response.cookies.clear()
 }
 ```
+
 ## New User-Agent Helper
 
 ### Summary of changes
@@ -229,7 +230,7 @@ export function middleware() {
 
 ### Explanation
 
-To help reduce the size of your Middleware, we have extracted the user agent from the request object and created a new helper `userAgent`. 
+To help reduce the size of your Middleware, we have extracted the user agent from the request object and created a new helper `userAgent`.
 
 The helper is imported from `next/server` and allows you to opt in to using the user agent. The helper gives you access to the same properties that were available from the request object.
 
