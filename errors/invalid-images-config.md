@@ -39,7 +39,7 @@ module.exports = {
       remotePatterns: [],
       // when true, every image will be unoptimized
       unoptimized: false,
-    }
+    },
   },
 }
 ```
