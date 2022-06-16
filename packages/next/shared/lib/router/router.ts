@@ -906,7 +906,7 @@ export default class Router implements BaseRouter {
     const shouldResolveHref =
       (options as any)._h ||
       (options as any)._shouldResolveHref ||
-      parsePath(url).pathname === parsePath(as).pathname
+      parsePath(url).pathname !== parsePath(as).pathname
 
     const nextState = {
       ...this.state,
