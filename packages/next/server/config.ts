@@ -430,6 +430,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    const unoptimized = result.experimental?.images?.unoptimized
+    if (
+      typeof unoptimized !== 'undefined' &&
+      typeof unoptimized !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
 
   if (result.webpack5 === false) {
