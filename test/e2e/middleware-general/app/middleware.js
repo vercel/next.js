@@ -36,6 +36,12 @@ const params = (url) => {
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (request.headers.get('x-prerender-revalidate')) {
+    const res = NextResponse.next()
+    res.headers.set('x-middleware', 'hi')
+    return res
+  }
+
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()

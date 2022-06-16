@@ -25,14 +25,23 @@ export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
-const experimentalWarning = execOnce(() => {
-  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
-  Log.warn(
-    `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-      `Use them at your own risk.`
-  )
-  console.warn()
-})
+const experimentalWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    Log.warn(
+      chalk.bold(
+        `You have enabled experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName}.`
+      )
+    )
+    Log.warn(
+      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
+        `Use at your own risk.`
+    )
+    console.warn()
+  }
+)
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
@@ -74,7 +83,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         typeof value === 'object' &&
         Object.keys(value).length > 0
       ) {
-        experimentalWarning()
+        experimentalWarning(configFileName, Object.keys(value))
       }
 
       if (key === 'distDir') {
@@ -419,6 +428,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified images.contentSecurityPolicy should be a string
           ', '
         )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
+
+    const unoptimized = result.experimental?.images?.unoptimized
+    if (
+      typeof unoptimized !== 'undefined' &&
+      typeof unoptimized !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
   }
