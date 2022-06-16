@@ -740,7 +740,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: cd test/integration/with-electron/app && pnpm install
+      - run: cd test/integration/with-electron/app && yarn install
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
