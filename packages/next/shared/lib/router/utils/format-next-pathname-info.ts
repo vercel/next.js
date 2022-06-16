@@ -6,13 +6,15 @@ import { addLocale } from './add-locale'
 
 interface ExtendedInfo extends NextPathnameInfo {
   defaultLocale?: string
+  ignorePrefix?: boolean
 }
 
 export function formatNextPathnameInfo(info: ExtendedInfo) {
   let pathname = addLocale(
     info.pathname,
     info.locale,
-    info.buildId ? undefined : info.defaultLocale
+    info.buildId ? undefined : info.defaultLocale,
+    info.ignorePrefix
   )
 
   if (info.buildId) {
