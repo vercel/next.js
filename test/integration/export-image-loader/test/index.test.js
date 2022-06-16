@@ -87,8 +87,10 @@ describe('Export with unoptimized next/image component', () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
       JSON.stringify({
-        images: {
-          unoptimized: true,
+        experimental: {
+          images: {
+            unoptimized: true,
+          },
         },
       })
     )
