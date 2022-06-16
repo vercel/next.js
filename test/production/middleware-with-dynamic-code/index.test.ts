@@ -27,6 +27,7 @@ describe('Middleware with Dynamic code invokations', () => {
         has: 'latest',
         qs: 'latest',
       },
+      installCommand: 'yarn install',
     })
     await next.stop()
   })
