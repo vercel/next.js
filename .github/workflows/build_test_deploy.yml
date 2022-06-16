@@ -98,7 +98,6 @@ jobs:
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
         with:
           node-version: 16
           check-latest: true
@@ -227,6 +226,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -267,6 +269,9 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -320,6 +325,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -344,6 +352,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -376,6 +385,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -401,6 +413,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -431,6 +444,9 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -487,6 +503,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -529,6 +548,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -543,6 +565,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -575,6 +598,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -590,6 +616,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       NEXT_TEST_REACT_VERSION: ^17
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -620,6 +647,9 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -667,6 +697,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -712,7 +745,10 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: cd test/integration/with-electron/app && yarn
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: cd test/integration/with-electron/app && yarn install
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
@@ -767,6 +803,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       # test rsc hydration on firefox due to limited support of TransformStream api
       - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: xvfb-run pnpm testheadless test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -806,6 +843,9 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
@@ -852,6 +892,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -883,6 +926,8 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -960,6 +1005,9 @@ jobs:
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+        name: Install pnpm
 
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         name: Install playwright dependencies
@@ -1160,6 +1208,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: node ./scripts/setup-wasm.mjs
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
@@ -1525,7 +1576,8 @@ jobs:
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}

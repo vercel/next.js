@@ -139,6 +139,60 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * This expression handler allows to wrap a WebAssembly.compile invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     */
+    const handleWrapWasmCompileExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_compile__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
+
+      handleExpression()
+    }
+
+    /**
+     * This expression handler allows to wrap a WebAssembly.instatiate invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     *
+     * Note that we don't update `usingIndirectEval`, i.e. we don't abort a production build
+     * since we can't determine statically if the first parameter is a module (legit use) or
+     * a buffer (dynamic code generation).
+     */
+    const handleWrapWasmInstantiateExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_instantiate__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
+    }
+
+    /**
      * For an expression this will check the graph to ensure it is being used
      * by exports. Then it will store in the module buildInfo a boolean to
      * express that it contains dynamic code and, if it is available, the
@@ -232,6 +286,12 @@ function getCodeAnalizer(params: {
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
       hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.compile`)
+        .tap(NAME, handleWrapWasmCompileExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.instantiate`)
+        .tap(NAME, handleWrapWasmInstantiateExpression)
     }
     hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
@@ -331,7 +391,7 @@ function getExtractMetadata(params: {
           }
 
           const error = new wp.WebpackError(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${entryName}${
+            `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
               typeof buildInfo.usingIndirectEval !== 'boolean'
                 ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
                     ', '

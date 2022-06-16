@@ -82,6 +82,7 @@ import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
+import { checkIsManualRevalidate } from './api-utils'
 
 const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
@@ -1137,6 +1138,14 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }) {
     middlewareBetaWarning()
+
+    // middleware is skipped for on-demand revalidate requests
+    if (
+      checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
+        .isManualRevalidate
+    ) {
+      return { finished: false }
+    }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     // For middleware to "fetch" we must always provide an absolute URL
@@ -1369,12 +1378,6 @@ export default class NextNodeServer extends BaseServer {
           const parsedDestination = parseUrl(rewritePath)
           const newUrl = parsedDestination.pathname
 
-          // TODO: remove after next minor version current `v12.0.9`
-          this.warnIfQueryParametersWereDeleted(
-            parsedUrl.query,
-            parsedDestination.query
-          )
-
           if (
             parsedDestination.protocol &&
             (parsedDestination.port
@@ -1438,26 +1441,6 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
-  }
-
-  // TODO: remove after next minor version current `v12.0.9`
-  private warnIfQueryParametersWereDeleted(
-    incoming: ParsedUrlQuery,
-    rewritten: ParsedUrlQuery
-  ): void {
-    const incomingQuery = urlQueryToSearchParams(incoming)
-    const rewrittenQuery = urlQueryToSearchParams(rewritten)
-
-    const missingKeys = [...incomingQuery.keys()].filter((key) => {
-      return !rewrittenQuery.has(key)
-    })
-
-    if (missingKeys.length > 0) {
-      Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
-      )
-      this.warnIfQueryParametersWereDeleted = () => {}
-    }
   }
 
   private async runEdgeFunctionApiEndpoint(params: {
