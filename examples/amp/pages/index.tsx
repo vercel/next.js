@@ -14,6 +14,22 @@ export default function IndexPage() {
     <Layout>
       <Head>
         <title>The Cat</title>
+        <style jsx amp-custom={isAmp}>{`
+          h1 {
+            margin-bottom: 5px;
+          }
+          p {
+            font-size: 18px;
+            line-height: 30px;
+            margin-top: 30px;
+          }
+          .caption {
+            color: #ccc;
+            margin-top: 0;
+            font-size: 14px;
+            text-align: center;
+          }
+        `}</style>
       </Head>
       <h1>The Cat (AMP-first Page)</h1>
       <Byline author="Dan Zajdband" />
@@ -216,22 +232,6 @@ export default function IndexPage() {
         belly and purr when you are asleep. Lounge in doorway poop on grasses
         for lounge in doorway for chew iPad power cord.
       </p>
-      <style jsx>{`
-        h1 {
-          margin-bottom: 5px;
-        }
-        p {
-          font-size: 18px;
-          line-height: 30px;
-          margin-top: 30px;
-        }
-        .caption {
-          color: #ccc;
-          margin-top: 0;
-          font-size: 14px;
-          text-align: center;
-        }
-      `}</style>
     </Layout>
   )
 }
