@@ -34,6 +34,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { match } from 'micromatch'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
@@ -112,15 +113,17 @@ class Container extends React.Component<{
         // it wasn't originally present
         initialData.page !== '/404' &&
         initialData.page !== '/_error' &&
-        (matchesMiddleware ||
-          initialData.isFallback ||
+        (initialData.isFallback ||
           (initialData.nextExport &&
             (isDynamicRoute(router.pathname) ||
               location.search ||
-              process.env.__NEXT_HAS_REWRITES)) ||
+              process.env.__NEXT_HAS_REWRITES ||
+              matchesMiddleware)) ||
           (initialData.props &&
             initialData.props.__N_SSG &&
-            (location.search || process.env.__NEXT_HAS_REWRITES)))
+            (location.search ||
+              process.env.__NEXT_HAS_REWRITES ||
+              matchesMiddleware)))
       ) {
         // update query on mount for exported pages
         router.replace(
