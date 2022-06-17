@@ -584,6 +584,7 @@ export default class Router implements BaseRouter {
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
+  _initialMatchesMiddlewarePromise: Promise<boolean>
 
   private state: Readonly<{
     route: string
@@ -709,6 +710,8 @@ export default class Router implements BaseRouter {
       isFallback,
     }
 
+    this._initialMatchesMiddlewarePromise = Promise.resolve(false)
+
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
@@ -718,7 +721,7 @@ export default class Router implements BaseRouter {
         const options: TransitionOptions = { locale }
         const asPath = getURL()
 
-        matchesMiddleware({
+        this._initialMatchesMiddlewarePromise = matchesMiddleware({
           router: this,
           locale,
           asPath,
@@ -738,6 +741,7 @@ export default class Router implements BaseRouter {
             asPath,
             options
           )
+          return matches
         })
       }
 
@@ -1108,11 +1112,13 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch = await matchesMiddleware({
-      asPath: as,
-      locale: nextState.locale,
-      router: this,
-    })
+    const isMiddlewareMatch =
+      !options.shallow &&
+      (await matchesMiddleware({
+        asPath: as,
+        locale: nextState.locale,
+        router: this,
+      }))
 
     if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1234,10 +1240,12 @@ export default class Router implements BaseRouter {
         routeProps,
         locale: nextState.locale,
         isPreview: nextState.isPreview,
+        hasMiddleware: isMiddlewareMatch,
       })
 
-      if ('route' in routeInfo && routeInfo.route !== route) {
+      if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
+        route = pathname
         query = Object.assign({}, routeInfo.query || {}, query)
 
         if (isDynamicRoute(pathname)) {
@@ -1534,6 +1542,7 @@ export default class Router implements BaseRouter {
     resolvedAs,
     routeProps,
     locale,
+    hasMiddleware,
     isPreview,
   }: {
     route: string
@@ -1541,6 +1550,7 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery
     as: string
     resolvedAs: string
+    hasMiddleware?: boolean
     routeProps: RouteProperties
     locale: string | undefined
     isPreview: boolean
@@ -1552,10 +1562,14 @@ export default class Router implements BaseRouter {
      * for shallow routing purposes.
      */
     let route = requestedRoute
-
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (routeProps.shallow && existingInfo && this.route === route) {
+      if (
+        !hasMiddleware &&
+        routeProps.shallow &&
+        existingInfo &&
+        this.route === route
+      ) {
         return existingInfo
       }
 
@@ -1603,7 +1617,12 @@ export default class Router implements BaseRouter {
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
-        if (routeProps.shallow && existingInfo && this.route === route) {
+        if (
+          routeProps.shallow &&
+          existingInfo &&
+          this.route === route &&
+          !hasMiddleware
+        ) {
           // If we have a match with the current route due to rewrite,
           // we can copy the existing information to the rewritten one.
           // Then, we return the information along with the matched route.
@@ -2120,13 +2139,14 @@ function matchesMiddleware<T extends FetchDataOutput>(
   return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
     (items) => {
       const { pathname: asPathname } = parsePath(options.asPath)
-      const cleanedAs = removeLocale(
-        hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-        options.locale
-      )
+      const cleanedAs = hasBasePath(asPathname)
+        ? removeBasePath(asPathname)
+        : asPathname
 
-      return !!items?.some(([regex]) => {
-        return new RegExp(regex).test(cleanedAs)
+      return !!items?.some(([regex, ssr]) => {
+        return (
+          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+        )
       })
     }
   )
@@ -2214,6 +2234,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
           )
 
           as = addBasePath(parsedSource.pathname)
+          parsedRewriteTarget.pathname = as
         }
 
         if (process.env.__NEXT_HAS_REWRITES) {
@@ -2228,6 +2249,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
           if (result.matchedPage) {
             parsedRewriteTarget.pathname = result.parsedAs.pathname
+            as = parsedRewriteTarget.pathname
             Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
           }
         }
@@ -2241,6 +2263,11 @@ function getMiddlewareData<T extends FetchDataOutput>(
               pages
             )
           : fsPathname
+
+        if (isDynamicRoute(resolvedHref)) {
+          const matches = getRouteMatcher(getRouteRegex(resolvedHref))(as)
+          Object.assign(parsedRewriteTarget.query, matches || {})
+        }
 
         return {
           type: 'rewrite' as const,

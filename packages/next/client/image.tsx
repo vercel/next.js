@@ -18,8 +18,11 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const { experimentalLayoutRaw = false, experimentalRemotePatterns = [] } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
+const {
+  experimentalLayoutRaw = false,
+  experimentalRemotePatterns = [],
+  experimentalUnoptimized,
+} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -463,6 +466,9 @@ export default function Image({
     layout !== 'raw'
   ) {
     isLazy = false
+  }
+  if (experimentalUnoptimized) {
+    unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)

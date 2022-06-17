@@ -117,4 +117,6 @@ export async function middleware(request) {
     url.searchParams.set('locale', url.locale)
     return NextResponse.rewrite(url)
   }
+
+  return NextResponse.rewrite(request.nextUrl)
 }
