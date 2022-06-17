@@ -1,6 +1,9 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import {
+  decorateServerError,
+  getServerError,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
@@ -127,9 +130,12 @@ async function createModuleContext(options: ModuleContextOptions) {
         function __next_webassembly_compile__(fn: Function) {
           const key = fn.toString()
           if (!warnedWasmCodegens.has(key)) {
-            const warning = new Error(
-              "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
-                'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+            const warning = getServerError(
+              new Error(
+                "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
+                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+              ),
+              'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
             Error.captureStackTrace(warning, __next_webassembly_compile__)
@@ -153,9 +159,12 @@ async function createModuleContext(options: ModuleContextOptions) {
 
           const key = fn.toString()
           if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
-            const warning = new Error(
-              "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
-                'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+            const warning = getServerError(
+              new Error(
+                "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
+                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+              ),
+              'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
             Error.captureStackTrace(warning, __next_webassembly_instantiate__)
@@ -227,6 +236,9 @@ async function createModuleContext(options: ModuleContextOptions) {
       return context
     },
   })
+
+  runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
+  runtime.context.addEventListener('error', decorateUnhandledError)
 
   return {
     runtime,
@@ -312,5 +324,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     contextOptions.onWarning(warning)
     console.warn(warning.message)
     warnedAlready.add(name)
+  }
+}
+
+function decorateUnhandledError(error: any) {
+  if (error instanceof Error) {
+    decorateServerError(error, 'edge-server')
   }
 }
