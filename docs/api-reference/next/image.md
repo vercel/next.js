@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                               |
 | --------- | ----------------------------------------------------------------------------------------------------- |
-| `v12.1.7` | Experimental `remotePatterns` configuration added.                                                    |
+| `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added.                     |
 | `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
 | `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
 | `v12.0.9` | `lazyRoot` prop added.                                                                                |
@@ -300,6 +300,18 @@ const Example = () => {
 
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
+
+This prop can be assigned to all images by updating `next.config.js` with the following experimental configuration:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      unoptimized: true,
+    },
+  },
+}
+```
 
 ## Other Props
 

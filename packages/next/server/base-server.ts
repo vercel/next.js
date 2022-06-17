@@ -705,7 +705,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected generateRoutes(): {
-    basePath: string
     headers: Route[]
     rewrites: {
       beforeFiles: Route[]
@@ -719,7 +718,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
-    locales: string[]
+    nextConfig: NextConfig
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
@@ -834,6 +833,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const catchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
+      matchesLocale: true,
       name: 'Catchall render',
       fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
@@ -899,9 +899,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
-      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
-      locales: this.nextConfig.i18n?.locales || [],
+      nextConfig: this.nextConfig,
     }
   }
 

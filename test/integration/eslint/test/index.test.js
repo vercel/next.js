@@ -90,7 +90,9 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
-      expect(output).toContain('Error: Synchronous scripts should not be used.')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used.'
+      )
     })
 
     test('invalid older eslint version', async () => {
@@ -283,11 +285,9 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
-      expect(output).toContain(
-        'Warning: Synchronous scripts should not be used.'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('shows warnings and errors when extending plugin recommended config', async () => {
@@ -301,9 +301,11 @@ describe('ESLint', () => {
       )
 
       const output = stdout + stderr
-      expect(output).toContain('Error: Synchronous scripts should not be used.')
       expect(output).toContain(
-        'Warning: `<Document />` from `next/document` should not be imported outside of `pages/_document.js`.'
+        'Warning: Synchronous scripts should not be used.'
+      )
+      expect(output).toContain(
+        'Error: `<Document />` from `next/document` should not be imported outside of `pages/_document.js`.'
       )
     })
 
@@ -319,11 +321,9 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Error: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
-      expect(output).toContain(
-        'Warning: Synchronous scripts should not be used.'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('success message when no warnings or errors', async () => {
@@ -403,7 +403,9 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
-      expect(output).toContain('Error: Synchronous scripts should not be used.')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used.'
+      )
     })
 
     test('max warnings flag errors when warnings exceed threshold', async () => {

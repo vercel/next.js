@@ -9,13 +9,15 @@ import { pathHasPrefix } from './path-has-prefix'
 export function addLocale(
   path: string,
   locale?: string | false,
-  defaultLocale?: string
+  defaultLocale?: string,
+  ignorePrefix?: boolean
 ) {
   if (
     locale &&
     locale !== defaultLocale &&
-    !pathHasPrefix(path.toLowerCase(), `/${locale.toLowerCase()}`) &&
-    !pathHasPrefix(path.toLowerCase(), '/api')
+    (ignorePrefix ||
+      (!pathHasPrefix(path.toLowerCase(), `/${locale.toLowerCase()}`) &&
+        !pathHasPrefix(path.toLowerCase(), '/api')))
   ) {
     return addPathPrefix(path, `/${locale}`)
   }

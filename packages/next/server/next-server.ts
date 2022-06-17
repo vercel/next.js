@@ -381,6 +381,7 @@ export default class NextNodeServer extends BaseServer {
     return [
       {
         match: getPathMatch('/:path*'),
+        matchesBasePath: true,
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
@@ -973,7 +974,7 @@ export default class NextNodeServer extends BaseServer {
     let fallback: Route[] = []
 
     if (!this.minimalMode) {
-      const buildRewrite = (rewrite: Rewrite, check = true) => {
+      const buildRewrite = (rewrite: Rewrite, check = true): Route => {
         const rewriteRoute = getCustomRoute({
           type: 'rewrite',
           rule: rewrite,
@@ -985,6 +986,10 @@ export default class NextNodeServer extends BaseServer {
           type: rewriteRoute.type,
           name: `Rewrite route ${rewriteRoute.source}`,
           match: rewriteRoute.match,
+          matchesBasePath: true,
+          matchesLocale: true,
+          matchesLocaleAPIRoutes: true,
+          matchesTrailingSlash: true,
           fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
@@ -1011,7 +1016,7 @@ export default class NextNodeServer extends BaseServer {
               query: parsedDestination.query,
             }
           },
-        } as Route
+        }
       }
 
       if (Array.isArray(this.customRoutes.rewrites)) {
@@ -1264,6 +1269,8 @@ export default class NextNodeServer extends BaseServer {
 
     return {
       match: getPathMatch('/:path*'),
+      matchesBasePath: true,
+      matchesLocale: true,
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
