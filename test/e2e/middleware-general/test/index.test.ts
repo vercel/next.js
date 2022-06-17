@@ -116,7 +116,41 @@ describe('Middleware Runtime', () => {
         )
       }
     })
+
+    it('should not run middleware for on-demand revalidate', async () => {
+      const bypassToken = (
+        await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+      ).preview.previewModeId
+
+      const res = await fetchViaHTTP(next.url, '/ssg/first', undefined, {
+        headers: {
+          'x-prerender-revalidate': bypassToken,
+        },
+      })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-middleware')).toBeFalsy()
+      expect(res.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
+    })
   }
+
+  it('should have correct query values for rewrite to ssg page', async () => {
+    const browser = await webdriver(next.url, '/to-ssg')
+    await browser.eval('window.beforeNav = 1')
+
+    await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      from: 'middleware',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'hello',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/ssg/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/to-ssg')
+  })
 
   it('should have correct dynamic route params on client-transition to dynamic route', async () => {
     const browser = await webdriver(next.url, '/')

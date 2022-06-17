@@ -71,8 +71,14 @@ export function runTests(ctx) {
           undefined,
           { redirect: 'manual' }
         )
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('could not be found')
+
+        if (locale !== 'en-US') {
+          expect(res.status).toBe(404)
+          expect(await res.text()).toContain('could not be found')
+        } else {
+          // We only 404 for non-default locale
+          expect(res.status).toBe(200)
+        }
       }
     }
   })
@@ -85,8 +91,14 @@ export function runTests(ctx) {
         undefined,
         { redirect: 'manual' }
       )
-      expect(res.status).toBe(404)
-      expect(await res.text()).toContain('could not be found')
+
+      if (locale !== 'en-US') {
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('could not be found')
+      } else {
+        // We only 404 for non-default locale
+        expect(res.status).toBe(200)
+      }
     }
   })
 

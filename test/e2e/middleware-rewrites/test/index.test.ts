@@ -169,19 +169,6 @@ describe('Middleware Rewrite', () => {
       }, 'success')
     })
 
-    if (!(global as any).isNextDeploy) {
-      // runtime logs aren't currently available for deploy test
-      it(`warns about a query param deleted`, async () => {
-        await fetchViaHTTP(next.url, `/clear-query-params`, {
-          a: '1',
-          allowed: 'kept',
-        })
-        expect(next.cliOutput).toContain(
-          'Query params are no longer automatically merged for rewrites in middleware'
-        )
-      })
-    }
-
     it('should allow to opt-out prefetch caching', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.addCookie({ name: 'about-bypass', value: '1' })
