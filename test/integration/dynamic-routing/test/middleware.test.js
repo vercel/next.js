@@ -1,19 +1,7 @@
 /* eslint-env jest */
-import './index.test'
-import fs from 'fs-extra'
-import { join } from 'path'
 
-const middlewarePath = join(__dirname, '../middleware.js')
+process.env.__MIDDLEWARE_TEST = '1'
 
-beforeAll(async () => {
-  await fs.writeFile(
-    middlewarePath,
-    `
-    import { NextResponse } from 'next/server'
-    export default function middleware() {
-      return NextResponse.next()
-    }
-  `
-  )
-})
-afterAll(() => fs.remove(middlewarePath))
+// run all existing tests from ./index.test.js with middleware
+// setup enabled via the above env variable
+require('./index.test')

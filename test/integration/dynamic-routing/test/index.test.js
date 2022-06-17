@@ -1066,21 +1066,19 @@ function runTests({ dev, serverless }) {
       expect(text).toBe('slug: first')
     })
 
-    it('should show error when interpolating fails for href', async () => {
-      if (await fs.pathExists(join(appDir, 'middleware.js'))) {
-        return
-      }
-
-      const browser = await webdriver(appPort, '/')
-      await browser
-        .elementByCss('#view-post-1-interpolated-incorrectly')
-        .click()
-      expect(await hasRedbox(browser)).toBe(true)
-      const header = await getRedboxHeader(browser)
-      expect(header).toContain(
-        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
-      )
-    })
+    if (!process.env.__MIDDLEWARE_TEST) {
+      it('should show error when interpolating fails for href', async () => {
+        const browser = await webdriver(appPort, '/')
+        await browser
+          .elementByCss('#view-post-1-interpolated-incorrectly')
+          .click()
+        expect(await hasRedbox(browser)).toBe(true)
+        const header = await getRedboxHeader(browser)
+        expect(header).toContain(
+          'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
+        )
+      })
+    }
 
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
@@ -1398,6 +1396,23 @@ function runTests({ dev, serverless }) {
 const nextConfig = join(appDir, 'next.config.js')
 
 describe('Dynamic Routing', () => {
+  if (process.env.__MIDDLEWARE_TEST) {
+    const middlewarePath = join(__dirname, '../middleware.js')
+
+    beforeAll(async () => {
+      await fs.writeFile(
+        middlewarePath,
+        `
+        import { NextResponse } from 'next/server'
+        export default function middleware() {
+          return NextResponse.next()
+        }
+      `
+      )
+    })
+    afterAll(() => fs.remove(middlewarePath))
+  }
+
   describe('dev mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
