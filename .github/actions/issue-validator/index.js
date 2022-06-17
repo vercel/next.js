@@ -52,7 +52,7 @@ async function run() {
     ) {
       return await notifyOnIssue(
         verifyCanaryLabel,
-        'Please verify your issue against `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces. If the issue is resolved on the canary version, this issue can be closed.'
+        'Please verify your issue reproduces with `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
       )
     }
 
@@ -74,7 +74,7 @@ async function run() {
     if (reportedNextVersion !== lastVersion) {
       return await notifyOnIssue(
         'please verify canary',
-        'The reported Next.js version did not match the latest `next@canary` version. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces. If the issue is resolved on the canary version, this issue can be closed.'
+        'The reported Next.js version did not match the latest `next@canary` version. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
       )
     }
   } catch (error) {
