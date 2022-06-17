@@ -133,6 +133,25 @@ describe('Middleware Runtime', () => {
     })
   }
 
+  it('should have correct query values for rewrite to ssg page', async () => {
+    const browser = await webdriver(next.url, '/to-ssg')
+    await browser.eval('window.beforeNav = 1')
+
+    await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      from: 'middleware',
+    })
+    expect(
+      JSON.parse(await browser.elementByCss('#props').text()).params
+    ).toEqual({
+      slug: 'hello',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe('/ssg/[slug]')
+    expect(await browser.elementByCss('#as-path').text()).toBe('/to-ssg')
+  })
+
   it('should have correct dynamic route params on client-transition to dynamic route', async () => {
     const browser = await webdriver(next.url, '/')
     await browser.eval('window.beforeNav = 1')
