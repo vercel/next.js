@@ -931,8 +931,11 @@ function runTests({ dev, serverless }) {
       () => browser.eval(`document.body.innerHTML`),
       /onmpost:.*post-1/
     )
-    const scrollPosition = await browser.eval('window.pageYOffset')
-    expect(scrollPosition).toBe(7232)
+
+    const elementPosition = await browser.eval(
+      `document.querySelector("#item-400").getBoundingClientRect().y`
+    )
+    expect(elementPosition).toEqual(0)
   })
 
   it('should scroll to a hash on client-side navigation', async () => {
@@ -943,8 +946,10 @@ function runTests({ dev, serverless }) {
     const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
-    const scrollPosition = await browser.eval('window.pageYOffset')
-    expect(scrollPosition).toBe(7232)
+    const elementPosition = await browser.eval(
+      `document.querySelector("#item-400").getBoundingClientRect().y`
+    )
+    expect(elementPosition).toEqual(0)
   })
 
   it('should prioritize public files over dynamic route', async () => {
@@ -1062,6 +1067,10 @@ function runTests({ dev, serverless }) {
     })
 
     it('should show error when interpolating fails for href', async () => {
+      if (await fs.pathExists(join(appDir, 'middleware.js'))) {
+        return
+      }
+
       const browser = await webdriver(appPort, '/')
       await browser
         .elementByCss('#view-post-1-interpolated-incorrectly')
@@ -1415,25 +1424,5 @@ describe('Dynamic Routing', () => {
     afterAll(() => killApp(app))
 
     runTests({ dev: false, serverless: false })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-
-      await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
-
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
-    runTests({ dev: false, serverless: true })
   })
 })

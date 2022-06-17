@@ -104,47 +104,53 @@ class Container extends React.Component<{
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
     // - if it is a client-side skeleton (fallback render)
-    if (
-      router.isSsr &&
-      // We don't update for 404 requests as this can modify
-      // the asPath unexpectedly e.g. adding basePath when
-      // it wasn't originally present
-      initialData.page !== '/404' &&
-      initialData.page !== '/_error' &&
-      (initialData.isFallback ||
-        (initialData.nextExport &&
-          (isDynamicRoute(router.pathname) ||
-            location.search ||
-            process.env.__NEXT_HAS_REWRITES)) ||
-        (initialData.props &&
-          initialData.props.__N_SSG &&
-          (location.search || process.env.__NEXT_HAS_REWRITES)))
-    ) {
-      // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          String(
-            assign(
-              urlQueryToSearchParams(router.query),
-              new URLSearchParams(location.search)
-            )
-          ),
-        asPath,
-        {
-          // @ts-ignore
-          // WARNING: `_h` is an internal option for handing Next.js
-          // client-side hydration. Your app should _never_ use this property.
-          // It may change at any time without notice.
-          _h: 1,
-          // Fallback pages must trigger the data fetch, so the transition is
-          // not shallow.
-          // Other pages (strictly updating query) happens shallowly, as data
-          // requirements would already be present.
-          shallow: !initialData.isFallback,
-        }
-      )
+    const handleQueryUpdate = (matchesMiddleware = false) => {
+      if (
+        router.isSsr &&
+        // We don't update for 404 requests as this can modify
+        // the asPath unexpectedly e.g. adding basePath when
+        // it wasn't originally present
+        initialData.page !== '/404' &&
+        initialData.page !== '/_error' &&
+        (matchesMiddleware ||
+          initialData.isFallback ||
+          (initialData.nextExport &&
+            (isDynamicRoute(router.pathname) ||
+              location.search ||
+              process.env.__NEXT_HAS_REWRITES)) ||
+          (initialData.props &&
+            initialData.props.__N_SSG &&
+            (location.search || process.env.__NEXT_HAS_REWRITES)))
+      ) {
+        // update query on mount for exported pages
+        router.replace(
+          router.pathname +
+            '?' +
+            String(
+              assign(
+                urlQueryToSearchParams(router.query),
+                new URLSearchParams(location.search)
+              )
+            ),
+          asPath,
+          {
+            // @ts-ignore
+            // WARNING: `_h` is an internal option for handing Next.js
+            // client-side hydration. Your app should _never_ use this property.
+            // It may change at any time without notice.
+            _h: 1,
+            // Fallback pages must trigger the data fetch, so the transition is
+            // not shallow.
+            // Other pages (strictly updating query) happens shallowly, as data
+            // requirements would already be present.
+            shallow: !initialData.isFallback && !matchesMiddleware,
+          }
+        )
+      }
     }
+    router._initialMatchesMiddlewarePromise
+      .then((matchesMiddleware) => handleQueryUpdate(matchesMiddleware))
+      .catch(() => handleQueryUpdate())
   }
 
   componentDidUpdate() {
