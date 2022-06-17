@@ -2,10 +2,23 @@
 import * as github from '@actions/github'
 import * as core from '@actions/core'
 
+const verifyCanaryLabel = 'please verify canary'
+
+const bugReportLabel = 'template: bug'
+
 async function run() {
   try {
+    const { issue } = github.context.payload
+    const body = issue?.body
+    const isManuallyLabeled =
+      issue?.labels.length > 0 && issue?.labels[0].name === verifyCanaryLabel
+
+    const isBugReport = issue?.labels.some(
+      (label) => label.name === bugReportLabel
+    )
+
     if (!process.env.GITHUB_TOKEN) {
-      core.setFailed('GITHUB_TOKEN is not set')
+      return core.setFailed('GITHUB_TOKEN is not set')
     }
 
     // @ts-ignore
@@ -27,11 +40,23 @@ async function run() {
       ])
     }
 
-    const body = github.context.payload.issue?.body
     if (body) {
       const isVerifyCanaryChecked = body.includes(
         '- [X] I verified that the issue exists in Next.js canary release'
       )
+
+      if (
+        !isVerifyCanaryChecked || // This can happen if the issue was from a comment in another issue or discussion.
+        isManuallyLabeled
+      ) {
+        return await notifyOnIssue(
+          verifyCanaryLabel,
+          'Please verify your issue against `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces. If the issue is resolved on the canary version, this issue can be closed.'
+        )
+      }
+
+      if (!isBugReport) return
+
       const reportedNextVersion = body.match(
         /Relevant packages:\n      next: (?<version>\d+\.\d+\.\d+)/
       )?.groups?.version
@@ -39,14 +64,6 @@ async function run() {
       if (!reportedNextVersion) {
         // REVIEW: Should we add a label here?
         return
-      }
-
-      if (!isVerifyCanaryChecked) {
-        // This can happen if the issue was from a comment in another issue or discussion.
-        return await notifyOnIssue(
-          'please verify canary',
-          'Please verify your issue against `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces. If the issue is resolved on the canary version, this issue can be closed.'
-        )
       }
 
       const {
