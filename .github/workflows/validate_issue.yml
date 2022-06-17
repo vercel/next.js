@@ -1,0 +1,13 @@
+name: Validate issue
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  validate:
+    if: "${ { github.event.label.name == 'template: bug' } }"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/issue-validator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
