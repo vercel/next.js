@@ -355,6 +355,8 @@ export type CompletePrivateRouteInfo = {
   err?: Error
   error?: any
   route?: string
+  resolvedAs?: string
+  query?: ParsedUrlQuery
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
@@ -582,6 +584,7 @@ export default class Router implements BaseRouter {
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
+  _initialMatchesMiddlewarePromise: Promise<boolean>
 
   private state: Readonly<{
     route: string
@@ -707,6 +710,8 @@ export default class Router implements BaseRouter {
       isFallback,
     }
 
+    this._initialMatchesMiddlewarePromise = Promise.resolve(false)
+
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
@@ -716,7 +721,7 @@ export default class Router implements BaseRouter {
         const options: TransitionOptions = { locale }
         const asPath = getURL()
 
-        matchesMiddleware({
+        this._initialMatchesMiddlewarePromise = matchesMiddleware({
           router: this,
           locale,
           asPath,
@@ -736,6 +741,7 @@ export default class Router implements BaseRouter {
             asPath,
             options
           )
+          return matches
         })
       }
 
@@ -1106,11 +1112,13 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch = await matchesMiddleware({
-      asPath: as,
-      locale: nextState.locale,
-      router: this,
-    })
+    const isMiddlewareMatch =
+      !options.shallow &&
+      (await matchesMiddleware({
+        asPath: as,
+        locale: nextState.locale,
+        router: this,
+      }))
 
     if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1232,10 +1240,37 @@ export default class Router implements BaseRouter {
         routeProps,
         locale: nextState.locale,
         isPreview: nextState.isPreview,
+        hasMiddleware: isMiddlewareMatch,
       })
 
-      if ('route' in routeInfo) {
+      if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
+        route = pathname
+        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (isDynamicRoute(pathname)) {
+          const prefixedAs =
+            routeInfo.resolvedAs ||
+            addBasePath(addLocale(as, nextState.locale), true)
+
+          let rewriteAs = prefixedAs
+
+          if (hasBasePath(rewriteAs)) {
+            rewriteAs = removeBasePath(rewriteAs)
+          }
+
+          if (process.env.__NEXT_I18N_SUPPORT) {
+            const localeResult = normalizeLocalePath(rewriteAs, this.locales)
+            nextState.locale = localeResult.detectedLocale || nextState.locale
+            rewriteAs = localeResult.pathname
+          }
+          const routeRegex = getRouteRegex(pathname)
+          const routeMatch = getRouteMatcher(routeRegex)(rewriteAs)
+
+          if (routeMatch) {
+            Object.assign(query, routeMatch)
+          }
+        }
       }
 
       // If the routeInfo brings a redirect we simply apply it.
@@ -1336,7 +1371,8 @@ export default class Router implements BaseRouter {
       }
 
       // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && nextState.route === route
+      const isValidShallowRoute =
+        options.shallow && nextState.route === (routeInfo.route ?? route)
 
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
@@ -1499,13 +1535,14 @@ export default class Router implements BaseRouter {
   }
 
   async getRouteInfo({
-    route,
+    route: requestedRoute,
     pathname,
     query,
     as,
     resolvedAs,
     routeProps,
     locale,
+    hasMiddleware,
     isPreview,
   }: {
     route: string
@@ -1513,13 +1550,26 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery
     as: string
     resolvedAs: string
+    hasMiddleware?: boolean
     routeProps: RouteProperties
     locale: string | undefined
     isPreview: boolean
   }) {
+    /**
+     * This `route` binding can change if there's a rewrite
+     * so we keep a reference to the original requested route
+     * so we can store the cache for it and avoid re-requesting every time
+     * for shallow routing purposes.
+     */
+    let route = requestedRoute
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (routeProps.shallow && existingInfo && this.route === route) {
+      if (
+        !hasMiddleware &&
+        routeProps.shallow &&
+        existingInfo &&
+        this.route === route
+      ) {
         return existingInfo
       }
 
@@ -1567,8 +1617,17 @@ export default class Router implements BaseRouter {
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
-        if (routeProps.shallow && existingInfo && this.route === route) {
-          return existingInfo
+        if (
+          routeProps.shallow &&
+          existingInfo &&
+          this.route === route &&
+          !hasMiddleware
+        ) {
+          // If we have a match with the current route due to rewrite,
+          // we can copy the existing information to the rewritten one.
+          // Then, we return the information along with the matched route.
+          this.components[requestedRoute] = { ...existingInfo, route }
+          return { ...existingInfo, route }
         }
 
         cachedRouteInfo =
@@ -1703,7 +1762,15 @@ export default class Router implements BaseRouter {
 
       routeInfo.props = props
       routeInfo.route = route
+      routeInfo.query = query
+      routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
+
+      // If the route was rewritten in the process of fetching data,
+      // we update the cache to allow hitting the same data for shallow requests.
+      if (route !== requestedRoute) {
+        this.components[requestedRoute] = { ...routeInfo, route }
+      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
@@ -2072,13 +2139,14 @@ function matchesMiddleware<T extends FetchDataOutput>(
   return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
     (items) => {
       const { pathname: asPathname } = parsePath(options.asPath)
-      const cleanedAs = removeLocale(
-        hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-        options.locale
-      )
+      const cleanedAs = hasBasePath(asPathname)
+        ? removeBasePath(asPathname)
+        : asPathname
 
-      return !!items?.some(([regex]) => {
-        return new RegExp(regex).test(cleanedAs)
+      return !!items?.some(([regex, ssr]) => {
+        return (
+          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+        )
       })
     }
   )
@@ -2126,10 +2194,10 @@ function getMiddlewareData<T extends FetchDataOutput>(
     i18n: { locales: options.router.locales },
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
+  const rewriteHeader = response.headers.get('x-nextjs-rewrite')
 
-  // TODO: ensure x-nextjs-matched-path is always present instead of both
-  // variants
-  let rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  let rewriteTarget =
+    rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
   const matchedPath = response.headers.get('x-matched-path')
 
@@ -2145,17 +2213,68 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      parsedRewriteTarget.pathname = pathnameInfo.pathname
       const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
-      return Promise.resolve(options.router.pageLoader.getPageList()).then(
-        (pages) => ({
+      return Promise.all([
+        options.router.pageLoader.getPageList(),
+        getClientBuildManifest(),
+      ]).then(([pages, { __rewrites: rewrites }]: any) => {
+        let as = parsedRewriteTarget.pathname
+
+        if (
+          isDynamicRoute(as) ||
+          (!rewriteHeader &&
+            pages.includes(
+              normalizeLocalePath(removeBasePath(as), options.router.locales)
+                .pathname
+            ))
+        ) {
+          const parsedSource = getNextPathnameInfo(
+            parseRelativeUrl(source).pathname,
+            { parseData: true }
+          )
+
+          as = addBasePath(parsedSource.pathname)
+          parsedRewriteTarget.pathname = as
+        }
+
+        if (process.env.__NEXT_HAS_REWRITES) {
+          const result = resolveRewrites(
+            as,
+            pages,
+            rewrites,
+            parsedRewriteTarget.query,
+            (path: string) => resolveDynamicRoute(path, pages),
+            options.router.locales
+          )
+
+          if (result.matchedPage) {
+            parsedRewriteTarget.pathname = result.parsedAs.pathname
+            as = parsedRewriteTarget.pathname
+            Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+          }
+        }
+
+        const resolvedHref = !pages.includes(fsPathname)
+          ? resolveDynamicRoute(
+              normalizeLocalePath(
+                removeBasePath(parsedRewriteTarget.pathname),
+                options.router.locales
+              ).pathname,
+              pages
+            )
+          : fsPathname
+
+        if (isDynamicRoute(resolvedHref)) {
+          const matches = getRouteMatcher(getRouteRegex(resolvedHref))(as)
+          Object.assign(parsedRewriteTarget.query, matches || {})
+        }
+
+        return {
           type: 'rewrite' as const,
           parsedAs: parsedRewriteTarget,
-          resolvedHref: !pages.includes(fsPathname)
-            ? resolveDynamicRoute(fsPathname, pages)
-            : fsPathname,
-        })
-      )
+          resolvedHref,
+        }
+      })
     }
 
     const src = parsePath(source)

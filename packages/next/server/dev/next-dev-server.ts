@@ -770,12 +770,8 @@ export default class DevServer extends Server {
           const src = getErrorSource(err)
           if (src === 'edge-server') {
             compilation = this.hotReloader?.edgeServerStats?.compilation
-          } else if (src === 'server') {
-            compilation = this.hotReloader?.serverStats?.compilation
           } else {
-            compilation = frame.file!.includes('(middleware)')
-              ? this.hotReloader?.edgeServerStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
+            compilation = this.hotReloader?.serverStats?.compilation
           }
 
           const source = await getSourceById(
@@ -948,7 +944,6 @@ export default class DevServer extends Server {
     fsRoutes.push({
       match: getPathMatch('/:path*'),
       type: 'route',
-      requireBasePath: false,
       name: 'catchall public directory route',
       fn: async (req, res, params, parsedUrl) => {
         const { pathname } = parsedUrl

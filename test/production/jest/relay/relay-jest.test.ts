@@ -61,6 +61,7 @@ describe('next/jest', () => {
         'babel-plugin-relay': '^13.2.0',
         jsdom: '^19.0.0',
         'relay-compiler': '^13.0.1',
+        'relay-runtime': '^13.0.2',
         'relay-test-utils': '^13.0.2',
         typescript: '^4.6.3',
       },
