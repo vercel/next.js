@@ -4,6 +4,7 @@ import * as core from '@actions/core'
 
 const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'
+const addReproductionLabel = 'please add a complete reproduction'
 
 async function run() {
   try {
@@ -57,6 +58,17 @@ async function run() {
     }
 
     if (!isBugReport) return
+
+    const reproductionUrl = body
+      .match(/### Link to reproduction\n\n(?<url>.*)\n/)
+      ?.groups?.url.trim()
+
+    if (!reproductionUrl || (await (await fetch(reproductionUrl)).ok)) {
+      return await notifyOnIssue(
+        addReproductionLabel,
+        'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field.'
+      )
+    }
 
     const reportedNextVersion = body.match(
       /Relevant packages:\n      next: (?<version>\d+\.\d+\.\d+)/
