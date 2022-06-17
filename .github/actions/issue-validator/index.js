@@ -12,8 +12,9 @@ async function run() {
     if (github.context.payload.pull_request || !issue?.body) return
 
     const { body } = issue
-    const isManuallyLabeled =
-      issue?.labels.length > 0 && issue?.labels[0].name === verifyCanaryLabel
+    const isManuallyLabeled = issue.labels.some(
+      (label) => label.name === verifyCanaryLabel
+    )
 
     const isBugReport = issue.labels.some(
       (label) => label.name === bugReportLabel
