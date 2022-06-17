@@ -34,7 +34,6 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { match } from 'micromatch'
 
 const ReactDOM = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/client')
