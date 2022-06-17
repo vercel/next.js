@@ -44,6 +44,23 @@ const experimentalWarning = execOnce(
   }
 )
 
+const notExistedExperimentalFeatureWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    const dont = features.length > 1 ? 'do not' : 'does not'
+    const them = features.length > 1 ? 'them' : 'it'
+    Log.warn(
+      chalk.bold(
+        `You have defined experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName} that ${dont} exist in this version of Next.js.`
+      )
+    )
+    Log.warn(`Please remove ${them} from your configuration.`)
+    console.warn()
+  }
+)
+
 function assignDefaults(userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -79,16 +96,29 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       if (key === 'experimental' && typeof value === 'object') {
-        const enabledExperimentalFeatures = (
-          Object.keys(value) as (keyof ExperimentalConfig)[]
-        ).filter(
-          // defaultConfig is pre-defined, thus defaultConfig.experimental can not be undefined
-          (featureName) =>
-            value[featureName] !== defaultConfig.experimental![featureName]
-        )
+        const notExistedExperimentalFeatures: string[] = []
+        const enabledExperimentalFeatures: (keyof ExperimentalConfig)[] = []
 
+        for (const featureName of Object.keys(
+          value
+        ) as (keyof ExperimentalConfig)[]) {
+          if (!(featureName in defaultConfig.experimental!)) {
+            notExistedExperimentalFeatures.push(featureName)
+          } else if (
+            value[featureName] !== defaultConfig.experimental![featureName]
+          ) {
+            enabledExperimentalFeatures.push(featureName)
+          }
+        }
+
+        if (notExistedExperimentalFeatures.length > 0) {
+          notExistedExperimentalFeatureWarning(
+            configFileName,
+            notExistedExperimentalFeatures
+          )
+        }
         if (enabledExperimentalFeatures.length > 0) {
-          experimentalWarning(configFileName, Object.keys(value))
+          experimentalWarning(configFileName, enabledExperimentalFeatures)
         }
       }
 
