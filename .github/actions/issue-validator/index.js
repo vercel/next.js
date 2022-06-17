@@ -63,7 +63,7 @@ async function run() {
       .match(/### Link to reproduction\n\n(?<url>.*)\n/)
       ?.groups?.url.trim()
 
-    if (!reproductionUrl || (await (await fetch(reproductionUrl)).ok)) {
+    if (!reproductionUrl || !(await (await fetch(reproductionUrl)).ok)) {
       return await notifyOnIssue(
         addReproductionLabel,
         'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field.'
