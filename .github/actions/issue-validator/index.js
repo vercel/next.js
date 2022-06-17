@@ -7,18 +7,20 @@ const bugReportLabel = 'template: bug'
 
 async function run() {
   try {
-    const { issue } = github.context.payload
+    const {
+      payload: { issue, pull_request },
+      repo,
+    } = github.context
 
-    if (github.context.payload.pull_request || !issue?.body) return
+    if (pull_request || !issue?.body) return
 
-    const { body } = issue
-    const isManuallyLabeled = issue.labels.some(
+    const { body, labels, number: issueNumber } = issue
+
+    const isManuallyLabeled = labels.some(
       (label) => label.name === verifyCanaryLabel
     )
 
-    const isBugReport = issue.labels.some(
-      (label) => label.name === bugReportLabel
-    )
+    const isBugReport = labels.some((label) => label.name === bugReportLabel)
 
     if (!process.env.GITHUB_TOKEN) {
       return core.setFailed('GITHUB_TOKEN is not set')
@@ -32,10 +34,7 @@ async function run() {
      * @param {string} comment
      */
     function notifyOnIssue(label, comment) {
-      const issueCommon = {
-        ...github.context.repo,
-        issue_number: issue.number,
-      }
+      const issueCommon = { ...repo, issue_number: issueNumber }
 
       return Promise.all([
         client.issues.addLabels({ ...issueCommon, labels: [label] }),
@@ -70,7 +69,7 @@ async function run() {
 
     const {
       data: { tag_name: lastVersion },
-    } = await client.repos.getLatestRelease(github.context.repo)
+    } = await client.repos.getLatestRelease(repo)
 
     if (reportedNextVersion !== lastVersion) {
       return await notifyOnIssue(
