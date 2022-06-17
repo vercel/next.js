@@ -2143,8 +2143,10 @@ function matchesMiddleware<T extends FetchDataOutput>(
         ? removeBasePath(asPathname)
         : asPathname
 
-      return !!items?.some(([regex]) => {
-        return new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+      return !!items?.some(([regex, ssr]) => {
+        return (
+          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+        )
       })
     }
   )
