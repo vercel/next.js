@@ -190,16 +190,16 @@ describe('Next.js Script - Primary Strategies', () => {
     }
   })
 
-  it('priority beforeInteractive with inline script in <Head>', async () => {
+  it('priority beforeInteractive with inline script', async () => {
     const html = await renderViaHTTP(appPort, '/page5')
     const $ = cheerio.load(html)
 
-    const script = $('#bi-inline-in-doc-in-head')
+    const script = $('#inline-before')
     expect(script.length).toBe(1)
 
     // Script is inserted before CSS
     expect(
-      $(`#bi-inline-in-doc-in-head ~ link[href^="/_next/static/css"]`).length
+      $(`#inline-before ~ link[href^="/_next/static/css"]`).length
     ).toBeGreaterThan(0)
   })
 
@@ -211,40 +211,11 @@ describe('Next.js Script - Primary Strategies', () => {
       await waitFor(1000)
 
       const logs = await browser.log()
-
-      let inDocInHead, inDocOutHead, inPageInHead, inPageOutHead
-
-      for (const log of logs) {
-        if (
-          [inDocInHead, inDocOutHead, inPageInHead, inPageOutHead].every(
-            Boolean
-          )
-        ) {
-          break
-        }
-
-        if (log.message.includes('bi-inline-in-doc-in-head')) {
-          inDocInHead = true
-        } else if (log.message.includes('bi-inline-in-doc-out-head')) {
-          inDocOutHead = true
-        } else if (log.message.includes('bi-inline-in-page-in-head')) {
-          inPageInHead = true
-        } else if (log.message.includes('bi-inline-in-page-out-head')) {
-          inPageOutHead = true
-        }
-      }
-
-      expect({
-        inDocInHead,
-        inDocOutHead,
-        inPageInHead,
-        inPageOutHead,
-      }).toEqual({
-        inDocInHead: true,
-        inDocOutHead: true,
-        inPageInHead: true,
-        inPageOutHead: true,
-      })
+      expect(
+        logs.some((log) =>
+          log.message.includes('beforeInteractive inline script run')
+        )
+      ).toBe(true)
     } finally {
       if (browser) await browser.close()
     }
