@@ -41,7 +41,7 @@ function replaceRequestBody<T extends IncomingMessage>(
   for (const key in stream) {
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
-      v = v.bind(stream)
+      v = v.bind(base)
     }
     base[key as keyof T] = v
   }
