@@ -25,10 +25,9 @@ export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
   return (error as any)[symbolError] || null
 }
 
-export function getServerError(
-  error: Error,
-  type: 'edge-server' | 'server'
-): Error {
+type ErrorType = 'edge-server' | 'server'
+
+export function getServerError(error: Error, type: ErrorType): Error {
   let n: Error
   try {
     throw new Error(error.message)
@@ -59,11 +58,15 @@ export function getServerError(
     n.stack = error.stack
   }
 
-  Object.defineProperty(n, symbolError, {
+  decorateServerError(n, type)
+  return n
+}
+
+export function decorateServerError(error: Error, type: ErrorType) {
+  Object.defineProperty(error, symbolError, {
     writable: false,
     enumerable: false,
     configurable: false,
     value: type,
   })
-  return n
 }

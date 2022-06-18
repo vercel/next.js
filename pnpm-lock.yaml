@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.2
+      '@edge-runtime/jest-environment': 1.1.0-beta.6
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -169,7 +169,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.2
+      '@edge-runtime/jest-environment': 1.1.0-beta.6
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -356,7 +356,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.1.7-canary.40
+      '@next/eslint-plugin-next': 12.1.7-canary.41
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -408,16 +408,16 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.2
+      '@edge-runtime/primitives': 1.1.0-beta.6
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.1.7-canary.40
-      '@next/polyfill-module': 12.1.7-canary.40
-      '@next/polyfill-nomodule': 12.1.7-canary.40
-      '@next/react-dev-overlay': 12.1.7-canary.40
-      '@next/react-refresh-utils': 12.1.7-canary.40
-      '@next/swc': 12.1.7-canary.40
+      '@next/env': 12.1.7-canary.41
+      '@next/polyfill-module': 12.1.7-canary.41
+      '@next/polyfill-nomodule': 12.1.7-canary.41
+      '@next/react-dev-overlay': 12.1.7-canary.41
+      '@next/react-refresh-utils': 12.1.7-canary.41
+      '@next/swc': 12.1.7-canary.41
       '@swc/helpers': 0.3.17
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -488,7 +488,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.2
+      edge-runtime: 1.1.0-beta.6
       etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
@@ -602,7 +602,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.2
+      '@edge-runtime/primitives': 1.1.0-beta.6
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
@@ -679,7 +679,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.2
+      edge-runtime: 1.1.0-beta.6
       etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
@@ -3225,25 +3225,25 @@ packages:
     resolution: {integrity: sha512-mxi0n00nJwnjaXUQIfTS7l64yvwGXs435gEjuDhzTHZyrmnCYdELXdJr3Q+6v4DO1mmmtNTYFHUvIlpCmMUC6g==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.2:
-    resolution: {integrity: sha512-ERIwwQnmj9f9sWbrvv2aT9MDFW8WIMiTSkVSct/TjHyU5o+eUhFHsXnuXwocv4slBhUFZjNbqMpHcJmNAEvMaw==}
+  /@edge-runtime/jest-environment/1.1.0-beta.6:
+    resolution: {integrity: sha512-YE82392oHFj7YYHNQd9w1z8EmWiM/BZ98UgnJBzbAz9utJR7eKBmuJyhzuoCiuxMXA8hgXlZBnNePSh5kg02dw==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.2
-      '@jest/environment': 28.1.0
-      '@jest/fake-timers': 28.1.0
-      '@jest/types': 28.1.0
-      jest-mock: 28.1.0
-      jest-util: 28.1.0
+      '@edge-runtime/vm': 1.1.0-beta.6
+      '@jest/environment': 28.1.1
+      '@jest/fake-timers': 28.1.1
+      '@jest/types': 28.1.1
+      jest-mock: 28.1.1
+      jest-util: 28.1.1
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.2:
-    resolution: {integrity: sha512-EAqRUEPaR7HCRvIjxBLhhGFcqH31jIXs41u9LNfw7gMKqk3ekitWfWDVirz2vsFz3O5o3QSVllIJRO/2LAkImA==}
+  /@edge-runtime/primitives/1.1.0-beta.6:
+    resolution: {integrity: sha512-CGwjdCZjyIsxfkpUmEW4jSifo79sYLF6m6u5v67ill5wX8Tfr6eP5QSAqOaNWZXNGIgPEfljWAwhIMpUZSdhMA==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.2:
-    resolution: {integrity: sha512-JIAI74WKEnVnz9UQIuFD+ptqsiEAVNOOhCxJXs4CyxZQXhcZOGclCSFdXcttPB4yCwozhAmVJnC+5O7vJsNuTA==}
+  /@edge-runtime/vm/1.1.0-beta.6:
+    resolution: {integrity: sha512-OA6lCgAYbzW/cYw+ok+umq6OjeULMcMcnC2+4N4IG23xGOv/rWVbsAJnDeV9uU35OdKOzNHl6gpcyHLP9NAaoA==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.2
+      '@edge-runtime/primitives': 1.1.0-beta.6
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -3690,14 +3690,14 @@ packages:
       jest-mock: 27.0.6
     dev: true
 
-  /@jest/environment/28.1.0:
-    resolution: {integrity: sha512-S44WGSxkRngzHslhV6RoAExekfF7Qhwa6R5+IYFa81mpcj0YgdBnRSmvHe3SNwOt64yXaE5GG8Y2xM28ii5ssA==}
+  /@jest/environment/28.1.1:
+    resolution: {integrity: sha512-9auVQ2GzQ7nrU+lAr8KyY838YahElTX9HVjbQPPS2XjlxQ+na18G113OoBhyBGBtD6ZnO/SrUy5WR8EzOj1/Uw==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@jest/fake-timers': 28.1.0
-      '@jest/types': 28.1.0
+      '@jest/fake-timers': 28.1.1
+      '@jest/types': 28.1.1
       '@types/node': 17.0.21
-      jest-mock: 28.1.0
+      jest-mock: 28.1.1
     dev: true
 
   /@jest/fake-timers/27.0.6:
@@ -3712,16 +3712,16 @@ packages:
       jest-util: 27.0.6
     dev: true
 
-  /@jest/fake-timers/28.1.0:
-    resolution: {integrity: sha512-Xqsf/6VLeAAq78+GNPzI7FZQRf5cCHj1qgQxCjws9n8rKw8r1UYoeaALwBvyuzOkpU3c1I6emeMySPa96rxtIg==}
+  /@jest/fake-timers/28.1.1:
+    resolution: {integrity: sha512-BY/3+TyLs5+q87rGWrGUY5f8e8uC3LsVHS9Diz8+FV3ARXL4sNnkLlIB8dvDvRrp+LUCGM+DLqlsYubizGUjIA==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@jest/types': 28.1.0
+      '@jest/types': 28.1.1
       '@sinonjs/fake-timers': 9.1.2
       '@types/node': 17.0.21
-      jest-message-util: 28.1.0
-      jest-mock: 28.1.0
-      jest-util: 28.1.0
+      jest-message-util: 28.1.1
+      jest-mock: 28.1.1
+      jest-util: 28.1.1
     dev: true
 
   /@jest/globals/27.0.6:
@@ -3843,8 +3843,8 @@ packages:
       chalk: 4.1.2
     dev: true
 
-  /@jest/types/28.1.0:
-    resolution: {integrity: sha512-xmEggMPr317MIOjjDoZ4ejCSr9Lpbt/u34+dvc99t7DS8YirW5rwZEhzKPC2BMUFkUhI48qs6qLUSGw5FuL0GA==}
+  /@jest/types/28.1.1:
+    resolution: {integrity: sha512-vRXVqSg1VhDnB8bWcmvLzmg0Bt9CRKVgHPXqYwvWMX3TvAjeO+nRuK6+VdTKCtWOvYlmkF/HqNAL/z+N3B53Kw==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
       '@jest/schemas': 28.0.2
@@ -9917,12 +9917,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.2:
-    resolution: {integrity: sha512-cJF/5CuwKOZ94zB/5OmrPWJx3Me9wXwd44LDfLp7IDWwfph9QhAxEj01c4G8E1KO18kRSXnHdMQJiBSfJld+mA==}
+  /edge-runtime/1.1.0-beta.6:
+    resolution: {integrity: sha512-U7JjYWsc2EhEGnsQ9MIkazv7esVusreDpZ+kazv1zcHtL5cdmr8XspX2QITZd5n+lRwRD3QE7kzkt8ZLKiiXaA==}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 1.0.0
-      '@edge-runtime/vm': 1.1.0-beta.2
+      '@edge-runtime/vm': 1.1.0-beta.6
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
@@ -13614,17 +13614,17 @@ packages:
       stack-utils: 2.0.3
     dev: true
 
-  /jest-message-util/28.1.0:
-    resolution: {integrity: sha512-RpA8mpaJ/B2HphDMiDlrAZdDytkmwFqgjDZovM21F35lHGeUeCvYmm6W+sbQ0ydaLpg5bFAUuWG1cjqOl8vqrw==}
+  /jest-message-util/28.1.1:
+    resolution: {integrity: sha512-xoDOOT66fLfmTRiqkoLIU7v42mal/SqwDKvfmfiWAdJMSJiU+ozgluO7KbvoAgiwIrrGZsV7viETjc8GNrA/IQ==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
       '@babel/code-frame': 7.16.7
-      '@jest/types': 28.1.0
+      '@jest/types': 28.1.1
       '@types/stack-utils': 2.0.0
       chalk: 4.1.2
       graceful-fs: 4.2.9
       micromatch: 4.0.4
-      pretty-format: 28.1.0
+      pretty-format: 28.1.1
       slash: 3.0.0
       stack-utils: 2.0.3
     dev: true
@@ -13637,11 +13637,11 @@ packages:
       '@types/node': 17.0.21
     dev: true
 
-  /jest-mock/28.1.0:
-    resolution: {integrity: sha512-H7BrhggNn77WhdL7O1apG0Q/iwl0Bdd5E1ydhCJzL3oBLh/UYxAwR3EJLsBZ9XA3ZU4PA3UNw4tQjduBTCTmLw==}
+  /jest-mock/28.1.1:
+    resolution: {integrity: sha512-bDCb0FjfsmKweAvE09dZT59IMkzgN0fYBH6t5S45NoJfd2DHkS3ySG2K+hucortryhO3fVuXdlxWcbtIuV/Skw==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@jest/types': 28.1.0
+      '@jest/types': 28.1.1
       '@types/node': 17.0.21
     dev: true
 
@@ -13807,11 +13807,11 @@ packages:
       picomatch: 2.2.3
     dev: true
 
-  /jest-util/28.1.0:
-    resolution: {integrity: sha512-qYdCKD77k4Hwkose2YBEqQk7PzUf/NSE+rutzceduFveQREeH6b+89Dc9+wjX9dAwHcgdx4yedGA3FQlU/qCTA==}
+  /jest-util/28.1.1:
+    resolution: {integrity: sha512-FktOu7ca1DZSyhPAxgxB6hfh2+9zMoJ7aEQA759Z6p45NuO8mWcqujH+UdHlCm/V6JTWwDztM2ITCzU1ijJAfw==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@jest/types': 28.1.0
+      '@jest/types': 28.1.1
       '@types/node': 17.0.21
       chalk: 4.1.2
       ci-info: 3.3.1
@@ -17959,8 +17959,8 @@ packages:
       react-is: 17.0.2
     dev: true
 
-  /pretty-format/28.1.0:
-    resolution: {integrity: sha512-79Z4wWOYCdvQkEoEuSlBhHJqWeZ8D8YRPiPctJFCtvuaClGpiwiQYSCUOE6IEKUbbFukKOTFIUAXE8N4EQTo1Q==}
+  /pretty-format/28.1.1:
+    resolution: {integrity: sha512-wwJbVTGFHeucr5Jw2bQ9P+VYHyLdAqedFLEkdQUVaBF/eiidDwH5OpilINq4mEfhbCjLnirt6HTTDhv1HaTIQw==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
       '@jest/schemas': 28.0.2
