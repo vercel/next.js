@@ -4,6 +4,8 @@ use crate::analyzer::FreeVarKind;
 
 use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
 
+const ARRAY_METHODS: [&str; 2] = ["concat", "map"];
+
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {
         JsValue::Member(_, box ref mut obj, ref mut prop) => {
@@ -73,7 +75,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 true
                             }
                         }
-                        JsValue::Constant(_) => {
+                        JsValue::Constant(c) => {
+                            if let ConstantValue::Str(s) = c {
+                                if ARRAY_METHODS.iter().any(|method| *method == s) {
+                                    return false;
+                                }
+                            }
                             value.make_unknown("non-num constant property on array");
                             true
                         }
@@ -246,7 +253,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
-                JsValue::Array(_, items) => match prop {
+                JsValue::Array(array_length, items) => match prop {
                     JsValue::Constant(ConstantValue::Str(str)) => match &**str {
                         "concat" => {
                             if args.iter().all(|arg| {
@@ -284,6 +291,58 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 obj.update_total_nodes();
                                 *value = take(obj);
                                 return true;
+                            }
+                        }
+                        "map" => {
+                            if let Some(JsValue::Function(_, box return_value)) = args.get_mut(0) {
+                                match return_value {
+                                    // ['a', 'b', 'c'].map((i) => require.resolve(i)))
+                                    JsValue::Unknown(Some(call), _) => {
+                                        if let JsValue::Call(len, callee, call_args) = &**call {
+                                            *value = JsValue::Array(
+                                                *array_length,
+                                                items
+                                                    .iter()
+                                                    .map(|item| {
+                                                        let new_args = call_args
+                                                            .iter()
+                                                            .map(|arg| {
+                                                                if let JsValue::Argument(0) = arg {
+                                                                    return item.clone();
+                                                                } else if let JsValue::Unknown(
+                                                                    Some(arg),
+                                                                    _,
+                                                                ) = arg
+                                                                {
+                                                                    if let JsValue::Argument(0) =
+                                                                        &**arg
+                                                                    {
+                                                                        return item.clone();
+                                                                    }
+                                                                }
+                                                                arg.clone()
+                                                            })
+                                                            .collect();
+                                                        JsValue::Call(
+                                                            *len,
+                                                            callee.clone(),
+                                                            new_args,
+                                                        )
+                                                    })
+                                                    .collect(),
+                                            );
+                                        }
+                                    }
+                                    _ => {
+                                        *value = JsValue::Array(
+                                            *array_length,
+                                            items.iter().map(|_| return_value.clone()).collect(),
+                                        );
+                                    }
+                                }
+                                // stop the iteration, let the `handle_call` to continue
+                                // processing the new mapped array
+                                return false;
                             }
                         }
                         _ => {}

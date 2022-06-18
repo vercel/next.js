@@ -25,6 +25,7 @@ use turbopack_ecmascript::target::CompileTarget;
 
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
+#[case::array_map_require("integration/array-map-require/index.js", true)]
 #[case::apollo("integration/apollo.js", true)]
 #[case::argon2("integration/argon2.js", true)]
 #[case::auth0("integration/auth0.js", true)]
@@ -35,7 +36,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::bcrypt("integration/bcrypt.js", true)]
 #[case::better_sqlite3("integration/better-sqlite3.js", true)]
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
-#[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::browserify_middleware("integration/browserify-middleware.js", true)]
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
 // #[case::bull("integration/bull.js", false)] // Skipping bull integration test
 #[case::camaro("integration/camaro.js", true)]
@@ -118,7 +119,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
 #[case::twilio("integration/twilio.js", true)]
 #[case::typescript("integration/typescript.js", true)]
-// #[case::uglify("integration/uglify.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::uglify("integration/uglify.js", true)]
 #[case::vm2("integration/vm2.js", true)]
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]

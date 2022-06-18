@@ -653,7 +653,7 @@ impl Task {
     }
 
     pub(crate) fn execute(&self, tt: &dyn TurboTasksBackendApi) -> NativeTaskFuture {
-        println!("execute {}", self.get_description());
+        // println!("execute {}", self.get_description());
         match &self.ty {
             TaskType::Root(bound_fn) => bound_fn(),
             TaskType::Once(mutex) => {

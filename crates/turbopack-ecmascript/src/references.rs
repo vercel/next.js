@@ -278,6 +278,39 @@ pub async fn module_references(
                             .await?;
                         }
                     }
+                    JsValue::Member(_, obj, props) => {
+                        if let JsValue::Array(..) = &**obj {
+                            let args = linked_args().await?;
+                            let linked_array = link_value(JsValue::MemberCall(
+                                args.len(),
+                                obj.clone(),
+                                props.clone(),
+                                args,
+                            ))
+                            .await?;
+                            if let JsValue::Array(_, elements) = linked_array {
+                                for ele in elements {
+                                    if let JsValue::Call(_, callee, args) = ele {
+                                        handle_call_boxed(
+                                            handler,
+                                            source,
+                                            context,
+                                            span,
+                                            &callee,
+                                            this,
+                                            &args,
+                                            link_value,
+                                            is_typescript,
+                                            references,
+                                            target,
+                                            node_native_bindings,
+                                        )
+                                        .await?;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
                         let args = linked_args().await?;
                         if args.len() == 1 {
@@ -681,14 +714,9 @@ pub async fn module_references(
                                 continue;
                             }
                         }
-                        let obj = link(&var_graph, obj.clone(), &linker, &cache).await?;
-                        let func = link(
-                            &var_graph,
-                            JsValue::member(box obj.clone(), box prop.clone()),
-                            &linker,
-                            &cache,
-                        )
-                        .await?;
+                        let obj = link_value(obj.clone()).await?;
+                        let func =
+                            link_value(JsValue::member(box obj.clone(), box prop.clone())).await?;
 
                         handle_call(
                             &handler,

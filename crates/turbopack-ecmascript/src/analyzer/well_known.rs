@@ -347,7 +347,7 @@ pub fn fs_module_member(prop: JsValue) -> JsValue {
             | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync" => {
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
                     word.clone(),
-                ))
+                ));
             }
             "promises" => return JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
             _ => {}
