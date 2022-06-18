@@ -38,6 +38,50 @@ describe('Next.js Script - Primary Strategies', () => {
     stopApp(server)
   })
 
+  it('should execute scripts with any strategy in Document or Page inside or outside of Head', async () => {
+    const expected = {
+      'script-bi-inline-in-doc-in-head': true,
+      'script-ai-inline-in-doc-in-head': true,
+      'script-lo-inline-in-doc-in-head': true,
+      // 'script-w-inline-in-doc-in-head': true,
+      'script-bi-inline-in-doc-out-head': true,
+      'script-ai-inline-in-doc-out-head': true,
+      'script-lo-inline-in-doc-out-head': true,
+      // 'script-w-inline-in-doc-out-head': true,
+      'script-bi-inline-in-page-in-head': true,
+      'script-ai-inline-in-page-in-head': true,
+      'script-lo-inline-in-page-in-head': true,
+      // 'script-w-inline-in-page-in-head': true,
+      'script-bi-inline-in-page-out-head': true,
+      'script-ai-inline-in-page-out-head': true,
+      'script-lo-inline-in-page-out-head': true,
+      // 'script-w-inline-in-page-out-head': true,
+    }
+    const scripts = Object.keys(expected)
+
+    const actual = scripts.reduce((acc, script) => {
+      acc[script] = false
+      return acc
+    }, {})
+
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await waitFor(1000)
+      const logs = await browser.log()
+
+      logs.forEach(({ message }) => {
+        if (message in actual) {
+          actual[message] = true
+        }
+      })
+
+      expect(actual).toEqual(expected)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('priority afterInteractive', async () => {
     let browser
     try {
@@ -194,31 +238,14 @@ describe('Next.js Script - Primary Strategies', () => {
     const html = await renderViaHTTP(appPort, '/page5')
     const $ = cheerio.load(html)
 
-    const script = $('#inline-before')
+    const script = $('#script-bi-inline-in-doc-in-head')
     expect(script.length).toBe(1)
 
     // Script is inserted before CSS
     expect(
-      $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+      $(`#script-bi-inline-in-doc-in-head ~ link[href^="/_next/static/css"]`)
+        .length
     ).toBeGreaterThan(0)
-  })
-
-  it('priority beforeInteractive with inline script should execute', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/page7')
-
-      await waitFor(1000)
-
-      const logs = await browser.log()
-      expect(
-        logs.some((log) =>
-          log.message.includes('beforeInteractive inline script run')
-        )
-      ).toBe(true)
-    } finally {
-      if (browser) await browser.close()
-    }
   })
 
   it('Does not duplicate inline scripts', async () => {
