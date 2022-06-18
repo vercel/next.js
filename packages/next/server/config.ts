@@ -44,7 +44,7 @@ const experimentalWarning = execOnce(
   }
 )
 
-const notExistedExperimentalFeatureWarning = execOnce(
+const missingExperimentalWarning = execOnce(
   (configFileName: string, features: string[]) => {
     const s = features.length > 1 ? 's' : ''
     const dont = features.length > 1 ? 'do not' : 'does not'
@@ -96,29 +96,30 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       if (key === 'experimental' && typeof value === 'object') {
-        const notExistedExperimentalFeatures: string[] = []
-        const enabledExperimentalFeatures: (keyof ExperimentalConfig)[] = []
+        const enabledMissingExperiments: string[] = []
+        const enabledExperiments: (keyof ExperimentalConfig)[] = []
 
-        for (const featureName of Object.keys(
-          value
-        ) as (keyof ExperimentalConfig)[]) {
-          if (!(featureName in defaultConfig.experimental!)) {
-            notExistedExperimentalFeatures.push(featureName)
-          } else if (
-            value[featureName] !== defaultConfig.experimental![featureName]
-          ) {
-            enabledExperimentalFeatures.push(featureName)
+        // defaultConfig.experimental is predefined and will never be undefined
+        // This is only a type guard for the typescript
+        if (defaultConfig.experimental) {
+          for (const featureName of Object.keys(
+            value
+          ) as (keyof ExperimentalConfig)[]) {
+            if (!(featureName in defaultConfig.experimental)) {
+              enabledMissingExperiments.push(featureName)
+            } else if (
+              value[featureName] !== defaultConfig.experimental[featureName]
+            ) {
+              enabledExperiments.push(featureName)
+            }
           }
         }
 
-        if (notExistedExperimentalFeatures.length > 0) {
-          notExistedExperimentalFeatureWarning(
-            configFileName,
-            notExistedExperimentalFeatures
-          )
+        if (enabledMissingExperiments.length > 0) {
+          missingExperimentalWarning(configFileName, enabledMissingExperiments)
         }
-        if (enabledExperimentalFeatures.length > 0) {
-          experimentalWarning(configFileName, enabledExperimentalFeatures)
+        if (enabledExperiments.length > 0) {
+          experimentalWarning(configFileName, enabledExperiments)
         }
       }
 
