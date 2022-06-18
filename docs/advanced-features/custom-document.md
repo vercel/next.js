@@ -100,7 +100,9 @@ You can use the built-in `DocumentContext` type and change the file name to `./p
 import Document, { DocumentContext, DocumentInitialProps } from 'next/document'
 
 class MyDocument extends Document {
-  static async getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
     const initialProps = await Document.getInitialProps(ctx)
 
     return initialProps
