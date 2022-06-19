@@ -569,12 +569,9 @@ function handleHardNavigation({ url }: { url: string }) {
     parsedUrl.pathname === location.pathname &&
     parsedUrl.protocol === location.protocol
   ) {
-    console.error(
-      new Error(
-        `Invariant: attempted to hard navigate to the same URL ${url} ${location.href}`
-      )
+    throw new Error(
+      `Invariant: attempted to hard navigate to the same URL ${url} ${location.href}`
     )
-    return
   }
   window.location.href = url
 }

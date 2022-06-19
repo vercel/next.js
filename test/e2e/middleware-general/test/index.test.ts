@@ -297,7 +297,10 @@ describe('Middleware Runtime', () => {
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
-      await check(() => browser.elementByCss('body').text(), /Hello World/)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Hello World/
+      )
 
       expect(await browser.eval('window.next.router.query')).toEqual({
         from: 'config',
