@@ -1,109 +1,290 @@
----
-description: Start a Next.js app programmatically using a custom server.
----
+<html class="v2 i-amphtml-singledoc i-amphtml-standalone" dir="ltr" lang="en-US" xmlns="http://www.w3.org/1999/xhtml" xmlns:b="http://www.google.com/2005/gml/b" xmlns:data="http://www.google.com/2005/gml/data" xmlns:expr="http://www.google.com/2005/gml/expr" amp-version="2206071918001"><head><style amp-runtime="">html{overflow-x:hidden!important}html.i-amphtml-fie{height:100%!important;width:100%!important}html:not([amp4ads]),html:not([amp4ads]) body{height:auto!important}html:not([amp4ads]) body{margin:0!important}body{-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;-ms-text-size-adjust:100%;text-size-adjust:100%}html.i-amphtml-singledoc.i-amphtml-embedded{-ms-touch-action:pan-y pinch-zoom;touch-action:pan-y pinch-zoom}html.i-amphtml-fie>body,html.i-amphtml-singledoc>body{overflow:visible!important}html.i-amphtml-fie:not(.i-amphtml-inabox)>body,html.i-amphtml-singledoc:not(.i-amphtml-inabox)>body{position:relative!important}html.i-amphtml-ios-embed-legacy>body{overflow-x:hidden!important;overflow-y:auto!important;position:absolute!important}html.i-amphtml-ios-embed{overflow-y:auto!important;position:static}#i-amphtml-wrapper{overflow-x:hidden!important;overflow-y:auto!important;position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;margin:0!important;display:block!important}html.i-amphtml-ios-embed.i-amphtml-ios-overscroll,html.i-amphtml-ios-embed.i-amphtml-ios-overscroll>#i-amphtml-wrapper{-webkit-overflow-scrolling:touch!important}#i-amphtml-wrapper>body{position:relative!important;border-top:1px solid transparent!important}#i-amphtml-wrapper+body{visibility:visible}#i-amphtml-wrapper+body .i-amphtml-lightbox-element,#i-amphtml-wrapper+body[i-amphtml-lightbox]{visibility:hidden}#i-amphtml-wrapper+body[i-amphtml-lightbox] .i-amphtml-lightbox-element{visibility:visible}#i-amphtml-wrapper.i-amphtml-scroll-disabled,.i-amphtml-scroll-disabled{overflow-x:hidden!important;overflow-y:hidden!important}amp-instagram{padding:54px 0px 0px!important;background-color:#fff}amp-iframe iframe{box-sizing:border-box!important}[amp-access][amp-access-hide]{display:none}[subscriptions-dialog],body:not(.i-amphtml-subs-ready) [subscriptions-action],body:not(.i-amphtml-subs-ready) [subscriptions-section]{display:none!important}amp-experiment,amp-live-list>[update]{display:none}amp-list[resizable-children]>.i-amphtml-loading-container.amp-hidden{display:none!important}amp-list [fetch-error],amp-list[load-more] [load-more-button],amp-list[load-more] [load-more-end],amp-list[load-more] [load-more-failed],amp-list[load-more] [load-more-loading]{display:none}amp-list[diffable] div[role=list]{display:block}amp-story-page,amp-story[standalone]{min-height:1px!important;display:block!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;width:100%!important}amp-story[standalone]{background-color:#000!important;position:relative!important}amp-story-page{background-color:#757575}amp-story .amp-active>div,amp-story .i-amphtml-loader-background{display:none!important}amp-story-page:not(:first-of-type):not([distance]):not([active]){transform:translateY(1000vh)!important}amp-autocomplete{position:relative!important;display:inline-block!important}amp-autocomplete>input,amp-autocomplete>textarea{padding:0.5rem;border:1px solid rgba(0,0,0,0.33)}.i-amphtml-autocomplete-results,amp-autocomplete>input,amp-autocomplete>textarea{font-size:1rem;line-height:1.5rem}[amp-fx^=fly-in]{visibility:hidden}amp-script[nodom],amp-script[sandboxed]{position:fixed!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;visibility:hidden}
+/*# sourceURL=/css/ampdoc.css*/[hidden]{display:none!important}.i-amphtml-element{display:inline-block}.i-amphtml-blurry-placeholder{transition:opacity 0.3s cubic-bezier(0.0,0.0,0.2,1)!important;pointer-events:none}[layout=nodisplay]:not(.i-amphtml-element){display:none!important}.i-amphtml-layout-fixed,[layout=fixed][width][height]:not(.i-amphtml-layout-fixed){display:inline-block;position:relative}.i-amphtml-layout-responsive,[layout=responsive][width][height]:not(.i-amphtml-layout-responsive),[width][height][heights]:not([layout]):not(.i-amphtml-layout-responsive),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-layout-responsive){display:block;position:relative}.i-amphtml-layout-intrinsic,[layout=intrinsic][width][height]:not(.i-amphtml-layout-intrinsic){display:inline-block;position:relative;max-width:100%}.i-amphtml-layout-intrinsic .i-amphtml-sizer{max-width:100%}.i-amphtml-intrinsic-sizer{max-width:100%;display:block!important}.i-amphtml-layout-container,.i-amphtml-layout-fixed-height,[layout=container],[layout=fixed-height][height]:not(.i-amphtml-layout-fixed-height){display:block;position:relative}.i-amphtml-layout-fill,.i-amphtml-layout-fill.i-amphtml-notbuilt,[layout=fill]:not(.i-amphtml-layout-fill),body noscript>*{display:block;overflow:hidden!important;position:absolute;top:0;left:0;bottom:0;right:0}body noscript>*{position:absolute!important;width:100%;height:100%;z-index:2}body noscript{display:inline!important}.i-amphtml-layout-flex-item,[layout=flex-item]:not(.i-amphtml-layout-flex-item){display:block;position:relative;-ms-flex:1 1 auto;flex:1 1 auto}.i-amphtml-layout-fluid{position:relative}.i-amphtml-layout-size-defined{overflow:hidden!important}.i-amphtml-layout-awaiting-size{position:absolute!important;top:auto!important;bottom:auto!important}i-amphtml-sizer{display:block!important}@supports (aspect-ratio:1/1){i-amphtml-sizer.i-amphtml-disable-ar{display:none!important}}.i-amphtml-blurry-placeholder,.i-amphtml-fill-content{display:block;height:0;max-height:100%;max-width:100%;min-height:100%;min-width:100%;width:0;margin:auto}.i-amphtml-layout-size-defined .i-amphtml-fill-content{position:absolute;top:0;left:0;bottom:0;right:0}.i-amphtml-replaced-content,.i-amphtml-screen-reader{padding:0!important;border:none!important}.i-amphtml-screen-reader{position:fixed!important;top:0px!important;left:0px!important;width:4px!important;height:4px!important;opacity:0!important;overflow:hidden!important;margin:0!important;display:block!important;visibility:visible!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:8px!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:12px!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:16px!important}.i-amphtml-unresolved{position:relative;overflow:hidden!important}.i-amphtml-select-disabled{-webkit-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.i-amphtml-notbuilt,[layout]:not(.i-amphtml-element),[width][height][heights]:not([layout]):not(.i-amphtml-element),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-element){position:relative;overflow:hidden!important;color:transparent!important}.i-amphtml-notbuilt:not(.i-amphtml-layout-container)>*,[layout]:not([layout=container]):not(.i-amphtml-element)>*,[width][height][heights]:not([layout]):not(.i-amphtml-element)>*,[width][height][sizes]:not([layout]):not(.i-amphtml-element)>*{display:none}amp-img:not(.i-amphtml-element)[i-amphtml-ssr]>img.i-amphtml-fill-content{display:block}.i-amphtml-notbuilt:not(.i-amphtml-layout-container),[layout]:not([layout=container]):not(.i-amphtml-element),[width][height][heights]:not([layout]):not(.i-amphtml-element),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-element){color:transparent!important;line-height:0!important}.i-amphtml-ghost{visibility:hidden!important}.i-amphtml-element>[placeholder],[layout]:not(.i-amphtml-element)>[placeholder],[width][height][heights]:not([layout]):not(.i-amphtml-element)>[placeholder],[width][height][sizes]:not([layout]):not(.i-amphtml-element)>[placeholder]{display:block;line-height:normal}.i-amphtml-element>[placeholder].amp-hidden,.i-amphtml-element>[placeholder].hidden{visibility:hidden}.i-amphtml-element:not(.amp-notsupported)>[fallback],.i-amphtml-layout-container>[placeholder].amp-hidden,.i-amphtml-layout-container>[placeholder].hidden{display:none}.i-amphtml-layout-size-defined>[fallback],.i-amphtml-layout-size-defined>[placeholder]{position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:1}amp-img[i-amphtml-ssr]:not(.i-amphtml-element)>[placeholder]{z-index:auto}.i-amphtml-notbuilt>[placeholder]{display:block!important}.i-amphtml-hidden-by-media-query{display:none!important}.i-amphtml-element-error{background:red!important;color:#fff!important;position:relative!important}.i-amphtml-element-error:before{content:attr(error-message)}i-amp-scroll-container,i-amphtml-scroll-container{position:absolute;top:0;left:0;right:0;bottom:0;display:block}i-amp-scroll-container.amp-active,i-amphtml-scroll-container.amp-active{overflow:auto;-webkit-overflow-scrolling:touch}.i-amphtml-loading-container{display:block!important;pointer-events:none;z-index:1}.i-amphtml-notbuilt>.i-amphtml-loading-container{display:block!important}.i-amphtml-loading-container.amp-hidden{visibility:hidden}.i-amphtml-element>[overflow]{cursor:pointer;position:relative;z-index:2;visibility:hidden;display:initial;line-height:normal}.i-amphtml-layout-size-defined>[overflow]{position:absolute}.i-amphtml-element>[overflow].amp-visible{visibility:visible}template{display:none!important}.amp-border-box,.amp-border-box *,.amp-border-box :after,.amp-border-box :before{box-sizing:border-box}amp-pixel{display:none!important}amp-analytics,amp-auto-ads,amp-story-auto-ads{position:fixed!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;visibility:hidden}amp-story{visibility:hidden!important}html.i-amphtml-fie>amp-analytics{position:initial!important}[visible-when-invalid]:not(.visible),form [submit-error],form [submit-success],form [submitting]{display:none}amp-accordion{display:block!important}@media (min-width:1px){:where(amp-accordion>section)>:first-child{margin:0;background-color:#efefef;padding-right:20px;border:1px solid #dfdfdf}:where(amp-accordion>section)>:last-child{margin:0}}amp-accordion>section{float:none!important}amp-accordion>section>*{float:none!important;display:block!important;overflow:hidden!important;position:relative!important}amp-accordion,amp-accordion>section{margin:0}amp-accordion:not(.i-amphtml-built)>section>:last-child{display:none!important}amp-accordion:not(.i-amphtml-built)>section[expanded]>:last-child{display:block!important}
+/*# sourceURL=/css/ampshared.css*/</style><style amp-extension="amp-loader">.i-amphtml-loader-background{position:absolute;top:0;left:0;bottom:0;right:0;background-color:#f8f8f8}.i-amphtml-new-loader{display:inline-block;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;color:#aaa}.i-amphtml-new-loader-size-default,.i-amphtml-new-loader-size-small{width:72px;height:72px}.i-amphtml-new-loader-logo{transform-origin:center;opacity:0;animation:i-amphtml-new-loader-scale-and-fade-in 0.8s ease-in forwards;animation-delay:0.6s;animation-delay:calc(0.6s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-logo{display:none}.i-amphtml-new-loader-logo-default{fill:currentColor;animation:i-amphtml-new-loader-fade-out 0.8s ease-out forwards;animation-delay:1.8s;animation-delay:calc(1.8s - var(--loader-delay-offset))}.i-amphtml-new-loader-has-shim{color:#fff!important}.i-amphtml-new-loader-shim{width:72px;height:72px;border-radius:50%;display:none;transform-origin:center;opacity:0;background-color:rgba(0,0,0,0.6);animation:i-amphtml-new-loader-scale-and-fade-in 0.8s ease-in forwards;animation-delay:0.6s;animation-delay:calc(0.6s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-shim{width:48px;height:48px;margin:12px}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-shim{display:initial}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-logo-default{display:none}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-transparent-on-shim{fill:transparent!important}.i-amphtml-new-loader-logo,.i-amphtml-new-loader-shim,.i-amphtml-new-loader-spinner-wrapper{position:absolute;top:0;left:0;bottom:0;right:0}.i-amphtml-new-loader-spinner-wrapper{margin:12px}.i-amphtml-new-loader-spinner{stroke:currentColor;stroke-width:1.5px;opacity:0;animation:i-amphtml-new-loader-fade-in 0.8s ease-in forwards;animation-delay:1.8s;animation-delay:calc(1.8s - var(--loader-delay-offset))}.i-amphtml-new-loader-spinner-path{animation:frame-position-first-spin 0.6s steps(30),frame-position-infinite-spin 1.2s steps(59) infinite;animation-delay:2.8s,3.4s;animation-delay:calc(2.8s - var(--loader-delay-offset)),calc(3.4s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-spinner{transform:scale(0.54545);stroke-width:2.75px}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-spinner-path{animation-delay:1.4s,2s;animation-delay:calc(1.4s - var(--loader-delay-offset)),calc(2s - var(--loader-delay-offset))}.i-amphtml-new-loader *{animation-play-state:paused}.amp-active>.i-amphtml-new-loader *{animation-play-state:running}.i-amphtml-new-loader-ad-logo{display:-ms-flexbox;display:flex;-ms-flex-align:center;align-items:center;-ms-flex-pack:center;justify-content:center;width:100%;height:100%}.i-amphtml-new-loader-ad-label{all:initial!important;display:inline-block!important;padding:0 0.4ch!important;border:1px solid!important;border-radius:2px!important;color:currentColor!important;font-size:11px!important;font-family:sans-serif!important;line-height:1.1!important;visibility:inherit!important}@keyframes i-amphtml-new-loader-fade-in{0%{opacity:0}to{opacity:1}}@keyframes i-amphtml-new-loader-fade-out{0%{opacity:1}to{opacity:0}}@keyframes i-amphtml-new-loader-scale-and-fade-in{0%{opacity:0;transform:scale(0)}50%{transform:scale(1)}to{opacity:1}}@keyframes frame-position-first-spin{0%{transform:translateX(0)}to{transform:translateX(-1440px)}}@keyframes frame-position-infinite-spin{0%{transform:translateX(-1440px)}to{transform:translateX(-4272px)}}
+/*# sourceURL=/extensions/amp-loader/0.1/amp-loader.css*/</style>
+<link href="https://www.blogger.com/static/v1/widgets/2975350028-css_bundle_v2.css" rel="stylesheet" type="text/css">
+<meta charset="UTF-8">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+<meta content="blogger" name="generator">
+<link href="https://serverkamboja.blogspot.com/favicon.ico" rel="icon" type="image/x-icon">
+<link href="https://serverkamboja.blogspot.com/" rel="canonical">
+<link rel="alternate" type="application/atom+xml" title="LP server kamboja - Atom" href="https://serverkamboja.blogspot.com/feeds/posts/default">
+<link rel="alternate" type="application/rss+xml" title="LP server kamboja - RSS" href="https://serverkamboja.blogspot.com/feeds/posts/default?alt=rss">
+<link rel="service.post" type="application/atom+xml" title="LP server kamboja - Atom" href="https://www.blogger.com/feeds/9033699419430399347/posts/default">
+<link rel="me" href="https://www.blogger.com/profile/00236007350146683098">
+<!--[if IE]><script type="text/javascript" src="https://www.blogger.com/static/v1/jsbin/3194052407-ieretrofit.js"></script>
+<![endif]-->
+<meta content="https://serverkamboja.blogspot.com/" property="og:url">
+<meta content="LP server kamboja" property="og:title">
+<meta content="" property="og:description">
+<!--[if IE]> <script> (function() { var html5 = ("abbr,article,aside,audio,canvas,datalist,details," + "figure,footer,header,hgroup,mark,menu,meter,nav,output," + "progress,section,time,video").split(','); for (var i = 0; i < html5.length; i++) { document.createElement(html5[i]); } try { document.execCommand('BackgroundImageCache', false, true); } catch(e) {} })(); </script> <![endif]-->
+<meta content="ketaslot slot online deposit Pulsa tanpa potongan" name="description">
+<meta content="ketaslot, Keta Slot, slot deposit pulsa, deposit pulsa tanpa potongan, slot online, slot pulsa, slot, slot deposit dana, slot dan togel, togel online, togel terpercaya dan live casino" name="keywords">
+<meta content="U3h_lEK-ReOUrDCt7S0ddWrYk0tLTpmk3RwUQ_GUzLA" name="google-site-verification">
+<link href="http://157.230.247.82/" rel="canonical">
+<title>LP server kamboja</title>
+<!--[if lt IE 9]> <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script> <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script> <![endif]-->
+<style id="page-skin-1" type="text/css"><!--
+#comments,#blog-pager,.post-feeds,.blog-feeds{display:none;}
+.widget{margin:0 !important;}
 
-# Custom Server
+--></style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js" type="text/javascript"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<link href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" media="all" rel="stylesheet">
+<link href="https://www.blogger.com/dyn-css/authorization.css?targetBlogID=9033699419430399347&amp;zx=9e483f9d-aee2-4c28-b2dc-efa9140d171d" media="print" onload="if(media!='all')media='all'" rel="stylesheet" i-amphtml-timeout="974"><noscript><link href='https://www.blogger.com/dyn-css/authorization.css?targetBlogID=9033699419430399347&amp;zx=9e483f9d-aee2-4c28-b2dc-efa9140d171d' rel='stylesheet'/></noscript>
+<meta name="google-adsense-platform-account" content="ca-host-pub-1556223355139109">
+<meta name="google-adsense-platform-domain" content="blogspot.com">
 
-<details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-express">Express integration</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-hapi">Hapi integration</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/ssr-caching">SSR Caching</a></li>
-  </ul>
-</details>
+<link rel="preconnect" href="https://blogger.googleusercontent.com" referrerpolicy="origin"><link rel="preconnect" href="https://i.ibb.co" referrerpolicy="origin"><script async="" custom-element="amp-loader" data-script="amp-loader" i-amphtml-inserted="" crossorigin="anonymous" src="https://cdn.ampproject.org/rtv/012206071918001/v0/amp-loader-0.1.js"></script><script async="" custom-element="amp-auto-lightbox" data-script="amp-auto-lightbox" i-amphtml-inserted="" crossorigin="anonymous" src="https://cdn.ampproject.org/rtv/012206071918001/v0/amp-auto-lightbox-0.1.js"></script><script async="" custom-element="amp-loader" data-script="amp-loader" i-amphtml-inserted="" crossorigin="anonymous" src="https://cdn.ampproject.org/rtv/012206071918001/v0/amp-loader-0.1.js"></script><link rel="preconnect" href="https://serverkamboja.blogspot.com" referrerpolicy="origin"></head>
+<body class="amp-mode-mouse amp-mode-keyboard-active" style="animation: 0s ease 0s 1 normal none running none; opacity: 1; visibility: visible;">
+<div class="contentarea" id="contenta-area">
+<div class="mainblogsec section" id="content-area"><div class="widget Blog" data-version="1" id="Blog1">
+<div class="blog-posts hfeed">
 
-By default, Next.js includes its own server with `next start`. If you have an existing backend, you can still use it with Next.js (this is not a custom server). A custom Next.js server allows you to start a server 100% programmatically in order to use custom server patterns. Most of the time, you will not need this – but it's available for complete customization.
+          <div class="date-outer">
+        
 
-> **Note:** A custom server **cannot** be deployed on [Vercel](https://vercel.com/solutions/nextjs).
+          <div class="date-posts">
+        
+<div class="post-outer">
+<article class="post hentry">
+<meta content="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png" itemprop="image">
+<a name="8287803528710742678"></a>
+<div class="post-header-line-1"></div>
+<div class="post-body entry-content" id="post-body-8287803528710742678">
+<div id="summary8287803528710742678"><style amp-runtime="">html{overflow-x:hidden!important}html.i-amphtml-fie{height:100%!important;width:100%!important}html:not([amp4ads]),html:not([amp4ads]) body{height:auto!important}html:not([amp4ads]) body{margin:0!important}body{-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;-ms-text-size-adjust:100%;text-size-adjust:100%}html.i-amphtml-singledoc.i-amphtml-embedded{-ms-touch-action:pan-y pinch-zoom;touch-action:pan-y pinch-zoom}html.i-amphtml-fie>body,html.i-amphtml-singledoc>body{overflow:visible!important}html.i-amphtml-fie:not(.i-amphtml-inabox)>body,html.i-amphtml-singledoc:not(.i-amphtml-inabox)>body{position:relative!important}html.i-amphtml-ios-embed-legacy>body{overflow-x:hidden!important;overflow-y:auto!important;position:absolute!important}html.i-amphtml-ios-embed{overflow-y:auto!important;position:static}#i-amphtml-wrapper{overflow-x:hidden!important;overflow-y:auto!important;position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;margin:0!important;display:block!important}html.i-amphtml-ios-embed.i-amphtml-ios-overscroll,html.i-amphtml-ios-embed.i-amphtml-ios-overscroll>#i-amphtml-wrapper{-webkit-overflow-scrolling:touch!important}#i-amphtml-wrapper>body{position:relative!important;border-top:1px solid transparent!important}#i-amphtml-wrapper+body{visibility:visible}#i-amphtml-wrapper+body .i-amphtml-lightbox-element,#i-amphtml-wrapper+body[i-amphtml-lightbox]{visibility:hidden}#i-amphtml-wrapper+body[i-amphtml-lightbox] .i-amphtml-lightbox-element{visibility:visible}#i-amphtml-wrapper.i-amphtml-scroll-disabled,.i-amphtml-scroll-disabled{overflow-x:hidden!important;overflow-y:hidden!important}amp-instagram{padding:54px 0px 0px!important;background-color:#fff}amp-iframe iframe{box-sizing:border-box!important}[amp-access][amp-access-hide]{display:none}[subscriptions-dialog],body:not(.i-amphtml-subs-ready) [subscriptions-action],body:not(.i-amphtml-subs-ready) [subscriptions-section]{display:none!important}amp-experiment,amp-live-list>[update]{display:none}amp-list[resizable-children]>.i-amphtml-loading-container.amp-hidden{display:none!important}amp-list [fetch-error],amp-list[load-more] [load-more-button],amp-list[load-more] [load-more-end],amp-list[load-more] [load-more-failed],amp-list[load-more] [load-more-loading]{display:none}amp-list[diffable] div[role=list]{display:block}amp-story-page,amp-story[standalone]{min-height:1px!important;display:block!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;width:100%!important}amp-story[standalone]{background-color:#000!important;position:relative!important}amp-story-page{background-color:#757575}amp-story .amp-active>div,amp-story .i-amphtml-loader-background{display:none!important}amp-story-page:not(:first-of-type):not([distance]):not([active]){transform:translateY(1000vh)!important}amp-autocomplete{position:relative!important;display:inline-block!important}amp-autocomplete>input,amp-autocomplete>textarea{padding:0.5rem;border:1px solid rgba(0,0,0,0.33)}.i-amphtml-autocomplete-results,amp-autocomplete>input,amp-autocomplete>textarea{font-size:1rem;line-height:1.5rem}[amp-fx^=fly-in]{visibility:hidden}amp-script[nodom],amp-script[sandboxed]{position:fixed!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;visibility:hidden}
+/*# sourceURL=/css/ampdoc.css*/[hidden]{display:none!important}.i-amphtml-element{display:inline-block}.i-amphtml-blurry-placeholder{transition:opacity 0.3s cubic-bezier(0.0,0.0,0.2,1)!important;pointer-events:none}[layout=nodisplay]:not(.i-amphtml-element){display:none!important}.i-amphtml-layout-fixed,[layout=fixed][width][height]:not(.i-amphtml-layout-fixed){display:inline-block;position:relative}.i-amphtml-layout-responsive,[layout=responsive][width][height]:not(.i-amphtml-layout-responsive),[width][height][heights]:not([layout]):not(.i-amphtml-layout-responsive),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-layout-responsive){display:block;position:relative}.i-amphtml-layout-intrinsic,[layout=intrinsic][width][height]:not(.i-amphtml-layout-intrinsic){display:inline-block;position:relative;max-width:100%}.i-amphtml-layout-intrinsic .i-amphtml-sizer{max-width:100%}.i-amphtml-intrinsic-sizer{max-width:100%;display:block!important}.i-amphtml-layout-container,.i-amphtml-layout-fixed-height,[layout=container],[layout=fixed-height][height]:not(.i-amphtml-layout-fixed-height){display:block;position:relative}.i-amphtml-layout-fill,.i-amphtml-layout-fill.i-amphtml-notbuilt,[layout=fill]:not(.i-amphtml-layout-fill),body noscript>*{display:block;overflow:hidden!important;position:absolute;top:0;left:0;bottom:0;right:0}body noscript>*{position:absolute!important;width:100%;height:100%;z-index:2}body noscript{display:inline!important}.i-amphtml-layout-flex-item,[layout=flex-item]:not(.i-amphtml-layout-flex-item){display:block;position:relative;-ms-flex:1 1 auto;flex:1 1 auto}.i-amphtml-layout-fluid{position:relative}.i-amphtml-layout-size-defined{overflow:hidden!important}.i-amphtml-layout-awaiting-size{position:absolute!important;top:auto!important;bottom:auto!important}i-amphtml-sizer{display:block!important}@supports (aspect-ratio:1/1){i-amphtml-sizer.i-amphtml-disable-ar{display:none!important}}.i-amphtml-blurry-placeholder,.i-amphtml-fill-content{display:block;height:0;max-height:100%;max-width:100%;min-height:100%;min-width:100%;width:0;margin:auto}.i-amphtml-layout-size-defined .i-amphtml-fill-content{position:absolute;top:0;left:0;bottom:0;right:0}.i-amphtml-replaced-content,.i-amphtml-screen-reader{padding:0!important;border:none!important}.i-amphtml-screen-reader{position:fixed!important;top:0px!important;left:0px!important;width:4px!important;height:4px!important;opacity:0!important;overflow:hidden!important;margin:0!important;display:block!important;visibility:visible!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:8px!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:12px!important}.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader~.i-amphtml-screen-reader{left:16px!important}.i-amphtml-unresolved{position:relative;overflow:hidden!important}.i-amphtml-select-disabled{-webkit-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.i-amphtml-notbuilt,[layout]:not(.i-amphtml-element),[width][height][heights]:not([layout]):not(.i-amphtml-element),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-element){position:relative;overflow:hidden!important;color:transparent!important}.i-amphtml-notbuilt:not(.i-amphtml-layout-container)>*,[layout]:not([layout=container]):not(.i-amphtml-element)>*,[width][height][heights]:not([layout]):not(.i-amphtml-element)>*,[width][height][sizes]:not([layout]):not(.i-amphtml-element)>*{display:none}amp-img:not(.i-amphtml-element)[i-amphtml-ssr]>img.i-amphtml-fill-content{display:block}.i-amphtml-notbuilt:not(.i-amphtml-layout-container),[layout]:not([layout=container]):not(.i-amphtml-element),[width][height][heights]:not([layout]):not(.i-amphtml-element),[width][height][sizes]:not(img):not([layout]):not(.i-amphtml-element){color:transparent!important;line-height:0!important}.i-amphtml-ghost{visibility:hidden!important}.i-amphtml-element>[placeholder],[layout]:not(.i-amphtml-element)>[placeholder],[width][height][heights]:not([layout]):not(.i-amphtml-element)>[placeholder],[width][height][sizes]:not([layout]):not(.i-amphtml-element)>[placeholder]{display:block;line-height:normal}.i-amphtml-element>[placeholder].amp-hidden,.i-amphtml-element>[placeholder].hidden{visibility:hidden}.i-amphtml-element:not(.amp-notsupported)>[fallback],.i-amphtml-layout-container>[placeholder].amp-hidden,.i-amphtml-layout-container>[placeholder].hidden{display:none}.i-amphtml-layout-size-defined>[fallback],.i-amphtml-layout-size-defined>[placeholder]{position:absolute!important;top:0!important;left:0!important;right:0!important;bottom:0!important;z-index:1}amp-img[i-amphtml-ssr]:not(.i-amphtml-element)>[placeholder]{z-index:auto}.i-amphtml-notbuilt>[placeholder]{display:block!important}.i-amphtml-hidden-by-media-query{display:none!important}.i-amphtml-element-error{background:red!important;color:#fff!important;position:relative!important}.i-amphtml-element-error:before{content:attr(error-message)}i-amp-scroll-container,i-amphtml-scroll-container{position:absolute;top:0;left:0;right:0;bottom:0;display:block}i-amp-scroll-container.amp-active,i-amphtml-scroll-container.amp-active{overflow:auto;-webkit-overflow-scrolling:touch}.i-amphtml-loading-container{display:block!important;pointer-events:none;z-index:1}.i-amphtml-notbuilt>.i-amphtml-loading-container{display:block!important}.i-amphtml-loading-container.amp-hidden{visibility:hidden}.i-amphtml-element>[overflow]{cursor:pointer;position:relative;z-index:2;visibility:hidden;display:initial;line-height:normal}.i-amphtml-layout-size-defined>[overflow]{position:absolute}.i-amphtml-element>[overflow].amp-visible{visibility:visible}template{display:none!important}.amp-border-box,.amp-border-box *,.amp-border-box :after,.amp-border-box :before{box-sizing:border-box}amp-pixel{display:none!important}amp-analytics,amp-auto-ads,amp-story-auto-ads{position:fixed!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;visibility:hidden}amp-story{visibility:hidden!important}html.i-amphtml-fie>amp-analytics{position:initial!important}[visible-when-invalid]:not(.visible),form [submit-error],form [submit-success],form [submitting]{display:none}amp-accordion{display:block!important}@media (min-width:1px){:where(amp-accordion>section)>:first-child{margin:0;background-color:#efefef;padding-right:20px;border:1px solid #dfdfdf}:where(amp-accordion>section)>:last-child{margin:0}}amp-accordion>section{float:none!important}amp-accordion>section>*{float:none!important;display:block!important;overflow:hidden!important;position:relative!important}amp-accordion,amp-accordion>section{margin:0}amp-accordion:not(.i-amphtml-built)>section>:last-child{display:none!important}amp-accordion:not(.i-amphtml-built)>section[expanded]>:last-child{display:block!important}
+/*# sourceURL=/css/ampshared.css*/</style><style amp-extension="amp-loader">.i-amphtml-loader-background{position:absolute;top:0;left:0;bottom:0;right:0;background-color:#f8f8f8}.i-amphtml-new-loader{display:inline-block;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;color:#aaa}.i-amphtml-new-loader-size-default,.i-amphtml-new-loader-size-small{width:72px;height:72px}.i-amphtml-new-loader-logo{transform-origin:center;opacity:0;animation:i-amphtml-new-loader-scale-and-fade-in 0.8s ease-in forwards;animation-delay:0.6s;animation-delay:calc(0.6s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-logo{display:none}.i-amphtml-new-loader-logo-default{fill:currentColor;animation:i-amphtml-new-loader-fade-out 0.8s ease-out forwards;animation-delay:1.8s;animation-delay:calc(1.8s - var(--loader-delay-offset))}.i-amphtml-new-loader-has-shim{color:#fff!important}.i-amphtml-new-loader-shim{width:72px;height:72px;border-radius:50%;display:none;transform-origin:center;opacity:0;background-color:rgba(0,0,0,0.6);animation:i-amphtml-new-loader-scale-and-fade-in 0.8s ease-in forwards;animation-delay:0.6s;animation-delay:calc(0.6s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-shim{width:48px;height:48px;margin:12px}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-shim{display:initial}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-logo-default{display:none}.i-amphtml-new-loader-has-shim .i-amphtml-new-loader-transparent-on-shim{fill:transparent!important}.i-amphtml-new-loader-logo,.i-amphtml-new-loader-shim,.i-amphtml-new-loader-spinner-wrapper{position:absolute;top:0;left:0;bottom:0;right:0}.i-amphtml-new-loader-spinner-wrapper{margin:12px}.i-amphtml-new-loader-spinner{stroke:currentColor;stroke-width:1.5px;opacity:0;animation:i-amphtml-new-loader-fade-in 0.8s ease-in forwards;animation-delay:1.8s;animation-delay:calc(1.8s - var(--loader-delay-offset))}.i-amphtml-new-loader-spinner-path{animation:frame-position-first-spin 0.6s steps(30),frame-position-infinite-spin 1.2s steps(59) infinite;animation-delay:2.8s,3.4s;animation-delay:calc(2.8s - var(--loader-delay-offset)),calc(3.4s - var(--loader-delay-offset))}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-spinner{transform:scale(0.54545);stroke-width:2.75px}.i-amphtml-new-loader-size-small .i-amphtml-new-loader-spinner-path{animation-delay:1.4s,2s;animation-delay:calc(1.4s - var(--loader-delay-offset)),calc(2s - var(--loader-delay-offset))}.i-amphtml-new-loader *{animation-play-state:paused}.amp-active>.i-amphtml-new-loader *{animation-play-state:running}.i-amphtml-new-loader-ad-logo{display:-ms-flexbox;display:flex;-ms-flex-align:center;align-items:center;-ms-flex-pack:center;justify-content:center;width:100%;height:100%}.i-amphtml-new-loader-ad-label{all:initial!important;display:inline-block!important;padding:0 0.4ch!important;border:1px solid!important;border-radius:2px!important;color:currentColor!important;font-size:11px!important;font-family:sans-serif!important;line-height:1.1!important;visibility:inherit!important}@keyframes i-amphtml-new-loader-fade-in{0%{opacity:0}to{opacity:1}}@keyframes i-amphtml-new-loader-fade-out{0%{opacity:1}to{opacity:0}}@keyframes i-amphtml-new-loader-scale-and-fade-in{0%{opacity:0;transform:scale(0)}50%{transform:scale(1)}to{opacity:1}}@keyframes frame-position-first-spin{0%{transform:translateX(0)}to{transform:translateX(-1440px)}}@keyframes frame-position-infinite-spin{0%{transform:translateX(-1440px)}to{transform:translateX(-4272px)}}
+/*# sourceURL=/extensions/amp-loader/0.1/amp-loader.css*/</style>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport">
+<title>SLOT88 &gt; Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan</title>
+<link href="https://winwindivorcesolutions.com/faqs/" rel="canonical">
+<link href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjwMkqTN8WcHqwqjOQfg2FMFzxjFdw4TdjC_Q3bJFlYc5CujmUTffb_orRlflL6eNekeJayPN-Ga0a6d0mODK63uTiebxCKgR8UW3HuR5ee5Ru2HSJf_gbP7H7FvUDA6kU0HKX-G2pItzjlCKUzAzx765V6IP_OfsIAXCkpjLx6fjLK-buv2HwykahT/s45/favicon1.png" rel="shortcut icon" sizes="16x16">
+<meta content="Rajabet888 adalah situs server kamboja dengan tingkat kemenangan tinggi didukung deposit pulsa tanpa potongan" name="description">
+<meta content="slot server kamboja, server kamboja mudah menang, slot online server eropa terpercaya, slot depo pulsa tanpa potongan, link rtp winrate tinggi, situs slot server kamboja" name="keywords">
+<meta content="notranslate" name="google">
+<meta content="index, follow" name="robots">
+<meta content="general" name="rating">
+<meta content="id_ID" name="geo.region">
+<meta content="index,follow" name="googlebot">
+<meta content="id" name="geo.country">
+<meta content="Id-ID" name="language">
+<meta content="global" name="distribution">
+<meta content="Indonesia" name="geo.placename">
+<meta content="Slot Deposit Pulsa" name="author">
+<meta content="Slot Deposit Pulsa" name="publisher">
+<meta content="C830W2eP0R5_-cQlvtGTjMfntozi89Pt7El4VySflgA" name="google-site-verification">
+<meta content="website" property="og:type">
+<meta content="id_ID" property="og:locale">
+<meta content="en_ID" property="og:locale:alternate">
+<meta content="SLOT88 > Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" property="og:title">
+<meta content="ANALISA4D adalah situs slot gacor deposit pulsa 10rb tanpa potongan yang melayani game judi slot88 online deposit pulsa 5000 terbaik no 1 di Indonesia." property="og:description">
+<meta content="https://winwindivorcesolutions.com/faqs/" property="og:url">
+<meta content="Slot Deposit Pulsa" property="og:site_name">
+<meta content="https://www.shoopeselot.com/wp-content/uploads/2022/04/analisa4d-slot-online-deposit-pulsa-gacor.png" property="og:image">
+<meta content="Slot Deposit Pulsa" property="og:image:alt">
+<meta content="summary_large_image" name="twitter:card">
+<meta content="@Slot Deposit Pulsa" name="twitter:site">
+<meta content="@Slot Deposit Pulsa" name="twitter:creator">
+<meta content="https://winwindivorcesolutions.com/faqs/" name="twitter:domain">
+<meta content="SLOT88 > Slot Gacor Deposit E-Money Terpercaya" name="twitter:title">
+<meta content="Rajabet888 adalah situs server kamboja dengan tingkat kemenangan tinggi didukung deposit pulsa tanpa potongan" name="twitter:description">
+<meta content="https://www.shoopeselot.com/wp-content/uploads/2022/04/analisa4d-slot-online-deposit-pulsa-gacor.png" name="twitter:image">
+<script type="application/ld+json">
+            {
+                "@context": "http://schema.org",
+                "@type": "Game",
+                "name": "Slot Deposit Pulsa",
+                "author": { "@type": "Person", "name": "Slot Deposit Pulsa" },
+                "headline": "SLOT88 > Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan",
+                "description": "Rajabet888 Situs judi online server kamboja terpercaya dengan dukungan deposit pulsa tanpa potongan",
+                "keywords": ["situs server kamboja, slot server kamboja, slot server eropa russia jerman, slot deposit pulsa terpercaya, situs server kamboja winrate tinggi"],
+                "image": "https://www.shoopeselot.com/wp-content/uploads/2022/04/analisa4d-slot-online-deposit-pulsa-gacor.png",
+                "url": "https://winwindivorcesolutions.com/faqs/",
+                "publisher": { "@type": "Organization", "name": "Slot Deposit Pulsa" },
+                "aggregateRating": { "@type": "AggregateRating", "ratingValue": "97", "bestRating": "100", "worstRating": "0", "ratingCount": "8523162" },
+                "inLanguage": "id-ID"
+            }
+</script>
+<link as="script" href="https://cdn.ampproject.org/v0.js" rel="preload">
+<link href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;display=swap" rel="stylesheet">     
+ <style amp-boilerplate="">body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>    
+<style amp-custom="">html{font-family:sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}a,body,center,div,em,footer,h1,h2,h3,h4,h5,h6,header,html,iframe,img,li,menu,nav,ol,p,span,table,tbody,td,tfoot,th,thead,tr,ul{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline}a,a:active,a:focus{outline:0;text-decoration:none}a{color:#fff}*{padding:0;margin:0;-moz-box-sizing:border-box;-webkit-box-sizing:border-box;box-sizing:border-box}h1,h2,h3,h4,h5,h6{margin-top:0;margin-bottom:.5rem}p{margin:0 0 10px}p{margin-top:0;margin-bottom:1rem}.clear{clear:both}.text-center{text-align:center}.align-middle{vertical-align:middle}body{background:linear-gradient(90deg,#130815 0,#100b12 100%)}.container{padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}.marquee{font-family:'Trebuchet MS';background:linear-gradient(#8339cd,#050042);color:#fff;padding:5px 0;border:1px solid #fff;border-radius:5px;max-width:100%;text-align:center}.btn{background:linear-gradient(to bottom,#634702 0,#EB9900 100%);display:inline-block;padding:9px 12px;touch-action:manipulation;cursor:pointer;user-select:none;border:1px solid transparent;border-radius:5px;font:400 22px Bebas Neue;width:100%;color:#fff;letter-spacing:1.5px}.btn:hover{box-shadow:0 0 5px 3px #fff}.btn-daf{animation:blinking 1s infinite;transition:all .4s}@keyframes blinking{0%{border:2px solid rgb(255,255,255)}100%{border:2px solid #FCB401}}.blink-me{animation-name:blinker;animation-duration:1s;animation-timing-function:linear;animation-iteration-count:infinite}.anim{animation:blinkings 1s infinite}@keyframes blinkings{0%{border:2px solid #fff}100%{border:2px solid #054487}}@media (min-width:768px){.container{max-width:720px}.marquee{font-size:20px}}@media (min-width:992px){.container{max-width:960px}}@media (min-width:1200px){.container{width:1000px}}.row{display:-ms-flexbox;display:flex;-ms-flex-wrap:wrap;flex-wrap:wrap;margin-right:-15px;margin-left:-15px}.p-0{padding:0}.col-md-12,.col-md-4,.col-md-6,.col-md-8,.col-xs-6{position:relative;width:100%;padding-right:15px;padding-left:15px}.col-xs-6{float:left;width:50%}@media (min-width:768px){.navbar{display:none}.col-md-4{-ms-flex:0 0 33.333333%;flex:0 0 33.333333%;max-width:33.333333%}.col-md-6{-ms-flex:0 0 50%;flex:0 0 50%;max-width:50%}.col-md-8{-ms-flex:0 0 66.666667%;flex:0 0 66.666667%;max-width:66.666667%}.col-md-12{-ms-flex:0 0 100%;flex:0 0 100%;width:100%}.order-first{-ms-flex-order:-1;order:-1}.logocil,.mob{display:none}.logform{padding-top:1.3rem}.nopadding{padding:0}.mob{display:none}}@media (max-width:768px){.des,.logo{display:none}.navbar{position:fixed;background-color:#131313;right:0;left:0;z-index:1030;min-height:50px;width:100%;float:left;padding:5px}.content{padding-top:0}.border-bt{border-bottom:1px solid #dee2e6;border-top:1px solid #dee2e6;padding:5px 15px}.marquee{font-size:4vw}.space{padding-top:80px}.mob{display:block}}.pt-1,.py-1{padding-top:.25rem}.pb-1,.py-1{padding-bottom:.25rem}.pt-2,.py-2{padding-top:.5rem}.pb-2,.py-2{padding-bottom:.5rem}.mt-2,.my-2{margin-top:.5rem}.mb-2,.my-2{margin-bottom:.5rem}.mt-3,.my-3{margin-top:.75rem}.mb-3,.my-3{margin-bottom:.75rem}.mt-4{margin-top:1.1rem}.mt-5,.my-5{margin-top:2rem}.mb-5,.my-5{margin-bottom:2rem}.pb-5{padding-bottom:1.25rem}.mx-5{margin-left:.75rem;margin-right:.75rem}.pt-3{padding-top:1rem}.pt-5{padding-top:2rem}.bg-dark{background-color:#020202}.slide{width:100%;border:1px solid #EB9900;border-radius:4px;box-shadow:0 0 6px 1px #EB9900}.slide img{object-fit:contain}.social-card{display:block;background-image:linear-gradient(#8339cd,#050042);padding:9px 12px;border-radius:5px;font-weight:700;font-family:Bebas Neue;font-size:22px;transition:.2s all;position:relative;color:#fff;border:1px solid #00d0ff;letter-spacing:1.1px;box-shadow:0 0 6px 1px #c52fdb}.social-card img{object-fit:contain}.social-card:focus,.social-card:hover{box-shadow:0 0 6px 4px #fff}.info{background-image:linear-gradient(#8339cd,#050042);color:#fff;font-family:Bebas Neue;transition:.2s all;position:relative;border:1px solid #00d0ff;border-radius:5px;letter-spacing:1.2px;padding:10px 10px 0;line-height:.99;box-shadow:0 0 6px 1px #c52fdb}.info h3{font-size:26px;color:#56dff1}.info p{border-bottom:1px solid #dee2e6}.bottom{float:left;width:100%}.word{color:#fff;padding:20px 30px;border-radius:20px;border:1px dashed #EB9900;font-family:Bebas Neue}.word h1{font-size:1.5em}.word h2{font-size:1.3em}.word h3{font-size:1.1em}.word p{font-size:1em}.word a{color:#EB9900}.footer{text-decoration:none;color:#fff}.chat{border-radius:10px;box-shadow:0 0 6px 1px #fff}.chat:hover{opacity:.8}table.ANALISA4D{color:#fff}table.ANALISA4D td,table.ANALISA4D th{border:3px solid #EB9900;padding:6px;font-family:Bebas Neue;letter-spacing:.69px}</style>
+<script async="" src="https://cdn.ampproject.org/v0.js"></script>
 
-> Before deciding to use a custom server, please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
+<script async="" crossorigin="anonymous" custom-element="amp-auto-lightbox" data-script="amp-auto-lightbox" i-amphtml-inserted="" src="https://cdn.ampproject.org/rtv/012204221712000/v0/amp-auto-lightbox-0.1.js"></script><script async="" crossorigin="anonymous" custom-element="amp-loader" data-script="amp-loader" i-amphtml-inserted="" src="https://cdn.ampproject.org/rtv/012204221712000/v0/amp-loader-0.1.js"></script>
 
-Take a look at the following example of a custom server:
+<div class="navbar">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12 text-center">
+                <div class="logocil">
+                    <amp-img alt="Slot88" class="i-amphtml-element i-amphtml-layout-fixed i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="62px" i-amphtml-layout="fixed" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png" style="height: 62px; width: 150px;" width="150px"><img decoding="async" alt="Slot88" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="clear"></div>
+<div class="space"></div>
+<div class="content">
+    <div class="container">
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <div class="logo text-center">
+                    <amp-img alt="Slot88" class="i-amphtml-element i-amphtml-layout-fixed i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="83px" i-amphtml-layout="fixed" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png" style="height: 83px; width: 200px; --loader-delay-offset:415ms !important;" width="200px"><img alt="Slot88" class="i-amphtml-fill-content i-amphtml-replaced-content" decoding="async" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png"><img decoding="async" alt="Slot88" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgG2y55qZxukLvIEmceEOdShn7cyomkFb3rvt8phQ9Vxiw3qJwWXe0IN_4rKQjHOY34QHdyD54Z_TFwhoJkCDXhBi9Bx1yma2QDVNmLT8avje4BSbHTXmweb5o6BgHBGcJnUdKUilo2udWOlYZat1LxTu8Ce2tN_pjydYKqw9TDu96eLjfk3pH0FcsZ/s320/logo1deks.png" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="row logform">
+                    <div class="col-xs-6">
+                        <a href="https://rajabet888.co/register?ref=supergacor" rel="nofollow noreferrer"><button class="btn btn-log" type="login">LOGIN </button></a>
+                    </div>
+                    <div class="col-xs-6">
+                        <a href="https://rajabet888.co/register?ref=supergacor" rel="nofollow noreferrer"><span class="blink-me"><button class="btn btn-daf" type="login">DAFTAR</button></span></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row my-2">
+            <div class="col-md-12 mb-1">
+                <div class="slide mt-2">
+                    <amp-img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="i-amphtml-element i-amphtml-layout-responsive i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="385px" i-amphtml-layout="responsive" layout="responsive" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgjXvR1tAhZ7JTnMLtkgTJajdS-GDZELkiQ-IN_SZxFRIJeKHV3jtATUWpREMOdYLSx9kbA31hYSIWgPbxFRVA_usWH7SDrX86xa4kFlqgtqlOTD7iz1oQF7nyTsxQSddCss-hg_jx2oBHAbUn-k8CAqRR6VM1qWLailfF8BxetQb2_0t7C1j7s112l/s320/banner1deks.png" style="--loader-delay-offset:22ms !important;" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" width="800px"><i-amphtml-sizer slot="i-amphtml-svc" style="padding-top: 48.125%;"></i-amphtml-sizer><img alt="Rajabet888 situs judi server kamboja terpercaya" class="i-amphtml-fill-content i-amphtml-replaced-content" decoding="async" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEj9r6ebhxqiULNU_K7iFamW-faUzsgokyHt5F9rFEsOGol6gzz51SMY3gO0PL1DspMXOvTMsc8ZSAzCGIp_0PpS7TdXq_HaJHgFNZwaYgF163hCTLeR5tTgxJfG2y34_SiMAeQnVgOLEODKr-NwbvAj7BF9FoV5tep3u_be8YZyFZZc_g018tqWz5I-/s320/banner2deks.png" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan"><img decoding="async" alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgjXvR1tAhZ7JTnMLtkgTJajdS-GDZELkiQ-IN_SZxFRIJeKHV3jtATUWpREMOdYLSx9kbA31hYSIWgPbxFRVA_usWH7SDrX86xa4kFlqgtqlOTD7iz1oQF7nyTsxQSddCss-hg_jx2oBHAbUn-k8CAqRR6VM1qWLailfF8BxetQb2_0t7C1j7s112l/s320/banner1deks.png" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img>
+                </div>
+            </div>
+        </div>
+    </div>  
+</div>
+<div class="bottom bg-dark">
+    <div class="container">
+        <div class="row p-0" style="background-color: #020202;">
+            <div class="col-md-6 pt-3 p-0 text-center">
+                <div class="row">
+                    <div class="col-xs-6">
+                    <a href="https://rajabet888.co/register?ref=supergacor" rel="nofollow noreferrer" target="_blank">
+                        <amp-img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="chat i-amphtml-element i-amphtml-layout-responsive i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="50px" i-amphtml-layout="responsive" layout="responsive" src="https://i.ibb.co/T83crq7/livechat-ANALISA4D.gif" style="--loader-delay-offset:23ms !important;" width="168px"><i-amphtml-sizer slot="i-amphtml-svc" style="padding-top: 29.7619%;"></i-amphtml-sizer><img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="i-amphtml-fill-content i-amphtml-replaced-content" decoding="async" src="https://i.ibb.co/T83crq7/livechat-ANALISA4D.gif"><img decoding="async" alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" src="https://i.ibb.co/T83crq7/livechat-ANALISA4D.gif" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img></a>
+                    </div>
+                    <div class="col-xs-6">
+                    <a href="https://api.whatsapp.com/send/?phone=6281937089888" rel="nofollow noreferrer" target="_blank">
+                        <amp-img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="chat i-amphtml-element i-amphtml-layout-responsive i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="50px" i-amphtml-layout="responsive" layout="responsive" src="https://i.ibb.co/kDwP9th/whatsapp-ANALISA4D.gif" style="--loader-delay-offset:23ms !important;" width="168px"><i-amphtml-sizer slot="i-amphtml-svc" style="padding-top: 29.7619%;"></i-amphtml-sizer><img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="i-amphtml-fill-content i-amphtml-replaced-content" decoding="async" src="https://i.ibb.co/kDwP9th/whatsapp-ANALISA4D.gif"><img decoding="async" alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" src="https://i.ibb.co/kDwP9th/whatsapp-ANALISA4D.gif" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img></a>   
+                    </div>
+                </div>  
+            </div>
+            <div class="col-md-6" style="padding: 20px;">
+                <amp-img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="i-amphtml-element i-amphtml-layout-responsive i-amphtml-layout-size-defined i-amphtml-built i-amphtml-layout" height="75px" i-amphtml-layout="responsive" layout="responsive" src="https://i.ibb.co/pJnHNpq/provider-ANALISA4D.png" style="--loader-delay-offset:22ms !important;" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" width="500px"><i-amphtml-sizer slot="i-amphtml-svc" style="padding-top: 15%;"></i-amphtml-sizer><img alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" class="i-amphtml-fill-content i-amphtml-replaced-content" decoding="async" src="https://i.ibb.co/pJnHNpq/provider-ANALISA4D.png" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan"><img decoding="async" alt="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" title="Situs Judi Slot Deposit Pulsa 10rb Tanpa Potongan" src="https://i.ibb.co/pJnHNpq/provider-ANALISA4D.png" class="i-amphtml-fill-content i-amphtml-replaced-content"></amp-img>
+            </div>
+        </div>
+        <div class="row mb-3 mt-5" style="background-color: #020202;">
+            <div class="col-md-12 pb-5 text-center">
+                <div class="word">
+                    <div style="text-align: justify;">
+               
 
-```js
-// server.js
-const { createServer } = require('http')
-const { parse } = require('url')
-const next = require('next')
+<table class="ANALISA4D mt-3" style="width: 100%;">
+<thead>
+<tr>
+<th colspan="3" style="background: linear-gradient(#bd9d00,#ffd507); font-size: 1.5em;">INFORMASI SITUS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nama Situs:</td>
+<td>RajaBet888 Situs Server Kamboja Berizin Resmi</td>
+</tr>
+<tr>
+<td>Deposit:</td>
+<td>💸IDR 10.000</td>
+</tr>
+<tr>
+<td>Game Judi Online:</td>
+<td>🎰 Slot Online, ⚽️ Judi Bola, 🎲 Casino Online,⚖️ Togel Online</td>
+</tr>
+<tr>
+<td>Provider Slot:</td>
+<td>🟦 Pragmatic Play, 🟧 Habanero, 🟩 Micro Gaming, 🟥 Joker123</td>
+</tr>
+<tr>
+<td>Slot Online Gacor:</td>
+<td>🔱 Gates of Olympus, 🍭 Sweet Bonanza, 💎 Aztec Gems</td>
+</tr>
+<tr>
+<td>Rating:</td>
+<td>⭐⭐⭐⭐⭐ 8.523,162 User</td>
+</tr>
+<tr>
+<td>Win Rate:</td>
+<td>⚡ 97%</td>
+</tr>
+<tr>
+<td>Sistem Deposit:</td>
+<td>✅ Bank Lokal, Deposit Pulsa Tanpa Potongan, Qris &amp; E-Wallet</td>
+</tr>
+</tbody>
+</table>
+&nbsp;
+<h1>Rajabet888 Server Kamboja dengan Peminat Tinggi</h1>
 
-const dev = process.env.NODE_ENV !== 'production'
-const hostname = 'localhost'
-const port = 3000
-// when using middleware `hostname` and `port` must be provided below
-const app = next({ dev, hostname, port })
-const handle = app.getRequestHandler()
+<p style="text-align: justify;">Saat ini website server kamboja dikenal dengan kemenangan paling tinggi dibandingkan dengan server dari negara lainnya karena negara kamboja judi online sangatlah bebas dan legal di negara tersebut.</p>
 
-app.prepare().then(() => {
-  createServer(async (req, res) => {
-    try {
-      // Be sure to pass `true` as the second argument to `url.parse`.
-      // This tells it to parse the query portion of the URL.
-      const parsedUrl = parse(req.url, true)
-      const { pathname, query } = parsedUrl
+<p style="text-align: justify;">Faktor lain adalah karena keamanan negara kamboja membuat kami memutuskan untuk menggunakan server kamboja sebagai pusat website rajabet888 membuat data member kami sangat aman disimpan dalam server kamboja.</p>
 
-      if (pathname === '/a') {
-        await app.render(req, res, '/a', query)
-      } else if (pathname === '/b') {
-        await app.render(req, res, '/b', query)
-      } else {
-        await handle(req, res, parsedUrl)
-      }
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err)
-      res.statusCode = 500
-      res.end('internal server error')
-    }
-  }).listen(port, (err) => {
-    if (err) throw err
-    console.log(`> Ready on http://${hostname}:${port}`)
-  })
-})
-```
+<p style="text-align: justify;">Dewasa ini kita sering mendengar banyaknya situs judi online tidak mampu membayar WD membernya, namun itu tidak pernah terjadi dengan <a href="https://rajabet888.co/register?ref=supergacor">website server kamboja Rajabet888</a> karena kami tetap membayar kemenangan member, itu juga yang membuat kami sangat yakin untuk menjalankan Rajabet888 dengan proses transaksi yang cepat.</p>
 
-> `server.js` doesn't go through babel or webpack. Make sure the syntax and sources this file requires are compatible with the current node version you are running.
+<p style="text-align: justify;">Seperti hal nya kita berkendara di jalan raya, kita membutuhkan SIM yang saat ini sudah bisa dibuat secara online. Rajabet888 berserver di kamboja juga karena sudah dibekali izin resmi sebagai website judi terpercaya membuat member kami tidak ragu lagi untuk bermain di rajabet888.</p>
 
-To run the custom server you'll need to update the `scripts` in `package.json` like so:
+<h2>Link RTP Paling Gacor Server Kamboja</h2>
 
-```json
-"scripts": {
-  "dev": "node server.js",
-  "build": "next build",
-  "start": "NODE_ENV=production node server.js"
-}
-```
+<p style="text-align: justify;">Link RTP selama ini banyak yang menipu dan tidak menampilkan data sebenarnya membuat kita menjadi ragu dimanakah yang benar gacor pada hari ini.</p>
 
----
+<p style="text-align: justify;">Rajabet888 membuat link RTP server kamboja dengan kebenaran hampir sempurna untuk member setia rajabet888 meskipun member itu klaim bonus atau pun deposit pulsa tanpa potongan. Link RTP kami tidak memandang besaran nilai deposit atau jenis deposit, semua rata untuk member.</p>
 
-The custom server uses the following import to connect the server with the Next.js application:
+<p style="text-align: justify;">Tidak ada keraguan untuk bermain di Rajabet888 karena selain memproses dana member dengan cepat kami juga memberikan permainan dengan winrate tinggi dalam <a href="https://rajabet888.co/register?ref=supergacor">link RTP rajabet888</a>.</p>
 
-```js
-const next = require('next')
-const app = next({})
-```
+<p style="text-align: justify;">Harap Waspada dan Wajib Berhati-hati
+Kami sering menemukan situs dengan tampilan mirip Rajabet888 ataupun mengatasnamakan Rajabet888, kami ingin menghimbau kepada semua member kalau situs resmi Rajabet888 bisa ditanyakan langsung pada livechat yang online 24 jam. Jangan tertipu dengan tampilan dan orang yang mengaku sebagai admin Rajabet888.</p>
 
-The above `next` import is a function that receives an object with the following options:
+<p style="text-align: justify;">Karena saat ini banyak sekali website lain membuat tampilannya seperti Rajabet888 karena tau kami adalah server kamboja paling terpercaya membuat mereka ingin mencuri keuntungan dari member kami.</p>
+</div></div></div></div></div></div>
 
-- `dev`: `Boolean` - Whether or not to launch Next.js in dev mode. Defaults to `false`
-- `dir`: `String` - Location of the Next.js project. Defaults to `'.'`
-- `quiet`: `Boolean` - Hide error messages containing server information. Defaults to `false`
-- `conf`: `object` - The same object you would use in [next.config.js](/docs/api-reference/next.config.js/introduction.md). Defaults to `{}`
 
-The returned `app` can then be used to let Next.js handle requests as required.
+    <div class="container">
+        <div class="footer text-center pb-2">
+            <span>© 2022 <strong>SITUS JUDI ONLINE SERVER KAMBOJA TERPERCAYA</strong>.</span>
+        </div>
+    </div>
 
-## Disabling file-system routing
+</div>
+</div>
+</article>
+</div>
 
-By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename. If your project uses a custom server, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX.
+        </div></div>
+      
+</div>
+<div class="blog-pager" id="blog-pager">
+<a class="home-link" href="https://serverkamboja.blogspot.com/">Beranda</a>
+</div>
+<div class="clear"></div>
+<div class="blog-feeds">
+<div class="feed-links">
+Langganan:
+<a class="feed-link" href="https://serverkamboja.blogspot.com/feeds/posts/default" target="_blank" type="application/atom+xml">Postingan (Atom)</a>
+</div>
+</div>
+</div></div>
+<div class="bottomwidgets no-items section" id="widget-area"></div>
+</div>
 
-To disable this behavior and prevent routing based on files in `pages`, open `next.config.js` and disable the `useFileSystemPublicRoutes` config:
+<script type="text/javascript" src="https://www.blogger.com/static/v1/widgets/4190539912-widgets.js"></script>
+<script type="text/javascript">
+window['__wavt'] = 'AOuZoY7t7PV_fcF9amo2aEAjvhFvYW3HNg:1655445082405';_WidgetManager._Init('//www.blogger.com/rearrange?blogID\x3d9033699419430399347','//serverkamboja.blogspot.com/','9033699419430399347');
+_WidgetManager._SetDataContext([{'name': 'blog', 'data': {'blogId': '9033699419430399347', 'title': 'LP server kamboja', 'url': 'https://serverkamboja.blogspot.com/', 'canonicalUrl': 'https://serverkamboja.blogspot.com/', 'homepageUrl': 'https://serverkamboja.blogspot.com/', 'searchUrl': 'https://serverkamboja.blogspot.com/search', 'canonicalHomepageUrl': 'https://serverkamboja.blogspot.com/', 'blogspotFaviconUrl': 'https://serverkamboja.blogspot.com/favicon.ico', 'bloggerUrl': 'https://www.blogger.com', 'hasCustomDomain': false, 'httpsEnabled': true, 'enabledCommentProfileImages': true, 'gPlusViewType': 'FILTERED_POSTMOD', 'adultContent': false, 'analyticsAccountNumber': '', 'encoding': 'UTF-8', 'locale': 'id', 'localeUnderscoreDelimited': 'id', 'languageDirection': 'ltr', 'isPrivate': false, 'isMobile': false, 'isMobileRequest': false, 'mobileClass': '', 'isPrivateBlog': false, 'isDynamicViewsAvailable': true, 'feedLinks': '\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22LP server kamboja - Atom\x22 href\x3d\x22https://serverkamboja.blogspot.com/feeds/posts/default\x22 /\x3e\n\x3clink rel\x3d\x22alternate\x22 type\x3d\x22application/rss+xml\x22 title\x3d\x22LP server kamboja - RSS\x22 href\x3d\x22https://serverkamboja.blogspot.com/feeds/posts/default?alt\x3drss\x22 /\x3e\n\x3clink rel\x3d\x22service.post\x22 type\x3d\x22application/atom+xml\x22 title\x3d\x22LP server kamboja - Atom\x22 href\x3d\x22https://www.blogger.com/feeds/9033699419430399347/posts/default\x22 /\x3e\n', 'meTag': '\x3clink rel\x3d\x22me\x22 href\x3d\x22https://www.blogger.com/profile/00236007350146683098\x22 /\x3e\n', 'adsenseHostId': 'ca-host-pub-1556223355139109', 'adsenseHasAds': false, 'adsenseAutoAds': false, 'ieCssRetrofitLinks': '\x3c!--[if IE]\x3e\x3cscript type\x3d\x22text/javascript\x22 src\x3d\x22https://www.blogger.com/static/v1/jsbin/3194052407-ieretrofit.js\x22\x3e\x3c/script\x3e\n\x3c![endif]--\x3e', 'boqCommentIframeForm': true, 'loginRedirectParam': '', 'view': '', 'dynamicViewsCommentsSrc': '//www.blogblog.com/dynamicviews/4224c15c4e7c9321/js/comments.js', 'dynamicViewsScriptSrc': '//www.blogblog.com/dynamicviews/4485008abac83bd2', 'plusOneApiSrc': 'https://apis.google.com/js/plusone.js', 'disableGComments': true, 'sharing': {'platforms': [{'name': 'Dapatkan link', 'key': 'link', 'shareMessage': 'Dapatkan link', 'target': ''}, {'name': 'Facebook', 'key': 'facebook', 'shareMessage': 'Bagikan ke Facebook', 'target': 'facebook'}, {'name': 'BlogThis!', 'key': 'blogThis', 'shareMessage': 'BlogThis!', 'target': 'blog'}, {'name': 'Twitter', 'key': 'twitter', 'shareMessage': 'Bagikan ke Twitter', 'target': 'twitter'}, {'name': 'Pinterest', 'key': 'pinterest', 'shareMessage': 'Bagikan ke Pinterest', 'target': 'pinterest'}, {'name': 'Email', 'key': 'email', 'shareMessage': 'Email', 'target': 'email'}], 'disableGooglePlus': true, 'googlePlusShareButtonWidth': 0, 'googlePlusBootstrap': '\x3cscript type\x3d\x22text/javascript\x22\x3ewindow.___gcfg \x3d {\x27lang\x27: \x27id\x27};\x3c/script\x3e'}, 'hasCustomJumpLinkMessage': false, 'jumpLinkMessage': 'Baca selengkapnya', 'pageType': 'index', 'pageName': '', 'pageTitle': 'LP server kamboja'}}, {'name': 'features', 'data': {'sharing_get_link_dialog': 'true', 'sharing_native': 'false'}}, {'name': 'messages', 'data': {'edit': 'Edit', 'linkCopiedToClipboard': 'Tautan disalin ke papan klip!', 'ok': 'Oke', 'postLink': 'Tautan Pos'}}, {'name': 'template', 'data': {'name': 'custom', 'localizedName': 'Khusus', 'isResponsive': false, 'isAlternateRendering': false, 'isCustom': true}}, {'name': 'view', 'data': {'classic': {'name': 'classic', 'url': '?view\x3dclassic'}, 'flipcard': {'name': 'flipcard', 'url': '?view\x3dflipcard'}, 'magazine': {'name': 'magazine', 'url': '?view\x3dmagazine'}, 'mosaic': {'name': 'mosaic', 'url': '?view\x3dmosaic'}, 'sidebar': {'name': 'sidebar', 'url': '?view\x3dsidebar'}, 'snapshot': {'name': 'snapshot', 'url': '?view\x3dsnapshot'}, 'timeslide': {'name': 'timeslide', 'url': '?view\x3dtimeslide'}, 'isMobile': false, 'title': 'LP server kamboja', 'description': '', 'url': 'https://serverkamboja.blogspot.com/', 'type': 'feed', 'isSingleItem': false, 'isMultipleItems': true, 'isError': false, 'isPage': false, 'isPost': false, 'isHomepage': true, 'isArchive': false, 'isLabelSearch': false}}]);
+_WidgetManager._RegisterWidget('_BlogView', new _WidgetInfo('Blog1', 'content-area', document.getElementById('Blog1'), {'cmtInteractionsEnabled': false, 'lightboxEnabled': true, 'lightboxModuleUrl': 'https://www.blogger.com/static/v1/jsbin/2291525123-lbx.js', 'lightboxCssUrl': 'https://www.blogger.com/static/v1/v-css/3523451998-lightbox_bundle.css'}, 'displayModeFull'));
+</script>
 
-```js
-module.exports = {
-  useFileSystemPublicRoutes: false,
-}
-```
-
-> Note that `useFileSystemPublicRoutes` disables filename routes from SSR; client-side routing may still access those paths. When using this option, you should guard against navigation to routes you do not want programmatically.
-
-> You may also wish to configure the client-side router to disallow client-side redirects to filename routes; for that refer to [`router.beforePopState`](/docs/api-reference/next/router.md#router.beforePopState).
+</body></html>
