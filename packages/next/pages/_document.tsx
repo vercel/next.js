@@ -694,22 +694,24 @@ export class Head extends Component<HeadProps> {
     let { head } = this.context
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
+    let children = React.Children.toArray(this.props.children).filter(Boolean)
     if (head) {
       head.forEach((c) => {
         if (
-          c &&
-          c.type === 'link' &&
+          c?.type === 'link' &&
           c.props['rel'] === 'preload' &&
           c.props['as'] === 'style'
         ) {
           cssPreloads.push(c)
+        } else if (c?.type === Script) {
+          children.push(c)
         } else {
           c && otherHeadElements.push(c)
         }
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = React.Children.toArray(this.props.children).filter(Boolean)
+
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
