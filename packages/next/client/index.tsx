@@ -151,7 +151,9 @@ class Container extends React.Component<{
             shallow: !initialData.isFallback && !initialMatchesMiddleware,
           }
         )
-        .catch(() => {})
+        .catch((err) => {
+          if (!err.cancelled) throw err
+        })
     }
   }
 
