@@ -25,7 +25,6 @@ module.exports = function (task) {
 
       const isClient = serverOrClient === 'client'
 
-      /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
           type: 'commonjs',
@@ -33,7 +32,7 @@ module.exports = function (task) {
         },
         jsc: {
           loose: true,
-          externalHelpers: true,
+
           target: 'es2016',
           parser: {
             syntax: 'typescript',
@@ -56,7 +55,6 @@ module.exports = function (task) {
         },
       }
 
-      /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
         module: {
           type: 'commonjs',
@@ -69,9 +67,7 @@ module.exports = function (task) {
         },
         jsc: {
           loose: true,
-          // Do not enable externalHelpers for server-side code
-          // "_is_native_function.mjs" helper is not compatible with edge runtime
-          externalHelpers: false,
+
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
