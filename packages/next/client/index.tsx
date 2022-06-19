@@ -106,7 +106,7 @@ class Container extends React.Component<{
     // - if it is a client-side skeleton (fallback render)
     const handleQueryUpdate = (matchesMiddleware = false) => {
       if (
-        router.isSsr &&
+        (router.isSsr || !router.isReady) &&
         // We don't update for 404 requests as this can modify
         // the asPath unexpectedly e.g. adding basePath when
         // it wasn't originally present

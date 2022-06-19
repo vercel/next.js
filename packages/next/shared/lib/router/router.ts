@@ -559,6 +559,26 @@ export function createKey() {
   return Math.random().toString(36).slice(2, 10)
 }
 
+function handleHardNavigation({ url }: { url: string }) {
+  // ensure we don't trigger a hard navigation to the same
+  // URL as this can end up with an infinite refresh
+  const parsedUrl = new URL(url, location.href)
+
+  if (
+    parsedUrl.hostname === location.hostname &&
+    parsedUrl.pathname === location.pathname &&
+    parsedUrl.protocol === location.protocol
+  ) {
+    console.error(
+      new Error(
+        `Invariant: attempted to hard navigate to the same URL ${url} ${location.href}`
+      )
+    )
+    return
+  }
+  window.location.href = url
+}
+
 export default class Router implements BaseRouter {
   basePath: string
 
@@ -904,7 +924,7 @@ export default class Router implements BaseRouter {
     forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
-      window.location.href = url
+      handleHardNavigation({ url })
       return false
     }
     const shouldResolveHref =
@@ -961,7 +981,7 @@ export default class Router implements BaseRouter {
         // if the locale isn't configured hard navigate to show 404 page
         if (!this.locales?.includes(nextState.locale!)) {
           parsedAs.pathname = addLocale(parsedAs.pathname, nextState.locale)
-          window.location.href = formatWithValidation(parsedAs)
+          handleHardNavigation({ url: formatWithValidation(parsedAs) })
           // this was previously a return but was removed in favor
           // of better dead code elimination with regenerator runtime
           didNavigate = true
@@ -986,15 +1006,17 @@ export default class Router implements BaseRouter {
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = removeBasePath(as)
-          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
-            detectedDomain.domain
-          }${addBasePath(
-            `${
-              nextState.locale === detectedDomain.defaultLocale
-                ? ''
-                : `/${nextState.locale}`
-            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
-          )}`
+          handleHardNavigation({
+            url: `http${detectedDomain.http ? '' : 's'}://${
+              detectedDomain.domain
+            }${addBasePath(
+              `${
+                nextState.locale === detectedDomain.defaultLocale
+                  ? ''
+                  : `/${nextState.locale}`
+              }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+            )}`,
+          })
           // this was previously a return but was removed in favor
           // of better dead code elimination with regenerator runtime
           didNavigate = true
@@ -1086,7 +1108,7 @@ export default class Router implements BaseRouter {
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
       // do a server-side transition:
-      window.location.href = as
+      handleHardNavigation({ url: as })
       return false
     }
 
@@ -1134,7 +1156,7 @@ export default class Router implements BaseRouter {
         )
 
         if (rewritesResult.externalDest) {
-          location.href = as
+          handleHardNavigation({ url: as })
           return true
         }
         resolvedAs = rewritesResult.asPath
@@ -1164,7 +1186,7 @@ export default class Router implements BaseRouter {
             `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
-      window.location.href = as
+      handleHardNavigation({ url: as })
       return false
     }
 
@@ -1278,7 +1300,7 @@ export default class Router implements BaseRouter {
         if (routeInfo.type === 'redirect-internal') {
           return this.change(method, routeInfo.newUrl, routeInfo.newAs, options)
         } else {
-          window.location.href = routeInfo.destination
+          handleHardNavigation({ url: routeInfo.destination })
           return new Promise(() => {})
         }
       }
@@ -1322,7 +1344,7 @@ export default class Router implements BaseRouter {
             )
             return this.change(method, newUrl, newAs, options)
           }
-          window.location.href = destination
+          handleHardNavigation({ url: destination })
           return new Promise(() => {})
         }
 
@@ -1465,6 +1487,8 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
+    console.error(err)
+
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1479,7 +1503,7 @@ export default class Router implements BaseRouter {
       //  3. Internal error while loading the page
 
       // So, doing a hard reload is the proper way to deal with this.
-      window.location.href = as
+      handleHardNavigation({ url: as })
 
       // Changing the URL doesn't block executing the current code path.
       // So let's throw a cancellation error stop the routing logic.
@@ -2218,7 +2242,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
       ]).then(([pages, { __rewrites: rewrites }]: any) => {
-        let as = parsedRewriteTarget.pathname
+        let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
 
         if (
           isDynamicRoute(as) ||
