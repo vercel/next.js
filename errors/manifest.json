@@ -569,7 +569,7 @@
         {
           "path": "/errors/no-script-in-document-page.md",
           "redirect": {
-            "destination": "/errors/no-script-in-document"
+            "destination": "/docs/messages/no-script-in-document"
           }
         },
         {
