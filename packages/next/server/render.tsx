@@ -551,6 +551,24 @@ export async function renderToHTML(
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
+  const defaultErrorGetInitialProps =
+    pathname === '/_error' &&
+    (Component as any).getInitialProps ===
+      (Component as any).origGetInitialProps
+
+  if (
+    renderOpts.nextExport &&
+    hasPageGetInitialProps &&
+    !defaultErrorGetInitialProps
+  ) {
+    warn(
+      `Detected getInitialProps on page '${pathname}'` +
+        `while running "next export". It's recommended to use getStaticProps` +
+        `which has a more correct behavior for static exporting.` +
+        `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
+    )
+  }
+
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
@@ -1654,18 +1672,27 @@ export async function renderToHTML(
 }
 
 function errorToJSON(err: Error) {
+  let source: 'server' | 'edge-server' = 'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
   return {
     name: err.name,
+    source,
     message: stripAnsi(err.message),
     stack: err.stack,
-    middleware: (err as any).middleware,
   }
 }
 
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number } {
+): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
   if (dev) {
     return errorToJSON(err)
   }

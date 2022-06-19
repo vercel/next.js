@@ -24,6 +24,7 @@ describe('Middleware Rewrite', () => {
   tests()
   testsWithLocale()
   testsWithLocale('/fr')
+
   function tests() {
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
@@ -168,19 +169,6 @@ describe('Middleware Rewrite', () => {
       }, 'success')
     })
 
-    if (!(global as any).isNextDeploy) {
-      // runtime logs aren't currently available for deploy test
-      it(`warns about a query param deleted`, async () => {
-        await fetchViaHTTP(next.url, `/clear-query-params`, {
-          a: '1',
-          allowed: 'kept',
-        })
-        expect(next.cliOutput).toContain(
-          'Query params are no longer automatically merged for rewrites in middleware'
-        )
-      })
-    }
-
     it('should allow to opt-out prefetch caching', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.addCookie({ name: 'about-bypass', value: '1' })
@@ -193,6 +181,31 @@ describe('Middleware Rewrite', () => {
       const element = await browser.elementByCss('.title')
       expect(await element.text()).toEqual('About Bypassed Page')
     })
+
+    if (!(global as any).isNextDev) {
+      it('should cache data requests correctly', async () => {
+        const browser = await webdriver(next.url, '/')
+
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          for (const url of [
+            '/en/about.json?override=external',
+            '/en/about.json?override=internal',
+            '/en/rewrite-me-external-twice.json',
+            '/en/rewrite-me-to-about.json?override=internal',
+            '/en/rewrite-me-to-vercel.json',
+            '/en/rewrite-to-ab-test.json',
+          ]) {
+            if (!hrefs.some((href) => href.includes(url))) {
+              return JSON.stringify(hrefs, null, 2)
+            }
+          }
+          return 'yes'
+        }, 'yes')
+      })
+    }
 
     it(`should allow to rewrite keeping the locale in pathname`, async () => {
       const res = await fetchViaHTTP(next.url, '/fr/country', {
@@ -245,6 +258,41 @@ describe('Middleware Rewrite', () => {
       await browser.waitForElementByCss('.ja')
       await browser.elementByCss('#link-en2').click()
       await browser.waitForElementByCss('.en')
+    })
+
+    it('should allow to rewrite to a `beforeFiles` rewrite config', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/rewrite-to-beforefiles-rewrite`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Welcome Page A')
+
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#rewrite-to-beforefiles-rewrite').click()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Welcome Page A/
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `/rewrite-to-beforefiles-rewrite`
+      )
+    })
+
+    it('should allow to rewrite to a `afterFiles` rewrite config', async () => {
+      const res = await fetchViaHTTP(next.url, `/rewrite-to-afterfiles-rewrite`)
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Welcome Page B')
+
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#rewrite-to-afterfiles-rewrite').click()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Welcome Page B/
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `/rewrite-to-afterfiles-rewrite`
+      )
     })
   }
 

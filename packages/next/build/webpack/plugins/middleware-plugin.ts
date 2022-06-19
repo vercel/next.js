@@ -14,24 +14,26 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
+interface EdgeFunctionDefinition {
+  env: string[]
+  files: string[]
+  name: string
+  page: string
+  regexp: string
+  wasm?: WasmBinding[]
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
   clientInfo: [location: string, isSSR: boolean][]
-  middleware: {
-    [page: string]: {
-      env: string[]
-      files: string[]
-      name: string
-      page: string
-      regexp: string
-      wasm?: WasmBinding[]
-    }
-  }
+  middleware: { [page: string]: EdgeFunctionDefinition }
+  functions: { [page: string]: EdgeFunctionDefinition }
 }
 
 interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
+  edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
@@ -42,6 +44,7 @@ const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
   clientInfo: [],
   middleware: {},
+  functions: {},
   version: 1,
 }
 
@@ -133,6 +136,60 @@ function getCodeAnalizer(params: {
 
       handleExpression()
       return true
+    }
+
+    /**
+     * This expression handler allows to wrap a WebAssembly.compile invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     */
+    const handleWrapWasmCompileExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_compile__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
+
+      handleExpression()
+    }
+
+    /**
+     * This expression handler allows to wrap a WebAssembly.instatiate invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     *
+     * Note that we don't update `usingIndirectEval`, i.e. we don't abort a production build
+     * since we can't determine statically if the first parameter is a module (legit use) or
+     * a buffer (dynamic code generation).
+     */
+    const handleWrapWasmInstantiateExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_instantiate__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
     }
 
     /**
@@ -229,6 +286,12 @@ function getCodeAnalizer(params: {
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
       hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.compile`)
+        .tap(NAME, handleWrapWasmCompileExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.instantiate`)
+        .tap(NAME, handleWrapWasmInstantiateExpression)
     }
     hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
@@ -328,7 +391,7 @@ function getExtractMetadata(params: {
           }
 
           const error = new wp.WebpackError(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${entryName}${
+            `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
               typeof buildInfo.usingIndirectEval !== 'boolean'
                 ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
                     ', '
@@ -349,6 +412,8 @@ function getExtractMetadata(params: {
           entryMetadata.edgeSSR = buildInfo.nextEdgeSSR
         } else if (buildInfo?.nextEdgeMiddleware) {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
+        } else if (buildInfo?.nextEdgeApiFunction) {
+          entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
         }
 
         /**
@@ -425,23 +490,32 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
-      const page = metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
       const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 
-      middlewareManifest.middleware[page] = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
+      }
+
+      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
       }
     }
 
@@ -451,7 +525,7 @@ function getCreateAssets(params: {
 
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => [
-        key,
+        middlewareManifest.middleware[key].regexp,
         !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
       ]
     )
