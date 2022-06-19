@@ -108,7 +108,7 @@ class Container extends React.Component<{
     // - if middleware matches the current page (may have rewrite params)
     // - if rewrites in next.config.js match (may have rewrite params)
     if (
-      (router.isSsr || !router.isReady) &&
+      router.isSsr &&
       // We don't update for 404 requests as this can modify
       // the asPath unexpectedly e.g. adding basePath when
       // it wasn't originally present

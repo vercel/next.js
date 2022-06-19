@@ -935,9 +935,8 @@ export default class Router implements BaseRouter {
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
-    if ((options as any)._h) {
-      this.isReady = true
-    }
+    // or a navigation has occurred
+    this.isReady = true
 
     const prevLocale = nextState.locale
 
