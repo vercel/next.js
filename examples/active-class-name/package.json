@@ -8,7 +8,8 @@
   "dependencies": {
     "next": "latest",
     "react": "18.1.0",
-    "react-dom": "18.1.0"
+    "react-dom": "18.1.0",
+    "styled-jsx": "5.0.2"
   },
   "devDependencies": {
     "@types/node": "17.0.42",
