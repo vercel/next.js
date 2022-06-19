@@ -127,29 +127,31 @@ class Container extends React.Component<{
             initialMatchesMiddleware)))
     ) {
       // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          String(
-            assign(
-              urlQueryToSearchParams(router.query),
-              new URLSearchParams(location.search)
-            )
-          ),
-        asPath,
-        {
-          // @ts-ignore
-          // WARNING: `_h` is an internal option for handing Next.js
-          // client-side hydration. Your app should _never_ use this property.
-          // It may change at any time without notice.
-          _h: 1,
-          // Fallback pages must trigger the data fetch, so the transition is
-          // not shallow.
-          // Other pages (strictly updating query) happens shallowly, as data
-          // requirements would already be present.
-          shallow: !initialData.isFallback && !initialMatchesMiddleware,
-        }
-      )
+      router
+        .replace(
+          router.pathname +
+            '?' +
+            String(
+              assign(
+                urlQueryToSearchParams(router.query),
+                new URLSearchParams(location.search)
+              )
+            ),
+          asPath,
+          {
+            // @ts-ignore
+            // WARNING: `_h` is an internal option for handing Next.js
+            // client-side hydration. Your app should _never_ use this property.
+            // It may change at any time without notice.
+            _h: 1,
+            // Fallback pages must trigger the data fetch, so the transition is
+            // not shallow.
+            // Other pages (strictly updating query) happens shallowly, as data
+            // requirements would already be present.
+            shallow: !initialData.isFallback && !initialMatchesMiddleware,
+          }
+        )
+        .catch(() => {})
     }
   }
 

@@ -576,6 +576,34 @@ function handleHardNavigation({ url }: { url: string }) {
   window.location.href = url
 }
 
+const getCancelledHandler = ({
+  route,
+  router,
+}: {
+  route: string
+  router: Router
+}) => {
+  let cancelled = false
+  const cancel = (router.clc = () => {
+    cancelled = true
+  })
+
+  const handleCancelled = () => {
+    if (cancelled) {
+      const error: any = new Error(
+        `Abort fetching component for route: "${route}"`
+      )
+      error.cancelled = true
+      throw error
+    }
+
+    if (cancel === router.clc) {
+      router.clc = null
+    }
+  }
+  return handleCancelled
+}
+
 export default class Router implements BaseRouter {
   basePath: string
 
@@ -1583,6 +1611,8 @@ export default class Router implements BaseRouter {
      */
     let route = requestedRoute
     try {
+      const handleCancelled = getCancelledHandler({ route, router: this })
+
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (
         !hasMiddleware &&
@@ -1621,6 +1651,7 @@ export default class Router implements BaseRouter {
         locale: locale,
         router: this,
       })
+      handleCancelled()
 
       if (
         data?.effect?.type === 'redirect-internal' ||
@@ -2024,34 +2055,15 @@ export default class Router implements BaseRouter {
   }
 
   async fetchComponent(route: string) {
-    let cancelled = false
-    const cancel = (this.clc = () => {
-      cancelled = true
-    })
-
-    const handleCancelled = () => {
-      if (cancelled) {
-        const error: any = new Error(
-          `Abort fetching component for route: "${route}"`
-        )
-        error.cancelled = true
-        throw error
-      }
-
-      if (cancel === this.clc) {
-        this.clc = null
-      }
-    }
+    const handleCancelled = getCancelledHandler({ route, router: this })
 
     try {
       const componentResult = await this.pageLoader.loadPage(route)
-
       handleCancelled()
 
       return componentResult
     } catch (err) {
       handleCancelled()
-
       throw err
     }
   }
