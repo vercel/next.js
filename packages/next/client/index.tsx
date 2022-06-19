@@ -79,6 +79,7 @@ let headManager: {
   updateHead: (head: JSX.Element[]) => void
   getIsSsr?: () => boolean
 }
+let initialMatchesMiddleware = false
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
@@ -104,55 +105,52 @@ class Container extends React.Component<{
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
     // - if it is a client-side skeleton (fallback render)
-    const handleQueryUpdate = (matchesMiddleware = false) => {
-      if (
-        (router.isSsr || !router.isReady) &&
-        // We don't update for 404 requests as this can modify
-        // the asPath unexpectedly e.g. adding basePath when
-        // it wasn't originally present
-        initialData.page !== '/404' &&
-        initialData.page !== '/_error' &&
-        (initialData.isFallback ||
-          (initialData.nextExport &&
-            (isDynamicRoute(router.pathname) ||
-              location.search ||
-              process.env.__NEXT_HAS_REWRITES ||
-              matchesMiddleware)) ||
-          (initialData.props &&
-            initialData.props.__N_SSG &&
-            (location.search ||
-              process.env.__NEXT_HAS_REWRITES ||
-              matchesMiddleware)))
-      ) {
-        // update query on mount for exported pages
-        router.replace(
-          router.pathname +
-            '?' +
-            String(
-              assign(
-                urlQueryToSearchParams(router.query),
-                new URLSearchParams(location.search)
-              )
-            ),
-          asPath,
-          {
-            // @ts-ignore
-            // WARNING: `_h` is an internal option for handing Next.js
-            // client-side hydration. Your app should _never_ use this property.
-            // It may change at any time without notice.
-            _h: 1,
-            // Fallback pages must trigger the data fetch, so the transition is
-            // not shallow.
-            // Other pages (strictly updating query) happens shallowly, as data
-            // requirements would already be present.
-            shallow: !initialData.isFallback && !matchesMiddleware,
-          }
-        )
-      }
+    // - if middleware matches the current page (may have rewrite params)
+    // - if rewrites in next.config.js match (may have rewrite params)
+    if (
+      (router.isSsr || !router.isReady) &&
+      // We don't update for 404 requests as this can modify
+      // the asPath unexpectedly e.g. adding basePath when
+      // it wasn't originally present
+      initialData.page !== '/404' &&
+      initialData.page !== '/_error' &&
+      (initialData.isFallback ||
+        (initialData.nextExport &&
+          (isDynamicRoute(router.pathname) ||
+            location.search ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)) ||
+        (initialData.props &&
+          initialData.props.__N_SSG &&
+          (location.search ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)))
+    ) {
+      // update query on mount for exported pages
+      router.replace(
+        router.pathname +
+          '?' +
+          String(
+            assign(
+              urlQueryToSearchParams(router.query),
+              new URLSearchParams(location.search)
+            )
+          ),
+        asPath,
+        {
+          // @ts-ignore
+          // WARNING: `_h` is an internal option for handing Next.js
+          // client-side hydration. Your app should _never_ use this property.
+          // It may change at any time without notice.
+          _h: 1,
+          // Fallback pages must trigger the data fetch, so the transition is
+          // not shallow.
+          // Other pages (strictly updating query) happens shallowly, as data
+          // requirements would already be present.
+          shallow: !initialData.isFallback && !initialMatchesMiddleware,
+        }
+      )
     }
-    router._initialMatchesMiddlewarePromise
-      .then((matchesMiddleware) => handleQueryUpdate(matchesMiddleware))
-      .catch(() => handleQueryUpdate())
   }
 
   componentDidUpdate() {
@@ -419,6 +417,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     isPreview: initialData.isPreview,
     isRsc: initialData.rsc,
   })
+
+  initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
