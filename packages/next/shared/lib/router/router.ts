@@ -952,8 +952,12 @@ export default class Router implements BaseRouter {
       handleHardNavigation({ url })
       return false
     }
+    // WARNING: `_h` is an internal option for handing Next.js client-side
+    // hydration. Your app should _never_ use this property. It may change at
+    // any time without notice.
+    const isQueryUpdating = (options as any)._h
     const shouldResolveHref =
-      (options as any)._h ||
+      isQueryUpdating ||
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
 
@@ -965,6 +969,17 @@ export default class Router implements BaseRouter {
     // marking the router ready until after the query is updated
     // or a navigation has occurred
     this.isReady = true
+    const isSsr = this.isSsr
+
+    if (!isQueryUpdating) {
+      this.isSsr = false
+    }
+
+    // if a route transition is already in progress before
+    // the query updating is triggered ignore query updating
+    if (isQueryUpdating && this.clc) {
+      return false
+    }
 
     const prevLocale = nextState.locale
 
@@ -1052,9 +1067,6 @@ export default class Router implements BaseRouter {
       }
     }
 
-    if (!(options as any)._h) {
-      this.isSsr = false
-    }
     // marking route changes as a navigation start entry
     if (ST) {
       performance.mark('routeChange')
@@ -1063,8 +1075,17 @@ export default class Router implements BaseRouter {
     const { shallow = false, scroll = true } = options
     const routeProps = { shallow }
 
-    if (this._inFlightRoute) {
-      this.abortComponentLoad(this._inFlightRoute, routeProps)
+    if (this._inFlightRoute && this.clc) {
+      if (!isSsr) {
+        Router.events.emit(
+          'routeChangeError',
+          buildCancellationError(),
+          this._inFlightRoute,
+          routeProps
+        )
+      }
+      this.clc()
+      this.clc = null
     }
 
     as = addBasePath(
@@ -1085,14 +1106,7 @@ export default class Router implements BaseRouter {
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
 
-    // WARNING: `_h` is an internal option for handing Next.js client-side
-    // hydration. Your app should _never_ use this property. It may change at
-    // any time without notice.
-    if (
-      !(options as any)._h &&
-      this.onlyAHashChange(cleanedAs) &&
-      !localeChange
-    ) {
+    if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
       nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
@@ -1274,7 +1288,9 @@ export default class Router implements BaseRouter {
       }
     }
 
-    Router.events.emit('routeChangeStart', as, routeProps)
+    if (!isQueryUpdating) {
+      Router.events.emit('routeChangeStart', as, routeProps)
+    }
 
     try {
       let routeInfo = await this.getRouteInfo({
@@ -1406,7 +1422,7 @@ export default class Router implements BaseRouter {
       this.changeState(method, url, as, options)
 
       if (
-        (options as any)._h &&
+        isQueryUpdating &&
         pathname === '/_error' &&
         self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
         props?.pageProps
@@ -1440,7 +1456,9 @@ export default class Router implements BaseRouter {
       })
 
       if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+        if (!isQueryUpdating) {
+          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+        }
         throw error
       }
 
@@ -1449,7 +1467,10 @@ export default class Router implements BaseRouter {
           document.documentElement.lang = nextState.locale
         }
       }
-      Router.events.emit('routeChangeComplete', as, routeProps)
+
+      if (!isQueryUpdating) {
+        Router.events.emit('routeChangeComplete', as, routeProps)
+      }
 
       // A hash mark # is the optional last part of a URL
       const hashRegex = /#.+$/
@@ -2114,19 +2135,6 @@ export default class Router implements BaseRouter {
       router: this,
       ctx,
     })
-  }
-
-  abortComponentLoad(as: string, routeProps: RouteProperties): void {
-    if (this.clc) {
-      Router.events.emit(
-        'routeChangeError',
-        buildCancellationError(),
-        as,
-        routeProps
-      )
-      this.clc()
-      this.clc = null
-    }
   }
 
   get route(): string {
