@@ -3,51 +3,47 @@ import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   AppTreeContext,
-  AppTreeUpdateContext,
-  CacheNode,
+  FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
+import type { CacheNode } from '../../shared/lib/app-router-context'
 
 function createResponseCache() {
   return new Map<string, any>()
 }
+// TODO: might not be needed
 const rscCache = createResponseCache()
 
-function fetchFlight(href: string, layoutPath?: string) {
+function fetchFlight(href: string, treeData: string) {
   const flightUrl = new URL(href, location.origin.toString())
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
-  if (layoutPath) {
-    searchParams.append('__flight_router_path__', layoutPath)
+  if (treeData) {
+    searchParams.append('__flight_router_state_tree__', treeData)
   }
 
   return fetch(flightUrl.toString())
 }
 
-export function fetchServerResponse(href: string, layoutPath?: string) {
-  const cacheKey = href + layoutPath
+export function fetchServerResponse(href: string, tree: any) {
+  const treeData = JSON.stringify(tree)
+  const cacheKey = href + treeData
   let response = rscCache.get(cacheKey)
   if (response) return response
 
-  response = createFromFetch(fetchFlight(href, layoutPath))
+  response = createFromFetch(fetchFlight(href, treeData))
 
   rscCache.set(cacheKey, response)
   return response
 }
 
-function createPathToFetch(tree: any) {
-  let segmentPath = ''
-
-  if (tree.children) {
-    const path = createPathToFetch(tree.children)
-    segmentPath = `${tree.segment}${path === '' ? '' : `/${path}`}`
-  }
-
-  return segmentPath
-}
-
 export default function AppRouter({ initialTree, children }: any) {
-  const [tree, setTree] = React.useState<any>(initialTree)
-  const [cache, setCache] = React.useState<CacheNode | null>(null)
+  const [{ tree, previousTree }, setTree] = React.useState<any>({
+    tree: initialTree,
+  })
+  const [cache /*, setCache*/] = React.useState<CacheNode>({
+    subtreeData: null,
+    childNodes: new Map(),
+  })
 
   const change = React.useCallback(
     (
@@ -57,16 +53,19 @@ export default function AppRouter({ initialTree, children }: any) {
     ) => {
       // @ts-ignore startTransition exists
       React.startTransition(() => {
-        const { pathname } = new URL(href, location.origin)
-        const newCache: CacheNode = {
-          subtreeData: null,
-          childNodes: new Map(),
-        }
+        // TODO: handling of hash urls
+        const url = new URL(href, location.origin)
+        const { pathname } = url
 
         let newTree =
           historyState && historyState.tree ? historyState.tree : tree
+
         if (!historyState) {
-          const createNewTree = (segments: string[], treeBranch: any): any => {
+          const createNewTree = (
+            segments: string[],
+            treeBranch: any,
+            isFirstSegment = false
+          ): any => {
             const segment = segments[0]
             const isLastSegment = segments.length === 1
 
@@ -83,6 +82,8 @@ export default function AppRouter({ initialTree, children }: any) {
             const result = {
               ...existingTreeSegment,
               segment,
+              // Add `url` into the first segment
+              ...(isFirstSegment ? { url: url.pathname + url.search } : {}),
               ...(childTree ? { children: childTree } : {}),
             }
 
@@ -98,15 +99,13 @@ export default function AppRouter({ initialTree, children }: any) {
           }
 
           const segments = pathname.split('/')
-          newTree = createNewTree(segments, tree)
+          newTree = createNewTree(segments, tree, true)
         }
 
-        setCache(newCache)
-        setTree(newTree)
-        const state = { tree: newTree }
+        setTree({ previousTree: tree, tree: newTree })
 
         // TODO: update url eagerly or not?
-        window.history[method](state, '', href)
+        window.history[method]({ tree: newTree }, '', href)
       })
     },
     [tree]
@@ -123,12 +122,6 @@ export default function AppRouter({ initialTree, children }: any) {
       },
     }
   }, [change])
-
-  const treePatch = React.useCallback((updatePayload: any) => {
-    // setTree(() => {
-    //   return updatePayload
-    // })
-  }, [])
 
   if (typeof window !== 'undefined') {
     // @ts-ignore TODO: this is for debugging
@@ -160,21 +153,20 @@ export default function AppRouter({ initialTree, children }: any) {
     window.history.replaceState({ tree: initialTree }, '')
   }, [initialTree])
 
-  let root
-  // TODO: Check the RSC cache first for the page you want to navigate to
-  if (cache && !cache.childNodes.has(tree.children.segment)) {
-    // eslint-disable-next-line
-    const data = fetchServerResponse(createPathToFetch(tree), '')
-    root = data.readRoot()
-  }
-
   return (
-    <AppRouterContext.Provider value={appRouter}>
-      <AppTreeUpdateContext.Provider value={treePatch}>
-        <AppTreeContext.Provider value={{ segmentPath: '', tree: tree }}>
-          {root ? root : children}
+    <FullAppTreeContext.Provider value={previousTree ? previousTree : tree}>
+      <AppRouterContext.Provider value={appRouter}>
+        <AppTreeContext.Provider
+          value={{
+            childNodes: cache.childNodes,
+            tree: tree,
+            // Root node always has `url`
+            url: tree.url,
+          }}
+        >
+          {children}
         </AppTreeContext.Provider>
-      </AppTreeUpdateContext.Provider>
-    </AppRouterContext.Provider>
+      </AppRouterContext.Provider>
+    </FullAppTreeContext.Provider>
   )
 }

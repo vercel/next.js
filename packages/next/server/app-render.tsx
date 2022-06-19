@@ -200,6 +200,9 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
+const createSegmentPath = (parentSegmentPath: string, segment: string) =>
+  parentSegmentPath + (parentSegmentPath === '/' ? '' : '/') + segment
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -219,7 +222,12 @@ export async function renderToHTML(
   } = renderOpts
 
   const isFlight = query.__flight__ !== undefined
-  const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
+  // TODO: verify the tree is valid
+  const flightRouterTree = isFlight
+    ? query.__flight_router_state_tree__
+      ? JSON.parse(query.__flight_router_state_tree__ as string)
+      : {}
+    : undefined
 
   stripInternalQueries(query)
 
@@ -252,8 +260,7 @@ export async function renderToHTML(
       ? interopDefault(layoutOrPageMod)
       : undefined
 
-    const currentSegmentPath =
-      parentSegmentPath + (parentSegmentPath === '/' ? '' : '/') + segment
+    const currentSegmentPath = createSegmentPath(parentSegmentPath, segment)
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const Children: any = children
@@ -353,65 +360,79 @@ export async function renderToHTML(
       ) : (
         <Component {...props}>
           <LayoutRouter
-            path={segment}
+            // TODO: construct this path client-side instead.
+            layoutPath={currentSegmentPath}
             loading={Loading ? <Loading /> : undefined}
-          >
-            <Children />
-          </LayoutRouter>
+            childProp={{ current: <Children />, segment: children.segment }}
+          />
         </Component>
       )
     }
   }
 
-  const filterTreeByFlightRouterPath = (treeToFilter: any) => {
-    if (typeof flightRouterPath === 'string') {
-      let currentTree = treeToFilter
-      const segments =
-        flightRouterPath === '/' ? [''] : flightRouterPath.split('/')
-      for (let i = 0; i < segments.length; i++) {
-        const currentSegment = segments[i]
-
-        if (currentTree.segment === currentSegment) {
-          currentTree = currentTree.children
-          continue
-        }
-
-        // If the segment does not match and it's not the last segment to resolve
-        // the flightRouterPath is incorrect and should not continue to rendering
-        throw new Error('Flight router path does not match up with the url')
+  // TODO: throw on invalid flightRouterState
+  const walkTreeWithFlightRouterState = (
+    treeToFilter: any,
+    flightRouterState: any,
+    parentSegmentPath?: string
+  ): any => {
+    if (treeToFilter.segment === flightRouterState.segment) {
+      if (!treeToFilter.children || !flightRouterState.children) {
+        return { parentSegmentPath, tree: treeToFilter }
       }
-      return currentTree
+      return walkTreeWithFlightRouterState(
+        treeToFilter.children,
+        flightRouterState.children,
+        createSegmentPath(parentSegmentPath ?? '/', treeToFilter.segment)
+      )
     }
 
-    return treeToFilter
+    return { parentSegmentPath, tree: treeToFilter }
+  }
+
+  const filterTreeByFlightRouterStateTree = (treeToFilter: any) => {
+    if (typeof flightRouterTree === 'undefined') {
+      return { parentSegmentPath: '', tree: treeToFilter }
+    }
+
+    return walkTreeWithFlightRouterState(treeToFilter, flightRouterTree)
   }
 
   // This ensures flightRouterPath is valid and filters down the tree
-  const filteredTree = filterTreeByFlightRouterPath(tree)
+  const { parentSegmentPath, tree: filteredTree } =
+    filterTreeByFlightRouterStateTree(tree)
 
   const ComponentTree = createComponentTree({
-    parentSegmentPath: flightRouterPath ? flightRouterPath : '',
+    // parentSegmentPath: flightRouterPath ? flightRouterPath : '',
+    parentSegmentPath,
     tree: filteredTree,
   })
 
-  const createSegmentTree = (treeNode: any) => {
+  const createSegmentTree = (treeNode: any, url?: string) => {
     const segmentTree: any = {}
     segmentTree.segment = treeNode.segment
+    if (url) {
+      segmentTree.url = url
+    }
     if (treeNode.children) {
       segmentTree.children = createSegmentTree(treeNode.children)
     }
     return segmentTree
   }
-
-  const segmentTree = createSegmentTree(tree)
+  const search = stringifyQuery(query)
 
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
-    if (flightRouterPath) {
+    if (flightRouterTree) {
       return <ComponentTree />
     }
     return (
-      <AppRouter path="/" initialTree={segmentTree}>
+      <AppRouter
+        initialTree={createSegmentTree(
+          tree,
+          pathname + (search ? `?${search}` : '')
+        )}
+      >
         <ComponentTree />
       </AppRouter>
     )
@@ -430,7 +451,6 @@ export async function renderToHTML(
   > | null = null
 
   serverComponentsInlinedTransformStream = new TransformStream()
-  const search = stringifyQuery(query)
 
   const Component = createServerComponentRenderer(
     WrappedComponentWithRouter,
@@ -454,11 +474,16 @@ export async function renderToHTML(
     <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   )
 
-  const renderServerComponentData = isFlight
-  if (renderServerComponentData) {
+  if (isFlight) {
     return new RenderResult(
       renderToReadableStream(
-        <WrappedComponentWithRouter />,
+        // TODO: update `children` to be the children to replace on the client-side
+        [
+          {
+            layoutPath: parentSegmentPath,
+            subTreeData: <WrappedComponentWithRouter />,
+          },
+        ],
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -497,39 +522,6 @@ export async function renderToHTML(
       const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
       return flushed
     }
-
-    // Handle static data for server components.
-    // async function generateStaticFlightDataIfNeeded() {
-    //   if (serverComponentsPageDataTransformStream) {
-    //     // If it's a server component with the Node.js runtime, we also
-    //     // statically generate the page data.
-    //     let data = ''
-
-    //     const readable = serverComponentsPageDataTransformStream.readable
-    //     const reader = readable.getReader()
-    //     const textDecoder = new TextDecoder()
-
-    //     while (true) {
-    //       const { done, value } = await reader.read()
-    //       if (done) {
-    //         break
-    //       }
-    //       data += decodeText(value, textDecoder)
-    //     }
-
-    //     ;(renderOpts as any).pageData = {
-    //       ...(renderOpts as any).pageData,
-    //       __flight__: data,
-    //     }
-    //     return data
-    //   }
-    // }
-
-    // @TODO: A potential improvement would be to reuse the inlined
-    // data stream, or pass a callback inside as this doesn't need to
-    // be streamed.
-    // Do not use `await` here.
-    // generateStaticFlightDataIfNeeded()
 
     return await continueFromInitialStream(renderStream, {
       suffix: '',

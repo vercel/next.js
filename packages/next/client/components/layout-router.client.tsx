@@ -1,75 +1,122 @@
-import React, { useEffect, useContext, useCallback } from 'react'
+import React, { useContext } from 'react'
 import {
   AppTreeContext,
-  AppTreeUpdateContext,
-  AppRouterCacheContext,
+  FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
+import { fetchServerResponse } from './app-router.client'
 
-function ReadRootComponent({ children }: any) {
-  // let root = readRoot()
+export function InnerLayoutRouter({
+  url,
+  childNodes,
+  childProp,
+  layoutPath,
+  tree,
+  // isActive,
+  path,
+}: any) {
+  const fullTree = useContext(FullAppTreeContext)
+  // TODO: What to do during SSR?
+  if (!childNodes && childProp && childProp.current) {
+    return (
+      <AppTreeContext.Provider
+        value={{
+          tree: tree.children,
+          url: tree.url ?? url,
+        }}
+      >
+        {childProp.current}
+      </AppTreeContext.Provider>
+    )
+  }
 
-  return children
-}
-export default function LayoutRouter({ path, children, loading }: any) {
-  const { segmentPath, tree } = useContext(AppTreeContext)
-  const currentSegmentPath =
-    (segmentPath === '' || segmentPath === '/' ? '/' : segmentPath + '/') + path
+  if (childProp && !childNodes.has(path)) {
+    childNodes.set(path, {
+      subTreeData: childProp.current,
+      childNodes: new Map(),
+    })
+    childProp.current = null
+  }
 
-  const treePatchParent = useContext(AppTreeUpdateContext)
+  if (!childNodes.has(path)) {
+    const data = fetchServerResponse(url, fullTree)
+    const root = data.readRoot()
 
-  const treePatch = useCallback(
-    (updatePayload: any) => {
-      treePatchParent({
-        ...tree,
-        children: updatePayload,
+    // Handle case where the response might be for this subrouter
+    if (root.length === 1 && root[0].layoutPath === layoutPath) {
+      childNodes.set(path, {
+        subTreeData: root[0].subTreeData,
+        childNodes: new Map(),
       })
-    },
-    [tree, treePatchParent]
-  )
-
-  useEffect(() => {
-    if (!tree) {
-      treePatchParent({
-        path,
-        children: tree.children,
-      })
+    } else {
+      console.log('TODO: handle rewrite/redirect case')
+      // TODO: trigger Suspense?
+      // TODO: if the tree did not match up do we provide the new tree here?
+      setTimeout(() => {
+        // @ts-ignore TODO: startTransition exists
+        React.startTransition(() => {
+          // TODO: navigate to rewritten path
+        })
+      }, 0)
     }
-  }, [path])
+  }
 
-  let root
-  // if (current.url !== previousUrlRef.current?.url) {
-  //   // eslint-disable-next-line
-  //   const data = fetchServerResponse(current.url, layoutPath)
-  //   root = data.readRoot()
-  //   // TODO: handle case where middleware rewrites to another page
-  // }
-
-  // `tree` only exists in the browser hence why this is conditional
-  const renderChildren = root ? root : children
-  const renderChildrenWithLoading = loading ? (
-    <React.Suspense fallback={loading}>
-      <ReadRootComponent>{renderChildren}</ReadRootComponent>
-    </React.Suspense>
-  ) : (
-    renderChildren
+  const childNode = childNodes.get(path)
+  return (
+    <AppTreeContext.Provider
+      value={{
+        tree: tree.children,
+        childNodes: childNode.childNodes,
+        url: tree.url ?? url,
+      }}
+    >
+      {childNode.subTreeData}
+    </AppTreeContext.Provider>
   )
+}
+
+function LoadingBoundary({
+  children,
+  loading,
+}: {
+  children: React.ReactNode
+  loading?: React.ReactNode
+}) {
+  if (loading) {
+    return <React.Suspense fallback={loading}>{children}</React.Suspense>
+  }
+
+  return <>{children}</>
+}
+
+export default function OuterLayoutRouter({
+  layoutPath,
+  childProp,
+  loading,
+}: any) {
+  const { childNodes, tree, url } = useContext(AppTreeContext)
+
+  const currentChildSegment = tree.children.segment ?? childProp.segment
+  const preservedSegments: string[] = [currentChildSegment]
 
   return (
     <>
-      {tree ? (
-        <AppTreeUpdateContext.Provider value={treePatch}>
-          <AppTreeContext.Provider
-            value={{
-              segmentPath: currentSegmentPath,
-              tree: tree.children,
-            }}
-          >
-            {renderChildrenWithLoading}
-          </AppTreeContext.Provider>
-        </AppTreeUpdateContext.Provider>
-      ) : (
-        renderChildrenWithLoading
-      )}
+      {preservedSegments.map((preservedSegment) => {
+        return (
+          <LoadingBoundary loading={loading} key={preservedSegment}>
+            <InnerLayoutRouter
+              url={url}
+              tree={tree}
+              childNodes={childNodes}
+              childProp={
+                childProp.segment === preservedSegment ? childProp : null
+              }
+              layoutPath={layoutPath}
+              path={preservedSegment}
+              isActive={currentChildSegment === preservedSegment}
+            />
+          </LoadingBoundary>
+        )
+      })}
     </>
   )
 }
