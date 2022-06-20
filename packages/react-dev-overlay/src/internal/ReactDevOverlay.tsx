@@ -117,12 +117,12 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
               ? 'full-refresh'
               : null,
             preventDisplay
-          ) ? null : hasBuildError ? (
+          ) ? null : isAboutToFullRefresh ? (
+            <FullRefreshWarning reason={state.fullRefreshReason} />
+          ) : hasBuildError ? (
             <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
-          ) : isAboutToFullRefresh ? (
-            <FullRefreshWarning reason={state.fullRefreshReason} />
           ) : undefined}
         </ShadowPortal>
       ) : undefined}

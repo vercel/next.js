@@ -359,7 +359,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
 
 function performFullRefresh(err) {
-  if (shouldWarnAboutFullRefresh()) {
+  if (!hasAlreadyWarnedAboutFullRefresh()) {
     sessionStorage.setItem(FULL_REFRESH_STORAGE_KEY, 'true')
     const reason =
       err &&
@@ -370,10 +370,6 @@ function performFullRefresh(err) {
   } else {
     window.location.reload()
   }
-}
-
-function shouldWarnAboutFullRefresh() {
-  return !process.env.__NEXT_TEST_MODE && !hasAlreadyWarnedAboutFullRefresh()
 }
 
 function hasAlreadyWarnedAboutFullRefresh() {

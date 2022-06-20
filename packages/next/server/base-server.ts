@@ -705,7 +705,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected generateRoutes(): {
-    basePath: string
     headers: Route[]
     rewrites: {
       beforeFiles: Route[]
@@ -719,7 +718,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
-    locales: string[]
+    nextConfig: NextConfig
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
@@ -834,6 +833,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const catchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
+      matchesLocale: true,
       name: 'Catchall render',
       fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
@@ -899,9 +899,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
-      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
-      locales: this.nextConfig.i18n?.locales || [],
+      nextConfig: this.nextConfig,
     }
   }
 
@@ -1216,6 +1215,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDataReq =
       !!query.__nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
+    delete query.__nextDataReq
+
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
     if (
@@ -1227,23 +1228,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.url = this.stripNextDataPath(req.url)
     }
 
-    if (!!query.__nextDataReq) {
+    if (
+      !isServerComponent &&
+      !!req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200)
+    ) {
       res.setHeader(
         'x-nextjs-matched-path',
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
       )
-      // return empty JSON when not an SSG/SSP page and not an error
-      if (
-        !(isSSG || hasServerProps) &&
-        (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
-      ) {
-        res.setHeader('content-type', 'application/json')
-        res.body('{}')
-        res.send()
-        return null
-      }
     }
-    delete query.__nextDataReq
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
@@ -1876,6 +1870,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       return response
     }
+
+    if (
+      this.router.catchAllMiddleware &&
+      !!ctx.req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
+      )
+      res.statusCode = 200
+      res.setHeader('content-type', 'application/json')
+      res.body('{}')
+      res.send()
+      return null
+    }
+
     res.statusCode = 404
     return this.renderErrorToResponse(ctx, null)
   }

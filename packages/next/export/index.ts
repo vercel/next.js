@@ -326,6 +326,7 @@ export default async function exportApp(
     const {
       i18n,
       images: { loader = 'default' },
+      experimental,
     } = nextConfig
 
     if (i18n && !options.buildExport) {
@@ -344,14 +345,17 @@ export default async function exportApp(
             .catch(() => ({}))
         )
 
-      if (isNextImageImported && loader === 'default' && !hasNextSupport) {
+      if (
+        isNextImageImported &&
+        loader === 'default' &&
+        !experimental?.images?.unoptimized &&
+        !hasNextSupport
+      ) {
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
-    - Use any provider which supports Image Optimization (like Vercel).
-    - Configure a third-party loader in \`next.config.js\`.
-    - Use the \`loader\` prop for \`next/image\`.
+    - Configure \`images.unoptimized = true\` in \`next.config.js\` to disable the Image Optimization API.
   Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
