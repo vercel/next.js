@@ -17,7 +17,7 @@ Next.js supports lazy loading external libraries with `import()` and React compo
 
 ## Example
 
-By using `next/dynamic`, the header component will not be included in page's the initial JavaScript bundle. The page will render the Suspense `fallback` first, followed by the `Header` component when the `Suspense` boundary is resolved.
+By using `next/dynamic`, the header component will not be included in the page's initial JavaScript bundle. The page will render the Suspense `fallback` first, followed by the `Header` component when the `Suspense` boundary is resolved.
 
 ```jsx
 import dynamic from 'next/dynamic'
