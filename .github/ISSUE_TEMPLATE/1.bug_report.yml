@@ -44,7 +44,7 @@ body:
   - type: input
     attributes:
       label: Link to reproduction
-      description: A link to a https://stackblitz.com/ or git repo with a minimal reproduction. Minimal reproductions should be created from a create-next-app starter and include only relevant changes to cause the issue if possible.
+      description: A link to a GitHub repository or a [StackBlitz](https://nextjs.new) or [CodeSandbox](https://codesandbox.io) minimal reproduction. Minimal reproductions should be created from a `create-next-app` starter and include only relevant changes to cause the issue if possible.
     validations:
       required: true
   - type: textarea
