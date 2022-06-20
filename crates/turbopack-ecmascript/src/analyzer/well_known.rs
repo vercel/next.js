@@ -144,13 +144,46 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
         }
     }
 
-    JsValue::Unknown(
-        Some(Arc::new(JsValue::call(
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
-            args,
-        ))),
-        "only a single argument is supported",
-    )
+    let mut results_final = Vec::new();
+    let mut results: Vec<JsValue> = Vec::new();
+    for item in args {
+        if let Some(str) = item.as_str() {
+            for str in str.split('/') {
+                match str {
+                    "" | "." => {
+                        if results_final.is_empty() && results.is_empty() {
+                            results_final.push(str.into());
+                        }
+                    }
+                    ".." => {
+                        if results.pop().is_none() {
+                            results_final.push("..".into());
+                        }
+                    }
+                    _ => results.push(str.into()),
+                }
+            }
+        } else {
+            results_final.extend(results.drain(..));
+            results_final.push(item);
+        }
+    }
+    results_final.extend(results.drain(..));
+    let mut iter = results_final.into_iter();
+    let first = iter.next().unwrap();
+    let mut last_is_str = first.as_str().is_some();
+    results.push(first);
+    for part in iter {
+        let is_str = part.as_str().is_some();
+        if last_is_str && is_str {
+            results.push("/".into());
+        } else {
+            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
+        }
+        results.push(part);
+        last_is_str = is_str;
+    }
+    JsValue::concat(results)
 }
 
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
