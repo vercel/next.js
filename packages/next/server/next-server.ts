@@ -81,7 +81,11 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
+import {
+  bodyStreamToNodeStream,
+  clonableBodyForRequest,
+  requestToBodyStream,
+} from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 
 const shouldUseReactRoot = parseInt(React.version) >= 18
@@ -1495,8 +1499,9 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        // TODO(gal): complete body
-        // body: originalBody?.cloneBodyStream(),
+        body: ['GET', 'HEAD'].includes(params.req.method)
+          ? undefined
+          : requestToBodyStream(params.req.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
       onWarning: (_warning: Error) => {
