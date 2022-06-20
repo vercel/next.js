@@ -14,7 +14,7 @@ These native Web API objects are extended to give you more control over how you 
 
 The function signature is defined as follows:
 
-```ts
+```typescript
 type NextMiddlewareResult = NextResponse | Response | null | undefined
 
 type NextMiddleware = (
@@ -25,7 +25,7 @@ type NextMiddleware = (
 
 It can be imported from `next/server` with the following:
 
-```ts
+```typescript
 import type { NextMiddleware } from 'next/server'
 ```
 
@@ -44,7 +44,7 @@ You can use the `NextRequest` object as a direct replacement for the native `Req
 
 `NextRequest` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextRequest } from 'next/server'
 ```
 
@@ -56,7 +56,7 @@ The `waitUntil()` method can be used to prolong the execution of the function, a
 
 The `event` object is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextFetchEvent } from 'next/server'
 ```
 
@@ -96,7 +96,7 @@ The following static methods are available on the `NextResponse` class directly:
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -117,7 +117,7 @@ All methods above return a `NextResponse` object that only takes effect if it's 
 
 `NextResponse` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 ```
 
@@ -127,7 +127,7 @@ In order to set the `cookie` _before_ a redirect, you can create an instance of 
 
 Note that there is a [Chrome bug](https://bugs.chromium.org/p/chromium/issues/detail?id=696204) which means the entire redirect chain **must** be from the same origin, if they are from different origins, then the `cookie` might be missing until a refresh.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -161,7 +161,7 @@ The `userAgent` helper allows you to interact with the user agent object from th
 
 `userAgent` is fully typed and can be imported from `next/server`:
 
-```ts
+```typescript
 import { userAgent } from 'next/server'
 ```
 
@@ -200,7 +200,7 @@ If you want to cause a `GET` response to a `POST` request, use `303`.
 
 Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
 
-```ts
+```typescript
 // Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
 console.log(process.env.NODE_ENV)
 // This will not work
