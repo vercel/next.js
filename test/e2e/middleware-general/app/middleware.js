@@ -36,9 +36,26 @@ const params = (url) => {
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (request.headers.get('x-prerender-revalidate')) {
+    const res = NextResponse.next()
+    res.headers.set('x-middleware', 'hi')
+    return res
+  }
+
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()
+  }
+
+  if (url.pathname === '/') {
+    url.pathname = '/ssg/first'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/to-ssg') {
+    url.pathname = '/ssg/hello'
+    url.searchParams.set('from', 'middleware')
+    return NextResponse.rewrite(url)
   }
 
   if (url.pathname === '/sha') {
