@@ -55,6 +55,9 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::OsArch => target.await?.arch().into(),
         WellKnownFunctionKind::OsPlatform => target.await?.platform().into(),
         WellKnownFunctionKind::OsEndianness => target.await?.endianness().into(),
+        WellKnownFunctionKind::NodeExpress => {
+            JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp)
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -314,6 +317,7 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::OsModule => os_module_member(prop),
         WellKnownObjectKind::NodeProcess => node_process_member(prop, target).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
+        WellKnownObjectKind::NodeExpressApp => express(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -434,5 +438,18 @@ fn node_pre_gyp(prop: JsValue) -> JsValue {
                 "unsupported property on @mapbox/node-pre-gyp module",
             )
         }
+    }
+}
+
+fn express(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("set") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet),
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp),
+                box prop,
+            ))),
+            "unsupported property on require('express')() object",
+        ),
     }
 }

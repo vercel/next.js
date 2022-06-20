@@ -619,7 +619,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, TraceRawVcs)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),

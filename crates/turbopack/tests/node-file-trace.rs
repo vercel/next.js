@@ -38,8 +38,8 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
 #[case::browserify_middleware("integration/browserify-middleware.js", true)]
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
-// #[case::bull("integration/bull.js", false)] // Skipping bull integration test
-#[case::camaro("integration/camaro.js", true)]
+#[case::bull("integration/bull.js", true)]
+#[case::camaro("integration/camaro.js", true)] // can't find node_modules/piscina/dist/src/worker.js
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]
@@ -52,9 +52,9 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
 #[case::esbuild("integration/esbuild.js", true)]
 #[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
-#[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
+#[case::express_consolidate("integration/express-consolidate.js", true)] // Cannot read property 'startsWith' of undefined
 #[case::express_template_engine("integration/express-template-engine.js", true)]
-#[case::express_template("integration/express-template.js", true)]
+#[case::express_template_pug("integration/express-template.js", true)]
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]

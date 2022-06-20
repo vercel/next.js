@@ -816,7 +816,11 @@ impl JsValue {
                     WellKnownObjectKind::NodePreGyp => (
                       "@mapbox/node-pre-gyp",
                       "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
-                    )
+                    ),
+                    WellKnownObjectKind::NodeExpressApp => (
+                      "express",
+                        "The Node.js express package: https://github.com/expressjs/express"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -885,6 +889,14 @@ impl JsValue {
                     WellKnownFunctionKind::NodeBindings => (
                         format!("bindings"),
                         "The Node.js bindings module: https://github.com/TooTallNate/node-bindings"
+                    ),
+                    WellKnownFunctionKind::NodeExpress => (
+                        format!("express"),
+                        "require('express')() : https://github.com/expressjs/express"
+                    ),
+                    WellKnownFunctionKind::NodeExpressSet => (
+                        format!("express"),
+                        "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
                     )
                 };
                 if depth > 0 {
@@ -1785,6 +1797,7 @@ pub enum WellKnownObjectKind {
     OsModule,
     NodeProcess,
     NodePreGyp,
+    NodeExpressApp,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -1805,6 +1818,8 @@ pub enum WellKnownFunctionKind {
     NodePreGypFind,
     NodeGypBuild,
     NodeBindings,
+    NodeExpress,
+    NodeExpressSet,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {

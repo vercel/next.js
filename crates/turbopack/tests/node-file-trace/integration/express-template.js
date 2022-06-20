@@ -1,13 +1,14 @@
+const assert = require('assert');
 const express = require("express");
 const path = require("path");
 
 const app = express();
 
 app.set("view engine", "pug");
-app.set("views", path.join(__dirname, "views"));
+app.set("views", "./fixtures/pug");
 
-app.get("*", (req, res) => {
-  res.render("index");
+app.render('index', {
+  title: 'Consolidate.js'
+}, function (err, rendered) {
+  assert.ok(rendered.includes('<h1>Consolidate.js</h1>'));
 });
-
-module.exports = app;

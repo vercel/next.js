@@ -1,3 +1,4 @@
+const assert = require('assert');
 const express = require("express");
 const path = require("path");
 
@@ -7,10 +8,10 @@ function customImplementation () {}
 
 app.engine('pug', customImplementation);
 app.set("view engine", "pug");
-app.set("views", path.join(__dirname, "views"));
+app.set("views", path.join(__dirname, "fixtures", "pug"));
 
-app.get("*", (req, res) => {
-  res.render("index");
+app.render('index', {
+  title: 'Consolidate.js'
+}, function (err, rendered) {
+  assert.ok(rendered === undefined);
 });
-
-module.exports = app;
