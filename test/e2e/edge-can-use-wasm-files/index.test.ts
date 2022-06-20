@@ -32,6 +32,44 @@ function baseNextConfig(): Parameters<typeof createNext>[0] {
   }
 }
 
+describe('edge api endpoints can use wasm files', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/api/add.js': `
+          import { increment } from '../../src/add.js'
+          export default async (request) => {
+            const input = Number(request.nextUrl.searchParams.get('input')) || 1;
+            const value = await increment(input);
+            return new Response(null, { headers: { data: JSON.stringify({ input, value }) } });
+          }
+          export const config = { runtime: 'experimental-edge' };
+        `,
+        'src/add.wasm': new FileRef(path.join(__dirname, './add.wasm')),
+        'src/add.js': `
+          import wasm from './add.wasm?module'
+          const instance$ = WebAssembly.instantiate(wasm);
+
+          export async function increment(a) {
+            const { exports } = await instance$;
+            return exports.add_one(a);
+          }
+        `,
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+  it('uses the wasm file', async () => {
+    const response = await fetchViaHTTP(next.url, '/api/add', { input: 10 })
+    expect(extractJSON(response)).toEqual({
+      input: 10,
+      value: 11,
+    })
+  })
+})
+
 describe('middleware can use wasm files', () => {
   let next: NextInstance
 
