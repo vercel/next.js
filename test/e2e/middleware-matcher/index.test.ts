@@ -200,3 +200,183 @@ describe('using a single matcher', () => {
     expect(response.headers.get('X-From-Middleware')).toBeNull()
   })
 })
+
+describe('using a single matcher with i18n', () => {
+  let next: NextInstance
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
+          export default function Page({ message }) { 
+            return <div>
+              <p>{message}</p>
+            </div>
+          } 
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: { message: \`(\${locale}) Hello from /\` }
+          })
+        `,
+        'pages/[...route].js': `
+          export default function Page({ message }) {
+            return <div>
+              <p>catchall page</p>
+              <p>{message}</p>
+            </div>
+          } 
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
+          })
+        `,
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+          export const config = { matcher: '/' };
+          export default (req) => {
+            const res = NextResponse.next();
+            res.headers.set('X-From-Middleware', 'true');
+            return res;
+          }
+        `,
+        'next.config.js': `
+          module.exports = {
+            i18n: {
+              localeDetection: false,
+              locales: ['es', 'en'],
+              defaultLocale: 'en',
+            }
+          }
+        `,
+      },
+      dependencies: {},
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it(`adds the header for a matched path`, async () => {
+    const res1 = await fetchViaHTTP(next.url, `/`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/es`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it(`adds the headers for a matched data path`, async () => {
+    const res1 = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/en.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(await res1.json()).toMatchObject({
+      pageProps: { message: `(en) Hello from /` },
+    })
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(
+      next.url,
+      `/_next/data/${next.buildId}/es.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(await res2.json()).toMatchObject({
+      pageProps: { message: `(es) Hello from /` },
+    })
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it(`does not add the header for an unmatched path`, async () => {
+    const response = await fetchViaHTTP(next.url, `/about/me`)
+    expect(await response.text()).toContain('Hello from /about/me')
+    expect(response.headers.get('X-From-Middleware')).toBeNull()
+  })
+})
+
+describe('using a single matcher with i18n and basePath', () => {
+  let next: NextInstance
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/index.js': `
+          export default function Page({ message }) { 
+            return <div>
+              <p>root page</p>
+              <p>{message}</p>
+            </div>
+          } 
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: { message: \`(\${locale}) Hello from /\` }
+          })
+        `,
+        'pages/[...route].js': `
+          export default function Page({ message }) {
+            return <div>
+              <p>catchall page</p>
+              <p>{message}</p>
+            </div>
+          } 
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
+          })
+        `,
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+          export const config = { matcher: '/' };
+          export default (req) => {
+            const res = NextResponse.next();
+            res.headers.set('X-From-Middleware', 'true');
+            return res;
+          }
+        `,
+        'next.config.js': `
+          module.exports = {
+            basePath: '/root',
+            i18n: {
+              localeDetection: false,
+              locales: ['es', 'en'],
+              defaultLocale: 'en',
+            }
+          }
+        `,
+      },
+      dependencies: {},
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it(`adds the header for a matched path`, async () => {
+    const res1 = await fetchViaHTTP(next.url, `/root`)
+    expect(await res1.text()).toContain(`(en) Hello from /`)
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(next.url, `/root/es`)
+    expect(await res2.text()).toContain(`(es) Hello from /`)
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it(`adds the headers for a matched data path`, async () => {
+    const res1 = await fetchViaHTTP(
+      next.url,
+      `/root/_next/data/${next.buildId}/en.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(await res1.json()).toMatchObject({
+      pageProps: { message: `(en) Hello from /` },
+    })
+    expect(res1.headers.get('X-From-Middleware')).toBe('true')
+    const res2 = await fetchViaHTTP(
+      next.url,
+      `/root/_next/data/${next.buildId}/es.json`,
+      undefined,
+      { headers: { 'x-nextjs-data': '1' } }
+    )
+    expect(await res2.json()).toMatchObject({
+      pageProps: { message: `(es) Hello from /` },
+    })
+    expect(res2.headers.get('X-From-Middleware')).toBe('true')
+  })
+
+  it(`does not add the header for an unmatched path`, async () => {
+    const response = await fetchViaHTTP(next.url, `/root/about/me`)
+    expect(await response.text()).toContain('Hello from /about/me')
+    expect(response.headers.get('X-From-Middleware')).toBeNull()
+  })
+})
