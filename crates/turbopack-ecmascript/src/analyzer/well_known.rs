@@ -128,9 +128,20 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
 //
 // Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
 // one parameter
-pub fn path_resolve(args: Vec<JsValue>) -> JsValue {
+pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
+    }
+
+    // path.resolve stops at the string starting with `/`
+    for (idx, arg) in args.iter().enumerate().rev() {
+        if idx != 0 {
+            if let Some(str) = arg.as_str() {
+                if str.starts_with("/") {
+                    return path_resolve(args.drain(idx..).collect());
+                }
+            }
+        }
     }
 
     JsValue::Unknown(
