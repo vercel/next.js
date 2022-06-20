@@ -31,6 +31,7 @@ import {
   isMiddlewareFilename,
   isServerComponentPage,
   NestedMiddlewareError,
+  MiddlewareInServerlessTargetError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -348,6 +349,10 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       if (isMiddlewareFile(page)) {
         middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+
+        if (target === 'serverless') {
+          throw new MiddlewareInServerlessTargetError()
+        }
       }
 
       runDependingOnPageType({

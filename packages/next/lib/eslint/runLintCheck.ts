@@ -14,11 +14,11 @@ import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
-import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
+import { getPkgManager } from '../helpers/get-pkg-manager'
 
 type Config = {
   plugins: string[]
@@ -99,15 +99,18 @@ async function lint(
   try {
     // Load ESLint after we're sure it exists:
     const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {
       Log.error(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          (await isYarn(baseDir))
-            ? 'yarn add --dev eslint'
-            : 'npm install --save-dev eslint'
+          (packageManager === 'yarn'
+            ? 'yarn add --dev'
+            : packageManager === 'pnpm'
+            ? 'pnpm install --save-dev'
+            : 'npm install --save-dev') + ' eslint'
         )}`
       )
       return null

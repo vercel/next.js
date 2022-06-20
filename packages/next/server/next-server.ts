@@ -81,7 +81,12 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
+import {
+  bodyStreamToNodeStream,
+  clonableBodyForRequest,
+  requestToBodyStream,
+} from './body-streams'
+import { checkIsManualRevalidate } from './api-utils'
 
 const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
@@ -384,6 +389,7 @@ export default class NextNodeServer extends BaseServer {
     return [
       {
         match: getPathMatch('/:path*'),
+        matchesBasePath: true,
         name: 'public folder catchall',
         fn: async (req, res, params, parsedUrl) => {
           const pathParts: string[] = params.path || []
@@ -976,7 +982,7 @@ export default class NextNodeServer extends BaseServer {
     let fallback: Route[] = []
 
     if (!this.minimalMode) {
-      const buildRewrite = (rewrite: Rewrite, check = true) => {
+      const buildRewrite = (rewrite: Rewrite, check = true): Route => {
         const rewriteRoute = getCustomRoute({
           type: 'rewrite',
           rule: rewrite,
@@ -988,6 +994,10 @@ export default class NextNodeServer extends BaseServer {
           type: rewriteRoute.type,
           name: `Rewrite route ${rewriteRoute.source}`,
           match: rewriteRoute.match,
+          matchesBasePath: true,
+          matchesLocale: true,
+          matchesLocaleAPIRoutes: true,
+          matchesTrailingSlash: true,
           fn: async (req, res, params, parsedUrl) => {
             const { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
@@ -1014,7 +1024,7 @@ export default class NextNodeServer extends BaseServer {
               query: parsedDestination.query,
             }
           },
-        } as Route
+        }
       }
 
       if (Array.isArray(this.customRoutes.rewrites)) {
@@ -1141,6 +1151,14 @@ export default class NextNodeServer extends BaseServer {
     onWarning?: (warning: Error) => void
   }) {
     middlewareBetaWarning()
+
+    // middleware is skipped for on-demand revalidate requests
+    if (
+      checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
+        .isManualRevalidate
+    ) {
+      return { finished: false }
+    }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     // For middleware to "fetch" we must always provide an absolute URL
@@ -1259,6 +1277,8 @@ export default class NextNodeServer extends BaseServer {
 
     return {
       match: getPathMatch('/:path*'),
+      matchesBasePath: true,
+      matchesLocale: true,
       type: 'route',
       name: 'middleware catchall',
       fn: async (req, res, _params, parsed) => {
@@ -1336,6 +1356,15 @@ export default class NextNodeServer extends BaseServer {
         for (const [key, value] of Object.entries(
           toNodeHeaders(result.response.headers)
         )) {
+          if (
+            [
+              'x-middleware-rewrite',
+              'x-middleware-redirect',
+              'x-middleware-refresh',
+            ].includes(key)
+          ) {
+            continue
+          }
           if (key !== 'content-encoding' && value !== undefined) {
             res.setHeader(key, value)
           }
@@ -1363,12 +1392,6 @@ export default class NextNodeServer extends BaseServer {
           )!
           const parsedDestination = parseUrl(rewritePath)
           const newUrl = parsedDestination.pathname
-
-          // TODO: remove after next minor version current `v12.0.9`
-          this.warnIfQueryParametersWereDeleted(
-            parsedUrl.query,
-            parsedDestination.query
-          )
 
           if (
             parsedDestination.protocol &&
@@ -1435,26 +1458,6 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  // TODO: remove after next minor version current `v12.0.9`
-  private warnIfQueryParametersWereDeleted(
-    incoming: ParsedUrlQuery,
-    rewritten: ParsedUrlQuery
-  ): void {
-    const incomingQuery = urlQueryToSearchParams(incoming)
-    const rewrittenQuery = urlQueryToSearchParams(rewritten)
-
-    const missingKeys = [...incomingQuery.keys()].filter((key) => {
-      return !rewrittenQuery.has(key)
-    })
-
-    if (missingKeys.length > 0) {
-      Log.warn(
-        `Query params are no longer automatically merged for rewrites in middleware, see more info here: https://nextjs.org/docs/messages/deleting-query-params-in-middlewares`
-      )
-      this.warnIfQueryParametersWereDeleted = () => {}
-    }
-  }
-
   private async runEdgeFunctionApiEndpoint(params: {
     req: NodeNextRequest
     res: NodeNextResponse
@@ -1500,8 +1503,9 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        // TODO(gal): complete body
-        // body: originalBody?.cloneBodyStream(),
+        body: ['GET', 'HEAD'].includes(params.req.method)
+          ? undefined
+          : requestToBodyStream(params.req.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
       onWarning: (_warning: Error) => {
