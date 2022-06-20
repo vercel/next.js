@@ -1184,7 +1184,7 @@ export async function copyTracedFiles(
   }
 
   for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (middleware.name === MIDDLEWARE_FILENAME) {
+    if (isMiddlewareFilename(middleware.name)) {
       for (const file of middleware.files) {
         const originalPath = path.join(distDir, file)
         const fileOutputPath = path.join(
@@ -1245,7 +1245,6 @@ server.listen(currentPort, (err) => {
     console.error("Failed to start server", err)
     process.exit(1)
   }
-  const addr = server.address()
   const nextServer = new NextServer({
     hostname: 'localhost',
     port: currentPort,
@@ -1312,4 +1311,48 @@ export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
     `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
     'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
   )
+}
+
+export function isMiddlewareFile(file: string) {
+  return (
+    file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isMiddlewareFilename(file?: string) {
+  return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function getPossibleMiddlewareFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
+  )
+}
+
+export class MiddlewareInServerlessTargetError extends Error {
+  constructor() {
+    super(
+      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
+        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
+    )
+    this.name = 'MiddlewareInServerlessTargetError'
+  }
+}
+
+export class NestedMiddlewareError extends Error {
+  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+    super(
+      `Nested Middleware is not allowed, found:\n` +
+        `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
+        `Please move your code to a single file at ${path.join(
+          path.posix.sep,
+          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          'middleware'
+        )} instead.\n` +
+        `Read More - https://nextjs.org/docs/messages/nested-middleware`
+    )
+  }
 }
