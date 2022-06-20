@@ -1,11 +1,11 @@
-use std::{mem::take, sync::Arc};
+use std::{env::current_dir, mem::take, sync::Arc};
 
 use anyhow::Result;
 use url::Url;
 
 use crate::target::CompileTargetVc;
 
-use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
+use super::{ConstantValue, FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
 pub async fn replace_well_known(
     value: JsValue,
@@ -171,7 +171,26 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     results_final.extend(results.drain(..));
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
+
+    let is_already_absolute = first.as_str().map_or(false, |s| s.starts_with('/'))
+        || match first {
+            JsValue::FreeVar(FreeVarKind::Dirname) => true,
+            _ => false,
+        };
+
     let mut last_was_str = first.as_str().is_some();
+
+    if !is_already_absolute {
+        results.push(
+            current_dir()
+                .map(|cwd| cwd.display().to_string())
+                .map(JsValue::from)
+                .expect(
+                    "failed to get current directory which is required for computing path.resolve",
+                ),
+        );
+    }
+
     results.push(first);
     for part in iter {
         let is_str = part.as_str().is_some();
@@ -183,6 +202,7 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
         results.push(part);
         last_was_str = is_str;
     }
+
     JsValue::concat(results)
 }
 
