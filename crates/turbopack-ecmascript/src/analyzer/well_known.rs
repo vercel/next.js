@@ -171,17 +171,17 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     results_final.extend(results.drain(..));
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
-    let mut last_is_str = first.as_str().is_some();
+    let mut last_was_str = first.as_str().is_some();
     results.push(first);
     for part in iter {
         let is_str = part.as_str().is_some();
-        if last_is_str && is_str {
+        if last_was_str && is_str {
             results.push("/".into());
         } else {
             results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
         }
         results.push(part);
-        last_is_str = is_str;
+        last_was_str = is_str;
     }
     JsValue::concat(results)
 }
