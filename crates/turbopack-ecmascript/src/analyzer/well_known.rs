@@ -130,8 +130,9 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
 // one parameter
 pub fn path_resolve(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
-        return args[0].clone();
+        return args.into_iter().next().unwrap();
     }
+
     JsValue::Unknown(
         Some(Arc::new(JsValue::call(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
