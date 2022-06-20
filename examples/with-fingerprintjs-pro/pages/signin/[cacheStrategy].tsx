@@ -16,34 +16,38 @@ function SignInPage() {
   )
 
   return (
-    <section className='body'>
+    <section className="body">
       <h3>Sign in</h3>
       <div>
         <p>
-          Another common use-case is when you want to only fingerprint a user after they perform some action, in this
-          case - submit a form. For this purpose <code>useVisitorData</code> hook should be called with{' '}
-          <code>immediate</code> flag set to <code>false</code> and call the <code>getData</code> function on form
-          submission.
+          Another common use-case is when you want to only fingerprint a user
+          after they perform some action, in this case - submit a form. For this
+          purpose <code>useVisitorData</code> hook should be called with{' '}
+          <code>immediate</code> flag set to <code>false</code> and call the{' '}
+          <code>getData</code> function on form submission.
         </p>
-        <p>Try submitting the form with any values and notice that a fingerprint will be calculated.</p>
+        <p>
+          Try submitting the form with any values and notice that a fingerprint
+          will be calculated.
+        </p>
       </div>
-      <div className='form-control checkbox'>
-        <label htmlFor='ignore-cache'>
+      <div className="form-control checkbox">
+        <label htmlFor="ignore-cache">
           Ignore cache:
           <input
-            id='ignore-cache'
-            type='checkbox'
+            id="ignore-cache"
+            type="checkbox"
             checked={ignoreCache}
             onChange={(e) => setIgnoreCache(e.currentTarget.checked)}
           />
         </label>
       </div>
-      <div className='form-control checkbox'>
-        <label htmlFor='extended-result'>
+      <div className="form-control checkbox">
+        <label htmlFor="extended-result">
           Extended result:
           <input
-            id='extended-result'
-            type='checkbox'
+            id="extended-result"
+            type="checkbox"
             checked={extendedResult}
             onChange={(e) => setExtendedResult(e.currentTarget.checked)}
           />
@@ -51,7 +55,7 @@ function SignInPage() {
         <sub>will be used as extended_result param for the request</sub>
       </div>
       <form
-        className='form'
+        className="form"
         onSubmit={(e) => {
           e.preventDefault()
           getData({ ignoreCache }).then((data) => {
@@ -63,36 +67,42 @@ function SignInPage() {
           })
         }}
       >
-        <div className='form-control'>
-          <label htmlFor='login'>Login:</label>
+        <div className="form-control">
+          <label htmlFor="login">Login:</label>
           <input
-            id='login'
-            type='text'
-            name='login'
+            id="login"
+            type="text"
+            name="login"
             required
-            autoComplete='off'
+            autoComplete="off"
             value={login}
             onChange={(e) => setLogin(e.currentTarget.value)}
           />
           <sub>will be used as linked_id param for the request</sub>
         </div>
-        <div className='form-control'>
-          <label htmlFor='password'>Password:</label>
+        <div className="form-control">
+          <label htmlFor="password">Password:</label>
           <input
-            id='password'
-            type='password'
-            name='password'
+            id="password"
+            type="password"
+            name="password"
             required
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
           />
         </div>
-        <div className='form-control'>
-          <label htmlFor='tag'>Tag:</label>
-          <input id='tag' type='text' name='tag' value={tag} onChange={(e) => setTag(e.currentTarget.value)} />
+        <div className="form-control">
+          <label htmlFor="tag">Tag:</label>
+          <input
+            id="tag"
+            type="text"
+            name="tag"
+            value={tag}
+            onChange={(e) => setTag(e.currentTarget.value)}
+          />
           <sub>will be used as tag param for the request</sub>
         </div>
-        <button type='submit'>Submit</button>
+        <button type="submit">Submit</button>
       </form>
       <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
     </section>

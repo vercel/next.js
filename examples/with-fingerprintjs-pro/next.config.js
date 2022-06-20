@@ -6,10 +6,10 @@ const nextConfig = {
       {
         source: '/',
         destination: '/home/memory-cache',
-        permanent: true
-      }
+        permanent: true,
+      },
     ]
-  }
+  },
 }
 
 module.exports = nextConfig
