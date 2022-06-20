@@ -1,4 +1,4 @@
-# Material-ui examples
+# Material UI examples
 
 **Note:** These examples are maintained outside of the Next.js repository:
 
