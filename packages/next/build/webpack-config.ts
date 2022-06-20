@@ -331,6 +331,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     target = 'server',
     appDir,
+    middlewareRegex,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -345,6 +346,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
     target?: string
     appDir?: string
+    middlewareRegex?: string
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === 'client'
@@ -1230,6 +1232,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'noop-loader',
         'next-middleware-loader',
+        'next-edge-function-loader',
         'next-middleware-ssr-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
@@ -1464,6 +1467,9 @@ export default async function getBaseWebpackConfig(
             isEdgeServer ? 'edge' : 'nodejs'
           ),
         }),
+        'process.env.__NEXT_MIDDLEWARE_REGEX': JSON.stringify(
+          middlewareRegex || ''
+        ),
         'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': JSON.stringify(
           config.experimental.manualClientBasePath
         ),
@@ -1515,6 +1521,7 @@ export default async function getBaseWebpackConfig(
           imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          experimentalUnoptimized: config?.experimental?.images?.unoptimized,
           experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           ...(dev
             ? {
@@ -1709,13 +1716,14 @@ export default async function getBaseWebpackConfig(
 
   const webpack5Config = webpackConfig as webpack5.Configuration
 
-  webpack5Config.module?.rules?.unshift({
-    test: /\.wasm$/,
-    issuerLayer: 'middleware',
-    loader: 'next-middleware-wasm-loader',
-    type: 'javascript/auto',
-    resourceQuery: /module/i,
-  })
+  if (isEdgeServer) {
+    webpack5Config.module?.rules?.unshift({
+      test: /\.wasm$/,
+      loader: 'next-middleware-wasm-loader',
+      type: 'javascript/auto',
+      resourceQuery: /module/i,
+    })
+  }
 
   webpack5Config.experiments = {
     layers: true,

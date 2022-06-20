@@ -1,5 +1,7 @@
 # Next Script for Google Analytics
 
+> Prefer `next/script` component when using the inline script for Google Analytics.
+
 ### Why This Error Occurred
 
 An inline script was used for Google analytics which might impact your webpage's performance.

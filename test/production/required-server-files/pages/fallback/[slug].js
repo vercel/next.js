@@ -12,7 +12,7 @@ export const getStaticProps = ({ params }) => {
 
 export const getStaticPaths = async () => {
   // make sure fetch if polyfilled
-  await fetch('https://example.com').then((res) => res.text())
+  await fetch('https://example.vercel.sh').then((res) => res.text())
 
   return {
     paths: ['/fallback/first'],
