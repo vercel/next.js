@@ -53,3 +53,8 @@ it('can be cloned', async () => {
     server: 'Vercel',
   })
 })
+
+it('can return JSON', async () => {
+  const response = NextResponse.json({ hello: 'world' })
+  expect(await response.json()).toEqual({ hello: 'world' })
+})

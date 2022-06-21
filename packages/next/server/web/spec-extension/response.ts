@@ -31,17 +31,6 @@ export class NextResponse extends Response {
     return this[INTERNALS].cookies
   }
 
-  static json(body: any, init?: ResponseInit) {
-    const { headers, ...responseInit } = init || {}
-    return new NextResponse(JSON.stringify(body), {
-      ...responseInit,
-      headers: {
-        ...headers,
-        'content-type': 'application/json',
-      },
-    })
-  }
-
   static redirect(url: string | NextURL | URL, status = 307) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
