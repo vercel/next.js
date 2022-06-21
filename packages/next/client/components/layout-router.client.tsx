@@ -5,6 +5,8 @@ import {
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 
+let infinitePromise: Promise<void>
+
 export function InnerLayoutRouter({
   url,
   childNodes,
@@ -58,8 +60,9 @@ export function InnerLayoutRouter({
         })
       })
 
-      // TODO: Trigger Suspense here?
-      throw new Promise(() => {})
+      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+      if (!infinitePromise) infinitePromise = new Promise(() => {})
+      throw infinitePromise
     }
   }
 
