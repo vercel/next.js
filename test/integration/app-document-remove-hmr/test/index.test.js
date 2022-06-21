@@ -3,13 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  check,
-  clickReloadOnFullRefreshWarning,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
@@ -36,7 +30,6 @@ describe('_app removal HMR', () => {
 
       await fs.rename(appPage, appPage + '.bak')
 
-      await clickReloadOnFullRefreshWarning(browser)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return html.includes('index page') && !html.includes('custom _app')
@@ -63,7 +56,6 @@ describe('_app removal HMR', () => {
 
       await fs.rename(appPage + '.bak', appPage)
 
-      await clickReloadOnFullRefreshWarning(browser)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return html.includes('index page updated') &&
