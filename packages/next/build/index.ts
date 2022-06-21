@@ -1444,7 +1444,7 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = path.parse(dir).root
+            const root = config.experimental.outputFileTracingRoot || dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1454,6 +1454,7 @@ export default async function build(
                 require.resolve(config.experimental.incrementalCacheHandlerPath)
               )
             }
+
             const serverResult = await nodeFileTrace(toTrace, {
               base: root,
               processCwd: dir,
