@@ -9,7 +9,6 @@ module.exports = {
       recommended: true,
       url,
     },
-    fixable: 'code',
     type: 'problem',
     schema: [],
   },

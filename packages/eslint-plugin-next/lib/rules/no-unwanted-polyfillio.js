@@ -72,7 +72,6 @@ module.exports = {
       recommended: true,
       url,
     },
-    fixable: null,
     type: 'problem',
     schema: [],
   },

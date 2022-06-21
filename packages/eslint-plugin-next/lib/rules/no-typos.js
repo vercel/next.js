@@ -46,7 +46,6 @@ module.exports = {
       category: 'Stylistic Issues',
       recommended: true,
     },
-    fixable: null,
     type: 'suggestion',
     schema: [],
   },
