@@ -49,16 +49,10 @@ struct DisplayNameAndId {
 
 impl DisplayNameAndId {
     fn get_block_name(&self, p: &Path) -> String {
-        let file_stem = p.file_stem();
-        if let Some(file_stem) = file_stem {
-            if file_stem == "index" {
-            } else {
-                return file_stem.to_string_lossy().to_string();
-            }
-        } else {
+        match p.file_stem().map(|s| s.to_string_lossy().to_string()) {
+            Some(file_stem) if !self.config.meaningless_file_names.contains(&file_stem) => file_stem,
+            _ => self.get_block_name(p.parent().expect("path only contains meaningless filenames (e.g. /index/index)?")),
         }
-
-        self.get_block_name(p.parent().expect("/index/index/index?"))
     }
 
     fn get_display_name(&mut self, _: &Expr) -> JsWord {

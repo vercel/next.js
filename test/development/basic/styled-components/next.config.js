@@ -1,5 +1,8 @@
 module.exports = {
   compiler: {
-    styledComponents: true,
+    styledComponents: {
+      displayName: true,
+      cssProp: true,
+    },
   },
 }
