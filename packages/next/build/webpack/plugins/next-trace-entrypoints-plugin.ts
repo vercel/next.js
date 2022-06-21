@@ -68,11 +68,13 @@ function getFilesMapFromReasons(
 
   for (const file of fileList!) {
     const reason = reasons!.get(file)
+    const isInitial =
+      reason?.type.length === 1 && reason.type.includes('initial')
 
     if (
       !reason ||
       !reason.parents ||
-      (reason.type === 'initial' && reason.parents.size === 0)
+      (isInitial && reason.parents.size === 0)
     ) {
       continue
     }
@@ -124,6 +126,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
       const entryFilesMap = new Map<any, Set<string>>()
       const chunksToTrace = new Set<string>()
+      const isTraceable = (file: string) => !file.endsWith('.wasm')
 
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
@@ -132,14 +135,18 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           .getEntrypointChunk()
           .getAllReferencedChunks()) {
           for (const file of chunk.files) {
-            const filePath = nodePath.join(outputPath, file)
-            chunksToTrace.add(filePath)
-            entryFiles.add(filePath)
+            if (isTraceable(file)) {
+              const filePath = nodePath.join(outputPath, file)
+              chunksToTrace.add(filePath)
+              entryFiles.add(filePath)
+            }
           }
           for (const file of chunk.auxiliaryFiles) {
-            const filePath = nodePath.join(outputPath, file)
-            chunksToTrace.add(filePath)
-            entryFiles.add(filePath)
+            if (isTraceable(file)) {
+              const filePath = nodePath.join(outputPath, file)
+              chunksToTrace.add(filePath)
+              entryFiles.add(filePath)
+            }
           }
         }
         entryFilesMap.set(entrypoint, entryFiles)
@@ -358,10 +365,17 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                   fileList,
                   reasons,
                   (file) => {
+                    // if a file was imported and a loader handled it
+                    // we don't include it in the trace e.g.
+                    // static image imports, CSS imports
                     file = nodePath.join(this.tracingRoot, file)
                     const depMod = depModMap.get(file)
+                    const isAsset = reasons
+                      .get(nodePath.relative(this.tracingRoot, file))
+                      ?.type.includes('asset')
 
                     return (
+                      !isAsset &&
                       Array.isArray(depMod?.loaders) &&
                       depMod.loaders.length > 0
                     )
@@ -532,7 +546,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                       ) {
                         requestPath = (
                           resContext.descriptionFileRoot +
-                          request.substr(getPkgName(request)?.length || 0) +
+                          request.slice(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
                         )
@@ -546,7 +560,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                         (separatorIndex = requestPath.lastIndexOf('/')) >
                         rootSeparatorIndex
                       ) {
-                        requestPath = requestPath.substr(0, separatorIndex)
+                        requestPath = requestPath.slice(0, separatorIndex)
                         const curPackageJsonPath = `${requestPath}/package.json`
                         if (await job.isFile(curPackageJsonPath)) {
                           await job.emitFile(

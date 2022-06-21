@@ -39,6 +39,8 @@ NODE_OPTIONS='-r esm' next
 NODE_OPTIONS='--inspect' next
 ```
 
+> Note: Running `next` without a command is the same as running `next dev`
+
 ## Build
 
 `next build` creates an optimized production build of your application. The output displays information about each route.
@@ -46,7 +48,7 @@ NODE_OPTIONS='--inspect' next
 - **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
 
-The first load is indicated by green, yellow, or red. Aim for green for performant applications.
+Both of these values are **compressed with gzip**. The first load is indicated by green, yellow, or red. Aim for green for performant applications.
 
 You can enable production profiling for React with the `--profile` flag in `next build`. This requires [Next.js 9.5](https://nextjs.org/blog/next-9-5):
 

@@ -3,6 +3,7 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   check,
+  clickReloadOnFullRefreshWarning,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxSource,
@@ -382,6 +383,7 @@ describe('basic HMR', () => {
 
         await next.patchFile(aboutPage, aboutContent)
 
+        await clickReloadOnFullRefreshWarning(browser)
         await check(
           () => getBrowserBodyText(browser),
           /This is the contact page/
@@ -415,6 +417,8 @@ describe('basic HMR', () => {
           aboutPage,
           aboutContent.replace('export', 'aa=20;\nexport')
         )
+
+        await clickReloadOnFullRefreshWarning(browser)
 
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
@@ -485,6 +489,7 @@ describe('basic HMR', () => {
           )
         )
 
+        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -532,6 +537,9 @@ describe('basic HMR', () => {
           )
         )
 
+        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+
+        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -540,7 +548,9 @@ describe('basic HMR', () => {
             'Unknown'
           )
         ).toMatch(
-          'Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.'
+          `Objects are not valid as a React child (found: ${
+            isReact17 ? '/search/' : '[object RegExp]'
+          }). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -581,6 +591,7 @@ describe('basic HMR', () => {
           )
         )
 
+        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -634,15 +645,16 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
+        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await browser.elementByCss('body').text()
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)
@@ -682,15 +694,16 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
+        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
 
         await check(async () => {
           await browser.refresh()
+          await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
-            await waitFor(2000)
             throw new Error('waiting')
           }
           return getRedboxSource(browser)

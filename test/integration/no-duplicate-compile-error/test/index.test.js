@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import {
   check,
+  clickReloadOnFullRefreshWarning,
   File,
   findPort,
   hasRedbox,
@@ -43,6 +44,8 @@ describe('no duplicate compile error output', () => {
       f.restore()
     }
 
+    await clickReloadOnFullRefreshWarning(browser)
+
     // Wait for compile error to disappear:
     await check(
       () => hasRedbox(browser, false).then((r) => (r ? 'yes' : 'no')),
@@ -54,8 +57,7 @@ describe('no duplicate compile error output', () => {
       return (str.match(regex) || []).length
     }
 
-    const correctMessagesRegex =
-      /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
+    const correctMessagesRegex = /Caused by:/g
     const totalMessagesRegex = /Unexpected token/g
 
     const correctMessages = getRegexCount(stderr, correctMessagesRegex)

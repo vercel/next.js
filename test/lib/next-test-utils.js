@@ -29,10 +29,20 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], {
-      env,
-      cwd: opts && opts.cwd,
-    })
+    const instance = spawn(
+      'node',
+      [
+        ...((opts && opts.nodeArgs) || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        scriptPath,
+      ],
+      {
+        env,
+        cwd: opts && opts.cwd,
+      }
+    )
 
     function handleStdout(data) {
       const message = data.toString()
@@ -143,7 +153,14 @@ export function runNextCommand(argv, options = {}) {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [
+        ...(options.nodeArgs || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         ...options.spawnOptions,
         cwd,
@@ -233,7 +250,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      [
+        ...nodeArgs,
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         cwd,
         env,
@@ -583,6 +607,42 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
+export async function ignoreFullRefreshWarnings(browser) {
+  await browser.eval(() => {
+    sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
+  })
+}
+
+export async function clickReloadOnFullRefreshWarning(browser) {
+  await retry(async () => {
+    const hasFullRefreshWarning = await evaluate(browser, () =>
+      Boolean(
+        Array.from(document.querySelectorAll('nextjs-portal')).find(
+          (p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_refresh_warning_label'
+            )?.textContent === 'About to perform a full refresh'
+        )
+      )
+    )
+    if (!hasFullRefreshWarning) throw new Error('No full refresh warning')
+    return evaluate(browser, () => {
+      const buttons = Array.from(document.querySelectorAll('nextjs-portal'))
+        .find(
+          (p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_refresh_warning_label'
+            )?.textContent === 'About to perform a full refresh'
+        )
+        .shadowRoot.querySelectorAll('button')
+
+      Array.from(buttons)
+        .find((b) => b.textContent === 'Reload')
+        .click()
+    })
+  })
+}
+
 export async function getRedboxHeader(browser) {
   return retry(
     () =>
@@ -717,4 +777,74 @@ export function getPageFileFromPagesManifest(dir, page) {
 export function readNextBuildServerPageFile(appDir, page) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {{env: 'prod' | 'dev', appDir: string}} context
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+function runSuite(suiteName, context, options) {
+  const { appDir, env } = context
+  describe(`${suiteName} ${env}`, () => {
+    beforeAll(async () => {
+      options.beforeAll?.(env)
+      context.stderr = ''
+      const onStderr = (msg) => {
+        context.stderr += msg
+      }
+      context.stdout = ''
+      const onStdout = (msg) => {
+        context.stdout += msg
+      }
+      if (env === 'prod') {
+        context.appPort = await findPort()
+        const { stdout, stderr, code } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
+        context.stdout = stdout
+        context.stderr = stderr
+        context.code = code
+        context.server = await nextStart(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+        })
+      } else if (env === 'dev') {
+        context.appPort = await findPort()
+        context.server = await launchApp(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+        })
+      }
+    })
+    afterAll(async () => {
+      options.afterAll?.(env)
+      if (context.server) {
+        await killApp(context.server)
+      }
+    })
+    options.runTests(context, env)
+  })
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runDevSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'dev' }, options)
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+export function runProdSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'prod' }, options)
 }
