@@ -3,17 +3,14 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use std::sync::Arc;
+use swc_common::errors::HANDLER;
 use swc_common::{collections::AHashSet, FileName, SourceMap, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
     marks::Marks,
 };
-use swc_ecmascript::utils::{
-    collect_decls,
-    ident::{Id, IdentLike},
-    prepend, HANDLER,
-};
+use swc_ecmascript::utils::{collect_decls, prepend_stmt};
 use swc_ecmascript::utils::{drop_span, private_ident};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -51,6 +48,7 @@ pub fn styled_jsx(cm: Arc<SourceMap>, file_name: FileName) -> impl Fold {
         add_default_decl: Default::default(),
         in_function_params: Default::default(),
         evaluator: Default::default(),
+        visiting_styled_jsx_descendants: Default::default(),
     }
 }
 
@@ -73,6 +71,7 @@ struct StyledJSXTransformer {
     add_default_decl: Option<(Id, Expr)>,
     in_function_params: bool,
     evaluator: Option<Evaluator>,
+    visiting_styled_jsx_descendants: bool,
 }
 
 pub struct LocalStyle {
@@ -104,6 +103,18 @@ enum StyleExpr<'a> {
 impl Fold for StyledJSXTransformer {
     fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
         if is_styled_jsx(&el) {
+            if self.visiting_styled_jsx_descendants {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            el.span,
+                            "Detected nested styled-jsx tag.\nRead more: https://nextjs.org/docs/messages/nested-styled-jsx-tags",
+                        )
+                        .emit()
+                });
+                return el;
+            }
+
             let parent_has_styled_jsx = self.has_styled_jsx;
             if !parent_has_styled_jsx && self.check_for_jsx_styles(Some(&el), &el.children).is_err()
             {
@@ -120,7 +131,10 @@ impl Fold for StyledJSXTransformer {
         }
 
         if self.has_styled_jsx {
-            return el.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = true;
+            let el = el.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = false;
+            return el;
         }
 
         if self.check_for_jsx_styles(None, &el.children).is_err() {
@@ -134,7 +148,10 @@ impl Fold for StyledJSXTransformer {
 
     fn fold_jsx_fragment(&mut self, fragment: JSXFragment) -> JSXFragment {
         if self.has_styled_jsx {
-            return fragment.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = true;
+            let fragment = fragment.fold_children_with(self);
+            self.visiting_styled_jsx_descendants = false;
+            return fragment;
         }
 
         if self.check_for_jsx_styles(None, &fragment.children).is_err() {
@@ -334,7 +351,7 @@ impl Fold for StyledJSXTransformer {
         }
 
         if self.file_has_styled_jsx || self.file_has_css_resolve {
-            prepend(
+            prepend_stmt(
                 &mut new_items,
                 styled_jsx_import_decl(self.style_import_name.as_ref().unwrap()),
             );

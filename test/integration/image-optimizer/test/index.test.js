@@ -48,6 +48,89 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when remotePatterns length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: Array.from({ length: 51 }).map((_) => ({
+                hostname: 'example.com',
+              })),
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.remotePatterns exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when remotePatterns has invalid prop', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: [{ hostname: 'example.com', foo: 'bar' }],
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Invalid images.remotePatterns values:\n{"hostname":"example.com","foo":"bar"}'
+      )
+    })
+
+    it('should error when remotePatterns is missing hostname', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            images: {
+              remotePatterns: [{ protocol: 'https' }],
+            },
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Invalid images.remotePatterns values:\n{"protocol":"https"}'
+      )
+    })
+
     it('should error when sizes length exceeds 25', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
@@ -393,7 +476,7 @@ describe('Image Optimizer', () => {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=86400, must-revalidate`
       )
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
@@ -422,7 +505,7 @@ describe('Image Optimizer', () => {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=60, must-revalidate`
       )
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
@@ -494,7 +577,7 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=31536000, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('Content-Disposition')).toBe(

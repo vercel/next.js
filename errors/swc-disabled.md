@@ -13,3 +13,16 @@ Many of the integrations with external libraries that currently require custom B
 - Emotion
 
 In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
+
+#### Possible Ways to Fix It
+
+If you want to use SWC despite the presence of a `.babelrc` file you can force it in your `next.config.js` file.
+
+```js
+// next.config.js
+module.exports = {
+  experimental: {
+    forceSwcTransforms: true,
+  },
+}
+```

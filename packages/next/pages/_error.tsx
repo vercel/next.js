@@ -12,6 +12,7 @@ const statusCodes: { [code: number]: string } = {
 export type ErrorProps = {
   statusCode: number
   title?: string
+  withDarkMode?: boolean
 }
 
 function _getInitialProps({
@@ -33,7 +34,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static origGetInitialProps = _getInitialProps
 
   render() {
-    const { statusCode } = this.props
+    const { statusCode, withDarkMode = true } = this.props
     const title =
       this.props.title ||
       statusCodes[statusCode] ||
@@ -41,16 +42,13 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
     return (
       <div style={styles.error}>
-        {/* TODO: remove this once RSC supports next/head */}
-        {!process.env.__NEXT_RSC && (
-          <Head>
-            <title>
-              {statusCode
-                ? `${statusCode}: ${title}`
-                : 'Application error: a client-side exception has occurred'}
-            </title>
-          </Head>
-        )}
+        <Head>
+          <title>
+            {statusCode
+              ? `${statusCode}: ${title}`
+              : 'Application error: a client-side exception has occurred'}
+          </title>
+        </Head>
         <div>
           <style
             dangerouslySetInnerHTML={{
@@ -59,14 +57,20 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 .next-error-h1 {
                   border-right: 1px solid rgba(0, 0, 0, .3);
                 }
-                @media (prefers-color-scheme: dark) {
+                
+                ${
+                  withDarkMode
+                    ? `@media (prefers-color-scheme: dark) {
                   body { color: #fff; background: #000; }
                   .next-error-h1 {
                     border-right: 1px solid rgba(255, 255, 255, .3);
                   }
+                }`
+                    : ''
                 }`,
             }}
           />
+
           {statusCode ? (
             <h1 className="next-error-h1" style={styles.h1}>
               {statusCode}

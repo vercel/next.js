@@ -36,7 +36,7 @@ npx create-next-app@latest --typescript
 # or
 yarn create next-app --typescript
 # or
-pnpm create next-app -- --typescript
+pnpm create next-app --typescript
 ```
 
 After the installation is complete:

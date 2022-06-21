@@ -1,4 +1,5 @@
 import {
+  ignoreFullRefreshWarnings,
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
@@ -30,6 +31,7 @@ export async function sandbox(
   }
   await next.start()
   const browser = await webdriver(next.appPort, '/')
+  await ignoreFullRefreshWarnings(browser)
   return {
     session: {
       async write(filename, content) {

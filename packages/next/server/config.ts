@@ -2,7 +2,6 @@ import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
-import semver from 'next/dist/compiled/semver'
 import findUp from 'next/dist/compiled/find-up'
 import chalk from '../lib/chalk'
 import * as Log from '../build/output/log'
@@ -10,8 +9,9 @@ import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
-  NextConfigComplete,
   normalizeConfig,
+  ExperimentalConfig,
+  NextConfigComplete,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -26,14 +26,40 @@ export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
-const experimentalWarning = execOnce(() => {
-  Log.warn(chalk.bold('You have enabled experimental feature(s).'))
-  Log.warn(
-    `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
-      `Use them at your own risk.`
-  )
-  console.warn()
-})
+const experimentalWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    Log.warn(
+      chalk.bold(
+        `You have enabled experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName}.`
+      )
+    )
+    Log.warn(
+      `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
+        `Use at your own risk.`
+    )
+    console.warn()
+  }
+)
+
+const missingExperimentalWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    const dont = features.length > 1 ? 'do not' : 'does not'
+    const them = features.length > 1 ? 'them' : 'it'
+    Log.warn(
+      chalk.bold(
+        `You have defined experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName} that ${dont} exist in this version of Next.js.`
+      )
+    )
+    Log.warn(`Please remove ${them} from your configuration.`)
+    console.warn()
+  }
+)
 
 function assignDefaults(userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
@@ -69,13 +95,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (
-        key === 'experimental' &&
-        value !== defaultConfig[key] &&
-        typeof value === 'object' &&
-        Object.keys(value).length > 0
-      ) {
-        experimentalWarning()
+      if (key === 'experimental' && typeof value === 'object') {
+        const enabledMissingExperiments: string[] = []
+        const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+        // defaultConfig.experimental is predefined and will never be undefined
+        // This is only a type guard for the typescript
+        if (defaultConfig.experimental) {
+          for (const featureName of Object.keys(
+            value
+          ) as (keyof ExperimentalConfig)[]) {
+            if (!(featureName in defaultConfig.experimental)) {
+              enabledMissingExperiments.push(featureName)
+            } else if (
+              value[featureName] !== defaultConfig.experimental[featureName]
+            ) {
+              enabledExperiments.push(featureName)
+            }
+          }
+        }
+
+        if (enabledMissingExperiments.length > 0) {
+          missingExperimentalWarning(configFileName, enabledMissingExperiments)
+        }
+        if (enabledExperiments.length > 0) {
+          experimentalWarning(configFileName, enabledExperiments)
+        }
       }
 
       if (key === 'distDir') {
@@ -188,7 +233,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  const hasReactRoot = shouldUseReactRoot()
+  const hasReactRoot = process.env.__NEXT_REACT_ROOT
   if (hasReactRoot) {
     // users might not have the `experimental` key in their config
     result.experimental = result.experimental || {}
@@ -235,6 +280,43 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
+
+    const remotePatterns = result.experimental?.images?.remotePatterns
+    if (remotePatterns) {
+      if (!Array.isArray(remotePatterns)) {
+        throw new Error(
+          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      if (remotePatterns.length > 50) {
+        throw new Error(
+          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
+      const requiredProps = ['hostname']
+      const invalidPatterns = remotePatterns.filter(
+        (d: unknown) =>
+          !d ||
+          typeof d !== 'object' ||
+          Object.entries(d).some(
+            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
+          ) ||
+          requiredProps.some((k) => !(k in d))
+      )
+      if (invalidPatterns.length > 0) {
+        throw new Error(
+          `Invalid images.remotePatterns values:\n${invalidPatterns
+            .map((item) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+
     if (images.deviceSizes) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
@@ -385,6 +467,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    const unoptimized = result.experimental?.images?.unoptimized
+    if (
+      typeof unoptimized !== 'undefined' &&
+      typeof unoptimized !== 'boolean'
+    ) {
+      throw new Error(
+        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
 
   if (result.webpack5 === false) {
@@ -421,6 +513,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     ).styledComponents
   }
 
+  if (result.experimental && 'emotion' in (result.experimental as any)) {
+    Log.warn(
+      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.compiler = result.compiler || {}
+    result.compiler.emotion = (result.experimental as any).emotion
+  }
+
   if (
     result.experimental &&
     'reactRemoveProperties' in (result.experimental as any)
@@ -445,6 +545,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result.swcMinify) {
     Log.warn(
       'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+    )
+  }
+
+  if (result.experimental?.swcMinifyDebugOptions) {
+    Log.warn(
+      'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
     )
   }
 
@@ -585,6 +691,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (!i18n.locales.includes(i18n.defaultLocale)) {
       throw new Error(
         `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
+    const normalizedLocales = new Set()
+    const duplicateLocales = new Set()
+
+    i18n.locales.forEach((locale) => {
+      const localeLower = locale.toLowerCase()
+      if (normalizedLocales.has(localeLower)) {
+        duplicateLocales.add(locale)
+      }
+      normalizedLocales.add(localeLower)
+    })
+
+    if (duplicateLocales.size > 0) {
+      throw new Error(
+        `Specified i18n.locales contains the following duplicate locales:\n` +
+          `${[...duplicateLocales].join(', ')}\n` +
+          `Each locale should be listed only once.\n` +
+          `See more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
 
@@ -752,19 +878,6 @@ export default async function loadConfig(
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
-
-export const shouldUseReactRoot = execOnce(() => {
-  const reactDomVersion = require('react-dom').version
-  const isReactExperimental = Boolean(
-    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
-  )
-  const hasReact18: boolean =
-    Boolean(reactDomVersion) &&
-    (semver.gte(reactDomVersion!, '18.0.0') ||
-      semver.coerce(reactDomVersion)?.version === '18.0.0')
-
-  return hasReact18 || isReactExperimental
-})
 
 export function setHttpAgentOptions(
   options: NextConfigComplete['httpAgentOptions']

@@ -15,12 +15,18 @@ import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
+export { getErrorSource } from './internal/helpers/nodeStackFrames'
+export {
+  decorateServerError,
+  getServerError,
+} from './internal/helpers/nodeStackFrames'
 export { parseStack } from './internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
+  edgeServerStats(): webpack.Stats | null
 }
 
 export type OriginalStackFrameResponse = {
@@ -212,7 +218,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
     if (pathname === '/__nextjs_original-stack-frame') {
       const frame = query as unknown as StackFrame & {
-        isServerSide: 'true' | 'false'
+        isEdgeServer: 'true' | 'false'
+        isServer: 'true' | 'false'
       }
       if (
         !(
@@ -226,7 +233,6 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const isServerSide = frame.isServerSide === 'true'
       const moduleId: string = frame.file.replace(
         /^(webpack-internal:\/\/\/|file:\/\/)/,
         ''
@@ -234,9 +240,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       let source: Source
       try {
-        const compilation = isServerSide
-          ? options.serverStats()?.compilation
-          : options.stats()?.compilation
+        const compilation =
+          frame.isEdgeServer === 'true'
+            ? options.edgeServerStats()?.compilation
+            : frame.isServer === 'true'
+            ? options.serverStats()?.compilation
+            : options.stats()?.compilation
 
         source = await getSourceById(
           frame.file.startsWith('file:'),
