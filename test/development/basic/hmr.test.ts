@@ -791,4 +791,40 @@ describe('basic HMR', () => {
     expect(traceData).toContain('client-error')
     expect(traceData).toContain('client-success')
   })
+
+  it('should have correct compile timing after fixing error', async () => {
+    const pageName = 'pages/auto-export-is-ready.js'
+    const originalContent = await next.readFile(pageName)
+
+    try {
+      const browser = await webdriver(next.url, '/auto-export-is-ready')
+      const outputLength = next.cliOutput.length
+      await next.patchFile(
+        pageName,
+        `import hello from 'non-existent'\n` + originalContent
+      )
+      expect(await hasRedbox(browser, true)).toBe(true)
+      await waitFor(3000)
+      await next.patchFile(pageName, originalContent)
+      await check(
+        () => next.cliOutput.substring(outputLength),
+        /compiled.*?successfully/i
+      )
+      const compileTime = next.cliOutput
+        .substring(outputLength)
+        .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+
+      let compileTimeMs = parseFloat(compileTime[1])
+      if (
+        next.cliOutput
+          .substring(outputLength)
+          .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
+      ) {
+        compileTimeMs = compileTimeMs * 1000
+      }
+      expect(compileTimeMs).toBeLessThan(3000)
+    } finally {
+      await next.patchFile(pageName, originalContent)
+    }
+  })
 })
