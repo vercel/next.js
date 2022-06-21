@@ -238,7 +238,7 @@ export async function middleware(request) {
   response.headers.set('req-url-locale', request.nextUrl.locale)
   response.headers.set(
     'req-url-params',
-    url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}'
+    url.pathname !== '/static' ? JSON.stringify(params(url)) : '{}'
   )
   return response
 }
