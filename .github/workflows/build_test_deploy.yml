@@ -1478,7 +1478,7 @@ jobs:
             env
             freebsd-version
             npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
-            yarn --cwd=packages/next-swc build-native --release --target x86_64-unknown-freebsd
+            yarn --cwd=packages/next-swc build-native-no-plugin --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
       - name: Upload artifact
