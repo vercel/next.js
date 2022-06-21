@@ -129,6 +129,11 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
       const isTraceable = (file: string) => !file.endsWith('.wasm')
 
       for (const entrypoint of compilation.entrypoints.values()) {
+        // FIXME: fix the race condition that __sc_client__ files are not generated yet
+        // but tracing process is started
+        if (entrypoint.name?.includes('__sc_client__')) {
+          continue
+        }
         const entryFiles = new Set<string>()
         for (const chunk of entrypoint
           .getEntrypointChunk()
