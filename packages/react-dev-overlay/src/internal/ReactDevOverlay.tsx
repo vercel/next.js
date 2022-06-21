@@ -92,9 +92,7 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
           {shouldPreventDisplay(
             hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
             preventDisplay
-          ) ? null : isAboutToFullRefresh ? (
-            <FullRefreshWarning reason={state.fullRefreshReason} />
-          ) : hasBuildError ? (
+          ) ? null : hasBuildError ? (
             <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
