@@ -17,7 +17,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }) {
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -117,8 +117,8 @@ function getBaseSWCOptions({
   }
 }
 
-function getStyledComponentsOptions (nextConfig, development) {
-  let styledComponentsOptions = nextConfig?.compiler?.styledComponents;
+function getStyledComponentsOptions(nextConfig, development) {
+  let styledComponentsOptions = nextConfig?.compiler?.styledComponents
   if (!styledComponentsOptions) {
     return null
   }

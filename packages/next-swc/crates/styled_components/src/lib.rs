@@ -9,7 +9,7 @@ pub use crate::{
 use serde::Deserialize;
 use std::{cell::RefCell, rc::Rc};
 use swc_atoms::JsWord;
-use swc_common::{chain, FileName, pass::Optional};
+use swc_common::{chain, pass::Optional, FileName};
 use swc_ecmascript::visit::{Fold, VisitMut};
 
 mod css;

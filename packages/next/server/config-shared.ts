@@ -429,17 +429,17 @@ export interface NextConfig extends Record<string, any> {
            * Enabled by default in development, disabled in production to reduce file size,
            * setting this will override the default for all environments.
            */
-          displayName?: boolean,
-          topLevelImportPaths?: string[],
-          ssr?: boolean,
-          fileName?: boolean,
-          meaninglessFileNames?: string[],
-          minify?: boolean,
-          transpileTemplateLiterals?: boolean,
-          namespace?: string,
-          pure?: boolean,
-          cssProp?: boolean,
-        },
+          displayName?: boolean
+          topLevelImportPaths?: string[]
+          ssr?: boolean
+          fileName?: boolean
+          meaninglessFileNames?: string[]
+          minify?: boolean
+          transpileTemplateLiterals?: boolean
+          namespace?: string
+          pure?: boolean
+          cssProp?: boolean
+        }
     emotion?:
       | boolean
       | {
