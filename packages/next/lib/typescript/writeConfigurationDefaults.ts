@@ -120,7 +120,7 @@ export async function writeConfigurationDefaults(
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
   const strictWasPreviouslySet =
-    typeof userTsConfig.compilerOptions.strict === 'boolean'
+    typeof userTsConfig.compilerOptions?.strict === 'boolean'
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
