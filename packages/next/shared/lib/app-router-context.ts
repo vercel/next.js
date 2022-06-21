@@ -1,7 +1,7 @@
 import React from 'react'
 
 export type CacheNode = {
-  subtreeData: null | React.ReactNode
+  subTreeData: null | React.ReactNode
   childNodes: Map<string, CacheNode>
 }
 

@@ -223,6 +223,7 @@ export async function renderToHTML(
 
   const isFlight = query.__flight__ !== undefined
   // TODO: verify the tree is valid
+  // TODO: verify query param is single value (not an array)
   const flightRouterTree = isFlight
     ? query.__flight_router_state_tree__
       ? JSON.parse(query.__flight_router_state_tree__ as string)
@@ -421,18 +422,18 @@ export async function renderToHTML(
   }
   const search = stringifyQuery(query)
 
+  const initialTree = createSegmentTree(
+    tree,
+    pathname + (search ? `?${search}` : '')
+  )
+
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentWithRouter = () => {
     if (flightRouterTree) {
       return <ComponentTree />
     }
     return (
-      <AppRouter
-        initialTree={createSegmentTree(
-          tree,
-          pathname + (search ? `?${search}` : '')
-        )}
-      >
+      <AppRouter initialTree={initialTree}>
         <ComponentTree />
       </AppRouter>
     )
@@ -478,12 +479,15 @@ export async function renderToHTML(
     return new RenderResult(
       renderToReadableStream(
         // TODO: update `children` to be the children to replace on the client-side
-        [
-          {
-            layoutPath: parentSegmentPath,
-            subTreeData: <WrappedComponentWithRouter />,
-          },
-        ],
+        {
+          tree: initialTree,
+          data: [
+            {
+              layoutPath: parentSegmentPath,
+              subTreeData: <WrappedComponentWithRouter />,
+            },
+          ],
+        },
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )

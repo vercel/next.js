@@ -5,4 +5,12 @@ module.exports = {
     reactRoot: true,
     serverComponents: true,
   },
+  rewrites: async () => {
+    return [
+      {
+        source: '/rewritten-to-dashboard',
+        destination: '/dashboard',
+      },
+    ]
+  },
 }

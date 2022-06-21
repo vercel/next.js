@@ -41,7 +41,7 @@ export default function AppRouter({ initialTree, children }: any) {
     tree: initialTree,
   })
   const [cache /*, setCache*/] = React.useState<CacheNode>({
-    subtreeData: null,
+    subTreeData: null,
     childNodes: new Map(),
   })
 
@@ -49,10 +49,54 @@ export default function AppRouter({ initialTree, children }: any) {
     (
       method: 'replaceState' | 'pushState',
       href: string,
-      historyState?: any
+      historyState?: any,
+      data?: any
     ) => {
       // @ts-ignore startTransition exists
       React.startTransition(() => {
+        if (data) {
+          for (const { layoutPath, subTreeData } of data) {
+            const segments = layoutPath.split('/')
+            let currentNodes = cache.childNodes
+            for (let i = 0; i < segments.length; i++) {
+              const segment = segments[i]
+              const firstSegment = i === 0
+              const lastSegment = i === segments.length - 1
+
+              if (firstSegment && segment === '') {
+                continue
+              }
+
+              if (!currentNodes.has(segment)) {
+                if (lastSegment) {
+                  currentNodes.set(segment, {
+                    subTreeData: null,
+                    childNodes: new Map([
+                      ['page', { subTreeData, childNodes: new Map() }],
+                    ]),
+                  })
+                } else {
+                  currentNodes.set(segment, {
+                    subTreeData: null,
+                    childNodes: new Map(),
+                  })
+                }
+
+                continue
+              }
+
+              if (lastSegment) {
+                currentNodes.get(segment)?.childNodes.set('page', {
+                  subTreeData,
+                  childNodes: new Map(),
+                })
+                continue
+              }
+
+              currentNodes = currentNodes.get(segment)!.childNodes
+            }
+          }
+        }
         // TODO: handling of hash urls
         const url = new URL(href, location.origin)
         const { pathname } = url
@@ -102,13 +146,19 @@ export default function AppRouter({ initialTree, children }: any) {
           newTree = createNewTree(segments, tree, true)
         }
 
-        setTree({ previousTree: tree, tree: newTree })
+        // When navigating `tree` is an optimistic value of what to render
+        // in case of navigating without rewrites/redirects the tree will likely line up with the actual tree that comes back from the server
+        // however if this is not the case the layout-router will call back up to this function with the data that came back from the server
+        // the `data` is then used to pre-populate the cache before calling `setTree`.
+        // In that case `newTree` will be sent from the server and the current `tree` will be the optimistic value
+        // whereas `previousTree` is what layout-routers are actually on the screen, hence why previousTree is set again when `data` exists
+        setTree({ previousTree: data ? previousTree : tree, tree: newTree })
 
         // TODO: update url eagerly or not?
         window.history[method]({ tree: newTree }, '', href)
       })
     },
-    [tree]
+    [tree, cache, previousTree]
   )
   const appRouter = React.useMemo(() => {
     return {
@@ -125,7 +175,7 @@ export default function AppRouter({ initialTree, children }: any) {
 
   if (typeof window !== 'undefined') {
     // @ts-ignore TODO: this is for debugging
-    window.appRouter = appRouter
+    window.nd = { appRouter, cache, tree }
   }
 
   const onPopState = React.useCallback(
@@ -153,8 +203,21 @@ export default function AppRouter({ initialTree, children }: any) {
     window.history.replaceState({ tree: initialTree }, '')
   }, [initialTree])
 
+  const changeByServerResponse = React.useCallback(
+    (root: any) => {
+      // TODO: revisit location.pathname usage
+      change('replaceState', location.pathname, { tree: root.tree }, root.data)
+    },
+    [change]
+  )
+
   return (
-    <FullAppTreeContext.Provider value={previousTree ? previousTree : tree}>
+    <FullAppTreeContext.Provider
+      value={{
+        changeByServerResponse,
+        tree: previousTree ? previousTree : tree,
+      }}
+    >
       <AppRouterContext.Provider value={appRouter}>
         <AppTreeContext.Provider
           value={{

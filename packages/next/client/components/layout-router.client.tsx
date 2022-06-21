@@ -14,7 +14,8 @@ export function InnerLayoutRouter({
   // isActive,
   path,
 }: any) {
-  const fullTree = useContext(FullAppTreeContext)
+  const { changeByServerResponse, tree: fullTree } =
+    useContext(FullAppTreeContext)
   // TODO: What to do during SSR?
   if (!childNodes && childProp && childProp.current) {
     return (
@@ -42,21 +43,23 @@ export function InnerLayoutRouter({
     const root = data.readRoot()
 
     // Handle case where the response might be for this subrouter
-    if (root.length === 1 && root[0].layoutPath === layoutPath) {
+    if (root.data.length === 1 && root.data[0].layoutPath === layoutPath) {
       childNodes.set(path, {
-        subTreeData: root[0].subTreeData,
+        subTreeData: root.data[0].subTreeData,
         childNodes: new Map(),
       })
     } else {
-      console.log('TODO: handle rewrite/redirect case')
-      // TODO: trigger Suspense?
       // TODO: if the tree did not match up do we provide the new tree here?
       setTimeout(() => {
         // @ts-ignore TODO: startTransition exists
         React.startTransition(() => {
           // TODO: navigate to rewritten path
+          changeByServerResponse(root)
         })
-      }, 0)
+      })
+
+      // TODO: Trigger Suspense here?
+      throw new Promise(() => {})
     }
   }
 
