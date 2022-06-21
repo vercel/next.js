@@ -13,6 +13,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
+  SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage, getPagePath } from './require'
@@ -113,6 +114,7 @@ export async function loadComponents(
     ),
   ])
 
+  const isServerComponent = !!ComponentMod.__next_rsc__
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
       require(join(distDir, BUILD_MANIFEST)),
@@ -122,11 +124,11 @@ export async function loadComponents(
         : null,
     ])
 
-  if (hasServerComponents) {
+  if (hasServerComponents && isServerComponent) {
     try {
       // Make sure to also load the client entry in cache.
-      const name = getClientEntryName(normalizePagePath(pathname)) + '.js'
-      const chunkPath = join(distDir, 'server', name)
+      const name = getClientEntryName(normalizePagePath(pathname))
+      const chunkPath = join(distDir, SERVER_DIRECTORY, name)
       require(chunkPath)
     } catch (_) {
       // This page might not be a server component page, so there is no

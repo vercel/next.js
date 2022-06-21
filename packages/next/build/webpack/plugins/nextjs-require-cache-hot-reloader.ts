@@ -69,11 +69,12 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         ) {
           // Also clear the potential __sc_client__ cache.
           // @TODO: Investigate why the client ssr bundle isn't emitted as an asset here.
-          const page = targetPath.replace(outputPath, '').replace('.js', '')
-          const clientComponentsSSRTarget = path.join(
-            outputPath,
-            getClientEntryName(page) + '.js'
-          )
+          // Replace page entry path with chunk entry path
+          const page = targetPath.replace(outputPath, '').replace(/\.js$/, '')
+          const clientComponentsSSRTarget =
+            targetPath.slice(0, -(page + '.js').length) +
+            getClientEntryName(page) +
+            '.js'
 
           if (deleteCache(clientComponentsSSRTarget)) {
             this.currentOutputPathsWebpack5.add(clientComponentsSSRTarget)
@@ -105,7 +106,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       entries.forEach((page) => {
         const outputPath = path.join(
           compilation.outputOptions.path!,
-          page + '.js'
+          getClientEntryName(page) + '.js'
         )
         deleteCache(outputPath)
       })
