@@ -63,7 +63,7 @@ export class IncrementalCache {
   }) {
     let cacheHandlerMod: any = FileSystemCache
 
-    if (incrementalCacheHandlerPath) {
+    if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
       cacheHandlerMod = require(incrementalCacheHandlerPath)
       cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
     }

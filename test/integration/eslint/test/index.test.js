@@ -60,7 +60,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
@@ -92,7 +92,7 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -122,7 +122,7 @@ describe('ESLint', () => {
       expect(output).not.toContain('Build error occurred')
       expect(output).not.toContain('NoFilesFoundError')
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain('Compiled successfully')
     })
@@ -137,7 +137,7 @@ describe('ESLint', () => {
       expect(output).not.toContain('Build error occurred')
       expect(output).not.toContain('AllFilesIgnoredError')
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain('Compiled successfully')
     })
@@ -186,24 +186,23 @@ describe('ESLint', () => {
 
   describe('Next Lint', () => {
     describe('First Time Setup ', () => {
-      async function nextLintTemp() {
+      async function nextLintTemp(setupCallback) {
         const folder = join(
           os.tmpdir(),
           Math.random().toString(36).substring(2)
         )
         await fs.mkdirp(folder)
         await fs.copy(dirNoConfig, folder)
+        await setupCallback?.(folder)
 
         try {
-          const nextDir = dirname(require.resolve('next/package'))
-          const nextBin = join(nextDir, 'dist/bin/next')
+          const { stdout, stderr } = await nextLint(folder, ['--strict'], {
+            stderr: true,
+            stdout: true,
+            cwd: folder,
+          })
 
-          const { stdout } = await execa('node', [
-            nextBin,
-            'lint',
-            folder,
-            '--strict',
-          ])
+          console.log({ stdout, stderr })
 
           const pkgJson = JSON.parse(
             await fs.readFile(join(folder, 'package.json'), 'utf8')
@@ -235,15 +234,26 @@ describe('ESLint', () => {
         expect(output).toContain('Cancel')
       })
 
-      test('installs eslint and eslint-config-next as devDependencies if missing', async () => {
-        const { stdout, pkgJson } = await nextLintTemp()
+      for (const { packageManger, lockFile } of [
+        { packageManger: 'yarn', lockFile: 'yarn.lock' },
+        { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
+        { packageManger: 'npm', lockFile: 'package-lock.json' },
+      ]) {
+        test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
+          const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
+            await fs.writeFile(join(folder, lockFile), '')
+          })
 
-        expect(stdout.replace(/(\r\n|\n|\r)/gm, '')).toContain(
-          'Installing devDependencies:- eslint- eslint-config-next'
-        )
-        expect(pkgJson.devDependencies).toHaveProperty('eslint')
-        expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
-      })
+          expect(stdout).toContain(
+            `Installing devDependencies (${packageManger}):`
+          )
+          expect(stdout).toContain('eslint')
+          expect(stdout).toContain('eslint-config-next')
+          expect(stdout).toContain(packageManger)
+          expect(pkgJson.devDependencies).toHaveProperty('eslint')
+          expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+        })
+      }
 
       test('creates .eslintrc.json file with a default configuration', async () => {
         const { stdout, eslintrcJson } = await nextLintTemp()
@@ -271,7 +281,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
@@ -286,11 +296,9 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
-      expect(output).toContain(
-        'Error: External synchronous scripts are forbidden'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('shows warnings and errors when extending plugin recommended config', async () => {
@@ -305,10 +313,10 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(output).toContain(
-        'Error: next/document should not be imported outside of pages/_document.js.'
+        'Error: `<Document />` from `next/document` should not be imported outside of `pages/_document.js`.'
       )
     })
 
@@ -324,11 +332,9 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
-      expect(output).toContain(
-        'Error: External synchronous scripts are forbidden'
-      )
+      expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
 
     test('success message when no warnings or errors', async () => {
@@ -394,7 +400,7 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -409,7 +415,7 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -425,10 +431,10 @@ describe('ESLint', () => {
 
       expect(stderr).not.toEqual('')
       expect(stderr).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(stdout).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -444,10 +450,10 @@ describe('ESLint', () => {
 
       expect(stderr).toEqual('')
       expect(stderr).not.toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
       expect(stdout).toContain(
-        'Warning: External synchronous scripts are forbidden'
+        'Warning: Synchronous scripts should not be used.'
       )
     })
 
@@ -463,7 +469,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'warning: External synchronous scripts are forbidden'
+        'warning: Synchronous scripts should not be used.'
       )
       expect(stdout).toContain('<script src="https://example.com" />')
       expect(stdout).toContain('2 warnings found')
@@ -577,7 +583,7 @@ describe('ESLint', () => {
       )
 
       expect(output).not.toContain('pages/')
-      expect(output).not.toContain('External synchronous scripts are forbidden')
+      expect(output).not.toContain('Synchronous scripts should not be used.')
     })
 
     test('file flag can selectively lints multiple files', async () => {
@@ -599,11 +605,11 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        "Do not use <img>. Use Image from 'next/image' instead"
+        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
       )
 
       expect(output).not.toContain('pages/index.js')
-      expect(output).not.toContain('External synchronous scripts are forbidden')
+      expect(output).not.toContain('Synchronous scripts should not be used.')
     })
   })
 

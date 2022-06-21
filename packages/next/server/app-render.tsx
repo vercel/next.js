@@ -19,6 +19,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
+import { stripInternalQueries } from './utils'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -35,6 +36,10 @@ export type RenderOptsPartial = {
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+
+function interopDefault(mod: any) {
+  return mod.default || mod
+}
 
 const rscCache = new Map()
 
@@ -101,13 +106,17 @@ function preloadDataFetchingRecord(
 
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
-  id: string,
-  req: ReadableStream<Uint8Array>
+  cachePrefix: string,
+  req: ReadableStream<Uint8Array>,
+  serverComponentManifest: any
 ) {
+  const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -163,14 +172,9 @@ function createServerComponentRenderer(
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app_webpack_require__ || ComponentMod.__next_rsc__) {
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return (
-        ComponentMod.__next_app_webpack_require__ ||
-        ComponentMod.__next_rsc__.__webpack_require__
-      )(ssrModuleId)
-    }
+    globalThis.__next_require__ =
+      ComponentMod.__next_app_webpack_require__ ||
+      ComponentMod.__next_rsc__.__webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -178,7 +182,6 @@ function createServerComponentRenderer(
 
   const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
-    const id = (React as any).useId()
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
       <ComponentToRender {...props} />,
       serverComponentManifest
@@ -186,11 +189,11 @@ function createServerComponentRenderer(
 
     const response = useFlightResponse(
       writable,
-      cachePrefix + ',' + id,
-      reqStream
+      cachePrefix,
+      reqStream,
+      serverComponentManifest
     )
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
@@ -217,8 +220,8 @@ export async function renderToHTML(
 
   const isFlight = query.__flight__ !== undefined
   const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
-  delete query.__flight__
-  delete query.__flight_router_path__
+
+  stripInternalQueries(query)
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
@@ -236,7 +239,7 @@ export async function renderToHTML(
     .sort()
     .map((path) => {
       const mod = ComponentMod.components[path]()
-      mod.Component = mod.default || mod
+      mod.Component = interopDefault(mod)
       mod.path = path
       return mod
     })
@@ -307,6 +310,9 @@ export async function renderToHTML(
     }
 
     const LayoutRouter = ComponentMod.LayoutRouter
+    const getLoadingMod = ComponentMod.loadingComponents[layout.path]
+    const Loading = getLoadingMod ? interopDefault(getLoadingMod()) : null
+
     // eslint-disable-next-line no-loop-func
     const lastComponent = WrappedComponent
     WrappedComponent = (props: any) => {
@@ -333,16 +339,24 @@ export async function renderToHTML(
         {},
         null
       )
+
+      // TODO: add tests for loading.js
+      const chilrenWithLoading = Loading ? (
+        <React.Suspense fallback={<Loading />}>{children}</React.Suspense>
+      ) : (
+        children
+      )
+
       // Pages don't need to be wrapped in a router
       return React.createElement(
         layout.Component,
         props,
         layout.path.endsWith('/page') ? (
-          children
+          chilrenWithLoading
         ) : (
           // TODO: only provide the part of the url that is relevant to the layout (see layout-router.client.tsx)
           <LayoutRouter initialUrl={pathname} layoutPath={layout.path}>
-            {children}
+            {chilrenWithLoading}
           </LayoutRouter>
         )
       )

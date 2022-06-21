@@ -31,6 +31,10 @@ const clientGlobs = [
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
   },
+  {
+    name: 'Middleware size',
+    globs: ['.next/server/middleware*', '.next/server/edge-runtime-webpack.js'],
+  },
 ]
 
 const renames = [

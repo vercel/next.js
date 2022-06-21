@@ -476,7 +476,7 @@ describe('Image Optimizer', () => {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=86400, must-revalidate`
       )
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
@@ -505,7 +505,7 @@ describe('Image Optimizer', () => {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=60, must-revalidate`
       )
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.webp"`
@@ -577,7 +577,7 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=31536000, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('Content-Disposition')).toBe(
