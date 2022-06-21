@@ -1,10 +1,6 @@
-import React, { useLayoutEffect } from 'react'
 import Image from 'next/image'
 
 const Lazy = () => {
-  useLayoutEffect(() => {
-    IntersectionObserver = null //eslint-disable-line
-  })
   return (
     <div>
       <p id="stubtext">
