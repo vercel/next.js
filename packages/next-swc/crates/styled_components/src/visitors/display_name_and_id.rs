@@ -337,20 +337,13 @@ impl VisitMut for DisplayNameAndId {
             None
         };
 
-        let display_name = if self.config.display_name {
-            Some(self.get_display_name(expr))
-        } else {
-            None
-        };
-
+        let display_name = self
+            .config
+            .display_name
+            .then(|| self.get_display_name(expr));
         trace!("display_name: {:?}", display_name);
 
-        let component_id = if self.config.ssr {
-            Some(self.get_component_id().into())
-        } else {
-            None
-        };
-
+        let component_id = self.config.ssr.then(|| self.get_component_id().into());
         trace!("component_id: {:?}", display_name);
 
         self.add_config(

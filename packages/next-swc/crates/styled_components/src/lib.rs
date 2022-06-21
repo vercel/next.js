@@ -80,10 +80,10 @@ pub fn styled_components(
 
     chain!(
         analyzer(config.clone(), state.clone()),
-        display_name_and_id(file_name, src_file_hash, config.clone(), state),
         Optional {
             enabled: config.css_prop,
-            visitor: transpile_css_prop()
-        }
+            visitor: transpile_css_prop(state.clone())
+        },
+        display_name_and_id(file_name, src_file_hash, config.clone(), state)
     )
 }
