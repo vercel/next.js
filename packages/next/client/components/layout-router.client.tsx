@@ -53,7 +53,7 @@ export function InnerLayoutRouter({
       setTimeout(() => {
         // @ts-ignore TODO: startTransition exists
         React.startTransition(() => {
-          // TODO: navigate to rewritten path
+          // TODO: handle redirect
           changeByServerResponse(root)
         })
       })
