@@ -4,7 +4,7 @@
 
 ### Why This Error Occurred
 
-`next/server` was imported outside of `middleware.{js,ts}`.
+`next/server` was imported outside of `middleware.{js,ts}` or other allowed files.
 
 ### Possible Ways to Fix It
 
@@ -17,6 +17,23 @@ import type { NextFetchEvent, NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest, ev: NextFetchEvent) {
   return new Response('Hello, world!')
+}
+```
+
+### Options
+
+#### `allow`
+
+Allow files matching the provided glob pattern(s) to use `next/server`. This is useful to allow test files to use `next/server`. This can be a glob pattern or an array of glob patterns.
+
+```json
+{
+  "rules": {
+    "@next/next/no-server-import-in-page": [
+      "error",
+      ["**/*.{spec,test}.{js,jsx,ts,tsx}", "__tests__/**/*.{js,ts}"]
+    ]
+  }
 }
 ```
 

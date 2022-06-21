@@ -16,10 +16,15 @@ const ruleTester = new RuleTester()
 const errors = [
   {
     message:
-      '`next/server` should not be used outside of `middleware.js`. See: https://nextjs.org/docs/messages/no-server-import-in-page',
+      '`next/server` should not be used outside of `middleware.js` or other allowed files. See: https://nextjs.org/docs/messages/no-server-import-in-page',
     type: 'ImportDeclaration',
   },
 ]
+
+const options = {
+  allowSpecAndTestFiles: [['**/*.{spec,test}.{ts,tsx,js,jsx}']],
+  allow__test__Dir: ['__test__/**'],
+}
 
 ruleTester.run('no-server-import-in-page', rule, {
   valid: [
@@ -68,6 +73,30 @@ ruleTester.run('no-server-import-in-page', rule, {
     `,
       filename: path.join('ws', 'vercel-front/front/middleware.ts'),
     },
+    {
+      options: options.allow__test__Dir,
+      code: `import { NextRequest } from "next/server";
+
+      describe("example", () => {
+        it("should pass", () => {
+          new Response('Hello, world!');
+        });
+      });
+      `,
+      filename: `__test__${path.sep}test.ts`,
+    },
+    {
+      options: options.allowSpecAndTestFiles,
+      code: `import { NextRequest } from "next/server";
+
+      describe("example", () => {
+        it("should pass", () => {
+          new Response('Hello, world!');
+        });
+      });
+      `,
+      filename: 'test/example.spec.jsx',
+    },
   ],
   invalid: [
     {
@@ -91,6 +120,15 @@ ruleTester.run('no-server-import-in-page', rule, {
 
       export const Test = () => <p>Test</p>
       `,
+      filename: 'pages/test.js',
+      options: options.allowSpecAndTestFiles,
+      errors,
+    },
+    {
+      code: `import { NextFetchEvent, NextRequest } from "next/server"
+
+      export const Test = () => <p>Test</p>
+      `,
       filename: `pages${path.sep}test.js`,
       errors,
     },
@@ -102,6 +140,19 @@ ruleTester.run('no-server-import-in-page', rule, {
       }
     `,
       filename: 'middleware.page.tsx',
+      errors,
+    },
+    {
+      options: options.allowSpecAndTestFiles,
+      code: `import { NextRequest } from "next/server";
+
+      describe("example", () => {
+        it("should pass", () => {
+          new Response('Hello, world!');
+        });
+      });
+      `,
+      filename: 'test/example.jsx',
       errors,
     },
   ],
