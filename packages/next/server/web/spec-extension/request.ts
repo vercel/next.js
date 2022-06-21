@@ -53,10 +53,6 @@ export class NextRequest extends Request {
   public get ua() {
     throw new RemovedUAError()
   }
-
-  public get url() {
-    return this[INTERNALS].url.toString()
-  }
 }
 
 export interface RequestInit extends globalThis.RequestInit {
