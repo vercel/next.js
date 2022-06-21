@@ -16,11 +16,7 @@ import {
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import {
-  API_ROUTE,
-  MIDDLEWARE_FILENAME,
-  APP_DIR_ALIAS,
-} from '../../lib/constants'
+import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
@@ -35,7 +31,11 @@ import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { fileExists } from '../../lib/file-exists'
-import { difference } from '../../build/utils'
+import {
+  difference,
+  withoutRSCExtensions,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
@@ -382,17 +382,17 @@ export default class HotReloader {
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
+    const rawPageExtensions = this.hasServerComponents
+      ? withoutRSCExtensions(this.config.pageExtensions)
+      : this.config.pageExtensions
+
     return webpackConfigSpan.traceAsyncFn(async () => {
       const pagePaths = await webpackConfigSpan
         .traceChild('get-page-paths')
         .traceAsyncFn(() =>
           Promise.all([
-            findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-            findPageFile(
-              this.pagesDir,
-              '/_document',
-              this.config.pageExtensions
-            ),
+            findPageFile(this.pagesDir, '/_app', rawPageExtensions),
+            findPageFile(this.pagesDir, '/_document', rawPageExtensions),
           ])
         )
 
@@ -563,6 +563,8 @@ export default class HotReloader {
 
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
+            const isInsideAppDir =
+              this.appDir && absolutePagePath.startsWith(this.appDir)
 
             const staticInfo = await getPageStaticInfo({
               pageFilePath: absolutePagePath,
@@ -593,7 +595,7 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent) {
+                if (isServerComponent || isInsideAppDir) {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -682,7 +684,7 @@ export default class HotReloader {
       (stats: webpack5.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
-            if (key.startsWith('pages/') || key === MIDDLEWARE_FILENAME) {
+            if (key.startsWith('pages/') || isMiddlewareFilename(key)) {
               // TODO this doesn't handle on demand loaded chunks
               entry.chunks.forEach((chunk) => {
                 if (chunk.id === key) {
@@ -801,7 +803,7 @@ export default class HotReloader {
         changedClientPages
       )
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => name === MIDDLEWARE_FILENAME
+        (name) => isMiddlewareFilename(name)
       )
       changedClientPages.clear()
       changedServerPages.clear()
@@ -905,6 +907,7 @@ export default class HotReloader {
         rootDirectory: this.dir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
       }),
     ]
   }

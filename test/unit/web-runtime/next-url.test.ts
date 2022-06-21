@@ -336,3 +336,52 @@ it('preserves the trailingSlash', async () => {
 
   expect(String(url)).toEqual('http://localhost:3000/es/')
 })
+
+it('formats correctly the trailingSlash for root pages', async () => {
+  const url = new NextURL('/', {
+    base: 'http://127.0.0.1:3000',
+    nextConfig: {
+      trailingSlash: true,
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  url.locale = 'es'
+  expect(String(url)).toEqual('http://localhost:3000/es/')
+})
+
+it('keeps the trailingSlash format for non root pages', async () => {
+  const url = new NextURL('/es', {
+    base: 'http://127.0.0.1:3000',
+    nextConfig: {
+      trailingSlash: true,
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  expect(String(url)).toEqual('http://localhost:3000/es')
+})
+
+it('allows to preserve a json request', async () => {
+  const url = new NextURL(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json',
+    {
+      nextConfig: {
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'es', 'fr'],
+        },
+      },
+    }
+  )
+
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json'
+  )
+})

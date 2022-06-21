@@ -47,7 +47,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
     }
   | {
       label: 'custom'
@@ -92,7 +92,7 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number }
+  err?: Error & { statusCode?: number; source?: 'server' | 'edge-server' }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
@@ -403,6 +403,15 @@ export const ST =
 
 export class DecodeError extends Error {}
 export class NormalizeError extends Error {}
+export class PageNotFoundError extends Error {
+  code: string
+
+  constructor(page: string) {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find module for page: ${page}`
+  }
+}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>
