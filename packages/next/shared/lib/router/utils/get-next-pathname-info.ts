@@ -1,4 +1,3 @@
-import type { I18NConfig } from '../../../../server/config-shared'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
@@ -39,7 +38,7 @@ interface Options {
    */
   nextConfig?: {
     basePath?: string
-    i18n?: I18NConfig | null
+    i18n?: { locales?: string[] } | null
     trailingSlash?: boolean
   }
 }
@@ -58,15 +57,16 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
 
   if (
     options.parseData === true &&
-    (info.pathname.startsWith('/_next/data/') ||
-      info.pathname.endsWith('.json'))
+    info.pathname.startsWith('/_next/data/') &&
+    info.pathname.endsWith('.json')
   ) {
-    const [buildId, ...rest] = info.pathname
+    const paths = info.pathname
       .replace(/^\/_next\/data\//, '')
       .replace(/\.json$/, '')
       .split('/')
 
-    info.pathname = rest[0] !== 'index' ? `/${rest.join('/')}` : '/'
+    const buildId = paths[0]
+    info.pathname = paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
     info.buildId = buildId
   }
 

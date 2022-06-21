@@ -114,8 +114,6 @@ pnpm lint-fix
 Running examples can be done with:
 
 ```sh
-pnpm next ./test/integration/basic
-# OR
 pnpm next ./examples/basic-css/
 ```
 
@@ -325,7 +323,7 @@ Issues are opened with one of these labels:
 
 - `template: story` - a feature request, converted to an [💡 Ideas discussion](https://github.com/vercel/next.js/discussions/categories/ideas)
 - `template: bug` - unverified issue with Next.js itself, or one of the examples in the [`examples`](https://github.com/vercel/next.js/tree/canary/examples) folder
-- `template: documentation` - feedback for improvement or unverfied issue with the Next.js documentation
+- `template: documentation` - feedback for improvement or an unverified issue with the Next.js documentation
 
 In case of a bug report, a maintainer looks at the provided reproduction. If the reproduction is missing or insufficient, a `please add a complete reproduction` label is added. If a reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, the `please add a complete reproduction` label is removed and the issue will not become stale anymore.
 
