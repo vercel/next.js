@@ -73,6 +73,8 @@ module.exports = {
       url,
     },
     fixable: null,
+    type: 'problem',
+    schema: [],
   },
 
   create: function (context) {

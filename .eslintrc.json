@@ -145,6 +145,13 @@
           }
         ]
       }
+    },
+    {
+      "files": ["packages/eslint-plugin-next/**/*.js"],
+      "extends": ["plugin:eslint-plugin/recommended"],
+      "parserOptions": {
+        "sourceType": "script"
+      }
     }
   ],
   "rules": {

@@ -7,6 +7,8 @@ module.exports = {
         'Prevent usage of `<title>` with `Head` component from `next/document`.',
       url,
     },
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     let headFromNextDocument = false

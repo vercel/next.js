@@ -31,6 +31,7 @@ module.exports = {
       url,
     },
     fixable: null, // or "code" or "whitespace"
+    type: 'problem',
     schema: [
       {
         oneOf: [

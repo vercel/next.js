@@ -9,6 +9,8 @@ module.exports = {
       url,
     },
     fixable: 'code',
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     return {

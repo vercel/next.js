@@ -10,6 +10,8 @@ module.exports = {
       recommended: true,
       url,
     },
+    type: 'problem',
+    schema: [],
   },
   create: function (context) {
     const paths = context.getFilename().split('pages')

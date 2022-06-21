@@ -25,8 +25,9 @@ module.exports = {
       recommended: true,
       url,
     },
+    type: 'problem',
+    schema: [],
   },
-  schema: [],
   create: function (context) {
     return {
       JSXOpeningElement(node) {

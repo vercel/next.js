@@ -47,6 +47,8 @@ module.exports = {
       recommended: true,
     },
     fixable: null,
+    type: 'suggestion',
+    schema: [],
   },
 
   create: function (context) {

@@ -5,6 +5,8 @@ module.exports = {
       recommended: true,
       url: 'https://nextjs.org/docs/messages/no-assign-module-variable',
     },
+    type: 'problem',
+    schema: [],
   },
 
   create: function (context) {
