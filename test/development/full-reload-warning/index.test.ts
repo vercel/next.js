@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, getRedboxHeader, renderViaHTTP } from 'next-test-utils'
+import { check, getRedboxHeader } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('show a warning in CLI and browser when doing a full reload', () => {
