@@ -110,8 +110,8 @@ var _StyledThing3 = _styled(Thing3)((p)=>({
     }));
 var _StyledThing = _styled(Thing3)`color: red;`;
 const EarlyUsageComponent2 = (p)=><_StyledThing2 />;
-function Thing4(props) {
-    return <div {...props}/>;
+function Thing4(props1) {
+    return <div {...props1}/>;
 }
 /* insert before usage for non-local scope styled HOC targets */ const ImportedComponentUsage = (p)=><_StyledSomeComponent />;
 const RequiredComponentUsage = (p)=><_StyledSomeOtherComponent />;
@@ -185,7 +185,7 @@ var _StyledP7 = _styled("p")`
       background: ${(p)=>p.$_css2};
     `;
 var _StyledP8 = _styled("p")`
-      color: ${(props)=>props.theme.a};
+      color: ${(props1)=>props1.theme.a};
     `;
 var _StyledP9 = _styled("p")`
       border-radius: ${radius}px;
@@ -194,7 +194,7 @@ var _StyledP10 = _styled("p")`
       color: ${(p)=>p.$_css3};
     `;
 var _StyledP11 = _styled("p")`
-      color: ${(props)=>props.theme.color};
+      color: ${(props1)=>props1.theme.color};
     `;
 var _StyledButtonGhost = _styled(Button.Ghost)`flex: 1`;
 var _StyledButtonGhostNew = _styled(Button.Ghost.New)`flex: 1`;

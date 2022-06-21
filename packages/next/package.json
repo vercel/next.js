@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "@next/env": "12.1.7-canary.42",
-    "@swc/helpers": "0.3.17",
+    "@swc/helpers": "0.4.2",
     "caniuse-lite": "^1.0.30001332",
     "postcss": "8.4.5",
     "styled-jsx": "5.0.2",
