@@ -7,21 +7,22 @@ description: Learn how to use Middleware in Next.js to run code before a request
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------ |
-| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
-| `v12.0.0` | Middleware (Beta) added.                                                                   |
+| Version   | Changes                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| `canary`  | Preparing for stability, see [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) |
+| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410))              |
+| `v12.0.0` | Middleware (Beta) added.                                                                                |
 
 </details>
 
-Middleware enables you to use code over configuration. This gives you full flexibility in Next.js, because you can run code before a request is completed. Based on the user's incoming request, you can modify the response by rewriting, redirecting, adding headers, or even streaming HTML.
+Middleware enables you to run code before a request is completed. Based on the user's incoming request, you can modify the response by rewriting, redirecting, adding headers, or even streaming HTML.
 
 ## Usage
 
-1. Install the latest version of Next.js:
+1. Install the canary version of Next.js:
 
 ```jsx
-npm install next@latest
+npm install next@canary
 ```
 
 2. Then, create a `middleware.ts` file under your project root directory.
@@ -75,7 +76,7 @@ Middleware can be used for anything that shares logic for a set of pages, includ
 - [Authentication](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Bot protection](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Redirects and rewrites](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Handling unsupported browsers](https://github.com/vercel/examples/tree/main/edge-functions)
+- [Handling unsupported browsers](https://github.com/vercel/examples/tree/main/edge-functions/user-agent-based-rendering)
 - [Feature flags and A/B tests](https://github.com/vercel/examples/tree/main/edge-functions)
 - [Advanced i18n routing requirements](https://github.com/vercel/examples/tree/main/edge-functions)
 
