@@ -99,7 +99,7 @@ describe('create next app', () => {
     })
   })
 
-  it.only('valid example without package.json', async () => {
+  it('valid example without package.json', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
       const res = await run([projectName, '--example', 'with-docker-compose'], {
