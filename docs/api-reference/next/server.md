@@ -1,5 +1,5 @@
 ---
-description: Use Middleware to run code before a request is completed.
+description: Learn about the Edge Middleware helpers and APIs.
 ---
 
 # next/server

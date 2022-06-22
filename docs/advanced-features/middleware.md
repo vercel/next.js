@@ -127,25 +127,35 @@ The cookies API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaS
 ```typescript
 // middleware.ts
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export function middleware() {
+export function middleware(request: NextRequest) {
+  // Accessing cookies on the response object
   const response = NextResponse.next()
   // set a cookie
   response.cookies.set('vercel', 'fast')
-
   // set another cookie with options
   response.cookies.set('nextjs', 'awesome', { path: '/test' })
-
   // get all the details of a cookie
   const { value, options } = response.cookies.getWithOptions('vercel')
   console.log(value) // => 'fast'
   console.log(options) // => { Path: '/test' }
-
   // deleting a cookie will mark it as expired
   response.cookies.delete('vercel')
-
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
+
+  // Accessing cookies on the request object
+  // get a cookie
+  const cookie = request.cookies.get('vercel')
+  console.log(cookie) // => 'fast'
+  // get all cookies
+  const allCookies = request.cookies.entries()
+  console.log(allCookies) // => [{ key: 'vercel', value: 'fast' }]
+  // delete a cookie
+  request.cookies.delete('vercel')
+  // clear all cookies
+  request.cookies.clear()
 
   return response
 }
