@@ -57,7 +57,7 @@ export default class Router {
     fallback: Route[]
   }
   catchAllRoute: Route
-  catchAllMiddleware?: Route
+  catchAllMiddleware: Route[]
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
@@ -74,7 +74,7 @@ export default class Router {
     },
     redirects = [],
     catchAllRoute,
-    catchAllMiddleware,
+    catchAllMiddleware = [],
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
@@ -89,7 +89,7 @@ export default class Router {
     }
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route
+    catchAllMiddleware: Route[]
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
@@ -119,8 +119,8 @@ export default class Router {
   setDynamicRoutes(routes: DynamicRoutes = []) {
     this.dynamicRoutes = routes
   }
-  setCatchallMiddleware(route?: Route) {
-    this.catchAllMiddleware = route
+  setCatchallMiddleware(route?: Route[]) {
+    this.catchAllMiddleware = route || []
   }
 
   addFsRoute(fsRoute: Route) {
@@ -218,14 +218,16 @@ export default class Router {
         - User rewrites (checking filesystem and pages each match)
       */
 
+      const [middlewareCatchAllRoute, edgeSSRCatchAllRoute] =
+        this.catchAllMiddleware
       const allRoutes = [
-        ...(this.catchAllMiddleware
+        ...(middlewareCatchAllRoute
           ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
           : []),
         ...this.headers,
         ...this.redirects,
-        ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
-          ? [this.catchAllMiddleware]
+        ...(this.useFileSystemPublicRoutes && middlewareCatchAllRoute
+          ? [middlewareCatchAllRoute]
           : []),
         ...this.rewrites.beforeFiles,
         ...this.fsRoutes,
@@ -233,6 +235,7 @@ export default class Router {
         // disabled
         ...(this.useFileSystemPublicRoutes
           ? [
+              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
               {
                 type: 'route',
                 name: 'page checker',
@@ -287,7 +290,12 @@ export default class Router {
 
         // We only check the catch-all route if public page routes hasn't been
         // disabled
-        ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
+        ...(this.useFileSystemPublicRoutes
+          ? [
+              ...(edgeSSRCatchAllRoute ? [edgeSSRCatchAllRoute] : []),
+              this.catchAllRoute,
+            ]
+          : []),
       ]
 
       for (const testRoute of allRoutes) {

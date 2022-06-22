@@ -106,16 +106,6 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    // Preflight request
-    if (request.method === 'HEAD') {
-      // Hint the client that the matched route is a SSR page.
-      return new Response(null, {
-        headers: {
-          'x-middleware-ssr': '1',
-        },
-      })
-    }
-
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)
