@@ -151,6 +151,16 @@
       "extends": ["plugin:eslint-plugin/recommended"],
       "parserOptions": {
         "sourceType": "script"
+      },
+      "rules": {
+        "eslint-plugin/prefer-replace-text": "error",
+        "eslint-plugin/require-meta-docs-description": [
+          "error",
+          {
+            "pattern": ".+"
+          }
+        ],
+        "eslint-plugin/require-meta-docs-url": "error"
       }
     }
   ],
