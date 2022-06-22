@@ -191,41 +191,6 @@ function runTests(mode) {
       }
     }
   })
-
-  // Tests that use the `unsized` attribute:
-  if (mode !== 'dev') {
-    it('should correctly rotate image', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/docs/rotated')
-
-        const id = 'exif-rotation-image'
-
-        // Wait for image to load:
-        await check(async () => {
-          const result = await browser.eval(
-            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-          )
-
-          if (result < 1) {
-            throw new Error('Image not ready')
-          }
-
-          return 'result-correct'
-        }, /result-correct/)
-
-        await waitFor(1000)
-
-        const computedWidth = await getComputed(browser, id, 'width')
-        const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  }
 }
 
 describe('Image Component basePath Tests', () => {
@@ -234,7 +199,9 @@ describe('Image Component basePath Tests', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+    })
 
     runTests('dev')
   })
@@ -245,7 +212,9 @@ describe('Image Component basePath Tests', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+    })
 
     runTests('server')
   })
