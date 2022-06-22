@@ -15,7 +15,6 @@ describe('minimal-mode-response-cache', () => {
   let next: NextInstance
   let server
   let appPort
-  let output = ''
 
   beforeAll(async () => {
     // test build against environment with next support
@@ -65,12 +64,6 @@ describe('minimal-mode-response-cache', () => {
       undefined,
       {
         cwd: next.testDir,
-        onStdout(msg) {
-          output += msg
-        },
-        onStderr(msg) {
-          output += msg
-        },
       }
     )
   })
