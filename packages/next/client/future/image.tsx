@@ -767,7 +767,7 @@ function defaultLoader({
     return src
   }
 
-  return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=${
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
     quality || 75
   }`
 }
