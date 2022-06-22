@@ -147,7 +147,10 @@
       }
     },
     {
-      "files": ["packages/eslint-plugin-next/**/*.js"],
+      "files": [
+        "packages/eslint-plugin-next/**/*.js",
+        "test/unit/eslint-plugin-next/**/*.test.ts"
+      ],
       "extends": ["plugin:eslint-plugin/recommended"],
       "parserOptions": {
         "sourceType": "script"
