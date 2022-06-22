@@ -162,8 +162,6 @@ importers:
       webpack: link:node_modules/webpack5
       webpack-bundle-analyzer: 4.3.0
       worker-loader: 3.0.7
-    optionalDependencies:
-      node-sass: 6.0.1
     devDependencies:
       '@babel/core': 7.18.0
       '@babel/eslint-parser': 7.18.2_uxoojzahptggrua2tvdiqlh7xm
