@@ -32,7 +32,7 @@ Edge Middleware enables you to use code over configuration. This gives you full 
 ### Permitted response types
 
 When using Edge Middleware, it is not permitted to change the response body: you can only set response headers.
-Returning a body from an Edge Middleware function will result in a `500` server error and an explicit response message.
+Returning a body from Edge Middleware will result in a `500` server error and an explicit response message.
 
 The [`NextResponse`](#nextresponse) API allows you to:
 
@@ -41,18 +41,17 @@ The [`NextResponse`](#nextresponse) API allows you to:
 - Set response cookies
 - Set response headers
 
-These tools enable you to implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/main/edge-functions) for code examples.
-
+With Edge Middleware you can implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/main/edge-functions) for code examples.
 
 ### Deploying Edge Middleware
 
-Next.js Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/edge-functions).
+Edge Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
 
 ## Using Edge Middleware
 
 To begin using Edge Middleware, follow the steps below:
 
-1. Install the canary version of Next.js:
+1. Install the latest version of Next.js:
 
 ```bash
 npm install next@latest
@@ -218,148 +217,7 @@ See the [Edge Runtime documentation](https://edge-runtime.vercel.sh/) for a full
 
 In addition to these APIs, Next.js Middleware comes with built in helpers that are based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
 
-### NextRequest
-
-The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
-
-- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`.
-- `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`. Includes the following properties:
-  - `basePath`
-  - `buildId`
-  - `defaultLocale`
-  - `domainLocale`
-  - `locale`
-  - `url`
-- `ip` - Has the IP address of the `Request`
-- `ua` - Has the user agent. Includes the following properties:
-  - `isBot`
-  - `browser`
-    - `name`
-    - `version`
-  - `device`
-    - `model`
-    - `type`
-    - `vendor`
-  - `engine`
-    - `name`
-    - `version`
-  - `os`
-    - `name`
-    - `version`
-  - `cpu`
-    - `architecture`
-- `geo` - Has the geographic location from the `Request`. This information is provided by your hosting platform. Includes the following properties:
-  - `city`
-  - `country`
-  - `region`
-  - `latitude`
-  - `longitude`
-
-You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
-
-`NextRequest` can be imported from `next/server` as a type:
-
-```ts
-import type { NextRequest } from 'next/server'
-```
-
-### NextFetchEvent
-
-The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
-
-The `waitUntil()` method can be used to prolong the execution of the function if you have other background work to make.
-
-```typescript
-// Replace this with a better example
-import type { NextRequest, NextFetchEvent } from 'next/server'
-
-export function middleware(request: NextRequest, event: NextFetchEvent) {
-  event.waitUntil(
-    fetch('https://api.example.com/').then((response) => {
-      // Do something with the response
-    })
-  )
-
-  return NextResponse.next()
-}
-```
-
-The `event` object can be imported from `next/server`:
-
-```typescript
-import type { NextFetchEvent } from 'next/server'
-```
-
-### NextResponse
-
-The `NextResponse` class extends the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following:
-
-#### Public methods
-
-Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
-
-- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with the cookies in the `Response`
-
-#### Static methods
-
-The following static methods are available on the `NextResponse` class directly:
-
-- `redirect()` - Returns a `NextResponse` with a redirect set
-- `rewrite()` - Returns a `NextResponse` with a rewrite set
-- `next()` - Returns a `NextResponse` that will continue the middleware chain
-
-```typescript
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(request: NextRequest) {
-  // if the request is coming from New York, redirect to the home page
-  if (request.geo.city === 'New York') {
-    return NextResponse.redirect('/home')
-    // if the request is coming from London, rewrite to a special page
-  } else if (request.geo.city === 'London') {
-    return NextResponse.rewrite('/not-home')
-  }
-  return NextResponse.next()
-}
-```
-
-All methods above return a `NextResponse` object that only takes effect if it's returned in the middleware function.
-
-`NextResponse` can be imported from `next/server`:
-
-```typescript
-import { NextResponse } from 'next/server'
-```
-
-## Common questions and answers
-
-### Why does `redirect` use 307 and 308?
-
-When using `redirect()` you may notice that the status codes used are `307` for a temporary redirect, and `308` for a permanent redirect. While traditionally a `302` was used for a temporary redirect, and a `301` for a permanent redirect, many browsers changed the request method of the redirect, from a `POST` to `GET` request when using a `302`, regardless of the origins request method.
-
-Taking the following example of a redirect from `/users` to `/people`, if you make a `POST` request to `/users` to create a new user, and are conforming to a `302` temporary redirect, the request method will be changed from a `POST` to a `GET` request. This doesn't make sense, as to create a new user, you should be making a `POST` request to `/people`, and not a `GET` request.
-
-The introduction of the `307` status code means that the request method is preserved as `POST`.
-
-- `302` - Temporary redirect, will change the request method from `POST` to `GET`
-- `307` - Temporary redirect, will preserve the request method as `POST`
-
-The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
-
-If you want to cause a `GET` response to a `POST` request, use `303`.
-
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections) about HTTP Redirects.
-
-### How do I access Environment Variables?
-
-`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
-
-| Works                               | Does **not** work                          |
-| ----------------------------------- | ------------------------------------------ |
-| `console.log(process.env.NODE_ENV)` | `process.env["HELLO" + "_WORLD"]`          |
-| `const { NODE_ENV } = process.env`  | `const getEnv = name => process.env[name]` |
-|                                     | `console.log(process.env)`                 |
+See the [`next/server`](/docs/api-reference/next/server.md) documentation for more information.
 
 ## Related
 
