@@ -12,6 +12,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
+import type { TLSSocket } from 'tls'
 import {
   CacheFs,
   NormalizeError,
@@ -21,6 +22,7 @@ import {
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { NodeNextRequest } from './base-http/node'
 import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from '../shared/lib/isomorphic/path'
@@ -409,14 +411,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
+      const protocol = (
+        (req as NodeNextRequest).originalRequest?.socket as TLSSocket
+      )?.encrypted
+        ? 'https'
+        : 'http'
+
       // When there are hostname and port we build an absolute URL
       const initUrl =
         this.hostname && this.port
-          ? `http://${this.hostname}:${this.port}${req.url}`
+          ? `${protocol}://${this.hostname}:${this.port}${req.url}`
           : req.url
 
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+      addRequestMeta(req, '_protocol', protocol)
 
       const domainLocale = detectDomainLocale(
         this.nextConfig.i18n?.domains,
