@@ -31,6 +31,12 @@ export class NextResponse extends Response {
     return this[INTERNALS].cookies
   }
 
+  static json(body: any, init?: ResponseInit): NextResponse {
+    // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
+    const response: Response = Response.json(body, init)
+    return new NextResponse(response.body, response)
+  }
+
   static redirect(url: string | NextURL | URL, status = 307) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(

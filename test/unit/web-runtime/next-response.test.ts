@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server/web/spec-extension/response'
 
-const toJSON = async (response) => ({
+const toJSON = async (response: Response) => ({
   body: await response.json(),
   contentType: response.headers.get('content-type'),
   status: response.status,
