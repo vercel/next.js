@@ -82,15 +82,15 @@ export class FlightManifestPlugin {
         }
 
         const moduleExports: any = manifest[resource] || {}
-        const moduleIdMapping: any = manifest.__ssr_module_id__ || {}
+        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
+        moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        const ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
-        moduleIdMapping[id] = ssrNamedModuleId.startsWith('.')
-          ? ssrNamedModuleId
-          : `./${ssrNamedModuleId}`
+        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        if (!ssrNamedModuleId.startsWith('.'))
+          ssrNamedModuleId = `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
@@ -143,10 +143,16 @@ export class FlightManifestPlugin {
                 : [],
             }
           }
+          if (!moduleIdMapping[id][name]) {
+            moduleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: ssrNamedModuleId,
+            }
+          }
         })
 
         manifest[resource] = moduleExports
-        manifest.__ssr_module_id__ = moduleIdMapping
+        manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {

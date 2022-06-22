@@ -24,7 +24,7 @@ import a from "other";
             }
             return c;
         }
-    }(a, c) || function(a, d) {
+    }(a, c) || function e(a, d) {
         if (a) {
             if ("string" == typeof a) return b(a, d);
             var c = Object.prototype.toString.call(a).slice(8, -1);

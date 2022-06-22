@@ -18,8 +18,11 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const { experimentalLayoutRaw = false, experimentalRemotePatterns = [] } =
-  (process.env.__NEXT_IMAGE_OPTS as any) || {}
+const {
+  experimentalLayoutRaw = false,
+  experimentalRemotePatterns = [],
+  experimentalUnoptimized,
+} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -457,8 +460,15 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+  if (
+    typeof window !== 'undefined' &&
+    loadedImageURLs.has(src) &&
+    layout !== 'raw'
+  ) {
     isLazy = false
+  }
+  if (experimentalUnoptimized) {
+    unoptimized = true
   }
 
   const [blurComplete, setBlurComplete] = useState(false)
@@ -694,15 +704,21 @@ export default function Image({
       }
     }
   }
-
   const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
+  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'%3E%3C/image%3E%3C/svg%3E");`
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
-          filter: 'blur(20px)',
           backgroundSize: objectFit || 'cover',
-          backgroundImage: `url("${blurDataURL}")`,
           backgroundPosition: objectPosition || '0% 0%',
+          ...(layout === 'raw' && blurDataURL?.startsWith('data:image')
+            ? {
+                backgroundImage: svgBlurPlaceholder,
+              }
+            : {
+                filter: 'blur(20px)',
+                backgroundImage: `url("${blurDataURL}")`,
+              }),
         }
       : {}
   if (layout === 'fill') {
@@ -901,7 +917,7 @@ const ImageElement = ({
   blurStyle,
   isLazy,
   placeholder,
-  loading = 'lazy',
+  loading,
   srcString,
   config,
   unoptimized,
@@ -915,6 +931,7 @@ const ImageElement = ({
   noscriptSizes,
   ...rest
 }: ImageElementProps) => {
+  loading = isLazy ? 'lazy' : loading
   return (
     <>
       <img
