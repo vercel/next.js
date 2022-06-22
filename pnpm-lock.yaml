@@ -88,6 +88,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: workspace:*
+      eslint-plugin-eslint-plugin: 4.3.0
       eslint-plugin-import: 2.22.1
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
@@ -238,6 +239,7 @@ importers:
       escape-string-regexp: 2.0.0
       eslint: 7.24.0
       eslint-config-next: link:packages/eslint-config-next
+      eslint-plugin-eslint-plugin: 4.3.0_eslint@7.24.0
       eslint-plugin-import: 2.22.1_23iivq3ybsthf4qrv3kgatrvhe
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
@@ -10253,6 +10255,17 @@ packages:
       find-up: 2.1.0
     transitivePeerDependencies:
       - supports-color
+    dev: true
+
+  /eslint-plugin-eslint-plugin/4.3.0_eslint@7.24.0:
+    resolution: {integrity: sha512-0xZ++ilIpGY+gBwsaW/uIhG/Rrl/sltPCai3UUPzWbaOPud2tel9UCWj8sLTADNmVqBD+vcqLHzHY86q/b71yg==}
+    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: '>=6.0.0'
+    dependencies:
+      eslint: 7.24.0
+      eslint-utils: 3.0.0_eslint@7.24.0
+      estraverse: 5.3.0
     dev: true
 
   /eslint-plugin-import/2.22.1_23iivq3ybsthf4qrv3kgatrvhe:
