@@ -1621,6 +1621,22 @@ describe('Client Navigation', () => {
         }
       }
     })
+
+    it('should update head when unmounting component', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head-dynamic')
+        expect(await browser.eval('document.title')).toBe('B')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('A')
+        await browser.elementByCss('button').click()
+        expect(await browser.eval('document.title')).toBe('B')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
   })
 
   describe('foreign history manipulation', () => {

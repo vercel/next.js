@@ -27,6 +27,9 @@ Generally a Locale Identifier is made up of a language, region, and script separ
 - `nl-NL` - Dutch as spoken in the Netherlands
 - `nl` - Dutch, no specific region
 
+If user locale is `nl-BE` and it is not listed in your configuration, they will be redirected to `nl` if available, or to the default locale otherwise.
+If you don't plan to support all regions of a country, it is therefore a good practice to include country locales that will act as fallbacks.
+
 ```js
 // next.config.js
 module.exports = {

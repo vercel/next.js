@@ -108,4 +108,18 @@ function runTest() {
     expect(stdout).toMatch('Next.js Analytics')
     await browser.close()
   })
+
+  it('reports INP metric', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      'document.querySelector("button").textContent === "Press"'
+    )
+    // INP metric is only reported on pagehide or visibilitychange event, so refresh the page
+    await browser.refresh()
+    const INP = parseInt(await browser.eval('localStorage.getItem("INP")'), 10)
+    // We introduced a delay of 100ms, so INP duration should be >= 100
+    expect(INP).toBeGreaterThanOrEqual(100)
+    await browser.close()
+  })
 }

@@ -253,7 +253,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       if (!fromExport && (getStaticProps || getServerSideProps)) {
         // don't include dynamic route params in query while normalizing
         // asPath
-        if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+        if (pageIsDynamic && defaultRouteRegex) {
           delete (parsedUrl as any).search
 
           for (const param of Object.keys(defaultRouteRegex.groups)) {
