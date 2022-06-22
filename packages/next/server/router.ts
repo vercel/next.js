@@ -63,7 +63,6 @@ export default class Router {
   useFileSystemPublicRoutes: boolean
   seenRequests: Set<any>
   nextConfig: NextConfig
-  clientErrorRoute: Route | undefined
 
   constructor({
     headers = [],
@@ -80,7 +79,6 @@ export default class Router {
     pageChecker,
     useFileSystemPublicRoutes,
     nextConfig,
-    clientErrorRoute,
   }: {
     headers: Route[]
     fsRoutes: Route[]
@@ -96,7 +94,6 @@ export default class Router {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     nextConfig: NextConfig
-    clientErrorRoute: Route | undefined
   }) {
     this.nextConfig = nextConfig
     this.headers = headers
@@ -109,7 +106,6 @@ export default class Router {
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.seenRequests = new Set()
-    this.clientErrorRoute = clientErrorRoute
   }
 
   get locales() {
@@ -223,7 +219,6 @@ export default class Router {
       */
 
       const allRoutes = [
-        ...(this.clientErrorRoute ? [this.clientErrorRoute] : []),
         ...(this.catchAllMiddleware
           ? this.fsRoutes.filter((r) => r.name === '_next/data catchall')
           : []),

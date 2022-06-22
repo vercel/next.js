@@ -967,30 +967,6 @@ export default class DevServer extends Server {
     return { fsRoutes, ...otherRoutes }
   }
 
-  protected generateClientErrorRoute(): Route | undefined {
-    return {
-      match: getPathMatch('/_next/client-error'),
-      type: 'route',
-      name: 'next client error',
-      fn: async (req, res) => {
-        if (req.method === 'POST') {
-          const { message, stackTrace } = await req.parseBody('1mb')
-          Log.warn(message)
-          if (stackTrace) {
-            console.warn(stackTrace)
-          }
-          res.statusCode = 200
-        } else {
-          res.statusCode = 405
-        }
-        res.send()
-        return {
-          finished: true,
-        }
-      },
-    }
-  }
-
   // In development public files are not added to the router but handled as a fallback instead
   protected generatePublicRoutes(): never[] {
     return []

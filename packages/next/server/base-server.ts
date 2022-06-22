@@ -197,7 +197,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract generateImageRoutes(): Route[]
-  protected abstract generateClientErrorRoute(): Route | undefined
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
   protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
@@ -720,12 +719,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
     nextConfig: NextConfig
-    clientErrorRoute: Route | undefined
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
-    const clientErrorRoute = this.generateClientErrorRoute()
 
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
@@ -904,7 +901,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       dynamicRoutes: this.dynamicRoutes,
       pageChecker: this.hasPage.bind(this),
       nextConfig: this.nextConfig,
-      clientErrorRoute,
     }
   }
 

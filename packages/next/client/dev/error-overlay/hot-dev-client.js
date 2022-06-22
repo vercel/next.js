@@ -35,7 +35,6 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
-import sendClientErrorToDevServer from '../send-client-error-to-dev-server'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -327,7 +326,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
           '[Fast Refresh] performing full reload because your application had an unrecoverable error'
         )
       }
-      performFullRefresh(err)
+      performFullReload(err)
       return
     }
 
@@ -364,17 +363,19 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   )
 }
 
-function performFullRefresh(err) {
+function performFullReload(err) {
   const stackTrace =
     err &&
     ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
       err.message ||
       err + '')
 
-  sendClientErrorToDevServer(
-    'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works',
-    stackTrace
-  ).finally(() => {
-    window.location.reload()
-  })
+  sendMessage(
+    JSON.stringify({
+      event: 'client-full-reload',
+      stackTrace,
+    })
+  )
+
+  window.location.reload()
 }

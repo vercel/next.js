@@ -75,9 +75,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected generateImageRoutes() {
     return []
   }
-  protected generateClientErrorRoute(): Route | undefined {
-    return undefined
-  }
   protected generateStaticRoutes() {
     return []
   }
