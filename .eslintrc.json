@@ -154,6 +154,10 @@
       },
       "rules": {
         "eslint-plugin/prefer-replace-text": "error",
+        "eslint-plugin/report-message-format": [
+          "error",
+          ".+\\. See: https://nextjs.org/docs/messages/[a-z\\-]+$"
+        ],
         "eslint-plugin/require-meta-docs-description": [
           "error",
           {
