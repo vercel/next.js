@@ -86,7 +86,7 @@ async function run() {
     if (lastVersion.includes('canary') && reportedNextVersion !== lastVersion) {
       return await notifyOnIssue(
         verifyCanaryLabel,
-        'The reported Next.js version did not match the latest `next@canary` version. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
+        `The reported Next.js version did not match the latest \`next@canary\` version (${lastVersion}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
       )
     }
   } catch (error) {

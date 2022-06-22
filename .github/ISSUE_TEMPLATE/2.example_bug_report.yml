@@ -13,7 +13,7 @@ body:
       label: Verify canary release
       description: '`next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
       options:
-        - label: I verified that the issue exists in the last Next.js canary release
+        - label: I verified that the issue exists in the latest Next.js canary release
           required: true
   - type: textarea
     attributes:
