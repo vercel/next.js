@@ -5,7 +5,12 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image id="exif-rotation-image" src="/exif-rotation.jpg" unsized />
+      <Image
+        id="exif-rotation-image"
+        src="/exif-rotation.jpg"
+        width="75"
+        height="100"
+      />
       <p id="stubtext">This is the rotated page</p>
     </div>
   )

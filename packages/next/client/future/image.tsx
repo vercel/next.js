@@ -106,13 +106,9 @@ export type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
-  lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
-  objectFit?: ImgElementStyle['objectFit']
-  objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: OnLoadingComplete
 }
 
@@ -295,15 +291,11 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
-  lazyRoot = null,
-  lazyBoundary,
   className,
   quality,
   width,
   height,
   style,
-  objectFit,
-  objectPosition,
   onLoadingComplete,
   placeholder = 'empty',
   blurDataURL,
@@ -411,24 +403,14 @@ export default function Image({
       )
     }
 
-    if (objectFit) {
+    if ('objectFit' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectFit='${objectFit}'". This style should be specified using the "style" attribute.`
+        `Image with src "${src}" has unknown prop "objectFit". This style should be specified using the "style" attribute.`
       )
     }
-    if (objectPosition) {
+    if ('objectPosition' in rest) {
       throw new Error(
-        `Image with src "${src}" has unknown prop "objectPosition='${objectPosition}'". This style should be specified using the "style" attribute.`
-      )
-    }
-    if (lazyRoot) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "lazyRoot='${lazyRoot}'".`
-      )
-    }
-    if (lazyBoundary) {
-      throw new Error(
-        `Image with src "${src}" has unknown prop "lazyBoundary='${lazyBoundary}'".`
+        `Image with src "${src}" has unknown prop "objectPosition". This style should be specified using the "style" attribute.`
       )
     }
 
@@ -519,8 +501,8 @@ export default function Image({
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
-          backgroundSize: objectFit || 'cover',
-          backgroundPosition: objectPosition || '0% 0%',
+          backgroundSize: imgStyle.objectFit || 'cover',
+          backgroundPosition: imgStyle.objectPosition || '0% 0%',
           ...(blurDataURL?.startsWith('data:image')
             ? {
                 backgroundImage: svgBlurPlaceholder,

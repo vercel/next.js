@@ -20,7 +20,7 @@ const Page = () => {
       <Image id="basic-static" src={testImg} placeholder="blur" />
       <Image id="basic-static-raw" src={testImg} placeholder="blur" />
       <TallImage />
-      <Image id="defined-size-static" src={testPNG} height="200" width="200" />
+      <Image id="defined-size-static" src={testPNG} height="150" width="150" />
       <Image id="require-static" src={require('../public/foo/test-rect.jpg')} />
       <Image
         id="basic-non-static"
