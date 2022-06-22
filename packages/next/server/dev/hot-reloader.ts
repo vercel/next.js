@@ -15,6 +15,7 @@ import {
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
+import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
@@ -348,6 +349,15 @@ export default class HotReloader {
               traceChild = {
                 name: payload.event,
                 attrs: { page: payload.page || '' },
+              }
+              break
+            }
+            case 'client-full-reload': {
+              Log.warn(
+                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+              )
+              if (payload.stackTrace) {
+                console.warn(payload.stackTrace)
               }
               break
             }
