@@ -168,13 +168,13 @@ If you want to cause a `GET` response to a `POST` request, use `303`.
 
 ### How do I access Environment Variables?
 
-`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
+`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Edge Middleware. They are evaluated at build time.
 
-| Works                               | Does **not** work                          |
-| ----------------------------------- | ------------------------------------------ |
-| `console.log(process.env.NODE_ENV)` | `process.env["HELLO" + "_WORLD"]`          |
-| `const { NODE_ENV } = process.env`  | `const getEnv = name => process.env[name]` |
-|                                     | `console.log(process.env)`                 |
+| Works                                                        | Does **not** work                          |
+| ------------------------------------------------------------ | ------------------------------------------ |
+| `console.log(process.env.MY_ENV_VARIABLE)`                   | `const getEnv = name => process.env[name]` |
+| `const { MY_ENV_VARIABLE } = process.env`                    |                                            |
+| `const { "MY-ENV-VARIABLE": MY_ENV_VARIABLE } = process.env` |                                            |
 
 ## Related
 
