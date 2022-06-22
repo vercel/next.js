@@ -60,11 +60,11 @@ export function hasRepo({
   return isUrlOk(contentsUrl + packagePath + `?ref=${branch}`)
 }
 
-export function hasExample(name: string): Promise<boolean> {
+export function existsInRepo(name: string): Promise<boolean> {
   return isUrlOk(
     `https://api.github.com/repos/vercel/next.js/contents/examples/${encodeURIComponent(
       name
-    )}/package.json`
+    )}`
   )
 }
 
