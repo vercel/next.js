@@ -28,7 +28,6 @@ describe('TypeScript basic', () => {
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
-        'styled-jsx': 'latest',
       },
     })
   })

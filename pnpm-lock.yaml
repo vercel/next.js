@@ -356,7 +356,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.1.7-canary.42
+      '@next/eslint-plugin-next': 12.1.7-canary.44
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -412,12 +412,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.1.7-canary.42
-      '@next/polyfill-module': 12.1.7-canary.42
-      '@next/polyfill-nomodule': 12.1.7-canary.42
-      '@next/react-dev-overlay': 12.1.7-canary.42
-      '@next/react-refresh-utils': 12.1.7-canary.42
-      '@next/swc': 12.1.7-canary.42
+      '@next/env': 12.1.7-canary.44
+      '@next/polyfill-module': 12.1.7-canary.44
+      '@next/polyfill-nomodule': 12.1.7-canary.44
+      '@next/react-dev-overlay': 12.1.7-canary.44
+      '@next/react-refresh-utils': 12.1.7-canary.44
+      '@next/swc': 12.1.7-canary.44
       '@swc/helpers': 0.4.2
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -18250,7 +18250,7 @@ packages:
     dev: true
 
   /querystring/0.2.0:
-    resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
+    resolution: {integrity: sha1-sgmEkgO7Jd+CDadW50cAWHhSFiA=}
     engines: {node: '>=0.4.x'}
     deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
     dev: true
@@ -21012,7 +21012,7 @@ packages:
       typescript: 4.6.3
 
   /tty-browserify/0.0.0:
-    resolution: {integrity: sha512-JVa5ijo+j/sOoHGjw0sxw734b1LhBkQ3bvUGNdxnVXDCX81Yx7TFgnZygxrIIWn23hbfTaMYLwRmAxFyDuFmIw==}
+    resolution: {integrity: sha1-oVe6QC2iTpv5V/mqadUk7tQpAaY=}
     dev: true
 
   /tty-browserify/0.0.1:

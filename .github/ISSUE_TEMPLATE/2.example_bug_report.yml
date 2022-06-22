@@ -13,7 +13,7 @@ body:
       label: Verify canary release
       description: '`next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
       options:
-        - label: I verified that the issue exists in Next.js canary release
+        - label: I verified that the issue exists in the latest Next.js canary release
           required: true
   - type: textarea
     attributes:
@@ -24,7 +24,7 @@ body:
   - type: input
     attributes:
       label: Which example does this report relate to?
-      description: "See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). For example: with-styled-components. Note: Examples not in the examples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
+      description: "See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). For example: `with-styled-components`. Note: Examples not in the examples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
     validations:
       required: true
   - type: input
@@ -50,7 +50,7 @@ body:
   - type: textarea
     attributes:
       label: To Reproduce
-      description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository. Screenshots can be provided in the issue body below.
+      description: Steps to reproduce the behavior, please provide a clear description of how to reproduce the issue, based on the relevant example. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
     validations:
       required: true
   - type: markdown
