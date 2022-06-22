@@ -6,7 +6,6 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { Options } from './base-server'
-import type { Route } from './router'
 
 import BaseServer from './base-server'
 import { renderToHTML } from './render'
