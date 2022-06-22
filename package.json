@@ -206,9 +206,6 @@
     "@babel/types": "7.18.0",
     "@babel/traverse": "7.18.0"
   },
-  "optionalDependencies": {
-    "node-sass": "6.0.1"
-  },
   "engines": {
     "node": ">=12.22.0",
     "pnpm": ">= 7.2.1"
