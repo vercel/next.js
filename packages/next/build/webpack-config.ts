@@ -1280,6 +1280,11 @@ export default async function getBaseWebpackConfig(
                     loader: 'next-flight-client-loader',
                   },
                 },
+                // _app should be treated as a client component as well as all its dependencies.
+                {
+                  test: new RegExp(`_app\\.(${rawPageExtensions.join('|')})$`),
+                  layer: 'sc_client',
+                },
               ]
             : []
           : []),

@@ -9,6 +9,7 @@ export default function (context) {
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
   })
+
   it('should include global styles with `serverComponents: true`', async () => {
     const browser = await webdriver(context.appPort, '/global-styles-rsc')
     const currentColor = await browser.eval(
@@ -23,5 +24,11 @@ export default function (context) {
       `window.getComputedStyle(document.querySelector('h1')).color`
     )
     expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+  })
+
+  it('should support next/head inside _app with RSC', async () => {
+    const browser = await webdriver(context.appPort, '/multi')
+    const title = await browser.eval(`document.title`)
+    expect(title).toBe('hi')
   })
 }
