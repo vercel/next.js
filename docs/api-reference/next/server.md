@@ -34,7 +34,7 @@ You can use the `NextRequest` object as a direct replacement for the native `Req
 
 `NextRequest` can be imported from `next/server` as a type:
 
-```ts
+```typescript
 import type { NextRequest } from 'next/server'
 ```
 
