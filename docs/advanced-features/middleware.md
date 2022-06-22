@@ -11,27 +11,35 @@ description: Learn how to use Middleware to run code before a request is complet
 
 | --------- | ------------------------------------------------------------------------------------------ |
 
-| `v12.2.0` | Middleware GA. |
+| `v12.2.0` | Middleware GA |
 
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
 
-| `v12.0.0` | Middleware (Beta) added. |
+| `v12.0.0` | Middleware (Beta) added |
 
 </details>
 
-Middleware enables you to use code over configuration. This gives you full flexibility in Next.js, because you can run code _before_ a request is completed. Middleware runs _before_ the CDN cache lookup, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
+Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
+
+When a request is made, it will first hit the Middleware, _then_ the cache, meaning you can personalize static content and implement authentication, run A/B tests, deliver personalizes pages based on geolocation, and perform bot protection.
 
 ## Summary of Middleware
 
-- A single `middleware.ts` file is created at your projects root, with an exported function (the file extension can be either `.ts` or `.js`)
+- You create a single `middleware.ts` or `middleware.js` file at your projects root, with an exported function
 - The function can be a named, or default export. If the function is a named export, then is **must** be called `middleware`. For a default export, you are free to name it anything you like
+  ```js
+  //named export
+  export function middleware() {}
+  // default export
+  export default function custom() {}
+  ```
 - The function can be `async` if you are running asynchronous code
 - Middleware executes on _all_ requests, including `/_next`
 - Node.js APIs are [**not supported in this environment**](https://edge-runtime.vercel.sh/#developing-edge-functions-locally)
 
 ### Permitted response types
 
-When using Middleware, it is not permitted to change the response body: you can only set response headers.
+When using Middleware, you cannot change the response body: you can only set response headers.
 Returning a body from Middleware will result in a `500` server error and an explicit response message.
 
 The [`NextResponse`](#nextresponse) API allows you to:
@@ -45,7 +53,7 @@ With Middleware you can implement A/B testing, authentication, feature flags, bo
 
 ### Deploying Middleware
 
-Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
+Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. Middleware works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
 
 ## Using Middleware
 
@@ -77,7 +85,7 @@ export const config = {
 }
 ```
 
-Middleware will be invoked for **every route in your project**. There are two ways to define which paths the middleware should be run on, with a custom matcher config, or with conditional statements.
+Middleware will be invoked for **every route in your project**. There are two ways to define which paths the middleware should be run on: with a custom matcher config or with conditional statements.
 
 ### Match paths based on custom matcher config
 
