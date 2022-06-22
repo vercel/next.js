@@ -32,7 +32,7 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 
-`NextRequest` can be imported from `next/server` as a type:
+`NextRequest` can be imported from `next/server`:
 
 ```typescript
 import type { NextRequest } from 'next/server'
@@ -60,7 +60,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 }
 ```
 
-The `event` object can be imported from `next/server`:
+The `NextFetchEvent` object can be imported from `next/server`:
 
 ```typescript
 import type { NextFetchEvent } from 'next/server'
