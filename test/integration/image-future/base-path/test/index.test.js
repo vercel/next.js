@@ -49,14 +49,6 @@ async function getComputed(browser, id, prop) {
   return null
 }
 
-async function getSrc(browser, id) {
-  const src = await browser.elementById(id).getAttribute('src')
-  if (src) {
-    const url = new URL(src, `http://localhost:${appPort}`)
-    return url.href.slice(url.origin.length)
-  }
-}
-
 function getRatio(width, height) {
   return height / width
 }

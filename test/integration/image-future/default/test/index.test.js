@@ -447,9 +447,6 @@ function runTests(mode) {
 
   it('should work with sizes and automatically use responsive srcset', async () => {
     const browser = await webdriver(appPort, '/sizes')
-    const width = 1200
-    const height = 700
-    const delta = 250
     const id = 'sizes1'
     expect(await getSrc(browser, id)).toBe(
       '/_next/image?url=%2Fwide.png&w=3840&q=75'
