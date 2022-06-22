@@ -112,6 +112,7 @@ export default class DevServer extends Server {
    * routing items to be returned in `getMiddleware()`
    */
   private middleware?: RoutingItem[]
+  private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -382,18 +383,25 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
-          const middlewareRegex =
-            page === '/' && middlewareMatcher
-              ? { re: middlewareMatcher, groups: {} }
-              : getMiddlewareRegex(page, {
-                  catchAll: !ssrMiddleware.has(page),
-                })
-          return {
+        this.middleware = []
+        this.edgeFunctions = []
+        getSortedRoutes(routedMiddleware).forEach((page) => {
+          const isRootMiddleware = page === '/' && !!middlewareMatcher
+          const middlewareRegex = isRootMiddleware
+            ? { re: middlewareMatcher!, groups: {} }
+            : getMiddlewareRegex(page, {
+                catchAll: !ssrMiddleware.has(page),
+              })
+          const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: ssrMiddleware.has(page),
+            ssr: !isRootMiddleware,
+          }
+
+          this.middleware!.push(routeItem)
+          if (!isRootMiddleware) {
+            this.edgeFunctions!.push(routeItem)
           }
         })
 
@@ -690,6 +698,28 @@ export default class DevServer extends Server {
     }
   }
 
+  async runEdgeFunction(params: {
+    req: BaseNextRequest
+    res: BaseNextResponse
+    query: ParsedUrlQuery
+    params: Params | undefined
+    page: string
+  }) {
+    try {
+      return super.runEdgeFunction(params)
+    } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
+      this.logErrorWithOriginalStack(error, 'warning')
+      const err = getProperError(error)
+      const { req, res, page } = params
+      res.statusCode = 500
+      this.renderError(err, req, res, page)
+      return null
+    }
+  }
+
   async run(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -770,12 +800,8 @@ export default class DevServer extends Server {
           const src = getErrorSource(err)
           if (src === 'edge-server') {
             compilation = this.hotReloader?.edgeServerStats?.compilation
-          } else if (src === 'server') {
-            compilation = this.hotReloader?.serverStats?.compilation
           } else {
-            compilation = frame.file!.includes('(middleware)')
-              ? this.hotReloader?.edgeServerStats?.compilation
-              : this.hotReloader?.serverStats?.compilation
+            compilation = this.hotReloader?.serverStats?.compilation
           }
 
           const source = await getSourceById(
@@ -863,6 +889,10 @@ export default class DevServer extends Server {
     return this.middleware ?? []
   }
 
+  protected getEdgeFunctions() {
+    return this.edgeFunctions ?? []
+  }
+
   protected getServerComponentManifest() {
     return undefined
   }
@@ -933,7 +963,7 @@ export default class DevServer extends Server {
           .body(
             JSON.stringify(
               this.getMiddleware().map((middleware) => [
-                (middleware as any).re.source,
+                middleware.re!.source,
                 !!middleware.ssr,
               ])
             )

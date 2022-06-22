@@ -9,8 +9,9 @@ import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
-  NextConfigComplete,
   normalizeConfig,
+  ExperimentalConfig,
+  NextConfigComplete,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import {
@@ -39,6 +40,23 @@ const experimentalWarning = execOnce(
       `Experimental features are not covered by semver, and may cause unexpected or broken application behavior. ` +
         `Use at your own risk.`
     )
+    console.warn()
+  }
+)
+
+const missingExperimentalWarning = execOnce(
+  (configFileName: string, features: string[]) => {
+    const s = features.length > 1 ? 's' : ''
+    const dont = features.length > 1 ? 'do not' : 'does not'
+    const them = features.length > 1 ? 'them' : 'it'
+    Log.warn(
+      chalk.bold(
+        `You have defined experimental feature${s} (${features.join(
+          ', '
+        )}) in ${configFileName} that ${dont} exist in this version of Next.js.`
+      )
+    )
+    Log.warn(`Please remove ${them} from your configuration.`)
     console.warn()
   }
 )
@@ -77,13 +95,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (
-        key === 'experimental' &&
-        value !== defaultConfig[key] &&
-        typeof value === 'object' &&
-        Object.keys(value).length > 0
-      ) {
-        experimentalWarning(configFileName, Object.keys(value))
+      if (key === 'experimental' && typeof value === 'object') {
+        const enabledMissingExperiments: string[] = []
+        const enabledExperiments: (keyof ExperimentalConfig)[] = []
+
+        // defaultConfig.experimental is predefined and will never be undefined
+        // This is only a type guard for the typescript
+        if (defaultConfig.experimental) {
+          for (const featureName of Object.keys(
+            value
+          ) as (keyof ExperimentalConfig)[]) {
+            if (!(featureName in defaultConfig.experimental)) {
+              enabledMissingExperiments.push(featureName)
+            } else if (
+              value[featureName] !== defaultConfig.experimental[featureName]
+            ) {
+              enabledExperiments.push(featureName)
+            }
+          }
+        }
+
+        if (enabledMissingExperiments.length > 0) {
+          missingExperimentalWarning(configFileName, enabledMissingExperiments)
+        }
+        if (enabledExperiments.length > 0) {
+          experimentalWarning(configFileName, enabledExperiments)
+        }
       }
 
       if (key === 'distDir') {

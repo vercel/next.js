@@ -182,13 +182,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-
-      expect(predefinedWorkerScripts).toBeGreaterThan(0)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
           `document.querySelectorAll('script[type="text/partytown-x"]').length`
@@ -243,13 +237,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      await check(async () => {
-        const predefinedWorkerScripts = await browser.eval(
-          `document.querySelectorAll('script[type="text/partytown"]').length`
-        )
-        return predefinedWorkerScripts + ''
-      }, '1')
-
       // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
@@ -277,14 +264,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      await check(async () => {
-        const predefinedWorkerScripts = await browser.eval(
-          `document.querySelectorAll('script[type="text/partytown"]').length`
-        )
-        return predefinedWorkerScripts + ''
-      }, '1')
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
           `document.querySelectorAll('script[type="text/partytown-x"]').length`

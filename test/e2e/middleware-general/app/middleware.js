@@ -47,6 +47,17 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname === '/') {
+    url.pathname = '/ssg/first'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/to-ssg') {
+    url.pathname = '/ssg/hello'
+    url.searchParams.set('from', 'middleware')
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname === '/sha') {
     url.pathname = '/shallow'
     return NextResponse.rewrite(url)
