@@ -7,7 +7,7 @@ description: You can add the dynamic routes used for pages to API Routes too. Le
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/api-routes">Basic API Routes</a></li>
+    <li><a href="https://github.com/vercel/examples/blob/main/edge-functions/api-route/api/edge.ts">Basic Edge API Route</a></li>
   </ul>
 </details>
 

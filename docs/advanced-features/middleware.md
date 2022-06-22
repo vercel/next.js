@@ -257,7 +257,7 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 
-`NextRequest` is fully typed and can be imported from `next/server`.
+`NextRequest` can be imported from `next/server` as a type:
 
 ```ts
 import type { NextRequest } from 'next/server'
@@ -267,9 +267,24 @@ import type { NextRequest } from 'next/server'
 
 The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
 
-The `waitUntil()` method can be used to prolong the execution of the function, after the response has been sent. In practice this means that you can send a response, then continue the function execution if you have other background work to make.
+The `waitUntil()` method can be used to prolong the execution of the function if you have other background work to make.
 
-The `event` object is fully typed and can be imported from `next/server`.
+```typescript
+// Replace this with a better example
+import type { NextRequest, NextFetchEvent } from 'next/server'
+
+export function middleware(request: NextRequest, event: NextFetchEvent) {
+  event.waitUntil(
+    fetch('https://api.example.com/').then((response) => {
+      // Do something with the response
+    })
+  )
+
+  return NextResponse.next()
+}
+```
+
+The `event` object can be imported from `next/server`:
 
 ```typescript
 import type { NextFetchEvent } from 'next/server'
@@ -311,7 +326,7 @@ export function middleware(request: NextRequest) {
 
 All methods above return a `NextResponse` object that only takes effect if it's returned in the middleware function.
 
-`NextResponse` is fully typed and can be imported from `next/server`.
+`NextResponse` can be imported from `next/server`:
 
 ```typescript
 import { NextResponse } from 'next/server'
@@ -340,18 +355,11 @@ If you want to cause a `GET` response to a `POST` request, use `303`.
 
 `process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
 
-Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
-
-```ts
-// Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
-console.log(process.env.NODE_ENV)
-// This will not work
-const { NODE_ENV } = process.env
-// NODE_ENV is `undefined`
-console.log(NODE_ENV)
-// process.env is `{}`
-console.log(process.env)
-```
+| Works                               | Does **not** work                          |
+| ----------------------------------- | ------------------------------------------ |
+| `console.log(process.env.NODE_ENV)` | `process.env["HELLO" + "_WORLD"]`          |
+| `const { NODE_ENV } = process.env`  | `const getEnv = name => process.env[name]` |
+|                                     | `console.log(process.env)`                 |
 
 ## Related
 
