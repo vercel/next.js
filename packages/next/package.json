@@ -49,7 +49,7 @@
     "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
-    "types/image/global.d.ts"
+    "image-types/global.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
