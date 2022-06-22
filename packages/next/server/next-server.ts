@@ -81,8 +81,13 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream, clonableBodyForRequest } from './body-streams'
+import {
+  bodyStreamToNodeStream,
+  clonableBodyForRequest,
+  requestToBodyStream,
+} from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 
 const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
@@ -548,20 +553,19 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async runApi(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
+    req: BaseNextRequest | NodeNextRequest,
+    res: BaseNextResponse | NodeNextResponse,
     query: ParsedUrlQuery,
-    params: Params | false,
+    params: Params | undefined,
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const handledAsEdgeFunction = await this.runEdgeFunctionApiEndpoint({
+    const handledAsEdgeFunction = await this.runEdgeFunction({
       req,
       res,
       query,
       params,
       page,
-      builtPagePath,
     })
 
     if (handledAsEdgeFunction) {
@@ -583,8 +587,8 @@ export default class NextNodeServer extends BaseServer {
     }
 
     await apiResolver(
-      req.originalRequest,
-      res.originalResponse,
+      (req as NodeNextRequest).originalRequest,
+      (res as NodeNextResponse).originalResponse,
       query,
       pageModule,
       {
@@ -1041,23 +1045,40 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected getMiddlewareManifest(): MiddlewareManifest | null {
+    if (this.minimalMode) return null
+    const manifest: MiddlewareManifest = require(join(
+      this.serverDistDir,
+      MIDDLEWARE_MANIFEST
+    ))
+    return manifest
+  }
+
   /**
    * Return a list of middleware routing items. This method exists to be later
    * overridden by the development server in order to use a different source
    * to get the list.
    */
   protected getMiddleware(): RoutingItem[] {
-    if (this.minimalMode) {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
       return []
     }
 
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
-
     return manifest.sortedMiddleware.map((page) => ({
       match: getMiddlewareMatcher(manifest.middleware[page]),
+      page,
+    }))
+  }
+
+  protected getEdgeFunctions(): RoutingItem[] {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return []
+    }
+
+    return Object.keys(manifest.functions).map((page) => ({
+      match: getMiddlewareMatcher(manifest.functions[page]),
       page,
     }))
   }
@@ -1188,7 +1209,8 @@ export default class NextNodeServer extends BaseServer {
         ? clonableBodyForRequest(params.request.body)
         : undefined
 
-    for (const middleware of this.getMiddleware()) {
+    const middlewareList = this.getMiddleware()
+    for (const middleware of middlewareList) {
       if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
@@ -1198,7 +1220,7 @@ export default class NextNodeServer extends BaseServer {
         await this.ensureMiddleware(middleware.page, middleware.ssr)
         const middlewareInfo = this.getEdgeFunctionInfo({
           page: middleware.page,
-          middleware: true,
+          middleware: !middleware.ssr,
         })
 
         result = await run({
@@ -1258,16 +1280,55 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected generateCatchAllMiddlewareRoute(
-    devReady?: boolean
-  ): Route | undefined {
-    if (this.minimalMode) return undefined
+  protected generateCatchAllMiddlewareRoute(devReady?: boolean): Route[] {
+    if (this.minimalMode) return []
 
-    if ((!this.renderOpts.dev || devReady) && !this.getMiddleware().length) {
-      return undefined
+    const edgeCatchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      name: 'edge functions catchall',
+      fn: async (req, res, _params, parsed) => {
+        const edgeFunctions = this.getEdgeFunctions()
+        if (!edgeFunctions.length) return { finished: false }
+
+        const { query, pathname } = parsed
+        const normalizedPathname = removeTrailingSlash(pathname || '')
+        let page = normalizedPathname
+        let params: Params | undefined = undefined
+        let pageFound = !isDynamicRoute(page)
+
+        if (this.dynamicRoutes) {
+          for (const dynamicRoute of this.dynamicRoutes) {
+            params = dynamicRoute.match(normalizedPathname) || undefined
+            if (params) {
+              page = dynamicRoute.page
+              pageFound = true
+              break
+            }
+          }
+        }
+
+        if (!pageFound) {
+          return {
+            finished: false,
+          }
+        }
+
+        const edgeSSRResult = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params,
+          page,
+        })
+
+        return {
+          finished: !!edgeSSRResult,
+        }
+      },
     }
 
-    return {
+    const middlewareCatchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       matchesBasePath: true,
       matchesLocale: true,
@@ -1435,6 +1496,14 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     }
+
+    const routes = []
+    if (!this.renderOpts.dev || devReady) {
+      if (this.getMiddleware().length) routes[0] = middlewareCatchAllRoute
+      if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
+    }
+
+    return routes
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
@@ -1450,23 +1519,23 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  private async runEdgeFunctionApiEndpoint(params: {
-    req: NodeNextRequest
-    res: NodeNextResponse
+  protected async runEdgeFunction(params: {
+    req: BaseNextRequest | NodeNextRequest
+    res: BaseNextResponse | NodeNextResponse
     query: ParsedUrlQuery
-    params: Params | false
+    params: Params | undefined
     page: string
-    builtPagePath: string
-  }): Promise<boolean> {
+  }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     try {
+      await this.ensureMiddleware(params.page, true)
       middlewareInfo = this.getEdgeFunctionInfo({
         page: params.page,
         middleware: false,
       })
     } catch {
-      return false
+      return null
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
@@ -1477,6 +1546,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
+    const nodeReq = params.req as NodeNextRequest
     const result = await run({
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
@@ -1495,8 +1565,11 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        // TODO(gal): complete body
-        // body: originalBody?.cloneBodyStream(),
+        body:
+          ['GET', 'HEAD'].includes(params.req.method) ||
+          !nodeReq.originalRequest
+            ? undefined
+            : requestToBodyStream(nodeReq.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
       onWarning: (_warning: Error) => {
@@ -1517,13 +1590,13 @@ export default class NextNodeServer extends BaseServer {
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
       bodyStreamToNodeStream(result.response.body).pipe(
-        params.res.originalResponse
+        (params.res as NodeNextResponse).originalResponse
       )
     } else {
-      params.res.originalResponse.end()
+      ;(params.res as NodeNextResponse).originalResponse.end()
     }
 
-    return true
+    return result
   }
 }
 

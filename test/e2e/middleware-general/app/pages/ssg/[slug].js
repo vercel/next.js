@@ -16,7 +16,7 @@ export default function Page(props) {
 
   return (
     <>
-      <p id="blog">/blog/[slug]</p>
+      <p id="ssg">/blog/[slug]</p>
       <p id="query">{JSON.stringify(router.query)}</p>
       <p id="pathname">{router.pathname}</p>
       <p id="as-path">{asPath}</p>

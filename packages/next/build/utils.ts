@@ -1331,6 +1331,17 @@ export function getPossibleMiddlewareFilenames(
     path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`)
   )
 }
+
+export class MiddlewareInServerlessTargetError extends Error {
+  constructor() {
+    super(
+      'Next.js Middleware is not supported in the deprecated serverless target.\n' +
+        'Please remove `target: "serverless" from your next.config.js to use Middleware.'
+    )
+    this.name = 'MiddlewareInServerlessTargetError'
+  }
+}
+
 export class NestedMiddlewareError extends Error {
   constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
     super(
