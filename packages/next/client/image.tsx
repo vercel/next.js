@@ -711,6 +711,7 @@ export default function Image({
       ? {
           backgroundSize: objectFit || 'cover',
           backgroundPosition: objectPosition || '0% 0%',
+          backgroundRepeat: 'no-repeat',
           ...(layout === 'raw' && blurDataURL?.startsWith('data:image')
             ? {
                 backgroundImage: svgBlurPlaceholder,
