@@ -21,13 +21,13 @@ function runTests() {
 
     expect(
       await browser.elementById('internal-image').getAttribute('src')
-    ).toMatch('data:')
+    ).toBe('/test.png')
     expect(
       await browser.elementById('static-image').getAttribute('src')
-    ).toMatch('data:')
+    ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
-    ).toMatch('data:')
+    ).toBe('https://via.placeholder.com/800/000/FFF.png?text=test')
     expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
       '/test.webp'
     )
