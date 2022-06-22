@@ -11,7 +11,7 @@ const {
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
     `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
-      `If using a custom path, please configure with the no-html-link-for-pages rule in your eslint config file`
+      'If using a custom path, please configure with the `no-html-link-for-pages` rule in your eslint config file.'
   )
 })
 
@@ -19,13 +19,16 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
+const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit full page refresh for Next.js pages',
+      description:
+        'Prevent usage of `<a>` elements to navigate to internal Next.js pages.',
       category: 'HTML',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-html-link-for-pages',
+      url,
     },
     fixable: null, // or "code" or "whitespace"
     schema: [
@@ -79,7 +82,7 @@ module.exports = {
       return {}
     }
 
-    const urls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
@@ -121,11 +124,11 @@ module.exports = {
           return
         }
 
-        urls.forEach((url) => {
-          if (url.test(normalizeURL(hrefPath))) {
+        pageUrls.forEach((pageUrl) => {
+          if (pageUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,
-              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages`,
+              message: `Do not use an \`<a>\` element to navigate to \`${hrefPath}\`. Use \`<Link />\` from \`next/link\` instead. See: ${url}`,
             })
           }
         })
