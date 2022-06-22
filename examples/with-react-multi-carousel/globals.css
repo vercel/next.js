@@ -1,0 +1,52 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  min-height: 100vh;
+  background-color: #111;
+  color: #d9d9d9;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  margin: 2em 0;
+  padding: 0 0.5rem;
+  text-align: center;
+  font-size: 3rem;
+}
+
+a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+p {
+  font-size: 2rem;
+}
+
+.container {
+  padding: 2rem 1rem;
+  display: flex;
+  flex-flow: column nowrap;
+  width: 100%;
+}
+
+.carousel-item {
+  padding: 1em;
+  pointer-events: none;
+}
