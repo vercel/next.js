@@ -93,7 +93,6 @@ import {
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
   isServerComponentPage,
   isMiddlewareFile,
 } from './utils'
@@ -722,6 +721,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          middlewareRegex: entrypoints.middlewareRegex,
         }
 
         const configs = await runWebpackSpan
@@ -1256,10 +1256,7 @@ export default async function build(
                 isHybridAmp,
                 ssgPageRoutes,
                 initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
+                runtime: pageRuntime,
                 pageDuration: undefined,
                 ssgPageDurations: undefined,
               })
@@ -1447,7 +1444,7 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = path.parse(dir).root
+            const root = config.experimental.outputFileTracingRoot || dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1457,6 +1454,7 @@ export default async function build(
                 require.resolve(config.experimental.incrementalCacheHandlerPath)
               )
             }
+
             const serverResult = await nodeFileTrace(toTrace, {
               base: root,
               processCwd: dir,
@@ -2205,18 +2203,6 @@ export default async function build(
           'utf8'
         )
       }
-
-      await promises.writeFile(
-        path.join(
-          distDir,
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          '_middlewareManifest.js'
-        ),
-        `self.__MIDDLEWARE_MANIFEST=${devalue(
-          middlewareManifest.clientInfo
-        )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-      )
 
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images

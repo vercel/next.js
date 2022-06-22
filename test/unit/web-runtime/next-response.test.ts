@@ -2,7 +2,7 @@
  * @jest-environment @edge-runtime/jest-environment
  */
 
-import { NextResponse } from 'next/dist/server/web/spec-extension/response'
+import { NextResponse } from 'next/server/web/spec-extension/response'
 
 const toJSON = async (response) => ({
   body: await response.json(),
@@ -42,5 +42,14 @@ it('automatically parses and formats JSON', async () => {
   expect(await toJSON(NextResponse.json(''))).toMatchObject({
     contentType: 'application/json',
     body: '',
+  })
+})
+
+it('can be cloned', async () => {
+  const fetchResponse = await fetch('https://example.vercel.sh')
+  const newResponse = new NextResponse(fetchResponse.body, fetchResponse)
+  expect(await newResponse.text()).toContain('Example Domain')
+  expect(Object.fromEntries(newResponse.headers)).toMatchObject({
+    server: 'Vercel',
   })
 })

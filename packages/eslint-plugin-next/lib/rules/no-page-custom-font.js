@@ -1,13 +1,14 @@
 const NodeAttributes = require('../utils/node-attributes.js')
 const { sep, posix } = require('path')
 
+const url = 'https://nextjs.org/docs/messages/no-page-custom-font'
+
 module.exports = {
   meta: {
     docs: {
-      description:
-        'Recommend adding custom font in a custom document and not in a specific page',
+      description: 'Prevent page-only custom fonts.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-page-custom-font',
+      url,
     },
   },
   create: function (context) {
@@ -137,12 +138,11 @@ module.exports = {
           hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
-          const end =
-            'This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font'
+          const end = `This is discouraged. See: ${url}`
 
           const message = is_Document
-            ? `Rendering this <link /> not inline within <Head> of Document disables font optimization. ${end}`
-            : `Custom fonts not added at the document level will only load for a single page. ${end}`
+            ? `Using \`<link />\` outside of \`<Head>\` will disable automatic font optimization. ${end}`
+            : `Custom fonts not added in \`pages/_document.js\` will only load for a single page. ${end}`
 
           context.report({
             node,

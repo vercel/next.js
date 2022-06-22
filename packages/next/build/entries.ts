@@ -31,6 +31,7 @@ import {
   isMiddlewareFilename,
   isServerComponentPage,
   NestedMiddlewareError,
+  MiddlewareInServerlessTargetError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -170,6 +171,15 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
+  if (opts.page.startsWith('/api/')) {
+    const loaderParams: MiddlewareLoaderOptions = {
+      absolutePagePath: opts.absolutePagePath,
+      page: opts.page,
+    }
+
+    return `next-edge-function-loader?${stringify(loaderParams)}!`
+  }
+
   const loaderParams: MiddlewareSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -283,6 +293,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const server: webpack5.EntryObject = {}
   const client: webpack5.EntryObject = {}
   const nestedMiddleware: string[] = []
+  let middlewareRegex: string | undefined = undefined
 
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
@@ -335,6 +346,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         isDev,
         page,
       })
+
+      if (isMiddlewareFile(page)) {
+        middlewareRegex = staticInfo.middleware?.pathMatcher?.source || '.*'
+
+        if (target === 'serverless') {
+          throw new MiddlewareInServerlessTargetError()
+        }
+      }
 
       runDependingOnPageType({
         page,
@@ -408,6 +427,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     client,
     server,
     edgeServer,
+    middlewareRegex,
   }
 }
 
@@ -421,7 +441,9 @@ export function runDependingOnPageType<T>(params: {
   if (isMiddlewareFile(params.page)) {
     return [params.onEdgeServer()]
   } else if (params.page.match(API_ROUTE)) {
-    return [params.onServer()]
+    return params.pageRuntime === 'edge'
+      ? [params.onEdgeServer()]
+      : [params.onServer()]
   } else if (params.page === '/_document') {
     return [params.onServer()]
   } else if (

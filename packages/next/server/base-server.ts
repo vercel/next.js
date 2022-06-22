@@ -82,6 +82,7 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   ssr?: boolean
+  re?: RegExp
 }
 
 export interface Options {
@@ -199,7 +200,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllMiddlewareRoute(): Route[]
   protected abstract generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -213,7 +214,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params | null
+    params?: Params
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -237,7 +238,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse,
     query: ParsedUrlQuery,
-    params: Params | boolean,
+    params: Params | undefined,
     page: string,
     builtPagePath: string
   ): Promise<boolean>
@@ -517,27 +518,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               parsedUrl.query
             )
 
+            // for prerendered ISR paths we attempt parsing the route
+            // params from the URL directly as route-matches may not
+            // contain the correct values due to the filesystem path
+            // matching before the dynamic route has been matched
             if (
-              !isDynamicRoute(normalizedUrlPath) ||
-              !isDynamicRoute(matchedPath)
+              !paramsResult.hasValidParams &&
+              pageIsDynamic &&
+              !isDynamicRoute(normalizedUrlPath)
             ) {
-              // we favor matching against req.url although if there's a
-              // rewrite and it's SSR we use the x-matched-path instead
-              let matcherRes = utils.dynamicRouteMatcher?.(normalizedUrlPath)
+              let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
-              if (!matcherRes) {
-                matcherRes = utils.dynamicRouteMatcher?.(matchedPath)
-              }
-              const parsedResult = utils.normalizeDynamicRouteParams(
-                matcherRes || {}
-              )
-
-              if (parsedResult.hasValidParams) {
-                if (paramsResult.hasValidParams) {
-                  Object.assign(paramsResult.params, parsedResult.params)
-                } else {
-                  paramsResult = parsedResult
-                }
+              if (matcherParams) {
+                utils.normalizeDynamicRouteParams(matcherParams)
+                Object.assign(paramsResult.params, matcherParams)
+                paramsResult.hasValidParams = true
               }
             }
 
@@ -547,9 +542,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             if (
               req.headers['x-now-route-matches'] &&
-              (!paramsResult.hasValidParams ||
-                (isDynamicRoute(matchedPath) &&
-                  isDynamicRoute(normalizedUrlPath)))
+              isDynamicRoute(matchedPath) &&
+              !paramsResult.hasValidParams
             ) {
               const opts: Record<string, string> = {}
               const routeParams = utils.getParamsFromRouteMatches(
@@ -561,17 +555,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
               }
-              paramsResult = utils.normalizeDynamicRouteParams(routeParams)
+              paramsResult = utils.normalizeDynamicRouteParams(
+                routeParams,
+                true
+              )
 
               if (paramsResult.hasValidParams) {
                 params = paramsResult.params
               }
             }
 
+            // handle the actual dynamic route name being requested
+            if (
+              pageIsDynamic &&
+              utils.defaultRouteMatches &&
+              normalizedUrlPath === srcPathname &&
+              !paramsResult.hasValidParams &&
+              !utils.normalizeDynamicRouteParams({ ...params }, true)
+                .hasValidParams
+            ) {
+              params = utils.defaultRouteMatches
+            }
+
             if (params) {
-              if (!paramsResult.hasValidParams) {
-                params = utils.normalizeDynamicRouteParams(params).params
-              }
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
@@ -700,7 +706,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected generateRoutes(): {
-    basePath: string
     headers: Route[]
     rewrites: {
       beforeFiles: Route[]
@@ -710,11 +715,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route | undefined
+    catchAllMiddleware: Route[]
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
-    locales: string[]
+    nextConfig: NextConfig
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
@@ -829,6 +834,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const catchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
+      matchesLocale: true,
       name: 'Catchall render',
       fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
@@ -894,9 +900,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
-      basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
-      locales: this.nextConfig.i18n?.locales || [],
+      nextConfig: this.nextConfig,
     }
   }
 
@@ -934,12 +939,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: ParsedUrlQuery
   ): Promise<boolean> {
     let page = pathname
-    let params: Params | false = false
+    let params: Params | undefined = undefined
     let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname)
+        params = dynamicRoute.match(pathname) || undefined
         if (dynamicRoute.page.startsWith('/api') && params) {
           page = dynamicRoute.page
           pageFound = true
@@ -1211,6 +1216,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDataReq =
       !!query.__nextDataReq && (isSSG || hasServerProps || isServerComponent)
 
+    delete query.__nextDataReq
+
     // normalize req.url for SSG paths as it is not exposed
     // to getStaticProps and the asPath should not expose /_next/data
     if (
@@ -1222,23 +1229,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.url = this.stripNextDataPath(req.url)
     }
 
-    if (!!query.__nextDataReq) {
+    if (
+      !isServerComponent &&
+      !!req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200)
+    ) {
       res.setHeader(
         'x-nextjs-matched-path',
         `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
       )
-      // return empty JSON when not an SSG/SSP page and not an error
-      if (
-        !(isSSG || hasServerProps) &&
-        (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
-      ) {
-        res.setHeader('content-type', 'application/json')
-        res.body('{}')
-        res.send()
-        return null
-      }
     }
-    delete query.__nextDataReq
 
     // Don't delete query.__flight__ yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
@@ -1754,6 +1754,50 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return path
   }
 
+  protected async renderPageComponent(
+    ctx: RequestContext,
+    bubbleNoFallback: boolean
+  ) {
+    // map the route to the actual bundle name
+    const getOriginalAppPath = (appPath: string) => {
+      if (this.nextConfig.experimental.appDir) {
+        const originalAppPath = this.appPathRoutes?.[appPath]
+
+        if (!originalAppPath) {
+          return null
+        }
+
+        return originalAppPath
+      }
+      return null
+    }
+
+    const { query, pathname } = ctx
+    const appPath = getOriginalAppPath(pathname)
+
+    let page = pathname
+    if (typeof appPath === 'string') {
+      page = appPath
+    }
+    const result = await this.findPageComponents(
+      page,
+      query,
+      ctx.renderOpts.params
+    )
+    if (result) {
+      try {
+        return await this.renderToResponseWithComponents(ctx, result)
+      } catch (err) {
+        const isNoFallbackError = err instanceof NoFallbackError
+
+        if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
+          throw err
+        }
+      }
+    }
+    return null
+  }
+
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
@@ -1761,41 +1805,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
-    // map the route to the actual bundle name
-    const getOriginalappPath = (appPath: string) => {
-      if (this.nextConfig.experimental.appDir) {
-        const originalappPath = this.appPathRoutes?.[appPath]
-
-        if (!originalappPath) {
-          return null
-        }
-
-        return originalappPath
-      }
-      return null
-    }
 
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
-      if (!isDynamicRoute(pathname)) {
-        const appPath = getOriginalappPath(pathname)
-
-        if (typeof appPath === 'string') {
-          page = appPath
-        }
-        const result = await this.findPageComponents(page, query)
-        if (result) {
-          try {
-            return await this.renderToResponseWithComponents(ctx, result)
-          } catch (err) {
-            const isNoFallbackError = err instanceof NoFallbackError
-
-            if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-              throw err
-            }
-          }
-        }
+      if (!isDynamicRoute(page)) {
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result) return result
       }
 
       if (this.dynamicRoutes) {
@@ -1805,41 +1821,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             continue
           }
           page = dynamicRoute.page
-          const appPath = getOriginalappPath(page)
-
-          if (typeof appPath === 'string') {
-            page = appPath
-          }
-
-          const dynamicRouteResult = await this.findPageComponents(
-            page,
-            query,
-            params
+          const result = await this.renderPageComponent(
+            {
+              ...ctx,
+              pathname: page,
+              renderOpts: {
+                ...ctx.renderOpts,
+                params,
+              },
+            },
+            bubbleNoFallback
           )
-          if (dynamicRouteResult) {
-            try {
-              return await this.renderToResponseWithComponents(
-                {
-                  ...ctx,
-                  pathname: page,
-                  renderOpts: {
-                    ...ctx.renderOpts,
-                    params,
-                  },
-                },
-                dynamicRouteResult
-              )
-            } catch (err) {
-              const isNoFallbackError = err instanceof NoFallbackError
-
-              if (
-                !isNoFallbackError ||
-                (isNoFallbackError && bubbleNoFallback)
-              ) {
-                throw err
-              }
-            }
-          }
+          if (result) return result
         }
       }
     } catch (error) {
@@ -1871,6 +1864,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
       return response
     }
+
+    if (
+      this.router.catchAllMiddleware[0] &&
+      !!ctx.req.headers['x-nextjs-data'] &&
+      (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        `${query.__nextLocale ? `/${query.__nextLocale}` : ''}${pathname}`
+      )
+      res.statusCode = 200
+      res.setHeader('content-type', 'application/json')
+      res.body('{}')
+      res.send()
+      return null
+    }
+
     res.statusCode = 404
     return this.renderErrorToResponse(ctx, null)
   }

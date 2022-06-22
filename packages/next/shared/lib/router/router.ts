@@ -35,7 +35,7 @@ import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
-import { getRouteRegex, getMiddlewareRegex } from './utils/route-regex'
+import { getRouteRegex } from './utils/route-regex'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -79,37 +79,6 @@ function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
     cancelled: true,
   })
-}
-
-function compareRouterStates(a: Router['state'], b: Router['state']) {
-  const stateKeys = Object.keys(a)
-  if (stateKeys.length !== Object.keys(b).length) return false
-
-  for (let i = stateKeys.length; i--; ) {
-    const key = stateKeys[i]
-    if (key === 'query') {
-      const queryKeys = Object.keys(a.query)
-      if (queryKeys.length !== Object.keys(b.query).length) {
-        return false
-      }
-      for (let j = queryKeys.length; j--; ) {
-        const queryKey = queryKeys[j]
-        if (
-          !b.query.hasOwnProperty(queryKey) ||
-          a.query[queryKey] !== b.query[queryKey]
-        ) {
-          return false
-        }
-      }
-    } else if (
-      !b.hasOwnProperty(key) ||
-      a[key as keyof Router['state']] !== b[key as keyof Router['state']]
-    ) {
-      return false
-    }
-  }
-
-  return true
 }
 
 /**
@@ -385,6 +354,9 @@ export type CompletePrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  route?: string
+  resolvedAs?: string
+  query?: ParsedUrlQuery
 }
 
 export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
@@ -587,6 +559,51 @@ export function createKey() {
   return Math.random().toString(36).slice(2, 10)
 }
 
+function handleHardNavigation({ url }: { url: string }) {
+  // ensure we don't trigger a hard navigation to the same
+  // URL as this can end up with an infinite refresh
+  const parsedUrl = new URL(url, location.href)
+
+  if (
+    parsedUrl.hostname === location.hostname &&
+    parsedUrl.pathname === location.pathname &&
+    parsedUrl.protocol === location.protocol
+  ) {
+    throw new Error(
+      `Invariant: attempted to hard navigate to the same URL ${url} ${location.href}`
+    )
+  }
+  window.location.href = url
+}
+
+const getCancelledHandler = ({
+  route,
+  router,
+}: {
+  route: string
+  router: Router
+}) => {
+  let cancelled = false
+  const cancel = (router.clc = () => {
+    cancelled = true
+  })
+
+  const handleCancelled = () => {
+    if (cancelled) {
+      const error: any = new Error(
+        `Abort fetching component for route: "${route}"`
+      )
+      error.cancelled = true
+      throw error
+    }
+
+    if (cancel === router.clc) {
+      router.clc = null
+    }
+  }
+  return handleCancelled
+}
+
 export default class Router implements BaseRouter {
   basePath: string
 
@@ -612,6 +629,7 @@ export default class Router implements BaseRouter {
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
+  _initialMatchesMiddlewarePromise: Promise<boolean>
 
   private state: Readonly<{
     route: string
@@ -737,6 +755,8 @@ export default class Router implements BaseRouter {
       isFallback,
     }
 
+    this._initialMatchesMiddlewarePromise = Promise.resolve(false)
+
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
@@ -746,7 +766,7 @@ export default class Router implements BaseRouter {
         const options: TransitionOptions = { locale }
         const asPath = getURL()
 
-        matchesMiddleware({
+        this._initialMatchesMiddlewarePromise = matchesMiddleware({
           router: this,
           locale,
           asPath,
@@ -766,6 +786,7 @@ export default class Router implements BaseRouter {
             asPath,
             options
           )
+          return matches
         })
       }
 
@@ -928,11 +949,15 @@ export default class Router implements BaseRouter {
     forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
-      window.location.href = url
+      handleHardNavigation({ url })
       return false
     }
+    // WARNING: `_h` is an internal option for handing Next.js client-side
+    // hydration. Your app should _never_ use this property. It may change at
+    // any time without notice.
+    const isQueryUpdating = (options as any)._h
     const shouldResolveHref =
-      (options as any)._h ||
+      isQueryUpdating ||
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
 
@@ -942,8 +967,18 @@ export default class Router implements BaseRouter {
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
-    if ((options as any)._h) {
-      this.isReady = true
+    // or a navigation has occurred
+    this.isReady = true
+    const isSsr = this.isSsr
+
+    if (!isQueryUpdating) {
+      this.isSsr = false
+    }
+
+    // if a route transition is already in progress before
+    // the query updating is triggered ignore query updating
+    if (isQueryUpdating && this.clc) {
+      return false
     }
 
     const prevLocale = nextState.locale
@@ -985,7 +1020,7 @@ export default class Router implements BaseRouter {
         // if the locale isn't configured hard navigate to show 404 page
         if (!this.locales?.includes(nextState.locale!)) {
           parsedAs.pathname = addLocale(parsedAs.pathname, nextState.locale)
-          window.location.href = formatWithValidation(parsedAs)
+          handleHardNavigation({ url: formatWithValidation(parsedAs) })
           // this was previously a return but was removed in favor
           // of better dead code elimination with regenerator runtime
           didNavigate = true
@@ -1010,15 +1045,17 @@ export default class Router implements BaseRouter {
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = removeBasePath(as)
-          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
-            detectedDomain.domain
-          }${addBasePath(
-            `${
-              nextState.locale === detectedDomain.defaultLocale
-                ? ''
-                : `/${nextState.locale}`
-            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
-          )}`
+          handleHardNavigation({
+            url: `http${detectedDomain.http ? '' : 's'}://${
+              detectedDomain.domain
+            }${addBasePath(
+              `${
+                nextState.locale === detectedDomain.defaultLocale
+                  ? ''
+                  : `/${nextState.locale}`
+              }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+            )}`,
+          })
           // this was previously a return but was removed in favor
           // of better dead code elimination with regenerator runtime
           didNavigate = true
@@ -1030,9 +1067,6 @@ export default class Router implements BaseRouter {
       }
     }
 
-    if (!(options as any)._h) {
-      this.isSsr = false
-    }
     // marking route changes as a navigation start entry
     if (ST) {
       performance.mark('routeChange')
@@ -1041,8 +1075,17 @@ export default class Router implements BaseRouter {
     const { shallow = false, scroll = true } = options
     const routeProps = { shallow }
 
-    if (this._inFlightRoute) {
-      this.abortComponentLoad(this._inFlightRoute, routeProps)
+    if (this._inFlightRoute && this.clc) {
+      if (!isSsr) {
+        Router.events.emit(
+          'routeChangeError',
+          buildCancellationError(),
+          this._inFlightRoute,
+          routeProps
+        )
+      }
+      this.clc()
+      this.clc = null
     }
 
     as = addBasePath(
@@ -1063,14 +1106,7 @@ export default class Router implements BaseRouter {
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
 
-    // WARNING: `_h` is an internal option for handing Next.js client-side
-    // hydration. Your app should _never_ use this property. It may change at
-    // any time without notice.
-    if (
-      !(options as any)._h &&
-      this.onlyAHashChange(cleanedAs) &&
-      !localeChange
-    ) {
+    if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
       nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
@@ -1110,7 +1146,7 @@ export default class Router implements BaseRouter {
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
       // do a server-side transition:
-      window.location.href = as
+      handleHardNavigation({ url: as })
       return false
     }
 
@@ -1136,11 +1172,13 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch = await matchesMiddleware({
-      asPath: as,
-      locale: nextState.locale,
-      router: this,
-    })
+    const isMiddlewareMatch =
+      !options.shallow &&
+      (await matchesMiddleware({
+        asPath: as,
+        locale: nextState.locale,
+        router: this,
+      }))
 
     if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1156,7 +1194,7 @@ export default class Router implements BaseRouter {
         )
 
         if (rewritesResult.externalDest) {
-          location.href = as
+          handleHardNavigation({ url: as })
           return true
         }
         resolvedAs = rewritesResult.asPath
@@ -1186,14 +1224,13 @@ export default class Router implements BaseRouter {
             `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
-
-      window.location.href = as
+      handleHardNavigation({ url: as })
       return false
     }
 
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
-    const route = removeTrailingSlash(pathname)
+    let route = removeTrailingSlash(pathname)
 
     if (!isMiddlewareMatch && isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -1251,7 +1288,9 @@ export default class Router implements BaseRouter {
       }
     }
 
-    Router.events.emit('routeChangeStart', as, routeProps)
+    if (!isQueryUpdating) {
+      Router.events.emit('routeChangeStart', as, routeProps)
+    }
 
     try {
       let routeInfo = await this.getRouteInfo({
@@ -1263,14 +1302,45 @@ export default class Router implements BaseRouter {
         routeProps,
         locale: nextState.locale,
         isPreview: nextState.isPreview,
+        hasMiddleware: isMiddlewareMatch,
       })
+
+      if ('route' in routeInfo && isMiddlewareMatch) {
+        pathname = routeInfo.route || route
+        route = pathname
+        query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (isDynamicRoute(pathname)) {
+          const prefixedAs =
+            routeInfo.resolvedAs ||
+            addBasePath(addLocale(as, nextState.locale), true)
+
+          let rewriteAs = prefixedAs
+
+          if (hasBasePath(rewriteAs)) {
+            rewriteAs = removeBasePath(rewriteAs)
+          }
+
+          if (process.env.__NEXT_I18N_SUPPORT) {
+            const localeResult = normalizeLocalePath(rewriteAs, this.locales)
+            nextState.locale = localeResult.detectedLocale || nextState.locale
+            rewriteAs = localeResult.pathname
+          }
+          const routeRegex = getRouteRegex(pathname)
+          const routeMatch = getRouteMatcher(routeRegex)(rewriteAs)
+
+          if (routeMatch) {
+            Object.assign(query, routeMatch)
+          }
+        }
+      }
 
       // If the routeInfo brings a redirect we simply apply it.
       if ('type' in routeInfo) {
         if (routeInfo.type === 'redirect-internal') {
           return this.change(method, routeInfo.newUrl, routeInfo.newAs, options)
         } else {
-          window.location.href = routeInfo.destination
+          handleHardNavigation({ url: routeInfo.destination })
           return new Promise(() => {})
         }
       }
@@ -1314,8 +1384,7 @@ export default class Router implements BaseRouter {
             )
             return this.change(method, newUrl, newAs, options)
           }
-
-          window.location.href = destination
+          handleHardNavigation({ url: destination })
           return new Promise(() => {})
         }
 
@@ -1353,7 +1422,7 @@ export default class Router implements BaseRouter {
       this.changeState(method, url, as, options)
 
       if (
-        (options as any)._h &&
+        isQueryUpdating &&
         pathname === '/_error' &&
         self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
         props?.pageProps
@@ -1364,55 +1433,49 @@ export default class Router implements BaseRouter {
       }
 
       // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && nextState.route === route
+      const isValidShallowRoute =
+        options.shallow && nextState.route === (routeInfo.route ?? route)
 
       const shouldScroll = options.scroll ?? !isValidShallowRoute
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      const nextScroll = forcedScroll ?? resetScroll
-      const mergedNextState = {
-        ...nextState,
-        route,
-        pathname,
-        query,
-        asPath: cleanedAs,
-        isFallback: false,
+      await this.set(
+        {
+          ...nextState,
+          route,
+          pathname,
+          query,
+          asPath: cleanedAs,
+          isFallback: false,
+        },
+        routeInfo,
+        forcedScroll ?? resetScroll
+      ).catch((e) => {
+        if (e.cancelled) error = error || e
+        else throw e
+      })
+
+      if (error) {
+        if (!isQueryUpdating) {
+          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+        }
+        throw error
       }
 
-      // for query updates we can skip it if the state is unchanged and we don't
-      // need to scroll
-      // https://github.com/vercel/next.js/issues/37139
-      const canSkipUpdating =
-        (options as any)._h &&
-        !nextScroll &&
-        compareRouterStates(mergedNextState, this.state)
-
-      if (!canSkipUpdating) {
-        await this.set(mergedNextState, routeInfo, nextScroll).catch((e) => {
-          if (e.cancelled) error = error || e
-          else throw e
-        })
-
-        if (error) {
-          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
-          throw error
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (nextState.locale) {
+          document.documentElement.lang = nextState.locale
         }
+      }
 
-        if (process.env.__NEXT_I18N_SUPPORT) {
-          if (nextState.locale) {
-            document.documentElement.lang = nextState.locale
-          }
-        }
+      if (!isQueryUpdating) {
         Router.events.emit('routeChangeComplete', as, routeProps)
+      }
 
-        // A hash mark # is the optional last part of a URL
-        const hashRegex = /#.+$/
-        if (shouldScroll && hashRegex.test(as)) {
-          this.scrollToHash(as)
-        }
-      } else {
-        // Still send the event to notify the inital load.
-        Router.events.emit('routeChangeComplete', as, routeProps)
+      // A hash mark # is the optional last part of a URL
+      const hashRegex = /#.+$/
+      if (shouldScroll && hashRegex.test(as)) {
+        this.scrollToHash(as)
       }
 
       return true
@@ -1469,6 +1532,8 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
+    console.error(err)
+
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1483,7 +1548,7 @@ export default class Router implements BaseRouter {
       //  3. Internal error while loading the page
 
       // So, doing a hard reload is the proper way to deal with this.
-      window.location.href = as
+      handleHardNavigation({ url: as })
 
       // Changing the URL doesn't block executing the current code path.
       // So let's throw a cancellation error stop the routing logic.
@@ -1539,13 +1604,14 @@ export default class Router implements BaseRouter {
   }
 
   async getRouteInfo({
-    route,
+    route: requestedRoute,
     pathname,
     query,
     as,
     resolvedAs,
     routeProps,
     locale,
+    hasMiddleware,
     isPreview,
   }: {
     route: string
@@ -1553,13 +1619,28 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery
     as: string
     resolvedAs: string
+    hasMiddleware?: boolean
     routeProps: RouteProperties
     locale: string | undefined
     isPreview: boolean
   }) {
+    /**
+     * This `route` binding can change if there's a rewrite
+     * so we keep a reference to the original requested route
+     * so we can store the cache for it and avoid re-requesting every time
+     * for shallow routing purposes.
+     */
+    let route = requestedRoute
     try {
+      const handleCancelled = getCancelledHandler({ route, router: this })
+
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (routeProps.shallow && existingInfo && this.route === route) {
+      if (
+        !hasMiddleware &&
+        routeProps.shallow &&
+        existingInfo &&
+        this.route === route
+      ) {
         return existingInfo
       }
 
@@ -1591,6 +1672,7 @@ export default class Router implements BaseRouter {
         locale: locale,
         router: this,
       })
+      handleCancelled()
 
       if (
         data?.effect?.type === 'redirect-internal' ||
@@ -1607,8 +1689,17 @@ export default class Router implements BaseRouter {
 
         // Check again the cache with the new destination.
         existingInfo = this.components[route]
-        if (routeProps.shallow && existingInfo && this.route === route) {
-          return existingInfo
+        if (
+          routeProps.shallow &&
+          existingInfo &&
+          this.route === route &&
+          !hasMiddleware
+        ) {
+          // If we have a match with the current route due to rewrite,
+          // we can copy the existing information to the rewritten one.
+          // Then, we return the information along with the matched route.
+          this.components[requestedRoute] = { ...existingInfo, route }
+          return { ...existingInfo, route }
         }
 
         cachedRouteInfo =
@@ -1742,7 +1833,16 @@ export default class Router implements BaseRouter {
       }
 
       routeInfo.props = props
+      routeInfo.route = route
+      routeInfo.query = query
+      routeInfo.resolvedAs = resolvedAs
       this.components[route] = routeInfo
+
+      // If the route was rewritten in the process of fetching data,
+      // we update the cache to allow hitting the same data for shallow requests.
+      if (route !== requestedRoute) {
+        this.components[requestedRoute] = { ...routeInfo, route }
+      }
       return routeInfo
     } catch (err) {
       return this.handleRouteInfoError(
@@ -1976,34 +2076,15 @@ export default class Router implements BaseRouter {
   }
 
   async fetchComponent(route: string) {
-    let cancelled = false
-    const cancel = (this.clc = () => {
-      cancelled = true
-    })
-
-    const handleCancelled = () => {
-      if (cancelled) {
-        const error: any = new Error(
-          `Abort fetching component for route: "${route}"`
-        )
-        error.cancelled = true
-        throw error
-      }
-
-      if (cancel === this.clc) {
-        this.clc = null
-      }
-    }
+    const handleCancelled = getCancelledHandler({ route, router: this })
 
     try {
       const componentResult = await this.pageLoader.loadPage(route)
-
       handleCancelled()
 
       return componentResult
     } catch (err) {
       handleCancelled()
-
       throw err
     }
   }
@@ -2056,19 +2137,6 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(as: string, routeProps: RouteProperties): void {
-    if (this.clc) {
-      Router.events.emit(
-        'routeChangeError',
-        buildCancellationError(),
-        as,
-        routeProps
-      )
-      this.clc()
-      this.clc = null
-    }
-  }
-
   get route(): string {
     return this.state.route
   }
@@ -2109,19 +2177,16 @@ function matchesMiddleware<T extends FetchDataOutput>(
   options: MiddlewareEffectParams<T>
 ): Promise<boolean> {
   return Promise.resolve(options.router.pageLoader.getMiddlewareList()).then(
-    (fns) => {
+    (items) => {
       const { pathname: asPathname } = parsePath(options.asPath)
-      const cleanedAs = removeLocale(
-        hasBasePath(asPathname) ? removeBasePath(asPathname) : asPathname,
-        options.locale
-      )
+      const cleanedAs = hasBasePath(asPathname)
+        ? removeBasePath(asPathname)
+        : asPathname
 
-      return fns.some(([middleware, isSSR]) => {
-        return getRouteMatcher(
-          getMiddlewareRegex(middleware, {
-            catchAll: !isSSR,
-          })
-        )(cleanedAs)
+      return !!items?.some(([regex, ssr]) => {
+        return (
+          !ssr && new RegExp(regex).test(addLocale(cleanedAs, options.locale))
+        )
       })
     }
   )
@@ -2169,8 +2234,16 @@ function getMiddlewareData<T extends FetchDataOutput>(
     i18n: { locales: options.router.locales },
     trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
   }
+  const rewriteHeader = response.headers.get('x-nextjs-rewrite')
 
-  const rewriteTarget = response.headers.get('x-nextjs-matched-path')
+  let rewriteTarget =
+    rewriteHeader || response.headers.get('x-nextjs-matched-path')
+
+  const matchedPath = response.headers.get('x-matched-path')
+
+  if (!rewriteTarget && !matchedPath?.includes('__next_data_catchall')) {
+    rewriteTarget = matchedPath
+  }
 
   if (rewriteTarget) {
     if (rewriteTarget.startsWith('/')) {
@@ -2180,17 +2253,68 @@ function getMiddlewareData<T extends FetchDataOutput>(
         parseData: true,
       })
 
-      parsedRewriteTarget.pathname = pathnameInfo.pathname
       const fsPathname = removeTrailingSlash(pathnameInfo.pathname)
-      return Promise.resolve(options.router.pageLoader.getPageList()).then(
-        (pages) => ({
+      return Promise.all([
+        options.router.pageLoader.getPageList(),
+        getClientBuildManifest(),
+      ]).then(([pages, { __rewrites: rewrites }]: any) => {
+        let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
+
+        if (
+          isDynamicRoute(as) ||
+          (!rewriteHeader &&
+            pages.includes(
+              normalizeLocalePath(removeBasePath(as), options.router.locales)
+                .pathname
+            ))
+        ) {
+          const parsedSource = getNextPathnameInfo(
+            parseRelativeUrl(source).pathname,
+            { parseData: true }
+          )
+
+          as = addBasePath(parsedSource.pathname)
+          parsedRewriteTarget.pathname = as
+        }
+
+        if (process.env.__NEXT_HAS_REWRITES) {
+          const result = resolveRewrites(
+            as,
+            pages,
+            rewrites,
+            parsedRewriteTarget.query,
+            (path: string) => resolveDynamicRoute(path, pages),
+            options.router.locales
+          )
+
+          if (result.matchedPage) {
+            parsedRewriteTarget.pathname = result.parsedAs.pathname
+            as = parsedRewriteTarget.pathname
+            Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+          }
+        }
+
+        const resolvedHref = !pages.includes(fsPathname)
+          ? resolveDynamicRoute(
+              normalizeLocalePath(
+                removeBasePath(parsedRewriteTarget.pathname),
+                options.router.locales
+              ).pathname,
+              pages
+            )
+          : fsPathname
+
+        if (isDynamicRoute(resolvedHref)) {
+          const matches = getRouteMatcher(getRouteRegex(resolvedHref))(as)
+          Object.assign(parsedRewriteTarget.query, matches || {})
+        }
+
+        return {
           type: 'rewrite' as const,
           parsedAs: parsedRewriteTarget,
-          resolvedHref: !pages.includes(fsPathname)
-            ? resolveDynamicRoute(fsPathname, pages)
-            : fsPathname,
-        })
-      )
+          resolvedHref,
+        }
+      })
     }
 
     const src = parsePath(source)
