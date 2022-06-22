@@ -249,30 +249,4 @@ describe('Image Component basePath Tests', () => {
 
     runTests('server')
   })
-
-  describe('serverless mode', () => {
-    let origConfig
-
-    beforeAll(async () => {
-      origConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          basePath: '/docs',
-          target: 'serverless'
-        }
-      `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origConfig)
-      await killApp(app)
-    })
-
-    runTests('serverless')
-  })
 })
