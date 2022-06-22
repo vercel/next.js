@@ -1,7 +1,8 @@
 import React from 'react'
-import type { FlightRouterState } from '../../server/app-render'
+import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type CacheNode = {
+  data?: { readRoot: () => FlightData } | null
   subTreeData: null | React.ReactNode
   childNodes: Map<string, CacheNode>
 }
