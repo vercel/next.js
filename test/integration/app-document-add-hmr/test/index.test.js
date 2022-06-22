@@ -3,13 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  check,
-  clickReloadOnFullRefreshWarning,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
@@ -46,7 +40,6 @@ describe('_app/_document add HMR', () => {
       `
       )
 
-      await clickReloadOnFullRefreshWarning(browser)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return html.includes('custom _app') && html.includes('index page')

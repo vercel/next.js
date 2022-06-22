@@ -3,7 +3,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   check,
-  clickReloadOnFullRefreshWarning,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxSource,
@@ -383,7 +382,6 @@ describe('basic HMR', () => {
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(
           () => getBrowserBodyText(browser),
           /This is the contact page/
@@ -417,8 +415,6 @@ describe('basic HMR', () => {
           aboutPage,
           aboutContent.replace('export', 'aa=20;\nexport')
         )
-
-        await clickReloadOnFullRefreshWarning(browser)
 
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
@@ -489,7 +485,6 @@ describe('basic HMR', () => {
           )
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -539,7 +534,6 @@ describe('basic HMR', () => {
 
         const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(
@@ -591,7 +585,6 @@ describe('basic HMR', () => {
           )
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
@@ -645,7 +638,6 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
@@ -694,7 +686,6 @@ describe('basic HMR', () => {
           errorContent.replace('throw error', 'return {}')
         )
 
-        await clickReloadOnFullRefreshWarning(browser)
         await check(() => getBrowserBodyText(browser), /Hello/)
 
         await next.patchFile(erroredPage, errorContent)
