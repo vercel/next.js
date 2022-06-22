@@ -14,14 +14,16 @@ export async function getStaticProps(context) {
 }
 ```
 
+> Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://reactjs.org/docs/react-dom.html#hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
+
 ## When should I use getStaticProps?
 
 You should use `getStaticProps` if:
 
 - The data required to render the page is available at build time ahead of a user’s request
 - The data comes from a headless CMS
-- The data can be publicly cached (not user-specific)
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
+- The data can be publicly cached (not user-specific). This condition can be bypassed in certain specific situation by using a Middleware to rewrite the path.
 
 ## When does getStaticProps run
 

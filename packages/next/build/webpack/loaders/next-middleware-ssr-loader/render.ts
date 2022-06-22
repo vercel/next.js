@@ -11,9 +11,6 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 
-// Polyfilled for `path-browserify` inside the Web Server.
-process.cwd = () => ''
-
 export function getRender({
   dev,
   page,
@@ -27,7 +24,6 @@ export function getRender({
   serverComponentManifest,
   config,
   buildId,
-  appServerMod,
 }: {
   dev: boolean
   page: string
@@ -49,14 +45,14 @@ export function getRender({
     reactLoadableManifest,
     Document,
     App: appMod.default as AppType,
-    AppMod: appMod,
-    AppServerMod: appServerMod,
   }
 
   const server = new WebServer({
+    dev,
     conf: config,
     minimalMode: true,
     webServerConfig: {
+      page,
       extendRenderOpts: {
         buildId,
         reactRoot: true,
@@ -110,16 +106,6 @@ export function getRender({
   const requestHandler = server.getRequestHandler()
 
   return async function render(request: NextRequest) {
-    // Preflight request
-    if (request.method === 'HEAD') {
-      // Hint the client that the matched route is a SSR page.
-      return new Response(null, {
-        headers: {
-          'x-middleware-ssr': '1',
-        },
-      })
-    }
-
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)

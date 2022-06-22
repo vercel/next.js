@@ -75,7 +75,7 @@ export function tryGetPreviewData(
     return false
   }
 
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
+  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   let encryptedPreviewData: {
     data: string
@@ -442,7 +442,7 @@ function sendJson(res: NextApiResponse, jsonBody: any): void {
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
 
   // Use send to handle request
-  res.send(jsonBody)
+  res.send(JSON.stringify(jsonBody))
 }
 
 function isNotValidData(str: string): boolean {

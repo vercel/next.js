@@ -18,72 +18,55 @@ const Thing2 = styled(Thing).withConfig({
 `;
 /*
  * Basic fixtures
- */ const StaticString = (p)=><_StyledP >A</_StyledP>
-;
+ */ const StaticString = (p)=><_StyledP >A</_StyledP>;
 const StaticTemplate = (p)=><_StyledP2 >
 
     A
 
-  </_StyledP2>
-;
-const ObjectProp = (p)=><_StyledP3 >A</_StyledP3>
-;
-const NoChildren = (p)=><_StyledP4 />
-;
+  </_StyledP2>;
+const ObjectProp = (p)=><_StyledP3 >A</_StyledP3>;
+const NoChildren = (p)=><_StyledP4 />;
 const CssHelperProp = (p)=><_StyledP5 >
 
     A
 
-  </_StyledP5>
-;
+  </_StyledP5>;
 /*
  * Dynamic prop
- */ const CustomComp = (p)=><_StyledParagraph >H</_StyledParagraph>
-;
-const DynamicProp = (p)=><_StyledP6 $_css={props.cssText}>H</_StyledP6>
-;
+ */ const CustomComp = (p)=><_StyledParagraph >H</_StyledParagraph>;
+const DynamicProp = (p)=><_StyledP6 $_css={props.cssText}>H</_StyledP6>;
 const LocalInterpolation = (p)=><_StyledP7 $_css2={props.bg}>
 
     H
 
-  </_StyledP7>
-;
+  </_StyledP7>;
 const FuncInterpolation = (p)=><_StyledP8 >
 
     H
 
-  </_StyledP8>
-;
+  </_StyledP8>;
 const radius = 10;
 const GlobalInterpolation = (p)=><_StyledP9 >
 
     H
 
-  </_StyledP9>
-;
+  </_StyledP9>;
 const LocalCssHelperProp = (p)=><_StyledP10 $_css3={p.color}>
 
     A
 
-  </_StyledP10>
-;
+  </_StyledP10>;
 const DynamicCssHelperProp = (p)=><_StyledP11 >
 
     A
 
-  </_StyledP11>
-;
-const CustomCompWithDot = (p)=><_StyledButtonGhost >H</_StyledButtonGhost>
-;
-const NestedCompWithDot = (p)=><_StyledButtonGhostNew >H</_StyledButtonGhostNew>
-;
-const CustomCompWithDotLowerCase = (p)=><_StyledButtonGhost2 >H</_StyledButtonGhost2>
-;
-const CustomElement = (p)=><_StyledButtonGhost3 >H</_StyledButtonGhost3>
-;
+  </_StyledP11>;
+const CustomCompWithDot = (p)=><_StyledButtonGhost >H</_StyledButtonGhost>;
+const NestedCompWithDot = (p)=><_StyledButtonGhostNew >H</_StyledButtonGhostNew>;
+const CustomCompWithDotLowerCase = (p)=><_StyledButtonGhost2 >H</_StyledButtonGhost2>;
+const CustomElement = (p)=><_StyledButtonGhost3 >H</_StyledButtonGhost3>;
 const globalVar = '"foo"';
-const getAfterValue = ()=>'"bar"'
-;
+const getAfterValue = ()=>'"bar"';
 const ObjectPropMixedInputs = (p)=>{
     const color = 'red';
     return <_StyledP12 $_css4={p.background} $_css5={color} $_css6={globalVar} $_css7={getAfterValue()}>
@@ -100,8 +83,7 @@ const SpreadObjectPropMixedInputs = (p)=>{
 
     </_StyledP13>;
 };
-/* styled component defined after function it's used in */ const EarlyUsageComponent = (p)=><_StyledThing />
-;
+/* styled component defined after function it's used in */ const EarlyUsageComponent = (p)=><_StyledThing />;
 const Thing3 = styled.div.withConfig({
     displayName: "code__Thing3",
     componentId: "sc-867225be-2"
@@ -112,34 +94,27 @@ var _StyledThing6 = _styled(Thing3)((p)=>({
         [p.$_css19]: {
             color: 'red'
         }
-    })
-);
+    }));
 var _StyledThing5 = _styled(Thing3)((p)=>({
         [p.$_css18]: {
             color: 'red'
         }
-    })
-);
+    }));
 var _StyledThing4 = _styled(Thing3)((p)=>({
         [p.$_css17]: {
             color: 'red'
         }
-    })
-);
+    }));
 var _StyledThing3 = _styled(Thing3)((p)=>({
         color: p.$_css16
-    })
-);
+    }));
 var _StyledThing = _styled(Thing3)`color: red;`;
-const EarlyUsageComponent2 = (p)=><_StyledThing2 />
-;
-function Thing4(props) {
-    return <div {...props}/>;
+const EarlyUsageComponent2 = (p)=><_StyledThing2 />;
+function Thing4(props1) {
+    return <div {...props1}/>;
 }
-/* insert before usage for non-local scope styled HOC targets */ const ImportedComponentUsage = (p)=><_StyledSomeComponent />
-;
-const RequiredComponentUsage = (p)=><_StyledSomeOtherComponent />
-;
+/* insert before usage for non-local scope styled HOC targets */ const ImportedComponentUsage = (p)=><_StyledSomeComponent />;
+const RequiredComponentUsage = (p)=><_StyledSomeOtherComponent />;
 const ObjectInterpolation = (p)=>{
     const theme = useTheme();
     return <_StyledP14 $_css15={theme.colors.red}>
@@ -205,26 +180,21 @@ var _StyledP5 = _styled("p")`
       color: blue;
     `;
 var _StyledParagraph = _styled(Paragraph)`flex: 1`;
-var _StyledP6 = _styled("p")`${(p)=>p.$_css
-}`;
+var _StyledP6 = _styled("p")`${(p)=>p.$_css}`;
 var _StyledP7 = _styled("p")`
-      background: ${(p)=>p.$_css2
-};
+      background: ${(p)=>p.$_css2};
     `;
 var _StyledP8 = _styled("p")`
-      color: ${(props)=>props.theme.a
-};
+      color: ${(props1)=>props1.theme.a};
     `;
 var _StyledP9 = _styled("p")`
       border-radius: ${radius}px;
     `;
 var _StyledP10 = _styled("p")`
-      color: ${(p)=>p.$_css3
-};
+      color: ${(p)=>p.$_css3};
     `;
 var _StyledP11 = _styled("p")`
-      color: ${(props)=>props.theme.color
-};
+      color: ${(props1)=>props1.theme.color};
     `;
 var _StyledButtonGhost = _styled(Button.Ghost)`flex: 1`;
 var _StyledButtonGhostNew = _styled(Button.Ghost.New)`flex: 1`;
@@ -240,8 +210,7 @@ var _StyledP12 = _styled("p")((p)=>({
         '::after': {
             content: p.$_css7
         }
-    })
-);
+    }));
 var _StyledP13 = _styled("p")((p)=>({
         ...{
             '::before': {
@@ -267,14 +236,11 @@ var _StyledP13 = _styled("p")((p)=>({
         '::after': {
             content: p.$_css14
         }
-    })
-);
+    }));
 var _StyledP14 = _styled("p")((p)=>({
         color: p.$_css15
-    })
-);
+    }));
 var _StyledDiv = _styled("div")((p)=>({
         ...p.$_css20,
         ...p.$_css21
-    })
-);
+    }));

@@ -1,4 +1,4 @@
-const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx', 'json']
+export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const nextClientComponents = ['link', 'image', 'head', 'script']
 
@@ -24,25 +24,18 @@ export function buildExports(moduleExports: any, isESM: boolean) {
   return ret
 }
 
-export const createClientComponentFilter = (
-  extensions: string[] = defaultJsFileExtensions
-) => {
-  // Special cases for Next.js APIs that are considered as client components:
-  // - .client.[ext]
-  // - next built-in client components
-  // - .[imageExt]
-  const regex = new RegExp(
-    '(' +
-      `\\.client(\\.(${extensions.join('|')}))?|` +
-      `next/(${nextClientComponents.join('|')})(\\.js)?|` +
-      `\\.(${imageExtensions.join('|')})` +
-      ')$'
-  )
+// Special cases for Next.js APIs that are considered as client components:
+// - .client.[ext]
+// - next built-in client components
+// - .[imageExt]
+export const clientComponentRegex = new RegExp(
+  '(' +
+    `\\.client(\\.(${defaultJsFileExtensions.join('|')}))?|` +
+    `next/(${nextClientComponents.join('|')})(\\.js)?|` +
+    `\\.(${imageExtensions.join('|')})` +
+    ')$'
+)
 
-  return (importSource: string) => regex.test(importSource)
-}
-
-export const createServerComponentFilter = (extensions: string[]) => {
-  const regex = new RegExp(`\\.server(\\.(${extensions.join('|')}))?$`)
-  return (importSource: string) => regex.test(importSource)
-}
+export const serverComponentRegex = new RegExp(
+  `\\.server(\\.(${defaultJsFileExtensions.join('|')}))?$`
+)

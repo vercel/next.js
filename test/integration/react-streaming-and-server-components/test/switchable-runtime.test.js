@@ -12,6 +12,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
+import { readJson } from 'fs-extra'
 
 const appDir = join(__dirname, '../switchable-runtime')
 
@@ -22,7 +23,32 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
-async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
+function getOccurrence(text, matcher) {
+  return (text.match(matcher) || []).length
+}
+
+function flight(context) {
+  describe('flight response', () => {
+    it('should not contain _app.js in flight response (node)', async () => {
+      const html = await renderViaHTTP(context.appPort, '/node-rsc')
+      const flightResponse = await renderViaHTTP(
+        context.appPort,
+        '/node-rsc?__flight__=1'
+      )
+      expect(
+        getOccurrence(html, new RegExp(`class="app-client-root"`, 'g'))
+      ).toBe(1)
+      expect(
+        getOccurrence(
+          flightResponse,
+          new RegExp(`"className":\\s*"app-client-root"`, 'g')
+        )
+      ).toBe(0)
+    })
+  })
+}
+
+async function testRoute(appPort, url, { isStatic, isEdge }) {
   const html1 = await renderViaHTTP(appPort, url)
   const renderedAt1 = +html1.match(/Time: (\d+)/)[1]
   expect(html1).toContain(`Runtime: ${isEdge ? 'Edge' : 'Node.js'}`)
@@ -37,12 +63,6 @@ async function testRoute(appPort, url, { isStatic, isEdge, isRSC }) {
   } else {
     // Should be re-rendered.
     expect(renderedAt1).toBeLessThan(renderedAt2)
-  }
-  const customAppServerHtml = '<div class="app-server-root"'
-  if (isRSC) {
-    expect(html1).toContain(customAppServerHtml)
-  } else {
-    expect(html1).not.toContain(customAppServerHtml)
   }
 }
 
@@ -63,11 +83,12 @@ describe('Switchable runtime (prod)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
+
   it('should build /static as a static page with the nodejs runtime', async () => {
     await testRoute(context.appPort, '/static', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -75,7 +96,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -83,7 +103,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssr', {
       isStatic: false,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -91,7 +110,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-ssg', {
       isStatic: true,
       isEdge: false,
-      isRSC: false,
     })
   })
 
@@ -99,7 +117,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc', {
       isStatic: true,
       isEdge: false,
-      isRSC: true,
     })
 
     const html = await renderViaHTTP(context.appPort, '/node-rsc')
@@ -110,7 +127,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssr', {
       isStatic: false,
       isEdge: false,
-      isRSC: true,
     })
   })
 
@@ -118,7 +134,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/node-rsc-ssg', {
       isStatic: true,
       isEdge: false,
-      isRSC: true,
     })
   })
 
@@ -150,7 +165,6 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge', {
       isStatic: false,
       isEdge: true,
-      isRSC: false,
     })
   })
 
@@ -158,7 +172,31 @@ describe('Switchable runtime (prod)', () => {
     await testRoute(context.appPort, '/edge-rsc', {
       isStatic: false,
       isEdge: true,
-      isRSC: true,
+    })
+  })
+
+  it('should build /api/hello as an api route with edge runtime', async () => {
+    const response = await fetchViaHTTP(context.appPort, '/api/hello')
+    const text = await response.text()
+    expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+    const manifest = await readJson(
+      join(context.appDir, '.next/server/middleware-manifest.json')
+    )
+    expect(manifest).toMatchObject({
+      functions: {
+        '/api/hello': {
+          env: [],
+          files: [
+            'server/edge-runtime-webpack.js',
+            'server/pages/api/hello.js',
+          ],
+          name: 'pages/api/hello',
+          page: '/api/hello',
+          regexp: '^/api/hello$',
+          wasm: [],
+        },
+      },
     })
   })
 
@@ -168,8 +206,9 @@ describe('Switchable runtime (prod)', () => {
     )
     const expectedOutputLines = splitLines(`
   ┌   /_app
-  ├   /_app.server
   ├ ○ /404
+  ├ ℇ /api/hello
+  ├ λ /api/node
   ├ ℇ /edge
   ├ ℇ /edge-rsc
   ├ ○ /node
@@ -181,12 +220,16 @@ describe('Switchable runtime (prod)', () => {
   ├ λ /node-ssr
   └ ○ /static
   `)
-    const isMatched = expectedOutputLines.every((line, index) => {
-      const matched = stdoutLines[index].startsWith(line)
-      return matched
+
+    const mappedOutputLines = expectedOutputLines.map((_line, index) => {
+      /** @type {string} */
+      const str = stdoutLines[index]
+      const beginningOfPath = str.indexOf('/')
+      const endOfPath = str.indexOf(' ', beginningOfPath)
+      return str.slice(0, endOfPath)
     })
 
-    expect(isMatched).toBe(true)
+    expect(mappedOutputLines).toEqual(expectedOutputLines)
   })
 
   it('should prefetch data for static pages', async () => {
@@ -277,6 +320,7 @@ describe('Switchable runtime (dev)', () => {
     await killApp(context.server)
   })
 
+  flight(context)
   it('should support client side navigation to ssr rsc pages', async () => {
     let flightRequest = null
 
@@ -326,5 +370,30 @@ describe('Switchable runtime (dev)', () => {
     expect(await browser.elementByCss('body').text()).toContain(
       'This is a static RSC page.'
     )
+  })
+
+  it('should build /api/hello as an api route with edge runtime', async () => {
+    const response = await fetchViaHTTP(context.appPort, '/api/hello')
+    const text = await response.text()
+    expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+    const manifest = await readJson(
+      join(context.appDir, '.next/server/middleware-manifest.json')
+    )
+    expect(manifest).toMatchObject({
+      functions: {
+        '/api/hello': {
+          env: [],
+          files: [
+            'server/edge-runtime-webpack.js',
+            'server/pages/api/hello.js',
+          ],
+          name: 'pages/api/hello',
+          page: '/api/hello',
+          regexp: '^/api/hello$',
+          wasm: [],
+        },
+      },
+    })
   })
 })

@@ -18,7 +18,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
-const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 let appPort
 let app
 
@@ -36,14 +35,11 @@ describe('AMP Usage', () => {
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
-        nodeArgs,
       })
       output = result.stdout + result.stderr
 
       appPort = context.appPort = await findPort()
-      app = await nextStart(appDir, context.appPort, {
-        nodeArgs,
-      })
+      app = await nextStart(appDir, context.appPort)
     })
     afterAll(async () => {
       await rename(
@@ -108,21 +104,6 @@ describe('AMP Usage', () => {
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
         expect(result).toBeFalsy()
-      })
-
-      it('should add link preload for amp script', async () => {
-        const html = await renderViaHTTP(appPort, '/?amp=1')
-        await validateAMP(html)
-        const $ = cheerio.load(html)
-        expect(
-          $(
-            $('link[rel=preload]')
-              .toArray()
-              .find(
-                (i) => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js'
-              )
-          ).attr('href')
-        ).toBe('https://cdn.ampproject.org/v0.js')
       })
 
       it('should drop custom scripts', async () => {
@@ -276,7 +257,6 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           inspectPayload += msg
         },
-        nodeArgs,
       })
 
       await renderViaHTTP(dynamicAppPort, '/only-amp')
@@ -301,7 +281,6 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           output += msg
         },
-        nodeArgs,
       })
     })
 
@@ -549,7 +528,6 @@ describe('AMP Usage', () => {
         onStderr(msg) {
           inspectPayload += msg
         },
-        nodeArgs,
       })
 
       await renderViaHTTP(dynamicAppPort, '/invalid-amp')

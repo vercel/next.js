@@ -16,6 +16,8 @@ describe('find config', () => {
     const content =
       '/// <reference types="next" />' +
       eol +
+      '/// <reference types="next/dist/styled-jsx-types/global" />' +
+      eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
@@ -37,6 +39,8 @@ describe('find config', () => {
     const content =
       '/// <reference types="next" />' +
       eol +
+      '/// <reference types="next/dist/styled-jsx-types/global" />' +
+      eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
@@ -57,6 +61,8 @@ describe('find config', () => {
     const eol = os.EOL
     const content =
       '/// <reference types="next" />' +
+      eol +
+      '/// <reference types="next/dist/styled-jsx-types/global" />' +
       eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
