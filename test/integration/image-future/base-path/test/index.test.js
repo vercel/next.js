@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import {
   check,
   findPort,
@@ -16,7 +15,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
