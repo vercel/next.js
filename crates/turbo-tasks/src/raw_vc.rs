@@ -34,6 +34,13 @@ impl<T: Any + Send + Sync> RawVcReadResult<T> {
     pub(crate) fn new(shared_ref: Arc<T>) -> Self {
         Self { inner: shared_ref }
     }
+
+    fn map_read_result<O, F: Fn(&T) -> &O>(self, func: F) -> RawVcReadAndMapResult<T, O, F> {
+        RawVcReadAndMapResult {
+            inner: self.inner,
+            func,
+        }
+    }
 }
 
 impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
@@ -51,6 +58,31 @@ impl<T: Display + Any + Send + Sync> Display for RawVcReadResult<T> {
 }
 
 impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&**self, f)
+    }
+}
+
+pub struct RawVcReadAndMapResult<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
+    inner: Arc<T>,
+    func: F,
+}
+
+impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> std::ops::Deref for RawVcReadAndMapResult<T, O, F> {
+    type Target = O;
+
+    fn deref(&self) -> &Self::Target {
+        (self.func)(&*self.inner)
+    }
+}
+
+impl<T: Any + Send + Sync, O: Display, F: Fn(&T) -> &O> Display for RawVcReadAndMapResult<T, O, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&**self, f)
+    }
+}
+
+impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapResult<T, O, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&**self, f)
     }
@@ -154,6 +186,13 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
             phantom_data: PhantomData,
         }
     }
+
+    pub fn map<O, F: Fn(&T) -> &O>(self, func: F) -> ReadAndMapRawVcFuture<T, O, F> {
+        ReadAndMapRawVcFuture {
+            inner: self,
+            func: Some(func),
+        }
+    }
 }
 
 impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
@@ -199,6 +238,30 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                     return std::task::Poll::Pending;
                 }
             };
+        }
+    }
+}
+
+pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
+    inner: ReadRawVcFuture<T>,
+    func: Option<F>,
+}
+
+impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<T, O, F> {
+    type Output = Result<RawVcReadAndMapResult<T, O, F>>;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        let inner_pin = Pin::new(&mut this.inner);
+        match inner_pin.poll(cx) {
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(match r {
+                Ok(r) => Ok(r.map_read_result(this.func.take().unwrap())),
+                Err(e) => Err(e),
+            }),
+            std::task::Poll::Pending => std::task::Poll::Pending,
         }
     }
 }

@@ -35,7 +35,8 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use turbo_tasks::{
-    spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc, Invalidator, ValueToString, Vc,
+    primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
+    Invalidator, ValueToString, Vc,
 };
 use util::{join_path, normalize_path};
 
@@ -45,7 +46,7 @@ pub trait FileSystem {
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
-    fn to_string(&self) -> Vc<String>;
+    fn to_string(&self) -> StringVc;
 }
 
 mod watcher_ser {
@@ -477,8 +478,8 @@ impl FileSystem for DiskFileSystem {
         Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
     }
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::slot(self.name.clone())
+    fn to_string(&self) -> StringVc {
+        StringVc::slot(self.name.clone())
     }
 }
 
@@ -729,8 +730,8 @@ impl FileSystemPathVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
             self.path
@@ -796,6 +797,13 @@ impl File {
                 meta: Default::default(),
                 content: output,
             })
+        }
+    }
+
+    pub fn from_source(str: String) -> Self {
+        File {
+            meta: Default::default(),
+            content: str.into_bytes(),
         }
     }
 }
@@ -1071,8 +1079,8 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::slot(String::from("null"))
+    fn to_string(&self) -> StringVc {
+        StringVc::slot(String::from("null"))
     }
 }
 

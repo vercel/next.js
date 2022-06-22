@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_ecmascript::ast::Lit;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
@@ -85,13 +85,13 @@ impl AssetReference for WebpackChunkAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
+    async fn description(&self) -> Result<StringVc> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Ok(Vc::slot(format!("webpack chunk {}", chunk_id)))
+        Ok(StringVc::slot(format!("webpack chunk {}", chunk_id)))
     }
 }
 
@@ -113,8 +113,8 @@ impl AssetReference for WebpackEntryAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!("webpack entry")))
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!("webpack entry")))
     }
 }
 
@@ -147,8 +147,8 @@ impl AssetReference for WebpackRuntimeAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "webpack {}",
             self.request.to_string().await?,
         )))

@@ -19,6 +19,7 @@ mod no_move_vec;
 mod nothing;
 mod once_map;
 pub mod persisted_graph;
+pub mod primitives;
 mod raw_vc;
 pub mod registry;
 mod task_input;
@@ -43,8 +44,10 @@ pub use manager::{
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{RawVc, RawVcReadResult, ReadRawVcFuture};
-pub use task_input::{SharedReference, SharedValue, TaskInput};
+pub use raw_vc::{
+    RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture, ReadRawVcFuture,
+};
+pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
 pub use value::Value;
 pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};

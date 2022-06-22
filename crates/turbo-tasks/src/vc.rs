@@ -8,7 +8,8 @@ use crate::{
     manager::{find_slot_by_key, find_slot_by_type},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, Typed, TypedForInput, ValueType,
+    FromTaskInput, RawVc, RawVcReadResult, ReadRawVcFuture, TaskInput, Typed, TypedForInput,
+    ValueType,
 };
 
 #[derive(PartialEq, Eq, Clone)]
@@ -124,7 +125,7 @@ impl<T: Any + TraceRawVcs + Send + Sync> From<Vc<T>> for TaskInput {
     }
 }
 
-impl<T: Any + TraceRawVcs + Send + Sync> TryFrom<&TaskInput> for Vc<T> {
+impl<T: Any + TraceRawVcs + Send + Sync> FromTaskInput<'_> for Vc<T> {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {

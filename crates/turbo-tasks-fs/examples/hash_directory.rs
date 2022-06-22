@@ -6,6 +6,7 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use std::time::Instant;
 use std::{collections::BTreeMap, env::current_dir};
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks::{NothingVc, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 
@@ -53,7 +54,7 @@ async fn main() {
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: Vc<String>) -> Result<()> {
+async fn print_hash(dir_hash: StringVc) -> Result<()> {
     println!("DIR HASH: {}", dir_hash.await?.as_str());
     Ok(())
 }
@@ -63,7 +64,7 @@ async fn filename(path: FileSystemPathVc) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn hash_directory(directory: FileSystemPathVc) -> Result<Vc<String>> {
+async fn hash_directory(directory: FileSystemPathVc) -> Result<StringVc> {
     let dir_path = &directory.await?.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
@@ -93,21 +94,21 @@ async fn hash_directory(directory: FileSystemPathVc) -> Result<Vc<String>> {
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: FileSystemPathVc) -> Result<Vc<String>> {
+async fn hash_file(file_path: FileSystemPathVc) -> Result<StringVc> {
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(file),
         FileContent::NotFound => {
             // report error
-            Vc::slot("".to_string())
+            StringVc::slot("".to_string())
         }
     })
 }
 
-fn hash_content(content: impl AsRef<[u8]>) -> Vc<String> {
+fn hash_content(content: impl AsRef<[u8]>) -> StringVc {
     let mut hasher = Sha256::new();
     hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
-    Vc::slot(result)
+    StringVc::slot(result)
 }

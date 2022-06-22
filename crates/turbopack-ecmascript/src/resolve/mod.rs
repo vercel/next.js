@@ -12,6 +12,8 @@ use turbopack_core::{
     },
 };
 
+use crate::ProcessingGoalVc;
+
 #[turbo_tasks::function]
 pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
     let mut options: ResolveOptions = options.await?.clone();
@@ -49,7 +51,11 @@ pub async fn esm_resolve(request: RequestVc, context: AssetContextVc) -> Result<
 }
 
 #[turbo_tasks::function]
-pub async fn cjs_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
+pub async fn cjs_resolve(
+    request: RequestVc,
+    context: AssetContextVc,
+    processing_goal: ProcessingGoalVc,
+) -> Result<ResolveResultVc> {
     let options = apply_cjs_specific_options(context.resolve_options());
     specific_resolve(request, context, options, "commonjs request").await
 }

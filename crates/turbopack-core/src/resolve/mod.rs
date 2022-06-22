@@ -8,7 +8,9 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc};
+use turbo_tasks::{
+    primitives::StringVc, trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
@@ -769,8 +771,8 @@ impl AssetReference for AffectingResolvingAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "resolving is affected by {}",
             self.file.to_string().await?
         )))

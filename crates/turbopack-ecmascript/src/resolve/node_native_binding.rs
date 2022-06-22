@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 
 use crate::target::{CompileTargetVc, Platform};
@@ -62,8 +62,8 @@ impl AssetReference for NodePreGypConfigReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "node-gyp in {} with {} for {}",
             self.context.to_string().await?,
             self.config_file_pattern.to_string().await?,
@@ -166,8 +166,8 @@ impl AssetReference for NodeGypBuildReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "node-gyp in {} for {}",
             self.context.to_string().await?,
             self.compile_target.await?

@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{primitives::StringVc, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
@@ -93,8 +93,8 @@ impl AssetReference for RebasedAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "rebased {}",
             self.reference.description().await?
         )))

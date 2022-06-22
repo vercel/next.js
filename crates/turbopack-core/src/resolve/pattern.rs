@@ -3,7 +3,9 @@ use std::{collections::HashSet, fmt::Display, mem::take};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc};
+use turbo_tasks::{
+    primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc,
+};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
 #[turbo_tasks::value(shared, serialization: auto_for_input, ValueToString)]
@@ -614,8 +616,8 @@ impl Display for Pattern {
 #[turbo_tasks::value_impl]
 impl ValueToString for Pattern {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::slot(self.to_string())
+    fn to_string(&self) -> StringVc {
+        StringVc::slot(self.to_string())
     }
 }
 

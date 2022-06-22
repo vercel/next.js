@@ -3,7 +3,9 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{util::try_join_all, Value, ValueToString, ValueToStringVc, Vc};
+use turbo_tasks::{
+    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc, Vc,
+};
 
 use super::pattern::Pattern;
 
@@ -217,8 +219,8 @@ impl RequestVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for Request {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(match self {
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(match self {
             Request::Raw {
                 path,
                 force_in_context,
