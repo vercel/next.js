@@ -30,10 +30,7 @@ async function createTreeCodeFromPath({
 
     // First item in the list is the page which can't have layouts by itself
     if (i === segments.length - 1) {
-      tree = `{
-        segment: '${segment}',
-        page: () => require('${pagePath}'),
-      }`
+      tree = `['${segment}', {}, {page: () => require('${pagePath}')}]`
       continue
     }
 
@@ -53,8 +50,12 @@ async function createTreeCodeFromPath({
     // Existing tree are the children of the current segment
     const children = tree
 
-    tree = `{
-      segment: '${segment}',
+    tree = `['${segment}', {
+      ${
+        // When there are no children the current index is the page component
+        children ? `children: ${children},` : ''
+      }
+    }, {
       ${
         resolvedLayoutPath
           ? `layout: () => require('${resolvedLayoutPath}'),`
@@ -65,11 +66,7 @@ async function createTreeCodeFromPath({
           ? `loading: () => require('${resolvedLoadingPath}'),`
           : ''
       }
-      ${
-        // When there are no children the current index is the page component
-        children ? `children: ${children},` : ''
-      }
-    }`
+    }]`
 
     // if we're in a new root layout don't add the top-level app/layout
     if (isCustomRootLayout) {

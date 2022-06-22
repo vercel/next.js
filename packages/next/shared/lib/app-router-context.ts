@@ -1,4 +1,5 @@
 import React from 'react'
+import type { FlightRouterState } from '../../server/app-render'
 
 export type CacheNode = {
   subTreeData: null | React.ReactNode
@@ -6,7 +7,11 @@ export type CacheNode = {
 }
 
 export const AppRouterContext = React.createContext<any>(null as any)
-export const AppTreeContext = React.createContext<any>(null as any)
+export const AppTreeContext = React.createContext<{
+  childNodes: CacheNode['childNodes']
+  tree: FlightRouterState
+  url: string
+}>(null as any)
 export const FullAppTreeContext = React.createContext<any>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {

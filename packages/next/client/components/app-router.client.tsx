@@ -6,159 +6,193 @@ import {
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
 import type { CacheNode } from '../../shared/lib/app-router-context'
-
-function createResponseCache() {
-  return new Map<string, any>()
-}
-// TODO: might not be needed
-const rscCache = createResponseCache()
+import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 function fetchFlight(href: string, treeData: string) {
   const flightUrl = new URL(href, location.origin.toString())
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
-  if (treeData) {
-    searchParams.append('__flight_router_state_tree__', treeData)
-  }
+  searchParams.append('__flight_router_state_tree__', treeData)
 
   return fetch(flightUrl.toString())
 }
 
 export function fetchServerResponse(href: string, tree: any) {
   const treeData = JSON.stringify(tree)
-  const cacheKey = href + treeData
-  let response = rscCache.get(cacheKey)
-  if (response) return response
-
-  response = createFromFetch(fetchFlight(href, treeData))
-
-  rscCache.set(cacheKey, response)
-  return response
+  return createFromFetch(fetchFlight(href, treeData))
 }
 
-export default function AppRouter({ initialTree, children }: any) {
-  const [{ tree, previousTree }, setTree] = React.useState<any>({
+export default function AppRouter({
+  initialTree,
+  children,
+}: {
+  initialTree: FlightRouterState
+  children: React.ReactNode
+}) {
+  const [{ tree, previousTree, cache }, setTree] = React.useState<{
+    tree: FlightRouterState
+    previousTree?: FlightRouterState
+    cache: CacheNode
+  }>({
     tree: initialTree,
-  })
-  const [cache /*, setCache*/] = React.useState<CacheNode>({
-    subTreeData: null,
-    childNodes: new Map(),
+    previousTree: initialTree,
+    cache: {
+      subTreeData: null,
+      childNodes: new Map(),
+    },
   })
 
   const change = React.useCallback(
     (
       method: 'replaceState' | 'pushState',
       href: string,
-      historyState?: any,
-      data?: any
+      historyState?: { tree: FlightRouterState },
+      flightData?: FlightData
     ) => {
       // @ts-ignore startTransition exists
       React.startTransition(() => {
-        if (data) {
-          for (const { layoutPath, subTreeData } of data) {
-            const segments = layoutPath.split('/')
-            let currentNodes = cache.childNodes
-            for (let i = 0; i < segments.length; i++) {
-              const segment = segments[i]
-              const firstSegment = i === 0
-              const lastSegment = i === segments.length - 1
-
-              if (firstSegment && segment === '') {
-                continue
-              }
-
-              if (!currentNodes.has(segment)) {
-                if (lastSegment) {
-                  currentNodes.set(segment, {
-                    subTreeData: null,
-                    childNodes: new Map([
-                      ['page', { subTreeData, childNodes: new Map() }],
-                    ]),
-                  })
-                } else {
-                  currentNodes.set(segment, {
-                    subTreeData: null,
-                    childNodes: new Map(),
-                  })
-                }
-
-                continue
-              }
-
-              if (lastSegment) {
-                currentNodes.get(segment)?.childNodes.set('page', {
-                  subTreeData,
-                  childNodes: new Map(),
-                })
-                continue
-              }
-
-              currentNodes = currentNodes.get(segment)!.childNodes
-            }
-          }
-        }
         // TODO: handling of hash urls
         const url = new URL(href, location.origin)
         const { pathname } = url
 
-        let newTree =
-          historyState && historyState.tree ? historyState.tree : tree
+        if (flightData) {
+          setTree((existingValue) => {
+            // TODO: recursive function instead and evaluate the cache node changed or not
+            const walkTreeWithFlightRouterState = (
+              childNodes: CacheNode['childNodes'],
+              treeToWalk: FlightData[0],
+              flightRouterState?: FlightRouterState,
+              firstItem?: boolean
+            ): {
+              childNodes: CacheNode['childNodes']
+              tree: FlightRouterState
+            } => {
+              const [segment, parallelRoutes, subTreeData] = treeToWalk
 
-        if (!historyState) {
-          const createNewTree = (
-            segments: string[],
-            treeBranch: any,
-            isFirstSegment = false
-          ): any => {
-            const segment = segments[0]
-            const isLastSegment = segments.length === 1
+              if (!firstItem) {
+                if (childNodes.has(segment)) {
+                  const childNode = childNodes.get(segment)!
+                  childNode.data = null
+                  if (subTreeData) {
+                    childNode.subTreeData = subTreeData
+                  }
+                } else {
+                  childNodes.set(segment, {
+                    subTreeData: subTreeData ?? null,
+                    childNodes: new Map(),
+                  })
+                }
+              }
 
-            let existingTreeSegment = {}
-            if (treeBranch.segment === segment) {
-              existingTreeSegment = treeBranch
-            }
+              const newFlightRouterState: FlightRouterState = [
+                segment,
+                parallelRoutes.children
+                  ? {
+                      ...(flightRouterState ? flightRouterState[1] : {}),
+                      children: walkTreeWithFlightRouterState(
+                        firstItem
+                          ? childNodes
+                          : childNodes.get(segment)!.childNodes,
+                        parallelRoutes.children,
+                        flightRouterState && flightRouterState[1].children
+                      ).tree,
+                    }
+                  : {},
+              ]
 
-            let childTree
-            if (!isLastSegment) {
-              childTree = createNewTree(segments.slice(1), treeBranch.children)
-            }
+              if (firstItem) {
+                newFlightRouterState[2] = url.pathname + url.search
+              }
 
-            const result = {
-              ...existingTreeSegment,
-              segment,
-              // Add `url` into the first segment
-              ...(isFirstSegment ? { url: url.pathname + url.search } : {}),
-              ...(childTree ? { children: childTree } : {}),
-            }
-
-            if (isLastSegment) {
-              // Children could exist because of previous tree
-              delete result.children
-              result.children = {
-                segment: 'page',
+              return {
+                childNodes: childNodes,
+                tree: newFlightRouterState,
               }
             }
 
-            return result
-          }
+            // TODO: loop over this as it could hold multiple trees
+            const flightDataTree = flightData[0]
+            if (flightDataTree) {
+              const walkedTree = walkTreeWithFlightRouterState(
+                existingValue.cache.childNodes,
+                flightDataTree,
+                existingValue.tree,
+                true
+              )
 
-          const segments = pathname.split('/')
-          newTree = createNewTree(segments, tree, true)
+              return {
+                tree: walkedTree.tree,
+                cache: existingValue.cache,
+                previousTree: existingValue.previousTree,
+              }
+            }
+
+            return existingValue
+          })
         }
 
-        // When navigating `tree` is an optimistic value of what to render
-        // in case of navigating without rewrites/redirects the tree will likely line up with the actual tree that comes back from the server
-        // however if this is not the case the layout-router will call back up to this function with the data that came back from the server
-        // the `data` is then used to pre-populate the cache before calling `setTree`.
-        // In that case `newTree` will be sent from the server and the current `tree` will be the optimistic value
-        // whereas `previousTree` is what layout-routers are actually on the screen, hence why previousTree is set again when `data` exists
-        setTree({ previousTree: data ? previousTree : tree, tree: newTree })
+        setTree((existingValue) => {
+          let newTree =
+            historyState && historyState.tree
+              ? historyState.tree
+              : existingValue.tree
 
-        // TODO: update url eagerly or not?
-        window.history[method]({ tree: newTree }, '', href)
+          if (!historyState && !flightData) {
+            const createOptimisticTree = (
+              segments: string[],
+              [existingSegment, existingParallelRoutes]: FlightRouterState,
+              isFirstSegment = false
+            ): FlightRouterState => {
+              const segment = segments[0]
+              const isLastSegment = segments.length === 1
+
+              let parallelRoutes: FlightRouterState[1] = {}
+              if (existingSegment === segment) {
+                parallelRoutes = existingParallelRoutes
+              }
+
+              let childTree
+              if (!isLastSegment) {
+                childTree = createOptimisticTree(
+                  segments.slice(1),
+                  existingParallelRoutes.children
+                )
+              }
+
+              const result: FlightRouterState = [
+                segment,
+                isLastSegment
+                  ? { children: ['page', {}] }
+                  : {
+                      ...parallelRoutes,
+                      ...(childTree ? { children: childTree } : {}),
+                    },
+              ]
+
+              // Add url into the tree
+              if (isFirstSegment) {
+                result[2] = url.pathname + url.search
+              }
+
+              return result
+            }
+
+            const segments = pathname.split('/')
+            newTree = createOptimisticTree(segments, existingValue.tree, true)
+          }
+
+          // TODO: update url eagerly or not?
+          window.history[method]({ tree: newTree }, '', href)
+
+          return {
+            cache: existingValue.cache,
+            previousTree: existingValue.previousTree,
+            tree: newTree,
+          }
+        })
       })
     },
-    [tree, cache, previousTree]
+    []
   )
   const appRouter = React.useMemo(() => {
     return {
@@ -175,7 +209,7 @@ export default function AppRouter({ initialTree, children }: any) {
 
   if (typeof window !== 'undefined') {
     // @ts-ignore TODO: this is for debugging
-    window.nd = { appRouter, cache, tree }
+    window.nd = { router: appRouter, cache, tree }
   }
 
   const onPopState = React.useCallback(
@@ -204,9 +238,9 @@ export default function AppRouter({ initialTree, children }: any) {
   }, [initialTree])
 
   const changeByServerResponse = React.useCallback(
-    (root: any) => {
+    (flightData: FlightData) => {
       // TODO: revisit location.pathname usage
-      change('replaceState', location.pathname, { tree: root.tree }, root.data)
+      change('replaceState', location.pathname, undefined, flightData)
     },
     [change]
   )
@@ -215,7 +249,8 @@ export default function AppRouter({ initialTree, children }: any) {
     <FullAppTreeContext.Provider
       value={{
         changeByServerResponse,
-        tree: previousTree ? previousTree : tree,
+        // TODO: remove previousTree
+        tree: previousTree,
       }}
     >
       <AppRouterContext.Provider value={appRouter}>
@@ -224,7 +259,7 @@ export default function AppRouter({ initialTree, children }: any) {
             childNodes: cache.childNodes,
             tree: tree,
             // Root node always has `url`
-            url: tree.url,
+            url: tree[2] as string,
           }}
         >
           {children}

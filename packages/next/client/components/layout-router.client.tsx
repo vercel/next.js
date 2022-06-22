@@ -1,4 +1,7 @@
 import React, { useContext } from 'react'
+import type { ChildProp } from '../../server/app-render'
+import type { CacheNode } from '../../shared/lib/app-router-context'
+import type { FlightRouterState } from '../../server/app-render'
 import {
   AppTreeContext,
   FullAppTreeContext,
@@ -15,22 +18,17 @@ export function InnerLayoutRouter({
   tree,
   // isActive,
   path,
-}: any) {
+}: {
+  url: string
+  childNodes: CacheNode['childNodes']
+  childProp: ChildProp
+  layoutPath: string
+  tree: FlightRouterState
+  isActive: boolean
+  path: string
+}) {
   const { changeByServerResponse, tree: fullTree } =
     useContext(FullAppTreeContext)
-  // TODO: What to do during SSR?
-  if (!childNodes && childProp && childProp.current) {
-    return (
-      <AppTreeContext.Provider
-        value={{
-          tree: tree.children,
-          url: tree.url ?? url,
-        }}
-      >
-        {childProp.current}
-      </AppTreeContext.Provider>
-    )
-  }
 
   if (childProp && !childNodes.has(path)) {
     childNodes.set(path, {
@@ -42,37 +40,43 @@ export function InnerLayoutRouter({
 
   if (!childNodes.has(path)) {
     const data = fetchServerResponse(url, fullTree)
-    const root = data.readRoot()
-
-    // Handle case where the response might be for this subrouter
-    if (root.data.length === 1 && root.data[0].layoutPath === layoutPath) {
-      childNodes.set(path, {
-        subTreeData: root.data[0].subTreeData,
-        childNodes: new Map(),
-      })
-    } else {
-      // TODO: if the tree did not match up do we provide the new tree here?
-      setTimeout(() => {
-        // @ts-ignore TODO: startTransition exists
-        React.startTransition(() => {
-          // TODO: handle redirect
-          changeByServerResponse(root)
-        })
-      })
-
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      if (!infinitePromise) infinitePromise = new Promise(() => {})
-      throw infinitePromise
-    }
+    childNodes.set(path, { data, subTreeData: null, childNodes: new Map() })
   }
 
-  const childNode = childNodes.get(path)
+  const childNode = childNodes.get(path)!
+
+  if (childNode.data) {
+    // // TODO: error case
+    const root = childNode.data.readRoot()
+
+    // Handle case where the response might be for this subrouter
+    // if (root.length === 1 && root[0].layoutPath === layoutPath) {
+    //   childNodes.set(path, {
+    //     subTreeData: root[0].subTreeData,
+    //     childNodes: new Map(),
+    //   })
+    // } else {
+    // TODO: if the tree did not match up do we provide the new tree here?
+    setTimeout(() => {
+      // @ts-ignore TODO: startTransition exists
+      React.startTransition(() => {
+        // TODO: handle redirect
+        changeByServerResponse(root)
+      })
+    })
+
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    if (!infinitePromise) infinitePromise = new Promise(() => {})
+    throw infinitePromise
+  }
+  // }
+
   return (
     <AppTreeContext.Provider
       value={{
-        tree: tree.children,
+        tree: tree[1].children,
         childNodes: childNode.childNodes,
-        url: tree.url ?? url,
+        url: tree[2] ?? url,
       }}
     >
       {childNode.subTreeData}
@@ -101,7 +105,8 @@ export default function OuterLayoutRouter({
 }: any) {
   const { childNodes, tree, url } = useContext(AppTreeContext)
 
-  const currentChildSegment = tree.children.segment ?? childProp.segment
+  // tree[1].children[0] refers to tree.children.segment in the data format
+  const currentChildSegment = tree[1].children[0] ?? childProp.segment
   const preservedSegments: string[] = [currentChildSegment]
 
   return (
