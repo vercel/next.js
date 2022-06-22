@@ -45,13 +45,14 @@ The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.
 The `waitUntil()` method can be used to prolong the execution of the function if you have other background work to make.
 
 ```typescript
-// Replace this with a better example
-import type { NextRequest, NextFetchEvent } from 'next/server'
+import { NextResponse } from 'next/server'
+import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest, event: NextFetchEvent) {
+export async function middleware(req: NextRequest, event: NextFetchEvent) {
   event.waitUntil(
-    fetch('https://api.example.com/').then((response) => {
-      // Do something with the response
+    fetch('https://my-analytics-platform.com', {
+      method: 'POST',
+      body: JSON.stringify({ pathname: req.nextUrl.pathname }),
     })
   )
 
