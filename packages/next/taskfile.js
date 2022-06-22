@@ -40,6 +40,34 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('compiled/regenerator-runtime')
 }
 
+// eslint-disable-next-line camelcase
+export async function copy_styled_jsx_types(task, opts) {
+  // we copy the styled-jsx types so that we can reference them
+  // in the next-env.d.ts file so it doesn't matter if the styled-jsx
+  // package is hoisted out of Next.js' node_modules or not
+  const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
+  const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
+  let combinedTypes = ``
+
+  for (const file of typeFiles) {
+    const fullPath = join(styledJsxPath, file)
+    let typeContent = await fs.readFile(fullPath, 'utf8')
+
+    if (file === 'index.d.ts') {
+      const typeExportIndex = typeContent.indexOf('export')
+      typeContent = typeContent.substring(typeExportIndex)
+    }
+
+    combinedTypes += `\ndeclare module 'styled-jsx${
+      file === 'index.d.ts' ? '' : '/' + file.replace(/\.d\.ts/, '')
+    }' {
+      ${typeContent}
+    }`
+  }
+
+  await fs.writeFile(join(__dirname, 'dist', 'styled-jsx.d.ts'), combinedTypes)
+}
+
 const externals = {
   // don't bundle caniuse-lite data so users can
   // update it manually
@@ -1803,6 +1831,7 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
+      'copy_styled_jsx_types',
     ],
     opts
   )
