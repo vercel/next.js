@@ -106,7 +106,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       entries.forEach((page) => {
         const outputPath = path.join(
           compilation.outputOptions.path!,
-          getClientEntryName(page) + '.js'
+          page + '.js'
         )
         deleteCache(outputPath)
       })
