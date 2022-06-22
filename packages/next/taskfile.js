@@ -47,25 +47,29 @@ export async function copy_styled_jsx_types(task, opts) {
   // package is hoisted out of Next.js' node_modules or not
   const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
   const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
-  let combinedTypes = ``
+  const outputDir = join(__dirname, 'dist/styled-jsx-types')
+  let typeReferences = ``
+
+  await fs.ensureDir(outputDir)
 
   for (const file of typeFiles) {
-    const fullPath = join(styledJsxPath, file)
-    let typeContent = await fs.readFile(fullPath, 'utf8')
+    const fileNoExt = file.replace(/\.d\.ts/, '')
+    const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
+    const exportsIndex = content.indexOf('export')
 
-    if (file === 'index.d.ts') {
-      const typeExportIndex = typeContent.indexOf('export')
-      typeContent = typeContent.substring(typeExportIndex)
-    }
-
-    combinedTypes += `\ndeclare module 'styled-jsx${
-      file === 'index.d.ts' ? '' : '/' + file.replace(/\.d\.ts/, '')
-    }' {
-      ${typeContent}
-    }`
+    await fs.writeFile(
+      join(outputDir, file),
+      `${content.substring(0, exportsIndex)}\n` +
+        `declare module 'styled-jsx${
+          file === 'index.d.ts' ? '' : '/' + fileNoExt
+        }' {
+        ${content.substring(exportsIndex)}
+      }`
+    )
+    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
   }
 
-  await fs.writeFile(join(__dirname, 'dist', 'styled-jsx.d.ts'), combinedTypes)
+  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
 }
 
 const externals = {
