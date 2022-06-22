@@ -18,7 +18,10 @@ describe('svgo-webpack with Image Component', () => {
   describe('next build', () => {
     it('should not fail to build invalid usage of the Image component', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      expect(stderr).toBeFalsy()
+      const errors = stderr
+        .split('\n')
+        .filter((line) => line && !line.startsWith('warn  -'))
+      expect(errors).toEqual([])
       expect(code).toBe(0)
     })
   })
@@ -40,7 +43,10 @@ describe('svgo-webpack with Image Component', () => {
 
     it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/', {})
-      expect(devOutput.stderr).toBeFalsy()
+      const errors = devOutput.stderr
+        .split('\n')
+        .filter((line) => line && !line.startsWith('warn  -'))
+      expect(errors).toEqual([])
     })
   })
 })
