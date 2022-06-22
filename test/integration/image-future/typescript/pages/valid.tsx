@@ -22,13 +22,6 @@ const Page = () => {
         width="500"
         height="500"
       />
-      <div style={{ position: 'relative', width: 100, height: 100 }}>
-        <Image
-          id="layout-fill"
-          src="https://via.placeholder.com/100"
-          layout="fill"
-        />
-      </div>
       <Image
         id="quality-num"
         src="https://via.placeholder.com/500"
@@ -50,20 +43,6 @@ const Page = () => {
         height={100}
       />
       <Image
-        id="object-fit-cover-position-right"
-        src="https://via.placeholder.com/500"
-        layout="fill"
-        objectFit="cover"
-        objectPosition="right"
-      />
-      <Image
-        id="object-fit-scale-down-position-50px"
-        src="https://via.placeholder.com/500"
-        layout="fill"
-        objectFit="scale-down"
-        objectPosition="50px"
-      />
-      <Image
         id="placeholder-and-blur-data-url"
         src="https://via.placeholder.com/500"
         width={500}
@@ -79,13 +58,6 @@ const Page = () => {
       />
       <Image id="object-src-with-svg" src={svg} />
       <Image id="object-src-with-avif" src={avif} />
-      <Image
-        id="fill-with-unused-width-height"
-        src="https://via.placeholder.com/200"
-        layout="fill"
-        width={100}
-        height={100}
-      />
       <ImageCard id="image-card" src="https://via.placeholder.com/300" />
       <DynamicSrcImage
         id="dynamic-src"
