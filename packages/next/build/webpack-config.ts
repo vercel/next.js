@@ -1716,13 +1716,14 @@ export default async function getBaseWebpackConfig(
 
   const webpack5Config = webpackConfig as webpack5.Configuration
 
-  webpack5Config.module?.rules?.unshift({
-    test: /\.wasm$/,
-    issuerLayer: 'middleware',
-    loader: 'next-middleware-wasm-loader',
-    type: 'javascript/auto',
-    resourceQuery: /module/i,
-  })
+  if (isEdgeServer) {
+    webpack5Config.module?.rules?.unshift({
+      test: /\.wasm$/,
+      loader: 'next-middleware-wasm-loader',
+      type: 'javascript/auto',
+      resourceQuery: /module/i,
+    })
+  }
 
   webpack5Config.experiments = {
     layers: true,

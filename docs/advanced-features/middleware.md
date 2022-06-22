@@ -5,7 +5,6 @@ description: Learn how to use Edge Middleware to run code before a request is co
 # Edge Middleware
 
 <details open>
-
 <summary><b>Version History</b></summary>
 
 | Version | Changes |
@@ -44,6 +43,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 
 These tools enable you to implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/main/edge-functions) for code examples.
 
+
 ### Deploying Edge Middleware
 
 Next.js Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/edge-functions).
@@ -52,7 +52,7 @@ Next.js Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/feat
 
 To begin using Edge Middleware, follow the steps below:
 
-1. Install the latest version of Next.js:
+1. Install the canary version of Next.js:
 
 ```bash
 npm install next@latest

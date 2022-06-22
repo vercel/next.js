@@ -10,7 +10,7 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 | Version | Changes |
 | ------- | ------- |
 
-| `v12.1.0` | [On-demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
+| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
 | `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
 | `v10.0.0` | `fallback: 'blocking'` return option added. |
 | `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
