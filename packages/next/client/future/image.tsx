@@ -303,7 +303,7 @@ export default function Image({
 }: ImageProps) {
   if (!experimentalFuture) {
     throw new Error(
-      `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { future: true } }\` in your next.config.js file.`
+      `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
     )
   }
   const configContext = useContext(ImageConfigContext)

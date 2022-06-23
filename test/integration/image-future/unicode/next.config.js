@@ -2,7 +2,7 @@ module.exports = {
   experimental: {
     images: {
       remotePatterns: [{ hostname: 'image-optimization-test.vercel.app' }],
-      future: true,
+      allowFutureImage: true,
     },
   },
 }

@@ -3,7 +3,7 @@ module.exports = {
   // Intentionally omit `domains` and `remotePatterns`
   experimental: {
     images: {
-      future: true,
+      allowFutureImage: true,
     },
   },
 }
