@@ -129,8 +129,6 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
 // Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
 // one parameter
 pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
-    dbg!(&args);
-
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
     }
@@ -174,7 +172,7 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
 
-    let is_already_absolute = first.as_str().map_or(false, |s| s.starts_with('/'))
+    let is_already_absolute = first.as_str().map_or(false, |s| s.is_empty())
         || match first {
             JsValue::FreeVar(FreeVarKind::Dirname) => true,
             _ => false,
