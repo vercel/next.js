@@ -175,8 +175,8 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     let first = iter.next().unwrap();
 
     let is_already_absolute = first.as_str().map_or(false, |s| s.is_empty())
-        || match first {
-            JsValue::FreeVar(FreeVarKind::Dirname) => true,
+        || match &first {
+            JsValue::Constant(ConstantValue::Str(s)) => s.starts_with("/"),
             _ => false,
         };
 
