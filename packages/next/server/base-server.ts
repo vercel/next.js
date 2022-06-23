@@ -1715,6 +1715,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
+      if (revalidateOptions) {
+        setRevalidateHeaders(res, revalidateOptions)
+      }
       if (isDataReq) {
         return {
           type: 'json',
