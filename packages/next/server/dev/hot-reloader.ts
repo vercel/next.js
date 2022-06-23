@@ -901,7 +901,6 @@ export default class HotReloader {
 
     this.onDemandEntries = onDemandEntryHandler({
       multiCompiler,
-      watcher: this.watcher,
       pagesDir: this.pagesDir,
       appDir: this.appDir,
       rootDir: this.dir,
