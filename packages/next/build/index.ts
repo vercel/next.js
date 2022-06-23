@@ -2396,13 +2396,15 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages = new Set<string>([
-    ...Object.entries(prerenderManifest.routes)
-      // Filter out dynamic routes
-      .filter(([, { srcRoute }]) => srcRoute == null)
-      .map(([route]) => normalizeLocalePath(route, locales).pathname),
-    ...Object.keys(prerenderManifest.dynamicRoutes),
-  ])
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
 
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages

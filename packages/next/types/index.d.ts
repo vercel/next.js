@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
-/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
