@@ -39,7 +39,7 @@ module.exports = {
       remotePatterns: [],
       // when true, every image will be unoptimized
       unoptimized: false,
-      // when true, enable the future image component
+      // when true, allow `next/future/image` to be imported
       future: false,
     },
   },
