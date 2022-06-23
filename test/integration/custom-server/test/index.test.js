@@ -22,25 +22,28 @@ let server
 
 const context = {}
 
-const startServer = async (optEnv = {}, opts) => {
-  const scriptPath = join(appDir, 'server.js')
-  context.appPort = appPort = await getPort()
-  const env = Object.assign(
-    { ...process.env },
-    { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true' },
-    optEnv
-  )
+describe.each([
+  { title: 'using HTTP', useHttps: false },
+  { title: 'using HTTPS', useHttps: false },
+])('Custom Server $title', ({ useHttps }) => {
+  const startServer = async (optEnv = {}, opts) => {
+    const scriptPath = join(appDir, 'server.js')
+    context.appPort = appPort = await getPort()
+    const env = Object.assign(
+      { ...process.env },
+      { PORT: `${appPort}`, __NEXT_TEST_MODE: 'true', USE_HTTPS: useHttps },
+      optEnv
+    )
 
-  server = await initNextServerScript(
-    scriptPath,
-    /ready on/i,
-    env,
-    /ReferenceError: options is not defined/,
-    opts
-  )
-}
+    server = await initNextServerScript(
+      scriptPath,
+      /ready on/i,
+      env,
+      /ReferenceError: options is not defined/,
+      opts
+    )
+  }
 
-describe('Custom Server', () => {
   describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
@@ -235,7 +238,20 @@ describe('Custom Server', () => {
       expect(stderr).toContain(
         'error - unhandledRejection: Error: unhandled rejection'
       )
-      expect(stderr).toContain('server.js:22:22')
+      expect(stderr).toContain('server.js:31:22')
+    })
+  })
+
+  describe('with middleware $title', () => {
+    beforeAll(() => startServer(undefined, undefined, useHttps))
+    afterAll(() => killApp(server))
+
+    it('should read the expected url protocol in middleware', async () => {
+      const path = '/middleware-augmented'
+      const response = await fetchViaHTTP(appPort, path)
+      expect(response.headers.get('x-original-url')).toBe(
+        `${useHttps ? 'https' : 'http'}://localhost:${appPort}${path}`
+      )
     })
   })
 })
