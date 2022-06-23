@@ -49,7 +49,7 @@ const Page = () => {
       />
 
       <ImageWithMessage
-        id="8"
+        id="5"
         src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
         width="500"
         height="500"

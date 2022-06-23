@@ -313,9 +313,12 @@ function runTests(mode) {
   it('should callback native onLoad in most cases', async () => {
     let browser = await webdriver(appPort, '/on-load')
 
-    await browser.eval(
-      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
-    )
+    for (let i = 1; i < 6; i++) {
+      await browser.eval(
+        `document.getElementById("img${i}").scrollIntoView({behavior: "smooth"})`
+      )
+      await waitFor(100)
+    }
 
     await check(
       () => browser.eval(`document.getElementById("img1").currentSrc`),
@@ -350,40 +353,47 @@ function runTests(mode) {
       'loaded 1 img4 with native onLoad'
     )
     await check(
-      () => browser.eval(`document.getElementById("msg8").textContent`),
-      'loaded 1 img8 with native onLoad'
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded 1 img5 with native onLoad'
     )
     await check(
       () =>
         browser.eval(
-          `document.getElementById("img8").getAttribute("data-nimg")`
+          `document.getElementById("img5").getAttribute("data-nimg")`
         ),
       'future'
     )
     await check(
-      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      () => browser.eval(`document.getElementById("img5").currentSrc`),
       /wide.png/
     )
     await browser.eval('document.getElementById("toggle").click()')
     await check(
-      () => browser.eval(`document.getElementById("msg8").textContent`),
-      'loaded 2 img8 with native onLoad'
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded 2 img5 with native onLoad'
     )
     await check(
       () =>
         browser.eval(
-          `document.getElementById("img8").getAttribute("data-nimg")`
+          `document.getElementById("img5").getAttribute("data-nimg")`
         ),
       'future'
     )
     await check(
-      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      () => browser.eval(`document.getElementById("img5").currentSrc`),
       /test-rect.jpg/
     )
   })
 
   it('should callback native onError when error occured while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
+
+    for (let i = 1; i < 3; i++) {
+      await browser.eval(
+        `document.getElementById("img${i}").scrollIntoView({behavior: "smooth"})`
+      )
+      await waitFor(100)
+    }
 
     await check(
       () => browser.eval(`document.getElementById("img1").currentSrc`),
