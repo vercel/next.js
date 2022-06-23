@@ -21,7 +21,7 @@ description: Learn how to use Middleware to run code before a request is complet
 
 Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
 
-When a request is made, it will first hit the Middleware, _then_ the cache, meaning you can personalize static content and implement authentication, run A/B tests, deliver personalizes pages based on geolocation, and perform bot protection.
+When a request is made, it will first hit the Middleware, _then_ the cache, meaning you can personalize static content and implement authentication, run A/B tests, deliver personalized pages based on geolocation, and perform bot protection.
 
 ## Summary of Middleware
 
