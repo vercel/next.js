@@ -49,9 +49,15 @@ struct DisplayNameAndId {
 
 impl DisplayNameAndId {
     fn get_block_name(&self, p: &Path) -> String {
-        match p.file_stem().map(|s| s.to_string_lossy().to_string()) {
-            Some(file_stem) if !self.config.meaningless_file_names.contains(&file_stem) => {
-                file_stem
+        match p.file_stem().map(|s| s.to_string_lossy()) {
+            Some(file_stem)
+                if !self
+                    .config
+                    .meaningless_file_names
+                    .iter()
+                    .any(|meaningless| file_stem.as_ref() == meaningless) =>
+            {
+                file_stem.into()
             }
             _ => self.get_block_name(
                 p.parent()
