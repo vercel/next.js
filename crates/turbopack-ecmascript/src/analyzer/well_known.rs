@@ -1,4 +1,4 @@
-use std::{env::current_dir, mem::take, sync::Arc};
+use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
 use url::Url;
