@@ -74,19 +74,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     delete userConfig.exportTrailingSlash
   }
 
-  if (typeof userConfig.experimental?.reactMode !== 'undefined') {
-    console.warn(
-      chalk.yellow.bold('Warning: ') +
-        `The experimental "reactMode" option has been replaced with "reactRoot". Please update your ${configFileName}.`
-    )
-    if (typeof userConfig.experimental?.reactRoot === 'undefined') {
-      userConfig.experimental.reactRoot = ['concurrent', 'blocking'].includes(
-        userConfig.experimental.reactMode
-      )
-    }
-    delete userConfig.experimental.reactMode
-  }
-
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]
@@ -231,13 +218,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         result.amp.canonicalBase = result.basePath
       }
     }
-  }
-
-  const hasReactRoot = process.env.__NEXT_REACT_ROOT
-  if (hasReactRoot) {
-    // users might not have the `experimental` key in their config
-    result.experimental = result.experimental || {}
-    result.experimental.reactRoot = true
   }
 
   if (result?.images) {
