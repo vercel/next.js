@@ -73,6 +73,14 @@ describe('styled-components SWC transform', () => {
     ).toBe('rgb(0, 0, 0)')
   })
 
+  it('should enable the display name transform by default', async () => {
+    // make sure the index chunk gets generated
+    await webdriver(next.appPort, '/')
+
+    const chunk = await next.readFile('.next/static/chunks/pages/index.js')
+    expect(chunk).toContain('displayName: \\"pages__Button\\"')
+  })
+
   it('should contain styles in initial HTML', async () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('background:transparent')
