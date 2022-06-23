@@ -401,6 +401,10 @@
           "path": "/docs/api-reference/next/streaming.md"
         },
         {
+          "title": "next/future/image (experimental)./",
+          "path": "/docs/api-reference/next/future/image.md"
+        },
+        {
           "title": "Edge Runtime",
           "path": "/docs/api-reference/edge-runtime.md"
         },
