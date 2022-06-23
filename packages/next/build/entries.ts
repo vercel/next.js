@@ -247,7 +247,6 @@ export function getServerlessEntry(opts: {
     page: opts.page,
     poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
     previewProps: JSON.stringify(opts.previewMode),
-    reactRoot: !!opts.config.experimental.reactRoot ? 'true' : '',
     runtimeConfig:
       Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
       Object.keys(opts.config.serverRuntimeConfig).length > 0
