@@ -415,7 +415,8 @@ pub async fn module_references(
                             JsValue::Constant(ConstantValue::Str(parent_path.path.as_str().into()));
 
                         let mut new_args = Vec::with_capacity(args.len() + 1);
-                        new_args.extend_from_slice(args);
+                        let args = linked_args().await?;
+                        new_args.extend(args);
                         // We inject the current directory as a last argument to avoid memmove
                         new_args.push(parent_path_arg);
 
