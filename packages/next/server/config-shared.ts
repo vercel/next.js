@@ -107,7 +107,6 @@ export interface ExperimentalConfig {
     validator?: string
     skipValidation?: boolean
   }
-  reactRoot?: boolean
   disableOptimizedLoading?: boolean
   gzipSize?: boolean
   craCompat?: boolean
@@ -511,7 +510,6 @@ export const defaultConfig: NextConfig = {
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
