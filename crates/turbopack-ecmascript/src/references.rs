@@ -343,9 +343,9 @@ pub async fn module_references(
                             ),
                         )
                     }
+
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
                         let args = linked_args().await?;
-                        dbg!(&args);
 
                         if args.len() == 1 {
                             let pat = js_value_to_pattern(&args[0]);
@@ -407,6 +407,13 @@ pub async fn module_references(
                             ),
                         )
                     }
+
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve) => {
+                        let args = linked_args().await?;
+
+                        dbg!(&args);
+                    }
+
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
                         let linked_func_call = link_value(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
