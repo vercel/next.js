@@ -142,11 +142,17 @@ describe('Middleware Redirect', () => {
       ).rejects.toThrow()
     })
 
-    it(`${label}should redirect to api route with locale`, async () => {
+    it.only(`${label}should redirect to api route with locale`, async () => {
       const browser = await webdriver(next.url, `${locale}`)
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
       await check(() => browser.elementByCss('body').text(), 'ok')
+      const logs = await browser.log()
+      const errors = logs
+        .filter((x) => x.source === 'error')
+        .map((x) => x.message)
+        .join('\n')
+      expect(errors).not.toContain('Failed to lookup route')
     })
   }
 })
