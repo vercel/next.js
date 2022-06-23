@@ -164,8 +164,12 @@ export function getEdgeServerEntry(opts: {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      matcherRegexp:
-        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
+      // pathMatcher can have special characters that break the loader params
+      // parsing so we base64 encode/decode the string
+      matcherRegexp: Buffer.from(
+        (opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source) ||
+          ''
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
