@@ -37,7 +37,7 @@ Required, except for [statically imported images](/docs/basic-features/image-opt
 
 ### height
 
-The `height` property can represents the _rendered_ height in pixels, so it will affect how large the image appears.
+The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
 
@@ -87,7 +87,7 @@ It's important to assign `sizes` for responsive images that takes up less than t
 
 ### quality
 
-The quality of the optimized image, an integer between `1` and `100` where `100` is the best quality. Defaults to `75`.
+The quality of the optimized image, an integer between `1` and `100`, where `100` is the best quality and therefore largest file size. Defaults to `75`.
 
 ### priority
 
@@ -128,7 +128,7 @@ Also keep in mind that the required `width` and `height` props can interact with
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The `onLoadingComplete` function accepts one parameter, an object with the following properties:
+The callback function will be called with one argument, an object with the following properties:
 
 - [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
 - [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
