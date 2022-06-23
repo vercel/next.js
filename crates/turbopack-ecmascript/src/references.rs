@@ -1,5 +1,6 @@
 use super::errors;
 use super::{utils::js_value_to_pattern, ModuleAssetType};
+use crate::analyzer::ConstantValue;
 use crate::analyzer::{
     builtin::replace_builtin,
     graph::{create_graph, Effect},
@@ -409,9 +410,18 @@ pub async fn module_references(
                     }
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve) => {
+                        let parent_path = source.path().parent().await?;
+                        let parent_path_arg =
+                            JsValue::Constant(ConstantValue::Str(parent_path.path.as_str().into()));
+
+                        let mut new_args = Vec::with_capacity(args.len() + 1);
+                        new_args.extend_from_slice(args);
+                        // We inject the current directory as a last argument to avoid memmove
+                        new_args.push(parent_path_arg);
+
                         let linked_func_call = link_value(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
-                            args.clone(),
+                            new_args,
                         ))
                         .await?;
 

@@ -144,6 +144,8 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
         }
     }
 
+    let cwd = args.remove(args.len() - 1);
+
     let mut results_final = Vec::new();
     let mut results: Vec<JsValue> = Vec::new();
     for item in args {
@@ -181,14 +183,7 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     let mut last_was_str = first.as_str().is_some();
 
     if !is_already_absolute {
-        results.push(
-            current_dir()
-                .map(|cwd| cwd.display().to_string())
-                .map(JsValue::from)
-                .expect(
-                    "failed to get current directory which is required for computing path.resolve",
-                ),
-        );
+        results.push(cwd);
     }
 
     results.push(first);
