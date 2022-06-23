@@ -142,7 +142,7 @@ describe('Middleware Redirect', () => {
       ).rejects.toThrow()
     })
 
-    it.only(`${label}should redirect to api route with locale`, async () => {
+    it(`${label}should redirect to api route with locale`, async () => {
       const browser = await webdriver(next.url, `${locale}`)
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
