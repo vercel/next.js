@@ -177,7 +177,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
-    reactRoot: boolean
     largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
@@ -328,7 +327,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
-      reactRoot: this.nextConfig.experimental.reactRoot === true,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
     }
 
@@ -1292,7 +1290,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof components.Document?.getInitialProps !== 'function' ||
         // When concurrent features is enabled, the built-in `Document`
         // component also supports dynamic HTML.
-        (this.renderOpts.reactRoot &&
+        (!!process.env.__NEXT_REACT_ROOT &&
           NEXT_BUILTIN_DOCUMENT in components.Document)
 
       // Disable dynamic HTML in cases that we know it won't be generated,
@@ -1340,6 +1338,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let resolvedUrlPathname =
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
+
+    if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
+      // the url value is already correct when the matched-path header is set
+      resolvedUrlPathname = urlPathname
+    }
 
     urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = normalizeLocalePath(
