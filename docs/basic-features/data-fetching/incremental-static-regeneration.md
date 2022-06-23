@@ -18,7 +18,7 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 | Version   | Changes                                                                                 |
 | --------- | --------------------------------------------------------------------------------------- |
-| `v12.1.0` | On-Demand ISR is stable                                                                 |
+| `v12.2.0` | On-Demand ISR is stable                                                                 |
 | `v12.1.0` | On-Demand ISR added (beta).                                                             |
 | `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
 | `v9.5.0`  | Base Path added.                                                                        |
