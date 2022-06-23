@@ -37,7 +37,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
 // #[case::bull("integration/bull.js", false)] // Skipping bull integration test
-#[case::camaro("integration/camaro.js", false)] // can't find node_modules/piscina/dist/src/worker.js
+#[case::camaro("integration/camaro.js", true)]
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]

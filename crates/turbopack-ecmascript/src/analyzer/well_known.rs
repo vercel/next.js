@@ -129,6 +129,8 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
 // Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
 // one parameter
 pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
+    dbg!(&args);
+
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
     }
