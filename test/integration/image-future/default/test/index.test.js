@@ -1050,7 +1050,7 @@ function runTests(mode) {
   })
 }
 
-describe('Image Component Tests', () => {
+describe('Future Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

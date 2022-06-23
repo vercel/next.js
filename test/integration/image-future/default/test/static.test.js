@@ -89,7 +89,7 @@ describe('Build Error Tests', () => {
     expect(stderr).not.toContain('Import trace for requested module')
   })
 })
-describe('Static Image Component Tests', () => {
+describe('Future Static Image Component Tests', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()

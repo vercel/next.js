@@ -24,7 +24,7 @@ function runTests() {
   })
 }
 
-describe('Image Component Tests In Prod Mode', () => {
+describe('Future Image from node_modules prod mode', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
@@ -37,7 +37,7 @@ describe('Image Component Tests In Prod Mode', () => {
   runTests()
 })
 
-describe('Image Component Tests In Dev Mode', () => {
+describe('Future Image from node_modules dev mode', () => {
   beforeAll(async () => {
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
