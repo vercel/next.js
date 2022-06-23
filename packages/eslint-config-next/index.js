@@ -62,6 +62,7 @@ module.exports = {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
+    'react/jsx-no-target-blank': 'off',
     'jsx-a11y/alt-text': [
       'warn',
       {
