@@ -5,7 +5,7 @@ use url::Url;
 
 use crate::target::CompileTargetVc;
 
-use super::{ConstantValue, FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
+use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
 
 pub async fn replace_well_known(
     value: JsValue,
