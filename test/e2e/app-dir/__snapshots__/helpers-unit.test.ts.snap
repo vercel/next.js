@@ -1,0 +1,416 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Routing helpers should create the correct optimistic tree for different-layout navigation 1`] = `
+Object {
+  "cache": Object {
+    "childNodes": Map {
+      "dashboard" => Object {
+        "childNodes": Map {
+          "page" => Object {
+            "childNodes": Map {},
+            "subTreeData": Array [
+              Object {
+                "_owner": null,
+                "_store": Object {},
+                "key": null,
+                "props": Object {
+                  "children": "Dashboard",
+                },
+                "ref": null,
+                "type": "h1",
+              },
+              Object {
+                "_owner": null,
+                "_store": Object {},
+                "key": null,
+                "props": Object {
+                  "childProp": Object {
+                    "current": null,
+                    "segment": "page",
+                  },
+                  "layoutPath": "/dashboard",
+                },
+                "ref": null,
+                "type": Object {
+                  "_payload": Object {
+                    "_response": Object {
+                      "_bundlerConfig": null,
+                      "_chunks": Object {},
+                      "_partialRow": "",
+                      "_stringDecoder": Object {},
+                    },
+                    "_status": 3,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        "subTreeData": Array [
+          Object {
+            "_owner": null,
+            "_store": Object {},
+            "key": null,
+            "props": Object {
+              "children": "Dashboard",
+            },
+            "ref": null,
+            "type": "h1",
+          },
+          Object {
+            "_owner": null,
+            "_store": Object {},
+            "key": null,
+            "props": Object {
+              "childProp": Object {
+                "current": null,
+                "segment": "page",
+              },
+              "layoutPath": "/dashboard",
+            },
+            "ref": null,
+            "type": Object {
+              "_payload": Object {
+                "_response": Object {
+                  "_bundlerConfig": null,
+                  "_chunks": Object {},
+                  "_partialRow": "",
+                  "_stringDecoder": Object {},
+                },
+                "_status": 3,
+              },
+            },
+          },
+        ],
+      },
+    },
+    "subTreeData": null,
+  },
+  "tree": Array [
+    "",
+    Object {
+      "children": Array [
+        "dashboard",
+        Object {
+          "children": Array [
+            "page",
+            Object {},
+          ],
+        },
+      ],
+    },
+    "/dashboard",
+  ],
+}
+`;
+
+exports[`Routing helpers should create the correct optimistic tree for different-layout navigation 2`] = `
+Object {
+  "childNodes": Map {
+    "dashboard" => Object {
+      "childNodes": Map {
+        "page" => Object {
+          "childNodes": Map {},
+          "subTreeData": Array [
+            Object {
+              "_owner": null,
+              "_store": Object {},
+              "key": null,
+              "props": Object {
+                "children": "Dashboard",
+              },
+              "ref": null,
+              "type": "h1",
+            },
+            Object {
+              "_owner": null,
+              "_store": Object {},
+              "key": null,
+              "props": Object {
+                "childProp": Object {
+                  "current": null,
+                  "segment": "page",
+                },
+                "layoutPath": "/dashboard",
+              },
+              "ref": null,
+              "type": Object {
+                "_payload": Object {
+                  "_response": Object {
+                    "_bundlerConfig": null,
+                    "_chunks": Object {},
+                    "_partialRow": "",
+                    "_stringDecoder": Object {},
+                  },
+                  "_status": 3,
+                },
+              },
+            },
+          ],
+        },
+      },
+      "subTreeData": Array [
+        Object {
+          "_owner": null,
+          "_store": Object {},
+          "key": null,
+          "props": Object {
+            "children": "Dashboard",
+          },
+          "ref": null,
+          "type": "h1",
+        },
+        Object {
+          "_owner": null,
+          "_store": Object {},
+          "key": null,
+          "props": Object {
+            "childProp": Object {
+              "current": null,
+              "segment": "page",
+            },
+            "layoutPath": "/dashboard",
+          },
+          "ref": null,
+          "type": Object {
+            "_payload": Object {
+              "_response": Object {
+                "_bundlerConfig": null,
+                "_chunks": Object {},
+                "_partialRow": "",
+                "_stringDecoder": Object {},
+              },
+              "_status": 3,
+            },
+          },
+        },
+      ],
+    },
+  },
+  "tree": Array [
+    "",
+    Object {
+      "children": Array [
+        "slow-page-with-loading",
+        Object {
+          "children": Array [
+            "page",
+            Object {},
+          ],
+        },
+      ],
+    },
+    "/slow-page-with-loading",
+  ],
+}
+`;
+
+exports[`Routing helpers should create the correct optimistic tree for same-layout navigation 1`] = `
+Object {
+  "cache": Object {
+    "childNodes": Map {
+      "dashboard" => Object {
+        "childNodes": Map {
+          "page" => Object {
+            "childNodes": Map {},
+            "subTreeData": Array [
+              Object {
+                "_owner": null,
+                "_store": Object {},
+                "key": null,
+                "props": Object {
+                  "children": "Dashboard",
+                },
+                "ref": null,
+                "type": "h1",
+              },
+              Object {
+                "_owner": null,
+                "_store": Object {},
+                "key": null,
+                "props": Object {
+                  "childProp": Object {
+                    "current": null,
+                    "segment": "page",
+                  },
+                  "layoutPath": "/dashboard",
+                },
+                "ref": null,
+                "type": Object {
+                  "_payload": Object {
+                    "_response": Object {
+                      "_bundlerConfig": null,
+                      "_chunks": Object {},
+                      "_partialRow": "",
+                      "_stringDecoder": Object {},
+                    },
+                    "_status": 3,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        "subTreeData": Array [
+          Object {
+            "_owner": null,
+            "_store": Object {},
+            "key": null,
+            "props": Object {
+              "children": "Dashboard",
+            },
+            "ref": null,
+            "type": "h1",
+          },
+          Object {
+            "_owner": null,
+            "_store": Object {},
+            "key": null,
+            "props": Object {
+              "childProp": Object {
+                "current": null,
+                "segment": "page",
+              },
+              "layoutPath": "/dashboard",
+            },
+            "ref": null,
+            "type": Object {
+              "_payload": Object {
+                "_response": Object {
+                  "_bundlerConfig": null,
+                  "_chunks": Object {},
+                  "_partialRow": "",
+                  "_stringDecoder": Object {},
+                },
+                "_status": 3,
+              },
+            },
+          },
+        ],
+      },
+    },
+    "subTreeData": null,
+  },
+  "tree": Array [
+    "",
+    Object {
+      "children": Array [
+        "dashboard",
+        Object {
+          "children": Array [
+            "page",
+            Object {},
+          ],
+        },
+      ],
+    },
+    "/dashboard",
+  ],
+}
+`;
+
+exports[`Routing helpers should create the correct optimistic tree for same-layout navigation 2`] = `
+Object {
+  "childNodes": Map {
+    "dashboard" => Object {
+      "childNodes": Map {
+        "page" => Object {
+          "childNodes": Map {},
+          "subTreeData": Array [
+            Object {
+              "_owner": null,
+              "_store": Object {},
+              "key": null,
+              "props": Object {
+                "children": "Dashboard",
+              },
+              "ref": null,
+              "type": "h1",
+            },
+            Object {
+              "_owner": null,
+              "_store": Object {},
+              "key": null,
+              "props": Object {
+                "childProp": Object {
+                  "current": null,
+                  "segment": "page",
+                },
+                "layoutPath": "/dashboard",
+              },
+              "ref": null,
+              "type": Object {
+                "_payload": Object {
+                  "_response": Object {
+                    "_bundlerConfig": null,
+                    "_chunks": Object {},
+                    "_partialRow": "",
+                    "_stringDecoder": Object {},
+                  },
+                  "_status": 3,
+                },
+              },
+            },
+          ],
+        },
+      },
+      "subTreeData": Array [
+        Object {
+          "_owner": null,
+          "_store": Object {},
+          "key": null,
+          "props": Object {
+            "children": "Dashboard",
+          },
+          "ref": null,
+          "type": "h1",
+        },
+        Object {
+          "_owner": null,
+          "_store": Object {},
+          "key": null,
+          "props": Object {
+            "childProp": Object {
+              "current": null,
+              "segment": "page",
+            },
+            "layoutPath": "/dashboard",
+          },
+          "ref": null,
+          "type": Object {
+            "_payload": Object {
+              "_response": Object {
+                "_bundlerConfig": null,
+                "_chunks": Object {},
+                "_partialRow": "",
+                "_stringDecoder": Object {},
+              },
+              "_status": 3,
+            },
+          },
+        },
+      ],
+    },
+  },
+  "tree": Array [
+    "",
+    Object {
+      "children": Array [
+        "dashboard",
+        Object {
+          "children": Array [
+            "integrations",
+            Object {
+              "children": Array [
+                "page",
+                Object {},
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    "/dashboard/integrations",
+  ],
+}
+`;

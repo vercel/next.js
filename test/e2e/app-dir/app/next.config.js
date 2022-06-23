@@ -4,6 +4,8 @@ module.exports = {
     runtime: 'nodejs',
     reactRoot: true,
     serverComponents: true,
+    legacyBrowsers: false,
+    browsersListForSwc: true,
   },
   rewrites: async () => {
     return [

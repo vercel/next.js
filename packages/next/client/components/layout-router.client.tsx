@@ -14,7 +14,7 @@ export function InnerLayoutRouter({
   url,
   childNodes,
   childProp,
-  layoutPath,
+  // layoutPath,
   tree,
   // isActive,
   path,
@@ -39,7 +39,11 @@ export function InnerLayoutRouter({
   }
 
   if (!childNodes.has(path)) {
-    const data = fetchServerResponse(url, fullTree)
+    console.log('KICKING OFF DATA FETCH IN RENDER', {
+      path,
+      childNodes: new Map(childNodes),
+    })
+    const data = fetchServerResponse(new URL(url, location.origin), fullTree)
     childNodes.set(path, { data, subTreeData: null, childNodes: new Map() })
   }
 
