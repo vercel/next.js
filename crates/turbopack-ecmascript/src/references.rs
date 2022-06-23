@@ -32,7 +32,7 @@ use swc_ecmascript::{
 };
 use turbo_tasks::ValueToString;
 use turbo_tasks::{util::try_join_all, Value, Vc};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPathVc};
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::context::AssetContextVc;
 use turbopack_core::{
     asset::AssetVc,
@@ -482,7 +482,7 @@ pub async fn module_references(
                                 ),
                             )
                         }
-                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        references.push(DirAssetReferenceVc::new(source, pat.into()).into());
                         return Ok(());
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
@@ -753,6 +753,41 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir,
+                    ) => {
+                        let linked_args = linked_args().await?;
+                        if let Some(JsValue::Constant(ConstantValue::Str(p))) = linked_args.get(0) {
+                            let abs_pattern = if p.starts_with("/ROOT/") {
+                                Pattern::Constant(format!("{p}/intl"))
+                            } else {
+                                let linked_func_call = link_value(JsValue::call(
+                                    box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+                                    vec![
+                                        JsValue::FreeVar(FreeVarKind::Dirname),
+                                        JsValue::Constant(ConstantValue::Str(p.clone())),
+                                        JsValue::Constant(ConstantValue::Str("intl".into())),
+                                    ],
+                                ))
+                                .await?;
+                                js_value_to_pattern(&linked_func_call)
+                            };
+                            references
+                                .push(DirAssetReferenceVc::new(source, abs_pattern.into()).into());
+                            return Ok(());
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('strong-globalize').SetRootDir({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -923,7 +958,12 @@ async fn value_visitor_inner(
                 "bindings" if node_native_bindings => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
                 }
-                "express" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress),
+                "express" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress)
+                }
+                "strong-globalize" if node_native_bindings => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NodeStrongGlobalize)
+                }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
                     "cross module analyzing is not yet supported",
@@ -1448,21 +1488,18 @@ impl AssetReference for DirAssetReference {
         if let Pattern::Constant(p) = &*pat {
             let fs = context.fs();
             let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-            let dir_entries = dest_file_path.read_dir().await?;
-            if let DirectoryContent::Entries(entries) = &*dir_entries {
-                result = entries
-                    .iter()
-                    .filter_map(|(_, entry)| {
-                        if let DirectoryEntry::File(file) = entry {
-                            Some(
-                                ResolveResult::Single(SourceAssetVc::new(*file).into(), vec![])
-                                    .into(),
-                            )
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
+            let entry_type = dest_file_path.get_type().await?;
+            match &*entry_type {
+                FileSystemEntryType::Directory => {
+                    result = read_dir(dest_file_path).await?;
+                }
+                FileSystemEntryType::File => {
+                    result.push(
+                        ResolveResult::Single(SourceAssetVc::new(dest_file_path).into(), vec![])
+                            .into(),
+                    );
+                }
+                _ => {}
             }
         }
         Ok(ResolveResultVc::alternatives(result))
@@ -1475,4 +1512,29 @@ impl AssetReference for DirAssetReference {
             self.path.to_string().await?,
         )))
     }
+}
+
+async fn read_dir(p: FileSystemPathVc) -> Result<Vec<ResolveResultVc>> {
+    let mut result = Vec::new();
+    let dir_entries = p.read_dir().await?;
+    if let DirectoryContent::Entries(entries) = &*dir_entries {
+        for (_, entry) in entries.iter() {
+            match entry {
+                DirectoryEntry::File(file) => result
+                    .push(ResolveResult::Single(SourceAssetVc::new(*file).into(), vec![]).into()),
+                DirectoryEntry::Directory(dir) => {
+                    let sub = read_dir_boxed(*dir).await?;
+                    result.extend(sub);
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(result)
+}
+
+fn read_dir_boxed(
+    p: FileSystemPathVc,
+) -> Pin<Box<dyn Future<Output = Result<Vec<ResolveResultVc>>> + Send>> {
+    Box::pin(read_dir(p))
 }

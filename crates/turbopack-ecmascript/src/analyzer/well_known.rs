@@ -22,6 +22,15 @@ pub async fn replace_well_known(
             .await?,
             true,
         ),
+        JsValue::Call(usize, callee, args) => {
+            // var fs = require('fs'), fs = __importStar(fs);
+            if args.len() == 1 {
+                if let JsValue::WellKnownObject(_) = &args[0] {
+                    return Ok((args[0].clone(), true));
+                }
+            }
+            (JsValue::Call(usize, callee, args), false)
+        }
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
             (well_known_object_member(kind, prop, target).await?, true)
         }
@@ -318,6 +327,7 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::NodeProcess => node_process_member(prop, target).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
+        WellKnownObjectKind::NodeStrongGlobalize => strong_globalize(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -450,6 +460,21 @@ fn express(prop: JsValue) -> JsValue {
                 box prop,
             ))),
             "unsupported property on require('express')() object",
+        ),
+    }
+}
+
+fn strong_globalize(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("SetRootDir") => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir)
+        }
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::NodeStrongGlobalize),
+                box prop,
+            ))),
+            "unsupported property on require('strong-globalize')() object",
         ),
     }
 }

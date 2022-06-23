@@ -64,11 +64,11 @@ use turbopack_ecmascript::target::CompileTarget;
 // #[case::firebase("integration/firebase.js", false)] // hanging
 #[case::firestore("integration/firestore.js", true)]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
-#[case::geo_tz("integration/geo-tz.js", false)] // can't find node_modules/geo-tz/data/geo.dat
+#[case::geo_tz("integration/geo-tz.js", true)] // can't find node_modules/geo-tz/data/geo.dat
 #[case::google_bigquery("integration/google-bigquery.js", true)]
 #[case::got("integration/got.js", true)]
-#[case::highlights("integration/highlights.js", false)] // unable to resolve esm request module 'highlights' in node-file-trace/integration
-#[case::hot_shots("integration/hot-shots.js", false)] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
+#[case::highlights("integration/highlights.js", true)]
+#[case::hot_shots("integration/hot-shots.js", true)] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
 #[case::ioredis("integration/ioredis.js", true)]
 #[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
 #[case::jimp("integration/jimp.js", true)]
@@ -76,7 +76,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::koa("integration/koa.js", true)]
 #[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
-#[case::loopback("integration/loopback.js", false)] // node_modules/strong-globalize/cldr folder missing
+#[case::loopback("integration/loopback.js", true)] // node_modules/strong-globalize/cldr folder missing
 #[case::mailgun("integration/mailgun.js", true)]
 #[case::mariadb("integration/mariadb.js", true)]
 #[case::memcached("integration/memcached.js", true)]

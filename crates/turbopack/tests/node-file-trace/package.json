@@ -47,6 +47,8 @@
     "fluent-ffmpeg": "^2.1.2",
     "geo-tz": "^7.0.1",
     "graphql": "^14.4.2",
+    "highlights": "^3.1.6",
+    "hot-shots": "^9.0.0",
     "ioredis": "^4.11.1",
     "isomorphic-unfetch": "^3.0.0",
     "jest": "^27.4.5",
