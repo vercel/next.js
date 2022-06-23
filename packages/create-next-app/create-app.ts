@@ -128,8 +128,6 @@ export async function createApp({
 
   process.chdir(root)
 
-  const hasPackageJSON = await existsInRepo(`${example}/package.json`)
-
   if (example) {
     /**
      * If an example repository is provided, clone it.
@@ -187,7 +185,8 @@ export async function createApp({
       )
     }
 
-    if (hasPackageJSON) {
+    const packageJsonPath = path.join(root, 'package.json')
+    if (fs.existsSync(packageJsonPath)) {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
 
@@ -310,7 +309,9 @@ export async function createApp({
   }
 
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
-  if (hasPackageJSON) {
+
+  const packageJsonPath = path.join(root, 'package.json')
+  if (fs.existsSync(packageJsonPath)) {
     console.log('Inside that directory, you can run several commands:')
     console.log()
     console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
