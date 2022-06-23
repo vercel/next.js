@@ -46,7 +46,7 @@ pub struct Config {
     #[serde(default)]
     pub pure: bool,
 
-    #[serde(default)]
+    #[serde(default = "true_by_default")]
     pub css_prop: bool,
 }
 

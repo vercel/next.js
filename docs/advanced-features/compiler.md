@@ -55,7 +55,7 @@ module.exports = {
       topLevelImportPaths?: string[],
       // Defaults to ["index"].
       meaninglessFileNames?: string[],
-      // Disabled by default.
+      // Enabled by default.
       cssProp?: boolean,
       // Empty by default.
       namespace?: string,
