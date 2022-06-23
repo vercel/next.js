@@ -1,6 +1,5 @@
 use super::errors;
 use super::{utils::js_value_to_pattern, ModuleAssetType};
-use crate::analyzer::ConstantValue;
 use crate::analyzer::{
     builtin::replace_builtin,
     graph::{create_graph, Effect},
@@ -12,6 +11,7 @@ use crate::target::CompileTargetVc;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     future::Future,
@@ -34,6 +34,7 @@ use turbo_tasks::ValueToString;
 use turbo_tasks::{util::try_join_all, Value, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::context::AssetContextVc;
+use turbopack_core::resolve::AffectingResolvingAssetReferenceVc;
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -1484,7 +1485,7 @@ impl AssetReference for DirAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context = self.source.path().parent();
         let pat = self.path.await?;
-        let mut result = Vec::new();
+        let mut result = HashSet::default();
         if let Pattern::Constant(p) = &*pat {
             let fs = context.fs();
             let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
@@ -1494,15 +1495,12 @@ impl AssetReference for DirAssetReference {
                     result = read_dir(dest_file_path).await?;
                 }
                 FileSystemEntryType::File => {
-                    result.push(
-                        ResolveResult::Single(SourceAssetVc::new(dest_file_path).into(), vec![])
-                            .into(),
-                    );
+                    result.insert(SourceAssetVc::new(dest_file_path).into());
                 }
                 _ => {}
             }
         }
-        Ok(ResolveResultVc::alternatives(result))
+        Ok(ResolveResult::Alternatives(result, vec![]).into())
     }
 
     #[turbo_tasks::function]
@@ -1514,14 +1512,15 @@ impl AssetReference for DirAssetReference {
     }
 }
 
-async fn read_dir(p: FileSystemPathVc) -> Result<Vec<ResolveResultVc>> {
-    let mut result = Vec::new();
+async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
+    let mut result = HashSet::default();
     let dir_entries = p.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*dir_entries {
         for (_, entry) in entries.iter() {
             match entry {
-                DirectoryEntry::File(file) => result
-                    .push(ResolveResult::Single(SourceAssetVc::new(*file).into(), vec![]).into()),
+                DirectoryEntry::File(file) => {
+                    result.insert(SourceAssetVc::new(*file).into());
+                }
                 DirectoryEntry::Directory(dir) => {
                     let sub = read_dir_boxed(*dir).await?;
                     result.extend(sub);
@@ -1535,6 +1534,6 @@ async fn read_dir(p: FileSystemPathVc) -> Result<Vec<ResolveResultVc>> {
 
 fn read_dir_boxed(
     p: FileSystemPathVc,
-) -> Pin<Box<dyn Future<Output = Result<Vec<ResolveResultVc>>> + Send>> {
+) -> Pin<Box<dyn Future<Output = Result<HashSet<AssetVc>>> + Send>> {
     Box::pin(read_dir(p))
 }
