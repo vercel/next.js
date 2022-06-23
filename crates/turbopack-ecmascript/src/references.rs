@@ -409,9 +409,25 @@ pub async fn module_references(
                     }
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve) => {
-                        let args = linked_args().await?;
+                        let linked_func_call = link_value(JsValue::call(
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
+                            args.clone(),
+                        ))
+                        .await?;
 
-                        dbg!(&args);
+                        let pat = js_value_to_pattern(&linked_func_call);
+                        if !pat.has_constant_parts() {
+                            let (args, hints) = explain_args(&linked_args().await?);
+                            handler.span_warn_with_code(
+                                *span,
+                                &format!("path.resolve({args}) is very dynamic{hints}",),
+                                DiagnosticId::Lint(
+                                    errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
+                                ),
+                            )
+                        }
+                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        return Ok(());
                     }
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
