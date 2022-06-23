@@ -66,7 +66,7 @@ jobs:
 
       - run: pnpm install
       - run: pnpm run build
-      - run: node run-tests.js --timings --write-timings -g 1/1
+      - run: node run-tests.js --debug --timings --write-timings -g 1/1
       - run: node ./scripts/fetch-tags.mjs ${{ github.sha }}
 
       - name: Check docs only change
@@ -229,7 +229,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: node run-tests.js --type unit
+      - run: node run-tests.js --debug --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testDev:
@@ -276,7 +276,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --debug --type development
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -331,7 +331,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: node run-tests.js --type development
+      - run: node run-tests.js --debug --type development
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -391,7 +391,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=dev node run-tests.js --debug --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -451,7 +451,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=dev node run-tests.js --debug --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -509,7 +509,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --debug --type production
         name: Run test/production
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -554,7 +554,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: node run-tests.js --type production
+      - run: node run-tests.js --debug --type production
         name: Run test/production
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -604,7 +604,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --debug --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -654,7 +654,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2
+      - run: NEXT_TEST_MODE=start node run-tests.js --debug --type e2e --timings -g ${{ matrix.group }}/2
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -703,7 +703,7 @@ jobs:
       - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/18
+      - run: xvfb-run node run-tests.js --debug --timings -g ${{ matrix.group }}/18
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - name: Upload test trace
@@ -751,7 +751,7 @@ jobs:
       - run: cd test/integration/with-electron/app && yarn install
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
+      - run: xvfb-run node run-tests.js --debug test/integration/with-electron/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testsPass:
@@ -799,7 +799,7 @@ jobs:
           path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-      - run: node run-tests.js test/integration/production/test/index.test.js
+      - run: node run-tests.js --debug test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       # test rsc hydration on firefox due to limited support of TransformStream api
       - run: npm i -g pnpm@${PNPM_VERSION}
@@ -852,7 +852,7 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js --debug -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafariOld:
@@ -898,7 +898,7 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js --debug test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefoxNode18:
@@ -930,7 +930,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-      - run: node run-tests.js test/integration/production/test/index.test.js
+      - run: node run-tests.js --debug test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
@@ -1015,7 +1015,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: node run-tests.js --type e2e
+      - run: node run-tests.js --debug --type e2e
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -1213,10 +1213,10 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
+      - run: TEST_WASM=true xvfb-run node run-tests.js --debug test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: TEST_WASM=true xvfb-run node run-tests.js test/production/react-18-streaming-ssr/index.test.ts
+      - run: TEST_WASM=true xvfb-run node run-tests.js --debug test/production/react-18-streaming-ssr/index.test.ts
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   # Build binaries for publishing
