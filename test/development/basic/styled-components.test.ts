@@ -66,6 +66,11 @@ describe('styled-components SWC transform', () => {
         `window.getComputedStyle(document.querySelector('#btn')).color`
       )
     ).toBe('rgb(255, 255, 255)')
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#wrap-div')).color`
+      )
+    ).toBe('rgb(0, 0, 0)')
   })
 
   it('should contain styles in initial HTML', async () => {
