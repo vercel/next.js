@@ -245,7 +245,7 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const promises = runDependingOnPageType({
+      const result = runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
         onClient: () => addPageEntry('client'),
@@ -253,6 +253,7 @@ export function onDemandEntryHandler({
         onEdgeServer: () => addPageEntry('edge-server'),
       })
 
+      const promises = Object.values(result)
       if (entryAdded) {
         reportTrigger(
           !clientOnly && promises.length > 1
