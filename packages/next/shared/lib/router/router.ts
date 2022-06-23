@@ -1243,31 +1243,22 @@ export default class Router implements BaseRouter {
         ? interpolateAs(route, asPathname, query)
         : ({} as { result: undefined; params: undefined })
 
-      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
-        const missingParams = Object.keys(routeRegex.groups).filter(
-          (param) => !query[param]
-        )
+      const missingParams = Object.keys(routeRegex.groups).filter(
+        (param) => !query[param] && !routeRegex.groups[param].optional
+      )
 
+      if (!routeMatch) {
         if (missingParams.length > 0) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `${
-                shouldInterpolate
-                  ? `Interpolating href`
-                  : `Mismatching \`as\` and \`href\``
-              } failed to manually provide ` +
-                `the params: ${missingParams.join(
-                  ', '
-                )} in the \`href\`'s \`query\``
+              `Mismatching \`as\` and \`href\` failed to manually provide the params: ${missingParams.join(
+                ', '
+              )} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
-            (shouldInterpolate
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-                  ', '
-                )}) to be interpolated properly. `
-              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
               `Read more: https://nextjs.org/docs/messages/${
                 shouldInterpolate
                   ? 'href-interpolation-failed'
@@ -1275,6 +1266,30 @@ export default class Router implements BaseRouter {
               }`
           )
         }
+
+        // change string to array for catch-all groups
+        Object.keys(routeRegex.groups)
+          .filter((param) => routeRegex.groups[param].repeat)
+          .forEach((param) => {
+            if (typeof query[param] === 'string') {
+              query[param] = [query[param] as string]
+            }
+          })
+      } else if (shouldInterpolate && !interpolatedAs.result) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(
+            `Interpolating href failed to manually provide the params: ${missingParams.join(
+              ', '
+            )} in the \`href\`'s \`query\``
+          )
+        }
+
+        throw new Error(
+          `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+            ', '
+          )}) to be interpolated properly. ` +
+            `Read more: https://nextjs.org/docs/messages/href-interpolation-failed`
+        )
       } else if (shouldInterpolate) {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {

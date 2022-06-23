@@ -1351,6 +1351,156 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('with dynamic routes', () => {
+    describe('should properly take query from asPath', () => {
+      it('regular dynamic route', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        expect(
+          await browser
+            .elementByCss('#to-dynamic')
+            .click()
+            .waitForElementByCss('#dynamic-page')
+            .elementByCss('#dynamic-page')
+            .text()
+        ).toBe('asPath')
+      })
+
+      it('catch all route 1 parameter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        const text = await browser
+          .elementByCss('#to-catch-all-1-parameter')
+          .click()
+          .waitForElementByCss('#catch-all-page')
+          .elementByCss('#catch-all-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['asPath'])
+      })
+
+      it('catch all route 2 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        const text = await browser
+          .elementByCss('#to-catch-all-2-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-page')
+          .elementByCss('#catch-all-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['as', 'Path'])
+      })
+
+      it('catch all optional route 0 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-0-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toBe('undefined')
+      })
+
+      it('catch all optional route 1 parameter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-1-parameter')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['asPath'])
+      })
+
+      it('catch all optional route 2 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-as-path')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-2-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['as', 'Path'])
+      })
+    })
+
+    describe('should properly take query from href if asPath is unrelated', () => {
+      it('regular dynamic route', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        expect(
+          await browser
+            .elementByCss('#to-dynamic')
+            .click()
+            .waitForElementByCss('#dynamic-page')
+            .elementByCss('#dynamic-page')
+            .text()
+        ).toBe('query')
+      })
+
+      it('catch all route 1 parameter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        const text = await browser
+          .elementByCss('#to-catch-all-1-parameter')
+          .click()
+          .waitForElementByCss('#catch-all-page')
+          .elementByCss('#catch-all-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['query'])
+      })
+
+      it('catch all route 2 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        const text = await browser
+          .elementByCss('#to-catch-all-2-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-page')
+          .elementByCss('#catch-all-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['que', 'ry'])
+      })
+
+      it('catch all optional route 0 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-0-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toBe('undefined')
+      })
+
+      it('catch all optional route 1 parameter', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-1-parameter')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['query'])
+      })
+
+      it('catch all optional route 2 parameters', async () => {
+        const browser = await webdriver(context.appPort, '/nav/dynamic-query')
+        const text = await browser
+          .elementByCss('#to-catch-all-optional-2-parameters')
+          .click()
+          .waitForElementByCss('#catch-all-optional-page')
+          .elementByCss('#catch-all-optional-page')
+          .text()
+
+        expect(JSON.parse(text)).toEqual(['que', 'ry'])
+      })
+    })
+  })
+
   describe('runtime errors', () => {
     it('should show redbox when a client side error is thrown inside a component', async () => {
       let browser
