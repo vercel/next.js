@@ -55,7 +55,6 @@ export function getRender({
       page,
       extendRenderOpts: {
         buildId,
-        reactRoot: true,
         runtime: 'edge',
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
