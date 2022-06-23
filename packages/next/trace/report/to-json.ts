@@ -84,9 +84,12 @@ class RotatingWriteStream {
         throw err
       }
     }
+
     this.size = 0
-    this.createWriteStream()
     this.rotatePromise = undefined
+    this.drainPromise = undefined
+
+    this.createWriteStream()
   }
   async write(data: string): Promise<void> {
     if (this.rotatePromise) await this.rotatePromise
@@ -99,10 +102,7 @@ class RotatingWriteStream {
     if (!this.writeStream.write(data, 'utf8')) {
       if (this.drainPromise === undefined) {
         this.drainPromise = new Promise<void>((resolve, _reject) => {
-          this.writeStream.once('drain', () => {
-            this.drainPromise = undefined
-            resolve()
-          })
+          this.writeStream.once('drain', resolve)
         })
       }
       await this.drainPromise
