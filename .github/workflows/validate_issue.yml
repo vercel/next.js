@@ -8,6 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/issue-validator
+      - uses: ./.github/actions/issue-validator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
