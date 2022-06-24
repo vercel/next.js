@@ -122,6 +122,7 @@ export interface ExperimentalConfig {
     layoutRaw: boolean
     remotePatterns: RemotePattern[]
     unoptimized?: boolean
+    allowFutureImage?: boolean
   }
   middlewareSourceMaps?: boolean
   modularizeImports?: Record<
