@@ -133,6 +133,14 @@ The callback function will be called with one argument, an object with the follo
 - [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
 - [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
 
+### onLoad
+
+A callback function that is invoked when the image is loaded.
+
+Note that the load event might occur before client-side hydration completes, so this callback might not be invoked in that case.
+
+Instead, use [`onLoadingComplete`](#onloadingcomplete).
+
 ### onError
 
 A callback function that is invoked if the image fails to load.
