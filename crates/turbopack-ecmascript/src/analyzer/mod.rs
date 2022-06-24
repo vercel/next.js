@@ -1817,7 +1817,8 @@ pub enum WellKnownObjectKind {
 pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
-    PathResolve,
+    /// `0` is the current working directory.
+    PathResolve(JsWord),
     Import,
     Require,
     RequireResolve,
