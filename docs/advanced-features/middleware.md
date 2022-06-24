@@ -39,15 +39,15 @@ Middleware runs _before_ cached content, so you can personalize static files and
 
 ### Permitted response types
 
-When using Middleware, you cannot change the response body: you can only set response headers.
-Returning a body from Middleware will result in a `500` server error and an explicit response message.
-
 The [`NextResponse`](#nextresponse) API allows you to:
 
 - `redirect` the incoming request to a different URL
 - `rewrite` the response by displaying a given URL
 - Set response cookies
 - Set response headers
+
+When using Middleware, you cannot change the response body: you can only set response headers.
+Returning a body from Middleware will result in a `500` server error and an explicit response message.
 
 With Middleware you can implement A/B testing, authentication, feature flags, bot protection, and more. See our [examples repository](https://github.com/vercel/examples/tree/main/edge-functions) for code examples.
 
@@ -226,6 +226,10 @@ export function middleware(request: NextRequest) {
   }
 }
 ```
+
+## Using default exports in Middleware
+
+The Middleware function can be a named, or default export. If the function is a named export, then is **must** be called `middleware`. For a default export, you are free to name it anything you like.
 
 ## Middleware API
 
