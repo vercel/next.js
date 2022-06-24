@@ -2,12 +2,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import {
-  CacheFs,
-  DecodeError,
-  execOnce,
-  PageNotFoundError,
-} from '../shared/lib/utils'
+import { CacheFs, DecodeError, PageNotFoundError } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'

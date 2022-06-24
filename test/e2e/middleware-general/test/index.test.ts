@@ -4,9 +4,8 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import escapeStringRegexp from 'escape-string-regexp'
 
 const urlsError = 'Please use only absolute URLs'
 
