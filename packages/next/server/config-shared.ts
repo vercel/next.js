@@ -107,7 +107,6 @@ export interface ExperimentalConfig {
     validator?: string
     skipValidation?: boolean
   }
-  reactRoot?: boolean
   disableOptimizedLoading?: boolean
   gzipSize?: boolean
   craCompat?: boolean
@@ -118,11 +117,11 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
     remotePatterns: RemotePattern[]
     unoptimized?: boolean
+    allowFutureImage?: boolean
   }
   middlewareSourceMaps?: boolean
   modularizeImports?: Record<
@@ -422,7 +421,24 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?: boolean
+    styledComponents?:
+      | boolean
+      | {
+          /**
+           * Enabled by default in development, disabled in production to reduce file size,
+           * setting this will override the default for all environments.
+           */
+          displayName?: boolean
+          topLevelImportPaths?: string[]
+          ssr?: boolean
+          fileName?: boolean
+          meaninglessFileNames?: string[]
+          minify?: boolean
+          transpileTemplateLiterals?: boolean
+          namespace?: string
+          pure?: boolean
+          cssProp?: boolean
+        }
     emotion?:
       | boolean
       | {
@@ -431,6 +447,8 @@ export interface NextConfig extends Record<string, any> {
           labelFormat?: string
         }
   }
+
+  output?: 'standalone'
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -490,6 +508,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
@@ -511,7 +530,6 @@ export const defaultConfig: NextConfig = {
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
@@ -523,7 +541,6 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
       remotePatterns: [],

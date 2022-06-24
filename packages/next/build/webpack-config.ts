@@ -364,26 +364,17 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
 
-  // Make sure `reactRoot` is enabled when React 18 or experimental is detected.
-  if (hasReactRoot) {
-    config.experimental.reactRoot = true
-  }
-
-  // Only inform during one of the builds
-  if (isClient && config.experimental.reactRoot && !hasReactRoot) {
-    // It's fine to only mention React 18 here as we don't recommend people to try experimental.
-    Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
-  }
-
-  if (isClient && config.experimental.runtime && !hasReactRoot) {
-    throw new Error(
-      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
-    )
-  }
-  if (config.experimental.serverComponents && !hasReactRoot) {
-    throw new Error(
-      '`experimental.serverComponents` requires React 18 to be installed.'
-    )
+  if (isClient && !hasReactRoot) {
+    if (config.experimental.runtime) {
+      throw new Error(
+        '`experimental.runtime` requires React 18 to be installed.'
+      )
+    }
+    if (config.experimental.serverComponents) {
+      throw new Error(
+        '`experimental.serverComponents` requires React 18 to be installed.'
+      )
+    }
   }
 
   const hasConcurrentFeatures = hasReactRoot
@@ -1528,6 +1519,7 @@ export default async function getBaseWebpackConfig(
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
           experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
+          experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {
                 // pass domains in development to allow validating on the client
@@ -1830,7 +1822,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    reactRoot: config.experimental.reactRoot,
     runtime: config.experimental.runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,

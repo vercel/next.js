@@ -1,7 +1,5 @@
 module.exports = {
-  experimental: {
-    outputStandalone: true,
-  },
+  output: 'standalone',
   trailingSlash: true,
   rewrites() {
     return {

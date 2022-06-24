@@ -247,7 +247,6 @@ export function getServerlessEntry(opts: {
     page: opts.page,
     poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
     previewProps: JSON.stringify(opts.previewMode),
-    reactRoot: !!opts.config.experimental.reactRoot ? 'true' : '',
     runtimeConfig:
       Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
       Object.keys(opts.config.serverRuntimeConfig).length > 0
@@ -443,25 +442,24 @@ export function runDependingOnPageType<T>(params: {
   pageRuntime: PageRuntime
 }) {
   if (isMiddlewareFile(params.page)) {
-    return [params.onEdgeServer()]
+    return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
     return params.pageRuntime === 'edge'
-      ? [params.onEdgeServer()]
-      : [params.onServer()]
+      ? { edgeServer: params.onEdgeServer() }
+      : { server: params.onServer() }
   } else if (params.page === '/_document') {
-    return [params.onServer()]
+    return { server: params.onServer() }
   } else if (
     params.page === '/_app' ||
     params.page === '/_error' ||
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    return [params.onClient(), params.onServer()]
+    return { client: params.onClient(), server: params.onServer() }
   } else {
-    return [
-      params.onClient(),
-      params.pageRuntime === 'edge' ? params.onEdgeServer() : params.onServer(),
-    ]
+    return params.pageRuntime === 'edge'
+      ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
+      : { client: params.onClient(), server: params.onServer() }
   }
 }
 

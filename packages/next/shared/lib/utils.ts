@@ -413,6 +413,15 @@ export class PageNotFoundError extends Error {
   }
 }
 
+export class MiddlewareNotFoundError extends Error {
+  code: string
+  constructor() {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find the middleware module`
+  }
+}
+
 export interface CacheFs {
   readFile(f: string): Promise<string>
   readFileSync(f: string): string
