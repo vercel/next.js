@@ -7,7 +7,6 @@
 /// <reference path="./error.d.ts" />
 /// <reference path="./head.d.ts" />
 /// <reference path="./image.d.ts" />
-/// <reference path="./future/image.d.ts" />
 /// <reference path="./link.d.ts" />
 /// <reference path="./router.d.ts" />
 /// <reference path="./script.d.ts" />
