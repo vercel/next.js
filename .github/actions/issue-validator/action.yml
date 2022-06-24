@@ -2,5 +2,5 @@ name: Issue validator
 description: 'Validates bug reports on the Next.js repository'
 author: 'Vercel'
 runs:
-  using: 'node18'
+  using: 'node16'
   main: 'index.js'
