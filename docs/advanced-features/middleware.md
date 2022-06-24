@@ -55,7 +55,7 @@ With Middleware you can implement A/B testing, authentication, feature flags, bo
 
 Middleware uses the [Edge Runtime](https://edge-runtime.vercel.sh) which supports standard Web APIs like `fetch` and more. Middleware works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
 
-## Using Middleware
+### Using Middleware
 
 To begin using Middleware, follow the steps below:
 
@@ -87,7 +87,12 @@ export const config = {
 }
 ```
 
-Middleware will be invoked for **every route in your project**. There are two ways to define which paths the middleware should be run on: with a custom matcher config or with conditional statements.
+## Matching paths
+
+Middleware will be invoked for **every route in your project**. There are two ways to define which paths the middleware should be run on: 
+
+1. With a custom matcher config
+2. With conditional statements
 
 ### Match paths based on custom matcher config
 
@@ -130,7 +135,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### Using cookies in Middleware
+## Using cookies in Middleware
 
 The cookies API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map), and follows a get/set model, allowing you to get, set, and delete cookies within your middleware function. It includes methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
@@ -171,7 +176,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-### How to check if Middleware is invoked for pages
+## How to check if Middleware is invoked for pages
 
 To check if Middleware is being invoked for certain pages or assets, you can use the web standard, [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) API. The following example shows how you can accomplish routing pattern matching using the URLPattern API.
 
