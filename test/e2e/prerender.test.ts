@@ -336,12 +336,12 @@ describe('Prerender', () => {
         await goFromHomeToAnother()
 
         const nextTime = await browser.elementByCss('#anotherTime').text()
+        // in dev the time should always differ as we don't cache
+        // in production the time may differ or may not depending
+        // on if fresh content beat the stale content
         if (isDev) {
           expect(snapTime).not.toMatch(nextTime)
-        } else {
-          expect(snapTime).toMatch(nextTime)
         }
-
         // Reset to Home for next test
         await goFromAnotherToHome()
       }

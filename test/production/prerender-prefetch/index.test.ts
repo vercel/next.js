@@ -156,41 +156,21 @@ describe('Prerender prefetch', () => {
       startTime
     )
     await browser.back().waitForElementByCss('#to-blog-first')
+    const requests = []
 
-    const outputIndex = next.cliOutput.length
-    const checkCacheItem = () =>
-      browser.eval(`next.router.sdc[
-        new URL(
-          '/_next/data/${next.buildId}/blog/first.json?slug=first',
-          location.href
-        ).href
-      ].then((data) => {
-        return data.text
-      })`)
-    const contentBeforeHover = await checkCacheItem()
-    expect(typeof contentBeforeHover).toBe('string')
-
-    // trigger revalidation of /blog/first
-    await check(async () => {
-      await renderViaHTTP(next.url, '/blog/first')
-      return next.cliOutput.substring(outputIndex)
-    }, /revalidating \/blog first/)
+    browser.on('request', (req) => {
+      requests.push(req.url())
+    })
 
     // now trigger cache update and navigate again
     await browser.elementByCss('#to-blog-first').moveTo()
-    await check(async () => {
-      const newContent = await checkCacheItem()
-      return typeof newContent === 'string' && newContent !== contentBeforeHover
-        ? 'success'
-        : newContent
-    }, 'success')
-
-    await browser.elementByCss('#to-blog-first').click()
-    await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
-
-    const newTime = JSON.parse(await browser.elementByCss('#props').text()).now
-    expect(newTime).not.toBe(startTime)
-    expect(isNaN(newTime)).toBe(false)
+    await check(
+      () =>
+        requests.some((url) => url.includes('/blog/first.json'))
+          ? 'success'
+          : requests,
+      'success'
+    )
   })
 
   it('should handle failed data fetch and empty cache correctly', async () => {
