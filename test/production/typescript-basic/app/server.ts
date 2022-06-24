@@ -7,4 +7,5 @@ const app = next({
   },
   quiet: false,
 })
+// eslint-disable-next-line
 const requestHandler = app.getRequestHandler()
