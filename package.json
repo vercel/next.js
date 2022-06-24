@@ -176,7 +176,7 @@
     "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",
     "relay-runtime": "13.0.2",
-    "release": "6.3.0",
+    "release": "6.3.1",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
     "rimraf": "2.6.3",
