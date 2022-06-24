@@ -313,12 +313,39 @@ function runTests(mode) {
   it('should callback native onLoad in most cases', async () => {
     let browser = await webdriver(appPort, '/on-load')
 
-    for (let i = 1; i < 6; i++) {
-      await browser.eval(
-        `document.getElementById("img${i}").scrollIntoView({behavior: "smooth"})`
-      )
-      await waitFor(100)
-    }
+    await browser.eval('document.getElementById("toggle").click()')
+
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
+
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded img1 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded img2 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded img3 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded img4 with native onLoad'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded img5 with native onLoad'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img5").getAttribute("data-nimg")`
+        ),
+      'future'
+    )
 
     await check(
       () => browser.eval(`document.getElementById("img1").currentSrc`),
@@ -337,51 +364,8 @@ function runTests(mode) {
       /test(.*)ico/
     )
     await check(
-      () => browser.eval(`document.getElementById("msg1").textContent`),
-      'loaded 1 img1 with native onLoad'
-    )
-    await check(
-      () => browser.eval(`document.getElementById("msg2").textContent`),
-      'loaded 1 img2 with native onLoad'
-    )
-    await check(
-      () => browser.eval(`document.getElementById("msg3").textContent`),
-      'loaded 1 img3 with native onLoad'
-    )
-    await check(
-      () => browser.eval(`document.getElementById("msg4").textContent`),
-      'loaded 1 img4 with native onLoad'
-    )
-    await check(
-      () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded 1 img5 with native onLoad'
-    )
-    await check(
-      () =>
-        browser.eval(
-          `document.getElementById("img5").getAttribute("data-nimg")`
-        ),
-      'future'
-    )
-    await check(
       () => browser.eval(`document.getElementById("img5").currentSrc`),
       /wide.png/
-    )
-    await browser.eval('document.getElementById("toggle").click()')
-    await check(
-      () => browser.eval(`document.getElementById("msg5").textContent`),
-      'loaded 2 img5 with native onLoad'
-    )
-    await check(
-      () =>
-        browser.eval(
-          `document.getElementById("img5").getAttribute("data-nimg")`
-        ),
-      'future'
-    )
-    await check(
-      () => browser.eval(`document.getElementById("img5").currentSrc`),
-      /test-rect.jpg/
     )
   })
 
