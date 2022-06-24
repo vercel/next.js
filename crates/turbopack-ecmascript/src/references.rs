@@ -433,20 +433,18 @@ pub async fn module_references(
                         )
                     }
 
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve) => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
                         let parent_path = source.path().parent().await?;
                         let parent_path_arg =
                             JsValue::Constant(ConstantValue::Str(parent_path.path.as_str().into()));
 
-                        let mut new_args = Vec::with_capacity(args.len() + 1);
                         let args = linked_args().await?;
-                        new_args.extend(args);
-                        // We inject the current directory as a last argument to avoid memmove
-                        new_args.push(parent_path_arg);
 
                         let linked_func_call = link_value(JsValue::call(
-                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
-                            new_args,
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(
+                                parent_path.path.as_str().into(),
+                            )),
+                            args,
                         ))
                         .await?;
 
