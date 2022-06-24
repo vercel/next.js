@@ -346,40 +346,37 @@ pub async fn module_references(
                     }
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
-                        let args = linked_args().await?;
+                        let parent_path = source.path().parent().await?;
+                        let parent_path_arg =
+                            JsValue::Constant(ConstantValue::Str(parent_path.path.as_str().into()));
 
-                        if args.len() == 1 {
-                            let pat = js_value_to_pattern(&args[0]);
-                            if !pat.has_constant_parts() {
-                                let (args, hints) = explain_args(&args);
-                                handler.span_warn_with_code(
-                                    *span,
-                                    &format!("require.resolve({args}) is very dynamic{hints}",),
-                                    DiagnosticId::Lint(
-                                        errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
-                                            .to_string(),
-                                    ),
-                                )
-                            }
-                            references.push(
-                                CjsAssetReferenceVc::new(
-                                    context,
-                                    RequestVc::parse(Value::new(pat)),
-                                )
-                                .into(),
+                        let mut new_args = Vec::with_capacity(args.len() + 1);
+                        let args = linked_args().await?;
+                        new_args.extend(args);
+                        // We inject the current directory as a last argument to avoid memmove
+                        new_args.push(parent_path_arg);
+
+                        let linked_func_call = link_value(JsValue::call(
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                            new_args,
+                        ))
+                        .await?;
+
+                        let pat = js_value_to_pattern(&linked_func_call);
+                        if !pat.has_constant_parts() {
+                            let (args, hints) = explain_args(&linked_args().await?);
+                            handler.span_warn_with_code(
+                                *span,
+                                &format!(
+                                    "require.resolve({args}) is not statically analyse-able{hints}",
+                                ),
+                                DiagnosticId::Error(
+                                    errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
+                                        .to_string(),
+                                ),
                             );
-                            return Ok(());
                         }
-                        let (args, hints) = explain_args(&args);
-                        handler.span_warn_with_code(
-                            *span,
-                            &format!(
-                                "require.resolve({args}) is not statically analyse-able{hints}",
-                            ),
-                            DiagnosticId::Error(
-                                errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
-                            ),
-                        )
+                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
                         let args = linked_args().await?;
