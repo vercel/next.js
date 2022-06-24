@@ -117,7 +117,6 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
   images?: {
     layoutRaw: boolean
     remotePatterns: RemotePattern[]
@@ -449,6 +448,8 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
+  output?: 'standalone'
+
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
@@ -507,6 +508,7 @@ export const defaultConfig: NextConfig = {
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
@@ -539,7 +541,6 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
       remotePatterns: [],

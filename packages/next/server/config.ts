@@ -534,6 +534,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if ((result.experimental as any).outputStandalone) {
+    Log.warn(
+      `experimental.outputStandalone has been renamed to "output: 'standalone'", please move the config.`
+    )
+    result.output = 'standalone'
+  }
+
   if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
@@ -546,11 +553,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
-  if (result.experimental?.outputStandalone && !result.outputFileTracing) {
+  if (result.output === 'standalone' && !result.outputFileTracing) {
     Log.warn(
-      `experimental.outputStandalone requires outputFileTracing not be disabled please enable it to leverage the standalone build`
+      `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
     )
-    result.experimental.outputStandalone = false
+    result.output = undefined
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
