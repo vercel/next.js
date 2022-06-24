@@ -2,9 +2,10 @@ import { useState } from 'react'
 import Image from 'next/future/image'
 
 const Page = () => {
-  // Hoisted state to count each image load callback
-  const [idToCount, setIdToCount] = useState({})
   const [clicked, setClicked] = useState(false)
+
+  const red =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO8ysv7HwAEngHwC+JqOgAAAABJRU5ErkJggg=='
 
   return (
     <div>
@@ -13,59 +14,50 @@ const Page = () => {
         This is the native onLoad which doesn't work as many places as
         onLoadingComplete
       </p>
+      <button id="toggle" onClick={() => setClicked(!clicked)}>
+        Toggle
+      </button>
+
       <ImageWithMessage
         id="1"
-        src="/test.jpg"
+        src={clicked ? '/test.jpg' : red}
         width="128"
         height="128"
-        idToCount={idToCount}
-        setIdToCount={setIdToCount}
       />
 
       <ImageWithMessage
         id="2"
-        src={require('../public/test.png')}
-        placeholder="blur"
-        idToCount={idToCount}
-        setIdToCount={setIdToCount}
+        src={clicked ? require('../public/test.png') : red}
+        placeholder={clicked ? 'blur' : 'empty'}
       />
 
       <ImageWithMessage
         id="3"
-        src="/test.svg"
+        src={clicked ? '/test.svg' : red}
         width="1200"
         height="1200"
-        idToCount={idToCount}
-        setIdToCount={setIdToCount}
       />
 
       <ImageWithMessage
         id="4"
-        src="/test.ico"
+        src={clicked ? '/test.ico' : red}
         width={200}
         height={200}
-        idToCount={idToCount}
-        setIdToCount={setIdToCount}
       />
 
       <ImageWithMessage
         id="5"
-        src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
+        src={clicked ? '/wide.png' : red}
         width="500"
         height="500"
-        idToCount={idToCount}
-        setIdToCount={setIdToCount}
       />
 
-      <button id="toggle" onClick={() => setClicked(!clicked)}>
-        Toggle
-      </button>
       <div id="footer" />
     </div>
   )
 }
 
-function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
+function ImageWithMessage({ id, ...props }) {
   const [msg, setMsg] = useState('[LOADING]')
   return (
     <>
@@ -73,13 +65,7 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
         <Image
           id={`img${id}`}
           onLoad={(e) => {
-            let count = idToCount[id] || 0
-            count++
-            idToCount[id] = count
-            setIdToCount(idToCount)
-            const msg = `loaded ${count} ${e.target.id} with native onLoad`
-            setMsg(msg)
-            console.log(msg)
+            setMsg(`loaded ${e.target.id} with native onLoad`)
           }}
           {...props}
         />
