@@ -28,7 +28,7 @@ Middleware runs _before_ cached content, so you can personalize static files and
 - Create a `middleware.ts` (or `middleware.js`) file at the root of your project
 - Export a function named `middleware`
   ```js
-  //named export
+  // named export
   export function middleware() {}
   // default export
   export default function custom() {}
