@@ -256,7 +256,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (
+  revalidate: (
     urlPath: string,
     opts?: {
       unstable_onlyGenerated?: boolean
