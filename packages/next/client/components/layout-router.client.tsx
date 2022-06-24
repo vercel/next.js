@@ -42,11 +42,13 @@ export function InnerLayoutRouter({
     console.log('KICKING OFF DATA FETCH IN RENDER', {
       path,
       childNodes: new Map(childNodes),
+      fullTree,
     })
     const data = fetchServerResponse(new URL(url, location.origin), fullTree)
     childNodes.set(path, { data, subTreeData: null, childNodes: new Map() })
   }
 
+  console.log({ path, childNodes })
   const childNode = childNodes.get(path)!
 
   if (childNode.data) {
@@ -65,7 +67,7 @@ export function InnerLayoutRouter({
       // @ts-ignore TODO: startTransition exists
       React.startTransition(() => {
         // TODO: handle redirect
-        changeByServerResponse(root)
+        changeByServerResponse(fullTree, root)
       })
     })
 
@@ -75,6 +77,7 @@ export function InnerLayoutRouter({
   }
   // }
 
+  console.log('RENDERING', childNode)
   return (
     <AppTreeContext.Provider
       value={{

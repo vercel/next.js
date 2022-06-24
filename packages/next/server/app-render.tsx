@@ -216,7 +216,8 @@ type LoaderTree = [
 export type FlightRouterState = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string
+  url?: string,
+  refresh?: 'refetch'
 ]
 
 type FlightDataTree = [
@@ -418,7 +419,10 @@ export async function renderToHTML(
       const [segment, parallelRoutes] = treeToFilter
 
       const renderComponentsOnThisLevel =
-        !flightRouterState || segment !== flightRouterState[0]
+        !flightRouterState ||
+        segment !== flightRouterState[0] ||
+        // Explicit refresh
+        flightRouterState[3] === 'refetch'
 
       const flightDataTree: FlightDataTree = [
         segment,
