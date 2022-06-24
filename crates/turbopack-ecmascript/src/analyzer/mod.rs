@@ -844,8 +844,8 @@ impl JsValue {
                         format!("path.dirname"),
                         "The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath",
                     ),
-                    WellKnownFunctionKind::PathResolve => (
-                        format!("path.resolve"),
+                    WellKnownFunctionKind::PathResolve(cwd) => (
+                        format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
                     WellKnownFunctionKind::Import => (
