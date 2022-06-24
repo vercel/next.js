@@ -9,8 +9,6 @@ const bucket = Cosmic().bucket({
   read_key: READ_KEY,
 })
 
-const is404 = (error) => /not found/i.test(error.message)
-
 export const getPreviewPostBySlug = async (slug: string) => {
   const params = {
     query: {
@@ -18,7 +16,7 @@ export const getPreviewPostBySlug = async (slug: string) => {
       type: 'posts'
     },
     props: 'slug',
-    status: 'all',
+    status: 'any',
   }
 
   try {
@@ -49,20 +47,21 @@ export const getAllPostsForHome = async (preview) => {
     },
     props: 'title,slug,metadata,created_at',
     sort: '-created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const data = await bucket.getObjects(params)
   return data.objects
 }
 
 export const getPostAndMorePosts = async (slug, preview) => {
+  console.log(preview)
   const singleObjectParams = {
     query: { 
       slug,
       type: 'posts'
     },
     props: 'slug,title,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const moreObjectParams = {
     query: {
@@ -70,7 +69,7 @@ export const getPostAndMorePosts = async (slug, preview) => {
     },
     limit: 3,
     props: 'title,slug,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   let object
   try {
