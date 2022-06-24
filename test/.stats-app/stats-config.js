@@ -6,6 +6,10 @@ const imagePageData = fs.readFileSync(
   path.join(__dirname, './image.js'),
   'utf8'
 )
+const imageFuturePageData = fs.readFileSync(
+  path.join(__dirname, './image-future.js'),
+  'utf8'
+)
 
 const clientGlobs = [
   {
@@ -78,6 +82,10 @@ module.exports = {
           content: imagePageData,
         },
         {
+          path: 'pages/image-future.js',
+          content: imageFuturePageData,
+        },
+        {
           path: 'next.config.js',
           content: `
             module.exports = {
@@ -97,6 +105,10 @@ module.exports = {
         {
           path: 'pages/image.js',
           content: imagePageData,
+        },
+        {
+          path: 'pages/image-future.js',
+          content: imageFuturePageData,
         },
         {
           path: 'next.config.js',
