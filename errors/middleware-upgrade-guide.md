@@ -218,7 +218,7 @@ export function middleware() {
 
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
-  
+
   return response
 }
 ```
