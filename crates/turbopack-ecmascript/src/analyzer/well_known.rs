@@ -1,6 +1,7 @@
 use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
+use swc_atoms::{js_word, JsWord};
 use url::Url;
 
 use crate::target::CompileTargetVc;
@@ -50,7 +51,7 @@ pub async fn well_known_function_call(
     Ok(match kind {
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
-        WellKnownFunctionKind::PathResolve => path_resolve(args),
+        WellKnownFunctionKind::PathResolve(cwd) => path_resolve(cwd, args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -139,7 +140,7 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
 //
 // Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
 // one parameter
-pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
+pub fn path_resolve(cwd: JsWord, mut args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
     }
@@ -149,13 +150,11 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
         if idx != 0 {
             if let Some(str) = arg.as_str() {
                 if str.starts_with("/") {
-                    return path_resolve(args.drain(idx..).collect());
+                    return path_resolve(cwd, args.drain(idx..).collect());
                 }
             }
         }
     }
-
-    let cwd = args.remove(args.len() - 1);
 
     let mut results_final = Vec::new();
     let mut results: Vec<JsValue> = Vec::new();
@@ -194,7 +193,7 @@ pub fn path_resolve(mut args: Vec<JsValue>) -> JsValue {
     let mut last_was_str = first.as_str().is_some();
 
     if !is_already_absolute {
-        results.push(cwd);
+        results.push(cwd.into());
     }
 
     results.push(first);
@@ -348,7 +347,10 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("join") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
-        Some("resolve") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve),
+        Some("resolve") => {
+            // cwd is added while resolving in refernces.rs
+            JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(js_word!("")))
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
