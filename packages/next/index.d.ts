@@ -11,6 +11,7 @@
 /// <reference path="./router.d.ts" />
 /// <reference path="./script.d.ts" />
 /// <reference path="./server.d.ts" />
+/// <reference path="./dist/styled-jsx-types/global" />
 
 export { default } from './types'
 export * from './types'
