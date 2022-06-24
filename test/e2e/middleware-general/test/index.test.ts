@@ -8,7 +8,6 @@ import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-const middlewareWarning = 'using beta Middleware (not covered by semver)'
 const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware Runtime', () => {
@@ -76,14 +75,6 @@ describe('Middleware Runtime', () => {
 
   function runTests({ i18n }: { i18n?: boolean }) {
     if ((global as any).isNextDev) {
-      it('should have showed warning for middleware usage', async () => {
-        await renderViaHTTP(next.url, '/')
-        await check(
-          () => next.cliOutput,
-          new RegExp(escapeStringRegexp(middlewareWarning))
-        )
-      })
-
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
         await browser.eval('window.didrefresh = "hello"')
@@ -126,14 +117,6 @@ describe('Middleware Runtime', () => {
             wasm: [],
           },
         })
-      })
-
-      it('should have middleware warning during build', () => {
-        expect(next.cliOutput).toContain(middlewareWarning)
-      })
-
-      it('should have middleware warning during start', () => {
-        expect(next.cliOutput).toContain(middlewareWarning)
       })
 
       it('should have correct files in manifest', async () => {
