@@ -21,12 +21,12 @@ description: Learn how to use Middleware to run code before a request is complet
 
 Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
 
-When a request is made, it will first hit the Middleware, _then_ the cache, meaning you can personalize static content and implement authentication, run A/B tests, deliver personalized pages based on geolocation, and perform bot protection.
+Middleware runs _before_ cached content, so you can personalize static files and pages. Common examples of Middleware would be authentication, A/B testing, localized pages, bot protection, and more.
 
-## Summary of Middleware
+## Quickstart
 
-- You create a single `middleware.ts` or `middleware.js` file at your projects root, with an exported function
-- The function can be a named, or default export. If the function is a named export, then is **must** be called `middleware`. For a default export, you are free to name it anything you like
+- Create a `middleware.ts` (or `middleware.js`) file at the root of your project
+- Export a function named `middleware`
   ```js
   //named export
   export function middleware() {}
@@ -53,7 +53,7 @@ With Middleware you can implement A/B testing, authentication, feature flags, bo
 
 ### Deploying Middleware
 
-Middleware uses a the [Edge Runtime](https://edge-runtime.vercel.sh/features) and supports standard Web APIs like `fetch`. Middleware works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
+Middleware uses the [Edge Runtime](https://edge-runtime.vercel.sh) which supports standard Web APIs like `fetch` and more. Middleware works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](https://vercel.com/docs/concepts/functions/vercel-edge-functions).
 
 ## Using Middleware
 
@@ -67,7 +67,7 @@ npm install next@latest
 
 2. Create a `middleware.ts` file under your project root directory. Note that the file extension can be either `.ts` _or_ `.js`
 
-3. Export a middleware function from the `middleware.ts` file. The following example assumes you have a route called `/about` in your project, and that you want to rewrite to a new route `/about-2` whenever someone visits `/about`:
+3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
 // middleware.ts
@@ -76,11 +76,13 @@ import { NextResponse } from 'next/server’
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
+  // change this to the route in your project that you would like the rewrite to go to
   return NextResponse.redirect(new URL('/about-2', request.url));
 }
 
 // config with custom matcher
 export const config = {
+  // change this to the route in your project that you would like the rewrite to be applied to
   matcher: '/about/:path*'
 }
 ```
