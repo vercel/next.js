@@ -14,18 +14,18 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                               |
-| --------- | ----------------------------------------------------------------------------------------------------- |
-| `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added.                     |
-| `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added. |
-| `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                |
-| `v12.0.9` | `lazyRoot` prop added.                                                                                |
-| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.       |
-| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                                   |
-| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added.     |
-| `v10.0.5` | `loader` prop added.                                                                                  |
-| `v10.0.1` | `layout` prop added.                                                                                  |
-| `v10.0.0` | `next/image` introduced.                                                                              |
+| Version   | Changes                                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added. `layout="raw"` removed. |
+| `v12.1.1` | `style` prop added. Experimental[\*](#experimental-raw-layout-mode) support for `layout="raw"` added.     |
+| `v12.1.0` | `dangerouslyAllowSVG` and `contentSecurityPolicy` configuration added.                                    |
+| `v12.0.9` | `lazyRoot` prop added.                                                                                    |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.           |
+| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                                       |
+| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added.         |
+| `v10.0.5` | `loader` prop added.                                                                                      |
+| `v10.0.1` | `layout` prop added.                                                                                      |
+| `v10.0.0` | `next/image` introduced.                                                                                  |
 
 </details>
 
@@ -51,7 +51,7 @@ When using an external URL, you must add it to
 
 The `width` property can represent either the _rendered_ width or _original_ width in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"` or `layout="fixed"` the `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
 When using `layout="responsive"`, `layout="fill"`, the `width` property represents the _original_ width in pixels, so it will only affect the aspect ratio.
 
@@ -61,7 +61,7 @@ The `width` property is required, except for [statically imported images](/docs/
 
 The `height` property can represent either the _rendered_ height or _original_ height in pixels, depending on the [`layout`](#layout) and [`sizes`](#sizes) properties.
 
-When using `layout="intrinsic"`, `layout="fixed"`, or `layout="raw"`, the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
+When using `layout="intrinsic"` or `layout="fixed"` the `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 When using `layout="responsive"`, `layout="fill"`, the `height` property represents the _original_ height in pixels, so it will only affect the aspect ratio.
 
@@ -134,7 +134,7 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-If you are using `layout="fill"`, `layout="responsive"`, or `layout="raw"`[\*](#experimental-raw-layout-mode) it's important to assign `sizes` for any image that takes up less than the full viewport width.
+If you are using `layout="fill"` or `layout="responsive"` it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
 For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
@@ -554,7 +554,7 @@ module.exports = {
 
 ### Experimental "raw" layout mode
 
-The image component currently supports an additional `layout="raw"` mode, which renders the image without wrappers or styling. This layout mode is currently an experimental feature, while user feedback is gathered. As there is the possibility of breaking changes to the `layout="raw"` interface, the feature is locked behind an experimental feature flag. If you would like to use the `raw` layout mode, you must add the following to your `next.config.js`:
+This feature has been moved to a separate component `next/future/image`
 
 ```js
 module.exports = {

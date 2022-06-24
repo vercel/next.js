@@ -514,7 +514,7 @@ function runTests(mode) {
     }
   })
 
-  it('should lazy load layout=raw and placeholder=blur', async () => {
+  it('should lazy load with placeholder=blur', async () => {
     const browser = await webdriver(appPort, '/layout-raw-placeholder-blur')
 
     // raw1
