@@ -82,7 +82,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::memcached("integration/memcached.js", true)]
 #[case::mongoose("integration/mongoose.js", true)]
 #[case::mysql("integration/mysql.js", true)]
-#[case::npm("integration/npm.js", false)]
+#[case::npm("integration/npm.js", true)]
 // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
 // oracledb doesn't support non x86 architectures
 #[cfg_attr(
@@ -115,7 +115,8 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::sparql_builder("integration/sparql-builder.js", true)]
 #[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
-#[case::tensorflow("integration/tensorflow.js", false)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
+#[case::strong_error_handler("integration/strong-error-handler.js", true)]
+#[case::tensorflow("integration/tensorflow.js", true)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
 #[case::twilio("integration/twilio.js", true)]
 #[case::typescript("integration/typescript.js", true)]

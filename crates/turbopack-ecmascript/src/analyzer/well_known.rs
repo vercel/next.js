@@ -67,6 +67,11 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::NodeExpress => {
             JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp)
         }
+        // bypass
+        WellKnownFunctionKind::NodeResolveFrom => JsValue::call(
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
+            args,
+        ),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),

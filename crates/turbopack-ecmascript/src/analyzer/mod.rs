@@ -905,7 +905,11 @@ impl JsValue {
                     WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
                       format!("SetRootDir"),
                       "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
-                  ),
+                    ),
+                    WellKnownFunctionKind::NodeResolveFrom => (
+                      format!("resolveFrom"),
+                      "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1830,6 +1834,7 @@ pub enum WellKnownFunctionKind {
     NodeExpress,
     NodeExpressSet,
     NodeStrongGlobalizeSetRootDir,
+    NodeResolveFrom,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {

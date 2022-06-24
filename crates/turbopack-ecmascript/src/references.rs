@@ -33,10 +33,9 @@ use swc_ecmascript::{
 use turbo_tasks::ValueToString;
 use turbo_tasks::{util::try_join_all, Value, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack_core::context::AssetContextVc;
-use turbopack_core::resolve::AffectingResolvingAssetReferenceVc;
 use turbopack_core::{
     asset::AssetVc,
+    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         find_context_file,
@@ -789,6 +788,31 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
+                        if args.len() == 2 {
+                            if let Some(JsValue::Constant(ConstantValue::Str(_))) = args.get(1) {
+                                references.push(
+                                    CjsAssetReferenceVc::new(
+                                        context,
+                                        RequestVc::parse(Value::new(js_value_to_pattern(&args[1]))),
+                                    )
+                                    .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('resolve-from')({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -964,6 +988,9 @@ async fn value_visitor_inner(
                 }
                 "strong-globalize" if node_native_bindings => {
                     JsValue::WellKnownObject(WellKnownObjectKind::NodeStrongGlobalize)
+                }
+                "resolve-from" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
                 }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
