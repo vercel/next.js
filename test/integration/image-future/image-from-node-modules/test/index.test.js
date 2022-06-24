@@ -12,15 +12,17 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-let browser
 
 function runTests() {
-  // #31065
-  it('should apply image config for node_modules', async () => {
-    browser = await webdriver(appPort, '/image-from-node-modules')
-    expect(
-      await browser.elementById('image-from-node-modules').getAttribute('src')
-    ).toMatch('i.imgur.com')
+  // This feature was added in PR #31065.
+  // Skip this test until we promote `next/future/image` from
+  // experimental to stable status.
+  it.skip('should apply image config for node_modules', async () => {
+    const browser = await webdriver(appPort, '/')
+    const src = await browser
+      .elementById('image-from-node-modules')
+      .getAttribute('src')
+    expect(src).toMatch('i.imgur.com')
   })
 }
 
