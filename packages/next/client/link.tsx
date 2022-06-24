@@ -62,6 +62,23 @@ function prefetch(
 ): void {
   if (typeof window === 'undefined' || !router) return
   if (!isLocalURL(href)) return
+  const curLocale =
+    options && typeof options.locale !== 'undefined'
+      ? options.locale
+      : router && router.locale
+
+  // Join on an invalid URI character
+  const prefetchedKey = href + '%' + as + (curLocale ? '%' + curLocale : '')
+
+  // when mouse hovers a link and we have already prefetched the content
+  // attempt a best-effort prefetch to update the cache with fresh data
+  // before the actual click occurs, if the click occurs before this
+  // cache is updated the stale date will be used
+  if (prefetched[prefetchedKey] && options?.priority) {
+    if (!options) options = {}
+    options.unstable_skipClientCache = true
+  }
+
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
@@ -72,13 +89,7 @@ function prefetch(
       throw err
     }
   })
-  const curLocale =
-    options && typeof options.locale !== 'undefined'
-      ? options.locale
-      : router && router.locale
-
-  // Join on an invalid URI character
-  prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
+  prefetched[prefetchedKey] = true
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
