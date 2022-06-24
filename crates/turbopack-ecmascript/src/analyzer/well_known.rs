@@ -50,13 +50,7 @@ pub async fn well_known_function_call(
             "import() is not supported",
         ),
         WellKnownFunctionKind::Require => require(args),
-        WellKnownFunctionKind::RequireResolve => JsValue::Unknown(
-            Some(Arc::new(JsValue::call(
-                box JsValue::WellKnownFunction(kind),
-                args,
-            ))),
-            "require.resolve() is not supported",
-        ),
+        WellKnownFunctionKind::RequireResolve => require_resolve(args),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => target.await?.arch().into(),
         WellKnownFunctionKind::OsPlatform => target.await?.platform().into(),
@@ -285,6 +279,8 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
         )
     }
 }
+
+pub fn require_resolve(mut args: Vec<JsValue>) -> JsValue {}
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
     match (&kind, prop.as_str()) {
