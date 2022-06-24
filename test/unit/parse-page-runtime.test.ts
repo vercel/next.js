@@ -5,7 +5,7 @@ const fixtureDir = join(__dirname, 'fixtures')
 
 function createNextConfig(runtime?: 'edge' | 'nodejs') {
   return {
-    experimental: { reactRoot: true, runtime },
+    experimental: { runtime },
   }
 }
 

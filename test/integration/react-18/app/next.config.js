@@ -1,7 +1,6 @@
 module.exports = {
   // reactStrictMode: true,
   experimental: {
-    reactRoot: true,
     // runtime: 'edge',
   },
   images: {
