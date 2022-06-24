@@ -5,8 +5,8 @@ import type { Route } from './router'
 import {
   CacheFs,
   DecodeError,
-  execOnce,
   PageNotFoundError,
+  MiddlewareNotFoundError,
 } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
@@ -108,12 +108,6 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
-
-const middlewareBetaWarning = execOnce(() => {
-  Log.warn(
-    `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-  )
-})
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -1102,14 +1096,18 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
-      throw new PageNotFoundError(params.page)
+      return null
     }
 
     let pageInfo = params.middleware
       ? manifest.middleware[foundPage]
       : manifest.functions[foundPage]
+
     if (!pageInfo) {
-      throw new PageNotFoundError(foundPage)
+      if (!params.middleware) {
+        throw new PageNotFoundError(foundPage)
+      }
+      return null
     }
 
     return {
@@ -1132,14 +1130,8 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     _isSSR?: boolean
   ): Promise<boolean> {
-    try {
-      return (
-        this.getEdgeFunctionInfo({ page: pathname, middleware: true }).paths
-          .length > 0
-      )
-    } catch (_) {}
-
-    return false
+    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    return Boolean(info && info.paths.length > 0)
   }
 
   /**
@@ -1162,9 +1154,7 @@ export default class NextNodeServer extends BaseServer {
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
-    middlewareBetaWarning()
-
-    // middleware is skipped for on-demand revalidate requests
+    // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate
@@ -1224,6 +1214,10 @@ export default class NextNodeServer extends BaseServer {
           page: middleware.page,
           middleware: !middleware.ssr,
         })
+
+        if (!middlewareInfo) {
+          throw new MiddlewareNotFoundError()
+        }
 
         result = await run({
           name: middlewareInfo.name,
@@ -1537,6 +1531,10 @@ export default class NextNodeServer extends BaseServer {
         middleware: false,
       })
     } catch {
+      return null
+    }
+
+    if (!middlewareInfo) {
       return null
     }
 
