@@ -779,10 +779,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             _parsedUrl.query.__nextDefaultLocale =
               defaultLocale || this.nextConfig.i18n.defaultLocale
 
-            if (
-              !detectedLocale &&
-              !(pathname === '/api' || pathname.startsWith('/api/'))
-            ) {
+            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
