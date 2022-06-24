@@ -48,7 +48,6 @@ export function InnerLayoutRouter({
     childNodes.set(path, { data, subTreeData: null, childNodes: new Map() })
   }
 
-  console.log({ path, childNodes })
   const childNode = childNodes.get(path)!
 
   if (childNode.data) {
@@ -77,7 +76,6 @@ export function InnerLayoutRouter({
   }
   // }
 
-  console.log('RENDERING', childNode)
   return (
     <AppTreeContext.Provider
       value={{

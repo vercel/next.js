@@ -27,6 +27,40 @@ export type AppRouterState = {
   cache: CacheNode
 }
 
+const markRefetch = (
+  treeToWalk: FlightRouterState,
+  flightRouterState?: FlightRouterState,
+  parentRefetch?: boolean
+): FlightRouterState => {
+  const [segment, parallelRoutes, url] = treeToWalk
+
+  const shouldRefetchThisLevel =
+    !flightRouterState || segment !== flightRouterState[0]
+
+  const childRoute = parallelRoutes.children
+    ? markRefetch(
+        parallelRoutes.children,
+        flightRouterState && flightRouterState[1].children,
+        parentRefetch || shouldRefetchThisLevel
+      )
+    : null
+
+  const newTree: FlightRouterState = [
+    segment,
+    {
+      ...parallelRoutes,
+      ...(childRoute ? { children: childRoute } : {}),
+    },
+    url,
+  ]
+
+  if (!parentRefetch && shouldRefetchThisLevel) {
+    newTree[3] = 'refetch'
+  }
+
+  return newTree
+}
+
 export default function AppRouter({
   initialTree,
   children,
@@ -64,17 +98,18 @@ export default function AppRouter({
           for (const [path, child] of childNodes) {
             current.set(path, {
               subTreeData: child.subTreeData,
-              childNodes: new Map(),
+              childNodes: new Map(child.childNodes),
             })
           }
         }
 
-        const child = parallelRoutes.children
-          ? createNewCache(
-              childNodes ? childNodes.get(segment)!?.childNodes : null,
-              parallelRoutes.children
-            )
-          : new Map()
+        const child =
+          !subTreeData && parallelRoutes.children
+            ? createNewCache(
+                childNodes ? childNodes.get(segment)!?.childNodes : null,
+                parallelRoutes.children
+              )
+            : new Map()
 
         if (current.has(segment)) {
           const currentItem = current.get(segment)!
@@ -104,8 +139,9 @@ export default function AppRouter({
 
       setTree((existingValue) => {
         if (previousTree !== existingValue.tree) {
+          console.log('TREE MISMATCH')
           // TODO: Refetch here
-          return existingValue
+          // return existingValue
         }
 
         const walkTreeWithFlightRouterState = (
@@ -122,6 +158,7 @@ export default function AppRouter({
               )
             : null
 
+          // Item excludes refetch
           const newFlightRouterState: FlightRouterState = [
             segment,
             childItem
@@ -146,6 +183,8 @@ export default function AppRouter({
           true
         )
 
+        console.log({ newTree })
+
         return {
           tree: newTree,
           cache: newCache,
@@ -166,40 +205,6 @@ export default function AppRouter({
         // TODO: handling of hash urls
         const url = new URL(href, location.origin)
         const { pathname } = url
-
-        const markRefetch = (
-          treeToWalk: FlightRouterState,
-          flightRouterState?: FlightRouterState,
-          parentRefetch?: boolean
-        ): FlightRouterState => {
-          const [segment, parallelRoutes, url] = treeToWalk
-
-          const shouldRefetchThisLevel =
-            !flightRouterState || segment !== flightRouterState[0]
-
-          const childRoute = parallelRoutes.children
-            ? markRefetch(
-                parallelRoutes.children,
-                flightRouterState && flightRouterState[1].children,
-                parentRefetch || shouldRefetchThisLevel
-              )
-            : null
-
-          const newTree: FlightRouterState = [
-            segment,
-            {
-              ...parallelRoutes,
-              ...(childRoute ? { children: childRoute } : {}),
-            },
-            url,
-          ]
-
-          if (!parentRefetch && shouldRefetchThisLevel) {
-            newTree[3] = 'refetch'
-          }
-
-          return newTree
-        }
 
         setTree((existingValue) => {
           if (historyState) {
@@ -270,7 +275,7 @@ export default function AppRouter({
             false
           )
 
-          console.log('NEW CACHE PUSH', {
+          console.log('NEW PUSH', {
             existingChildNodes: existingValue.cache.childNodes,
             optimisticTree: optimisticTree,
           })

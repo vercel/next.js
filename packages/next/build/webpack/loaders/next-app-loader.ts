@@ -85,10 +85,8 @@ function removeExtensions(
   extensions: string[],
   pathToRemoveExtensions: string
 ) {
-  return pathToRemoveExtensions.replace(
-    new RegExp(`(${extensions.join('|')})$`),
-    ''
-  )
+  const regex = new RegExp(`(${extensions.join('|')})$`.replaceAll('.', '\\.'))
+  return pathToRemoveExtensions.replace(regex, '')
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
