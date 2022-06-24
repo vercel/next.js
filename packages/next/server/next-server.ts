@@ -2,12 +2,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { Route } from './router'
-import {
-  CacheFs,
-  DecodeError,
-  execOnce,
-  PageNotFoundError,
-} from '../shared/lib/utils'
+import { CacheFs, DecodeError, PageNotFoundError } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
@@ -108,12 +103,6 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
-
-const middlewareBetaWarning = execOnce(() => {
-  Log.warn(
-    `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-  )
-})
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -1162,9 +1151,7 @@ export default class NextNodeServer extends BaseServer {
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
-    middlewareBetaWarning()
-
-    // middleware is skipped for on-demand revalidate requests
+    // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate

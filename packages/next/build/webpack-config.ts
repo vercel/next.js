@@ -1519,6 +1519,7 @@ export default async function getBaseWebpackConfig(
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
           experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
+          experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {
                 // pass domains in development to allow validating on the client
