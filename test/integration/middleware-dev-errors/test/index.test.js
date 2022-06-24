@@ -1,4 +1,5 @@
 import {
+  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -237,6 +238,61 @@ describe('Middleware development errors', () => {
 
     it('does not render the error', async () => {
       const browser = await webdriver(context.appPort, '/')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await browser.elementByCss('#page-title')).toBeTruthy()
+    })
+  })
+
+  describe('when there is a compilation error from boot', () => {
+    beforeEach(() => {
+      context.middleware.write(`export default function () }`)
+    })
+
+    it('logs the error correctly', async () => {
+      await fetchViaHTTP(context.appPort, '/')
+      expect(context.logs.output).toContain(`Expected '{', got '}'`)
+      expect(context.logs.output.split(`Expected '{', got '}'`).length).toEqual(
+        2
+      )
+    })
+
+    it('renders the error correctly and recovers', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(
+        await browser
+          .elementByCss('#nextjs__container_build_error_label')
+          .text()
+      ).toEqual('Failed to compile')
+      context.middleware.write(`export default function () {}`)
+      await hasRedbox(browser, false)
+      expect(await browser.elementByCss('#page-title')).toBeTruthy()
+    })
+  })
+
+  describe('when there is a compilation error after boot', () => {
+    beforeEach(() => {
+      context.middleware.write(`export default function () {}`)
+    })
+
+    it('logs the error correctly', async () => {
+      await fetchViaHTTP(context.appPort, '/')
+      context.middleware.write(`export default function () }`)
+      await check(() => {
+        expect(context.logs.output).toContain(`Expected '{', got '}'`)
+        expect(
+          context.logs.output.split(`Expected '{', got '}'`).length
+        ).toEqual(2)
+        return 'success'
+      }, 'success')
+    })
+
+    it('renders the error correctly and recovers', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      context.middleware.write(`export default function () }`)
+      expect(await hasRedbox(browser, true)).toBe(true)
+      context.middleware.write(`export default function () {}`)
       expect(await hasRedbox(browser, false)).toBe(false)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
     })
