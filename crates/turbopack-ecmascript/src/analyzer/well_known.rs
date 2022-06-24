@@ -280,7 +280,11 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn require_resolve(mut args: Vec<JsValue>) -> JsValue {}
+pub fn require_resolve(args: Vec<JsValue>) -> JsValue {
+    args.into_iter()
+        .next()
+        .expect("require.resolve(module, options) is correct usage")
+}
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
     match (&kind, prop.as_str()) {
