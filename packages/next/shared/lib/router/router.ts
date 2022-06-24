@@ -2039,6 +2039,10 @@ export default class Router implements BaseRouter {
         ? options.locale || undefined
         : this.locale
 
+    // TODO: if the route middleware's data request
+    // resolves to is not an SSG route we should bust the cache
+    // but we shouldn't allow prefetch to keep triggering
+    // requests for SSP pages
     const data = await withMiddlewareEffects({
       fetchData: () =>
         fetchNextData({
@@ -2054,7 +2058,6 @@ export default class Router implements BaseRouter {
           inflightCache: this.sdc,
           persistCache: !this.isPreview,
           isPrefetch: true,
-          unstable_skipClientCache: options.unstable_skipClientCache,
         }),
       asPath: asPath,
       locale: locale,
@@ -2099,7 +2102,8 @@ export default class Router implements BaseRouter {
               inflightCache: this.sdc,
               persistCache: !this.isPreview,
               isPrefetch: true,
-              unstable_skipClientCache: options.unstable_skipClientCache,
+              unstable_skipClientCache:
+                options.unstable_skipClientCache || options.priority,
             }).then(() => false)
           : false
       }),
