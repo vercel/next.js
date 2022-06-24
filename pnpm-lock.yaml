@@ -144,7 +144,6 @@ importers:
       release: 6.3.0
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
-      rimraf: 2.6.3
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -294,7 +293,6 @@ importers:
       release: 6.3.0
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
-      rimraf: 2.6.3
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -329,7 +327,7 @@ importers:
       cross-spawn: 6.0.5
       got: 10.7.0
       prompts: 2.1.0
-      rimraf: 3.0.0
+      rimraf: 3.0.2
       tar: 4.4.10
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
@@ -349,7 +347,7 @@ importers:
       cross-spawn: 6.0.5
       got: 10.7.0
       prompts: 2.1.0
-      rimraf: 3.0.0
+      rimraf: 3.0.2
       tar: 4.4.10
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
@@ -796,10 +794,12 @@ importers:
       '@vercel/ncc': 0.33.4
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
+      rimraf: 3.0.2
     devDependencies:
       '@vercel/ncc': 0.33.4
       dotenv: 10.0.0
       dotenv-expand: 8.0.1
+      rimraf: 3.0.2
 
   packages/next-mdx:
     specifiers: {}
@@ -7718,7 +7718,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1_bluebird@3.7.2
+      promise-inflight: 1.0.1
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -18019,17 +18019,6 @@ packages:
         optional: true
     dev: true
 
-  /promise-inflight/1.0.1_bluebird@3.7.2:
-    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
-    peerDependencies:
-      bluebird: '*'
-    peerDependenciesMeta:
-      bluebird:
-        optional: true
-    dependencies:
-      bluebird: 3.7.2
-    dev: true
-
   /promise-polyfill/6.1.0:
     resolution: {integrity: sha1-36lpQ+qcEh/KTem1hoyznTRy4Fc=}
     dev: true
@@ -19225,16 +19214,10 @@ packages:
     hasBin: true
     dependencies:
       glob: 7.2.0
+    dev: false
 
   /rimraf/2.7.1:
     resolution: {integrity: sha512-uWjbaKIK3T1OSVptzX7Nl6PvQ3qAGtKEtVRjRuazjfL3Bx5eI409VZSqgND+4UNnmzLVdPj9FqFJNPqBZFve4w==}
-    hasBin: true
-    dependencies:
-      glob: 7.2.0
-    dev: true
-
-  /rimraf/3.0.0:
-    resolution: {integrity: sha512-NDGVxTsjqfunkds7CqsOiEnxln4Bo7Nddl3XhS4pXg5OzwkLqJ971ZVAAnB+DDLnF76N+VnDEiBHaVV8I06SUg==}
     hasBin: true
     dependencies:
       glob: 7.2.0
