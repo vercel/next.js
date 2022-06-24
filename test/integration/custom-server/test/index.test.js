@@ -24,7 +24,7 @@ const context = {}
 
 describe.each([
   { title: 'using HTTP', useHttps: false },
-  { title: 'using HTTPS', useHttps: false },
+  { title: 'using HTTPS', useHttps: true },
 ])('Custom Server $title', ({ useHttps }) => {
   const startServer = async (optEnv = {}, opts) => {
     const scriptPath = join(appDir, 'server.js')
