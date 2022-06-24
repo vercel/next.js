@@ -11,7 +11,7 @@ const bucket = Cosmic().bucket({
 
 const is404 = (error) => /not found/i.test(error.message)
 
-export async function getPreviewPostBySlug(slug) {
+export const getPreviewPostBySlug = async (slug: string) => {
   const params = {
     query: {
       slug,
@@ -26,11 +26,11 @@ export async function getPreviewPostBySlug(slug) {
     return data.objects[0]
   } catch (err) {
     // Don't throw if an slug doesn't exist
-    return <ErrorPage statusCode={err.status} />
+    return <ErrorPage statusCode={err.status}/>
   }
 }
 
-export async function getAllPostsWithSlug() {
+export const getAllPostsWithSlug = async () => {
   const params = {
     query: {
       type: 'posts'
@@ -41,7 +41,8 @@ export async function getAllPostsWithSlug() {
   return data.objects
 }
 
-export async function getAllPostsForHome(preview) {
+
+export const getAllPostsForHome = async (preview) => {
   const params = {
     query: {
       type: 'posts'
@@ -54,7 +55,7 @@ export async function getAllPostsForHome(preview) {
   return data.objects
 }
 
-export async function getPostAndMorePosts(slug, preview) {
+export const getPostAndMorePosts = async (slug, preview) => {
   const singleObjectParams = {
     query: { 
       slug,

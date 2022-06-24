@@ -13,7 +13,20 @@ import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
 import markdownToHtml from '@/lib/markdownToHtml'
 
-export default function Post({ post, morePosts, preview }) {
+
+type PostProps = {
+  post, 
+  morePosts, 
+  preview
+};
+
+const Post = (props: PostProps) => {
+  const { 
+    post, 
+    morePosts, 
+    preview 
+  } = props;
+  
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -52,24 +65,35 @@ export default function Post({ post, morePosts, preview }) {
     </Layout>
   )
 }
+export default Post;
 
-export async function getStaticProps({ params, preview = null }) {
+
+
+type staticProps = {
+  params,
+  preview,
+};
+
+export const getStaticProps = async(props: staticProps) => {
+  const {  
+    params,
+    preview = null
+  } = props;
   const data = await getPostAndMorePosts(params.slug, preview)
-  const content = await markdownToHtml(data.post?.metadata?.content || '')
-
+  const content = await markdownToHtml(data['post']?.metadata?.content || '')
   return {
     props: {
       preview,
       post: {
-        ...data.post,
+        ...data['post'],
         content,
       },
-      morePosts: data.morePosts || [],
+      morePosts: data['morePosts'] || [],
     },
   }
 }
 
-export async function getStaticPaths() {
+export const getStaticPaths = async() => {
   const allPosts = (await getAllPostsWithSlug()) || []
   return {
     paths: allPosts.map((post) => `/posts/${post.slug}`),

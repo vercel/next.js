@@ -29,12 +29,12 @@
     "moduleResolution": "Node",
     "jsx": "preserve",
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
   },
   "include": [
-    "./components/",
-    "./lib/",
-    "./styles/"
+    "./components/..",
+    "./lib/..",
+    "./styles/.."
   ],
   "exclude": [
     "node_modules"

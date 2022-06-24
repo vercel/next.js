@@ -1,6 +1,13 @@
 import Image from 'next/image'
 
-export default function Avatar({ name, picture }) {
+type AvatarProps = {
+  name,
+  picture
+};
+  
+const Avatar = (props: AvatarProps) => {
+const { name, picture } = props;
+
   return (
     <div className="flex items-center">
       <div className="w-12 h-12 relative mr-4">
@@ -17,3 +24,5 @@ export default function Avatar({ name, picture }) {
     </div>
   )
 }
+
+export default Avatar;

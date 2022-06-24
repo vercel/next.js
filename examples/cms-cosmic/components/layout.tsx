@@ -4,15 +4,24 @@ import Meta from './meta'
 import 'lazysizes'
 import 'lazysizes/plugins/parent-fit/ls.parent-fit'
 
-export default function Layout({ preview, children }) {
+type LayoutProps = {
+  preview,
+  children,
+};
+
+const Layout = (props: LayoutProps) => {
+const { preview, children } = props;
+  
   return (
-    <>
-      <Meta />
-      <div className="min-h-screen">
-        <Alert preview={preview} />
-        <main>{children}</main>
-      </div>
-      <Footer />
-    </>
-  )
-}
+        <>
+          <Meta />
+          <div className="min-h-screen">
+            <Alert preview={preview}/>
+            <main>{children}</main>
+          </div>
+          <Footer />
+        </>
+      )
+  }
+  
+export default Layout;
