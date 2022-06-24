@@ -163,14 +163,13 @@ describe('Prerender prefetch', () => {
     })
 
     // now trigger cache update and navigate again
-    await browser.elementByCss('#to-blog-first').moveTo()
-    await check(
-      () =>
-        requests.some((url) => url.includes('/blog/first.json'))
-          ? 'success'
-          : requests,
-      'success'
-    )
+    await check(async () => {
+      await browser.elementByCss('#to-blog-second').moveTo()
+      await browser.elementByCss('#to-blog-first').moveTo()
+      return requests.some((url) => url.includes('/blog/first.json'))
+        ? 'success'
+        : requests
+    }, 'success')
   })
 
   it('should handle failed data fetch and empty cache correctly', async () => {
