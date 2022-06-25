@@ -1095,6 +1095,8 @@ export default class NextNodeServer extends BaseServer {
       return null
     }
 
+    console.log('manifest', manifest, params.middleware, foundPage)
+
     let pageInfo = params.middleware
       ? manifest.middleware[foundPage]
       : manifest.functions[foundPage]
