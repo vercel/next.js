@@ -23,6 +23,17 @@ Middleware allows you to run code before a request is completed, then based on t
 
 Middleware runs _before_ cached content, so you can personalize static files and pages. Common examples of Middleware would be authentication, A/B testing, localized pages, bot protection, and more.
 
+The order middleware is applied is:
+
+1. headers from `next.config.js`
+2. redirects from `next.config.js`
+3. middleware (rewrites, redirects, etc)
+4. `beforeFiles` rewrites from `next.config.js`
+5. filesystem routes (public/, _next/static/, static pages, etc)
+6. `afterFiles` rewrites from `next.config.js`
+7. dynamic routes (`/blog/[slug]`)
+8. `fallback` rewrites from `next.config.js`
+
 ## Quickstart
 
 - Create a `middleware.ts` (or `middleware.js`) file at the root of your project
