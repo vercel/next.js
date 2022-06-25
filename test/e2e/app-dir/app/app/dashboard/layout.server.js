@@ -1,5 +1,4 @@
 export default function DashboardLayout(props) {
-  console.log({ props })
   return (
     <>
       <h1>Dashboard</h1>
