@@ -5,8 +5,9 @@ import {
   AppTreeContext,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
-import type { CacheNode } from '../../shared/lib/app-router-context'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
+import { reducer } from './reducer'
 
 function fetchFlight(url: URL, treeData: string) {
   const flightUrl = new URL(url)
@@ -17,48 +18,9 @@ function fetchFlight(url: URL, treeData: string) {
   return fetch(flightUrl.toString())
 }
 
-export function fetchServerResponse(url: URL, tree: any) {
+export function fetchServerResponse(url: URL, tree: FlightRouterState) {
   const treeData = JSON.stringify(tree)
   return createFromFetch(fetchFlight(url, treeData))
-}
-
-export type AppRouterState = {
-  tree: FlightRouterState
-  cache: CacheNode
-}
-
-const markRefetch = (
-  treeToWalk: FlightRouterState,
-  flightRouterState?: FlightRouterState,
-  parentRefetch?: boolean
-): FlightRouterState => {
-  const [segment, parallelRoutes, url] = treeToWalk
-
-  const shouldRefetchThisLevel =
-    !flightRouterState || segment !== flightRouterState[0]
-
-  const childRoute = parallelRoutes.children
-    ? markRefetch(
-        parallelRoutes.children,
-        flightRouterState && flightRouterState[1].children,
-        parentRefetch || shouldRefetchThisLevel
-      )
-    : null
-
-  const newTree: FlightRouterState = [
-    segment,
-    {
-      ...parallelRoutes,
-      ...(childRoute ? { children: childRoute } : {}),
-    },
-    url,
-  ]
-
-  if (!parentRefetch && shouldRefetchThisLevel) {
-    newTree[3] = 'refetch'
-  }
-
-  return newTree
 }
 
 export default function AppRouter({
@@ -68,13 +30,16 @@ export default function AppRouter({
   initialTree: FlightRouterState
   children: React.ReactNode
 }) {
-  const [{ tree, cache }, setTree] = React.useState<AppRouterState>({
-    tree: initialTree,
-    cache: {
-      subTreeData: null,
-      childNodes: new Map(),
-    },
-  })
+  const [{ tree, cache }, dispatch] = React.useReducer<typeof reducer>(
+    reducer,
+    {
+      tree: initialTree,
+      cache: {
+        subTreeData: null,
+        parallelRoutes: {},
+      },
+    }
+  )
 
   // Server response only patches the tree
   const changeByServerResponse = React.useCallback(
@@ -86,244 +51,67 @@ export default function AppRouter({
         return
       }
 
-      const createNewCache = (
-        childNodes: CacheNode['childNodes'] | null,
-        treeToWalk: FlightData[0]
-      ): CacheNode['childNodes'] => {
-        const [segment, parallelRoutes, subTreeData] = treeToWalk
-
-        const current = new Map()
-
-        if (childNodes) {
-          for (const [path, child] of childNodes) {
-            current.set(path, {
-              subTreeData: child.subTreeData,
-              childNodes: new Map(child.childNodes),
-            })
-          }
-        }
-
-        const child =
-          !subTreeData && parallelRoutes.children
-            ? createNewCache(
-                childNodes ? childNodes.get(segment)!?.childNodes : null,
-                parallelRoutes.children
-              )
-            : new Map()
-
-        if (current.has(segment)) {
-          const currentItem = current.get(segment)!
-          current.set(segment, {
-            subTreeData: subTreeData ?? currentItem.subTreeData,
-            childNodes: child,
-          })
-        } else {
-          current.set(segment, {
-            subTreeData: subTreeData,
-            childNodes: child,
-          })
-        }
-
-        return current
-      }
-
-      const newCacheNodes = createNewCache(
-        cache.childNodes,
-        flightDataTree[1].children
-      )
-
-      const newCache = {
-        subTreeData: null,
-        childNodes: newCacheNodes,
-      }
-
-      setTree((existingValue) => {
-        if (previousTree !== existingValue.tree) {
-          console.log('TREE MISMATCH')
-          // TODO: Refetch here
-          // return existingValue
-        }
-
-        const walkTreeWithFlightRouterState = (
-          treeToWalk: FlightData[0],
-          flightRouterState?: FlightRouterState,
-          firstItem?: boolean
-        ): FlightRouterState => {
-          const [segment, parallelRoutes] = treeToWalk
-
-          const childItem = parallelRoutes.children
-            ? walkTreeWithFlightRouterState(
-                parallelRoutes.children,
-                flightRouterState && flightRouterState[1].children
-              )
-            : null
-
-          // Item excludes refetch
-          const newFlightRouterState: FlightRouterState = [
-            segment,
-            childItem
-              ? {
-                  ...(flightRouterState ? flightRouterState[1] : {}),
-                  children: childItem,
-                }
-              : {},
-          ]
-
-          // TODO: this is incorrect as it's the wrong url. Url can probably be removed.
-          if (firstItem) {
-            newFlightRouterState[2] = flightRouterState![2]
-          }
-
-          return newFlightRouterState
-        }
-
-        const newTree = walkTreeWithFlightRouterState(
+      dispatch({
+        type: 'server-patch',
+        payload: {
           flightDataTree,
-          existingValue.tree,
-          true
-        )
-
-        console.log({ newTree })
-
-        return {
-          tree: newTree,
-          cache: newCache,
-        }
-      })
-    },
-    [cache.childNodes]
-  )
-
-  const change = React.useCallback(
-    (
-      method: 'replaceState' | 'pushState',
-      href: string,
-      historyState?: { tree: FlightRouterState }
-    ) => {
-      // @ts-ignore startTransition exists
-      React.startTransition(() => {
-        // TODO: handling of hash urls
-        const url = new URL(href, location.origin)
-        const { pathname } = url
-
-        setTree((existingValue) => {
-          if (historyState) {
-            return {
-              cache: existingValue.cache,
-              tree: historyState.tree,
-            }
-          }
-
-          const createOptimisticTree = (
-            segments: string[],
-            flightRouterState: FlightRouterState | null,
-            isFirstSegment: boolean,
-            parentRefetch: boolean
-          ): FlightRouterState => {
-            const [existingSegment, existingParallelRoutes] =
-              flightRouterState || [null, {}]
-            const segment = segments[0]
-            const isLastSegment = segments.length === 1
-
-            const shouldRefetchThisLevel =
-              !flightRouterState || segment !== flightRouterState[0]
-
-            let parallelRoutes: FlightRouterState[1] = {}
-            if (existingSegment === segment) {
-              parallelRoutes = existingParallelRoutes
-            }
-
-            let childTree
-            if (!isLastSegment) {
-              const childItem = createOptimisticTree(
-                segments.slice(1),
-                parallelRoutes ? parallelRoutes.children : null,
-                false,
-                parentRefetch || shouldRefetchThisLevel
-              )
-
-              childTree = childItem
-            }
-
-            const result: FlightRouterState = [
-              segment,
-              {
-                ...parallelRoutes,
-                ...(childTree ? { children: childTree } : {}),
-              },
-            ]
-
-            if (!parentRefetch && shouldRefetchThisLevel) {
-              result[3] = 'refetch'
-            }
-
-            // Add url into the tree
-            if (isFirstSegment) {
-              result[2] = url.pathname + url.search
-            }
-
-            return result
-          }
-
-          const segments = pathname.split('/')
-          // TODO: figure out something better for index pages
-          segments.push('page')
-          const optimisticTree = createOptimisticTree(
-            segments,
-            existingValue.tree,
-            true,
-            false
-          )
-
-          console.log('NEW PUSH', {
-            existingChildNodes: existingValue.cache.childNodes,
-            optimisticTree: optimisticTree,
-          })
-
-          // TODO: update url eagerly or not?
-          window.history[method]({ tree: optimisticTree }, '', href)
-
-          return {
-            cache: existingValue.cache,
-            tree: optimisticTree,
-          }
-        })
+          previousTree,
+        },
       })
     },
     []
   )
-  const appRouter = React.useMemo(() => {
-    return {
+
+  const appRouter = React.useMemo<AppRouterInstance>(() => {
+    const routerInstance: AppRouterInstance = {
       // TODO: implement prefetching of loading / flight
-      prefetch: () => Promise.resolve({}),
-      replace: (href: string) => {
-        return change('replaceState', href)
+      prefetch: (_href) => Promise.resolve(),
+      replace: (href) => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'push',
+            payload: {
+              url: new URL(href, location.origin),
+              method: 'replaceState',
+            },
+          })
+        })
       },
-      push: (href: string) => {
-        return change('pushState', href)
+      push: (href) => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'push',
+            payload: {
+              url: new URL(href, location.origin),
+              method: 'replaceState',
+            },
+          })
+        })
       },
     }
-  }, [change])
+
+    return routerInstance
+  }, [])
 
   if (typeof window !== 'undefined') {
     // @ts-ignore TODO: this is for debugging
     window.nd = { router: appRouter, cache, tree }
   }
 
-  const onPopState = React.useCallback(
-    ({ state }: PopStateEvent) => {
-      if (!state) {
-        return
-      }
+  const onPopState = React.useCallback(({ state }: PopStateEvent) => {
+    if (!state) {
+      return
+    }
 
-      // @ts-ignore useTransition exists
-      // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      React.startTransition(() => {
-        change('replaceState', location.pathname, state)
-      })
-    },
-    [change]
-  )
+    // @ts-ignore useTransition exists
+    // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+    React.startTransition(() => {
+      dispatch({ type: 'restore', payload: { historyState: state } })
+    })
+  }, [])
+
   React.useEffect(() => {
     window.addEventListener('popstate', onPopState)
     return () => {
@@ -345,7 +133,7 @@ export default function AppRouter({
       <AppRouterContext.Provider value={appRouter}>
         <AppTreeContext.Provider
           value={{
-            childNodes: cache.childNodes,
+            childNodes: cache.parallelRoutes,
             tree: tree,
             // Root node always has `url`
             url: tree[2] as string,

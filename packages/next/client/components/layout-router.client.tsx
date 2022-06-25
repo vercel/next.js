@@ -11,6 +11,7 @@ import { fetchServerResponse } from './app-router.client'
 let infinitePromise: Promise<void>
 
 export function InnerLayoutRouter({
+  parallelRouterKey,
   url,
   childNodes,
   childProp,
@@ -19,9 +20,10 @@ export function InnerLayoutRouter({
   // isActive,
   path,
 }: {
+  parallelRouterKey: string
   url: string
-  childNodes: CacheNode['childNodes']
-  childProp: ChildProp
+  childNodes: CacheNode['parallelRoutes']['children']
+  childProp: ChildProp | null
   layoutPath: string
   tree: FlightRouterState
   isActive: boolean
@@ -33,7 +35,9 @@ export function InnerLayoutRouter({
   if (childProp && !childNodes.has(path)) {
     childNodes.set(path, {
       subTreeData: childProp.current,
-      childNodes: new Map(),
+      parallelRoutes: {
+        [parallelRouterKey]: new Map(),
+      },
     })
     childProp.current = null
   }
@@ -45,22 +49,48 @@ export function InnerLayoutRouter({
       fullTree,
     })
     const data = fetchServerResponse(new URL(url, location.origin), fullTree)
-    childNodes.set(path, { data, subTreeData: null, childNodes: new Map() })
+    childNodes.set(path, {
+      data,
+      subTreeData: null,
+      parallelRoutes: {
+        [parallelRouterKey]: new Map(),
+      },
+    })
   }
 
   const childNode = childNodes.get(path)!
 
   if (childNode.data) {
-    // // TODO: error case
+    // TODO: error case
     const root = childNode.data.readRoot()
 
     // Handle case where the response might be for this subrouter
-    // if (root.length === 1 && root[0].layoutPath === layoutPath) {
-    //   childNodes.set(path, {
-    //     subTreeData: root[0].subTreeData,
-    //     childNodes: new Map(),
-    //   })
-    // } else {
+    // TODO: adding the path for the current rendered layout
+    // Recursively walk tree and if the tree forks at this point, above, or below
+    // Fill in the cache with new data
+    // Compare the layout path and the new tree
+    // Walk the cache at the same time
+
+    // layoutpath === with the tree from the server
+    // happy path and the childNodes would be seeded and data set to null
+
+    // For push we can set data in the cache
+    // childNode.data = null
+    // childNode.subTreeData = subtreeData coming from root
+    // childNode.childNodes = new Map()
+
+    // layoutpath is deeper than the tree from the server
+    // const currentData = childNode.data
+    // childNode.data = null
+    // keep recursing down the tree until it matches
+    // deeperNode.data = currentData
+    // copy the the cache upward back to where the childNode was
+    // childNode.childNodes = clonedCache
+
+    // layoutpath does not match the tree from the server
+    // See code below that handles this case at the root
+    // childNode.data = null
+
     // TODO: if the tree did not match up do we provide the new tree here?
     setTimeout(() => {
       // @ts-ignore TODO: startTransition exists
@@ -74,13 +104,18 @@ export function InnerLayoutRouter({
     if (!infinitePromise) infinitePromise = new Promise(() => {})
     throw infinitePromise
   }
-  // }
+
+  // TODO: double check users can't return null in a component that will kick in here
+  if (!childNode.subTreeData) {
+    if (!infinitePromise) infinitePromise = new Promise(() => {})
+    throw infinitePromise
+  }
 
   return (
     <AppTreeContext.Provider
       value={{
-        tree: tree[1].children,
-        childNodes: childNode.childNodes,
+        tree: tree[1][parallelRouterKey],
+        childNodes: childNode.parallelRoutes,
         url: tree[2] ?? url,
       }}
     >
@@ -104,14 +139,25 @@ function LoadingBoundary({
 }
 
 export default function OuterLayoutRouter({
+  parallelRouterKey,
   layoutPath,
   childProp,
   loading,
-}: any) {
+}: {
+  parallelRouterKey: string
+  layoutPath: string
+  childProp: ChildProp
+  loading: React.ReactNode | undefined
+}) {
   const { childNodes, tree, url } = useContext(AppTreeContext)
 
+  if (!childNodes[parallelRouterKey]) {
+    childNodes[parallelRouterKey] = new Map()
+  }
+
+  // This relates to the segments in the current router
   // tree[1].children[0] refers to tree.children.segment in the data format
-  const currentChildSegment = tree[1].children[0] ?? childProp.segment
+  const currentChildSegment = tree[1][parallelRouterKey][0] ?? childProp.segment
   const preservedSegments: string[] = [currentChildSegment]
 
   return (
@@ -120,9 +166,10 @@ export default function OuterLayoutRouter({
         return (
           <LoadingBoundary loading={loading} key={preservedSegment}>
             <InnerLayoutRouter
+              parallelRouterKey={parallelRouterKey}
               url={url}
               tree={tree}
-              childNodes={childNodes}
+              childNodes={childNodes[parallelRouterKey]}
               childProp={
                 childProp.segment === preservedSegment ? childProp : null
               }

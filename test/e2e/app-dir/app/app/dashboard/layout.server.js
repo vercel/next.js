@@ -1,8 +1,10 @@
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout(props) {
+  console.log({ props })
   return (
     <>
       <h1>Dashboard</h1>
-      {children}
+      <div style={{ backgroundColor: 'red' }}>{props.children}</div>
+      <div style={{ backgroundColor: 'blue' }}>{props.custom}</div>
     </>
   )
 }

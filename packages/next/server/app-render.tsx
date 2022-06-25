@@ -200,9 +200,6 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
-const createSegmentPath = (parentSegmentPath: string, segment: string) =>
-  parentSegmentPath + (parentSegmentPath === '/' ? '' : '/') + segment
-
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
@@ -218,6 +215,11 @@ export type FlightRouterState = [
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
   refresh?: 'refetch'
+]
+
+export type FlightSegmentPath = [
+  segment: string,
+  parallelRoute?: [parallelRouterKey: string, segmentPath: FlightSegmentPath]
 ]
 
 type FlightDataTree = [
@@ -260,7 +262,8 @@ export async function renderToHTML(
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)
 
-  const LayoutRouter = ComponentMod.LayoutRouter
+  const LayoutRouter =
+    ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
 
   const tree: LoaderTree = ComponentMod.tree
 
@@ -277,30 +280,23 @@ export async function renderToHTML(
 
   const createComponentTree = ({
     parentSegmentPath,
-    tree: [segment, { children }, { layout, loading, page }],
+    tree: [segment, parallelRoutes, { layout, loading, page }],
   }: {
-    parentSegmentPath: string
+    parentSegmentPath?: FlightSegmentPath
     tree: LoaderTree
-  }) => {
+  }): React.ComponentType => {
     const Loading = loading ? interopDefault(loading()) : undefined
-    const isPage = typeof page !== 'undefined'
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
     const Component = layoutOrPageMod
       ? interopDefault(layoutOrPageMod)
       : undefined
 
-    const currentSegmentPath = createSegmentPath(parentSegmentPath, segment)
-
-    // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const Children: any = children
-      ? createComponentTree({
-          parentSegmentPath: currentSegmentPath,
-          tree: children,
-        })
-      : () => <></>
-
     // When this segment does not have a layout or page render the children without wrapping in a layout router
     if (!Component) {
+      const Children = createComponentTree({
+        // parentSegmentPath: currentSegmentPath,
+        tree: parallelRoutes.children,
+      })
       // If the segment has a loading.js still wrap with a loading component
       if (Loading) {
         return () => (
@@ -312,7 +308,38 @@ export async function renderToHTML(
       return Children
     }
 
-    const dataCacheKey = currentSegmentPath
+    const currentSegmentPath = 'abc'
+
+    // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
+    const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
+      (list, currentValue) => {
+        const ChildComponent = createComponentTree({
+          // parentSegmentPath: currentSegmentPath,
+          tree: parallelRoutes[currentValue],
+        })
+
+        const childProp: ChildProp = {
+          current: <ChildComponent />,
+          segment: parallelRoutes[currentValue][0],
+        }
+
+        list[currentValue] = (
+          <LayoutRouter
+            parallelRouterKey={currentValue}
+            // TODO: construct this path client-side instead.
+            layoutPath={currentSegmentPath}
+            loading={Loading ? <Loading /> : undefined}
+            childProp={childProp}
+          />
+        )
+
+        return list
+      },
+      {} as { [key: string]: React.ReactNode }
+    )
+
+    // TODO: needs a better key
+    const dataCacheKey = JSON.stringify(currentSegmentPath)
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/
@@ -383,25 +410,7 @@ export async function renderToHTML(
         }
       }
 
-      // When the segment is a page skip the children as only layouts require children to be rendered
-      if (isPage) {
-        return <Component {...props} />
-      }
-
-      const childProp: ChildProp = {
-        current: <Children />,
-        segment: children[0],
-      }
-      return (
-        <Component {...props}>
-          <LayoutRouter
-            // TODO: construct this path client-side instead.
-            layoutPath={currentSegmentPath}
-            loading={Loading ? <Loading /> : undefined}
-            childProp={childProp}
-          />
-        </Component>
-      )
+      return <Component {...props} {...parallelRouteComponents} />
     }
   }
 
@@ -448,7 +457,7 @@ export async function renderToHTML(
           createComponentTree(
             // This ensures flightRouterPath is valid and filters down the tree
             {
-              parentSegmentPath: '',
+              // parentSegmentPath: '',
               tree: treeToFilter,
             }
           )
@@ -472,15 +481,24 @@ export async function renderToHTML(
   }
 
   const createFlightRouterStateFromLoaderTree = (
-    [segment, { children }]: LoaderTree,
+    [segment, parallelRoutes]: LoaderTree,
     url?: string
   ): FlightRouterState => {
     const segmentTree: FlightRouterState = [segment, {}]
     if (url) {
       segmentTree.push(url)
     }
-    if (children) {
-      segmentTree[1].children = createFlightRouterStateFromLoaderTree(children)
+
+    if (parallelRoutes) {
+      segmentTree[1] = Object.keys(parallelRoutes).reduce(
+        (existingValue, currentValue) => {
+          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
+            parallelRoutes[currentValue]
+          )
+          return existingValue
+        },
+        {} as FlightRouterState[1]
+      )
     }
     return segmentTree
   }
@@ -491,7 +509,7 @@ export async function renderToHTML(
   )
 
   const ComponentTree = createComponentTree({
-    parentSegmentPath: '',
+    // parentSegmentPath: '',
     tree: tree,
   })
 
