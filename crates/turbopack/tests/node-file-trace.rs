@@ -104,7 +104,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::remark_prism("integration/remark-prism.mjs", true)]
 #[case::request("integration/request.js", true)]
 #[case::rxjs("integration/rxjs.js", true)]
-#[case::saslprep("integration/saslprep.js", false)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
+#[case::saslprep("integration/saslprep.js", true)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
 #[case::semver("integration/semver.js", true)]
 #[case::sentry("integration/sentry.js", true)]
 #[case::sequelize("integration/sequelize.js", true)]

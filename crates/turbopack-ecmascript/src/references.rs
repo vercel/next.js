@@ -382,28 +382,38 @@ pub async fn module_references(
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
                         let args = linked_args().await?;
-
-                        let linked_func_call = link_value(JsValue::call(
-                            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                            args,
-                        ))
-                        .await?;
-
-                        let pat = js_value_to_pattern(&linked_func_call);
-                        if !pat.has_constant_parts() {
-                            let (args, hints) = explain_args(&linked_args().await?);
-                            handler.span_warn_with_code(
-                                *span,
-                                &format!(
-                                    "require.resolve({args}) is not statically analyse-able{hints}",
-                                ),
-                                DiagnosticId::Error(
-                                    errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
-                                        .to_string(),
-                                ),
+                        if args.len() == 1 {
+                            let pat = js_value_to_pattern(&args[0]);
+                            if !pat.has_constant_parts() {
+                                let (args, hints) = explain_args(&args);
+                                handler.span_warn_with_code(
+                                    *span,
+                                    &format!("require.resolve({args}) is very dynamic{hints}",),
+                                    DiagnosticId::Lint(
+                                        errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
+                                            .to_string(),
+                                    ),
+                                )
+                            }
+                            references.push(
+                                CjsAssetReferenceVc::new(
+                                    context,
+                                    RequestVc::parse(Value::new(pat)),
+                                )
+                                .into(),
                             );
+                            return Ok(());
                         }
-                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require.resolve({args}) is not statically analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
+                            ),
+                        )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
                         let args = linked_args().await?;
@@ -435,9 +445,6 @@ pub async fn module_references(
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
                         let parent_path = source.path().parent().await?;
-                        let parent_path_arg =
-                            JsValue::Constant(ConstantValue::Str(parent_path.path.as_str().into()));
-
                         let args = linked_args().await?;
 
                         let linked_func_call = link_value(JsValue::call(
@@ -1511,19 +1518,42 @@ impl AssetReference for DirAssetReference {
         let context = self.source.path().parent();
         let pat = self.path.await?;
         let mut result = HashSet::default();
-        if let Pattern::Constant(p) = &*pat {
-            let fs = context.fs();
-            let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-            let entry_type = dest_file_path.get_type().await?;
-            match &*entry_type {
-                FileSystemEntryType::Directory => {
-                    result = read_dir(dest_file_path).await?;
+        let fs = context.fs();
+        match &*pat {
+            Pattern::Constant(p) => {
+                let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
+                let entry_type = dest_file_path.get_type().await?;
+                match &*entry_type {
+                    FileSystemEntryType::Directory => {
+                        result = read_dir(dest_file_path).await?;
+                    }
+                    FileSystemEntryType::File => {
+                        result.insert(SourceAssetVc::new(dest_file_path).into());
+                    }
+                    _ => {}
                 }
-                FileSystemEntryType::File => {
-                    result.insert(SourceAssetVc::new(dest_file_path).into());
-                }
-                _ => {}
             }
+            Pattern::Alternatives(alternatives) => {
+                for alternative_pattern in alternatives {
+                    let mut pat = alternative_pattern.clone();
+                    pat.normalize();
+                    if let Pattern::Constant(p) = pat {
+                        let dest_file_path =
+                            FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
+                        let entry_type = dest_file_path.get_type().await?;
+                        match &*entry_type {
+                            FileSystemEntryType::Directory => {
+                                result = read_dir(dest_file_path).await?;
+                            }
+                            FileSystemEntryType::File => {
+                                result.insert(SourceAssetVc::new(dest_file_path).into());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
         Ok(ResolveResult::Alternatives(result, vec![]).into())
     }
