@@ -88,7 +88,7 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-Note: during a revalidation fresh data should be requested from your upstream provider so if the provider has caching enabled by default you will want to bypass this (e.g. `useCdn: false`) otherwise a revalidation won't be able to pull fresh data to update the cache with correctly.
+> Note:  Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the Next.js cache. When using Next.js on Vercel, caching is enabled by default through the Vercel Edge Network.
 
 ## On-demand Revalidation
 
