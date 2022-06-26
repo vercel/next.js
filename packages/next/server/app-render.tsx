@@ -278,45 +278,60 @@ export async function renderToHTML(
   const isPreview = previewData !== false
   const dataCache = new Map<string, Record>()
 
+  type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
+
   const createComponentTree = ({
-    parentSegmentPath,
+    createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
   }: {
-    parentSegmentPath?: FlightSegmentPath
+    createSegmentPath: CreateSegmentPath
     tree: LoaderTree
-  }): React.ComponentType => {
+  }): { segmentPath: FlightSegmentPath; Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
     const Component = layoutOrPageMod
       ? interopDefault(layoutOrPageMod)
       : undefined
 
+    const currentSegmentPath: FlightSegmentPath = [segment]
+
+    const segmentPath = createSegmentPath(currentSegmentPath)
+
     // When this segment does not have a layout or page render the children without wrapping in a layout router
     if (!Component) {
-      const Children = createComponentTree({
-        // parentSegmentPath: currentSegmentPath,
+      const { Component: Children } = createComponentTree({
+        createSegmentPath: (child) => {
+          return createSegmentPath([segment, ['children', child]])
+        },
         tree: parallelRoutes.children,
       })
       // If the segment has a loading.js still wrap with a loading component
       if (Loading) {
-        return () => (
-          <React.Suspense fallback={<Loading />}>
-            <Children />
-          </React.Suspense>
-        )
+        return {
+          segmentPath,
+          Component: () => (
+            <React.Suspense fallback={<Loading />}>
+              <Children />
+            </React.Suspense>
+          ),
+        }
       }
-      return Children
+      return {
+        segmentPath,
+        Component: Children,
+      }
     }
-
-    const currentSegmentPath = 'abc'
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
       (list, currentValue) => {
-        const ChildComponent = createComponentTree({
-          // parentSegmentPath: currentSegmentPath,
-          tree: parallelRoutes[currentValue],
-        })
+        const { segmentPath: childSegmentPath, Component: ChildComponent } =
+          createComponentTree({
+            createSegmentPath: (child) => {
+              return createSegmentPath([segment, [currentValue, child]])
+            },
+            tree: parallelRoutes[currentValue],
+          })
 
         const childProp: ChildProp = {
           current: <ChildComponent />,
@@ -327,7 +342,7 @@ export async function renderToHTML(
           <LayoutRouter
             parallelRouterKey={currentValue}
             // TODO: construct this path client-side instead.
-            layoutPath={currentSegmentPath}
+            segmentPath={childSegmentPath}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
           />
@@ -390,27 +405,30 @@ export async function renderToHTML(
       preloadDataFetchingRecord(dataCache, dataCacheKey, fetcher)
     }
 
-    return () => {
-      let props
-      if (fetcher) {
-        // The data fetching was kicked off before rendering (see above)
-        // if the data was not resolved yet the layout rendering will be suspended
-        const record = preloadDataFetchingRecord(
-          dataCache,
-          dataCacheKey,
-          fetcher
-        )
-        // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
-        const recordValue = readRecordValue(record)
+    return {
+      segmentPath,
+      Component: () => {
+        let props
+        if (fetcher) {
+          // The data fetching was kicked off before rendering (see above)
+          // if the data was not resolved yet the layout rendering will be suspended
+          const record = preloadDataFetchingRecord(
+            dataCache,
+            dataCacheKey,
+            fetcher
+          )
+          // Result of calling getStaticProps or getServerSideProps. If promise is not resolve yet it will suspend.
+          const recordValue = readRecordValue(record)
 
-        if (props) {
-          props = Object.assign({}, props, recordValue.props)
-        } else {
-          props = recordValue.props
+          if (props) {
+            props = Object.assign({}, props, recordValue.props)
+          } else {
+            props = recordValue.props
+          }
         }
-      }
 
-      return <Component {...props} {...parallelRouteComponents} />
+        return <Component {...props} {...parallelRouteComponents} />
+      },
     }
   }
 
@@ -423,8 +441,6 @@ export async function renderToHTML(
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): FlightDataTree => {
-      // console.log({ stateParallelRoutes })
-      // const [stateSegment, stateParallelRoutes] = flightRouterState
       const [segment, parallelRoutes] = treeToFilter
 
       const renderComponentsOnThisLevel =
@@ -457,10 +473,10 @@ export async function renderToHTML(
           createComponentTree(
             // This ensures flightRouterPath is valid and filters down the tree
             {
-              // parentSegmentPath: '',
+              createSegmentPath: (child) => child,
               tree: treeToFilter,
             }
-          )
+          ).Component
         )
       }
 
@@ -508,9 +524,9 @@ export async function renderToHTML(
     pathname + (search ? `?${search}` : '')
   )
 
-  const ComponentTree = createComponentTree({
-    // parentSegmentPath: '',
-    tree: tree,
+  const { Component: ComponentTree } = createComponentTree({
+    createSegmentPath: (child) => child,
+    tree,
   })
 
   const AppRouter = ComponentMod.AppRouter

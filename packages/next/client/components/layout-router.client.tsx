@@ -1,7 +1,10 @@
 import React, { useContext } from 'react'
 import type { ChildProp } from '../../server/app-render'
 import type { CacheNode } from '../../shared/lib/app-router-context'
-import type { FlightRouterState } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../server/app-render'
 import {
   AppTreeContext,
   FullAppTreeContext,
@@ -24,7 +27,7 @@ export function InnerLayoutRouter({
   url: string
   childNodes: CacheNode['parallelRoutes']['children']
   childProp: ChildProp | null
-  layoutPath: string
+  segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
   path: string
@@ -140,12 +143,12 @@ function LoadingBoundary({
 
 export default function OuterLayoutRouter({
   parallelRouterKey,
-  layoutPath,
+  segmentPath,
   childProp,
   loading,
 }: {
   parallelRouterKey: string
-  layoutPath: string
+  segmentPath: FlightSegmentPath
   childProp: ChildProp
   loading: React.ReactNode | undefined
 }) {
@@ -173,7 +176,7 @@ export default function OuterLayoutRouter({
               childProp={
                 childProp.segment === preservedSegment ? childProp : null
               }
-              layoutPath={layoutPath}
+              segmentPath={segmentPath}
               path={preservedSegment}
               isActive={currentChildSegment === preservedSegment}
             />
