@@ -1,3 +1,4 @@
+import { NextPage, GetServerSideProps } from 'next'
 import Layout from '../components/Layout'
 import AmpState from '../components/amp/AmpState'
 import AmpScript from '../components/amp/AmpScript'
@@ -8,7 +9,11 @@ import {
 
 export const config = { amp: true }
 
-const Home = (props) => (
+type HomeProps = {
+  host: string
+}
+
+const Home: NextPage<HomeProps> = (props) => (
   <>
     <Layout
       title="Welcome to AMP"
@@ -101,9 +106,11 @@ const Home = (props) => (
           </p>
 
           <AmpState id="myState">
-            {{
-              message: 'Hello World',
-            }}
+            <>
+              {{
+                message: 'Hello World',
+              }}
+            </>
           </AmpState>
           <button
             on="tap:AMP.setState({
@@ -233,21 +240,21 @@ const Home = (props) => (
 )
 
 // amp-script requires absolute URLs, so we create a property `host` which we can use to calculate the script URL.
-export async function getServerSideProps({ req }) {
+export const getServerSideProps: GetServerSideProps = async ({ req }) => {
+  const getProtocol = (req: any) => {
+    if (req.connection.encrypted) {
+      return 'https'
+    }
+    const forwardedProto = req.headers['x-forwarded-proto']
+    if (forwardedProto) {
+      return forwardedProto.split(/\s*,\s*/)[0]
+    }
+    return 'http'
+  }
+
   // WARNING: This is a generally unsafe application unless you're deploying to a managed platform like Vercel.
   // Be sure your load balancer is configured to not allow spoofed host headers.
   return { props: { host: `${getProtocol(req)}://${req.headers.host}` } }
-}
-
-function getProtocol(req) {
-  if (req.connection.encrypted) {
-    return 'https'
-  }
-  const forwardedProto = req.headers['x-forwarded-proto']
-  if (forwardedProto) {
-    return forwardedProto.split(/\s*,\s*/)[0]
-  }
-  return 'http'
 }
 
 export default Home
