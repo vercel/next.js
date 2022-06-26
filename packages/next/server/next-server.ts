@@ -5,8 +5,8 @@ import type { Route } from './router'
 import {
   CacheFs,
   DecodeError,
-  execOnce,
   PageNotFoundError,
+  MiddlewareNotFoundError,
 } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
@@ -25,7 +25,6 @@ import type {
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
-import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -88,8 +87,8 @@ import {
 } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { isDynamicRoute } from '../shared/lib/router/utils'
+import { shouldUseReactRoot } from './utils'
 
-const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
@@ -109,12 +108,6 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
-
-const middlewareBetaWarning = execOnce(() => {
-  Log.warn(
-    `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-  )
-})
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -1103,14 +1096,18 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
-      throw new PageNotFoundError(params.page)
+      return null
     }
 
     let pageInfo = params.middleware
       ? manifest.middleware[foundPage]
       : manifest.functions[foundPage]
+
     if (!pageInfo) {
-      throw new PageNotFoundError(foundPage)
+      if (!params.middleware) {
+        throw new PageNotFoundError(foundPage)
+      }
+      return null
     }
 
     return {
@@ -1133,14 +1130,8 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     _isSSR?: boolean
   ): Promise<boolean> {
-    try {
-      return (
-        this.getEdgeFunctionInfo({ page: pathname, middleware: true }).paths
-          .length > 0
-      )
-    } catch (_) {}
-
-    return false
+    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    return Boolean(info && info.paths.length > 0)
   }
 
   /**
@@ -1163,9 +1154,7 @@ export default class NextNodeServer extends BaseServer {
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
-    middlewareBetaWarning()
-
-    // middleware is skipped for on-demand revalidate requests
+    // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate
@@ -1177,9 +1166,12 @@ export default class NextNodeServer extends BaseServer {
     // For middleware to "fetch" we must always provide an absolute URL
     const query = urlQueryToSearchParams(params.parsed.query).toString()
     const locale = params.parsed.query.__nextLocale
-    const url = `http://${this.hostname}:${this.port}${
-      locale ? `/${locale}` : ''
-    }${params.parsed.pathname}${query ? `?${query}` : ''}`
+
+    const url = `${getRequestMeta(params.request, '_protocol')}://${
+      this.hostname
+    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+      query ? `?${query}` : ''
+    }`
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -1222,6 +1214,10 @@ export default class NextNodeServer extends BaseServer {
           page: middleware.page,
           middleware: !middleware.ssr,
         })
+
+        if (!middlewareInfo) {
+          throw new MiddlewareNotFoundError()
+        }
 
         result = await run({
           name: middlewareInfo.name,
@@ -1538,6 +1534,10 @@ export default class NextNodeServer extends BaseServer {
       return null
     }
 
+    if (!middlewareInfo) {
+      return null
+    }
+
     // For middleware to "fetch" we must always provide an absolute URL
     const url = getRequestMeta(params.req, '__NEXT_INIT_URL')!
     if (!url.startsWith('http')) {
@@ -1547,6 +1547,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const nodeReq = params.req as NodeNextRequest
+
     const result = await run({
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,

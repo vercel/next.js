@@ -24,11 +24,17 @@ import streaming from './streaming'
 import basic from './basic'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
-const appWithGlobalCss = `
+const appWithGlobalCssAndHead = `
 import '../styles.css'
+import Head from 'next/head'
 
 function App({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <>
+    <Head>
+      <title>hi</title>
+    </Head>
+    <Component {...pageProps} />
+  </>
 }
 
 export default App
@@ -156,7 +162,7 @@ const nodejsRuntimeBasicSuite = {
 
 const cssSuite = {
   runTests: css,
-  beforeAll: () => appPage.write(appWithGlobalCss),
+  beforeAll: () => appPage.write(appWithGlobalCssAndHead),
   afterAll: () => appPage.delete(),
 }
 

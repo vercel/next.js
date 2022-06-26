@@ -3,7 +3,6 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 
 import './node-polyfill-fetch'
-import React from 'react'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
@@ -13,6 +12,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { shouldUseReactRoot } from './utils'
 
 let ServerImpl: typeof Server
 
@@ -183,7 +183,6 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
-  const shouldUseReactRoot = parseInt(React.version) >= 18
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }

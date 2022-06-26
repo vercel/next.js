@@ -46,6 +46,9 @@ export class BrowserInterface {
   type(text: string): BrowserInterface {
     return this
   }
+  moveTo(): BrowserInterface {
+    return this
+  }
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
     return this
   }
