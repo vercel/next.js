@@ -1,47 +1,88 @@
 ---
-description: You can add the dynamic routes used for pages to API Routes too. Learn how it works here.
+description: Edge API Routes enable you to build high performance APIs directly inside your Next.js application.
 ---
 
 # Edge API Routes (Beta)
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/examples/blob/main/edge-functions/api-route/api/edge.ts">Basic Edge API Route</a></li>
-  </ul>
-</details>
+Edge API Routes enable you to build high performance APIs with Next.js.
 
-Edge API Routes are similar to API Routes but use the Edge Runtime. Unlike API Routes, Edge API Routes:
+Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a page. They are server-side only bundles and won't increase your client-side bundle size.
 
-- Can stream responses
-- Run _after_ the cache
+## Examples
 
-## How to create an Edge API Route
-
-Edge API Routes have the same signature as [Edge Middleware](/docs/advanced-features/middleware), and support the same helpers from [`next/server`](/docs/api-reference/next/server). Note that the below examples use TypeScript, though this is **not** a requirement.
-
-### Edge API Route
+### JSON Response
 
 ```typescript
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-
-export default (req: NextRequest) => {
-  return new Response(`Hello, from ${req.url} I'm now an Edge API Route!`)
-}
 
 export const config = {
   runtime: 'experimental-edge',
 }
+
+export default async function handler(req: NextRequest) {
+  return new Response(
+    JSON.stringify({
+      name: 'Jim Halpert',
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+      },
+    }
+  )
+}
 ```
 
-## Trade-offs
+### Cache-Control
 
-Edge API Routes are not suitable for all use cases:
+```typescript
+import type { NextRequest } from 'next/server'
 
-- Fetching data in an Edge API Routes from a location far away from its deployed location can add unwanted latency to the request
+export const config = {
+  runtime: 'experimental-edge',
+}
+
+export default async function handler(req: NextRequest) {
+  return new Response(
+    JSON.stringify({
+      name: 'Jim Halpert',
+    }),
+    {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': 'public, s-maxage=1200, stale-while-revalidate=600',
+      },
+    }
+  )
+}
+```
+
+### Query Parameters
+
+```typescript
+import type { NextRequest } from 'next/server'
+
+export const config = {
+  runtime: 'experimental-edge',
+}
+
+export default async function handler(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const email = searchParams.get('email')
+  return new Response(email)
+}
+```
+
+## Differences between API Routes
+
+Edge API Routes are built on the [Edge Runtime](https://edge-runtime.vercel.app/) – they have the same API signature as [Edge Middleware](/docs/advanced-features/middleware). However, Edge API Routes can [stream responses](https://edge-runtime.vercel.app/features/available-apis#web-stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed.
+
+The [Edge Runtime](https://edge-runtime.vercel.app/) does impose some contstraints to enable high performance and security:
+
 - The maximum size for an Edge API Route is 1 MB, including all the code that is bundled in the function
-- **Native Node.js APIs are not supported**:
-  - ES modules `require()` is not allowed
-  - Libraries using Node.js APIs can't be used in Edge API Routes
-  - Dynamic code execution (such as `eval`) is not allowed
+- Node.js APIs (such as `fs`) can't be used inside Edge API Routes
+- Dynamic code execution (such as `eval`) is not allowed
+
+[See all of the supported APIs](https://edge-runtime.vercel.app/features/available-apis) for the Edge Runtime.
