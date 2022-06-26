@@ -10,6 +10,16 @@ Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated
 
 ## Examples
 
+### Basic
+
+```typescript
+export const config = {
+  runtime: 'experimental-edge',
+}
+
+export default (req) => new Response('Hello world!')
+```
+
 ### JSON Response
 
 ```typescript
