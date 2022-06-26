@@ -6,7 +6,7 @@
     "build": "npx @vercel/ncc -m build index.js --license licenses.txt"
   },
   "devDependencies": {
-    "typescript": "4.6.3"
+    "@vercel/ncc": "0.34.0"
   },
   "dependencies": {
     "@actions/core": "1.9.0",
