@@ -6,7 +6,11 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  PageRuntime,
+} from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
@@ -74,6 +78,7 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { PAGE_RUNTIME } from '../lib/constants'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -172,7 +177,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
-    runtime?: 'nodejs' | 'edge'
+    runtime?: PageRuntime
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean

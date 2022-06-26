@@ -7,5 +7,5 @@ export default function MyError() {
 }
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }

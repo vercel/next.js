@@ -1,3 +1,5 @@
+import { PAGE_RUNTIME } from '../../../lib/constants'
+
 export default async function transformSource(this: any): Promise<string> {
   let { modules, runtime, ssr } = this.getOptions()
   if (!Array.isArray(modules)) {
@@ -18,7 +20,7 @@ export default async function transformSource(this: any): Promise<string> {
     export default function RSC() {};
     ` +
     // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
-    (runtime === 'edge'
+    (runtime === PAGE_RUNTIME.edge
       ? 'export const __N_SSP = true;'
       : ssr
       ? `export const __N_SSP = true;`

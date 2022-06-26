@@ -10,6 +10,7 @@ import {
   WebNextRequest,
   WebNextResponse,
 } from '../../../../server/base-http/web'
+import { PAGE_RUNTIME } from '../../../../lib/constants'
 
 export function getRender({
   dev,
@@ -55,7 +56,7 @@ export function getRender({
       page,
       extendRenderOpts: {
         buildId,
-        runtime: 'edge',
+        runtime: PAGE_RUNTIME.edge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverComponentManifest,

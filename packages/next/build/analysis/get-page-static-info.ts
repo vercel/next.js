@@ -6,6 +6,7 @@ import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
+import { PAGE_RUNTIME } from '../../lib/constants'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
@@ -39,15 +40,15 @@ export async function getPageStaticInfo(params: {
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
 
-    let runtime = ['experimental-edge', 'edge'].includes(config?.runtime)
-      ? 'edge'
-      : ssr || ssg
-      ? config?.runtime || nextConfig.experimental?.runtime
-      : undefined
+    let runtime =
+      PAGE_RUNTIME.edge === config?.runtime
+        ? PAGE_RUNTIME.edge
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
+        : undefined
 
-    if (runtime === 'experimental-edge' || runtime === 'edge') {
+    if (runtime === PAGE_RUNTIME.edge) {
       warnAboutExperimentalEdgeApiFunctions()
-      runtime = 'edge'
     }
 
     const middlewareConfig = getMiddlewareConfig(config, nextConfig)

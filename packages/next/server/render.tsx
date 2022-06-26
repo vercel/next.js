@@ -21,6 +21,7 @@ import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { PageRuntime } from './config-shared'
 
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -238,7 +239,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: PageRuntime
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
