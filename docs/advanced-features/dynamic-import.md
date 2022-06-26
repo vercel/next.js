@@ -11,7 +11,7 @@ description: Dynamically import JavaScript modules and React Components and spli
   </ul>
 </details>
 
-Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libaries are only imported and included in the JavaScript bundle when they're used.
+Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libraries are only imported and included in the JavaScript bundle when they're used.
 
 `next/dynamic` is an extension of [`React.lazy`](https://reactjs.org/docs/code-splitting.html#reactlazy). When used in combination with [`Suspense`](https://reactjs.org/docs/react-api.html#reactsuspense), components can delay hydration until the Suspense boundary is resolved.
 
