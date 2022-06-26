@@ -236,12 +236,12 @@ export async function apiResolver(
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
-    apiRes.unstable_revalidate = (
+    apiRes.revalidate = (
       urlPath: string,
       opts?: {
         unstable_onlyGenerated?: boolean
       }
-    ) => unstable_revalidate(urlPath, opts || {}, req, apiContext)
+    ) => revalidate(urlPath, opts || {}, req, apiContext)
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -284,7 +284,7 @@ export async function apiResolver(
   }
 }
 
-async function unstable_revalidate(
+async function revalidate(
   urlPath: string,
   opts: {
     unstable_onlyGenerated?: boolean

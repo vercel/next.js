@@ -7,12 +7,12 @@ description: API reference for `getStaticPaths`. Learn how to fetch data and gen
 <details>
   <summary><b>Version History</b></summary>
 
-| Version | Changes |
-| ------- | ------- |
-
-| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
-| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
-| `v9.3.0` | `getStaticPaths` introduced. |
+| Version   | Changes                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) is stable.    |
+| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) added (beta). |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)                                         |
+| `v9.3.0`  | `getStaticPaths` introduced.                                                                                                                            |
 
 </details>
 

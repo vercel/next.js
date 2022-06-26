@@ -22,7 +22,7 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
     - `locales`: (`string[] || undefined`)
   - `locale` (`string || undefined`)
   - `url` (`URL`)
-- `ip`: (`string || undefined`) - Has the IP address of the `Request`
+- `ip`: (`string || undefined`) - Has the IP address of the `Request`. This information is provided by your hosting platform.
 - `geo` - Has the geographic location from the `Request`. This information is provided by your hosting platform. Includes the following properties:
   - `city` (`string || undefined`)
   - `country` (`string || undefined`)
@@ -143,7 +143,7 @@ export function middleware(request: NextRequest) {
   const { device } = userAgent(request)
   const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(url)
+  return NextResponse.rewrite(url)
 }
 ```
 

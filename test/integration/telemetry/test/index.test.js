@@ -502,6 +502,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
+    expect(event1).toMatch(/"imageEnabled": true/)
+    expect(event1).toMatch(/"imageFutureEnabled": false/)
     expect(event1).toMatch(/"imageDomainsCount": 2/)
     expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
