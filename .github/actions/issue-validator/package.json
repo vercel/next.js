@@ -1,9 +1,12 @@
 {
   "private": true,
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
+  "scripts": {
+    "build": "ncc -m build index.js --license licenses.txt"
+  },
   "devDependencies": {
-    "typescript": "4.6.3"
+    "@vercel/ncc": "0.34.0"
   },
   "dependencies": {
     "@actions/core": "1.9.0",
