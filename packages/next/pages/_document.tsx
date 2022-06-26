@@ -17,7 +17,6 @@ import isError from '../lib/is-error'
 
 import { HtmlContext } from '../shared/lib/html-context'
 import type { HtmlProps } from '../shared/lib/html-context'
-import { PAGE_RUNTIME } from '../lib/constants'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
