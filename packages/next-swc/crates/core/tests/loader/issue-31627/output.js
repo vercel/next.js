@@ -3,8 +3,8 @@ function _classCallCheck(instance, Constructor) {
         throw new TypeError("Cannot call a class as a function");
     }
 }
-import { useEffect } from 'react';
-import { select, selectAll } from 'd3-selection';
+import { useEffect } from "react";
+import { select, selectAll } from "d3-selection";
 export default function Home() {
     useEffect(function() {
         new MyClass();
@@ -18,7 +18,7 @@ export default function Home() {
 var MyClass = function MyClass() {
     "use strict";
     _classCallCheck(this, MyClass);
-    selectAll('.group').each(function() {
-        select(this).selectAll('path');
+    selectAll(".group").each(function() {
+        select(this).selectAll("path");
     });
 };

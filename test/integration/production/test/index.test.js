@@ -103,9 +103,24 @@ describe('Production Usage', () => {
         file.includes('next/dist/server/send-payload/index.js')
       )
     ).toBe(true)
+    const repoRoot = join(__dirname, '../../../../')
+    expect(
+      serverTrace.files.some((file) => {
+        const fullPath = join(__dirname, '../.next', file)
+        if (!fullPath.startsWith(repoRoot)) {
+          console.error(`Found next-server trace file outside repo root`, {
+            repoRoot,
+            fullPath,
+            file,
+          })
+          return true
+        }
+        return false
+      })
+    ).toBe(false)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
@@ -313,6 +328,24 @@ describe('Production Usage', () => {
     expect(content).not.toContain('.currentScript')
   })
 
+  it('should not contain amp, rsc APIs in main chunk', async () => {
+    const globResult = await glob('main-*.js', {
+      cwd: join(appDir, '.next/static/chunks'),
+    })
+
+    if (!globResult || globResult.length !== 1) {
+      throw new Error('could not find main js chunk')
+    }
+
+    const content = await fs.readFile(
+      join(appDir, '.next/static/chunks', globResult[0]),
+      'utf8'
+    )
+
+    expect(content).not.toContain('useAmp')
+    expect(content).not.toContain('useRefreshRoot')
+  })
+
   describe('With basic usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')
@@ -377,7 +410,9 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
-    it('should allow etag header support with getServerSideProps', async () => {
+    // TODO: should we generate weak etags for streaming getServerSideProps?
+    // this is currently not expected to work with react-18
+    it.skip('should allow etag header support with getServerSideProps', async () => {
       const url = `http://localhost:${appPort}`
       const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
         'ETag'

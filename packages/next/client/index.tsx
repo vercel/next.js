@@ -1,7 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
 import React, { useState } from 'react'
-import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -9,8 +8,6 @@ import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
-  delBasePath,
-  hasBasePath,
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -33,13 +30,14 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import {
-  flushBufferedVitalsMetrics,
-  trackWebVitalMetric,
-} from './streaming/vitals'
-import { RefreshContext } from './streaming/refresh'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
+import { removeBasePath } from './remove-base-path'
+import { hasBasePath } from './has-base-path'
+
+const ReactDOM = process.env.__NEXT_REACT_ROOT
+  ? require('react-dom/client')
+  : require('react-dom')
 
 /// <reference types="react-dom/experimental" />
 
@@ -81,13 +79,17 @@ let headManager: {
   updateHead: (head: JSX.Element[]) => void
   getIsSsr?: () => boolean
 }
+let initialMatchesMiddleware = false
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
-let isAppRSC: boolean
+
+  // Ignore the module ID transform in client.
+  // @ts-ignore
+;(self as any).__next_require__ = __webpack_require__
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -103,6 +105,8 @@ class Container extends React.Component<{
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
     // - if it is a client-side skeleton (fallback render)
+    // - if middleware matches the current page (may have rewrite params)
+    // - if rewrites in next.config.js match (may have rewrite params)
     if (
       router.isSsr &&
       // We don't update for 404 requests as this can modify
@@ -114,35 +118,42 @@ class Container extends React.Component<{
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||
             location.search ||
-            process.env.__NEXT_HAS_REWRITES)) ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)) ||
         (initialData.props &&
           initialData.props.__N_SSG &&
-          (location.search || process.env.__NEXT_HAS_REWRITES)))
+          (location.search ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)))
     ) {
       // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          String(
-            assign(
-              urlQueryToSearchParams(router.query),
-              new URLSearchParams(location.search)
-            )
-          ),
-        asPath,
-        {
-          // @ts-ignore
-          // WARNING: `_h` is an internal option for handing Next.js
-          // client-side hydration. Your app should _never_ use this property.
-          // It may change at any time without notice.
-          _h: 1,
-          // Fallback pages must trigger the data fetch, so the transition is
-          // not shallow.
-          // Other pages (strictly updating query) happens shallowly, as data
-          // requirements would already be present.
-          shallow: !initialData.isFallback,
-        }
-      )
+      router
+        .replace(
+          router.pathname +
+            '?' +
+            String(
+              assign(
+                urlQueryToSearchParams(router.query),
+                new URLSearchParams(location.search)
+              )
+            ),
+          asPath,
+          {
+            // @ts-ignore
+            // WARNING: `_h` is an internal option for handing Next.js
+            // client-side hydration. Your app should _never_ use this property.
+            // It may change at any time without notice.
+            _h: 1,
+            // Fallback pages must trigger the data fetch, so the transition is
+            // not shallow.
+            // Other pages (strictly updating query) happens shallowly, as data
+            // requirements would already be present.
+            shallow: !initialData.isFallback && !initialMatchesMiddleware,
+          }
+        )
+        .catch((err) => {
+          if (!err.cancelled) throw err
+        })
     }
   }
 
@@ -169,7 +180,7 @@ class Container extends React.Component<{
     } else {
       const {
         ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/client')
+      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -204,7 +215,7 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
 
   // make sure not to attempt stripping basePath for 404s
   if (hasBasePath(asPath)) {
-    asPath = delBasePath(asPath)
+    asPath = removeBasePath(asPath)
   }
 
   if (process.env.__NEXT_I18N_SUPPORT) {
@@ -288,39 +299,38 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    isAppRSC = !!mod.__next_rsc__
-    const exportedReportWebVitals = mod && mod.reportWebVitals
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }: any): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      const webVitals: NextWebVitalsMetric = {
-        id: id || uniqueID,
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
         name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }: any): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        const webVitals: NextWebVitalsMetric = {
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        }
+        mod.reportWebVitals(webVitals)
       }
-      exportedReportWebVitals?.(webVitals)
-      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -349,8 +359,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const {
-      getNodeError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/client')
+      getServerError,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -368,15 +378,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-
-          // Errors from the middleware are reported as client-side errors
-          // since the middleware is compiled using the client compiler
-          if (initialData.err && 'middleware' in initialData.err) {
-            throw error
-          }
-
-          const node = getNodeError(error)
-          throw node
+          throw getServerError(error, initialErr!.source)
         })
       }
       // We replaced the server-side error with a client-side error, and should
@@ -419,6 +421,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     isPreview: initialData.isPreview,
     isRsc: initialData.rsc,
   })
+
+  initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
@@ -547,14 +551,16 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
-    const ReactDOMClient = require('react-dom/client')
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = (ReactDOMClient as any).hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
-      reactRoot.render(reactEl)
+      const startTransition = (React as any).startTransition
+      startTransition(() => {
+        reactRoot.render(reactEl)
+      })
     }
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
@@ -646,12 +652,7 @@ function AppContainer({
 }
 
 function renderApp(App: AppComponent, appProps: AppProps) {
-  if (process.env.__NEXT_RSC && isAppRSC) {
-    const { Component, err: _, router: __, ...props } = appProps
-    return <Component {...props} />
-  } else {
-    return <App {...appProps} />
-  }
+  return <App {...appProps} />
 }
 
 const wrapApp =
@@ -675,12 +676,14 @@ if (process.env.__NEXT_RSC) {
 
   const {
     createFromFetch,
+    createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
+  const { RefreshContext } = require('./streaming/refresh')
 
   const encoder = new TextEncoder()
 
   let initialServerDataBuffer: string[] | undefined = undefined
-  let initialServerDataWriter: WritableStreamDefaultWriter | undefined =
+  let initialServerDataWriter: ReadableStreamDefaultController | undefined =
     undefined
   let initialServerDataLoaded = false
   let initialServerDataFlushed = false
@@ -693,7 +696,7 @@ if (process.env.__NEXT_RSC) {
         throw new Error('Unexpected server data: missing bootstrap script.')
 
       if (initialServerDataWriter) {
-        initialServerDataWriter.write(encoder.encode(seg[2]))
+        initialServerDataWriter.enqueue(encoder.encode(seg[2]))
       } else {
         initialServerDataBuffer.push(seg[2])
       }
@@ -708,19 +711,19 @@ if (process.env.__NEXT_RSC) {
   // Hence, we use two variables `initialServerDataLoaded` and
   // `initialServerDataFlushed` to make sure the writer will be closed and
   // `initialServerDataBuffer` will be cleared in the right time.
-  function nextServerDataRegisterWriter(writer: WritableStreamDefaultWriter) {
+  function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
     if (initialServerDataBuffer) {
       initialServerDataBuffer.forEach((val) => {
-        writer.write(encoder.encode(val))
+        ctr.enqueue(encoder.encode(val))
       })
       if (initialServerDataLoaded && !initialServerDataFlushed) {
-        writer.close()
+        ctr.close()
         initialServerDataFlushed = true
         initialServerDataBuffer = undefined
       }
     }
 
-    initialServerDataWriter = writer
+    initialServerDataWriter = ctr
   }
 
   // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
@@ -764,22 +767,24 @@ if (process.env.__NEXT_RSC) {
     if (response) return response
 
     if (initialServerDataBuffer) {
-      const t = new TransformStream()
-      const writer = t.writable.getWriter()
-      response = createFromFetch(Promise.resolve({ body: t.readable }))
-      nextServerDataRegisterWriter(writer)
+      const readable = new ReadableStream({
+        start(controller) {
+          nextServerDataRegisterWriter(controller)
+        },
+      })
+      response = createFromReadableStream(readable)
     } else {
-      const fetchPromise = serialized
-        ? (() => {
-            const t = new TransformStream()
-            const writer = t.writable.getWriter()
-            writer.ready.then(() => {
-              writer.write(new TextEncoder().encode(serialized))
-            })
-            return Promise.resolve({ body: t.readable })
-          })()
-        : fetchFlight(getCacheKey())
-      response = createFromFetch(fetchPromise)
+      if (serialized) {
+        const readable = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(serialized))
+            controller.close()
+          },
+        })
+        response = createFromReadableStream(readable)
+      } else {
+        response = createFromFetch(fetchFlight(getCacheKey()))
+      }
     }
 
     rscCache.set(cacheKey, response)
@@ -797,16 +802,16 @@ if (process.env.__NEXT_RSC) {
       rscCache.delete(cacheKey)
     })
     const response = useServerResponse(cacheKey, serialized)
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
-    const { __flight_serialized__ } = props
+    const { __flight__ } = props
     const [, dispatch] = useState({})
     const startTransition = (React as any).startTransition
     const rerender = () => dispatch({})
+
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps?: any) {
       startTransition(() => {
@@ -822,7 +827,7 @@ if (process.env.__NEXT_RSC) {
 
     return (
       <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot cacheKey={cacheKey} serialized={__flight_serialized__} />
+        <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
       </RefreshContext.Provider>
     )
   }
@@ -1021,6 +1026,12 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -1031,13 +1042,6 @@ function Root({
       }
     }, [])
   }
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-
-    flushBufferedVitalsMetrics()
-  }, [])
 
   return children as React.ReactElement
 }

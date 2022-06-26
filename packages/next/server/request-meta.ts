@@ -19,6 +19,7 @@ export interface RequestMeta {
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
+  _protocol?: string
 }
 
 export function getRequestMeta(
@@ -59,7 +60,7 @@ type NextQueryMetadata = {
   __nextLocale?: string
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
-  _nextDataReq?: '1'
+  __nextDataReq?: '1'
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &
@@ -80,7 +81,7 @@ export function getNextInternalQuery(
     '__nextLocale',
     '__nextSsgPath',
     '_nextBubbleNoFallback',
-    '_nextDataReq',
+    '__nextDataReq',
   ]
   const nextInternalQuery: NextQueryMetadata = {}
 

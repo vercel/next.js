@@ -1,4 +1,6 @@
-# Link passHref
+# Link `passHref`
+
+> Ensure `passHref` is used with custom `Link` components.
 
 ### Why This Error Occurred
 

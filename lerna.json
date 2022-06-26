@@ -1,5 +1,5 @@
 {
-  "npmClient": "yarn",
+  "npmClient": "pnpm",
   "useWorkspaces": true,
   "packages": [
     "packages/*"
@@ -16,5 +16,5 @@
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "12.1.3-canary.0"
+  "version": "12.1.7-canary.48"
 }

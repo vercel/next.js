@@ -26,7 +26,7 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 
 ### Environment
 
-- `process.env`: Holds an object with all environment variables for both production and development in the exact same way as any other page or API in Next.js
+- `process.env`: Holds an object with all environment variables for both `next dev` and `next build` in the exact same way as any other page or API in Next.js
 
 ### Fetch
 

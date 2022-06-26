@@ -32,6 +32,9 @@ const HashChanges = ({ count }) => {
           Go to name item 400 (no scroll)
         </a>
       </Link>
+      <Link href="#中文">
+        <a id="scroll-to-cjk-anchor">Go to CJK anchor</a>
+      </Link>
       <p>COUNT: {count}</p>
       {Array.from({ length: 500 }, (x, i) => i + 1).map((i) => {
         return (
@@ -52,6 +55,7 @@ const HashChanges = ({ count }) => {
       </Link>
       <div id="asPath">ASPATH: {router.asPath}</div>
       <div id="pathname">PATHNAME: {router.pathname}</div>
+      <div id="中文">CJK anchor</div>
     </div>
   )
 }

@@ -7,12 +7,12 @@ description: API reference for `getStaticPaths`. Learn how to fetch data and gen
 <details>
   <summary><b>Version History</b></summary>
 
-| Version | Changes |
-| ------- | ------- |
-
-| `v12.1.0` | [On-demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta) added (Beta). |
-| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
-| `v9.3.0` | `getStaticPaths` introduced. |
+| Version   | Changes                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) is stable.    |
+| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) added (beta). |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)                                         |
+| `v9.3.0`  | `getStaticPaths` introduced.                                                                                                                            |
 
 </details>
 
@@ -40,8 +40,12 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: '1' } },
-    { params: { id: '2' } }
+    { params: { id: '1' }},
+    {
+      params: { id: '2' },
+      // with i18n configured the locale for the path can be returned as well
+      locale: "en",
+    },
   ],
   fallback: ...
 }
@@ -54,6 +58,8 @@ The value for each `params` object must match the parameters used in the page na
 - If the page name is `pages/posts/[postId]/[commentId]`, then `params` should contain `postId` and `commentId`.
 - If the page name uses [catch-all routes](/docs/routing/dynamic-routes.md#catch-all-routes) like `pages/[...slug]`, then `params` should contain `slug` (which is an array). If this array is `['hello', 'world']`, then Next.js will statically generate the page at `/hello/world`.
 - If the page uses an [optional catch-all route](/docs/routing/dynamic-routes.md#optional-catch-all-routes), use `null`, `[]`, `undefined` or `false` to render the root-most route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
+
+Separate of the `params` object a `locale` field can be returned when [i18n is configured](/docs/advanced-features/i18n-routing.md), which configures the locale for the path being generated.
 
 ### `fallback: false`
 

@@ -70,10 +70,13 @@ export async function fsToJson(dir, output = {}) {
   return output
 }
 
-export async function expectWidth(res, w) {
+export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   const buffer = await res.buffer()
   const d = sizeOf(buffer)
   expect(d.width).toBe(w)
+  const lengthStr = res.headers.get('Content-Length')
+  expect(lengthStr).toBe(Buffer.byteLength(buffer).toString())
+  expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
 export const cleanImagesDir = async (ctx) => {
@@ -125,6 +128,7 @@ async function fetchWithDuration(...args) {
 }
 
 export function runTests(ctx) {
+  const { isDev, minimumCacheTTL = 60 } = ctx
   let slowImageServer
   beforeAll(async () => {
     slowImageServer = await serveSlowImage()
@@ -133,7 +137,7 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
         slowImageServer.port
@@ -170,7 +174,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.gif"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 50, { expectAnimated: true })
   })
 
   it('should maintain animated png', async () => {
@@ -186,7 +190,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.png"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 100, { expectAnimated: true })
   })
 
   it('should maintain animated png 2', async () => {
@@ -202,7 +206,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated2.png"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 1105, { expectAnimated: true })
   })
 
   it('should maintain animated webp', async () => {
@@ -218,7 +222,7 @@ export function runTests(ctx) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="animated.webp"`
     )
-    expect(isAnimated(await res.buffer())).toBe(true)
+    await expectWidth(res, 400, { expectAnimated: true })
   })
 
   if (ctx.dangerouslyAllowSVG) {
@@ -227,6 +231,7 @@ export function runTests(ctx) {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Length')).toBe('603')
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
@@ -262,7 +267,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
@@ -286,7 +291,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -304,7 +309,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -322,13 +327,14 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.jpeg"`
     )
+    await expectWidth(res, ctx.w)
   })
 
   if (!ctx.isOutdatedSharp) {
@@ -341,13 +347,14 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toContain('image/jpeg')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
       expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="test.jpeg"`
       )
+      await expectWidth(res, ctx.w)
     })
   }
 
@@ -443,7 +450,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -460,7 +467,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -477,7 +484,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -494,7 +501,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -511,7 +518,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -530,7 +537,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -552,7 +559,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/avif')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -577,7 +584,7 @@ export function runTests(ctx) {
     })
   }
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: 80 }
@@ -586,7 +593,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -609,7 +616,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -756,7 +763,7 @@ export function runTests(ctx) {
     )
   })
 
-  if (ctx.domains.includes('localhost')) {
+  if (ctx.domains?.length > 0) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: 100 }
@@ -949,7 +956,7 @@ export function runTests(ctx) {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
@@ -965,7 +972,7 @@ export function runTests(ctx) {
     expect(res2.headers.get('Content-Type')).toBeFalsy()
     expect(res2.headers.get('Etag')).toBe(etag)
     expect(res2.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
     expect(res2.headers.get('Content-Disposition')).toBeFalsy()
@@ -976,7 +983,7 @@ export function runTests(ctx) {
     expect(res3.status).toBe(200)
     expect(res3.headers.get('Content-Type')).toBe('image/webp')
     expect(res3.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
@@ -997,7 +1004,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     // bmp is compressible so will have accept-encoding set from
     // compression
@@ -1024,7 +1031,7 @@ export function runTests(ctx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -1046,7 +1053,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/png')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('Content-Disposition')).toBe(
@@ -1113,7 +1120,7 @@ export function runTests(ctx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (ctx.domains.length) {
+  if (ctx.domains?.length > 0) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx)
       const delay = 500

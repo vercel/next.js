@@ -1,9 +1,6 @@
-const withReact18 = require('../test/with-react-18')
-
-module.exports = withReact18({
+module.exports = {
   // reactStrictMode: true,
   experimental: {
-    reactRoot: true,
     // runtime: 'edge',
   },
   images: {
@@ -12,4 +9,4 @@ module.exports = withReact18({
     path: 'https://example.com/myaccount/',
     loader: 'imgix',
   },
-})
+}

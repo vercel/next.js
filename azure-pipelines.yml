@@ -32,59 +32,30 @@ pr:
       - examples
 
 variables:
-  YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
+  PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
+  PNPM_VERSION: 7.2.1
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.22.0
+  node_version: ^14.19.0
 
 stages:
-  - stage: Build
-    jobs:
-      - job: build
-        pool:
-          vmImage: 'windows-2019'
-        steps:
-          - script: echo $(Agent.BuildDirectory)
-          - script: dir
-          - script: dir $(System.DefaultWorkingDirectory)
-          - script: echo $(Build.SourceVersion)
-          - powershell: Get-MpComputerStatus
-          - task: NodeTool@0
-            inputs:
-              versionSpec: $(node_version)
-            displayName: 'Install Node.js'
-          - task: Cache@2
-            inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
-          - script: |
-              yarn install --frozen-lockfile --check-files
-            displayName: 'Install dependencies'
-          - script: |
-              node run-tests.js --timings --write-timings --azure -g 1/1
-            displayName: 'Fetch test timing data'
-
   - stage: Test
-    dependsOn: Build
     jobs:
       - job: test_integration
         pool:
           vmImage: 'windows-2019'
         steps:
-          - checkout: none
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          - task: Cache@2
-            inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
+
+          - script: |
+              pnpm install && pnpm run build
+            displayName: 'Install and build'
 
           - script: |
               npx playwright install chromium
@@ -97,55 +68,23 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - checkout: none
           - script: |
               wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
             displayName: 'List Chrome version'
+
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          - task: Cache@2
-            inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+          - script: pnpm store path
+
+          - script: |
+              pnpm install && pnpm run build
+            displayName: 'Install and build'
+
           - script: |
               node run-tests.js --type unit
             displayName: 'Run tests'
-      # TODO: investigate re-enabling when stability matches running in
-      # tests in ubuntu environment
-      # - job: test_chrome_integration
-      #   pool:
-      #     vmImage: 'windows-2019'
-      #   strategy:
-      #     matrix:
-      #       nodejs-1:
-      #         group: 1/4
-      #       nodejs-2:
-      #         group: 2/4
-      #       nodejs-3:
-      #         group: 3/4
-      #       nodejs-4:
-      #         group: 4/4
-      #   steps:
-      #     - checkout: none
-      #     - script: |
-      #         wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
-      #       displayName: 'List Chrome version'
-      #     - task: NodeTool@0
-      #       inputs:
-      #         versionSpec: $(node_version)
-      #       displayName: 'Install Node.js'
-      #     - task: Cache@2
-      #       inputs:
-      #         # use deterministic cache key that is specific
-      #         # to this test run
-      #         key: $(Build.SourceVersion)
-      #         path: $(System.DefaultWorkingDirectory)
-      #       displayName: Cache Build
-      #     - script: |
-      #         node run-tests.js -g $(group) --timings --azure
-      #       displayName: 'Run tests'

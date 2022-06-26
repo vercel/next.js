@@ -1,12 +1,13 @@
-const message = `Do not use <img>. Use Image from 'next/image' instead. See: https://nextjs.org/docs/messages/no-img-element`
+const url = 'https://nextjs.org/docs/messages/no-img-element'
+const message = `Do not use \`<img>\` element. Use \`<Image />\` from \`next/image\` instead. See: ${url}`
 
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit usage of HTML <img> element',
+      description: 'Prevent usage of `<img>` element to prevent layout shift.',
       category: 'HTML',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-img-element',
+      url,
     },
     fixable: 'code',
   },
@@ -38,6 +39,10 @@ module.exports = {
         }
 
         if (node.attributes.length === 0) {
+          return
+        }
+
+        if (node.parent?.parent?.openingElement?.name?.name === 'picture') {
           return
         }
 

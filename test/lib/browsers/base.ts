@@ -18,7 +18,7 @@ export class BrowserInterface {
     return this
   }
 
-  async setup(browserName: string): Promise<void> {}
+  async setup(browserName: string, locale?: string): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -44,6 +44,9 @@ export class BrowserInterface {
     return this
   }
   type(text: string): BrowserInterface {
+    return this
+  }
+  moveTo(): BrowserInterface {
     return this
   }
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {

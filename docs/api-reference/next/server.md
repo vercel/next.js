@@ -8,13 +8,13 @@ The `next/server` module provides several exports for server-only helpers, such 
 
 ## NextMiddleware
 
-Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request), [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects.
+Middleware is created by using a `middleware` function that lives inside a `middleware` file. The Middleware API is based upon the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request), [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects.
 
 These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
 
 The function signature is defined as follows:
 
-```ts
+```typescript
 type NextMiddlewareResult = NextResponse | Response | null | undefined
 
 type NextMiddleware = (
@@ -25,7 +25,7 @@ type NextMiddleware = (
 
 It can be imported from `next/server` with the following:
 
-```ts
+```typescript
 import type { NextMiddleware } from 'next/server'
 ```
 
@@ -35,17 +35,16 @@ The function can be a default export and as such, does **not** have to be named 
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookies` - Has the cookies from the `Request`
+- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
-- `ip` - Has the IP address of the `Request`
-- `ua` - Has the user agent
-- `geo` - (Optional) Has the geo location from the `Request`, provided by your hosting platform
+- `ip` - (Optional) Has the IP address of the `Request`, if provided by your hosting platform
+- `geo` - (Optional) Has the geo location from the `Request`, if provided by your hosting platform
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 
 `NextRequest` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextRequest } from 'next/server'
 ```
 
@@ -57,7 +56,7 @@ The `waitUntil()` method can be used to prolong the execution of the function, a
 
 The `event` object is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextFetchEvent } from 'next/server'
 ```
 
@@ -69,34 +68,23 @@ The `NextResponse` class extends the native [`Response`](https://developer.mozil
 
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
-- `cookies` - An object with the cookies in the `Response`
-- `cookie()` - Set a cookie in the `Response`
-- `clearCookie()` - Accepts a `cookie` and clears it
+- `cookies` - The `Cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map), including methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
-```ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(request: NextRequest) {
-  // create an instance of the class to access the public methods. This uses `next()`,
-  // you could use `redirect()` or `rewrite()` as well
-  let response = NextResponse.next()
-  // get the cookies from the request
-  let cookieFromRequest = request.cookies['my-cookie']
-  // set the `cookie`
-  response.cookie('hello', 'world')
-  // set the `cookie` with options
-  const cookieWithOptions = response.cookie('hello', 'world', {
-    path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-    httpOnly: true,
-    sameSite: 'strict',
-    domain: 'example.com',
-  })
-  // clear the `cookie`
-  response.clearCookie('hello')
-
-  return response
+```typescript
+export function middleware() {
+  const response = new NextResponse()
+  // set a cookie
+  response.cookies.set('vercel', 'fast')
+  // set another cookie with options
+  response.cookies.set('nextjs', 'awesome', { path: '/test' })
+  // get all the details of a cookie
+  const { value, options } = response.cookies.getWithOptions('vercel')
+  console.log(value) // => 'fast'
+  console.log(options) // => { Path: '/test' }
+  // deleting a cookie will mark it as expired
+  response.cookies.delete('vercel')
+  // clear all cookies means mark all of them as expired
+  response.cookies.clear()
 }
 ```
 
@@ -107,9 +95,8 @@ The following static methods are available on the `NextResponse` class directly:
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
-- `json()` - A convenience method to create a response that encodes the provided JSON data
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -122,7 +109,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite('/not-home')
   }
 
-  return NextResponse.json({ message: 'Hello World!' })
+  return NextResponse.next()
 }
 ```
 
@@ -130,7 +117,7 @@ All methods above return a `NextResponse` object that only takes effect if it's 
 
 `NextResponse` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 ```
 
@@ -140,14 +127,53 @@ In order to set the `cookie` _before_ a redirect, you can create an instance of 
 
 Note that there is a [Chrome bug](https://bugs.chromium.org/p/chromium/issues/detail?id=696204) which means the entire redirect chain **must** be from the same origin, if they are from different origins, then the `cookie` might be missing until a refresh.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
-  res.cookie('hello', 'world') // can be called on an instance
+  res.cookies.set('hello', 'world') // can be called on an instance
   return res
+}
+```
+
+## userAgent
+
+The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature. It has the following properties:
+
+- `isBot`: Whether the request comes from a known bot
+- `browser`
+  - `name`: The name of the browser, or `undefined`
+  - `version`: The version of the browser, determined dynamically, or `undefined`
+- `device`
+  - `model`: The model of the device, determined dynamically, or `undefined`
+  - `type`: The type of the browser, can be one of the following values: `console`, `mobile`, `tablet`, `smarttv`, `wearable`, `embedded`, or `undefined`
+  - `vendor`: The vendor of the device, determined dynamically, or `undefined`
+- `engine`
+  - `name`: The name of the browser engine, could be one of the following values: `Amaya`, `Blink`, `EdgeHTML`, `Flow`, `Gecko`, `Goanna`, `iCab`, `KHTML`, `Links`, `Lynx`, `NetFront`, `NetSurf`, `Presto`, `Tasman`, `Trident`, `w3m`, `WebKit` or `undefined`
+  - `version`: The version of the browser engine, determined dynamically, or `undefined`
+- `os`
+  - `name`: The name of the OS, could be `undefined`
+  - `version`: The version of the OS, determined dynamically, or `undefined`
+- `cpu`
+  - `architecture`: The architecture of the CPU, could be one of the following values: `68k`, `amd64`, `arm`, `arm64`, `armhf`, `avr`, `ia32`, `ia64`, `irix`, `irix64`, `mips`, `mips64`, `pa-risc`, `ppc`, `sparc`, `sparc64` or `undefined`
+
+`userAgent` is fully typed and can be imported from `next/server`:
+
+```typescript
+import { userAgent } from 'next/server'
+```
+
+```typescript
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(url)
 }
 ```
 
@@ -164,13 +190,17 @@ The introduction of the `307` status code means that the request method is prese
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
 
+If you want to cause a `GET` response to a `POST` request, use `303`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTTP/Redirections) about HTTP Redirects.
+
 ### How do I access Environment Variables?
 
 `process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
 
 Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
 
-```ts
+```typescript
 // Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
 console.log(process.env.NODE_ENV)
 // This will not work
@@ -180,6 +210,21 @@ console.log(NODE_ENV)
 // process.env is `{}`
 console.log(process.env)
 ```
+
+### The body limitation
+
+When using middlewares, it is not permitted to change the response body: you can only set responses headers.
+Returning a body from a middleware function will issue an `500` server error with an explicit response message.
+
+The `NextResponse` API (which eventually is tweaking response headers) allows you to:
+
+- redirect the incoming request to a different url
+- rewrite the response by displaying a given url
+- set response cookies
+- set response headers
+
+These are solid tools to implement cases such as A/B testing, authentication, feature flags, bot protection...
+A middleware with the ability to change the response's body would bypass Next.js routing logic.
 
 ## Related
 

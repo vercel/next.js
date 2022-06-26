@@ -12,6 +12,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { shouldUseReactRoot } from './utils'
 
 let ServerImpl: typeof Server
 
@@ -125,12 +126,11 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+    return loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      resolve(this.options.dir || '.'),
+      this.options.conf
+    )
   }
 
   private async getServer() {
@@ -181,6 +181,10 @@ function createServer(options: NextServerOptions): NextServer {
     console.warn(
       "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
     )
+  }
+
+  if (shouldUseReactRoot) {
+    ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }
 
   return new NextServer(options)

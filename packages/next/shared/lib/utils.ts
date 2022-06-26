@@ -47,7 +47,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP'
     }
   | {
       label: 'custom'
@@ -92,7 +92,7 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number }
+  err?: Error & { statusCode?: number; source?: 'server' | 'edge-server' }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
@@ -178,11 +178,14 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: DocumentContext,
+    options?: { nonce?: string }
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
@@ -194,15 +197,15 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
+  query: Partial<{
     [key: string]: string | string[]
-  }
+  }>
   /**
    * Object of `cookies` from header
    */
-  cookies: {
+  cookies: Partial<{
     [key: string]: string
-  }
+  }>
 
   body: any
 
@@ -253,7 +256,12 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (urlPath: string) => Promise<void>
+  revalidate: (
+    urlPath: string,
+    opts?: {
+      unstable_onlyGenerated?: boolean
+    }
+  ) => Promise<void>
 }
 
 /**
@@ -262,7 +270,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
 export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
-) => void | Promise<void>
+) => unknown | Promise<unknown>
 
 /**
  * Utils
@@ -281,6 +289,11 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
     return result
   }) as T
 }
+
+// Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
+// Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
+export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location
@@ -389,6 +402,25 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class NormalizeError extends Error {}
+export class PageNotFoundError extends Error {
+  code: string
+
+  constructor(page: string) {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find module for page: ${page}`
+  }
+}
+
+export class MiddlewareNotFoundError extends Error {
+  code: string
+  constructor() {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find the middleware module`
+  }
+}
 
 export interface CacheFs {
   readFile(f: string): Promise<string>

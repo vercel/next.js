@@ -28,6 +28,8 @@ export async function getStaticProps({ params }) {
 
   await new Promise((resolve) => setTimeout(resolve, 1000))
 
+  console.log(`getStaticProps ${params.slug}`)
+
   return {
     props: {
       params,

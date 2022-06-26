@@ -1,6 +1,6 @@
 const API_URL = process.env.WORDPRESS_API_URL
 
-async function fetchAPI(query, { variables } = {}) {
+async function fetchAPI(query = '', { variables } = {}) {
   const headers = { 'Content-Type': 'application/json' }
 
   if (process.env.WORDPRESS_AUTH_REFRESH_TOKEN) {
@@ -9,9 +9,10 @@ async function fetchAPI(query, { variables } = {}) {
     ] = `Bearer ${process.env.WORDPRESS_AUTH_REFRESH_TOKEN}`
   }
 
-  const res = await fetch(API_URL, {
-    method: 'POST',
+  // WPGraphQL Plugin must be enabled
+  const res = await fetch(`${API_URL}/graphql`, {
     headers,
+    method: 'POST',
     body: JSON.stringify({
       query,
       variables,
@@ -70,14 +71,18 @@ export async function getAllPostsForHome(preview) {
             slug
             date
             featuredImage {
-              sourceUrl
+              node {
+                sourceUrl
+              }
             }
             author {
-              name
-              firstName
-              lastName
-              avatar {
-                url
+              node {
+                name
+                firstName
+                lastName
+                avatar {
+                  url
+                }
               }
             }
           }
@@ -121,10 +126,14 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
       slug
       date
       featuredImage {
-        sourceUrl
+        node {
+          sourceUrl
+        }
       }
       author {
-        ...AuthorFields
+        node {
+          ...AuthorFields
+        }
       }
       categories {
         edges {
@@ -156,7 +165,9 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
               excerpt
               content
               author {
-                ...AuthorFields
+                node {
+                  ...AuthorFields
+                }
               }
             }
           }

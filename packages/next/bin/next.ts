@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { shouldUseReactRoot } from '../server/utils'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -104,6 +105,11 @@ if (process.env.NODE_ENV) {
 }
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+if (shouldUseReactRoot) {
+  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
+}
 
 // x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
 if (process.versions.pnp === '3') {
@@ -122,8 +128,11 @@ if (process.versions.pnp === '3') {
 }
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
-process.on('SIGINT', () => process.exit(0))
+// Allow the graceful termination to be manually configurable
+if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+}
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))
@@ -134,18 +143,3 @@ commands[command]()
       process.exit(0)
     }
   })
-
-if (command === 'dev') {
-  const { CONFIG_FILES } = require('../shared/lib/constants')
-  const { watchFile } = require('fs')
-
-  for (const CONFIG_FILE of CONFIG_FILES) {
-    watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
-      if (cur.size > 0 || prev.size > 0) {
-        console.log(
-          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-        )
-      }
-    })
-  }
-}

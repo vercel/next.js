@@ -99,6 +99,24 @@ describe('create next app', () => {
     })
   })
 
+  it('valid example without package.json', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'valid-example-without-package-json'
+      const res = await run([projectName, '--example', 'with-docker-compose'], {
+        cwd,
+      })
+      expect(res.exitCode).toBe(0)
+
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.dockerignore'))
+      ).toBeTruthy()
+      // check we copied default `.gitignore`
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+    })
+  })
+
   it('should support typescript flag', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'typescript'
@@ -431,6 +449,13 @@ describe('create next app', () => {
   })
 
   it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
     await usingTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(
