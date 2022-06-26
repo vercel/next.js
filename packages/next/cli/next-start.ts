@@ -54,8 +54,8 @@ const nextStart: cliCommand = (argv) => {
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
 
-  if (process.env.__NEXT_RAND_PORT) {
-    port = 0
+  if (process.env.__NEXT_FORCED_PORT) {
+    port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
   }
 
   startServer({

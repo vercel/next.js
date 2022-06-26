@@ -256,7 +256,7 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (
+  revalidate: (
     urlPath: string,
     opts?: {
       unstable_onlyGenerated?: boolean
@@ -410,6 +410,15 @@ export class PageNotFoundError extends Error {
     super()
     this.code = 'ENOENT'
     this.message = `Cannot find module for page: ${page}`
+  }
+}
+
+export class MiddlewareNotFoundError extends Error {
+  code: string
+  constructor() {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find the middleware module`
   }
 }
 

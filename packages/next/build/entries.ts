@@ -442,25 +442,24 @@ export function runDependingOnPageType<T>(params: {
   pageRuntime: PageRuntime
 }) {
   if (isMiddlewareFile(params.page)) {
-    return [params.onEdgeServer()]
+    return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
     return params.pageRuntime === 'edge'
-      ? [params.onEdgeServer()]
-      : [params.onServer()]
+      ? { edgeServer: params.onEdgeServer() }
+      : { server: params.onServer() }
   } else if (params.page === '/_document') {
-    return [params.onServer()]
+    return { server: params.onServer() }
   } else if (
     params.page === '/_app' ||
     params.page === '/_error' ||
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    return [params.onClient(), params.onServer()]
+    return { client: params.onClient(), server: params.onServer() }
   } else {
-    return [
-      params.onClient(),
-      params.pageRuntime === 'edge' ? params.onEdgeServer() : params.onServer(),
-    ]
+    return params.pageRuntime === 'edge'
+      ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
+      : { client: params.onClient(), server: params.onServer() }
   }
 }
 
