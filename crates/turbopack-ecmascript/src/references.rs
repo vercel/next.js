@@ -1515,6 +1515,11 @@ impl DirAssetReferenceVc {
 impl AssetReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let context_path = self.source.path().await?;
+        // ignore path.join in `node-gyp`, it will includes too many files
+        if context_path.path.contains("node_modules/node-gyp") {
+            return Ok(ResolveResult::Alternatives(HashSet::default(), vec![]).into());
+        }
         let context = self.source.path().parent();
         let pat = self.path.await?;
         let mut result = HashSet::default();
@@ -1522,15 +1527,17 @@ impl AssetReference for DirAssetReference {
         match &*pat {
             Pattern::Constant(p) => {
                 let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                let entry_type = dest_file_path.get_type().await?;
-                match &*entry_type {
-                    FileSystemEntryType::Directory => {
-                        result = read_dir(dest_file_path).await?;
+                // ignore error
+                if let Ok(entry_type) = dest_file_path.get_type().await {
+                    match &*entry_type {
+                        FileSystemEntryType::Directory => {
+                            result = read_dir(dest_file_path).await?;
+                        }
+                        FileSystemEntryType::File => {
+                            result.insert(SourceAssetVc::new(dest_file_path).into());
+                        }
+                        _ => {}
                     }
-                    FileSystemEntryType::File => {
-                        result.insert(SourceAssetVc::new(dest_file_path).into());
-                    }
-                    _ => {}
                 }
             }
             Pattern::Alternatives(alternatives) => {
@@ -1540,15 +1547,17 @@ impl AssetReference for DirAssetReference {
                     if let Pattern::Constant(p) = pat {
                         let dest_file_path =
                             FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                        let entry_type = dest_file_path.get_type().await?;
-                        match &*entry_type {
-                            FileSystemEntryType::Directory => {
-                                result = read_dir(dest_file_path).await?;
+                        // ignore error
+                        if let Ok(entry_type) = dest_file_path.get_type().await {
+                            match &*entry_type {
+                                FileSystemEntryType::Directory => {
+                                    result.extend(read_dir(dest_file_path).await?);
+                                }
+                                FileSystemEntryType::File => {
+                                    result.insert(SourceAssetVc::new(dest_file_path).into());
+                                }
+                                _ => {}
                             }
-                            FileSystemEntryType::File => {
-                                result.insert(SourceAssetVc::new(dest_file_path).into());
-                            }
-                            _ => {}
                         }
                     }
                 }
