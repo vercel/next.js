@@ -510,6 +510,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
