@@ -1224,7 +1224,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
-        'next-middleware-ssr-loader',
+        'next-edge-ssr-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
       ].reduce((alias, loader) => {

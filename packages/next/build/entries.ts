@@ -1,6 +1,6 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
-import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
+import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { PageRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
@@ -184,7 +184,7 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  const loaderParams: MiddlewareSSRLoaderQuery = {
+  const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
@@ -201,7 +201,7 @@ export function getEdgeServerEntry(opts: {
   }
 
   return {
-    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
     layer: opts.isServerComponent ? 'sc_server' : undefined,
   }
 }
