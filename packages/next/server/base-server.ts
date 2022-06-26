@@ -12,6 +12,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
+import type { TLSSocket } from 'tls'
 import {
   CacheFs,
   NormalizeError,
@@ -21,6 +22,7 @@ import {
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
+import type { NodeNextRequest } from './base-http/node'
 import type { PayloadOptions } from './send-payload'
 
 import { join, resolve } from '../shared/lib/isomorphic/path'
@@ -82,6 +84,7 @@ export interface RoutingItem {
   page: string
   match: RouteMatch
   ssr?: boolean
+  re?: RegExp
 }
 
 export interface Options {
@@ -176,7 +179,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentManifest?: any
     renderServerComponentData?: boolean
     serverComponentProps?: any
-    reactRoot: boolean
     largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
@@ -199,7 +201,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract generateImageRoutes(): Route[]
   protected abstract generateStaticRoutes(): Route[]
   protected abstract generateFsStaticRoutes(): Route[]
-  protected abstract generateCatchAllMiddlewareRoute(): Route | undefined
+  protected abstract generateCatchAllMiddlewareRoute(): Route[]
   protected abstract generateRewrites({
     restrictedRedirectPaths,
   }: {
@@ -213,7 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params | null
+    params?: Params
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -237,7 +239,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse,
     query: ParsedUrlQuery,
-    params: Params | boolean,
+    params: Params | undefined,
     page: string,
     builtPagePath: string
   ): Promise<boolean>
@@ -327,7 +329,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
         : undefined,
-      reactRoot: this.nextConfig.experimental.reactRoot === true,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
     }
 
@@ -408,14 +409,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
+      const protocol = (
+        (req as NodeNextRequest).originalRequest?.socket as TLSSocket
+      )?.encrypted
+        ? 'https'
+        : 'http'
+
       // When there are hostname and port we build an absolute URL
       const initUrl =
         this.hostname && this.port
-          ? `http://${this.hostname}:${this.port}${req.url}`
+          ? `${protocol}://${this.hostname}:${this.port}${req.url}`
           : req.url
 
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+      addRequestMeta(req, '_protocol', protocol)
 
       const domainLocale = detectDomainLocale(
         this.nextConfig.i18n?.domains,
@@ -714,7 +722,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
-    catchAllMiddleware?: Route | undefined
+    catchAllMiddleware: Route[]
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -938,12 +946,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: ParsedUrlQuery
   ): Promise<boolean> {
     let page = pathname
-    let params: Params | false = false
+    let params: Params | undefined = undefined
     let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
 
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname)
+        params = dynamicRoute.match(pathname) || undefined
         if (dynamicRoute.page.startsWith('/api') && params) {
           page = dynamicRoute.page
           pageFound = true
@@ -1291,7 +1299,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof components.Document?.getInitialProps !== 'function' ||
         // When concurrent features is enabled, the built-in `Document`
         // component also supports dynamic HTML.
-        (this.renderOpts.reactRoot &&
+        (!!process.env.__NEXT_REACT_ROOT &&
           NEXT_BUILTIN_DOCUMENT in components.Document)
 
       // Disable dynamic HTML in cases that we know it won't be generated,
@@ -1339,6 +1347,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let resolvedUrlPathname =
       getRequestMeta(req, '_nextRewroteUrl') || urlPathname
+
+    if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
+      // the url value is already correct when the matched-path header is set
+      resolvedUrlPathname = urlPathname
+    }
 
     urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = normalizeLocalePath(
@@ -1711,6 +1724,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
+      if (revalidateOptions) {
+        setRevalidateHeaders(res, revalidateOptions)
+      }
       if (isDataReq) {
         return {
           type: 'json',
@@ -1753,6 +1769,50 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return path
   }
 
+  protected async renderPageComponent(
+    ctx: RequestContext,
+    bubbleNoFallback: boolean
+  ) {
+    // map the route to the actual bundle name
+    const getOriginalAppPath = (appPath: string) => {
+      if (this.nextConfig.experimental.appDir) {
+        const originalAppPath = this.appPathRoutes?.[appPath]
+
+        if (!originalAppPath) {
+          return null
+        }
+
+        return originalAppPath
+      }
+      return null
+    }
+
+    const { query, pathname } = ctx
+    const appPath = getOriginalAppPath(pathname)
+
+    let page = pathname
+    if (typeof appPath === 'string') {
+      page = appPath
+    }
+    const result = await this.findPageComponents(
+      page,
+      query,
+      ctx.renderOpts.params
+    )
+    if (result) {
+      try {
+        return await this.renderToResponseWithComponents(ctx, result)
+      } catch (err) {
+        const isNoFallbackError = err instanceof NoFallbackError
+
+        if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
+          throw err
+        }
+      }
+    }
+    return null
+  }
+
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
@@ -1760,41 +1820,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
-    // map the route to the actual bundle name
-    const getOriginalappPath = (appPath: string) => {
-      if (this.nextConfig.experimental.appDir) {
-        const originalappPath = this.appPathRoutes?.[appPath]
-
-        if (!originalappPath) {
-          return null
-        }
-
-        return originalappPath
-      }
-      return null
-    }
 
     try {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
-      if (!isDynamicRoute(pathname)) {
-        const appPath = getOriginalappPath(pathname)
-
-        if (typeof appPath === 'string') {
-          page = appPath
-        }
-        const result = await this.findPageComponents(page, query)
-        if (result) {
-          try {
-            return await this.renderToResponseWithComponents(ctx, result)
-          } catch (err) {
-            const isNoFallbackError = err instanceof NoFallbackError
-
-            if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
-              throw err
-            }
-          }
-        }
+      if (!isDynamicRoute(page)) {
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result) return result
       }
 
       if (this.dynamicRoutes) {
@@ -1804,41 +1836,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             continue
           }
           page = dynamicRoute.page
-          const appPath = getOriginalappPath(page)
-
-          if (typeof appPath === 'string') {
-            page = appPath
-          }
-
-          const dynamicRouteResult = await this.findPageComponents(
-            page,
-            query,
-            params
+          const result = await this.renderPageComponent(
+            {
+              ...ctx,
+              pathname: page,
+              renderOpts: {
+                ...ctx.renderOpts,
+                params,
+              },
+            },
+            bubbleNoFallback
           )
-          if (dynamicRouteResult) {
-            try {
-              return await this.renderToResponseWithComponents(
-                {
-                  ...ctx,
-                  pathname: page,
-                  renderOpts: {
-                    ...ctx.renderOpts,
-                    params,
-                  },
-                },
-                dynamicRouteResult
-              )
-            } catch (err) {
-              const isNoFallbackError = err instanceof NoFallbackError
-
-              if (
-                !isNoFallbackError ||
-                (isNoFallbackError && bubbleNoFallback)
-              ) {
-                throw err
-              }
-            }
-          }
+          if (result) return result
         }
       }
     } catch (error) {
@@ -1872,7 +1881,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.router.catchAllMiddleware &&
+      this.router.catchAllMiddleware[0] &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

@@ -9,7 +9,7 @@ import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
   getRepoInfo,
-  hasExample,
+  existsInRepo,
   hasRepo,
   RepoInfo,
 } from './helpers/examples'
@@ -83,7 +83,7 @@ export async function createApp({
         process.exit(1)
       }
     } else if (example !== '__internal-testing-retry') {
-      const found = await hasExample(example)
+      const found = await existsInRepo(example)
 
       if (!found) {
         console.error(
@@ -127,6 +127,9 @@ export async function createApp({
   console.log()
 
   process.chdir(root)
+
+  const packageJsonPath = path.join(root, 'package.json')
+  let hasPackageJson = false
 
   if (example) {
     /**
@@ -185,11 +188,14 @@ export async function createApp({
       )
     }
 
-    console.log('Installing packages. This might take a couple of minutes.')
-    console.log()
+    hasPackageJson = fs.existsSync(packageJsonPath)
+    if (hasPackageJson) {
+      console.log('Installing packages. This might take a couple of minutes.')
+      console.log()
 
-    await install(root, null, { packageManager, isOnline })
-    console.log()
+      await install(root, null, { packageManager, isOnline })
+      console.log()
+    }
   } else {
     /**
      * Otherwise, if an example repository is not provided for cloning, proceed
@@ -306,22 +312,25 @@ export async function createApp({
   }
 
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
-  console.log('Inside that directory, you can run several commands:')
-  console.log()
-  console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
-  console.log('    Starts the development server.')
-  console.log()
-  console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
-  console.log('    Builds the app for production.')
-  console.log()
-  console.log(chalk.cyan(`  ${packageManager} start`))
-  console.log('    Runs the built app in production mode.')
-  console.log()
-  console.log('We suggest that you begin by typing:')
-  console.log()
-  console.log(chalk.cyan('  cd'), cdpath)
-  console.log(
-    `  ${chalk.cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`
-  )
+
+  if (hasPackageJson) {
+    console.log('Inside that directory, you can run several commands:')
+    console.log()
+    console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
+    console.log('    Starts the development server.')
+    console.log()
+    console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
+    console.log('    Builds the app for production.')
+    console.log()
+    console.log(chalk.cyan(`  ${packageManager} start`))
+    console.log('    Runs the built app in production mode.')
+    console.log()
+    console.log('We suggest that you begin by typing:')
+    console.log()
+    console.log(chalk.cyan('  cd'), cdpath)
+    console.log(
+      `  ${chalk.cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`
+    )
+  }
   console.log()
 }

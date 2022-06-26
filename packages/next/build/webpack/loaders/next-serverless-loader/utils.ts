@@ -28,6 +28,7 @@ import { denormalizePagePath } from '../../../../shared/lib/page-path/denormaliz
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
+import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -98,7 +99,11 @@ export function getUtils({
     let fsPathname = parsedUrl.pathname
 
     const matchesPage = () => {
-      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+      const fsPathnameNoSlash = removeTrailingSlash(fsPathname || '')
+      return (
+        fsPathnameNoSlash === removeTrailingSlash(page) ||
+        dynamicRouteMatcher?.(fsPathnameNoSlash)
+      )
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {

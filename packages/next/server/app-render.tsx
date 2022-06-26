@@ -32,7 +32,6 @@ export type RenderOptsPartial = {
   supportsDynamicHTML?: boolean
   runtime?: 'nodejs' | 'edge'
   serverComponents?: boolean
-  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
