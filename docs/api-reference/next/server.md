@@ -1,10 +1,10 @@
 ---
-description: Learn about the Edge Middleware helpers and APIs.
+description: Learn about the server-only helpers for Middleware and Edge API Routes.
 ---
 
 # next/server
 
-The `next/server` module provides several exports for server-only helpers, such as [Middleware](/docs/middleware.md).
+`next/server` provides server-only helpers for use in [Middleware](/docs/middleware.md) and [Edge API Routes](/docs/api-routes/edge-api-routes.md).
 
 ## NextRequest
 
@@ -70,13 +70,13 @@ import type { NextFetchEvent } from 'next/server'
 
 The `NextResponse` class extends the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following:
 
-### Public methods
+### Public Methods
 
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
 - `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with the cookies in the `Response`
 
-### Static methods
+### Static Methods
 
 The following static methods are available on the `NextResponse` class directly:
 
@@ -84,25 +84,7 @@ The following static methods are available on the `NextResponse` class directly:
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 
-```typescript
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(request: NextRequest) {
-  // if the request is coming from New York, redirect to the home page
-  if (request.geo.city === 'New York') {
-    return NextResponse.redirect('/home')
-    // if the request is coming from London, rewrite to a special page
-  } else if (request.geo.city === 'London') {
-    return NextResponse.rewrite('/not-home')
-  }
-  return NextResponse.next()
-}
-```
-
-All methods above return a `NextResponse` object that only takes effect if it's returned in the middleware function.
-
-`NextResponse` can be imported from `next/server`:
+The use the methods above, **you must return the `NextResponse` object** returned. `NextResponse` can be imported from `next/server`:
 
 ```typescript
 import { NextResponse } from 'next/server'
@@ -147,7 +129,7 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-## Common questions and answers
+## FAQ
 
 ### Why does `redirect` use 307 and 308?
 
@@ -168,7 +150,7 @@ If you want to cause a `GET` response to a `POST` request, use `303`.
 
 ### How do I access Environment Variables?
 
-`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Edge Middleware. They are evaluated at build time.
+`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Edge Middleware. They are evaluated during `next build`:
 
 | Works                                                        | Does **not** work                          |
 | ------------------------------------------------------------ | ------------------------------------------ |
