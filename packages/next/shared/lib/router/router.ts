@@ -190,6 +190,11 @@ export function resolveHref(
   let base: URL
   let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
 
+  // Return because it cannot be routed by the Next.js router
+  if (!isLocalURL(urlAsString)) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
+
   // repeated slashes and backslashes in the URL are considered
   // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
@@ -205,11 +210,6 @@ export function resolveHref(
     )
     const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
     urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
-  }
-
-  // Return because it cannot be routed by the Next.js router
-  if (!isLocalURL(urlAsString)) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
   }
 
   try {
