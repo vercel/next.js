@@ -133,6 +133,50 @@ impl CompileTarget {
         }
         return "unknown";
     }
+
+    pub fn dylib_ext(&self) -> &'static str {
+        let platform = if let CompileTarget::Target(Target { platform, .. }) = self {
+            *platform
+        } else {
+            #[cfg(target_os = "windows")]
+            {
+                Platform::Win32
+            }
+            #[cfg(target_os = "linux")]
+            {
+                Platform::Linux
+            }
+            #[cfg(target_os = "macos")]
+            {
+                Platform::Darwin
+            }
+            #[cfg(target_os = "android")]
+            {
+                Platform::Android
+            }
+            #[cfg(target_os = "freebsd")]
+            {
+                Platform::Freebsd
+            }
+            #[cfg(target_os = "openbsd")]
+            {
+                Platform::Openbsd
+            }
+            #[cfg(target_os = "solaris")]
+            {
+                Platform::Sunos
+            }
+            #[cfg(target_os = "solaris")]
+            {
+                return "unknown";
+            }
+        };
+        match platform {
+            Platform::Win32 => "dll",
+            Platform::Darwin => "dylib",
+            _ => "so",
+        }
+    }
 }
 
 #[derive(

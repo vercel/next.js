@@ -68,7 +68,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::google_bigquery("integration/google-bigquery.js", true)]
 #[case::got("integration/got.js", true)]
 #[case::highlights("integration/highlights.js", true)]
-#[case::hot_shots("integration/hot-shots.js", true)] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
+#[case::hot_shots("integration/hot-shots.js", true)]
 #[case::ioredis("integration/ioredis.js", true)]
 #[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
 #[case::jimp("integration/jimp.js", true)]

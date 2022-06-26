@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
 
 use crate::{
     references::SourceAssetReferenceVc,
@@ -133,11 +133,24 @@ pub async fn resolve_node_pre_gyp_files(
                     SourceAssetVc::new(resolved_file_vc.into()).into()
                 })
                 .collect();
-            return Ok(ResolveResult::Alternatives(
-                assets,
-                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
-            )
-            .into());
+            let dylib_ext = compile_target.dylib_ext();
+            let mut affecting_files =
+                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()];
+            for (_, entry) in &config_path
+                .path()
+                .parent()
+                // TODO
+                // read the dependencies path from `bindings.gyp`
+                .join("deps/lib")
+                .read_glob(GlobVc::new(format!("*.{dylib_ext}").as_str()), false)
+                .await?
+                .results
+            {
+                if let DirectoryEntry::File(dylib) = entry {
+                    affecting_files.push(AffectingResolvingAssetReferenceVc::new(*dylib).into());
+                }
+            }
+            return Ok(ResolveResult::Alternatives(assets, affecting_files).into());
         };
     }
     Ok(ResolveResult::unresolveable().into())

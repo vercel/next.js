@@ -60,7 +60,6 @@ pub async fn well_known_function_call(
             "import() is not supported",
         ),
         WellKnownFunctionKind::Require => require(args),
-        WellKnownFunctionKind::RequireResolve => require_resolve(args),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => target.await?.arch().into(),
         WellKnownFunctionKind::OsPlatform => target.await?.platform().into(),
@@ -69,10 +68,9 @@ pub async fn well_known_function_call(
             JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp)
         }
         // bypass
-        WellKnownFunctionKind::NodeResolveFrom => JsValue::call(
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
-            args,
-        ),
+        WellKnownFunctionKind::NodeResolveFrom => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+        }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -136,10 +134,6 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-// TODO: support real path.join function logics
-//
-// Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
-// one parameter
 pub fn path_resolve(cwd: JsWord, mut args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
@@ -296,16 +290,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn require_resolve(args: Vec<JsValue>) -> JsValue {
-    args.into_iter()
-        .next()
-        .expect("require.resolve(module, options) is correct usage")
-}
-
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
     match (&kind, prop.as_str()) {
         (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
+        }
+        (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(

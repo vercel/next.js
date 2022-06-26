@@ -7,6 +7,7 @@ use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
 const ARRAY_METHODS: [&str; 2] = ["concat", "map"];
 
 pub fn replace_builtin(value: &mut JsValue) -> bool {
+    let value_cloned = value.clone();
     match value {
         JsValue::Member(_, box ref mut obj, ref mut prop) => {
             match obj {

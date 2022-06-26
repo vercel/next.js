@@ -1075,10 +1075,19 @@
     (
         "*anonymous function 16836*",
         Function(
-            2,
-            Unknown(
-                None,
-                "unsupported expression",
+            4,
+            Alternatives(
+                3,
+                [
+                    Unknown(
+                        None,
+                        "spread is not supported",
+                    ),
+                    Array(
+                        1,
+                        [],
+                    ),
+                ],
             ),
         ),
     ),
@@ -1970,9 +1979,9 @@
     (
         "*anonymous function 6747*",
         Function(
-            6,
+            8,
             Object(
-                5,
+                7,
                 [
                     KeyValue(
                         Constant(
@@ -1992,9 +2001,18 @@
                                 Atom('properties' type=dynamic),
                             ),
                         ),
-                        Unknown(
-                            None,
-                            "unsupported expression",
+                        Alternatives(
+                            3,
+                            [
+                                Unknown(
+                                    None,
+                                    "spread is not supported",
+                                ),
+                                Array(
+                                    1,
+                                    [],
+                                ),
+                            ],
                         ),
                     ),
                 ],
@@ -2198,9 +2216,9 @@
     (
         "*anonymous function 7868*",
         Function(
-            6,
+            15,
             Object(
-                5,
+                14,
                 [
                     KeyValue(
                         Constant(
@@ -2220,9 +2238,57 @@
                                 Atom('value' type=inline),
                             ),
                         ),
-                        Unknown(
-                            None,
-                            "unsupported expression",
+                        Alternatives(
+                            10,
+                            [
+                                Call(
+                                    5,
+                                    FreeVar(
+                                        Other(
+                                            Atom('parseInt' type=dynamic),
+                                        ),
+                                    ),
+                                    [
+                                        Call(
+                                            2,
+                                            Variable(
+                                                (
+                                                    Atom('text' type=inline),
+                                                    #21,
+                                                ),
+                                            ),
+                                            [],
+                                        ),
+                                        Constant(
+                                            Num(
+                                                ConstantNumber(
+                                                    16.0,
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                                Call(
+                                    4,
+                                    FreeVar(
+                                        Other(
+                                            Atom('parseFloat' type=dynamic),
+                                        ),
+                                    ),
+                                    [
+                                        Call(
+                                            2,
+                                            Variable(
+                                                (
+                                                    Atom('text' type=inline),
+                                                    #21,
+                                                ),
+                                            ),
+                                            [],
+                                        ),
+                                    ],
+                                ),
+                            ],
                         ),
                     ),
                 ],
@@ -3005,10 +3071,48 @@
     (
         "describeFound",
         Function(
-            2,
-            Unknown(
-                None,
-                "unsupported expression",
+            9,
+            Alternatives(
+                8,
+                [
+                    Concat(
+                        6,
+                        [
+                            Constant(
+                                Str(
+                                    Atom('"' type=inline),
+                                ),
+                            ),
+                            Call(
+                                3,
+                                Variable(
+                                    (
+                                        Atom('literalEscape' type=dynamic),
+                                        #5,
+                                    ),
+                                ),
+                                [
+                                    Variable(
+                                        (
+                                            Atom('found' type=inline),
+                                            #20,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Constant(
+                                Str(
+                                    Atom('"' type=inline),
+                                ),
+                            ),
+                        ],
+                    ),
+                    Constant(
+                        Str(
+                            Atom('end of input' type=dynamic),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -3864,14 +3968,39 @@
     (
         "location#75",
         Alternatives(
-            3,
+            7,
             [
                 Argument(
                     1,
                 ),
-                Unknown(
-                    None,
-                    "unsupported expression",
+                Variable(
+                    (
+                        Atom('location' type=dynamic),
+                        #75,
+                    ),
+                ),
+                Call(
+                    4,
+                    Variable(
+                        (
+                            Atom('peg$computeLocation' type=dynamic),
+                            #21,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('peg$savedPos' type=dynamic),
+                                #21,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('peg$currPos' type=dynamic),
+                                #21,
+                            ),
+                        ),
+                    ],
                 ),
             ],
         ),
@@ -3879,14 +4008,39 @@
     (
         "location#76",
         Alternatives(
-            3,
+            7,
             [
                 Argument(
                     1,
                 ),
-                Unknown(
-                    None,
-                    "unsupported expression",
+                Variable(
+                    (
+                        Atom('location' type=dynamic),
+                        #76,
+                    ),
+                ),
+                Call(
+                    4,
+                    Variable(
+                        (
+                            Atom('peg$computeLocation' type=dynamic),
+                            #21,
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('peg$savedPos' type=dynamic),
+                                #21,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('peg$currPos' type=dynamic),
+                                #21,
+                            ),
+                        ),
+                    ],
                 ),
             ],
         ),
@@ -3990,14 +4144,20 @@
     (
         "options",
         Alternatives(
-            3,
+            4,
             [
                 Argument(
                     1,
                 ),
-                Unknown(
-                    None,
-                    "unsupported expression",
+                Variable(
+                    (
+                        Atom('options' type=inline),
+                        #21,
+                    ),
+                ),
+                Object(
+                    1,
+                    [],
                 ),
             ],
         ),

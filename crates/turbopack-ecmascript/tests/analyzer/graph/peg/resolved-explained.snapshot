@@ -100,8 +100,8 @@
 *anonymous function 16712* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 16836* = (...) => ???*0*
-- *0* unsupported expression
+*anonymous function 16836* = (...) => (???*0* | [])
+- *0* spread is not supported
 
 *anonymous function 16924* = (...) => arguments[0]
 
@@ -167,8 +167,8 @@
 
 *anonymous function 6457* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
 
-*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": ???*0*}
-- *0* unsupported expression
+*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+- *0* spread is not supported
 
 *anonymous function 701* = (...) => `"${...(..., ...)["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...[...](16)["toUpperCase"]()}`)["replace"](
         /[\x10-\x1F\x7F-\x9F]/g,
@@ -185,8 +185,8 @@
 
 *anonymous function 7526* = (...) => {"type": "boolean_constant", "value": true}
 
-*anonymous function 7868* = (...) => {"type": "number_constant", "value": ???*0*}
-- *0* unsupported expression
+*anonymous function 7868* = ???*0*
+- *0* in progress nodes limit reached
 
 *anonymous function 803* = (...) => `[${???*0*}]`
 - *0* unsupported expression
@@ -298,8 +298,13 @@ describeExpected = (...) => (???*0* | `${???*2*} or ${???*4*}` | ???*6*)
 - *5* new expression are not supported
 - *6* unsupported expression
 
-describeFound = (...) => ???*0*
-- *0* unsupported expression
+describeFound = (...) => (
+  | `"${...[...](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...(...)["toUpperCase"]()}`)["replace"](
+            /[\x10-\x1F\x7F-\x9F]/g,
+            (...) => `\x${...(...)["toString"](16)["toUpperCase"]()}`
+        )}"`
+  | "end of input"
+)
 
 description#75 = arguments[0]
 
@@ -502,11 +507,11 @@ location#21 = ???*0*
 
 location#3 = arguments[3]
 
-location#75 = (arguments[1] | ???*0*)
-- *0* unsupported expression
+location#75 = ???*0*
+- *0* in progress nodes limit reached
 
-location#76 = (arguments[1] | ???*0*)
-- *0* unsupported expression
+location#76 = ???*0*
+- *0* in progress nodes limit reached
 
 location#83 = arguments[1]
 
@@ -538,8 +543,9 @@ operator#178 = ???*0*
 
 operator#62 = arguments[0]
 
-options = (arguments[1] | ???*0*)
-- *0* unsupported expression
+options = (arguments[1] | ???*0* | {})
+- *0* options
+  ⚠️  circular variable reference
 
 order = arguments[1]
 
@@ -859,8 +865,8 @@ peg$c211 = (...) => {"type": "top_specification", "value": arguments[0]}
 peg$c212 = ???*0*
 - *0* in progress nodes limit reached
 
-peg$c213 = (...) => ???*0*
-- *0* unsupported expression
+peg$c213 = (...) => (???*0* | [])
+- *0* spread is not supported
 
 peg$c214 = (...) => arguments[0]
 
@@ -892,8 +898,8 @@ peg$c33 = "}"
 
 peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
 
-peg$c35 = (...) => {"type": "scalar_object_expression", "properties": ???*0*}
-- *0* unsupported expression
+peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+- *0* spread is not supported
 
 peg$c36 = "["
 
@@ -940,8 +946,8 @@ peg$c51 = /^[0-9]/
 
 peg$c52 = {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
 
-peg$c53 = (...) => {"type": "number_constant", "value": ???*0*}
-- *0* unsupported expression
+peg$c53 = ???*0*
+- *0* in progress nodes limit reached
 
 peg$c54 = """
 
@@ -1744,10 +1750,8 @@ s1#100 = ???*0*
 s1#101 = ???*0*
 - *0* in progress nodes limit reached
 
-s1#102 = (???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*})
-- *0* s1
-  ⚠️  pattern without value
-- *1* unsupported expression
+s1#102 = ???*0*
+- *0* in progress nodes limit reached
 
 s1#103 = (
   | ???*0*

@@ -794,6 +794,7 @@ pub async fn module_references(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
+                        println!("{:?}, {:?}", func, this);
                         if args.len() == 2 {
                             if let Some(JsValue::Constant(ConstantValue::Str(_))) = args.get(1) {
                                 references.push(
