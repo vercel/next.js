@@ -1,4 +1,4 @@
-import type { PageRuntime } from '../../server/config-shared'
+import type { ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
@@ -13,7 +13,7 @@ interface MiddlewareConfig {
 }
 
 export interface PageStaticInfo {
-  runtime?: PageRuntime
+  runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
   middleware?: Partial<MiddlewareConfig>

@@ -1,7 +1,7 @@
 import type {
   NextConfig,
   NextConfigComplete,
-  PageRuntime,
+  ServerRuntime,
 } from '../server/config-shared'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
@@ -78,7 +78,7 @@ export interface PageInfo {
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
-  runtime: PageRuntime
+  runtime: ServerRuntime
 }
 
 export async function printTreeView(

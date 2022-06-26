@@ -9,7 +9,7 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type {
   NextConfig,
   NextConfigComplete,
-  PageRuntime,
+  ServerRuntime,
 } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
@@ -176,7 +176,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
-    runtime?: PageRuntime
+    runtime?: ServerRuntime
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
