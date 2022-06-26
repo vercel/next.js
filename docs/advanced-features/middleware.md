@@ -118,7 +118,7 @@ The [`NextResponse`](#nextresponse) API allows you to:
 - Set response cookies
 - Set response headers
 
-You **cannot change the response body** when using Middleware. If you need to change the response, consider using [Edge API Routes](/docs/api-routes/edge-api-routes.md)
+You **cannot change the response body** when using Middleware. If you need to send a custom response, consider using [Edge API Routes](/docs/api-routes/edge-api-routes.md)
 
 ## Using Cookies
 
