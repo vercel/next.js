@@ -9,7 +9,7 @@ This upgrade guide will help you understand the changes and how to migrate your 
 
 You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
 
-If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --force` to upgrade your ESLint configuration to the latest canary release. You might also need to restart VSCode for the changes to take effect.
+If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --save-dev` to upgrade your ESLint configuration to the latest canary release. You might also need to restart VSCode for the changes to take effect.
 
 ## Using Next.js Middleware on Vercel
 
