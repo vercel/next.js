@@ -95,11 +95,11 @@ declare namespace JSX {
 
 // Allow custom AMP attributes on HTML elements
 declare namespace React {
-  interface ScriptHTMLAttributes<T> {
+  interface ScriptHTMLAttributes {
     target?: string
   }
 
-  interface HTMLAttributes<T> {
+  interface HTMLAttributes {
     submitting?: string
     type?: string
     on?: string
