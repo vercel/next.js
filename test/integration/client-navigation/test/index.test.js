@@ -68,6 +68,12 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should not throw error when one number type child is provided', async () => {
+      const browser = await webdriver(context.appPort, '/link-number-child')
+      expect(await hasRedbox(browser)).toBe(false)
+      if (browser) await browser.close()
+    })
+
     it('should navigate back after reload', async () => {
       const browser = await webdriver(context.appPort, '/nav')
       await browser.elementByCss('#about-link').click()

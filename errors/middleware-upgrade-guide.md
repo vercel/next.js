@@ -218,6 +218,8 @@ export function middleware() {
 
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
+
+  return response
 }
 ```
 
@@ -249,7 +251,7 @@ export function middleware(request: NextRequest) {
   const url = request.nextUrl
   const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(url)
+  return NextResponse.rewrite(url)
 }
 ```
 
@@ -264,7 +266,7 @@ export function middleware(request: NextRequest) {
   const { device } = userAgent(request)
   const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(url)
+  return NextResponse.rewrite(url)
 }
 ```
 

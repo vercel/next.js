@@ -8,21 +8,7 @@ describe('TypeScript basic', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        pages: new FileRef(path.join(__dirname, 'app/pages')),
-        'server.ts': `
-          import next from 'next';
-          const app = next({
-            dir: '.',
-            dev: process.env.NODE_ENV !== 'production',
-            conf: {
-              compress: false,
-            },
-            quiet: false,
-          });
-          const requestHandler = app.getRequestHandler();
-        `,
-      },
+      files: new FileRef(path.join(__dirname, 'app')),
       dependencies: {
         typescript: 'latest',
         '@types/node': 'latest',
