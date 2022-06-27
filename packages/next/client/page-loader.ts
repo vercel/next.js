@@ -75,23 +75,18 @@ export default class PageLoader {
       if (window.__DEV_PAGES_MANIFEST) {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
-        if (!this.promisedDevPagesManifest) {
-          // TODO: Decide what should happen when fetching fails instead of asserting
-          // @ts-ignore
-          this.promisedDevPagesManifest = fetch(
-            `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
-          )
-            .then((res) => res.json())
-            .then((manifest: { pages: string[] }) => {
-              window.__DEV_PAGES_MANIFEST = manifest
-              return manifest.pages
-            })
-            .catch((err) => {
-              console.log(`Failed to fetch devPagesManifest`, err)
-            })
-        }
-        // TODO Remove this assertion as this could be undefined
-        return this.promisedDevPagesManifest!
+        this.promisedDevPagesManifest ||= fetch(
+          `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+        )
+          .then((res) => res.json())
+          .then((manifest: { pages: string[] }) => {
+            window.__DEV_PAGES_MANIFEST = manifest
+            return manifest.pages
+          })
+          .catch((err) => {
+            throw new Error(`Failed to fetch devPagesManifest: ${err}`)
+          })
+        return this.promisedDevPagesManifest
       }
     }
   }
