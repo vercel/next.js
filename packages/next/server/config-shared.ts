@@ -118,8 +118,8 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    layoutRaw?: boolean
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
