@@ -8,7 +8,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -112,16 +112,16 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    layoutRaw?: boolean
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
+    allowFutureImage?: boolean
   }
   middlewareSourceMaps?: boolean
   modularizeImports?: Record<
@@ -448,6 +448,8 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
+  output?: 'standalone'
+
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
@@ -506,7 +508,9 @@ export const defaultConfig: NextConfig = {
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
@@ -538,7 +542,6 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
       layoutRaw: false,
       remotePatterns: [],
