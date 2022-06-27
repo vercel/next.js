@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(Asset)]
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash)]
 pub struct RebasedAsset {
     source: AssetVc,
     input_dir: FileSystemPathVc,
@@ -61,7 +61,6 @@ impl Asset for RebasedAsset {
 }
 
 #[turbo_tasks::value(shared, AssetReference)]
-#[derive(PartialEq, Eq)]
 struct RebasedAssetReference {
     reference: AssetReferenceVc,
     input_dir: FileSystemPathVc,

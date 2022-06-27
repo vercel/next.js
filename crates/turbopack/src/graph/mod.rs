@@ -5,7 +5,6 @@ use anyhow::Result;
 use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 pub enum AggregatedGraph {
     Leaf(AssetVc),
     Node {
@@ -128,7 +127,7 @@ pub async fn aggregate(asset: AssetVc) -> Result<AggregatedGraphVc> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Hash, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug)]
 struct AggregationCost(usize);
 
 #[turbo_tasks::function]
@@ -184,20 +183,17 @@ async fn aggregate_more(node: AggregatedGraphVc) -> Result<AggregatedGraphVc> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 struct AggregatedGraphsSet {
     pub set: HashSet<AggregatedGraphVc>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 pub enum AggregatedGraphNodeContent {
     Asset(AssetVc),
     Children(HashSet<AggregatedGraphVc>),
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 struct AggregatedGraphsValuedReferences {
     pub inner: HashSet<AggregatedGraphVc>,
     pub outer: HashSet<AggregatedGraphVc>,

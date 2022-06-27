@@ -55,7 +55,7 @@ pub async fn the_module_options() -> ModuleOptionsVc {
     })
 }
 
-#[turbo_tasks::value(slot: new)]
+#[turbo_tasks::value(slot: new, eq: manual)]
 pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }
