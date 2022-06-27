@@ -1,28 +1,31 @@
-import PropTypes from 'prop-types'
-import NextHead from 'next/head'
+import Head from 'next/head'
 import { AmpIncludeAmpInstallServiceworker } from './amp/AmpCustomElement'
 
 // Your app's theme color
 const THEME_COLOR = '#005af0'
 
+type LayoutProps = {
+  title: string
+  children?: React.ReactNode
+  description: string
+}
+
 /**
  * A sample page layout installing the AMP Serviceworker by default.
- *
- * @param {Props} props
  */
-const Layout = (props) => (
+const Layout: React.FC<LayoutProps> = ({ title, children, description }) => (
   <>
-    <NextHead>
-      <title>{props.title || ''}</title>
-      <meta name="description" content={props.description || ''} />
+    <Head>
+      <title>{title || ''}</title>
+      <meta name="description" content={description || ''} />
       <meta name="theme-color" content={THEME_COLOR} />
       <link rel="icon" sizes="192x192" href="/static/images/icons-192.png" />
       <link rel="apple-touch-icon" href="/static/images/icons-192.png" />
       <link rel="icon" href="/static/favicon.ico" />
       <link rel="manifest" href="/manifest.json" />
-    </NextHead>
+    </Head>
 
-    {props.children}
+    {children}
 
     <AmpIncludeAmpInstallServiceworker />
     <amp-install-serviceworker
@@ -45,10 +48,5 @@ const Layout = (props) => (
     `}</style>
   </>
 )
-
-Layout.propTypes = {
-  title: PropTypes.string,
-  description: PropTypes.string,
-}
 
 export default Layout
