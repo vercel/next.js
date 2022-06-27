@@ -99,7 +99,7 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure middleware, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
 The following patterns will no longer work:
 
