@@ -211,7 +211,16 @@ impl Parse for ValueArguments {
 
                 "eq" => {
                     input.parse::<Token![:]>()?;
-                    result.manual_eq = input.parse::<Ident>()?.to_string() == "manual";
+                    let ident = input.parse::<Ident>()?;
+
+                    result.manual_eq = if ident.to_string() == "manual" {
+                        true
+                    } else {
+                        return Err(Error::new_spanned(
+                            &ident,
+                            format!("unexpected {}, expected \"manual\"", ident.to_string()),
+                        ));
+                    };
                 }
                 _ => {
                     result.traits.push(ident);
