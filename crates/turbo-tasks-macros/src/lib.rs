@@ -378,11 +378,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let derive = match serialization_mode {
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
             quote! {
-                #[derive(turbo_tasks::trace::TraceRawVcs)]
+                #[derive(turbo_tasks::trace::TraceRawVcs, PartialEq, Eq)]
             }
         }
         SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
+            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
         },
     };
 
