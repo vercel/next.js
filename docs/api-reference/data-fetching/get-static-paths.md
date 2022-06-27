@@ -7,10 +7,12 @@ description: API reference for `getStaticPaths`. Learn how to fetch data and gen
 <details>
   <summary><b>Version History</b></summary>
 
-| Version  | Changes                                                                                                         |
-| -------- | --------------------------------------------------------------------------------------------------------------- |
-| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
-| `v9.3.0` | `getStaticPaths` introduced.                                                                                    |
+| Version   | Changes                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) is stable.    |
+| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation) added (beta). |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)                                         |
+| `v9.3.0`  | `getStaticPaths` introduced.                                                                                                                            |
 
 </details>
 
@@ -38,8 +40,12 @@ The `paths` key determines which paths will be pre-rendered. For example, suppos
 ```js
 return {
   paths: [
-    { params: { id: '1' } },
-    { params: { id: '2' } }
+    { params: { id: '1' }},
+    {
+      params: { id: '2' },
+      // with i18n configured the locale for the path can be returned as well
+      locale: "en",
+    },
   ],
   fallback: ...
 }
@@ -52,6 +58,8 @@ The value for each `params` object must match the parameters used in the page na
 - If the page name is `pages/posts/[postId]/[commentId]`, then `params` should contain `postId` and `commentId`.
 - If the page name uses [catch-all routes](/docs/routing/dynamic-routes.md#catch-all-routes) like `pages/[...slug]`, then `params` should contain `slug` (which is an array). If this array is `['hello', 'world']`, then Next.js will statically generate the page at `/hello/world`.
 - If the page uses an [optional catch-all route](/docs/routing/dynamic-routes.md#optional-catch-all-routes), use `null`, `[]`, `undefined` or `false` to render the root-most route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
+
+Separate of the `params` object a `locale` field can be returned when [i18n is configured](/docs/advanced-features/i18n-routing.md), which configures the locale for the path being generated.
 
 ### `fallback: false`
 
@@ -110,7 +118,7 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes in the following ways:
 
 - The paths returned from `getStaticPaths` will be rendered to `HTML` at build time by `getStaticProps`.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path. Web crawlers, such as Google, won't be served a fallback and instead the path will behave as in [`fallback: 'blocking'`](#fallback-blocking).
 - In the background, Next.js will statically generate the requested path `HTML` and `JSON`. This includes running `getStaticProps`.
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.

@@ -133,14 +133,15 @@ To see examples with other authentication providers, check out the [examples fol
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-firebase-authentication">with-firebase-authentication</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-magic">with-magic</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/auth0">auth0</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db">with-supabase-auth-realtime-db</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-userbase">with-userbase</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql">with-nhost-auth-realtime-graphql</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-clerk">with-clerk</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/auth0">Auth0</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-clerk">Clerk</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-firebase-authentication">Firebase</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-magic">Magic</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql">Nhost</a></li>
+    <li><a href="https://github.com/vercel/examples/tree/main/solutions/auth-with-ory">Ory</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db">Supabase</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">Supertokens</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-userbase">Userbase</a></li>
   </ul>
 </details>
 

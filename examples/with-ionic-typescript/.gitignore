@@ -35,3 +35,6 @@ yarn-error.log*
 
 # Ionic
 public/svg
+
+# typescript
+*.tsbuildinfo

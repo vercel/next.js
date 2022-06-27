@@ -5,10 +5,13 @@ import {
   ImageConfig,
   ImageConfigComplete,
   imageConfigDefault,
-} from './image-config'
+  RemotePattern,
+} from '../shared/lib/image-config'
+
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
-  images: ImageConfigComplete
+  images: Required<ImageConfigComplete>
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string
@@ -63,6 +66,8 @@ export interface WebpackConfigContext {
   totalPages: number
   /** The webpack configuration */
   webpack: any
+  /** The current server runtime */
+  nextRuntime?: 'nodejs' | 'edge'
 }
 
 export interface NextJsWebpackConfig {
@@ -74,18 +79,13 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  legacyBrowsers?: boolean
+  browsersListForSwc?: boolean
+  manualClientBasePath?: boolean
+  newNextLinkBehavior?: boolean
+  // custom path to a cache handler to use
+  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
-  removeConsole?:
-    | boolean
-    | {
-        exclude?: string[]
-      }
-  reactRemoveProperties?:
-    | boolean
-    | {
-        properties?: string[]
-      }
-  styledComponents?: boolean
   swcMinify?: boolean
   swcFileReading?: boolean
   cpus?: number
@@ -96,33 +96,57 @@ export interface ExperimentalConfig {
   reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
-  optimizeImages?: boolean
   optimizeCss?: boolean
+  nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
   conformance?: boolean
+  appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
     skipValidation?: boolean
   }
-  reactRoot?: boolean
   disableOptimizedLoading?: boolean
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  concurrentFeatures?: boolean
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
-  relay?: {
-    src: string
-    artifactDirectory?: string
-    language?: 'typescript' | 'flow'
+  images?: {
+    layoutRaw?: boolean
+    remotePatterns?: RemotePattern[]
+    unoptimized?: boolean
+    allowFutureImage?: boolean
   }
+  middlewareSourceMaps?: boolean
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
+  swcTraceProfiling?: boolean
+  forceSwcTransforms?: boolean
+
+  /**
+   * The option for the minifier of [SWC compiler](https://swc.rs).
+   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
+   *
+   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   */
+  swcMinifyDebugOptions?: {
+    compress?: object
+    mangle?: object
+  }
+  swcPlugins?: Array<[string, Record<string, unknown>]>
+  largePageDataBytes?: number
 }
 
 /**
@@ -377,6 +401,56 @@ export interface NextConfig extends Record<string, any> {
   swcMinify?: boolean
 
   /**
+   * Optionally enable compiler transforms
+   *
+   * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
+   */
+  compiler?: {
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
+    relay?: {
+      src: string
+      artifactDirectory?: string
+      language?: 'typescript' | 'flow'
+    }
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
+    styledComponents?:
+      | boolean
+      | {
+          /**
+           * Enabled by default in development, disabled in production to reduce file size,
+           * setting this will override the default for all environments.
+           */
+          displayName?: boolean
+          topLevelImportPaths?: string[]
+          ssr?: boolean
+          fileName?: boolean
+          meaninglessFileNames?: string[]
+          minify?: boolean
+          transpileTemplateLiterals?: boolean
+          namespace?: string
+          pure?: boolean
+          cssProp?: boolean
+        }
+    emotion?:
+      | boolean
+      | {
+          sourceMap?: boolean
+          autoLabel?: 'dev-only' | 'always' | 'never'
+          labelFormat?: string
+        }
+  }
+
+  output?: 'standalone'
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -434,7 +508,14 @@ export const defaultConfig: NextConfig = {
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    manualClientBasePath: false,
+    // TODO: change default in next major release (current v12.1.5)
+    legacyBrowsers: true,
+    browsersListForSwc: false,
+    // TODO: change default in next major release (current v12.1.5)
+    newNextLinkBehavior: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -446,35 +527,34 @@ export const defaultConfig: NextConfig = {
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
-    optimizeImages: false,
     optimizeCss: false,
+    nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
     craCompat: false,
     esmExternals: true,
+    appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
+    images: {
+      layoutRaw: false,
+      remotePatterns: [],
+    },
+    forceSwcTransforms: false,
+    largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
 
-export function normalizeConfig(phase: string, config: any) {
+export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
-
-    if (typeof config.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
-      )
-    }
   }
-  return config
+  // Support `new Promise` and `async () =>` as return values of the config export
+  return await config
 }

@@ -1,10 +1,12 @@
+const url = 'https://nextjs.org/docs/messages/inline-script-id'
+
 module.exports = {
   meta: {
     docs: {
       description:
-        'next/script components with inline content must specify an `id` attribute.',
+        'Enforce `id` attribute on `next/script` components with inline content.',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/inline-script-id',
+      url,
     },
   },
   create: function (context) {
@@ -28,15 +30,29 @@ module.exports = {
         }
 
         const attributeNames = new Set()
+
+        let hasNonCheckableSpreadAttribute = false
         node.openingElement.attributes.forEach((attribute) => {
+          // Early return if we already have a non-checkable spread attribute, for better performance
+          if (hasNonCheckableSpreadAttribute) return
+
           if (attribute.type === 'JSXAttribute') {
             attributeNames.add(attribute.name.name)
           } else if (attribute.type === 'JSXSpreadAttribute') {
-            attribute.argument.properties.forEach((property) => {
-              attributeNames.add(property.key.name)
-            })
+            if (attribute.argument && attribute.argument.properties) {
+              attribute.argument.properties.forEach((property) => {
+                attributeNames.add(property.key.name)
+              })
+            } else {
+              // JSXSpreadAttribute without properties is not checkable
+              hasNonCheckableSpreadAttribute = true
+            }
           }
         })
+
+        // https://github.com/vercel/next.js/issues/34030
+        // If there is a non-checkable spread attribute, we simply ignore them
+        if (hasNonCheckableSpreadAttribute) return
 
         if (
           node.children.length > 0 ||
@@ -45,8 +61,7 @@ module.exports = {
           if (!attributeNames.has('id')) {
             context.report({
               node,
-              message:
-                'next/script components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id',
+              message: `\`next/script\` components with inline content must specify an \`id\` attribute. See: ${url}`,
             })
           }
         }

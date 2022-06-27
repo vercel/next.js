@@ -13,26 +13,31 @@ type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
     rootRef?: React.RefObject<HTMLElement> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
+type Identifier = {
+  root: Element | Document | null
+  margin: string
+}
 type Observer = {
-  id: string
+  id: Identifier
   observer: IntersectionObserver
   elements: Map<Element, ObserveCallback>
 }
 
-const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
+const hasIntersectionObserver = typeof IntersectionObserver === 'function'
 
 export function useIntersection<T extends Element>({
   rootRef,
   rootMargin,
   disabled,
-}: UseIntersection): [(element: T | null) => void, boolean] {
+}: UseIntersection): [(element: T | null) => void, boolean, () => void] {
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
-  const [root, setRoot] = useState(rootRef ? rootRef.current : null)
-  const setRef = useCallback(
-    (el: T | null) => {
+  const [element, setElement] = useState<T | null>(null)
+
+  useEffect(() => {
+    if (hasIntersectionObserver) {
       if (unobserve.current) {
         unobserve.current()
         unobserve.current = undefined
@@ -40,30 +45,31 @@ export function useIntersection<T extends Element>({
 
       if (isDisabled || visible) return
 
-      if (el && el.tagName) {
+      if (element && element.tagName) {
         unobserve.current = observe(
-          el,
+          element,
           (isVisible) => isVisible && setVisible(isVisible),
-          { root, rootMargin }
+          { root: rootRef?.current, rootMargin }
         )
       }
-    },
-    [isDisabled, root, rootMargin, visible]
-  )
 
-  useEffect(() => {
-    if (!hasIntersectionObserver) {
+      return () => {
+        unobserve.current?.()
+        unobserve.current = undefined
+      }
+    } else {
       if (!visible) {
         const idleCallback = requestIdleCallback(() => setVisible(true))
         return () => cancelIdleCallback(idleCallback)
       }
     }
-  }, [visible])
+  }, [element, isDisabled, rootMargin, rootRef, visible])
 
-  useEffect(() => {
-    if (rootRef) setRoot(rootRef.current)
-  }, [rootRef])
-  return [setRef, visible]
+  const resetVisible = useCallback(() => {
+    setVisible(false)
+  }, [])
+
+  return [setElement, visible, resetVisible]
 }
 
 function observe(
@@ -83,16 +89,35 @@ function observe(
     if (elements.size === 0) {
       observer.disconnect()
       observers.delete(id)
+      const index = idList.findIndex(
+        (obj) => obj.root === id.root && obj.margin === id.margin
+      )
+      if (index > -1) {
+        idList.splice(index, 1)
+      }
     }
   }
 }
 
-const observers = new Map<string, Observer>()
+const observers = new Map<Identifier, Observer>()
+
+const idList: Identifier[] = []
+
 function createObserver(options: UseIntersectionObserverInit): Observer {
-  const id = options.rootMargin || ''
-  let instance = observers.get(id)
-  if (instance) {
-    return instance
+  const id = {
+    root: options.root || null,
+    margin: options.rootMargin || '',
+  }
+  const existing = idList.find(
+    (obj) => obj.root === id.root && obj.margin === id.margin
+  )
+  let instance: Observer | undefined
+
+  if (existing) {
+    instance = observers.get(existing)
+    if (instance) {
+      return instance
+    }
   }
 
   const elements = new Map<Element, ObserveCallback>()
@@ -105,14 +130,13 @@ function createObserver(options: UseIntersectionObserverInit): Observer {
       }
     })
   }, options)
-
-  observers.set(
+  instance = {
     id,
-    (instance = {
-      id,
-      observer,
-      elements,
-    })
-  )
+    observer,
+    elements,
+  }
+
+  idList.push(id)
+  observers.set(id, instance)
   return instance
 }

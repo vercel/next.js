@@ -317,6 +317,17 @@ describe('Image Component Tests', () => {
         await browser.elementById('basic-image').getAttribute('data-nimg')
       ).toBe('intrinsic')
     })
+    it('should not pass config to custom loader prop', async () => {
+      browser = await webdriver(appPort, '/loader-prop')
+      expect(
+        await browser.elementById('loader-prop-img').getAttribute('src')
+      ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
+      expect(
+        await browser.elementById('loader-prop-img').getAttribute('srcset')
+      ).toBe(
+        'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
+      )
+    })
   })
   describe('Client-side Image Component Tests', () => {
     beforeAll(async () => {
@@ -373,19 +384,6 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
-    it('should automatically load images if observer does not exist', async () => {
-      browser = await webdriver(appPort, '/missing-observer')
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000'
-      )
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('srcset')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000 2x'
-      )
-    })
   })
   describe('Client-side Lazy Loading Tests', () => {
     beforeAll(async () => {
@@ -397,20 +395,5 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
-    it('should automatically load images if observer does not exist', async () => {
-      await browser.waitForElementByCss('#observerlink').click()
-      await waitFor(500)
-      browser = await webdriver(appPort, '/missing-observer')
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000'
-      )
-      expect(
-        await browser.elementById('lazy-no-observer').getAttribute('srcset')
-      ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=2000 2x'
-      )
-    })
   })
 })

@@ -1,3 +1,5 @@
+export type Event = 'request'
+
 // This is the base Browser interface all browser
 // classes should build off of, it is the bare
 // methods we aim to support across tests
@@ -16,7 +18,7 @@ export class BrowserInterface {
     return this
   }
 
-  async setup(browserName: string): Promise<void> {}
+  async setup(browserName: string, locale?: string): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -29,10 +31,22 @@ export class BrowserInterface {
   elementById(selector: string): BrowserInterface {
     return this
   }
-  click(): BrowserInterface {
+  click(opts?: { modifierKey?: boolean }): BrowserInterface {
+    return this
+  }
+  keydown(key: string): BrowserInterface {
+    return this
+  }
+  keyup(key: string): BrowserInterface {
+    return this
+  }
+  focusPage(): BrowserInterface {
     return this
   }
   type(text: string): BrowserInterface {
+    return this
+  }
+  moveTo(): BrowserInterface {
     return this
   }
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
@@ -59,7 +73,12 @@ export class BrowserInterface {
   deleteCookies(): BrowserInterface {
     return this
   }
-  async loadPage(url: string, { disableCache: boolean }): Promise<any> {}
+  on(event: Event, cb: (...args: any[]) => void) {}
+  off(event: Event, cb: (...args: any[]) => void) {}
+  async loadPage(
+    url: string,
+    { disableCache: boolean, beforePageLoad: Function }
+  ): Promise<void> {}
   async get(url: string): Promise<void> {}
 
   async getValue(): Promise<any> {}

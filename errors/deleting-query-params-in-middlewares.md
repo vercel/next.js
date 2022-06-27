@@ -28,7 +28,7 @@ import { NextResponse } from 'next/server'
 export default function middleware(request: NextRequest) {
   const nextUrl = request.nextUrl
   nextUrl.pathname = '/dest'
-  return NextResponse.rewrite(url)
+  return NextResponse.rewrite(nextUrl)
 }
 ```
 

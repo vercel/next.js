@@ -1,11 +1,9 @@
 {
   "private": true,
   "scripts": {
-    "lnext": "node -r ../../react-18/test/require-hook.js ../../../../packages/next/dist/bin/next",
-    "debug": "NODE_OPTIONS='--inspect' node -r ../../react-18/test/require-hook.js ../../../../packages/next/dist/bin/next",
-    "dev": "yarn lnext dev",
-    "build": "yarn lnext build",
-    "start": "yarn lnext start"
+    "dev": "yarn next dev",
+    "build": "yarn next build",
+    "start": "yarn next start"
   },
   "dependencies": {
     "moment": "*"

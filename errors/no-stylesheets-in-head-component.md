@@ -18,7 +18,7 @@ Add the stylesheet in a custom `Document` component.
 
 ```jsx
 // pages/_document.js
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
   return (

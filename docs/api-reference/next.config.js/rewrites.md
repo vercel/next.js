@@ -300,18 +300,43 @@ module.exports = {
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/custom-routes-proxying">Incremental adoption of Next.js</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-zones">Using Multiple Zones</a></li>
   </ul>
 </details>
 
-Rewrites allow you to rewrite to an external url. This is especially useful for incrementally adopting Next.js.
+Rewrites allow you to rewrite to an external url. This is especially useful for incrementally adopting Next.js. The following is an example rewrite for redirecting the `/blog` route of your main app to an external site.
 
 ```js
 module.exports = {
   async rewrites() {
     return [
       {
+        source: '/blog',
+        destination: 'https://example.com/blog',
+      },
+      {
         source: '/blog/:slug',
         destination: 'https://example.com/blog/:slug', // Matched parameters can be used in the destination
+      },
+    ]
+  },
+}
+```
+
+If you're using `trailingSlash: true`, you also need to insert a trailing slash in the `source` parameter. If the destination server is also expecting a trailing slash it should be included in the `destination` parameter as well.
+
+```js
+module.exports = {
+  trailingSlash: true,
+  async rewrites() {
+    return [
+      {
+        source: '/blog/',
+        destination: 'https://example.com/blog/',
+      },
+      {
+        source: '/blog/:path*/',
+        destination: 'https://example.com/blog/:path*/',
       },
     ]
   },
@@ -394,6 +419,12 @@ module.exports = {
         // this matches '/' since `en` is the defaultLocale
         source: '/en',
         destination: '/en/another',
+        locale: false,
+      },
+      {
+        // it's possible to match all locales even when locale: false is set
+        source: '/:locale/api-alias/:path*',
+        destination: '/api/:path*',
         locale: false,
       },
       {

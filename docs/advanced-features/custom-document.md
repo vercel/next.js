@@ -41,14 +41,14 @@ Or add a `className` to the `body` tag:
 ## Caveats
 
 - The `<Head />` component used in `_document` is not the same as [`next/head`](/docs/api-reference/next/head.md). The `<Head />` component used here should only be used for any `<head>` code that is common for all pages. For all other cases, such as `<title>` tags, we recommend using [`next/head`](/docs/api-reference/next/head.md) in your pages or components.
-- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), read [Layouts](/docs/basic-features/layouts.md) intead.
+- React components outside of `<Main />` will not be initialized by the browser. Do _not_ add application logic here or custom CSS (like `styled-jsx`). If you need shared components in all your pages (like a menu or a toolbar), read [Layouts](/docs/basic-features/layouts.md) instead.
 - `Document` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 ## Customizing `renderPage`
 
 > **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
 
-To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitiaProps` and `renderPage`, if possible.
+To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
 
 The `ctx` object shown below is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md#context-object), with the addition of `renderPage`.
 
@@ -97,10 +97,12 @@ export default MyDocument
 You can use the built-in `DocumentContext` type and change the file name to `./pages/_document.tsx` like so:
 
 ```tsx
-import Document, { DocumentContext } from 'next/document'
+import Document, { DocumentContext, DocumentInitialProps } from 'next/document'
 
 class MyDocument extends Document {
-  static async getInitialProps(ctx: DocumentContext) {
+  static async getInitialProps(
+    ctx: DocumentContext
+  ): Promise<DocumentInitialProps> {
     const initialProps = await Document.getInitialProps(ctx)
 
     return initialProps

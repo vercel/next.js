@@ -44,8 +44,8 @@ export function tryParsePattern(pattern: string): Pattern | undefined {
   return indexOfStar === -1
     ? undefined
     : {
-        prefix: pattern.substr(0, indexOfStar),
-        suffix: pattern.substr(indexOfStar + 1),
+        prefix: pattern.slice(0, indexOfStar),
+        suffix: pattern.slice(indexOfStar + 1),
       }
 }
 

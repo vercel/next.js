@@ -2,8 +2,7 @@
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-
-import { BaseNextRequest } from './base-http'
+import type { BaseNextRequest } from './base-http'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -20,6 +19,7 @@ export interface RequestMeta {
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
+  _protocol?: string
 }
 
 export function getRequestMeta(
@@ -54,12 +54,13 @@ export function addRequestMeta<K extends keyof RequestMeta>(
 }
 
 type NextQueryMetadata = {
+  __nextNotFoundSrcPage?: string
   __nextDefaultLocale?: string
   __nextFallback?: 'true'
   __nextLocale?: string
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
-  _nextDataReq?: '1'
+  __nextDataReq?: '1'
 }
 
 export type NextParsedUrlQuery = ParsedUrlQuery &
@@ -80,7 +81,7 @@ export function getNextInternalQuery(
     '__nextLocale',
     '__nextSsgPath',
     '_nextBubbleNoFallback',
-    '_nextDataReq',
+    '__nextDataReq',
   ]
   const nextInternalQuery: NextQueryMetadata = {}
 

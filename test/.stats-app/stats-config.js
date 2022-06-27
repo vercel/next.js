@@ -9,7 +9,7 @@ const imagePageData = fs.readFileSync(
 
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack, commons)',
+    name: 'Client Bundles (main, webpack)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
       '.next/static/chunks/!(polyfills*)',
@@ -30,6 +30,10 @@ const clientGlobs = [
   {
     name: 'Rendered Page Sizes',
     globs: ['fetched-pages/**/*.html'],
+  },
+  {
+    name: 'Middleware size',
+    globs: ['.next/server/middleware*', '.next/server/edge-runtime-webpack.js'],
   },
 ]
 

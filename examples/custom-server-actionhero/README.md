@@ -7,12 +7,14 @@ A more detailed example showcasing how to use fetch and web sockets to interact 
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example custom-server-actionhero custom-server-actionhero-app
 # or
 yarn create next-app --example custom-server-actionhero custom-server-actionhero-app
+# or
+pnpm create next-app --example custom-server-actionhero custom-server-actionhero-app
 ```
 
 ## How does this work?
@@ -80,7 +82,7 @@ module.exports = class CreateChatRoom extends Action {
 }
 ```
 
-3. Tell ActionHero to use the api rather than the file server as the top-level route in `api.config.servers.web.rootEndpointType = 'api'`. This will allows "/" to listen to API requests. Also update `api.config.general.paths.public = [ path.join(__dirname, '/../static') ]`. In this configuration, the next 'static' renderer will take priority over the ActionHero 'public file' api. Note that any static assets (CSS, fonts, etc) will need to be in "./static" rather than "./public".
+3. Tell ActionHero to use the api rather than the file server as the top-level route in `api.config.servers.web.rootEndpointType = 'api'`. This will allows "/" to listen to API requests. Also update `api.config.general.paths.public = [ path.join(__dirname, '/../static') ]`. In this configuration, the next 'static' renderer will take priority over the ActionHero 'public file' api. Note that any static assets (CSS, fonts, etc.) will need to be in "./static" rather than "./public".
 
 Note that this is where the websocket server, if you enable it, will place the `ActionheroWebsocketClient` library.<br>
 

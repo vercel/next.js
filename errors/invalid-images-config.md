@@ -27,6 +27,21 @@ module.exports = {
     minimumCacheTTL: 60,
     // ordered list of acceptable optimized image formats (mime types)
     formats: ['image/webp'],
+    // enable dangerous use of SVG images
+    dangerouslyAllowSVG: false,
+    // set the Content-Security-Policy header
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // the following are experimental features, and may cause breaking changes
+  },
+  experimental: {
+    images: {
+      // limit of 50 objects
+      remotePatterns: [],
+      // when true, every image will be unoptimized
+      unoptimized: false,
+      // when true, allow `next/future/image` to be imported
+      allowFutureImage: false,
+    },
   },
 }
 ```

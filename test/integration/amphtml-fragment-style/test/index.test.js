@@ -4,31 +4,24 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { validateAMP } from 'amp-test-utils'
 import {
-  stopApp,
-  startApp,
   nextBuild,
-  nextServer,
   renderViaHTTP,
+  nextStart,
+  findPort,
+  killApp,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
 
 describe('AMP Fragment Styles', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
-
-    server = await startApp(app)
-    appPort = server.address().port
+    await nextBuild(appDir, [])
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
   })
-  afterAll(() => stopApp(server))
+  afterAll(() => killApp(app))
 
   it('adds styles from fragment in AMP mode correctly', async () => {
     const html = await renderViaHTTP(appPort, '/', { amp: 1 })

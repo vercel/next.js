@@ -75,8 +75,8 @@ impl HookOptimizer {
             if let Expr::Call(c) = &*init.as_deref().unwrap() {
                 if let Callee::Expr(i) = &c.callee {
                     if let Expr::Ident(Ident { sym, .. }) = &**i {
-                        if self.hooks.contains(&sym) {
-                            let name = get_object_pattern(&a);
+                        if self.hooks.contains(sym) {
+                            let name = get_object_pattern(a);
                             return VarDeclarator {
                                 name,
                                 init: init_clone,
@@ -89,7 +89,7 @@ impl HookOptimizer {
             }
         }
 
-        return decl;
+        decl
     }
 }
 
@@ -98,15 +98,17 @@ fn get_object_pattern(array_pattern: &ArrayPat) -> Pat {
         .elems
         .iter()
         .enumerate()
-        .filter_map(|(i, elem)| match elem {
-            Some(elem) => Some(ObjectPatProp::KeyValue(KeyValuePatProp {
-                key: PropName::Num(Number {
-                    value: i as f64,
-                    span: DUMMY_SP,
-                }),
-                value: Box::new(elem.clone()),
-            })),
-            None => None,
+        .filter_map(|(i, elem)| {
+            elem.as_ref().map(|elem| {
+                ObjectPatProp::KeyValue(KeyValuePatProp {
+                    key: PropName::Num(Number {
+                        value: i as f64,
+                        span: DUMMY_SP,
+                        raw: None,
+                    }),
+                    value: Box::new(elem.clone()),
+                })
+            })
         })
         .collect();
 

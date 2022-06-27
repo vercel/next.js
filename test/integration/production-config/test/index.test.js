@@ -56,6 +56,16 @@ describe('Production Config Usage', () => {
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
     })
 
+    it('should fail with NEXT_RUNTIME in env key', async () => {
+      const result = await runNextCommand(['build', appDir], {
+        env: { ENABLE_ENV_NEXT_PRESERVED: true },
+        stdout: true,
+        stderr: true,
+      })
+
+      expect(result.stderr).toMatch(/The key "NEXT_RUNTIME" under/)
+    })
+
     it('should allow __ within env key', async () => {
       const result = await runNextCommand(['build', appDir], {
         env: { ENABLE_ENV_WITH_UNDERSCORES: true },

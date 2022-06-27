@@ -1,7 +1,9 @@
-import { ReadableStream, TransformStream } from './web/sandbox/readable-stream'
+import Primitives from 'next/dist/compiled/@edge-runtime/primitives'
 
-// Polyfill Web Streams in the Node.js environment
+// Polyfill Web Streams for the Node.js runtime.
 if (!global.ReadableStream) {
-  global.ReadableStream = ReadableStream
-  global.TransformStream = TransformStream
+  global.ReadableStream = Primitives.ReadableStream
+}
+if (!global.TransformStream) {
+  global.TransformStream = Primitives.TransformStream
 }

@@ -376,7 +376,20 @@ module.exports = {
 
 ### Cache-Control
 
-Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function.
+You can set the `Cache-Control` header in your [Next.js API Routes](/docs/api-routes/introduction.md) by using the `res.setHeader` method:
+
+```js
+// pages/api/user.js
+
+export default function handler(req, res) {
+  res.setHeader('Cache-Control', 's-maxage=86400')
+  res.status(200).json({ name: 'John Doe' })
+}
+```
+
+You cannot set `Cache-Control` headers in `next.config.js` file as these will be overwritten in production to ensure that API Routes and static assets are cached effectively.
+
+If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function.
 
 ## Related
 

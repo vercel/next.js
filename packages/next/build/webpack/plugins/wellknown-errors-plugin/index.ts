@@ -1,7 +1,15 @@
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfig } from '../../../../server/config-shared'
+
 import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
+  config: NextConfig
+
+  constructor({ config }: { config: NextConfig }) {
+    this.config = config
+  }
+
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap('WellKnownErrorsPlugin', (compilation) => {
       compilation.hooks.afterSeal.tapPromise(
@@ -13,7 +21,8 @@ export class WellKnownErrorsPlugin {
                 try {
                   const moduleError = await getModuleBuildError(
                     compilation,
-                    err
+                    err,
+                    this.config
                   )
                   if (moduleError !== false) {
                     compilation.errors[i] = moduleError

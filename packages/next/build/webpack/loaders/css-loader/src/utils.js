@@ -43,6 +43,10 @@ function normalizePath(file) {
   return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
+function fixedEncodeURIComponent(str) {
+  return str.replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)
+}
+
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
 
@@ -51,10 +55,28 @@ function normalizeUrl(url, isStringValue) {
   }
 
   if (matchNativeWin32Path.test(url)) {
-    return decodeURIComponent(normalizedUrl)
+    try {
+      normalizedUrl = decodeURIComponent(normalizedUrl)
+    } catch (error) {
+      // Ignores invalid and broken URLs and try to resolve them as is
+    }
+
+    return normalizedUrl
   }
 
-  return decodeURIComponent(unescape(normalizedUrl))
+  normalizedUrl = unescape(normalizedUrl)
+
+  if (isDataUrl(url)) {
+    return fixedEncodeURIComponent(normalizedUrl)
+  }
+
+  try {
+    normalizedUrl = decodeURI(normalizedUrl)
+  } catch (error) {
+    // Ignores invalid and broken URLs and try to resolve them as is
+  }
+
+  return normalizedUrl
 }
 
 function requestify(url, rootContext) {
