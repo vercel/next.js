@@ -84,7 +84,10 @@ export default class PageLoader {
             return manifest.pages
           })
           .catch((err) => {
-            throw new Error(`Failed to fetch devPagesManifest: ${err}`)
+            console.log(`Failed to fetch devPagesManifest:`, err)
+            throw new Error(
+              `Failed to fetch _devPagesManifest.json. Is something blocking that network request?`
+            )
           })
         return this.promisedDevPagesManifest
       }
