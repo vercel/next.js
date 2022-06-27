@@ -189,7 +189,6 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(PartialEq, Eq)]
 pub struct TypescriptTypesAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,

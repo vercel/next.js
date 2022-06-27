@@ -22,7 +22,6 @@ pub mod parse;
 pub(crate) mod references;
 
 #[turbo_tasks::value(Asset)]
-#[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
@@ -53,7 +52,6 @@ impl Asset for ModuleAsset {
 }
 
 #[turbo_tasks::value(shared, AssetReference)]
-#[derive(PartialEq, Eq)]
 pub struct WebpackChunkAssetReference {
     #[trace_ignore]
     pub chunk_id: Lit,
@@ -98,7 +96,6 @@ impl AssetReference for WebpackChunkAssetReference {
 }
 
 #[turbo_tasks::value(shared, AssetReference)]
-#[derive(PartialEq, Eq)]
 pub struct WebpackEntryAssetReference {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
@@ -122,7 +119,6 @@ impl AssetReference for WebpackEntryAssetReference {
 }
 
 #[turbo_tasks::value(shared, AssetReference)]
-#[derive(PartialEq, Eq)]
 pub struct WebpackRuntimeAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
