@@ -1,6 +1,7 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
 a {
@@ -12,7 +13,8 @@ a {
   box-sizing: border-box;
 }
 
-ul, li {
+ul,
+li {
   padding: 0;
   list-style: none;
   line-height: 1.4em;
@@ -22,7 +24,7 @@ button {
   margin-right: 1rem;
   border-radius: 0.4rem;
   border: 0;
-  font-family: Arial,Helvetica,sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   font-weight: bold;
   padding: 10px 15px;
   font-size: large;
@@ -42,4 +44,3 @@ h1 {
 p {
   width: 100%;
 }
-
