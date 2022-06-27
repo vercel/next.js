@@ -483,7 +483,7 @@ impl FileSystem for DiskFileSystem {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct FileSystemPath {
     pub fs: FileSystemVc,
     pub path: String,
@@ -738,7 +738,7 @@ impl ValueToString for FileSystemPath {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
@@ -764,14 +764,12 @@ impl From<Permissions> for fs::Permissions {
     }
 }
 
-#[derive(PartialEq, Eq)]
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
     Content(File),
     NotFound,
 }
 
-#[derive(PartialEq, Eq)]
 #[turbo_tasks::value(shared)]
 pub struct File {
     meta: FileMeta,
