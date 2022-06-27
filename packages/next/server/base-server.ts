@@ -22,6 +22,7 @@ import {
   NormalizeError,
   DecodeError,
   normalizeRepeatedSlashes,
+  MissingStaticPage,
 } from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -1856,6 +1857,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     } catch (error) {
       const err = getProperError(error)
+
+      if (error instanceof MissingStaticPage) {
+        console.error(
+          'Invariant: failed to load static page',
+          JSON.stringify(
+            {
+              page,
+              url: ctx.req.url,
+              matchedPath: ctx.req.headers['x-matched-path'],
+              initUrl: getRequestMeta(ctx.req, '__NEXT_INIT_URL'),
+              didRewrite: getRequestMeta(ctx.req, '_nextDidRewrite'),
+              rewroteUrl: getRequestMeta(ctx.req, '_nextRewroteUrl'),
+            },
+            null,
+            2
+          )
+        )
+        throw err
+      }
+
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
