@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
@@ -30,7 +31,7 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: any
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
 }
 

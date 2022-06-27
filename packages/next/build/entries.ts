@@ -2,7 +2,7 @@ import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pag
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { PageRuntime } from '../server/config-shared'
+import type { ServerRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
@@ -15,6 +15,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -439,12 +440,12 @@ export function runDependingOnPageType<T>(params: {
   onEdgeServer: () => T
   onServer: () => T
   page: string
-  pageRuntime: PageRuntime
+  pageRuntime: ServerRuntime
 }) {
   if (isMiddlewareFile(params.page)) {
     return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === 'edge'
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { edgeServer: params.onEdgeServer() }
       : { server: params.onServer() }
   } else if (params.page === '/_document') {
@@ -457,7 +458,7 @@ export function runDependingOnPageType<T>(params: {
   ) {
     return { client: params.onClient(), server: params.onServer() }
   } else {
-    return params.pageRuntime === 'edge'
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
       : { client: params.onClient(), server: params.onServer() }
   }

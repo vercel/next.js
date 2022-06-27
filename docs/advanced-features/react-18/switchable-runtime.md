@@ -8,7 +8,7 @@ If you have [React 18](/docs/advanced-features/react-18/overview) installed, the
 
 ## Global Runtime Option
 
-You can set the experimental option `runtime` to either `'nodejs'` or `'edge'` in your `next.config.js` file:
+You can set the experimental option `runtime` to either `'nodejs'` or `'experimental-edge'` in your `next.config.js` file:
 
 ```jsx
 // next.config.js
@@ -23,7 +23,7 @@ This option determines which runtime should be used as the default rendering run
 
 ## Page Runtime Option
 
-On each page, you can optionally export a `runtime` config set to either `'nodejs'` or `'edge'`:
+On each page, you can optionally export a `runtime` config set to either `'nodejs'` or `'experimental-edge'`:
 
 ```jsx
 export const config = {

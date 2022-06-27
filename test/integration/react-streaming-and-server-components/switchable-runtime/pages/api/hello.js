@@ -3,5 +3,5 @@ export default (req) => {
 }
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }

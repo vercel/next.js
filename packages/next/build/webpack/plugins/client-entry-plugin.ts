@@ -12,6 +12,7 @@ import {
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
 import { getPageStaticInfo } from '../../analysis/get-page-static-info'
+import { SERVER_RUNTIME } from '../../../lib/constants'
 
 type Options = {
   dev: boolean
@@ -111,7 +112,9 @@ export class ClientEntryPlugin {
 
         const clientLoader = `next-flight-client-entry-loader?${stringify({
           modules: clientComponentImports,
-          runtime: this.isEdgeServer ? 'edge' : 'nodejs',
+          runtime: this.isEdgeServer
+            ? SERVER_RUNTIME.edge
+            : SERVER_RUNTIME.nodejs,
           ssr: pageStaticInfo.ssr,
           // Adding name here to make the entry key unique.
           name,

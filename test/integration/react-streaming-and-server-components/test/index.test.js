@@ -59,7 +59,7 @@ describe('Edge runtime - errors', () => {
 
 const edgeRuntimeBasicSuite = {
   runTests: (context, env) => {
-    const options = { runtime: 'edge', env }
+    const options = { runtime: 'experimental-edge', env }
     const distDir = join(appDir, '.next')
     basic(context, options)
     streaming(context, options)
@@ -152,7 +152,7 @@ const nodejsRuntimeBasicSuite = {
   },
   beforeAll: () => {
     error500Page.write(page500)
-    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+    nextConfig.replace("runtime: 'experimental-edge'", "runtime: 'nodejs'")
   },
   afterAll: () => {
     error500Page.delete()
