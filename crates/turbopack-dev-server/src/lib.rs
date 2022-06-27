@@ -15,7 +15,6 @@ use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack_core::{asset::AssetVc, reference::all_referenced_assets};
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 enum FindAssetResult {
     NotFound,
     Found(AssetVc),

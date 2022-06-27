@@ -6,7 +6,6 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 #[turbo_tasks::value(Asset)]
-#[derive(PartialEq, Eq)]
 pub struct SourceAsset {
     pub path: FileSystemPathVc,
 }

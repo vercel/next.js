@@ -8,7 +8,6 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared, Asset)]
-#[derive(PartialEq, Eq)]
 pub struct NftJsonAsset {
     entry: AssetVc,
 }

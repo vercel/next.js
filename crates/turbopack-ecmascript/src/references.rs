@@ -1262,7 +1262,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPathVc,
 }
@@ -1292,7 +1292,7 @@ impl AssetReference for PackageJsonReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct TsConfigReference {
     pub tsconfig: FileSystemPathVc,
     pub context: AssetContextVc,
@@ -1328,7 +1328,7 @@ impl AssetReference for TsConfigReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
@@ -1359,7 +1359,7 @@ impl AssetReference for EsmAssetReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct CjsAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
@@ -1390,7 +1390,7 @@ impl AssetReference for CjsAssetReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct TsReferencePathAssetReference {
     pub context: AssetContextVc,
     pub path: String,
@@ -1431,7 +1431,7 @@ impl AssetReference for TsReferencePathAssetReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct TsReferenceTypeAssetReference {
     pub context: AssetContextVc,
     pub module: String,
@@ -1465,7 +1465,7 @@ impl AssetReference for TsReferenceTypeAssetReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct SourceAssetReference {
     pub source: AssetVc,
     pub path: PatternVc,
@@ -1498,7 +1498,7 @@ impl AssetReference for SourceAssetReference {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug, PartialEq, Eq)]
+#[derive(Hash, Debug)]
 pub struct DirAssetReference {
     pub source: AssetVc,
     pub path: PatternVc,

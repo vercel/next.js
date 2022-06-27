@@ -34,7 +34,7 @@ struct NodePreGypConfig {
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct NodePreGypConfigReference {
     pub context: FileSystemPathVc,
     pub config_file_pattern: PatternVc,
@@ -157,7 +157,7 @@ pub async fn resolve_node_pre_gyp_files(
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct NodeGypBuildReference {
     pub context: FileSystemPathVc,
     pub compile_target: CompileTargetVc,
@@ -247,7 +247,7 @@ pub async fn resolve_node_gyp_build_files(
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct NodeBindingsReference {
     pub context: FileSystemPathVc,
     pub file_name: String,

@@ -83,7 +83,7 @@ mod watcher_ser {
     }
 }
 
-#[turbo_tasks::value(slot: new, FileSystem)]
+#[turbo_tasks::value(slot: new, FileSystem, eq: manual)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
@@ -487,7 +487,7 @@ impl FileSystem for DiskFileSystem {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct FileSystemPath {
     pub fs: FileSystemVc,
     pub path: String,
@@ -742,7 +742,7 @@ impl ValueToString for FileSystemPath {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
@@ -768,14 +768,12 @@ impl From<Permissions> for fs::Permissions {
     }
 }
 
-#[derive(PartialEq, Eq)]
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
     Content(File),
     NotFound,
 }
 
-#[derive(PartialEq, Eq)]
 #[turbo_tasks::value(shared)]
 pub struct File {
     meta: FileMeta,
@@ -826,7 +824,7 @@ impl AsRef<[u8]> for File {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(Default, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct FileMeta {
     permissions: Permissions,
@@ -989,7 +987,6 @@ impl FileContentVc {
 }
 
 #[turbo_tasks::value(shared, serialization: none)]
-#[derive(PartialEq, Eq)]
 pub enum FileJsonContent {
     Content(#[trace_ignore] JsonValue),
     Unparseable,
@@ -1035,7 +1032,7 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug)]
 #[turbo_tasks::value]
 pub enum DirectoryContent {
     Entries(HashMap<String, DirectoryEntry>),
@@ -1053,7 +1050,6 @@ impl DirectoryContentVc {
 }
 
 #[turbo_tasks::value(shared, FileSystem)]
-#[derive(PartialEq, Eq)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
