@@ -6,8 +6,14 @@ import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { EXAMPLE_TOOL_NAME } from '../lib/constants'
 import { getByHandle } from '../lib/api'
+import PostType from '../types/postType'
 
-export default function Index({ posts, preview }) {
+type Props = {
+  posts: PostType[]
+  preview: boolean
+}
+
+export default function Index({ posts, preview }: Props) {
   const heroPost = posts[0]
   const morePosts = posts.slice(1)
 
@@ -36,7 +42,7 @@ export default function Index({ posts, preview }) {
   )
 }
 
-export async function getStaticProps({ preview }) {
+export async function getStaticProps({ preview }: { preview: boolean }) {
   const data = await getByHandle('blogList', preview)
 
   return {

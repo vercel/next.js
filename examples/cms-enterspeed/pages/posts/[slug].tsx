@@ -11,8 +11,14 @@ import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { EXAMPLE_TOOL_NAME } from '../../lib/constants'
 import Tags from '../../components/tags'
+import PostType from '../../types/postType'
 
-export default function Post({ post, preview }) {
+type Props = {
+  post: PostType
+  preview: boolean
+}
+
+export default function Post({ post, preview }: Props) {
   const router = useRouter()
 
   if (!router.isFallback && !post?.url) {
@@ -32,10 +38,7 @@ export default function Post({ post, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {EXAMPLE_TOOL_NAME}
                 </title>
-                <meta
-                  property="og:image"
-                  content={post.featuredImage?.sourceUrl}
-                />
+                <meta property="og:image" content={post.featuredImage} />
               </Head>
               <PostHeader
                 title={post.title}
@@ -58,8 +61,8 @@ export default function Post({ post, preview }) {
   )
 }
 
-export async function getStaticPaths() {
-  const data = await getByHandle('blogList')
+export async function getStaticPaths({ preview }: { preview: boolean }) {
+  const data = await getByHandle('blogList', preview)
 
   return {
     paths: data.blogListItems.map((post) => ({
@@ -70,7 +73,17 @@ export async function getStaticPaths() {
   }
 }
 
-export async function getStaticProps({ params, preview }) {
+type Params = {
+  slug: string
+}
+
+export async function getStaticProps({
+  params,
+  preview,
+}: {
+  params: Params
+  preview: boolean
+}) {
   // Adding starting slash to the URL again
   const data = await getByUrl(encodeURIComponent(`/${params.slug}`), preview)
 

@@ -1,7 +1,12 @@
 import Image from 'next/image'
+import AuthorType from '../types/authorType'
 
-export default function Avatar({ author }) {
-  const name = author
+type Props = {
+  author: AuthorType
+}
+
+export default function Avatar({ author }: Props) {
+  const name: string = author
     ? author.firstName && author.lastName
       ? `${author.firstName} ${author.lastName}`
       : author.name

@@ -1,6 +1,11 @@
-import PostPreview from '../components/post-preview'
+import PostPreview from './post-preview'
+import PostType from '../types/postType'
 
-export default function MoreStories({ posts }) {
+type Props = {
+  posts: PostType[]
+}
+
+export default function MoreStories({ posts }: Props) {
   return (
     <section>
       <h2 className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">

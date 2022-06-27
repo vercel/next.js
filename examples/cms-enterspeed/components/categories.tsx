@@ -1,4 +1,8 @@
-export default function Categories({ categories }) {
+type Props = {
+  categories: string[]
+}
+
+export default function Categories({ categories }: Props) {
   return (
     <span className="ml-1">
       under
