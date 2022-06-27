@@ -1815,7 +1815,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
-    return null
+    return false
   }
 
   private async renderToResponse(
@@ -1831,7 +1831,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(page)) {
         const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-        if (result) return result
+        if (result !== false) return result
       }
 
       if (this.dynamicRoutes) {
@@ -1852,7 +1852,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             },
             bubbleNoFallback
           )
-          if (result) return result
+          if (result !== false) return result
         }
       }
     } catch (error) {
