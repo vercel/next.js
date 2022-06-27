@@ -1,23 +1,22 @@
 import React from 'react'
-import Image from 'next/image'
+import Image from 'next/future/image'
 
 const Page = () => {
   return (
     <div>
-      <p>Layout Raw</p>
+      <p>Wrapper Div</p>
       <div id="image-container1">
         <Image
-          id="raw1"
+          id="img1"
           src="/wide.png"
           width="1200"
           height="700"
-          layout="raw"
           loading="eager"
-        ></Image>
+        />
       </div>
       <div id="image-container2">
         <Image
-          id="raw2"
+          id="img2"
           src="/wide.png"
           width="1200"
           height="700"
@@ -26,30 +25,27 @@ const Page = () => {
             width: '100%',
             objectPosition: '30% 30%',
           }}
-          layout="raw"
           sizes="50vh"
-        ></Image>
+        />
       </div>
       <div id="image-container3">
         <Image
-          id="raw3"
+          id="img3"
           src="/test.png"
           width="400"
           height="400"
-          layout="raw"
           loading="eager"
-        ></Image>
+        />
       </div>
       <div id="image-container4">
         <Image
-          id="raw4"
+          id="img4"
           src="/test.png"
           width="400"
           height="400"
-          layout="raw"
           loading="eager"
           style={{ width: '50%', height: 'auto' }}
-        ></Image>
+        />
       </div>
     </div>
   )
