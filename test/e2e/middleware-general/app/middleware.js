@@ -187,6 +187,15 @@ export async function middleware(request) {
     return NextResponse.rewrite(new URL('/about/a', request.url))
   }
 
+  if (url.pathname === '/redirect-to-somewhere') {
+    url.pathname = '/somewhere'
+    return NextResponse.redirect(url, {
+      headers: {
+        'x-redirect-header': 'hi',
+      },
+    })
+  }
+
   if (url.pathname.startsWith('/url')) {
     try {
       if (request.nextUrl.pathname === '/url/relative-url') {

@@ -44,10 +44,13 @@ export class NextResponse extends Response {
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
+    const initObj = typeof init === 'object' ? init : {}
+    const headers = new Headers(initObj?.headers)
+    headers.set('Location', validateURL(url))
 
     return new NextResponse(null, {
-      ...(typeof init === 'object' ? init : {}),
-      headers: { Location: validateURL(url) },
+      ...initObj,
+      headers,
       status,
     })
   }
