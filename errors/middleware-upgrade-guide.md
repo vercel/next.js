@@ -2,12 +2,14 @@
 
 As we work on improving Middleware for General Availability (GA), we've made some changes to the Middleware APIs (and how you define Middleware in your application) based on your feedback.
 
-This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
+This upgrade guide will help you understand the changes, why they were made, and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
 
 - Currently use the beta Next.js Middleware features
 - Choose to upgrade to the next stable version of Next.js (`v12.2`)
 
 You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
+
+**Note**: these changes described in this guide are included in Next.js 12.2. You can keep your current site structure, including nested middleware until you move to 12.2 (or a canary build of Next.js).
 
 If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
 
@@ -34,13 +36,20 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 
 ### Explanation
 
-Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
+Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created.
 
-- Middleware in `pages/dashboard/_middleware.ts`
-- Middleware in `pages/dashboard/users/_middleware.ts`
-- A request to `/dashboard/users/*` **would match both.**
+Based on customer feedback, we have replaced this API with a single root Middleware, which provides the following improvements:
 
-Based on customer feedback, we have replaced this API with a single root Middleware.
+- **Faster execution with lower latency**  
+  With nested middleware, a single request could invoke multiple middleware functions. A single middleware means a single function execution, which is more efficient.
+- **Less expensive**  
+  Middleware usage is billed per-invocation. Using nested middleware, a single request could invoke multiple middleware functions, meaning multiple middleware charges per request. A single middleware means a single invocation per request, and ultimately a single charge.
+- **Middleware can easily filter on things besides routes**  
+  With nested middleware, the middleware files were located in the `pages` directory, and middleware was executed based on request paths. By moving to a single, root middleware, you can still execute certain code based on request path, but you can more easily execute middleware based on other conditions, like cookies or the presence of a request header.
+- **Simple, deterministic execution ordering**  
+  With nested middleware, a single request could match multiple middleware functions. For example, a requests to `/dashboard/users/*` would invoke middleware defined in both `/dashboard/users/_middleware.ts` and `/dashboard/_middleware.js`, however the execution order is not obvious or easy to reason about. Moving to a single, root middleware puts execution order in the hand of the developer, so they can implement the order that makes the most sense for any given project.
+- **Supports Next.js Layouts (RFC)**  
+  Moving to a single, root middleware helps support [Layouts (RFC) in Next.js](https://nextjs.org/blog/layouts-rfc). The Layouts RFC proposes to move away from the simple `pages` model, which doesn’t support a nested middleware model, but does support a single, root middleware instead.
 
 ### How to upgrade
 
