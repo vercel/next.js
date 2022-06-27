@@ -169,11 +169,9 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(2)
+    expect(els.length).toBe(1)
 
-    const [el, noscriptEl] = els
-    expect(noscriptEl.attribs.src).toBeDefined()
-    expect(noscriptEl.attribs.srcset).toBeDefined()
+    const [el] = els
 
     expect(el.attribs.src).not.toBe('/truck.jpg')
     expect(el.attribs.srcset).not.toBe(
