@@ -82,9 +82,9 @@ export function middleware(request: NextRequest) {
 
 ### Summary of changes
 
-- Middleware can no longer respond with a body
+- Middleware can no longer produce a response body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
-- Migrate to using `rewrites`/`redirects` to pages/APIs handling a response
+- Migrate to using `rewrites`/`redirects` to pages/APIs producing a response
 
 ### Explanation
 
@@ -139,6 +139,31 @@ export function middleware(request: NextRequest) {
   loginUrl.searchParams.set('from', request.nextUrl.pathname)
 
   return NextResponse.redirect(loginUrl)
+}
+```
+
+#### Edge API Routes
+
+If you were previously using Middleware to forward headers to an external API, you can now use [Edge API Routes](/docs/api-routes/edge-api-routes):
+
+```typescript
+// pages/api/proxy.ts
+
+import { type NextRequest } from 'next/server';
+
+export const config = {
+  runtime: 'experimental-edge'
+};
+
+export default async function handler(req: NextRequest) {
+  const authorization = req.cookies.get('authorization');
+  return fetch('https://backend-api.com/api/protected', {
+    method: req.method,
+    headers: {
+      authorization
+    },
+    redirect: 'manual'
+  });
 }
 ```
 
