@@ -9,6 +9,8 @@ This upgrade guide will help you understand the changes and how to migrate your 
 
 You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
 
+If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
+
 ## Using Next.js Middleware on Vercel
 
 If you're using Next.js on Vercel, your existing deploys using Middleware will continue to work, and you can continue to deploy your site using Middleware. When you upgrade your site to the next stable version of Next.js (`v12.2`), you will need to follow this upgrade guide to update your Middleware.
@@ -84,7 +86,7 @@ export function middleware(request: NextRequest) {
 
 - Middleware can no longer produce a response body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
-- Migrate to using `rewrites`/`redirects` to pages/APIs producing a response
+- Migrate to using `rewrite`/`redirect` to pages/APIs handling a response
 
 ### Explanation
 
@@ -101,7 +103,7 @@ NextResponse.json()
 
 ### How to upgrade
 
-For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrite`/`redirect` to pages that show an authorization error, login forms, or to an API Route.
 
 #### Before
 
@@ -379,6 +381,6 @@ export function middleware(request: NextRequest) {
 
 Prior to Next.js `v12.2`, Middleware was not executed for `_next` requests.
 
-For cases where Middleware is used for authorization, you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used for authorization, you should migrate to use `rewrite`/`redirect` to Pages that show an authorization error, login forms, or to an API Route.
 
-See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrites`/`redirects`.
+See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrite`/`redirect`.
