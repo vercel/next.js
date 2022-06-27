@@ -16,7 +16,7 @@ type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(slot: new, serialization: none)]
+#[turbo_tasks::value(slot: new, serialization: none, eq: manual)]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
     pub name: String,

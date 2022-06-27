@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared, serialization: none)]
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
         /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced

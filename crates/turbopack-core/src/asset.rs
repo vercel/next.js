@@ -4,7 +4,7 @@ use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use crate::reference::AssetReferenceVc;
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash)]
 pub struct AssetsSet {
     pub assets: Vec<AssetVc>,
 }

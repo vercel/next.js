@@ -25,7 +25,7 @@ use turbopack_core::{
 
 use self::references::module_references;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization: auto_for_input)]
 pub enum ModuleAssetType {
     Ecmascript,
@@ -34,13 +34,12 @@ pub enum ModuleAssetType {
 }
 
 #[turbo_tasks::value(Asset)]
-#[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
     pub target: CompileTargetVc,
-    pub node_native_bindings: bool
+    pub node_native_bindings: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -51,14 +50,14 @@ impl ModuleAssetVc {
         context: AssetContextVc,
         ty: Value<ModuleAssetType>,
         target: CompileTargetVc,
-        node_native_bindings: bool
+        node_native_bindings: bool,
     ) -> Self {
         Self::slot(ModuleAsset {
             source,
             context,
             ty: ty.into_value(),
             target: target,
-            node_native_bindings
+            node_native_bindings,
         })
     }
 }
@@ -75,7 +74,13 @@ impl Asset for ModuleAsset {
     }
     #[turbo_tasks::function]
     fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(self.source, self.context, Value::new(self.ty), self.target, self.node_native_bindings)
+        module_references(
+            self.source,
+            self.context,
+            Value::new(self.ty),
+            self.target,
+            self.node_native_bindings,
+        )
     }
 }
 

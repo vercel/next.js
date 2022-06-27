@@ -8,7 +8,7 @@ use turbo_tasks::{util::try_join_all, Value, ValueToString, ValueToStringVc, Vc}
 use super::pattern::Pattern;
 
 #[turbo_tasks::value(ValueToString)]
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(Hash, Clone, Debug)]
 pub enum Request {
     Raw {
         path: Pattern,

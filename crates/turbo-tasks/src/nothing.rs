@@ -4,7 +4,6 @@ use crate::{self as turbo_tasks};
 /// [NothingVc] can be used as return value instead of `()`
 /// to have a concrete reference that can be awaited.
 #[turbo_tasks::value]
-#[derive(PartialEq, Eq)]
 pub struct Nothing;
 
 #[turbo_tasks::value_impl]

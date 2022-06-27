@@ -6,7 +6,6 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(Asset)]
-#[derive(PartialEq, Eq)]
 pub struct ModuleAsset {
     pub source: AssetVc,
 }

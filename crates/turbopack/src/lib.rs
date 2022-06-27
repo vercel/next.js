@@ -38,7 +38,6 @@ mod resolve;
 pub use turbopack_ecmascript as ecmascript;
 
 #[turbo_tasks::value]
-#[derive(PartialEq, Eq)]
 pub struct GraphOptions {
     pub typescript: bool,
     pub node_native_bindings: bool,
@@ -155,7 +154,6 @@ async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetV
 }
 
 #[turbo_tasks::value(AssetContext)]
-#[derive(PartialEq, Eq)]
 pub struct ModuleAssetContext {
     context: FileSystemPathVc,
     options: GraphOptionsVc,
@@ -274,7 +272,6 @@ async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 struct CycleDetection {
     visited: HashSet<AssetVc>,
 }
@@ -340,7 +337,6 @@ pub fn print_most_referenced(asset: AssetVc) {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 struct ReferencesList {
     referenced_by: HashMap<AssetVc, HashSet<AssetVc>>,
 }

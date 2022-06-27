@@ -23,7 +23,7 @@ use turbopack_core::asset::AssetVc;
 
 use super::ModuleAssetType;
 
-#[turbo_tasks::value(shared, serialization: none)]
+#[turbo_tasks::value(shared, serialization: none, eq: manual)]
 pub enum ParseResult {
     Ok {
         #[trace_ignore]
