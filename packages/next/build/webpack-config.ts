@@ -12,6 +12,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -385,7 +386,7 @@ export default async function getBaseWebpackConfig(
     : config.experimental.disableOptimizedLoading
 
   if (isClient) {
-    if (config.experimental.runtime === 'edge') {
+    if (config.experimental.runtime === SERVER_RUNTIME.edge) {
       Log.warn(
         'You are using the experimental Edge Runtime with `experimental.runtime`.'
       )
