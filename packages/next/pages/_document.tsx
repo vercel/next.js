@@ -8,6 +8,7 @@ import type {
   DocumentInitialProps,
   DocumentProps,
   DocumentType,
+  NEXT_DATA,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
@@ -85,6 +86,59 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
 
 function hasComponentProps(child: any): child is React.ReactElement {
   return !!child && !!child.props
+}
+
+function handleDocumentScriptLoaderItems(
+  scriptLoader: { beforeInteractive?: any[] },
+  __NEXT_DATA__: NEXT_DATA,
+  props: any
+): void {
+  if (!props.children) return
+
+  const scriptLoaderItems: ScriptProps[] = []
+
+  const children = Array.isArray(props.children)
+    ? props.children
+    : [props.children]
+
+  const headChildren = children.find(
+    (child: React.ReactElement) => child.type === Head
+  )?.props?.children
+  const bodyChildren = children.find(
+    (child: React.ReactElement) => child.type === 'body'
+  )?.props?.children
+
+  // Scripts with beforeInteractive can be placed inside Head or <body> so children of both needs to be traversed
+  const combinedChildren = [
+    ...(Array.isArray(headChildren) ? headChildren : [headChildren]),
+    ...(Array.isArray(bodyChildren) ? bodyChildren : [bodyChildren]),
+  ]
+
+  React.Children.forEach(combinedChildren, (child: any) => {
+    if (!child) return
+
+    if (child.type === Script) {
+      if (child.props.strategy === 'beforeInteractive') {
+        scriptLoader.beforeInteractive = (
+          scriptLoader.beforeInteractive || []
+        ).concat([
+          {
+            ...child.props,
+          },
+        ])
+        return
+      } else if (
+        ['lazyOnload', 'afterInteractive', 'worker'].includes(
+          child.props.strategy
+        )
+      ) {
+        scriptLoaderItems.push(child.props)
+        return
+      }
+    }
+  })
+
+  __NEXT_DATA__.scriptLoader = scriptLoaderItems
 }
 
 function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
@@ -340,9 +394,16 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered, locale } = useContext(HtmlContext)
+  const {
+    inAmpMode,
+    docComponentsRendered,
+    locale,
+    scriptLoader,
+    __NEXT_DATA__,
+  } = useContext(HtmlContext)
 
   docComponentsRendered.Html = true
+  handleDocumentScriptLoaderItems(scriptLoader, __NEXT_DATA__, props)
 
   return (
     <html
@@ -605,40 +666,6 @@ export class Head extends Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[] {
-    const { scriptLoader } = this.context
-    const scriptLoaderItems: ScriptProps[] = []
-    const filteredChildren: ReactNode[] = []
-
-    React.Children.forEach(children, (child: any) => {
-      if (child.type === Script) {
-        if (child.props.strategy === 'beforeInteractive') {
-          scriptLoader.beforeInteractive = (
-            scriptLoader.beforeInteractive || []
-          ).concat([
-            {
-              ...child.props,
-            },
-          ])
-          return
-        } else if (
-          ['lazyOnload', 'afterInteractive', 'worker'].includes(
-            child.props.strategy
-          )
-        ) {
-          scriptLoaderItems.push(child.props)
-          return
-        }
-      }
-
-      filteredChildren.push(child)
-    })
-
-    this.context.__NEXT_DATA__.scriptLoader = scriptLoaderItems
-
-    return filteredChildren
-  }
-
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
@@ -739,8 +766,6 @@ export class Head extends Component<HeadProps> {
     if (process.env.NODE_ENV !== 'development' && optimizeFonts && !inAmpMode) {
       children = this.makeStylesheetInert(children)
     }
-
-    children = this.handleDocumentScriptLoaderItems(children)
 
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
