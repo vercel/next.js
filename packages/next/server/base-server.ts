@@ -1815,7 +1815,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
-    return null
+    return false
   }
 
   private async renderToResponse(
@@ -1830,7 +1830,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(page)) {
-        return await this.renderPageComponent(ctx, bubbleNoFallback)
+        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+        if (result !== false) return result
       }
 
       if (this.dynamicRoutes) {
@@ -1840,7 +1841,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             continue
           }
           page = dynamicRoute.page
-          return await this.renderPageComponent(
+          const result = await this.renderPageComponent(
             {
               ...ctx,
               pathname: page,
@@ -1851,6 +1852,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             },
             bubbleNoFallback
           )
+          if (result !== false) return result
         }
       }
     } catch (error) {
