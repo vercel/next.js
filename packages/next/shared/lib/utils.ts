@@ -256,6 +256,11 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
+  /**
+   * @deprecated `unstable_revalidate` has been renamed to `revalidate`
+   */
+  unstable_revalidate: () => void
+
   revalidate: (
     urlPath: string,
     opts?: {
