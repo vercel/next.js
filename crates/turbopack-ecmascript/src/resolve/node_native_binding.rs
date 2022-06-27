@@ -100,7 +100,7 @@ pub async fn resolve_node_pre_gyp_files(
             let config_file_dir = config_file_path.parent();
             let node_pre_gyp_config: NodePreGypConfigJson =
                 serde_json::from_slice(config_file.content())?;
-            let assets = node_pre_gyp_config
+            let mut assets: HashSet<AssetVc> = node_pre_gyp_config
                 .binary
                 .napi_versions
                 .iter()
@@ -133,8 +133,6 @@ pub async fn resolve_node_pre_gyp_files(
                     SourceAssetVc::new(resolved_file_vc.into()).into()
                 })
                 .collect();
-            let mut affecting_files =
-                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()];
             for (_, entry) in &config_path
                 .path()
                 .parent()
@@ -146,10 +144,14 @@ pub async fn resolve_node_pre_gyp_files(
                 .results
             {
                 if let DirectoryEntry::File(dylib) = entry {
-                    affecting_files.push(AffectingResolvingAssetReferenceVc::new(*dylib).into());
+                    assets.insert(SourceAssetVc::new(*dylib).into());
                 }
             }
-            return Ok(ResolveResult::Alternatives(assets, affecting_files).into());
+            return Ok(ResolveResult::Alternatives(
+                assets,
+                vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
+            )
+            .into());
         };
     }
     Ok(ResolveResult::unresolveable().into())
