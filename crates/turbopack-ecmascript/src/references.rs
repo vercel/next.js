@@ -1019,7 +1019,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+#[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPathVc,
 }

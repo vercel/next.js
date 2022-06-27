@@ -259,7 +259,6 @@ async fn dir_exists(fs_path: FileSystemPathVc) -> Result<bool> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 enum ExportsFieldResult {
     Some(#[trace_ignore] ExportsField),
     None,
@@ -296,7 +295,6 @@ async fn exports_field(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 pub enum FindContextFileResult {
     Found(FileSystemPathVc),
     NotFound,
@@ -321,7 +319,6 @@ pub async fn find_context_file(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq)]
 enum FindPackageResult {
     Package(FileSystemPathVc),
     NotFound,
@@ -752,7 +749,6 @@ pub async fn resolve(
 }
 
 #[turbo_tasks::value(AssetReference)]
-#[derive(PartialEq, Eq)]
 pub struct AffectingResolvingAssetReference {
     file: FileSystemPathVc,
 }

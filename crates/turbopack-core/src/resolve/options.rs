@@ -16,7 +16,7 @@ use super::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -140,20 +140,20 @@ impl WildcardReplacable for ImportMapping {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ImportMap {
     pub direct: PrefixTree<ImportMapping>,
     pub by_glob: Vec<(Glob, ImportMapping)>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ResolvedMap {
     pub by_glob: Vec<(FileSystemPathVc, GlobVc, ImportMapping)>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ImportMapResult {
     Result(ResolveResultVc),
     Alias(RequestVc, Option<FileSystemPathVc>),
@@ -234,7 +234,7 @@ impl ResolvedMapVc {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ResolveOptions {
     pub extensions: Vec<String>,
     pub modules: Vec<ResolveModules>,
@@ -261,7 +261,7 @@ impl ResolveOptionsVc {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Hash, PartialEq, Eq, Clone, Debug)]
+#[derive(Hash, Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,
 }
