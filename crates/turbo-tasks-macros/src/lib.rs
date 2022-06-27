@@ -174,6 +174,7 @@ struct ValueArguments {
     serialization_mode: SerializationMode,
     into_mode: IntoMode,
     slot_mode: IntoMode,
+    manual_eq: bool,
 }
 
 impl Parse for ValueArguments {
@@ -183,6 +184,7 @@ impl Parse for ValueArguments {
             serialization_mode: SerializationMode::Auto,
             into_mode: IntoMode::None,
             slot_mode: IntoMode::Shared,
+            manual_eq: false,
         };
         if input.is_empty() {
             return Ok(result);
@@ -205,6 +207,11 @@ impl Parse for ValueArguments {
                 "slot" => {
                     input.parse::<Token![:]>()?;
                     result.slot_mode = input.parse::<IntoMode>()?;
+                }
+
+                "eq" => {
+                    input.parse::<Token![:]>()?;
+                    result.manual_eq = input.parse::<Ident>()?.to_string() == "manual";
                 }
                 _ => {
                     result.traits.push(ident);
@@ -253,6 +260,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         serialization_mode,
         into_mode,
         slot_mode,
+        manual_eq,
     } = parse_macro_input!(args as ValueArguments);
 
     let (vis, ident) = match &item {
@@ -378,12 +386,19 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let derive = match serialization_mode {
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
             quote! {
-                #[derive(turbo_tasks::trace::TraceRawVcs, PartialEq, Eq)]
+                #[derive(turbo_tasks::trace::TraceRawVcs)]
             }
         }
         SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
         },
+    };
+    let eq_derive = if manual_eq {
+        quote!()
+    } else {
+        quote!(
+            #[derive(PartialEq, Eq)]
+        )
     };
 
     let new_value_type = match serialization_mode {
@@ -411,6 +426,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #derive
+        #eq_derive
         #item
 
         turbo_tasks::lazy_static! {
