@@ -14,7 +14,7 @@ These native Web API objects are extended to give you more control over how you 
 
 The function signature is defined as follows:
 
-```ts
+```typescript
 type NextMiddlewareResult = NextResponse | Response | null | undefined
 
 type NextMiddleware = (
@@ -25,7 +25,7 @@ type NextMiddleware = (
 
 It can be imported from `next/server` with the following:
 
-```ts
+```typescript
 import type { NextMiddleware } from 'next/server'
 ```
 
@@ -37,15 +37,14 @@ The `NextRequest` object is an extension of the native [`Request`](https://devel
 
 - `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
-- `ip` - Has the IP address of the `Request`
-- `ua` - Has the user agent
-- `geo` - (Optional) Has the geo location from the `Request`, provided by your hosting platform
+- `ip` - (Optional) Has the IP address of the `Request`, if provided by your hosting platform
+- `geo` - (Optional) Has the geo location from the `Request`, if provided by your hosting platform
 
 You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 
 `NextRequest` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextRequest } from 'next/server'
 ```
 
@@ -57,7 +56,7 @@ The `waitUntil()` method can be used to prolong the execution of the function, a
 
 The `event` object is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import type { NextFetchEvent } from 'next/server'
 ```
 
@@ -69,32 +68,23 @@ The `NextResponse` class extends the native [`Response`](https://developer.mozil
 
 Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
-- `cookies` - A [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) with the cookies in the `Response`
+- `cookies` - The `Cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map), including methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
 
-```ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(request: NextRequest) {
-  // create an instance of the class to access the public methods. This uses `next()`,
-  // you could use `redirect()` or `rewrite()` as well
-  let response = NextResponse.next()
-  // get the cookies from the request
-  let cookieFromRequest = request.cookies.get('my-cookie')
-  // set the `cookie`
-  response.cookies.set('hello', 'world')
-  // set the `cookie` with options
-  const cookieWithOptions = response.cookies.set('hello', 'world', {
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-    httpOnly: true,
-    sameSite: 'strict',
-    domain: 'example.com',
-  })
-  // clear the `cookie`
-  response.clearCookie('hello')
-
-  return response
+```typescript
+export function middleware() {
+  const response = new NextResponse()
+  // set a cookie
+  response.cookies.set('vercel', 'fast')
+  // set another cookie with options
+  response.cookies.set('nextjs', 'awesome', { path: '/test' })
+  // get all the details of a cookie
+  const { value, options } = response.cookies.getWithOptions('vercel')
+  console.log(value) // => 'fast'
+  console.log(options) // => { Path: '/test' }
+  // deleting a cookie will mark it as expired
+  response.cookies.delete('vercel')
+  // clear all cookies means mark all of them as expired
+  response.cookies.clear()
 }
 ```
 
@@ -106,7 +96,7 @@ The following static methods are available on the `NextResponse` class directly:
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -127,7 +117,7 @@ All methods above return a `NextResponse` object that only takes effect if it's 
 
 `NextResponse` is fully typed and can be imported from `next/server`.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 ```
 
@@ -137,7 +127,7 @@ In order to set the `cookie` _before_ a redirect, you can create an instance of 
 
 Note that there is a [Chrome bug](https://bugs.chromium.org/p/chromium/issues/detail?id=696204) which means the entire redirect chain **must** be from the same origin, if they are from different origins, then the `cookie` might be missing until a refresh.
 
-```ts
+```typescript
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -145,6 +135,45 @@ export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
   res.cookies.set('hello', 'world') // can be called on an instance
   return res
+}
+```
+
+## userAgent
+
+The `userAgent` helper allows you to interact with the user agent object from the request. It is abstracted from the native `Request` object, and is an opt in feature. It has the following properties:
+
+- `isBot`: Whether the request comes from a known bot
+- `browser`
+  - `name`: The name of the browser, or `undefined`
+  - `version`: The version of the browser, determined dynamically, or `undefined`
+- `device`
+  - `model`: The model of the device, determined dynamically, or `undefined`
+  - `type`: The type of the browser, can be one of the following values: `console`, `mobile`, `tablet`, `smarttv`, `wearable`, `embedded`, or `undefined`
+  - `vendor`: The vendor of the device, determined dynamically, or `undefined`
+- `engine`
+  - `name`: The name of the browser engine, could be one of the following values: `Amaya`, `Blink`, `EdgeHTML`, `Flow`, `Gecko`, `Goanna`, `iCab`, `KHTML`, `Links`, `Lynx`, `NetFront`, `NetSurf`, `Presto`, `Tasman`, `Trident`, `w3m`, `WebKit` or `undefined`
+  - `version`: The version of the browser engine, determined dynamically, or `undefined`
+- `os`
+  - `name`: The name of the OS, could be `undefined`
+  - `version`: The version of the OS, determined dynamically, or `undefined`
+- `cpu`
+  - `architecture`: The architecture of the CPU, could be one of the following values: `68k`, `amd64`, `arm`, `arm64`, `armhf`, `avr`, `ia32`, `ia64`, `irix`, `irix64`, `mips`, `mips64`, `pa-risc`, `ppc`, `sparc`, `sparc64` or `undefined`
+
+`userAgent` is fully typed and can be imported from `next/server`:
+
+```typescript
+import { userAgent } from 'next/server'
+```
+
+```typescript
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const url = request.nextUrl
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(url)
 }
 ```
 
@@ -171,7 +200,7 @@ If you want to cause a `GET` response to a `POST` request, use `303`.
 
 Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
 
-```ts
+```typescript
 // Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
 console.log(process.env.NODE_ENV)
 // This will not work

@@ -3,6 +3,6 @@ export default function Edge() {
 }
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
   amp: false,
 }

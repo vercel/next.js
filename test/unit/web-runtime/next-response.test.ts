@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server/web/spec-extension/response'
 
-const toJSON = async (response) => ({
+const toJSON = async (response: Response) => ({
   body: await response.json(),
   contentType: response.headers.get('content-type'),
   status: response.status,
@@ -52,4 +52,9 @@ it('can be cloned', async () => {
   expect(Object.fromEntries(newResponse.headers)).toMatchObject({
     server: 'Vercel',
   })
+})
+
+it('can return JSON', async () => {
+  const response = NextResponse.json({ hello: 'world' })
+  expect(await response.json()).toEqual({ hello: 'world' })
 })
