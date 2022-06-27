@@ -40,16 +40,11 @@ Previously, you could create a `_middleware.ts` file under the `pages` directory
 
 Based on customer feedback, we have replaced this API with a single root Middleware, which provides the following improvements:
 
-- **Faster execution with lower latency**  
-  With nested middleware, a single request could invoke multiple middleware functions. A single middleware means a single function execution, which is more efficient.
-- **Less expensive**  
-  Middleware usage is billed per-invocation. Using nested middleware, a single request could invoke multiple middleware functions, meaning multiple middleware charges per request. A single middleware means a single invocation per request, and ultimately a single charge.
-- **Middleware can conveniently filter on things besides routes**  
-  With nested middleware, the middleware files were located in the `pages` directory, and middleware was executed based on request paths. By moving to a single, root middleware, you can still execute certain code based on request path, but you can more conveniently execute middleware based on other conditions, like cookies or the presence of a request header.
-- **Straighforward, deterministic execution ordering**  
-  With nested middleware, a single request could match multiple middleware functions. For example, a requests to `/dashboard/users/*` would invoke middleware defined in both `/dashboard/users/_middleware.ts` and `/dashboard/_middleware.js`, however the execution order is not straightforward to reason about. Moving to a single, root middleware puts execution order in the hand of the developer, so they can implement the order that makes the most sense for any given project.
-- **Supports Next.js Layouts (RFC)**  
-  Moving to a single, root middleware helps support [Layouts (RFC) in Next.js](https://nextjs.org/blog/layouts-rfc). The Layouts RFC proposes to move away from the current `pages` model, which doesn’t support a nested middleware model, but does support a single, root middleware instead.
+- **Faster execution with lower latency**: with nested middleware, a single request could invoke multiple middleware functions. A single middleware means a single function execution, which is more efficient.
+- **Less expensive**: Middleware usage is billed per-invocation. Using nested middleware, a single request could invoke multiple middleware functions, meaning multiple middleware charges per request. A single middleware means a single invocation per request, and ultimately a single charge.
+- **Middleware can conveniently filter on things besides routes**: with nested middleware, the middleware files were located in the `pages` directory, and middleware was executed based on request paths. By moving to a single, root middleware, you can still execute certain code based on request path, but you can more conveniently execute middleware based on other conditions, like cookies or the presence of a request header.
+- **Straighforward, deterministic execution ordering**: with nested middleware, a single request could match multiple middleware functions. For example, a requests to `/dashboard/users/*` would invoke middleware defined in both `/dashboard/users/_middleware.ts` and `/dashboard/_middleware.js`, however the execution order is not straightforward to reason about. Moving to a single, root middleware puts execution order in the hand of the developer, so they can implement the order that makes the most sense for any given project.
+- **Supports Next.js Layouts (RFC)**: moving to a single, root middleware helps support [Layouts (RFC) in Next.js](https://nextjs.org/blog/layouts-rfc). The Layouts RFC proposes to move away from the current `pages` model, which doesn’t support a nested middleware model, but does support a single, root middleware instead.
 
 ### How to upgrade
 
