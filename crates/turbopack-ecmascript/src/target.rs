@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
 #[turbo_tasks::value(shared, serialization: auto_for_input)]
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum CompileTarget {
     Current,
     Target(Target),
