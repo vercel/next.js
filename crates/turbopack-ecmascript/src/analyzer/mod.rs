@@ -821,10 +821,6 @@ impl JsValue {
                       "express",
                         "The Node.js express package: https://github.com/expressjs/express"
                     ),
-                    WellKnownObjectKind::NodeStrongGlobalize => (
-                      "strong-globalize",
-                        "The Node.js strong-globalize package: https://github.com/strongloop/strong-globalize"
-                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -901,6 +897,10 @@ impl JsValue {
                     WellKnownFunctionKind::NodeExpressSet => (
                         format!("set"),
                         "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
+                    ),
+                    WellKnownFunctionKind::NodeStrongGlobalize => (
+                      format!("SetRootDir"),
+                      "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
                       format!("SetRootDir"),
@@ -1810,7 +1810,6 @@ pub enum WellKnownObjectKind {
     NodeProcess,
     NodePreGyp,
     NodeExpressApp,
-    NodeStrongGlobalize,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -1834,6 +1833,7 @@ pub enum WellKnownFunctionKind {
     NodeBindings,
     NodeExpress,
     NodeExpressSet,
+    NodeStrongGlobalize,
     NodeStrongGlobalizeSetRootDir,
     NodeResolveFrom,
 }

@@ -993,7 +993,7 @@ async fn value_visitor_inner(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress)
                 }
                 "strong-globalize" if node_native_bindings => {
-                    JsValue::WellKnownObject(WellKnownObjectKind::NodeStrongGlobalize)
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
                 }
                 "resolve-from" if node_native_bindings => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
