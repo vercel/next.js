@@ -135,11 +135,6 @@ function runTests(mode) {
           imagesrcset:
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         },
-        {
-          imagesizes: '',
-          imagesrcset:
-            '/_next/image?url=%2Ftest.webp&w=1200&q=75 1x, /_next/image?url=%2Ftest.webp&w=3840&q=75 2x',
-        },
       ])
 
       // When priority={true}, we should _not_ set loading="lazy"
@@ -291,10 +286,6 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("img8").currentSrc`),
         /test-rect.jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg9").textContent`),
-        'loaded 1 img9 with dimensions 400x400'
       )
     } finally {
       if (browser) {
