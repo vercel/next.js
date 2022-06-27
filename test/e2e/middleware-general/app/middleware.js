@@ -37,9 +37,9 @@ export async function middleware(request) {
   const url = request.nextUrl
 
   if (request.headers.get('x-prerender-revalidate')) {
-    const res = NextResponse.next()
-    res.headers.set('x-middleware', 'hi')
-    return res
+    return NextResponse.next({
+      headers: { 'x-middleware': 'hi' },
+    })
   }
 
   // this is needed for tests to get the BUILD_ID
@@ -229,18 +229,18 @@ export async function middleware(request) {
     throw new Error('test error')
   }
 
-  const response = NextResponse.next()
   const original = new URL(request.url)
-  response.headers.set('req-url-path', `${original.pathname}${original.search}`)
-  response.headers.set('req-url-basepath', request.nextUrl.basePath)
-  response.headers.set('req-url-pathname', request.nextUrl.pathname)
-  response.headers.set('req-url-query', request.nextUrl.searchParams.get('foo'))
-  response.headers.set('req-url-locale', request.nextUrl.locale)
-  response.headers.set(
-    'req-url-params',
-    url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}'
-  )
-  return response
+  return NextResponse.next({
+    headers: {
+      'req-url-path': `${original.pathname}${original.search}`,
+      'req-url-basepath': request.nextUrl.basePath,
+      'req-url-pathname': request.nextUrl.pathname,
+      'req-url-query': request.nextUrl.searchParams.get('foo'),
+      'req-url-locale': request.nextUrl.locale,
+      'req-url-params':
+        url.pathname !== '/static' ? JSON.stringify(params(request.url)) : '{}',
+    },
+  })
 }
 
 function serializeData(data) {
