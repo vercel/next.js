@@ -60,7 +60,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::fetch_h2("integration/fetch-h2.js", true)]
 #[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
 // Could not find ffmpeg executable
-// #[case::firebase_admin("integration/firebase-admin.js", true)]
+#[case::firebase_admin("integration/firebase-admin.js", true)]
 #[case::firebase("integration/firebase.js", true)]
 #[case::firestore("integration/firestore.js", true)]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
@@ -337,10 +337,13 @@ fn diff(expected: &str, actual: &str) -> String {
     lazy_static! {
         static ref JAVASCRIPT_TIMESTAMP: Regex =
             Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z").unwrap();
+        static ref JAVASCRIPT_DATE_TIME: Regex =
+            Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{6}").unwrap();
     }
     // Remove timestamps from the output.
-    if JAVASCRIPT_TIMESTAMP.replace_all(actual, "")
-        == JAVASCRIPT_TIMESTAMP.replace_all(expected, "")
+    if JAVASCRIPT_DATE_TIME.replace_all(JAVASCRIPT_TIMESTAMP.replace_all(actual, "").as_ref(), "")
+        == JAVASCRIPT_DATE_TIME
+            .replace_all(JAVASCRIPT_TIMESTAMP.replace_all(expected, "").as_ref(), "")
     {
         return String::new();
     }
