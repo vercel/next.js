@@ -2,10 +2,14 @@
  * @file An AMP Component import helper. This file is auto-generated using
  * https://www.npmjs.com/package/@ampproject/toolbox-validator-rules.
  */
-import React from 'react'
 import Head from 'next/head'
 
-export function AmpIncludeCustomElement(props) {
+interface Props {
+  name: string
+  version: string
+}
+
+export function AmpIncludeCustomElement(props: Props) {
   return (
     <Head>
       <script
@@ -24,7 +28,7 @@ export function AmpIncludeCustomElement(props) {
   )
 }
 
-export function AmpIncludeCustomTemplate(props) {
+export function AmpIncludeCustomTemplate(props: Props) {
   return (
     <Head>
       <script
