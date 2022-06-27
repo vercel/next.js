@@ -28,12 +28,17 @@ DEALINGS IN THE SOFTWARE.
 
 use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, Env, JsBuffer, JsExternal, JsString, JsUndefined, JsUnknown, Status};
+use sentry::{types::Dsn, ClientInitGuard, ClientOptions};
 use serde::de::DeserializeOwned;
-use std::{any::type_name, cell::RefCell, convert::TryFrom, path::PathBuf};
+use std::{
+    any::type_name, borrow::Cow, cell::RefCell, convert::TryFrom, env, path::PathBuf, str::FromStr,
+};
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
 static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
+static PACKAGE_VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/package.txt"));
+
 #[contextless_function]
 pub fn get_target_triple(env: Env) -> napi::ContextlessResult<JsString> {
     env.create_string(TARGET_TRIPLE).map(Some)
@@ -138,6 +143,47 @@ pub fn teardown_trace_subscriber(cx: CallContext) -> napi::Result<JsUndefined> {
     let guard_cell = &*cx
         .env
         .get_value_external::<RefCell<Option<FlushGuard>>>(&guard_external)?;
+
+    if let Some(guard) = guard_cell.take() {
+        drop(guard);
+    }
+    cx.env.get_undefined()
+}
+
+/// Initialize crash reporter to collect unexpected native next-swc crashes.
+#[js_function(1)]
+pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
+    // Attempts to follow https://nextjs.org/telemetry's debug behavior.
+    // However, this is techinically not identical to the behavior of the telemetry
+    // itself as sentry's debug option does not provides full payuload output.
+    let debug = env::var("NEXT_TELEMETRY_DEBUG").map_or_else(|_| false, |v| v == "1");
+    let dsn = if debug {
+        None
+    } else {
+        Dsn::from_str("https://7619e5990e3045cda747e50e6ed087a7@o205439.ingest.sentry.io/6528434")
+            .ok()
+    };
+
+    let guard = sentry::init(ClientOptions {
+        release: Some(Cow::Borrowed(PACKAGE_VERSION)),
+        dsn,
+        debug,
+        ..Default::default()
+    });
+
+    let guard_cell = RefCell::new(Some(guard));
+    cx.env.create_external(guard_cell, None)
+}
+
+/// Trying to drop crash reporter guard if exists. This is the way to hold
+/// guards to not to be dropped immediately after crash reporter is initialized
+/// in napi context.
+#[js_function(1)]
+pub fn teardown_crash_reporter(cx: CallContext) -> napi::Result<JsUndefined> {
+    let guard_external = cx.get::<JsExternal>(0)?;
+    let guard_cell = &*cx
+        .env
+        .get_value_external::<RefCell<Option<ClientInitGuard>>>(&guard_external)?;
 
     if let Some(guard) = guard_cell.take() {
         drop(guard);
