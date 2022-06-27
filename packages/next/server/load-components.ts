@@ -12,7 +12,7 @@ import type {
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../shared/lib/constants'
 import { join } from 'path'
@@ -118,7 +118,7 @@ export async function loadComponents(
       require(join(distDir, BUILD_MANIFEST)),
       require(join(distDir, REACT_LOADABLE_MANIFEST)),
       hasServerComponents
-        ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
+        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
         : null,
     ])
 

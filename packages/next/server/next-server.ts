@@ -35,7 +35,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
@@ -747,11 +747,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getServerComponentManifest() {
     if (!this.nextConfig.experimental.serverComponents) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-    ))
+    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1166,9 +1162,12 @@ export default class NextNodeServer extends BaseServer {
     // For middleware to "fetch" we must always provide an absolute URL
     const query = urlQueryToSearchParams(params.parsed.query).toString()
     const locale = params.parsed.query.__nextLocale
-    const url = `http://${this.hostname}:${this.port}${
-      locale ? `/${locale}` : ''
-    }${params.parsed.pathname}${query ? `?${query}` : ''}`
+
+    const url = `${getRequestMeta(params.request, '_protocol')}://${
+      this.hostname
+    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+      query ? `?${query}` : ''
+    }`
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -1544,6 +1543,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const nodeReq = params.req as NodeNextRequest
+
     const result = await run({
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,

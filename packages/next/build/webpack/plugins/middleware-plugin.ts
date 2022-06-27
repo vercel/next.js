@@ -8,7 +8,7 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
@@ -531,7 +531,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(

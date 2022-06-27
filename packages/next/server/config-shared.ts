@@ -8,7 +8,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -112,14 +112,14 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    layoutRaw?: boolean
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
@@ -510,6 +510,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,

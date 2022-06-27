@@ -9,6 +9,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
 | `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
@@ -374,7 +375,7 @@ module.exports = {
 
 Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
 
-### Experimental SWC plugin support
+### SWC Plugins (Experimental)
 
 You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
 
