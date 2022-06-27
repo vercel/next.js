@@ -264,7 +264,6 @@ fn node_file_trace(
 }
 
 #[turbo_tasks::value]
-#[derive(PartialEq, Eq)]
 struct CommandOutput {
     stdout: String,
     stderr: String,
