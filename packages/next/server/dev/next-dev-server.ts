@@ -48,7 +48,7 @@ import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
   createOriginalStackFrame,
   getErrorSource,
@@ -112,6 +112,7 @@ export default class DevServer extends Server {
    * routing items to be returned in `getMiddleware()`
    */
   private middleware?: RoutingItem[]
+  private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -382,18 +383,25 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
-          const middlewareRegex =
-            page === '/' && middlewareMatcher
-              ? { re: middlewareMatcher, groups: {} }
-              : getMiddlewareRegex(page, {
-                  catchAll: !ssrMiddleware.has(page),
-                })
-          return {
+        this.middleware = []
+        this.edgeFunctions = []
+        getSortedRoutes(routedMiddleware).forEach((page) => {
+          const isRootMiddleware = page === '/' && !!middlewareMatcher
+          const middlewareRegex = isRootMiddleware
+            ? { re: middlewareMatcher!, groups: {} }
+            : getMiddlewareRegex(page, {
+                catchAll: !ssrMiddleware.has(page),
+              })
+          const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: ssrMiddleware.has(page),
+            ssr: !isRootMiddleware,
+          }
+
+          this.middleware!.push(routeItem)
+          if (!isRootMiddleware) {
+            this.edgeFunctions!.push(routeItem)
           }
         })
 
@@ -667,7 +675,16 @@ export default class DevServer extends Server {
       if (error instanceof DecodeError) {
         throw error
       }
-      this.logErrorWithOriginalStack(error)
+
+      /**
+       * We only log the error when it is not a MiddlewareNotFound error as
+       * in that case we should be already displaying a compilation error
+       * which is what makes the module not found.
+       */
+      if (!(error instanceof MiddlewareNotFoundError)) {
+        this.logErrorWithOriginalStack(error)
+      }
+
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
@@ -687,6 +704,28 @@ export default class DevServer extends Server {
       response.statusCode = 500
       this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
+    }
+  }
+
+  async runEdgeFunction(params: {
+    req: BaseNextRequest
+    res: BaseNextResponse
+    query: ParsedUrlQuery
+    params: Params | undefined
+    page: string
+  }) {
+    try {
+      return super.runEdgeFunction(params)
+    } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
+      this.logErrorWithOriginalStack(error, 'warning')
+      const err = getProperError(error)
+      const { req, res, page } = params
+      res.statusCode = 500
+      this.renderError(err, req, res, page)
+      return null
     }
   }
 
@@ -859,6 +898,10 @@ export default class DevServer extends Server {
     return this.middleware ?? []
   }
 
+  protected getEdgeFunctions() {
+    return this.edgeFunctions ?? []
+  }
+
   protected getServerComponentManifest() {
     return undefined
   }
@@ -929,7 +972,7 @@ export default class DevServer extends Server {
           .body(
             JSON.stringify(
               this.getMiddleware().map((middleware) => [
-                (middleware as any).re.source,
+                middleware.re!.source,
                 !!middleware.ssr,
               ])
             )

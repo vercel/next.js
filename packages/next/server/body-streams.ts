@@ -7,7 +7,7 @@ type BodyStream = ReadableStream<Uint8Array>
 /**
  * Creates a ReadableStream from a Node.js HTTP request
  */
-function requestToBodyStream(request: IncomingMessage): BodyStream {
+export function requestToBodyStream(request: IncomingMessage): BodyStream {
   const transform = new Primitives.TransformStream<Uint8Array, Uint8Array>({
     start(controller) {
       request.on('data', (chunk) => controller.enqueue(chunk))
