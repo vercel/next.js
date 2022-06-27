@@ -8,6 +8,7 @@ import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { version as nextVersion } from 'next/package.json'
+import { Telemetry } from '../../telemetry/storage'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -18,6 +19,7 @@ let wasmBindings
 let downloadWasmPromise
 let pendingBindings
 let swcTraceFlushGuard
+let swcCrashReporterFlushGuard
 export const lockfilePatchPromise = {}
 
 export async function loadBindings() {
@@ -215,6 +217,17 @@ function loadNative() {
   }
 
   if (bindings) {
+    // Initialize crash reporter, as earliest as possible from any point of import.
+    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
+    // we can't rely on explicit manual initialization as similar to trace reporter.
+    if (!swcCrashReporterFlushGuard) {
+      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
+      let telemetry = new Telemetry({ distDir: process.cwd() })
+      if (telemetry.isEnabled) {
+        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
+      }
+    }
+
     nativeBindings = {
       isWasm: false,
       transform(src, options) {
@@ -278,6 +291,7 @@ function loadNative() {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
+      teardownCrashReporter: bindings.teardownCrashReporter,
     }
     return nativeBindings
   }
@@ -370,6 +384,23 @@ export const teardownTraceSubscriber = (() => {
         let bindings = loadNative()
         if (swcTraceFlushGuard) {
           bindings.teardownTraceSubscriber(swcTraceFlushGuard)
+        }
+      } catch (e) {
+        // Suppress exceptions, this fn allows to fail to load native bindings
+      }
+    }
+  }
+})()
+
+export const teardownCrashReporter = (() => {
+  let flushed = false
+  return () => {
+    if (!flushed) {
+      flushed = true
+      try {
+        let bindings = loadNative()
+        if (swcCrashReporterFlushGuard) {
+          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings
