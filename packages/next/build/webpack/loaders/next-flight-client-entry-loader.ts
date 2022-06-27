@@ -1,4 +1,4 @@
-import { PAGE_RUNTIME } from '../../../lib/constants'
+import { SERVER_RUNTIME } from '../../../lib/constants'
 
 export default async function transformSource(this: any): Promise<string> {
   let { modules, runtime, ssr } = this.getOptions()
@@ -20,7 +20,7 @@ export default async function transformSource(this: any): Promise<string> {
     export default function RSC() {};
     ` +
     // Currently for the Edge runtime, we treat all RSC pages as SSR pages.
-    (runtime === PAGE_RUNTIME.edge
+    (runtime === SERVER_RUNTIME.edge
       ? 'export const __N_SSP = true;'
       : ssr
       ? `export const __N_SSP = true;`

@@ -24,7 +24,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
-  PAGE_RUNTIME,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -195,7 +195,7 @@ export async function printTreeView(
         ? '○'
         : pageInfo?.isSsg
         ? '●'
-        : pageInfo?.runtime === PAGE_RUNTIME.edge
+        : pageInfo?.runtime === SERVER_RUNTIME.edge
         ? 'ℇ'
         : 'λ'
 
@@ -1302,7 +1302,7 @@ export async function isEdgeRuntimeCompiled(
 
   // Check the page runtime as well since we cannot detect the runtime from
   // compilation when it's for the client part of edge function
-  return staticInfo.runtime === PAGE_RUNTIME.edge
+  return staticInfo.runtime === SERVER_RUNTIME.edge
 }
 
 export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(

@@ -15,7 +15,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
-  PAGE_RUNTIME,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -445,7 +445,7 @@ export function runDependingOnPageType<T>(params: {
   if (isMiddlewareFile(params.page)) {
     return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === PAGE_RUNTIME.edge
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { edgeServer: params.onEdgeServer() }
       : { server: params.onServer() }
   } else if (params.page === '/_document') {
@@ -458,7 +458,7 @@ export function runDependingOnPageType<T>(params: {
   ) {
     return { client: params.onClient(), server: params.onServer() }
   } else {
-    return params.pageRuntime === PAGE_RUNTIME.edge
+    return params.pageRuntime === SERVER_RUNTIME.edge
       ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
       : { client: params.onClient(), server: params.onServer() }
   }
