@@ -41,3 +41,6 @@ yarn-error.log*
 
 lib/resolvers-types.ts
 lib/graphql-operations.ts
+
+# typescript
+*.tsbuildinfo

@@ -35,3 +35,6 @@ yarn-error.log*
 
 # Storybook
 /storybook-static
+
+# typescript
+*.tsbuildinfo

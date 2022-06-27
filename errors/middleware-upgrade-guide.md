@@ -86,7 +86,7 @@ export function middleware(request: NextRequest) {
 
 - Middleware can no longer respond with a body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
-- Migrate to using `rewrites`/`redirects` to pages/APIs handling a response
+- Migrate to using `rewrite`/`redirect` to pages/APIs handling a response
 
 ### Explanation
 
@@ -103,7 +103,7 @@ NextResponse.json()
 
 ### How to upgrade
 
-For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrite`/`redirect` to pages that show an authorization error, login forms, or to an API Route.
 
 #### Before
 
@@ -356,6 +356,6 @@ export function middleware(request: NextRequest) {
 
 Prior to Next.js `v12.2`, Middleware was not executed for `_next` requests.
 
-For cases where Middleware is used for authorization, you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used for authorization, you should migrate to use `rewrite`/`redirect` to Pages that show an authorization error, login forms, or to an API Route.
 
-See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrites`/`redirects`.
+See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrite`/`redirect`.
