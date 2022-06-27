@@ -34,7 +34,7 @@ describe('Requests not effected when middleware used', () => {
       body ? 'with body' : ''
     }`, async () => {
       const headers = {
-        'Content-Type': 'application/json',
+        'content-type': 'application/json',
         'x-custom-header': 'some value',
       }
       const res = await fetchViaHTTP(next.url, `api`, '', {
