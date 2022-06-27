@@ -2,7 +2,7 @@ import Head from 'next/head'
 
 export const config = { amp: true }
 
-export default function Home() {
+const Home = () => {
   return (
     <>
       <Head>
@@ -38,6 +38,7 @@ export default function Home() {
               width="720"
               height="1280"
               layout="responsive"
+              alt="Story Dog 2"
             />
           </amp-story-grid-layer>
           <amp-story-grid-layer template="vertical">
@@ -74,6 +75,7 @@ export default function Home() {
               width="720"
               height="1280"
               layout="responsive"
+              alt="Story Dog 4"
             />
           </amp-story-grid-layer>
           <amp-story-grid-layer template="thirds">
@@ -96,6 +98,7 @@ export default function Home() {
               width="560"
               height="420"
               layout="responsive"
+              alt="Story Thirds 1"
             />
             <amp-img
               grid-area="middle-third"
@@ -103,6 +106,7 @@ export default function Home() {
               width="560"
               height="420"
               layout="responsive"
+              alt="Story Thirds 2"
             />
             <amp-img
               grid-area="lower-third"
@@ -110,6 +114,7 @@ export default function Home() {
               width="560"
               height="420"
               layout="responsive"
+              alt="Story Thirds 3"
             />
           </amp-story-grid-layer>
         </amp-story-page>
@@ -123,3 +128,5 @@ export default function Home() {
     </>
   )
 }
+
+export default Home

@@ -1,7 +1,7 @@
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 
-export type MiddlewareSSRLoaderQuery = {
+export type EdgeSSRLoaderQuery = {
   absolute500Path: string
   absoluteAppPath: string
   absoluteDocumentPath: string
@@ -14,7 +14,7 @@ export type MiddlewareSSRLoaderQuery = {
   stringifiedConfig: string
 }
 
-export default async function middlewareSSRLoader(this: any) {
+export default async function edgeSSRLoader(this: any) {
   const {
     dev,
     page,
@@ -48,7 +48,7 @@ export default async function middlewareSSRLoader(this: any) {
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
-    import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
+    import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
 
     import Document from ${stringifiedDocumentPath}
 

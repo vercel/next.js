@@ -1,7 +1,12 @@
+import { NextPage, GetStaticProps } from 'next'
 import Link from 'next/link'
-import faker from 'faker'
+import { faker } from '@faker-js/faker'
 
-const Index = ({ name }) => {
+type IndexProps = {
+  name: string
+}
+
+const Index: NextPage<IndexProps> = ({ name }) => {
   return (
     <div>
       <h1>Home Page</h1>
@@ -17,7 +22,7 @@ const Index = ({ name }) => {
 
 export default Index
 
-export async function getStaticProps() {
+export const getStaticProps: GetStaticProps = async () => {
   // The name will be generated at build time only
   const name = faker.name.findName()
 

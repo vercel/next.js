@@ -14,5 +14,5 @@ export default function Page() {
 }
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }
