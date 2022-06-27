@@ -4,7 +4,7 @@ description: Edge API Routes enable you to build high performance APIs directly 
 
 # Edge API Routes (Beta)
 
-Edge API Routes enable you to build high performance APIs with Next.js.
+Edge API Routes enable you to build high performance APIs with Next.js. By using the [Edge Runtime](/docs/api-reference/edge-runtime.md), they are faster and more secure than Node.js based API Routes. This performance improvement does come with [constraints](/docs/api-reference/edge-runtime.md#unsupported-apis), like not having access to native Node.js APIs. Instead, Edge API Routes are built on standard Web APIs.
 
 Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a page. They are server-side only bundles and won't increase your client-side bundle size.
 
@@ -85,14 +85,31 @@ export default async function handler(req: NextRequest) {
 }
 ```
 
+### Forwarding Headers
+
+```typescript
+import { type NextRequest } from 'next/server';
+
+export const config = {
+  runtime: 'experimental-edge'
+};
+
+export default async function handler(req: NextRequest) {
+  const authorization = req.cookies.get('authorization');
+  return fetch('https://backend-api.com/api/protected', {
+    method: req.method,
+    headers: {
+      authorization
+    },
+    redirect: 'manual'
+  });
+}
+```
+
 ## Differences between API Routes
 
-Edge API Routes are built on the [Edge Runtime](https://edge-runtime.vercel.app/) – they have the same API signature as [Edge Middleware](/docs/advanced-features/middleware). However, Edge API Routes can [stream responses](https://edge-runtime.vercel.app/features/available-apis#web-stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed.
+Edge API Routes use the [Edge Runtime](/docs/api-reference/edge-runtime.md), whereas API Routes use the [Node.js runtime](/docs/advanced-features/react-18/switchable-runtime.md).
 
-The [Edge Runtime](https://edge-runtime.vercel.app/) does impose some contstraints to enable high performance and security:
+Edge API Routes can [stream responses](/docs/api-reference/edge-runtime.md#web-stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed. Server-side streaming can help improve performance with faster [Time To First Byte (TTFB)](https://web.dev/ttfb/).
 
-- The maximum size for an Edge API Route is 1 MB, including all the code that is bundled in the function
-- Node.js APIs (such as `fs`) can't be used inside Edge API Routes
-- Dynamic code execution (such as `eval`) is not allowed
-
-[See all of the supported APIs](https://edge-runtime.vercel.app/features/available-apis) for the Edge Runtime.
+View the [supported APIs](/docs/api-reference/edge-runtime.md) and [unsupported APIs](/docs/api-reference/edge-runtime.md#unsupported-apis) for the Edge Runtime.
