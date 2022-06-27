@@ -39,7 +39,7 @@ enum GlobPart {
 // separators
 
 #[turbo_tasks::value]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Glob {
     expression: Vec<GlobPart>,
 }

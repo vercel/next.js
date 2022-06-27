@@ -1049,7 +1049,6 @@ impl DirectoryContentVc {
 }
 
 #[turbo_tasks::value(shared, FileSystem)]
-#[derive(PartialEq, Eq)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
