@@ -856,8 +856,8 @@ pub async fn module_references(
                                         )
                                         .into(),
                                     );
-                                    return Ok(());
                                 }
+                                return Ok(());
                             }
                         }
                         let (args, hints) = explain_args(&args);

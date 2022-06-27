@@ -26,11 +26,11 @@ impl CompileTarget {
         }
         #[cfg(target_endian = "little")]
         {
-            return "LE";
+            "LE"
         }
         #[cfg(target_endian = "big")]
         {
-            return "BE";
+            "BE"
         }
     }
 
@@ -71,7 +71,7 @@ impl CompileTarget {
         {
             return "s390x";
         }
-        return "unknown";
+        "unknown"
     }
 
     #[allow(unreachable_code)]
@@ -107,7 +107,7 @@ impl CompileTarget {
         {
             return "sunos";
         }
-        return "unknown";
+        "unknown"
     }
 
     #[allow(unreachable_code)]
@@ -131,7 +131,7 @@ impl CompileTarget {
         {
             return "sgx";
         }
-        return "unknown";
+        "unknown"
     }
 
     pub fn dylib_ext(&self) -> &'static str {

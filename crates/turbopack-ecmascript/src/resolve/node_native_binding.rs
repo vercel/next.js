@@ -211,7 +211,7 @@ pub async fn resolve_node_gyp_build_files(
                 GYP_BUILD_TARGET_NAME.captures(std::str::from_utf8(config_file.content())?)
             {
                 let mut resolved: HashSet<AssetVc> = HashSet::with_capacity(captured.len());
-                for found in captured.iter().skip(1).filter_map(|capture| capture) {
+                for found in captured.iter().skip(1).flatten() {
                     let name = found.as_str();
                     let target_path = context.join("build").join("Release");
                     let resolved_prebuilt_file = resolve_raw(
