@@ -51,7 +51,7 @@ pub enum SpecialType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ResolveResult {
     Nested(Vec<AssetReferenceVc>),
     Single(AssetVc, Vec<AssetReferenceVc>),

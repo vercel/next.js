@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::{glob::GlobVc, DirectoryContent, DirectoryEntry, FileSystemPathVc};
 
 #[turbo_tasks::value]
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(Default, Debug)]
 pub struct ReadGlobResult {
     pub results: HashMap<String, DirectoryEntry>,
     pub inner: HashMap<String, ReadGlobResultVc>,

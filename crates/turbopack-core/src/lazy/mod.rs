@@ -18,7 +18,7 @@ enum LazyAssetState {
 
 /// Asset decorator that only expands references of an asset when the content
 /// has been read.
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value(Asset, eq: manual)]
 pub struct LazyAsset {
     asset: AssetVc,
     state: Mutex<LazyAssetState>,
