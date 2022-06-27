@@ -466,7 +466,7 @@ pub async fn module_references(
                                 ),
                             )
                         }
-                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        references.push(DirAssetReferenceVc::new(source, pat.into()).into());
                         return Ok(());
                     }
 

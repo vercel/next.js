@@ -39,7 +39,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::browserify_middleware("integration/browserify-middleware.js", true)]
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
 #[case::bull("integration/bull.js", true)]
-#[case::camaro("integration/camaro.js", true)] // can't find node_modules/piscina/dist/src/worker.js
+#[case::camaro("integration/camaro.js", true)]
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]
@@ -51,8 +51,8 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::env_var("integration/env-var.js", true)]
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
 #[case::esbuild("integration/esbuild.js", true)]
-#[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
-#[case::express_consolidate("integration/express-consolidate.js", true)] // Cannot read property 'startsWith' of undefined
+#[case::esm("integration/esm.js", true)]
+#[case::express_consolidate("integration/express-consolidate.js", true)]
 #[case::express_template_engine("integration/express-template-engine.js", true)]
 #[case::express_template_pug("integration/express-template.js", true)]
 #[case::express("integration/express.js", true)]
@@ -60,11 +60,11 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::fetch_h2("integration/fetch-h2.js", true)]
 #[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
 // Could not find ffmpeg executable
-// #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
-// #[case::firebase("integration/firebase.js", false)] // hanging
+#[case::firebase_admin("integration/firebase-admin.js", true)]
+#[case::firebase("integration/firebase.js", true)]
 #[case::firestore("integration/firestore.js", true)]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
-#[case::geo_tz("integration/geo-tz.js", true)] // can't find node_modules/geo-tz/data/geo.dat
+#[case::geo_tz("integration/geo-tz.js", true)]
 #[case::google_bigquery("integration/google-bigquery.js", true)]
 #[case::got("integration/got.js", true)]
 #[case::highlights("integration/highlights.js", true)]
@@ -76,7 +76,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::koa("integration/koa.js", true)]
 #[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
-#[case::loopback("integration/loopback.js", true)] // node_modules/strong-globalize/cldr folder missing
+#[case::loopback("integration/loopback.js", true)]
 #[case::mailgun("integration/mailgun.js", true)]
 #[case::mariadb("integration/mariadb.js", true)]
 #[case::memcached("integration/memcached.js", true)]
@@ -104,7 +104,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::remark_prism("integration/remark-prism.mjs", true)]
 #[case::request("integration/request.js", true)]
 #[case::rxjs("integration/rxjs.js", true)]
-#[case::saslprep("integration/saslprep.js", true)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
+#[case::saslprep("integration/saslprep.js", true)]
 #[case::semver("integration/semver.js", true)]
 #[case::sentry("integration/sentry.js", true)]
 #[case::sequelize("integration/sequelize.js", true)]
@@ -116,7 +116,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
 #[case::strong_error_handler("integration/strong-error-handler.js", true)]
-#[case::tensorflow("integration/tensorflow.js", true)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
+#[case::tensorflow("integration/tensorflow.js", true)]
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
 #[case::twilio("integration/twilio.js", true)]
 #[case::typescript("integration/typescript.js", true)]
@@ -335,7 +335,14 @@ fn clean_stderr(str: &str) -> String {
 }
 
 fn diff(expected: &str, actual: &str) -> String {
-    if actual == expected {
+    lazy_static! {
+        static ref JAVASCRIPT_TIMESTAMP: Regex =
+            Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z").unwrap();
+    }
+    // Remove timestamps from the output.
+    if JAVASCRIPT_TIMESTAMP.replace_all(actual, "")
+        == JAVASCRIPT_TIMESTAMP.replace_all(expected, "")
+    {
         return String::new();
     }
     let Changeset { diffs, .. } = Changeset::new(expected, actual, "\n");
