@@ -9,18 +9,24 @@ import type { AppRouterInstance } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 
-function fetchFlight(url: URL, treeData: string) {
+function fetchFlight(
+  url: URL,
+  flightRouterStateData: string
+): Promise<Response> {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
-  searchParams.append('__flight_router_state_tree__', treeData)
+  searchParams.append('__flight_router_state_tree__', flightRouterStateData)
 
   return fetch(flightUrl.toString())
 }
 
-export function fetchServerResponse(url: URL, tree: FlightRouterState) {
-  const treeData = JSON.stringify(tree)
-  return createFromFetch(fetchFlight(url, treeData))
+export function fetchServerResponse(
+  url: URL,
+  flightRouterState: FlightRouterState
+): { readRoot: () => FlightData } {
+  const flightRouterStateData = JSON.stringify(flightRouterState)
+  return createFromFetch(fetchFlight(url, flightRouterStateData))
 }
 
 export default function AppRouter({
