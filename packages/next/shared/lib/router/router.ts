@@ -1153,7 +1153,7 @@ export default class Router implements BaseRouter {
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
-    let pages: any, rewrites: any
+    let pages: string[], rewrites: any
     try {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         this.pageLoader.getPageList(),
@@ -1731,6 +1731,11 @@ export default class Router implements BaseRouter {
           process.env.NODE_ENV !== 'development'
             ? existingInfo
             : undefined
+      }
+
+      if (route === '/api' || route.startsWith('/api/')) {
+        handleHardNavigation({ url: resolvedAs, router: this })
+        return new Promise<never>(() => {})
       }
 
       const routeInfo =
