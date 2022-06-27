@@ -144,7 +144,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 ObjectPart::KeyValue(_, value) => {
                                     values.push(take(value));
                                 }
-                                ObjectPart::Spread(value) => {
+                                ObjectPart::Spread(_) => {
                                     values.push(JsValue::Unknown(
                                         Some(Arc::new(JsValue::member(
                                             box JsValue::object(vec![take(part)]),
@@ -253,7 +253,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
-                JsValue::Array(array_length, items) => match prop {
+                JsValue::Array(_, items) => match prop {
                     JsValue::Constant(ConstantValue::Str(str)) => match &**str {
                         "concat" => {
                             if args.iter().all(|arg| {
@@ -293,14 +293,15 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 return true;
                             }
                         }
+                        // TODO This breaks the Function <-> Argument relationship
+                        // We need to refactor that once we expand function calls
                         "map" => {
                             if let Some(JsValue::Function(_, box return_value)) = args.get_mut(0) {
                                 match return_value {
                                     // ['a', 'b', 'c'].map((i) => require.resolve(i)))
                                     JsValue::Unknown(Some(call), _) => {
                                         if let JsValue::Call(len, callee, call_args) = &**call {
-                                            *value = JsValue::Array(
-                                                *array_length,
+                                            *value = JsValue::array(
                                                 items
                                                     .iter()
                                                     .map(|item| {
@@ -334,8 +335,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         }
                                     }
                                     _ => {
-                                        *value = JsValue::Array(
-                                            *array_length,
+                                        *value = JsValue::array(
                                             items.iter().map(|_| return_value.clone()).collect(),
                                         );
                                     }
@@ -370,7 +370,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::Call(_, box ref mut callee, ref mut args) => {
             match callee {
-                JsValue::Unknown(inner, explainer) => {
+                JsValue::Unknown(_, _) => {
                     value.make_unknown("call of unknown function");
                     true
                 }

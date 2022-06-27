@@ -201,13 +201,13 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::Alternatives(2, vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::alternatives(vec![self.eval(left), self.eval(right)]),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
                 box ref alt,
                 ..
-            }) => JsValue::Alternatives(2, vec![self.eval(cons), self.eval(alt)]),
+            }) => JsValue::alternatives(vec![self.eval(cons), self.eval(alt)]),
 
             Expr::Tpl(e) => return self.eval_tpl(e, false),
 

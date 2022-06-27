@@ -151,7 +151,6 @@ impl Pattern {
     /// Merge when possible
     pub fn normalize(&mut self) {
         let mut alternatives = vec![Vec::new()];
-        let mut replace_self = None;
         match self {
             Pattern::Constant(c) => {
                 for alt in alternatives.iter_mut() {
@@ -266,16 +265,12 @@ impl Pattern {
                         add_part(part, &mut new_parts);
                     }
                     if new_parts.len() == 1 {
-                        if let Pattern::Constant(c) = &new_parts[0] {
-                            replace_self = Some(Pattern::Constant(c.to_owned()));
-                        }
+                        *self = new_parts.into_iter().next().unwrap();
+                    } else {
+                        *list = new_parts;
                     }
-                    *list = new_parts;
                 }
             }
-        }
-        if let Some(re) = replace_self {
-            *self = re;
         }
     }
 
