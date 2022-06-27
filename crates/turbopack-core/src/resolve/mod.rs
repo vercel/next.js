@@ -675,17 +675,6 @@ pub async fn resolve(
                         }
                     };
                     let mut results = Vec::new();
-                    // handle the `require('assert/') case, the '/' could not be processed in
-                    // Request::parse, or the request will be resolved into the builtin module`
-                    let path = if let Pattern::Constant(constant_pattern) = path {
-                        if constant_pattern.trim_end_matches("/").is_empty() {
-                            Pattern::Constant("".to_string())
-                        } else {
-                            path.clone()
-                        }
-                    } else {
-                        path.clone()
-                    };
                     if path.is_match("") {
                         results
                             .push(resolve_into_folder(package_path, package_json, options).await?);
@@ -696,6 +685,16 @@ pub async fn resolve(
                                 ResolveIntoPackage::Default(_)
                                 | ResolveIntoPackage::MainField(_) => {
                                     // doesn't affect packages with subpath
+                                    if path.is_match("/") {
+                                        results.push(
+                                            resolve_into_folder(
+                                                package_path,
+                                                package_json,
+                                                options,
+                                            )
+                                            .await?,
+                                        );
+                                    }
                                 }
                                 ResolveIntoPackage::ExportsField {
                                     field,
