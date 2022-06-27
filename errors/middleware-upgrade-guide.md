@@ -9,7 +9,7 @@ This upgrade guide will help you understand the changes, why they were made, and
 
 You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
 
-**Note**: these changes described in this guide are included in Next.js 12.2. You can keep your current site structure, including nested middleware until you move to 12.2 (or a canary build of Next.js).
+> **Note**: These changes described in this guide are included in Next.js `12.2`. You can keep your current site structure, including nested Middleware, until you move to `12.2` (or a `canary` build of Next.js).
 
 If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
 
@@ -99,7 +99,7 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure middleware, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
 The following patterns will no longer work:
 
