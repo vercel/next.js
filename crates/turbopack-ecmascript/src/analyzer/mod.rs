@@ -789,6 +789,10 @@ impl JsValue {
             }
             JsValue::WellKnownObject(obj) => {
                 let (name, explainer) = match obj {
+                    WellKnownObjectKind::GlobalObject => (
+                        "Object",
+                        "The global Object variable",
+                    ),
                     WellKnownObjectKind::PathModule => (
                         "path",
                         "The Node.js path module: https://nodejs.org/api/path.html",
@@ -821,6 +825,10 @@ impl JsValue {
                       "express",
                         "The Node.js express package: https://github.com/expressjs/express"
                     ),
+                    WellKnownObjectKind::NodeProtobufLoader => (
+                      "@grpc/proto-loader",
+                        "The Node.js @grpc/proto-loader package: https://github.com/grpc/grpc-node"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -832,7 +840,11 @@ impl JsValue {
             }
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
-                    WellKnownFunctionKind::PathJoin => (
+                   WellKnownFunctionKind::ObjectAssign => (
+                        format!("Object.assign"),
+                        "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
+                    ),
+                      WellKnownFunctionKind::PathJoin => (
                         format!("path.join"),
                         "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
                     ),
@@ -909,6 +921,10 @@ impl JsValue {
                     WellKnownFunctionKind::NodeResolveFrom => (
                       format!("resolveFrom"),
                       "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
+                    ),
+                    WellKnownFunctionKind::NodeProtobufLoad => (
+                      format!("load/loadSync"),
+                      "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
                 };
                 if depth > 0 {
@@ -1392,7 +1408,8 @@ impl JsValue {
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::Filename) => true,
             JsValue::FreeVar(
-                FreeVarKind::Require
+                FreeVarKind::Object
+                | FreeVarKind::Require
                 | FreeVarKind::Import
                 | FreeVarKind::RequireResolve
                 | FreeVarKind::NodeProcess,
@@ -1778,6 +1795,8 @@ impl Hash for SimilarJsValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FreeVarKind {
+    // Object
+    Object,
     /// `__dirname`
     Dirname,
 
@@ -1802,6 +1821,7 @@ pub enum FreeVarKind {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
+    GlobalObject,
     PathModule,
     FsModule,
     UrlModule,
@@ -1810,10 +1830,12 @@ pub enum WellKnownObjectKind {
     NodeProcess,
     NodePreGyp,
     NodeExpressApp,
+    NodeProtobufLoader,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
+    ObjectAssign,
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
@@ -1836,6 +1858,7 @@ pub enum WellKnownFunctionKind {
     NodeStrongGlobalize,
     NodeStrongGlobalizeSetRootDir,
     NodeResolveFrom,
+    NodeProtobufLoad,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {

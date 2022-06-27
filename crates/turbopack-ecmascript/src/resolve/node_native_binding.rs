@@ -133,7 +133,6 @@ pub async fn resolve_node_pre_gyp_files(
                     SourceAssetVc::new(resolved_file_vc.into()).into()
                 })
                 .collect();
-            let dylib_ext = compile_target.dylib_ext();
             let mut affecting_files =
                 vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()];
             for (_, entry) in &config_path
@@ -142,7 +141,7 @@ pub async fn resolve_node_pre_gyp_files(
                 // TODO
                 // read the dependencies path from `bindings.gyp`
                 .join("deps/lib")
-                .read_glob(GlobVc::new(format!("*.{dylib_ext}").as_str()), false)
+                .read_glob(GlobVc::new(format!("*").as_str()), false)
                 .await?
                 .results
             {

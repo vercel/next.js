@@ -171,6 +171,7 @@ impl EvalContext {
                         "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
                         "__filename" => return JsValue::FreeVar(FreeVarKind::Filename),
                         "process" => return JsValue::FreeVar(FreeVarKind::NodeProcess),
+                        "Object" => return JsValue::FreeVar(FreeVarKind::Object),
                         _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {

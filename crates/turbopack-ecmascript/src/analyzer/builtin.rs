@@ -2,7 +2,7 @@ use std::{mem::take, sync::Arc};
 
 use crate::analyzer::FreeVarKind;
 
-use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart};
+use super::{ConstantNumber, ConstantValue, JsValue, ObjectPart, WellKnownObjectKind};
 
 const ARRAY_METHODS: [&str; 2] = ["concat", "map"];
 

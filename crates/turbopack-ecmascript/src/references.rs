@@ -1,5 +1,6 @@
 use super::errors;
 use super::{utils::js_value_to_pattern, ModuleAssetType};
+use crate::analyzer::ObjectPart;
 use crate::analyzer::{
     builtin::replace_builtin,
     graph::{create_graph, Effect},
@@ -466,7 +467,7 @@ pub async fn module_references(
                                 ),
                             )
                         }
-                        references.push(DirAssetReferenceVc::new(source, pat.into()).into());
+                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
                         return Ok(());
                     }
 
@@ -754,7 +755,7 @@ pub async fn module_references(
                                  analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
-                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                                errors::failed_to_analyse::ecmascript::NODE_EXPRESS.to_string(),
                             ),
                         )
                     }
@@ -794,7 +795,6 @@ pub async fn module_references(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
-                        println!("{:?}, {:?}", func, this);
                         if args.len() == 2 {
                             if let Some(JsValue::Constant(ConstantValue::Str(_))) = args.get(1) {
                                 references.push(
@@ -815,7 +815,61 @@ pub async fn module_references(
                                  analyse-able{hints}",
                             ),
                             DiagnosticId::Error(
-                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                                errors::failed_to_analyse::ecmascript::NODE_RESOLVE_FROM
+                                    .to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad) => {
+                        if args.len() == 2 {
+                            let args = linked_args().await?;
+                            if let Some(JsValue::Object(_, parts)) = args.get(1) {
+                                for dir in parts
+                                    .iter()
+                                    .filter_map(|object_part| {
+                                        if let ObjectPart::KeyValue(
+                                            JsValue::Constant(ConstantValue::Str(key)),
+                                            JsValue::Array(_, dirs),
+                                        ) = object_part
+                                        {
+                                            if key == "includeDirs" {
+                                                return Some(dirs.iter().filter_map(|dir| {
+                                                    if let JsValue::Constant(ConstantValue::Str(
+                                                        dir_str,
+                                                    )) = dir
+                                                    {
+                                                        Some(dir_str.to_string())
+                                                    } else {
+                                                        None
+                                                    }
+                                                }));
+                                            }
+                                        }
+                                        None
+                                    })
+                                    .flatten()
+                                {
+                                    references.push(
+                                        DirAssetReferenceVc::new(
+                                            source,
+                                            Pattern::Constant(dir).into(),
+                                        )
+                                        .into(),
+                                    );
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('@grpc/proto-loader').load({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_PROTOBUF_LOADER
+                                    .to_string(),
                             ),
                         )
                     }
@@ -971,6 +1025,9 @@ async fn value_visitor_inner(
             JsValue::FreeVar(FreeVarKind::NodeProcess) => {
                 JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
             }
+            JsValue::FreeVar(FreeVarKind::Object) => {
+                JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject)
+            }
             JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
             JsValue::Module(ref name) => match &**name {
                 // TODO check externals
@@ -997,6 +1054,9 @@ async fn value_visitor_inner(
                 }
                 "resolve-from" if node_native_bindings => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+                }
+                "@grpc/proto-loader" if node_native_bindings => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
                 }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),

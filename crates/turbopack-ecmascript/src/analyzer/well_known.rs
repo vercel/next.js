@@ -49,6 +49,7 @@ pub async fn well_known_function_call(
     target: CompileTargetVc,
 ) -> Result<JsValue> {
     Ok(match kind {
+        WellKnownFunctionKind::ObjectAssign => object_assign(args),
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(cwd, args),
@@ -79,6 +80,39 @@ pub async fn well_known_function_call(
             "unsupported function",
         ),
     })
+}
+
+pub fn object_assign(args: Vec<JsValue>) -> JsValue {
+    if args.iter().all(|arg| matches!(arg, JsValue::Object(..))) {
+        if let Some(merged_object) = args.into_iter().reduce(|mut acc, cur| {
+            if let JsValue::Object(_, parts) = &mut acc {
+                if let JsValue::Object(_, next_parts) = &cur {
+                    parts.extend_from_slice(next_parts);
+                }
+            }
+            acc
+        }) {
+            merged_object
+        } else {
+            JsValue::Unknown(
+                Some(Arc::new(JsValue::Call(
+                    0,
+                    box JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+                    vec![],
+                ))),
+                "empty arguments for Object.assign",
+            )
+        }
+    } else {
+        JsValue::Unknown(
+            Some(Arc::new(JsValue::Call(
+                args.len(),
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+                args,
+            ))),
+            "only const object assign is supported",
+        )
+    }
 }
 
 pub fn path_join(args: Vec<JsValue>) -> JsValue {
@@ -317,6 +351,7 @@ pub async fn well_known_object_member(
     target: CompileTargetVc,
 ) -> Result<JsValue> {
     Ok(match kind {
+        WellKnownObjectKind::GlobalObject => global_object(prop),
         WellKnownObjectKind::PathModule => path_module_member(prop),
         WellKnownObjectKind::FsModule => fs_module_member(prop),
         WellKnownObjectKind::UrlModule => url_module_member(prop),
@@ -325,6 +360,7 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::NodeProcess => node_process_member(prop, target).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
+        WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
         #[allow(unreachable_patterns)]
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
@@ -334,6 +370,19 @@ pub async fn well_known_object_member(
             "unsupported object kind",
         ),
     })
+}
+
+fn global_object(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
+                box prop,
+            ))),
+            "unsupported property on global Object",
+        ),
+    }
 }
 
 pub fn path_module_member(prop: JsValue) -> JsValue {
@@ -460,6 +509,21 @@ fn express(prop: JsValue) -> JsValue {
                 box prop,
             ))),
             "unsupported property on require('express')() object",
+        ),
+    }
+}
+
+fn protobuf_loader(prop: JsValue) -> JsValue {
+    match prop.as_str() {
+        Some("load") | Some("loadSync") => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad)
+        }
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
+                box prop,
+            ))),
+            "unsupported property on require('@grpc/proto-loader') object",
         ),
     }
 }

@@ -60,7 +60,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::fetch_h2("integration/fetch-h2.js", true)]
 #[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
 // Could not find ffmpeg executable
-#[case::firebase_admin("integration/firebase-admin.js", true)]
+// #[case::firebase_admin("integration/firebase-admin.js", true)]
 #[case::firebase("integration/firebase.js", true)]
 #[case::firestore("integration/firestore.js", true)]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
