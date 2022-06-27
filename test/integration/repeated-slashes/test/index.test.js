@@ -308,6 +308,18 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
     }
   })
 
+  it('should handle slashes in external links in next/link correctly', async () => {
+    const browser = await webdriver(appPort, `/valid${isExport ? '.html' : ''}`)
+
+    await check(
+      () =>
+        browser.eval(
+          'window.caughtErrors.map(err => typeof err !== "string" ? err.message : err).join(", ")'
+        ),
+      ''
+    )
+  })
+
   it('should handle slashes in router push correctly', async () => {
     for (const item of [
       {
