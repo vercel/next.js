@@ -137,7 +137,10 @@ export class FlightManifestPlugin {
               chunks: appDir
                 ? chunk.ids.map((chunkId: string) => {
                     return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                      chunkId +
+                      ':' +
+                      (chunk.name || chunkId) +
+                      (dev ? '' : '-' + chunk.hash)
                     )
                   })
                 : [],
