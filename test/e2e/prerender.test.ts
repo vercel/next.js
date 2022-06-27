@@ -741,6 +741,20 @@ describe('Prerender', () => {
       expect(value).toMatch(/Hi \[third\] \[fourth\]/)
     })
 
+    if (!(global as any).isNextDeploy) {
+      it('should show error about renaming unstable_revalidate', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/blog/first',
+          deprecated: '1',
+        })
+        expect(res.status).toBe(500)
+
+        expect(next.cliOutput).toContain(
+          '"unstable_revalidate" has been renamed to "revalidate"'
+        )
+      })
+    }
+
     if ((global as any).isNextStart) {
       // TODO: dev currently renders this page as blocking, meaning it shows the
       // server error instead of continuously retrying. Do we want to change this?
@@ -2046,20 +2060,6 @@ describe('Prerender', () => {
           'success'
         )
       })
-
-      if (!(global as any).isNextDeploy) {
-        it('should show error about renaming unstable_revalidate', async () => {
-          const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
-            pathname: '/blog/first',
-            deprecated: '1',
-          })
-          expect(res.status).toBe(500)
-
-          expect(next.cliOutput).toContain(
-            '"unstable_revalidate" has been renamed to "revalidate"'
-          )
-        })
-      }
 
       it('should handle manual revalidate for fallback: blocking', async () => {
         const beforeRevalidate = Date.now()
