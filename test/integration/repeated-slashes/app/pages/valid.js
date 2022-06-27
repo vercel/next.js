@@ -16,7 +16,9 @@ export default function Invalid() {
       <p id="valid">valid page</p>
 
       <Link href="https://web.archive.org/web/20220627003332/https://github.com/">
-        <a id="href-with-slashes">to https://web.archive.org/web/https://github.com/</a>
+        <a id="href-with-slashes">
+          to https://web.archive.org/web/https://github.com/
+        </a>
       </Link>
       <br />
     </>
