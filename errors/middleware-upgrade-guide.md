@@ -28,7 +28,7 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 
 ### Summary of changes
 
-- Define a single Middleware file at the root of your project
+- Define a single Middleware file next to your `pages` folder
 - No need to prefix the file with an underscore
 - A custom matcher can be used to define matching routes using an exported config object
 
@@ -44,7 +44,7 @@ Based on customer feedback, we have replaced this API with a single root Middlew
 
 ### How to upgrade
 
-You should declare **one single Middleware file** in your application, which should be located at the root of the project directory (**not** inside of the `pages` directory), and named **without** an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
+You should declare **one single Middleware file** in your application, which should be located next to the `pages` directory and named **without** an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
 
 Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*` and `/dashboard/:path*`, the custom matcher is defined in an exported config object:
 

@@ -413,6 +413,13 @@ export class PageNotFoundError extends Error {
   }
 }
 
+export class MissingStaticPage extends Error {
+  constructor(page: string, message: string) {
+    super()
+    this.message = `Failed to load static file for page: ${page} ${message}`
+  }
+}
+
 export class MiddlewareNotFoundError extends Error {
   code: string
   constructor() {
