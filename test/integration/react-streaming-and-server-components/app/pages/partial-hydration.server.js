@@ -26,8 +26,8 @@ function Data() {
 export default function () {
   return (
     <>
-      {process.version
-        ? `Runtime: Node.js ${process.version}`
+      {process.env.NEXT_RUNTIME === 'edge'
+        ? `Runtime: Node.js`
         : 'Runtime: Edge/Browser'}
       <br />
       <div className="suspense">
@@ -42,5 +42,5 @@ export default function () {
 }
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }
