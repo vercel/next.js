@@ -1830,8 +1830,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(page)) {
-        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-        if (result) return result
+        return await this.renderPageComponent(ctx, bubbleNoFallback)
       }
 
       if (this.dynamicRoutes) {
@@ -1841,7 +1840,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             continue
           }
           page = dynamicRoute.page
-          const result = await this.renderPageComponent(
+          return await this.renderPageComponent(
             {
               ...ctx,
               pathname: page,
@@ -1852,7 +1851,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             },
             bubbleNoFallback
           )
-          if (result) return result
         }
       }
     } catch (error) {
