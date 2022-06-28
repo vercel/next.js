@@ -90,7 +90,7 @@ function removeExtensions(
   extensions: string[],
   pathToRemoveExtensions: string
 ) {
-  const regex = new RegExp(`(${extensions.join('|')})$`.replaceAll('.', '\\.'))
+  const regex = new RegExp(`(${extensions.join('|')})$`.replace(/\./g, '\\.'))
   return pathToRemoveExtensions.replace(regex, '')
 }
 
