@@ -95,7 +95,7 @@ export default function AppRouter({
   }, [])
 
   if (typeof window !== 'undefined') {
-    // @ts-ignore TODO: this is for debugging
+    // @ts-ignore this is for debugging
     window.nd = { router: appRouter, cache, tree }
   }
 

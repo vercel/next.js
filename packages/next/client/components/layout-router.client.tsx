@@ -130,7 +130,7 @@ export function InnerLayoutRouter({
         childNode.data = null
         // Last item is the subtreeData
         // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [routerTreePatch, subTreeData] = root[0].slice(-2)
+        const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
         childNode.subTreeData = subTreeData
         childNode.parallelRoutes = {}
         fastPath = true

@@ -373,7 +373,6 @@ export async function renderToHTML(
         list[currentValue] = (
           <LayoutRouter
             parallelRouterKey={currentValue}
-            // TODO: construct this path client-side instead.
             segmentPath={createSegmentPath([segment, currentValue])}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
