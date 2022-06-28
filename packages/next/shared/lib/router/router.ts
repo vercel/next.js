@@ -1363,9 +1363,9 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const routeMatch = getRouteMatcher(routeRegex)(rewriteAs)
+          const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
 
-          if (routeMatch) {
+          if (curRouteMatch) {
             Object.assign(query, routeMatch)
           }
         }
