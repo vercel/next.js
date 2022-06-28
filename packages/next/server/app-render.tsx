@@ -216,13 +216,21 @@ export type FlightRouterState = [
   refresh?: 'refetch'
 ]
 
-export type FlightSegmentPath = [
-  segment: string,
-  parallelRoute?: [parallelRouterKey: string, segmentPath?: FlightSegmentPath]
-]
+export type FlightSegmentPath =
+  | any[]
+  // Looks somewhat like this
+  | [
+      segment: string,
+      parallelRouterKey: string,
+      segment: string,
+      parallelRouterKey: string,
+      segment: string,
+      parallelRouterKey: string
+    ]
 
 export type FlightDataPath =
   | any[]
+  // Looks somewhat like this
   | [
       segment: string,
       parallelRoute: string,
@@ -328,7 +336,7 @@ export async function renderToHTML(
     if (!Component) {
       const { Component: Children } = createComponentTree({
         createSegmentPath: (child) => {
-          return createSegmentPath([segment, ['children', child]])
+          return createSegmentPath([segment, 'children', ...child])
         },
         tree: parallelRoutes.children,
       })
@@ -352,7 +360,7 @@ export async function renderToHTML(
       (list, currentValue) => {
         const { Component: ChildComponent } = createComponentTree({
           createSegmentPath: (child) => {
-            return createSegmentPath([segment, [currentValue, child]])
+            return createSegmentPath([segment, currentValue, ...child])
           },
           tree: parallelRoutes[currentValue],
         })
@@ -366,7 +374,7 @@ export async function renderToHTML(
           <LayoutRouter
             parallelRouterKey={currentValue}
             // TODO: construct this path client-side instead.
-            segmentPath={createSegmentPath([segment, [currentValue]])}
+            segmentPath={createSegmentPath([segment, currentValue])}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
           />

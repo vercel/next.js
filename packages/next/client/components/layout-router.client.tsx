@@ -14,6 +14,19 @@ import { fetchServerResponse } from './app-router.client'
 
 let infinitePromise: Promise<void>
 
+function equalArray(a: any[], b: any[]) {
+  return a.length === b.length && a.every((val, i) => val === b[i])
+}
+
+function pathMatches(
+  flightDataPath: FlightDataPath,
+  layoutSegmentPath: FlightSegmentPath
+): boolean {
+  // The last two items are the tree and subTreeData
+  const pathToLayout = flightDataPath.slice(0, -2)
+  return equalArray(layoutSegmentPath, pathToLayout)
+}
+
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -49,8 +62,6 @@ export function InnerLayoutRouter({
   if (!childNodes.has(path)) {
     console.log('KICKING OFF DATA FETCH IN RENDER', {
       path,
-      childNodes: new Map(childNodes),
-      fullTree,
     })
     const data = fetchServerResponse(new URL(url, location.origin), fullTree)
     childNodes.set(path, {
@@ -67,74 +78,40 @@ export function InnerLayoutRouter({
   if (childNode.data) {
     // TODO: error case
     const root = childNode.data.readRoot()
-
     console.log('ROOT', root)
-    const matchesTree = (
-      tree: FlightDataPath,
-      segmentPath: FlightSegmentPath
-    ): {
-      matches: boolean
-      reason?: string
-    } => {
-      // Segment matches
-      if (segmentPath[0] === tree[0]) {
-        // Both don't have further segments
-        if (!segmentPath[1] && !tree[1]) {
-          return {
-            matches: true,
-          }
-        }
 
-        // tree has further segments but segment doesn't
-        if (!segmentPath[1]) {
-          return {
-            matches: false,
-          }
-        }
-
-        // Both have further segments and parallel router key matches
-        if (segmentPath[1] && tree[1] && segmentPath[1][0] === tree[1][0]) {
-          // segmentPath has further segments
-          if (segmentPath[1][1]) {
-            return matchesTree(tree[1][1], segmentPath[1][1])
-          }
-        }
+    let fastPath: boolean = false
+    // segmentPath matches what came back from the server. This is the happy path.
+    if (root.length === 1) {
+      if (pathMatches(root[0], segmentPath)) {
+        childNode.data = null
+        // Last item is the subtreeData
+        // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
+        const [routerTreePatch, subTreeData] = root[0].slice(-2)
+        childNode.subTreeData = subTreeData
+        childNode.parallelRoutes = {}
+        fastPath = true
       }
 
-      return {
-        matches: false,
-      }
+      // segmentPath from the server is deeper than the layout's segmentPath
+      // if (false) {
+      //   const currentData = childNode.data
+      //   childNode.data = null
+
+      //   // keep recursing down the cache nodes until it matches
+      //   // deeperNode.data = currentData
+      //   // copy the the cache upward back to where the childNode was. This ensures we don't edit the cache in place.
+      //   // childNode.childNodes = clonedCache
+      //   // fastPath = true
+      // }
     }
 
-    // Handle case where the response might be for this subrouter
-
-    if (root.length === 1) {
-      const matches = matchesTree(root[0], segmentPath)
-
-      // layoutpath === with the tree from the server
-      // happy path and the childNodes would be seeded and data set to null
-      if (matches) {
-        // childNode.data = null
-        // childNode.subTreeData = root[0].
-        // childNode.childNodes = new Map()
-      }
-      console.log(matches)
-    } else {
+    if (!fastPath) {
       // For push we can set data in the cache
 
-      // layoutpath is deeper than the tree from the server
-      // const currentData = childNode.data
-      // childNode.data = null
-      // keep recursing down the tree until it matches
-      // deeperNode.data = currentData
-      // copy the the cache upward back to where the childNode was
-      // childNode.childNodes = clonedCache
-
-      // layoutpath does not match the tree from the server
-      // See code below that handles this case at the root
+      // segmentPath from the server does not match the layout's segmentPath
       childNode.data = null
 
-      // TODO: if the tree did not match up do we provide the new tree here?
       setTimeout(() => {
         // @ts-ignore TODO: startTransition exists
         React.startTransition(() => {
@@ -142,11 +119,10 @@ export function InnerLayoutRouter({
           changeByServerResponse(fullTree, root)
         })
       })
+      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+      if (!infinitePromise) infinitePromise = new Promise(() => {})
+      throw infinitePromise
     }
-
-    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    if (!infinitePromise) infinitePromise = new Promise(() => {})
-    throw infinitePromise
   }
 
   // TODO: double check users can't return null in a component that will kick in here

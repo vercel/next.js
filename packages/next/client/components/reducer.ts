@@ -51,7 +51,7 @@ export function reducer(
     | {
         type: 'server-patch'
         payload: {
-          flightDataTree: FlightData[0]
+          flightData: FlightData
           previousTree: FlightRouterState
         }
       }
@@ -125,6 +125,7 @@ export function reducer(
     const segments = pathname.split('/')
     // TODO: figure out something better for index pages
     segments.push('page')
+
     const optimisticTree = createOptimisticTree(
       segments,
       state.tree,
@@ -132,7 +133,7 @@ export function reducer(
       false
     )
 
-    // TODO: hard push should use optimisticTree to create a new cache. If the item already exists, it should not recursive down creating extra nodes
+    // TODO: hard push should use optimisticTree to create a new cache. If the item already exists, it should not recurse down creating extra nodes
     // If the item does not exists it should keep the existing cache
 
     console.log('NEW PUSH', {
@@ -151,82 +152,88 @@ export function reducer(
   }
 
   if (action.type === 'server-patch') {
-    const { flightDataTree, previousTree /* , newCache */ } = action.payload
+    const { flightData, previousTree /* , newCache */ } = action.payload
     if (previousTree !== state.tree) {
       console.log('TREE MISMATCH')
       // TODO: Refetch here
       // return existingValue
     }
 
-    const walkTreeWithFlightRouterState = (
-      treeToWalk: FlightData[0],
-      flightRouterState?: FlightRouterState,
-      firstItem?: boolean
+    // TODO: flightData could hold multiple paths
+    const flightDataPath = flightData[0]
+
+    const walkTreeWithFlightDataPath = (
+      flightSegmentPath: FlightData[0],
+      flightRouterState: FlightRouterState,
+      treePatch: FlightRouterState
     ): FlightRouterState => {
-      const [segment, parallelRoutes] = treeToWalk
+      const [segment, parallelRoutes, url] = flightRouterState
+      const [currentSegment, parallelRouteKey] = flightSegmentPath
 
-      const childItem = parallelRoutes.children
-        ? walkTreeWithFlightRouterState(
-            parallelRoutes.children,
-            flightRouterState && flightRouterState[1].children
-          )
-        : null
-
-      // Item excludes refetch
-      const newFlightRouterState: FlightRouterState = [
-        segment,
-        childItem
-          ? {
-              ...(flightRouterState ? flightRouterState[1] : {}),
-              children: childItem,
-            }
-          : {},
-      ]
-
-      // TODO: this is incorrect as it's the wrong url. Url can probably be removed.
-      if (firstItem) {
-        newFlightRouterState[2] = flightRouterState![2]
+      // Tree path returned from the server should always match up with the current tree in the browser
+      // TODO: verify
+      if (segment !== currentSegment) {
+        throw new Error('TREE MISMATCH')
       }
 
-      return newFlightRouterState
+      const lastSegment = flightSegmentPath.length === 2
+
+      const tree: FlightRouterState = [
+        flightSegmentPath[0],
+        {
+          ...parallelRoutes,
+          [parallelRouteKey]: lastSegment
+            ? treePatch
+            : walkTreeWithFlightDataPath(
+                flightSegmentPath.slice(2),
+                parallelRoutes[parallelRouteKey],
+                treePatch
+              ),
+        },
+      ]
+
+      if (url) {
+        tree.push(url)
+      }
+
+      return tree
     }
 
-    const newTree = walkTreeWithFlightRouterState(
-      flightDataTree,
-      state.tree,
-      true
-    )
+    const treePath = flightDataPath.slice(0, -2)
+    const [treePatch, subTreeData] = flightDataPath.slice(-2)
+
+    const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
     // Fill cache with data from flightDataTree
     const fillCache = (
-      childNodes: CacheNode['parallelRoutes'],
-      treeToWalk: FlightData[0]
+      cacheNode: CacheNode,
+      flightSegmentPath: FlightData[0]
     ) => {
-      const [segment, parallelRoutes, subTreeData] = treeToWalk
-      if (childNodes.children.has(segment)) {
-        const currentItem = childNodes.children.get(segment)!
+      const [parallelRouteKey, currentSegment] = flightSegmentPath
+      const lastSegment = flightSegmentPath.length === 1
 
-        if (!currentItem.subTreeData && subTreeData) {
-          currentItem.subTreeData = subTreeData
-        }
-
-        if (!subTreeData && parallelRoutes.children) {
-          fillCache(
-            childNodes.children.get(segment)!.parallelRoutes,
-            parallelRoutes.children
-          )
+      if (lastSegment) {
+        if (cacheNode.parallelRoutes[parallelRouteKey].has(treePatch[0])) {
+          const childNode = cacheNode.parallelRoutes[parallelRouteKey].get(
+            treePatch[0]
+          )!
+          childNode.subTreeData = subTreeData
+          childNode.parallelRoutes = {}
+        } else {
+          cacheNode.parallelRoutes[parallelRouteKey].set(treePatch[0], {
+            subTreeData,
+            parallelRoutes: {},
+          })
         }
       } else {
-        childNodes.children.set(segment, {
-          subTreeData: subTreeData ? subTreeData : null,
-          parallelRoutes: {
-            children: new Map(),
-          },
-        })
+        const childNode =
+          cacheNode.parallelRoutes[parallelRouteKey].get(currentSegment)!
+        fillCache(childNode, flightSegmentPath.slice(2))
       }
     }
 
-    fillCache(state.cache.parallelRoutes, flightDataTree[1].children)
+    // TODO: handle `/` case
+    fillCache(state.cache, treePath.slice(1))
 
     return {
       tree: newTree,

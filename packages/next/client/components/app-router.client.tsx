@@ -50,17 +50,10 @@ export default function AppRouter({
   // Server response only patches the tree
   const changeByServerResponse = React.useCallback(
     (previousTree: FlightRouterState, flightData: FlightData) => {
-      // TODO: loop over this as it could hold multiple trees
-      const flightDataTree = flightData[0]
-
-      if (!flightDataTree) {
-        return
-      }
-
       dispatch({
         type: 'server-patch',
         payload: {
-          flightDataTree,
+          flightData,
           previousTree,
         },
       })
@@ -91,7 +84,7 @@ export default function AppRouter({
             type: 'push',
             payload: {
               url: new URL(href, location.origin),
-              method: 'replaceState',
+              method: 'pushState',
             },
           })
         })
