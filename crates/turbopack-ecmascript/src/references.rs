@@ -450,7 +450,7 @@ pub async fn module_references(
 
                         let linked_func_call = link_value(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(
-                                parent_path.path.as_str().into(),
+                                box parent_path.path.as_str().into(),
                             )),
                             args,
                         ))

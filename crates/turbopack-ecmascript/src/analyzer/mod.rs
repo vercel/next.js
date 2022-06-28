@@ -1840,7 +1840,7 @@ pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
-    PathResolve(JsWord),
+    PathResolve(Box<JsValue>),
     Import,
     Require,
     RequireResolve,

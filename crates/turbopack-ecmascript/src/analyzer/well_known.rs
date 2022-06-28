@@ -52,7 +52,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
         WellKnownFunctionKind::PathJoin => path_join(args),
         WellKnownFunctionKind::PathDirname => path_dirname(args),
-        WellKnownFunctionKind::PathResolve(cwd) => path_resolve(cwd, args),
+        WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
         WellKnownFunctionKind::Import => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),
@@ -169,7 +169,11 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-pub fn path_resolve(cwd: JsWord, mut args: Vec<JsValue>) -> JsValue {
+// TODO: support real path.join function logics
+//
+// Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
+// one parameter
+pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
     }
