@@ -13,7 +13,7 @@ Latency | Normal | Low | Lowest
 Code Size | / | 50MB | 1MB
 NPM Packages | All | All | A smaller subset
 
-Next.js' default runtime configuration is good for most use cases, but there’re still many reasons to change to one runtime over the other one. For example, to enable [React 18's](/docs/advanced-features/react-18/overview) [SSR streaming](/docs/advanced-features/react-18/streaming.md) feature, you need to use a runtime that is compatiable with Web Streams. For API routes that rely on native Node.js APIs, they need to run with the **Node.js Runtime**. However, if an API only uses a simple cookie-based authentication, using Middleware and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md) will be a better choice due to its lower latency as well as better scalability.
+Next.js' default runtime configuration is good for most use cases, but there’re still many reasons to change to one runtime over the other one. For example, to enable [React 18's](/docs/advanced-features/react-18/overview) [SSR streaming](/docs/advanced-features/react-18/streaming.md) feature, you need to use a runtime that is compatible with Web Streams. For API routes that rely on native Node.js APIs, they need to run with the **Node.js Runtime**. However, if an API only uses something like cookie-based authentication, using Middleware and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md) will be a better choice due to its lower latency as well as better scalability.
 
 Starting with `12.2`, Next.js enables you to customize the runtime for each Next.js route, for both Pages and API routes.
 
