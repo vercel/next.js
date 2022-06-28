@@ -13,7 +13,31 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 </details>
 
-> **Note: This is API documentation for the Image Component and Image Optimization. For a feature overview and usage information for images in Next.js, please see [Images](/docs/basic-features/image-optimization.md).**
+The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
+
+This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. Furthermore, it may not work in every browser due to native features that are not polyfilled.
+
+In order to try it out today, you must add the following to your `next.config.js` file, as shown below:
+
+```js
+module.exports = {
+  experimental: {
+    images: {
+      allowFutureImage: true,
+    },
+  },
+}
+```
+
+Compared to `next/image`, the new `next/future/image` component has the following changes:
+
+- Renders a single `<img>` without `<div>` or `<span>` wrappers
+- Adds support for canonical `style` prop
+- Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
+- Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
+- Removes `loader` config in favor of [`loader`](#loader) prop
+- Note: there is no `fill` mode so `width` & `height` props are required
+- Note: the [`onError`](#onerror) prop might behave differently
 
 ## Required Props
 
@@ -247,9 +271,7 @@ module.exports = {
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
-- `srcSet`. Use
-  [Device Sizes](#device-sizes)
-  instead.
+- `srcSet`. Use [Device Sizes](#device-sizes) instead.
 - `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
