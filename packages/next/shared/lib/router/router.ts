@@ -1366,7 +1366,7 @@ export default class Router implements BaseRouter {
           const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
 
           if (curRouteMatch) {
-            Object.assign(query, routeMatch)
+            Object.assign(query, curRouteMatch)
           }
         }
       }
