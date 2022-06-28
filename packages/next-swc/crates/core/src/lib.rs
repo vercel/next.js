@@ -53,8 +53,7 @@ pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod relay;
+
 pub mod remove_console;
 pub mod shake_exports;
 mod top_level_binding_collector;
@@ -94,7 +93,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<relay::Config>,
+    pub relay: Option<swc_relay_transform::Config>,
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
@@ -119,8 +118,9 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(
+            Either::Left(swc_relay_transform::relay(
                 config,
+                std::env::current_dir().unwrap(),
                 file.name.clone(),
                 opts.pages_dir.clone(),
             ))

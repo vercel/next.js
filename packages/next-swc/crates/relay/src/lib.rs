@@ -173,11 +173,12 @@ impl<'a> Relay<'a> {
 
 pub fn relay<'a>(
     config: &'a Config,
+    root_dir: PathBuf,
     file_name: FileName,
     pages_dir: Option<PathBuf>,
 ) -> impl Fold + '_ {
     Relay {
-        root_dir: std::env::current_dir().unwrap(),
+        root_dir,
         file_name,
         pages_dir: pages_dir.unwrap_or_else(|| panic!("pages_dir is expected.")),
         config,

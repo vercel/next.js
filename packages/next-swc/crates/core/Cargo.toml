@@ -23,6 +23,7 @@ regex = "1.5"
 serde = "1"
 serde_json = "1"
 swc_emotion = {path="../emotion"}
+swc_relay_transform = {path="../relay"}
 styled_components = {path="../styled_components"}
 styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
