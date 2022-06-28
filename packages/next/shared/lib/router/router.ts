@@ -1199,7 +1199,7 @@ export default class Router implements BaseRouter {
         router: this,
       }))
 
-    if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
+    if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1251,7 +1251,7 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
 
-    if (!isMiddlewareMatch && isDynamicRoute(route)) {
+    if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
 
@@ -1267,7 +1267,7 @@ export default class Router implements BaseRouter {
           (param) => !query[param]
         )
 
-        if (missingParams.length > 0) {
+        if (missingParams.length > 0 && !isMiddlewareMatch) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
               `${
@@ -2022,29 +2022,30 @@ export default class Router implements BaseRouter {
         parsed.pathname = pathname
         url = formatWithValidation(parsed)
       }
-    } else {
-      parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
-
-      if (parsed.pathname !== pathname) {
-        pathname = parsed.pathname
-        parsed.pathname = pathname
-        Object.assign(
-          query,
-          getRouteMatcher(getRouteRegex(parsed.pathname))(asPath) || {}
-        )
-        url = formatWithValidation(parsed)
-      }
     }
+    parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
 
-    // Prefetch is not supported in development mode because it would trigger on-demand-entries
-    if (process.env.NODE_ENV !== 'production') {
-      return
+    if (isDynamicRoute(parsed.pathname)) {
+      pathname = parsed.pathname
+      parsed.pathname = pathname
+      Object.assign(
+        query,
+        getRouteMatcher(getRouteRegex(parsed.pathname))(
+          parsePath(asPath).pathname
+        ) || {}
+      )
+      url = formatWithValidation(parsed)
     }
 
     const locale =
       typeof options.locale !== 'undefined'
         ? options.locale || undefined
         : this.locale
+
+    // Prefetch is not supported in development mode because it would trigger on-demand-entries
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
 
     // TODO: if the route middleware's data request
     // resolves to is not an SSG route we should bust the cache
