@@ -8,7 +8,7 @@ Next.js has two _server runtimes_ to run your application: the **Node.js Runtime
 | [HTTP Streaming](https://github.com/reactwg/react-18/discussions/37)                        | Yes           | No            | Yes              |
 | IO                                                                                          | All           | All           | `fetch`          |
 | Scalability                                                                                 | /             | High          | Highest          |
-| Security                                                                                    | Normal        | High          | Highest          |
+| Security                                                                                    | Normal        | High          | High          |
 | Latency                                                                                     | Normal        | Low           | Lowest           |
 | Code Size                                                                                   | /             | 50MB          | 1MB              |
 | NPM Packages                                                                                | All           | All           | A smaller subset |
