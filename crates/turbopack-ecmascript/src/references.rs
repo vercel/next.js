@@ -30,13 +30,14 @@ use swc_ecmascript::{
     visit::{self, Visit, VisitWith},
 };
 use turbo_tasks::primitives::{BoolVc, StringVc};
-use turbo_tasks::{util::try_join_all, Value, Vc};
+use turbo_tasks::{util::try_join_all, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::chunk::{
     AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
     ChunkableAssetReferenceVc,
 };
 use turbopack_core::context::AssetContextVc;
+use turbopack_core::reference::AssetReferencesVc;
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -65,7 +66,7 @@ pub(crate) async fn module_references(
     ty: Value<ModuleAssetType>,
     target: CompileTargetVc,
     node_native_bindings: bool,
-) -> Result<Vc<Vec<AssetReferenceVc>>> {
+) -> Result<AssetReferencesVc> {
     let mut references = Vec::new();
     let path = source.path();
 
@@ -666,7 +667,7 @@ pub(crate) async fn module_references(
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
-    Ok(Vc::slot(references))
+    Ok(AssetReferencesVc::slot(references))
 }
 
 async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {

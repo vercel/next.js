@@ -3,7 +3,7 @@ pub mod loader;
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc, Vc};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -11,7 +11,7 @@ use turbopack_core::{
         AsyncLoadableReferenceVc, Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkReferenceVc,
         ChunkVc, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc, ModuleIdVc,
     },
-    reference::AssetReferenceVc,
+    reference::{AssetReferenceVc, AssetReferencesVc},
 };
 
 use self::loader::ChunkGroupLoaderChunkItemVc;
@@ -178,7 +178,7 @@ impl Asset for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let content = chunk_content(self.context, self.entry).await?;
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
@@ -190,7 +190,7 @@ impl Asset for EcmascriptChunk {
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
-        Ok(Vc::slot(references))
+        Ok(AssetReferencesVc::slot(references))
     }
 }
 

@@ -2,13 +2,13 @@ pub mod resolve;
 
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{primitives::StringVc, Value, Vc};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
 };
 
@@ -43,7 +43,7 @@ impl Asset for TsConfigModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
             self.source.content().parse_json_with_comments(),
@@ -121,7 +121,7 @@ impl Asset for TsConfigModuleAsset {
                 );
             }
         }
-        Ok(Vc::slot(references))
+        Ok(AssetReferencesVc::slot(references))
     }
 }
 

@@ -1,10 +1,9 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
-    reference::AssetReferenceVc,
+    reference::AssetReferencesVc,
 };
 
 #[turbo_tasks::value(shared, Asset)]
@@ -34,12 +33,12 @@ impl Asset for DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let chunks = self.chunk_group.chunks().await?;
         let mut references = Vec::new();
         for chunk in chunks.iter() {
             references.push(ChunkReferenceVc::new(*chunk).into());
         }
-        Ok(Vc::slot(references))
+        Ok(AssetReferencesVc::slot(references))
     }
 }

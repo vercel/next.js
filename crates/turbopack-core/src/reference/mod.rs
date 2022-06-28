@@ -16,6 +16,17 @@ pub trait AssetReference {
     fn description(&self) -> StringVc;
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct AssetReferences(Vec<AssetReferenceVc>);
+
+#[turbo_tasks::value_impl]
+impl AssetReferencesVc {
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        AssetReferencesVc::slot(Vec::new())
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     let references_set = asset.references().await?;

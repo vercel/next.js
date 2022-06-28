@@ -1,12 +1,12 @@
 use anyhow::Result;
 use swc_ecmascript::ast::Lit;
-use turbo_tasks::{primitives::StringVc, Vc};
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{parse::RequestVc, resolve, ResolveResult, ResolveResultVc},
     source_asset::SourceAssetVc,
 };
@@ -46,7 +46,7 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+    fn references(&self) -> AssetReferencesVc {
         module_references(self.source, self.runtime)
     }
 }

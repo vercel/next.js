@@ -20,13 +20,13 @@ use chunk::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
 };
 use target::CompileTargetVc;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
-    reference::AssetReferenceVc,
+    reference::AssetReferencesVc,
 };
 
 use self::references::module_references;
@@ -80,7 +80,7 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         Ok(module_references(
             self.source,
             self.context,

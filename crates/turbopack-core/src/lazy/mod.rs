@@ -2,12 +2,12 @@ use std::{mem::replace, sync::Mutex};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator, Vc};
+use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
-    reference::{AssetReference, AssetReferenceVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::ResolveResultVc,
 };
 
@@ -66,12 +66,12 @@ impl Asset for LazyAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+    fn references(&self) -> AssetReferencesVc {
         let mut state = self.state.lock().unwrap();
         match &*state {
             LazyAssetState::Idle => {
                 *state = LazyAssetState::Waiting(get_invalidator());
-                Vc::slot(Vec::new())
+                AssetReferencesVc::slot(Vec::new())
             }
             LazyAssetState::Waiting(_) => unreachable!(),
             LazyAssetState::Expanded => self.asset.references(),
