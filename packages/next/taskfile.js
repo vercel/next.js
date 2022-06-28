@@ -201,11 +201,16 @@ export async function ncc_edge_runtime_primitives() {
     name: '@edge-runtime/primitives',
     version: pkg.version,
     main: './index.js',
+    types: './index.d.ts',
     license: pkg.license,
   })
   await fs.copy(
     require.resolve('@edge-runtime/primitives'),
     join(dest, 'index.js')
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/primitives/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
   )
 }
 
