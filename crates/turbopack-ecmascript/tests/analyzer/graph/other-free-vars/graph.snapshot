@@ -2,9 +2,7 @@
     (
         "O",
         FreeVar(
-            Other(
-                Atom('Object' type=static),
-            ),
+            Object,
         ),
     ),
     (
@@ -12,9 +10,7 @@
         MemberCall(
             4,
             FreeVar(
-                Other(
-                    Atom('Object' type=static),
-                ),
+                Object,
             ),
             Constant(
                 Str(
@@ -48,9 +44,7 @@
             ),
             [
                 FreeVar(
-                    Other(
-                        Atom('Object' type=static),
-                    ),
+                    Object,
                 ),
             ],
         ),

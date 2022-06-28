@@ -12,8 +12,7 @@
 *anonymous function 5453* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5684* = (...) => ???*0*
-- *0* unsupported expression
+*anonymous function 5684* = (...) => (digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
 
 FF = md5["_ff"]
 

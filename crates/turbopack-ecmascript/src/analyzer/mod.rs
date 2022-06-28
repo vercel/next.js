@@ -789,6 +789,10 @@ impl JsValue {
             }
             JsValue::WellKnownObject(obj) => {
                 let (name, explainer) = match obj {
+                    WellKnownObjectKind::GlobalObject => (
+                        "Object",
+                        "The global Object variable",
+                    ),
                     WellKnownObjectKind::PathModule => (
                         "path",
                         "The Node.js path module: https://nodejs.org/api/path.html",
@@ -816,7 +820,15 @@ impl JsValue {
                     WellKnownObjectKind::NodePreGyp => (
                       "@mapbox/node-pre-gyp",
                       "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
-                    )
+                    ),
+                    WellKnownObjectKind::NodeExpressApp => (
+                      "express",
+                        "The Node.js express package: https://github.com/expressjs/express"
+                    ),
+                    WellKnownObjectKind::NodeProtobufLoader => (
+                      "@grpc/proto-loader",
+                        "The Node.js @grpc/proto-loader package: https://github.com/grpc/grpc-node"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -828,7 +840,11 @@ impl JsValue {
             }
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
-                    WellKnownFunctionKind::PathJoin => (
+                   WellKnownFunctionKind::ObjectAssign => (
+                        format!("Object.assign"),
+                        "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
+                    ),
+                      WellKnownFunctionKind::PathJoin => (
                         format!("path.join"),
                         "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
                     ),
@@ -836,8 +852,8 @@ impl JsValue {
                         format!("path.dirname"),
                         "The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath",
                     ),
-                    WellKnownFunctionKind::PathResolve => (
-                        format!("path.resolve"),
+                    WellKnownFunctionKind::PathResolve(cwd) => (
+                        format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
                     WellKnownFunctionKind::Import => (
@@ -881,6 +897,34 @@ impl JsValue {
                     WellKnownFunctionKind::NodeGypBuild => (
                         format!("node-gyp-build"),
                         "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
+                    ),
+                    WellKnownFunctionKind::NodeBindings => (
+                        format!("bindings"),
+                        "The Node.js bindings module: https://github.com/TooTallNate/node-bindings"
+                    ),
+                    WellKnownFunctionKind::NodeExpress => (
+                        format!("express"),
+                        "require('express')() : https://github.com/expressjs/express"
+                    ),
+                    WellKnownFunctionKind::NodeExpressSet => (
+                        format!("set"),
+                        "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
+                    ),
+                    WellKnownFunctionKind::NodeStrongGlobalize => (
+                      format!("SetRootDir"),
+                      "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
+                    ),
+                    WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
+                      format!("SetRootDir"),
+                      "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
+                    ),
+                    WellKnownFunctionKind::NodeResolveFrom => (
+                      format!("resolveFrom"),
+                      "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
+                    ),
+                    WellKnownFunctionKind::NodeProtobufLoad => (
+                      format!("load/loadSync"),
+                      "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
                 };
                 if depth > 0 {
@@ -935,6 +979,7 @@ impl JsValue {
 
     pub fn has_placeholder(&self) -> bool {
         match self {
+            JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject) => true,
             // These are leafs and not placeholders
             JsValue::Constant(_)
             | JsValue::Url(_)
@@ -1364,7 +1409,8 @@ impl JsValue {
 
             JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::Filename) => true,
             JsValue::FreeVar(
-                FreeVarKind::Require
+                FreeVarKind::Object
+                | FreeVarKind::Require
                 | FreeVarKind::Import
                 | FreeVarKind::RequireResolve
                 | FreeVarKind::NodeProcess,
@@ -1750,6 +1796,8 @@ impl Hash for SimilarJsValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum FreeVarKind {
+    // Object
+    Object,
     /// `__dirname`
     Dirname,
 
@@ -1774,6 +1822,7 @@ pub enum FreeVarKind {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
+    GlobalObject,
     PathModule,
     FsModule,
     UrlModule,
@@ -1781,13 +1830,17 @@ pub enum WellKnownObjectKind {
     OsModule,
     NodeProcess,
     NodePreGyp,
+    NodeExpressApp,
+    NodeProtobufLoader,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
+    ObjectAssign,
     PathJoin,
     PathDirname,
-    PathResolve,
+    /// `0` is the current working directory.
+    PathResolve(Box<JsValue>),
     Import,
     Require,
     RequireResolve,
@@ -1800,6 +1853,13 @@ pub enum WellKnownFunctionKind {
     OsEndianness,
     NodePreGypFind,
     NodeGypBuild,
+    NodeBindings,
+    NodeExpress,
+    NodeExpressSet,
+    NodeStrongGlobalize,
+    NodeStrongGlobalizeSetRootDir,
+    NodeResolveFrom,
+    NodeProtobufLoad,
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {

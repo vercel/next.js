@@ -385,6 +385,10 @@ impl FileSystem for DiskFileSystem {
                                     DirectoryEntry::File(fs_path).into()
                                 } else if file_type.is_dir() {
                                     DirectoryEntry::Directory(fs_path).into()
+                                // TODO
+                                // follow the symlink?
+                                } else if file_type.is_symlink() {
+                                    DirectoryEntry::File(fs_path).into()
                                 } else {
                                     DirectoryEntry::Other(fs_path).into()
                                 }

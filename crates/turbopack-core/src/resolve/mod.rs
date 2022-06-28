@@ -249,13 +249,10 @@ async fn exists(fs_path: FileSystemPathVc) -> Result<bool> {
 }
 
 async fn dir_exists(fs_path: FileSystemPathVc) -> Result<bool> {
-    Ok(
-        if let FileSystemEntryType::Directory = &*fs_path.get_type().await? {
-            true
-        } else {
-            false
-        },
-    )
+    Ok(matches!(
+        &*fs_path.get_type().await?,
+        FileSystemEntryType::Directory
+    ))
 }
 
 #[turbo_tasks::value(shared)]
@@ -546,6 +543,7 @@ pub async fn resolve(
                                 let request = RequestVc::parse(Value::new(
                                     normalize_request(&field_value).into(),
                                 ));
+
                                 let result = resolve(package_path, request, options).await?;
                                 // we are not that strict when a main field fails to resolve
                                 // we continue to try other alternatives
@@ -687,6 +685,16 @@ pub async fn resolve(
                                 ResolveIntoPackage::Default(_)
                                 | ResolveIntoPackage::MainField(_) => {
                                     // doesn't affect packages with subpath
+                                    if path.is_match("/") {
+                                        results.push(
+                                            resolve_into_folder(
+                                                package_path,
+                                                package_json,
+                                                options,
+                                            )
+                                            .await?,
+                                        );
+                                    }
                                 }
                                 ResolveIntoPackage::ExportsField {
                                     field,

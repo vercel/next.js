@@ -1,16 +1,18 @@
 use super::errors;
 use super::{utils::js_value_to_pattern, ModuleAssetType};
+use crate::analyzer::ObjectPart;
 use crate::analyzer::{
     builtin::replace_builtin,
     graph::{create_graph, Effect},
     linker::{link, LinkCache},
     well_known::replace_well_known,
-    FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantValue, FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::target::CompileTargetVc;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     future::Future,
@@ -31,14 +33,16 @@ use swc_ecmascript::{
 };
 use turbo_tasks::ValueToString;
 use turbo_tasks::{util::try_join_all, Value, Vc};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::context::AssetContextVc;
+use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
+    context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        find_context_file, parse::RequestVc, pattern::PatternVc, resolve, resolve_raw,
-        FindContextFileResult, ResolveResult, ResolveResultVc,
+        find_context_file,
+        parse::RequestVc,
+        pattern::{Pattern, PatternVc},
+        resolve, resolve_raw, FindContextFileResult, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
@@ -277,6 +281,39 @@ pub async fn module_references(
                             .await?;
                         }
                     }
+                    JsValue::Member(_, obj, props) => {
+                        if let JsValue::Array(..) = &**obj {
+                            let args = linked_args().await?;
+                            let linked_array = link_value(JsValue::MemberCall(
+                                args.len(),
+                                obj.clone(),
+                                props.clone(),
+                                args,
+                            ))
+                            .await?;
+                            if let JsValue::Array(_, elements) = linked_array {
+                                for ele in elements {
+                                    if let JsValue::Call(_, callee, args) = ele {
+                                        handle_call_boxed(
+                                            handler,
+                                            source,
+                                            context,
+                                            span,
+                                            &callee,
+                                            this,
+                                            &args,
+                                            link_value,
+                                            is_typescript,
+                                            references,
+                                            target,
+                                            node_native_bindings,
+                                        )
+                                        .await?;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
                         let args = linked_args().await?;
                         if args.len() == 1 {
@@ -343,6 +380,7 @@ pub async fn module_references(
                             ),
                         )
                     }
+
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
                         let args = linked_args().await?;
                         if args.len() == 1 {
@@ -405,6 +443,34 @@ pub async fn module_references(
                             ),
                         )
                     }
+
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
+                        let parent_path = source.path().parent().await?;
+                        let args = linked_args().await?;
+
+                        let linked_func_call = link_value(JsValue::call(
+                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(
+                                box parent_path.path.as_str().into(),
+                            )),
+                            args,
+                        ))
+                        .await?;
+
+                        let pat = js_value_to_pattern(&linked_func_call);
+                        if !pat.has_constant_parts() {
+                            let (args, hints) = explain_args(&linked_args().await?);
+                            handler.span_warn_with_code(
+                                *span,
+                                &format!("path.resolve({args}) is very dynamic{hints}",),
+                                DiagnosticId::Lint(
+                                    errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
+                                ),
+                            )
+                        }
+                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        return Ok(());
+                    }
+
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
                         let linked_func_call = link_value(JsValue::call(
                             box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
@@ -422,7 +488,7 @@ pub async fn module_references(
                                 ),
                             )
                         }
-                        references.push(SourceAssetReferenceVc::new(source, pat.into()).into());
+                        references.push(DirAssetReferenceVc::new(source, pat.into()).into());
                         return Ok(());
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(
@@ -583,6 +649,230 @@ pub async fn module_references(
                             ),
                         )
                     }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings) => {
+                        use crate::analyzer::ConstantValue;
+                        use crate::resolve::node_native_binding::NodeBindingsReferenceVc;
+
+                        let args = linked_args().await?;
+                        if args.len() == 1 {
+                            let first_arg = link_value(args[0].clone()).await?;
+                            if let JsValue::Constant(ConstantValue::Str(ref s)) = first_arg {
+                                references.push(
+                                    NodeBindingsReferenceVc::new(source.path(), s.to_string())
+                                        .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('bindings')({args}) is not statically analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_BINDINGS.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet) => {
+                        let linked_args = linked_args().await?;
+                        if linked_args.len() == 2 {
+                            if let Some(JsValue::Constant(ConstantValue::Str(s))) =
+                                linked_args.get(0)
+                            {
+                                let pkg_or_dir = linked_args.get(1).unwrap();
+                                let pat = js_value_to_pattern(&pkg_or_dir);
+                                if !pat.has_constant_parts() {
+                                    let (args, hints) = explain_args(&linked_args);
+                                    handler.span_warn_with_code(
+                                        *span,
+                                        &format!(
+                                            "require('express')().set({args}) is very \
+                                             dynamic{hints}",
+                                        ),
+                                        DiagnosticId::Lint(
+                                            errors::failed_to_analyse::ecmascript::NODE_EXPRESS
+                                                .to_string(),
+                                        ),
+                                    );
+                                    return Ok(());
+                                }
+                                match &**s {
+                                    "views" => {
+                                        if let Pattern::Constant(p) = &pat {
+                                            let abs_pattern = if p.starts_with("/ROOT/") {
+                                                pat
+                                            } else {
+                                                let linked_func_call = link_value(JsValue::call(
+                                                    box JsValue::WellKnownFunction(
+                                                        WellKnownFunctionKind::PathJoin,
+                                                    ),
+                                                    vec![
+                                                        JsValue::FreeVar(FreeVarKind::Dirname),
+                                                        pkg_or_dir.clone(),
+                                                    ],
+                                                ))
+                                                .await?;
+                                                js_value_to_pattern(&linked_func_call)
+                                            };
+                                            references.push(
+                                                DirAssetReferenceVc::new(
+                                                    source,
+                                                    abs_pattern.into(),
+                                                )
+                                                .into(),
+                                            );
+                                            return Ok(());
+                                        }
+                                    }
+                                    "view engine" => {
+                                        if let JsValue::Constant(ConstantValue::Str(pkg)) =
+                                            pkg_or_dir
+                                        {
+                                            if pkg != "html" {
+                                                let pat = js_value_to_pattern(&pkg_or_dir);
+                                                references.push(
+                                                    CjsAssetReferenceVc::new(
+                                                        context,
+                                                        RequestVc::parse(Value::new(pat)),
+                                                    )
+                                                    .into(),
+                                                );
+                                            }
+                                            return Ok(());
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('express')().set({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_EXPRESS.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir,
+                    ) => {
+                        let linked_args = linked_args().await?;
+                        if let Some(JsValue::Constant(ConstantValue::Str(p))) = linked_args.get(0) {
+                            let abs_pattern = if p.starts_with("/ROOT/") {
+                                Pattern::Constant(format!("{p}/intl"))
+                            } else {
+                                let linked_func_call = link_value(JsValue::call(
+                                    box JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
+                                    vec![
+                                        JsValue::FreeVar(FreeVarKind::Dirname),
+                                        JsValue::Constant(ConstantValue::Str(p.clone())),
+                                        JsValue::Constant(ConstantValue::Str("intl".into())),
+                                    ],
+                                ))
+                                .await?;
+                                js_value_to_pattern(&linked_func_call)
+                            };
+                            references
+                                .push(DirAssetReferenceVc::new(source, abs_pattern.into()).into());
+                            return Ok(());
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('strong-globalize').SetRootDir({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
+                        if args.len() == 2 {
+                            if let Some(JsValue::Constant(ConstantValue::Str(_))) = args.get(1) {
+                                references.push(
+                                    CjsAssetReferenceVc::new(
+                                        context,
+                                        RequestVc::parse(Value::new(js_value_to_pattern(&args[1]))),
+                                    )
+                                    .into(),
+                                );
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('resolve-from')({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_RESOLVE_FROM
+                                    .to_string(),
+                            ),
+                        )
+                    }
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad) => {
+                        if args.len() == 2 {
+                            let args = linked_args().await?;
+                            if let Some(JsValue::Object(_, parts)) = args.get(1) {
+                                for dir in parts
+                                    .iter()
+                                    .filter_map(|object_part| {
+                                        if let ObjectPart::KeyValue(
+                                            JsValue::Constant(ConstantValue::Str(key)),
+                                            JsValue::Array(_, dirs),
+                                        ) = object_part
+                                        {
+                                            if key == "includeDirs" {
+                                                return Some(dirs.iter().filter_map(|dir| {
+                                                    if let JsValue::Constant(ConstantValue::Str(
+                                                        dir_str,
+                                                    )) = dir
+                                                    {
+                                                        Some(dir_str.to_string())
+                                                    } else {
+                                                        None
+                                                    }
+                                                }));
+                                            }
+                                        }
+                                        None
+                                    })
+                                    .flatten()
+                                {
+                                    references.push(
+                                        DirAssetReferenceVc::new(
+                                            source,
+                                            Pattern::Constant(dir).into(),
+                                        )
+                                        .into(),
+                                    );
+                                }
+                                return Ok(());
+                            }
+                        }
+                        let (args, hints) = explain_args(&args);
+                        handler.span_warn_with_code(
+                            *span,
+                            &format!(
+                                "require('@grpc/proto-loader').load({args}) is not statically \
+                                 analyse-able{hints}",
+                            ),
+                            DiagnosticId::Error(
+                                errors::failed_to_analyse::ecmascript::NODE_PROTOBUF_LOADER
+                                    .to_string(),
+                            ),
+                        )
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -630,14 +920,9 @@ pub async fn module_references(
                                 continue;
                             }
                         }
-                        let obj = link(&var_graph, obj.clone(), &linker, &cache).await?;
-                        let func = link(
-                            &var_graph,
-                            JsValue::member(box obj.clone(), box prop.clone()),
-                            &linker,
-                            &cache,
-                        )
-                        .await?;
+                        let obj = link_value(obj.clone()).await?;
+                        let func =
+                            link_value(JsValue::member(box obj.clone(), box prop.clone())).await?;
 
                         handle_call(
                             &handler,
@@ -740,6 +1025,9 @@ async fn value_visitor_inner(
             JsValue::FreeVar(FreeVarKind::NodeProcess) => {
                 JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)
             }
+            JsValue::FreeVar(FreeVarKind::Object) => {
+                JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject)
+            }
             JsValue::FreeVar(_) => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
             JsValue::Module(ref name) => match &**name {
                 // TODO check externals
@@ -754,6 +1042,21 @@ async fn value_visitor_inner(
                 }
                 "node-gyp-build" if node_native_bindings => {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
+                }
+                "bindings" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
+                }
+                "express" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpress)
+                }
+                "strong-globalize" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalize)
+                }
+                "resolve-from" if node_native_bindings => {
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+                }
+                "@grpc/proto-loader" if node_native_bindings => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
                 }
                 _ => JsValue::Unknown(
                     Some(Arc::new(v)),
@@ -1252,4 +1555,110 @@ impl AssetReference for SourceAssetReference {
             self.path.to_string().await?,
         )))
     }
+}
+
+#[turbo_tasks::value(AssetReference)]
+#[derive(Hash, Debug)]
+pub struct DirAssetReference {
+    pub source: AssetVc,
+    pub path: PatternVc,
+}
+
+#[turbo_tasks::value_impl]
+impl DirAssetReferenceVc {
+    #[turbo_tasks::function]
+    pub fn new(source: AssetVc, path: PatternVc) -> Self {
+        Self::slot(DirAssetReference { source, path })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for DirAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let context_path = self.source.path().await?;
+        // ignore path.join in `node-gyp`, it will includes too many files
+        if context_path.path.contains("node_modules/node-gyp") {
+            return Ok(ResolveResult::Alternatives(HashSet::default(), vec![]).into());
+        }
+        let context = self.source.path().parent();
+        let pat = self.path.await?;
+        let mut result = HashSet::default();
+        let fs = context.fs();
+        match &*pat {
+            Pattern::Constant(p) => {
+                let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
+                // ignore error
+                if let Ok(entry_type) = dest_file_path.get_type().await {
+                    match &*entry_type {
+                        FileSystemEntryType::Directory => {
+                            result = read_dir(dest_file_path).await?;
+                        }
+                        FileSystemEntryType::File => {
+                            result.insert(SourceAssetVc::new(dest_file_path).into());
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Pattern::Alternatives(alternatives) => {
+                for alternative_pattern in alternatives {
+                    let mut pat = alternative_pattern.clone();
+                    pat.normalize();
+                    if let Pattern::Constant(p) = pat {
+                        let dest_file_path =
+                            FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
+                        // ignore error
+                        if let Ok(entry_type) = dest_file_path.get_type().await {
+                            match &*entry_type {
+                                FileSystemEntryType::Directory => {
+                                    result.extend(read_dir(dest_file_path).await?);
+                                }
+                                FileSystemEntryType::File => {
+                                    result.insert(SourceAssetVc::new(dest_file_path).into());
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(ResolveResult::Alternatives(result, vec![]).into())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<String>> {
+        Ok(Vc::slot(format!(
+            "directory assets {}",
+            self.path.to_string().await?,
+        )))
+    }
+}
+
+async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
+    let mut result = HashSet::default();
+    let dir_entries = p.read_dir().await?;
+    if let DirectoryContent::Entries(entries) = &*dir_entries {
+        for (_, entry) in entries.iter() {
+            match entry {
+                DirectoryEntry::File(file) => {
+                    result.insert(SourceAssetVc::new(*file).into());
+                }
+                DirectoryEntry::Directory(dir) => {
+                    let sub = read_dir_boxed(*dir).await?;
+                    result.extend(sub);
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(result)
+}
+
+fn read_dir_boxed(
+    p: FileSystemPathVc,
+) -> Pin<Box<dyn Future<Output = Result<HashSet<AssetVc>>> + Send>> {
+    Box::pin(read_dir(p))
 }

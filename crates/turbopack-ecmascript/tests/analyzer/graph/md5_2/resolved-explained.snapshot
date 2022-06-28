@@ -13,8 +13,8 @@
 *anonymous function 5453* = (...) => (???*0* + arguments[1])
 - *0* unsupported expression
 
-*anonymous function 5684* = (...) => ???*0*
-- *0* unsupported expression
+*anonymous function 5684* = ???*0*
+- *0* max number of linking steps reached
 
 FF = ???*0*
 - *0* max number of linking steps reached
