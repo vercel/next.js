@@ -267,7 +267,11 @@ impl Pattern {
 
                         add_part(part, &mut new_parts);
                     }
-                    *list = new_parts;
+                    if new_parts.len() == 1 {
+                        *self = new_parts.into_iter().next().unwrap();
+                    } else {
+                        *list = new_parts;
+                    }
                 }
             }
         }
@@ -622,7 +626,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),

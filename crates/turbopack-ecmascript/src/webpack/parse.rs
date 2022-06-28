@@ -35,18 +35,16 @@ pub enum WebpackRuntime {
 
 fn iife(stmt: &Stmt) -> Option<&Vec<Stmt>> {
     if let Stmt::Expr(ExprStmt { expr, .. }) = &stmt {
-        if let Expr::Call(call_expr) = unparen(expr) {
-            if let CallExpr {
-                callee: Callee::Expr(callee),
-                args,
-                ..
-            } = &call_expr
-            {
-                if !args.is_empty() {
-                    return None;
-                }
-                return get_fn_body(callee);
+        if let Expr::Call(CallExpr {
+            callee: Callee::Expr(callee),
+            args,
+            ..
+        }) = unparen(expr)
+        {
+            if !args.is_empty() {
+                return None;
             }
+            return get_fn_body(callee);
         }
     }
     None

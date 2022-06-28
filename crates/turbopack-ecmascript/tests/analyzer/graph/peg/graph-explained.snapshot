@@ -78,8 +78,8 @@
 
 *anonymous function 16712* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-*anonymous function 16836* = (...) => ???*0*
-- *0* unsupported expression
+*anonymous function 16836* = (...) => (???*0* | [])
+- *0* spread is not supported
 
 *anonymous function 16924* = (...) => subquery
 
@@ -145,8 +145,8 @@
 
 *anonymous function 6457* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
 
-*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": ???*0*}
-- *0* unsupported expression
+*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+- *0* spread is not supported
 
 *anonymous function 701* = (...) => `"${literalEscape(expectation["text"])}"`
 
@@ -160,8 +160,10 @@
 
 *anonymous function 7526* = (...) => {"type": "boolean_constant", "value": true}
 
-*anonymous function 7868* = (...) => {"type": "number_constant", "value": ???*0*}
-- *0* unsupported expression
+*anonymous function 7868* = (...) => {
+    "type": "number_constant",
+    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+}
 
 *anonymous function 803* = (...) => `[${???*0*}${escapedParts}]`
 - *0* unsupported expression
@@ -244,8 +246,7 @@ describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](exp
 describeExpected = (...) => (descriptions[0] | `${descriptions[0]} or ${descriptions[1]}` | ???*0*)
 - *0* unsupported expression
 
-describeFound = (...) => ???*0*
-- *0* unsupported expression
+describeFound = (...) => (`"${literalEscape(found)}"` | "end of input")
 
 description#75 = arguments[0]
 
@@ -400,11 +401,9 @@ location#21 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
 
 location#3 = arguments[3]
 
-location#75 = (arguments[1] | ???*0*)
-- *0* unsupported expression
+location#75 = (arguments[1] | location | peg$computeLocation(peg$savedPos, peg$currPos))
 
-location#76 = (arguments[1] | ???*0*)
-- *0* unsupported expression
+location#76 = (arguments[1] | location | peg$computeLocation(peg$savedPos, peg$currPos))
 
 location#83 = arguments[1]
 
@@ -436,8 +435,7 @@ operator#178 = ???*0*
 
 operator#62 = arguments[0]
 
-options = (arguments[1] | ???*0*)
-- *0* unsupported expression
+options = (arguments[1] | options | {})
 
 order = arguments[1]
 

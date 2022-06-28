@@ -25,6 +25,7 @@ use turbopack_ecmascript::target::CompileTarget;
 
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
+#[case::array_map_require("integration/array-map-require/index.js", true)]
 #[case::apollo("integration/apollo.js", true)]
 #[case::argon2("integration/argon2.js", true)]
 #[case::auth0("integration/auth0.js", true)]
@@ -33,11 +34,12 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::azure_cosmos("integration/azure-cosmos.js", true)]
 #[case::azure_storage("integration/azure-storage.js", true)]
 #[case::bcrypt("integration/bcrypt.js", true)]
+#[case::better_sqlite3("integration/better-sqlite3.js", true)]
 #[case::bindings_failure("integration/bindings-failure.js", false)] // Cannot find module 'bindings'
-#[case::browserify_middleware("integration/browserify-middleware.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::browserify_middleware("integration/browserify-middleware.js", true)]
 #[case::bugsnag_js("integration/bugsnag-js.js", true)]
-// #[case::bull("integration/bull.js", false)] // Skipping bull integration test
-#[case::camaro("integration/camaro.js", false)] // can't find node_modules/piscina/dist/src/worker.js
+#[case::bull("integration/bull.js", true)]
+#[case::camaro("integration/camaro.js", true)]
 #[case::canvas("integration/canvas.js", true)]
 #[case::chromeless("integration/chromeless.js", true)]
 #[case::core_js("integration/core-js.js", true)]
@@ -49,41 +51,38 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::env_var("integration/env-var.js", true)]
 #[case::es_get_iterator("integration/es-get-iterator.js", true)]
 #[case::esbuild("integration/esbuild.js", true)]
-#[case::esm("integration/esm.js", false)] // Cannot destructure property 'dir' of 'T.package' as it is undefined.
-#[case::express_consolidate("integration/express-consolidate.js", false)] // Cannot read property 'startsWith' of undefined
+#[case::esm("integration/esm.js", true)]
+#[case::express_consolidate("integration/express-consolidate.js", true)]
 #[case::express_template_engine("integration/express-template-engine.js", true)]
-#[case::express_template("integration/express-template.js", true)]
+#[case::express_template_pug("integration/express-template.js", true)]
 #[case::express("integration/express.js", true)]
 #[case::fast_glob("integration/fast-glob.js", true)]
 #[case::fetch_h2("integration/fetch-h2.js", true)]
-#[cfg_attr(
-    target_arch = "x86_64",
-    case::ffmpeg_js("integration/ffmpeg.js", false)
-)]
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js", true))]
 // Could not find ffmpeg executable
-// #[case::firebase_admin("integration/firebase-admin.js", false)] // hanging
-// #[case::firebase("integration/firebase.js", false)] // hanging
+#[case::firebase_admin("integration/firebase-admin.js", true)]
+#[case::firebase("integration/firebase.js", true)]
 #[case::firestore("integration/firestore.js", true)]
 #[case::fluent_ffmpeg("integration/fluent-ffmpeg.js", true)]
-#[case::geo_tz("integration/geo-tz.js", false)] // can't find node_modules/geo-tz/data/geo.dat
+#[case::geo_tz("integration/geo-tz.js", true)]
 #[case::google_bigquery("integration/google-bigquery.js", true)]
 #[case::got("integration/got.js", true)]
-#[case::highlights("integration/highlights.js", false)] // unable to resolve esm request module 'highlights' in node-file-trace/integration
-#[case::hot_shots("integration/hot-shots.js", false)] // unable to resolve esm request module 'hot-shots' in node-file-trace/integration
+#[case::highlights("integration/highlights.js", true)]
+#[case::hot_shots("integration/hot-shots.js", true)]
 #[case::ioredis("integration/ioredis.js", true)]
 #[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
 #[case::jimp("integration/jimp.js", true)]
-#[case::jugglingdb("integration/jugglingdb.js", false)] // doesn't understand define
+#[case::jugglingdb("integration/jugglingdb.js", true)]
 #[case::koa("integration/koa.js", true)]
 #[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
-#[case::loopback("integration/loopback.js", false)] // node_modules/strong-globalize/cldr folder missing
+#[case::loopback("integration/loopback.js", true)]
 #[case::mailgun("integration/mailgun.js", true)]
 #[case::mariadb("integration/mariadb.js", true)]
 #[case::memcached("integration/memcached.js", true)]
 #[case::mongoose("integration/mongoose.js", true)]
 #[case::mysql("integration/mysql.js", true)]
-#[case::npm("integration/npm.js", false)]
+#[case::npm("integration/npm.js", true)]
 // unable to resolve esm request module 'spdx-license-ids' in node-file-trace/node_modules/npm/node_modules/spdx-correct
 // oracledb doesn't support non x86 architectures
 #[cfg_attr(
@@ -105,7 +104,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::remark_prism("integration/remark-prism.mjs", true)]
 #[case::request("integration/request.js", true)]
 #[case::rxjs("integration/rxjs.js", true)]
-#[case::saslprep("integration/saslprep.js", false)] // fs.readFileSync(path.resolve(__dirname, '../code-points.mem'))
+#[case::saslprep("integration/saslprep.js", true)]
 #[case::semver("integration/semver.js", true)]
 #[case::sentry("integration/sentry.js", true)]
 #[case::sequelize("integration/sequelize.js", true)]
@@ -116,15 +115,16 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::sparql_builder("integration/sparql-builder.js", true)]
 #[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
-#[case::tensorflow("integration/tensorflow.js", false)] // unable to resolve esm request module '@tensorflow/tfjs-node' in node-file-trace/integration
+#[case::strong_error_handler("integration/strong-error-handler.js", true)]
+#[case::tensorflow("integration/tensorflow.js", true)]
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
 #[case::twilio("integration/twilio.js", true)]
 #[case::typescript("integration/typescript.js", true)]
-// #[case::uglify("integration/uglify.js", false)] // node_modules/uglify-es/tools/node.js is weird
+#[case::uglify("integration/uglify.js", true)]
 #[case::vm2("integration/vm2.js", true)]
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]
-#[case::when("integration/when.js", false)] // doesn't understand define
+#[case::when("integration/when.js", true)]
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
@@ -334,7 +334,17 @@ fn clean_stderr(str: &str) -> String {
 }
 
 fn diff(expected: &str, actual: &str) -> String {
-    if actual == expected {
+    lazy_static! {
+        static ref JAVASCRIPT_TIMESTAMP: Regex =
+            Regex::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z").unwrap();
+        static ref JAVASCRIPT_DATE_TIME: Regex =
+            Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.\d{6}").unwrap();
+    }
+    // Remove timestamps from the output.
+    if JAVASCRIPT_DATE_TIME.replace_all(JAVASCRIPT_TIMESTAMP.replace_all(actual, "").as_ref(), "")
+        == JAVASCRIPT_DATE_TIME
+            .replace_all(JAVASCRIPT_TIMESTAMP.replace_all(expected, "").as_ref(), "")
+    {
         return String::new();
     }
     let Changeset { diffs, .. } = Changeset::new(expected, actual, "\n");

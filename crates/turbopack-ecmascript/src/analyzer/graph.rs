@@ -13,7 +13,7 @@ use crate::{
     utils::unparen,
 };
 
-use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart};
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
 
 #[derive(Debug, Clone)]
 pub enum Effect {
@@ -171,6 +171,7 @@ impl EvalContext {
                         "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
                         "__filename" => return JsValue::FreeVar(FreeVarKind::Filename),
                         "process" => return JsValue::FreeVar(FreeVarKind::NodeProcess),
+                        "Object" => return JsValue::FreeVar(FreeVarKind::Object),
                         _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {
@@ -201,7 +202,13 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::Alternatives(2, vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::alternatives(vec![self.eval(left), self.eval(right)]),
+
+            &Expr::Cond(CondExpr {
+                box ref cons,
+                box ref alt,
+                ..
+            }) => JsValue::alternatives(vec![self.eval(cons), self.eval(alt)]),
 
             Expr::Tpl(e) => return self.eval_tpl(e, false),
 
@@ -279,6 +286,7 @@ impl EvalContext {
                 if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::Unknown(None, "spread in function calls is not supported");
                 }
+
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
                     let obj = box self.eval(&obj);
@@ -557,6 +565,47 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_call_expr(&mut self, n: &CallExpr) {
+        // We handle `define(function (require) {})` here.
+        match &n.callee {
+            Callee::Expr(callee) => {
+                if n.args.len() == 1 {
+                    match unparen(callee) {
+                        Expr::Ident(Ident { sym, .. }) => {
+                            if &**sym == "define" {
+                                match &*n.args[0].expr {
+                                    Expr::Fn(FnExpr {
+                                        function: Function { params, .. },
+                                        ..
+                                    }) => {
+                                        if params.len() == 1 {
+                                            match &params[0].pat {
+                                                Pat::Ident(param) => {
+                                                    if &*param.id.sym == "require" {
+                                                        self.add_value(
+                                                            param.to_id(),
+                                                            JsValue::WellKnownFunction(
+                                                                WellKnownFunctionKind::Require,
+                                                            ),
+                                                        );
+                                                    }
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+
+                                    _ => {}
+                                }
+                            }
+                        }
+
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+
         // special behavior of IIFEs
         if !self.check_iife(n) {
             self.check_call_expr_for_effects(n);

@@ -8,7 +8,7 @@ app.engine('html', cons.swig);
  
 // set .html as the default extension
 app.set('view engine', 'html');
-app.set('views', __dirname + '/../fixtures');
+app.set('views', __dirname + '/fixtures' + '/html');
 
 app.render('index', {
   title: 'Consolidate.js'

@@ -137,10 +137,61 @@
     (
         "*anonymous function 5684*",
         Function(
-            2,
-            Unknown(
-                None,
-                "unsupported expression",
+            11,
+            Alternatives(
+                10,
+                [
+                    Variable(
+                        (
+                            Atom('digestbytes' type=dynamic),
+                            #8,
+                        ),
+                    ),
+                    MemberCall(
+                        4,
+                        Variable(
+                            (
+                                Atom('bin' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('bytesToString' type=dynamic),
+                            ),
+                        ),
+                        [
+                            Variable(
+                                (
+                                    Atom('digestbytes' type=dynamic),
+                                    #8,
+                                ),
+                            ),
+                        ],
+                    ),
+                    MemberCall(
+                        4,
+                        Variable(
+                            (
+                                Atom('crypt' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom('bytesToHex' type=dynamic),
+                            ),
+                        ),
+                        [
+                            Variable(
+                                (
+                                    Atom('digestbytes' type=dynamic),
+                                    #8,
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
             ),
         ),
     ),
