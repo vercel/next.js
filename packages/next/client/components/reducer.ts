@@ -209,6 +209,7 @@ export function reducer(
     const treePath = flightDataPath.slice(0, -2)
     const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
+    // TODO: put the new tree into history?
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
     // Fill cache with data from flightDataTree

@@ -55,11 +55,6 @@ async function createTreeCodeFromPath({
         // When there are no children the current index is the page component
         children ? `children: ${children},` : ''
       }
-      ${
-        // TODO: Temp to test parallel values
-        // When there are no children the current index is the page component
-        children && segment === 'dashboard' ? `custom: ${children},` : ''
-      }
     }, {
       ${
         resolvedLayoutPath

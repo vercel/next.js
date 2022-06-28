@@ -101,6 +101,7 @@ export default function AppRouter({
 
   const onPopState = React.useCallback(({ state }: PopStateEvent) => {
     if (!state) {
+      // TODO: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
       return
     }
 

@@ -65,7 +65,59 @@ export function InnerLayoutRouter({
     })
 
     // TODO: passing fullTree causes refetch to be missing in back/forward case.
-    const data = fetchServerResponse(new URL(url, location.origin), fullTree)
+    const walkAddRefetch = (
+      segmentPathToWalk: FlightSegmentPath | undefined,
+      treeToRecreate: FlightRouterState
+    ): FlightRouterState => {
+      if (segmentPathToWalk) {
+        const [segment, parallelRouteKey] = segmentPathToWalk
+        const isLast = segmentPathToWalk.length === 2
+        if (treeToRecreate[0] === segment) {
+          console.log({ segmentPath: segmentPathToWalk, tree: treeToRecreate })
+
+          if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
+            if (isLast) {
+              const subTree = walkAddRefetch(
+                undefined,
+                treeToRecreate[1][parallelRouteKey]
+              )
+              if (!subTree[2]) {
+                subTree[2] = undefined
+              }
+              subTree[3] = 'refetch'
+              return [
+                treeToRecreate[0],
+                {
+                  ...treeToRecreate[1],
+                  [parallelRouteKey]: [...subTree],
+                },
+              ]
+            }
+
+            return [
+              treeToRecreate[0],
+              {
+                ...treeToRecreate[1],
+                [parallelRouteKey]: walkAddRefetch(
+                  segmentPathToWalk.slice(2),
+                  treeToRecreate[1][parallelRouteKey]
+                ),
+              },
+            ]
+          }
+        }
+      }
+
+      return treeToRecreate
+    }
+
+    const refetchTree = walkAddRefetch(segmentPath, fullTree)
+    console.log({ refetchTree })
+
+    const data = fetchServerResponse(
+      new URL(url, location.origin),
+      walkAddRefetch(segmentPath, fullTree)
+    )
     childNodes.set(path, {
       data,
       subTreeData: null,
