@@ -3,11 +3,14 @@ use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use swc_atoms::JsWord;
+#[cfg(not(feature = "plugin"))]
 use swc_common::errors::HANDLER;
 use swc_common::FileName;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::{quote_ident, ExprFactory};
 use swc_ecmascript::visit::{Fold, FoldWith};
+#[cfg(feature = "plugin")]
+use swc_plugin::errors::HANDLER;
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
