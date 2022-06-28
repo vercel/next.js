@@ -58,7 +58,7 @@ const Page = () => {
       />
       <Image id="object-src-with-svg" src={svg} />
       <Image id="object-src-with-avif" src={avif} />
-      <ImageCard id="image-card" src="https://via.placeholder.com/300" />
+      <ImageCard id="image-card" src="https://image-optimization-test.vercel.app/test.jpg" />
       <DynamicSrcImage
         id="dynamic-src"
         src="https://image-optimization-test.vercel.app/test.jpg"

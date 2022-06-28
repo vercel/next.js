@@ -86,7 +86,7 @@ const Page = () => {
         width={100}
         height={100}
       />
-      <ImageCard id="image-card" src="https://via.placeholder.com/300" />
+      <ImageCard id="image-card" src="https://image-optimization-test.vercel.app/test.jpg" />
       <DynamicSrcImage
         id="dynamic-src"
         src="https://image-optimization-test.vercel.app/test.jpg"
