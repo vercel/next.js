@@ -1,3 +1,4 @@
+import React from 'react';
 import { setCookies, getCookies, getCookie, removeCookies, checkCookies } from 'cookies-next'
 
 const Home = () => {
