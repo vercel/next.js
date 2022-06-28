@@ -5,8 +5,16 @@ use turbo_tasks::TurboTasks;
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{ecmascript::target::CompileTarget, GraphOptionsVc, ModuleAssetContextVc};
-use turbopack_core::{context::AssetContextVc, lazy::LazyAssetVc, source_asset::SourceAssetVc};
-use turbopack_dev_server::DevServerVc;
+use turbopack_core::{
+    chunk::{
+        dev::{DevChunkingContext, DevChunkingContextVc},
+        ChunkableAssetVc,
+    },
+    context::AssetContextVc,
+    lazy::LazyAssetVc,
+    source_asset::SourceAssetVc,
+};
+use turbopack_dev_server::{fs::DevServerFileSystemVc, html::DevHtmlAsset, DevServerVc};
 
 #[tokio::main]
 async fn main() {
@@ -35,9 +43,23 @@ async fn main() {
             )
             .into();
             let module = context.process(source_asset);
-            let lazy_asset = LazyAssetVc::new(module).into();
+            let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
+            let chunking_context: DevChunkingContextVc = DevChunkingContext {
+                context_path: root,
+                root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
+            }
+            .into();
+            let chunk_group = chunking_context
+                .as_chunking_context()
+                .as_chunk_group(ChunkableAssetVc::cast_from(module));
+            let html = DevHtmlAsset {
+                path: FileSystemPathVc::new(dev_server_fs, "index.html"),
+                chunk_group,
+            }
+            .into();
+            let lazy_asset = LazyAssetVc::new(html).into();
 
-            let server = DevServerVc::new(root, lazy_asset);
+            let server = DevServerVc::new(FileSystemPathVc::new(dev_server_fs, ""), lazy_asset);
             disk_fs.await?.start_watching()?;
             server.listen().await
         })
