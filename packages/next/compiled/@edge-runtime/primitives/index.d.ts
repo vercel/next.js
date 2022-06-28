@@ -44,7 +44,7 @@ declare const v4: v4;
  *
  * @public
  */
-declare interface AbortSignal {
+declare interface AbortSignal$1 {
     /**
      * Whether the request is aborted.
      */
@@ -398,7 +398,7 @@ declare interface StreamPipeOptions {
      * `AbortController`. In this case, the source readable stream will be canceled, and the destination writable stream
      * aborted, unless the respective options `preventCancel` or `preventAbort` are set.
      */
-    signal?: AbortSignal;
+    signal?: AbortSignal$1;
 }
 
 /**
@@ -669,7 +669,7 @@ declare class WritableStreamDefaultController<W = any> {
     /**
      * An `AbortSignal` that can be used to abort the pending write or close operation when the stream is aborted.
      */
-    get signal(): AbortSignal;
+    get signal(): AbortSignal$1;
     /**
      * Closes the controlled writable stream, making all future interactions with it fail with the given error `e`.
      *
@@ -739,6 +739,387 @@ declare class WritableStreamDefaultWriter<W = any> {
      * accepted, and not necessarily that it is safely saved to its ultimate destination.
      */
     write(chunk: W): Promise<void>;
+}
+
+/**
+ * `Event` interface.
+ * @see https://dom.spec.whatwg.org/#event
+ */
+interface Event$1 {
+    /**
+     * The type of this event.
+     */
+    readonly type: string
+
+    /**
+     * The target of this event.
+     */
+    readonly target: EventTarget$1<{}, {}, "standard"> | null
+
+    /**
+     * The current target of this event.
+     */
+    readonly currentTarget: EventTarget$1<{}, {}, "standard"> | null
+
+    /**
+     * The target of this event.
+     * @deprecated
+     */
+    readonly srcElement: any | null
+
+    /**
+     * The composed path of this event.
+     */
+    composedPath(): EventTarget$1<{}, {}, "standard">[]
+
+    /**
+     * Constant of NONE.
+     */
+    readonly NONE: number
+
+    /**
+     * Constant of CAPTURING_PHASE.
+     */
+    readonly CAPTURING_PHASE: number
+
+    /**
+     * Constant of BUBBLING_PHASE.
+     */
+    readonly BUBBLING_PHASE: number
+
+    /**
+     * Constant of AT_TARGET.
+     */
+    readonly AT_TARGET: number
+
+    /**
+     * Indicates which phase of the event flow is currently being evaluated.
+     */
+    readonly eventPhase: number
+
+    /**
+     * Stop event bubbling.
+     */
+    stopPropagation(): void
+
+    /**
+     * Stop event bubbling.
+     */
+    stopImmediatePropagation(): void
+
+    /**
+     * Initialize event.
+     * @deprecated
+     */
+    initEvent(type: string, bubbles?: boolean, cancelable?: boolean): void
+
+    /**
+     * The flag indicating bubbling.
+     */
+    readonly bubbles: boolean
+
+    /**
+     * Stop event bubbling.
+     * @deprecated
+     */
+    cancelBubble: boolean
+
+    /**
+     * Set or get cancellation flag.
+     * @deprecated
+     */
+    returnValue: boolean
+
+    /**
+     * The flag indicating whether the event can be canceled.
+     */
+    readonly cancelable: boolean
+
+    /**
+     * Cancel this event.
+     */
+    preventDefault(): void
+
+    /**
+     * The flag to indicating whether the event was canceled.
+     */
+    readonly defaultPrevented: boolean
+
+    /**
+     * The flag to indicating if event is composed.
+     */
+    readonly composed: boolean
+
+    /**
+     * Indicates whether the event was dispatched by the user agent.
+     */
+    readonly isTrusted: boolean
+
+    /**
+     * The unix time of this event.
+     */
+    readonly timeStamp: number
+}
+
+/**
+ * The constructor of `EventTarget` interface.
+ */
+type EventTargetConstructor$1<
+    TEvents extends EventTarget$1.EventDefinition = {},
+    TEventAttributes extends EventTarget$1.EventDefinition = {},
+    TMode extends EventTarget$1.Mode = "loose"
+> = {
+    prototype: EventTarget$1<TEvents, TEventAttributes, TMode>
+    new(): EventTarget$1<TEvents, TEventAttributes, TMode>
+}
+
+/**
+ * `EventTarget` interface.
+ * @see https://dom.spec.whatwg.org/#interface-eventtarget
+ */
+type EventTarget$1<
+    TEvents extends EventTarget$1.EventDefinition = {},
+    TEventAttributes extends EventTarget$1.EventDefinition = {},
+    TMode extends EventTarget$1.Mode = "loose"
+> = EventTarget$1.EventAttributes<TEventAttributes> & {
+    /**
+     * Add a given listener to this event target.
+     * @param eventName The event name to add.
+     * @param listener The listener to add.
+     * @param options The options for this listener.
+     */
+    addEventListener<TEventType extends EventTarget$1.EventType<TEvents, TMode>>(
+        type: TEventType,
+        listener:
+            | EventTarget$1.Listener<EventTarget$1.PickEvent<TEvents, TEventType>>
+            | null,
+        options?: boolean | EventTarget$1.AddOptions
+    ): void
+
+    /**
+     * Remove a given listener from this event target.
+     * @param eventName The event name to remove.
+     * @param listener The listener to remove.
+     * @param options The options for this listener.
+     */
+    removeEventListener<TEventType extends EventTarget$1.EventType<TEvents, TMode>>(
+        type: TEventType,
+        listener:
+            | EventTarget$1.Listener<EventTarget$1.PickEvent<TEvents, TEventType>>
+            | null,
+        options?: boolean | EventTarget$1.RemoveOptions
+    ): void
+
+    /**
+     * Dispatch a given event.
+     * @param event The event to dispatch.
+     * @returns `false` if canceled.
+     */
+    dispatchEvent<TEventType extends EventTarget$1.EventType<TEvents, TMode>>(
+        event: EventTarget$1.EventData<TEvents, TEventType, TMode>
+    ): boolean
+}
+
+declare const EventTarget$1: EventTargetConstructor$1 & {
+    /**
+     * Create an `EventTarget` instance with detailed event definition.
+     *
+     * The detailed event definition requires to use `defineEventAttribute()`
+     * function later.
+     *
+     * Unfortunately, the second type parameter `TEventAttributes` was needed
+     * because we cannot compute string literal types.
+     *
+     * @example
+     * const signal = new EventTarget<{ abort: Event }, { onabort: Event }>()
+     * defineEventAttribute(signal, "abort")
+     */
+    new <
+        TEvents extends EventTarget$1.EventDefinition,
+        TEventAttributes extends EventTarget$1.EventDefinition,
+        TMode extends EventTarget$1.Mode = "loose"
+    >(): EventTarget$1<TEvents, TEventAttributes, TMode>
+
+    /**
+     * Define an `EventTarget` constructor with attribute events and detailed event definition.
+     *
+     * Unfortunately, the second type parameter `TEventAttributes` was needed
+     * because we cannot compute string literal types.
+     *
+     * @example
+     * class AbortSignal extends EventTarget<{ abort: Event }, { onabort: Event }>("abort") {
+     *      abort(): void {}
+     * }
+     *
+     * @param events Optional event attributes (e.g. passing in `"click"` adds `onclick` to prototype).
+     */
+    <
+        TEvents extends EventTarget$1.EventDefinition = {},
+        TEventAttributes extends EventTarget$1.EventDefinition = {},
+        TMode extends EventTarget$1.Mode = "loose"
+    >(events: string[]): EventTargetConstructor$1<
+        TEvents,
+        TEventAttributes,
+        TMode
+    >
+
+    /**
+     * Define an `EventTarget` constructor with attribute events and detailed event definition.
+     *
+     * Unfortunately, the second type parameter `TEventAttributes` was needed
+     * because we cannot compute string literal types.
+     *
+     * @example
+     * class AbortSignal extends EventTarget<{ abort: Event }, { onabort: Event }>("abort") {
+     *      abort(): void {}
+     * }
+     *
+     * @param events Optional event attributes (e.g. passing in `"click"` adds `onclick` to prototype).
+     */
+    <
+        TEvents extends EventTarget$1.EventDefinition = {},
+        TEventAttributes extends EventTarget$1.EventDefinition = {},
+        TMode extends EventTarget$1.Mode = "loose"
+    >(event0: string, ...events: string[]): EventTargetConstructor$1<
+        TEvents,
+        TEventAttributes,
+        TMode
+    >
+}
+
+declare namespace EventTarget$1 {
+    /**
+     * Options of `removeEventListener()` method.
+     */
+    export interface RemoveOptions {
+        /**
+         * The flag to indicate that the listener is for the capturing phase.
+         */
+        capture?: boolean
+    }
+
+    /**
+     * Options of `addEventListener()` method.
+     */
+    export interface AddOptions extends RemoveOptions {
+        /**
+         * The flag to indicate that the listener doesn't support
+         * `event.preventDefault()` operation.
+         */
+        passive?: boolean
+        /**
+         * The flag to indicate that the listener will be removed on the first
+         * event.
+         */
+        once?: boolean
+    }
+
+    /**
+     * The type of regular listeners.
+     */
+    export interface FunctionListener<TEvent> {
+        (event: TEvent): void
+    }
+
+    /**
+     * The type of object listeners.
+     */
+    export interface ObjectListener<TEvent> {
+        handleEvent(event: TEvent): void
+    }
+
+    /**
+     * The type of listeners.
+     */
+    export type Listener<TEvent> =
+        | FunctionListener<TEvent>
+        | ObjectListener<TEvent>
+
+    /**
+     * Event definition.
+     */
+    export type EventDefinition = {
+        readonly [key: string]: Event$1
+    }
+
+    /**
+     * Mapped type for event attributes.
+     */
+    export type EventAttributes<TEventAttributes extends EventDefinition> = {
+        [P in keyof TEventAttributes]:
+            | FunctionListener<TEventAttributes[P]>
+            | null
+    }
+
+    /**
+     * The type of event data for `dispatchEvent()` method.
+     */
+    export type EventData<
+        TEvents extends EventDefinition,
+        TEventType extends keyof TEvents | string,
+        TMode extends Mode
+    > =
+        TEventType extends keyof TEvents
+            ? (
+                // Require properties which are not generated automatically.
+                & Pick<
+                    TEvents[TEventType],
+                    Exclude<keyof TEvents[TEventType], OmittableEventKeys>
+                >
+                // Properties which are generated automatically are optional.
+                & Partial<Pick<Event$1, OmittableEventKeys>>
+            )
+            : (
+                TMode extends "standard"
+                    ? Event$1
+                    : Event$1 | NonStandardEvent
+            )
+
+    /**
+     * The string literal types of the properties which are generated
+     * automatically in `dispatchEvent()` method.
+     */
+    export type OmittableEventKeys = Exclude<keyof Event$1, "type">
+
+    /**
+     * The type of event data.
+     */
+    export type NonStandardEvent = {
+        [key: string]: any
+        type: string
+    }
+
+    /**
+     * The type of listeners.
+     */
+    export type PickEvent<
+        TEvents extends EventDefinition,
+        TEventType extends keyof TEvents | string,
+    > =
+        TEventType extends keyof TEvents
+            ? TEvents[TEventType]
+            : Event$1
+
+    /**
+     * Event type candidates.
+     */
+    export type EventType<
+        TEvents extends EventDefinition,
+        TMode extends Mode
+    > =
+        TMode extends "strict"
+            ? keyof TEvents
+            : keyof TEvents | string
+
+    /**
+     * - `"strict"` ..... Methods don't accept unknown events.
+     *                    `dispatchEvent()` accepts partial objects.
+     * - `"loose"` ...... Methods accept unknown events.
+     *                    `dispatchEvent()` accepts partial objects.
+     * - `"standard"` ... Methods accept unknown events.
+     *                    `dispatchEvent()` doesn't accept partial objects.
+     */
+    export type Mode = "strict" | "standard" | "loose"
 }
 
 /**
@@ -1122,6 +1503,45 @@ declare namespace EventTarget {
     export type Mode = "strict" | "standard" | "loose"
 }
 
+type Events = {
+    abort: any
+}
+type EventAttributes = {
+    onabort: any
+}
+/**
+ * The signal class.
+ * @see https://dom.spec.whatwg.org/#abortsignal
+ */
+declare class AbortSignal extends EventTarget<Events, EventAttributes> {
+    /**
+     * AbortSignal cannot be constructed directly.
+     */
+    constructor()
+    /**
+     * Returns `true` if this `AbortSignal`"s `AbortController` has signaled to abort, and `false` otherwise.
+     */
+    readonly aborted: boolean
+}
+/**
+ * The AbortController.
+ * @see https://dom.spec.whatwg.org/#abortcontroller
+ */
+declare class AbortController {
+    /**
+     * Initialize this controller.
+     */
+    constructor()
+    /**
+     * Returns the `AbortSignal` object associated with this object.
+     */
+    readonly signal: AbortSignal
+    /**
+     * Abort and signal to any observers that the associated activity is to be aborted.
+     */
+    abort(): void
+}
+
 declare class FetchEvent {
   awaiting: Set<Promise<void>>
   constructor(request: Request)
@@ -1180,7 +1600,7 @@ interface Primitives {
   self: Primitives
 
   // abort-controller
-  AbortController: typeof undefined
+  AbortController: typeof AbortController
   AbortSignal: typeof AbortSignal
 
   // aggregate-error-ponyfill
@@ -1244,9 +1664,9 @@ interface Primitives {
   encodeURI: typeof encodeURI
   encodeURIComponent: typeof encodeURIComponent
   Error: typeof Error
-  Event: typeof Event
+  Event: Event$1
   FetchEvent: typeof FetchEvent
-  EventTarget: typeof EventTarget
+  EventTarget: typeof EventTarget$1
   EvalError: typeof EvalError
   Float32Array: typeof Float32Array
   Float64Array: typeof Float64Array
@@ -1266,7 +1686,7 @@ interface Primitives {
   parseFloat: typeof parseFloat
   parseInt: typeof parseInt
   Promise: typeof Promise
-  PromiseRejectionEvent: typeof EventTarget
+  PromiseRejectionEvent: typeof EventTarget$1
   Proxy: typeof Proxy
   RangeError: typeof RangeError
   ReferenceError: typeof ReferenceError

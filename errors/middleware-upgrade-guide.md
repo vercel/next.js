@@ -171,6 +171,7 @@ As well as other extended methods from `Map`.
 #### Before
 
 ```javascript
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -246,7 +247,7 @@ The helper is imported from `next/server` and allows you to opt in to using the 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
@@ -291,7 +292,7 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
