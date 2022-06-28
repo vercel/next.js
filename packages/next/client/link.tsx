@@ -109,7 +109,12 @@ function linkClicked(
   // anchors inside an svg have a lowercase nodeName
   const isAnchorNodeName = nodeName.toUpperCase() === 'A'
 
-  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
+  if (
+    isAnchorNodeName &&
+    (isModifiedEvent(e) ||
+      !isLocalURL(href) ||
+      e.currentTarget.hasAttribute('download'))
+  ) {
     // ignore click for browser’s default behavior
     return
   }
