@@ -30,7 +30,9 @@ module.exports = {
 }
 ```
 
-This option determines which runtime should be used as the default rendering runtime for all pages.
+This option determines which runtime should be used as the default rendering runtime for all pages. 
+
+You can detect which runtime you're using by looking at the `process.env.NEXT_RUNTIME` Environment Variable during runtime, and examining the `options.nextRuntime` variable during webpack compilation.
 
 ## Page Runtime Option
 
