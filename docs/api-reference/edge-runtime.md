@@ -4,7 +4,7 @@ description: The Next.js Edge Runtime is based on standard Web APIs. Learn more 
 
 # Edge Runtime
 
-The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middleware](/docs/middleware.md) and [Edge API Routes](/docs/api-routes/edge-api-routes.md).
+The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middleware](/docs/middleware.md), [Edge API Routes](/docs/api-routes/edge-api-routes.md) and [React 18's streaming feature](/docs/advanced-features/react-18/overview.md).
 
 ## Network APIs
 
