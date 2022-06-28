@@ -396,7 +396,7 @@ pub fn path_module_member(prop: JsValue) -> JsValue {
         Some("dirname") => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         Some("resolve") => {
             // cwd is added while resolving in refernces.rs
-            JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(js_word!("")))
+            JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(box JsValue::from("")))
         }
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
