@@ -1,3 +1,5 @@
+pub mod esm;
+
 use std::{
     collections::{HashMap, HashSet},
     future::Future,
@@ -20,18 +22,10 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    util::try_join_all,
-    Value,
-};
+use turbo_tasks::{primitives::StringVc, util::try_join_all, Value};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
-    chunk::{
-        AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
-        ChunkableAssetReferenceVc,
-    },
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{
@@ -44,6 +38,7 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 
+use self::esm::EsmAssetReferenceVc;
 use super::{
     analyzer::{
         builtin::replace_builtin,
@@ -55,7 +50,7 @@ use super::{
     },
     errors,
     parse::{parse, Buffer, ParseResult},
-    resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
+    resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     target::CompileTargetVc,
     typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
@@ -66,6 +61,7 @@ use super::{
     },
     ModuleAssetType,
 };
+use crate::references::esm::EsmAsyncAssetReferenceVc;
 
 #[turbo_tasks::function]
 pub(crate) async fn module_references(
@@ -362,6 +358,7 @@ pub(crate) async fn module_references(
                                 EsmAsyncAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
+                                    SwcSpanVc::cell(*span),
                                 )
                                 .into(),
                             );
@@ -1195,7 +1192,13 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         let src = export.src.value.to_string();
         self.references.push(
-            EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into()))).into(),
+            // TODO create a separate AssetReference for this
+            EsmAssetReferenceVc::new(
+                self.context,
+                RequestVc::parse(Value::new(src.into())),
+                SwcSpanVc::cell(export.span()),
+            )
+            .into(),
         );
         visit::visit_export_all(self, export);
     }
@@ -1203,8 +1206,13 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
             self.references.push(
-                EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
-                    .into(),
+                // TODO create a separate AssetReference for this
+                EsmAssetReferenceVc::new(
+                    self.context,
+                    RequestVc::parse(Value::new(src.into())),
+                    SwcSpanVc::cell(export.span()),
+                )
+                .into(),
             );
         }
         visit::visit_named_export(self, export);
@@ -1215,6 +1223,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             EsmAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.clone().into())),
+                SwcSpanVc::cell(import.span()),
             )
             .into(),
         );
@@ -1337,6 +1346,9 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct SwcSpan(#[trace_ignore] Span);
+
 #[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Clone, Debug)]
 pub struct PackageJsonReference {
@@ -1400,92 +1412,6 @@ impl AssetReference for TsConfigReference {
             "tsconfig {}",
             self.tsconfig.to_string().await?,
         )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
-#[derive(Hash, Debug)]
-pub struct EsmAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(EsmAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "import {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, AsyncLoadableReference)]
-#[derive(Hash, Debug)]
-pub struct EsmAsyncAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmAsyncAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(EsmAsyncAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "dynamic import {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AsyncLoadableReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn is_loaded_async(&self) -> BoolVc {
-        BoolVc::cell(true)
     }
 }
 

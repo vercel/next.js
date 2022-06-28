@@ -1,10 +1,12 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
+#![feature(into_future)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
 pub mod chunk;
+pub mod code_gen;
 mod errors;
 pub(crate) mod parse;
 pub(crate) mod references;
@@ -15,8 +17,18 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
+use std::future::IntoFuture;
+
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use chunk::{
+    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
+};
+use code_gen::CodeGenerationReferenceVc;
+use parse::{parse, ParseResult};
+use target::CompileTargetVc;
+use turbo_tasks::{
+    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
+};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -27,12 +39,8 @@ use turbopack_core::{
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc};
 use crate::{
-    chunk::{
-        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    },
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
     references::module_references,
-    target::CompileTargetVc,
 };
 
 #[turbo_tasks::value(serialization: auto_for_input)]
@@ -148,21 +156,50 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        // TODO: code generation
-        // Some(placeable) =
-        //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
-        // let id = context.id(placeable)
-        // generate:
-        // __turbopack_require__({id}) => exports / esm namespace object
-        // __turbopack_xxx__
-        Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "console.log(\"todo {}\");",
-                self.module.path().to_string().await?
-            ),
-            id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+        let references = self.module.references();
+        let mut code_generation = Vec::new();
+        for r in references.await?.iter() {
+            if let Some(code_gen) = CodeGenerationReferenceVc::resolve_from(r).await? {
+                code_generation.push(code_gen.code_generation().into_future());
+            }
         }
-        .into())
+        // need to keep that around to allow references into that
+        let code_generation = try_join_all(code_generation.into_iter()).await?;
+        let code_generation = code_generation.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        // TOOD use interval tree with references into "code_generation"
+        let mut interval_tree = Vec::new();
+        for code_gen in code_generation {
+            for (span, visitor) in code_gen.visitors.iter() {
+                interval_tree.push((span, visitor));
+            }
+        }
+
+        let module = self.module.await?;
+        let parsed = parse(module.source, Value::new(module.ty)).await?;
+
+        if let ParseResult::Ok {
+            program,
+            source_map,
+            ..
+        } = &*parsed
+        {
+            // TODO SWC magic to apply all visitors from the interval tree
+            // to the "program" and generate code for that.
+            Ok(EcmascriptChunkItemContent {
+                inner_code: format!(
+                    "console.log(\"todo {}\");",
+                    self.module.path().to_string().await?
+                ),
+                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+            }
+            .into())
+        } else {
+            Ok(EcmascriptChunkItemContent {
+                inner_code: format!("// unparsable {}", self.module.path().to_string().await?),
+                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+            }
+            .into())
+        }
     }
 }
 
