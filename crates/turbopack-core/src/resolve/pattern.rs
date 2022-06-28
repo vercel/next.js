@@ -3,8 +3,9 @@ use std::{collections::HashSet, fmt::Display, mem::take};
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc, Vc,
+    primitives::StringVc, trace::TraceRawVcs, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 
@@ -621,11 +622,16 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, TraceRawVcs)]
+#[derive(PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
 pub enum PatternMatch {
     File(String, FileSystemPathVc),
     Directory(String, FileSystemPathVc),
 }
+
+// TODO this isn't super efficient
+// avoid storing a large list of matches
+#[turbo_tasks::value(transparent)]
+pub struct PatternMatches(Vec<PatternMatch>);
 
 #[turbo_tasks::function]
 pub async fn read_matches(
@@ -633,7 +639,7 @@ pub async fn read_matches(
     prefix: String,
     force_in_context: bool,
     pattern: PatternVc,
-) -> Result<Vc<Vec<PatternMatch>>> {
+) -> Result<PatternMatchesVc> {
     let mut prefix = prefix;
     let pat = pattern.await?;
     let mut results = Vec::new();
@@ -833,7 +839,7 @@ pub async fn read_matches(
         for nested in nested.into_iter() {
             results.extend(nested.await?.iter().cloned());
         }
-        Ok(Vc::slot(results))
+        Ok(PatternMatchesVc::slot(results))
     }
 }
 

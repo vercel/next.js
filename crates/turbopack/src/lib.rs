@@ -20,7 +20,7 @@ use module_options::{
     module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
 };
 use resolve::{resolve_options, typescript_resolve_options};
-use turbo_tasks::{CompletionVc, Value, Vc};
+use turbo_tasks::{primitives::BoolVc, CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::reference::all_referenced_assets;
 use turbopack_core::{asset::AssetVc, resolve::parse::RequestVc};
@@ -65,8 +65,8 @@ impl GraphOptionsVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_native_bindings(self) -> Result<Vc<bool>> {
-        Ok(Vc::slot(self.await?.node_native_bindings))
+    pub async fn node_native_bindings(self) -> Result<BoolVc> {
+        Ok(BoolVc::slot(self.await?.node_native_bindings))
     }
 
     #[turbo_tasks::function]

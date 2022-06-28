@@ -8,7 +8,12 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, util::try_join_all, Value, Vc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    trace::TraceRawVcs,
+    util::try_join_all,
+    Value,
+};
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
@@ -232,9 +237,9 @@ impl ResolveResultVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self) -> Result<Vc<bool>> {
+    pub async fn is_unresolveable(self) -> Result<BoolVc> {
         let this = self.await?;
-        Ok(Vc::slot(this.is_unresolveable()))
+        Ok(BoolVc::slot(this.is_unresolveable()))
     }
 
     #[turbo_tasks::function]

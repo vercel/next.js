@@ -27,7 +27,6 @@ pub mod trace;
 pub mod util;
 mod value;
 mod value_type;
-mod vc;
 
 pub use anyhow::{Error, Result};
 pub use completion::{Completion, CompletionVc};
@@ -52,7 +51,6 @@ pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
 pub use value::Value;
 pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
-pub use vc::Vc;
 
 pub mod macro_helpers {
     pub use super::manager::{find_slot_by_key, find_slot_by_type};
@@ -63,6 +61,5 @@ pub mod test_helpers {
 }
 
 pub fn register() {
-    vc::VALUE_TYPE.register("turbo_tasks::Vc");
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

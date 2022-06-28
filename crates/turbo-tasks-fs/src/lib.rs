@@ -36,7 +36,7 @@ use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
-    Invalidator, ValueToString, Vc,
+    Invalidator, ValueToString,
 };
 use util::{join_path, normalize_path};
 
@@ -556,6 +556,9 @@ impl FileSystemPath {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct FileSystemPathOption(Option<FileSystemPathVc>);
+
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
     #[turbo_tasks::function]
@@ -590,24 +593,28 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn try_join(self, path: &str) -> Result<Vc<Option<Self>>> {
+    pub async fn try_join(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
-            Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))))
+            Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+                this.fs, path,
+            ))))
         } else {
-            Ok(Vc::slot(None))
+            Ok(FileSystemPathOptionVc::slot(None))
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn try_join_inside(self, path: &str) -> Result<Vc<Option<Self>>> {
+    pub async fn try_join_inside(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
             if path.starts_with(&this.path) {
-                return Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))));
+                return Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+                    this.fs, path,
+                ))));
             }
         }
-        Ok(Vc::slot(None))
+        Ok(FileSystemPathOptionVc::slot(None))
     }
 
     #[turbo_tasks::function]
@@ -701,14 +708,16 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
+    pub async fn get_type(self) -> Result<FileSystemEntryTypeVc> {
         let this = self.await?;
         if this.is_root() {
-            return Ok(Vc::slot(FileSystemEntryType::Directory));
+            return Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::Directory));
         }
         let dir_content = this.fs.read_dir(self.parent()).await?;
         match &*dir_content {
-            DirectoryContent::NotFound => Ok(Vc::slot(FileSystemEntryType::NotFound)),
+            DirectoryContent::NotFound => {
+                Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
+            }
             DirectoryContent::Entries(entries) => {
                 let basename = if let Some(i) = this.path.rfind('/') {
                     &this.path[i + 1..]
@@ -716,9 +725,9 @@ impl FileSystemPathVc {
                     &this.path
                 };
                 if let Some(entry) = entries.get(basename) {
-                    Ok(Vc::slot(entry.into()))
+                    Ok(FileSystemEntryTypeVc::slot(entry.into()))
                 } else {
-                    Ok(Vc::slot(FileSystemEntryType::NotFound))
+                    Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
                 }
             }
         }
@@ -1013,7 +1022,8 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Copy, Debug)]
 pub enum FileSystemEntryType {
     NotFound,
     File,
