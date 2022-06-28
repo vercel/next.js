@@ -2,14 +2,16 @@
 
 As we work on improving Middleware for General Availability (GA), we've made some changes to the Middleware APIs (and how you define Middleware in your application) based on your feedback.
 
-This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
+This upgrade guide will help you understand the changes, why they were made, and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
 
 - Currently use the beta Next.js Middleware features
 - Choose to upgrade to the next stable version of Next.js (`v12.2`)
 
-You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
+You can start upgrading your Middleware usage today with the latest release (`npm i next@latest`).
 
-If you have ESLint configured, you will need to run `npm i eslint-config-next@canary --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
+> **Note**: These changes described in this guide are included in Next.js `12.2`. You can keep your current site structure, including nested Middleware, until you move to `12.2` (or a `canary` build of Next.js).
+
+If you have ESLint configured, you will need to run `npm i eslint-config-next@latest --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
 
 ## Using Next.js Middleware on Vercel
 
@@ -34,13 +36,15 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 
 ### Explanation
 
-Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
+Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created.
 
-- Middleware in `pages/dashboard/_middleware.ts`
-- Middleware in `pages/dashboard/users/_middleware.ts`
-- A request to `/dashboard/users/*` **would match both.**
+Based on customer feedback, we have replaced this API with a single root Middleware, which provides the following improvements:
 
-Based on customer feedback, we have replaced this API with a single root Middleware.
+- **Faster execution with lower latency**: With nested Middleware, a single request could invoke multiple Middleware functions. A single Middleware means a single function execution, which is more efficient.
+- **Less expensive**: Middleware usage is billed per invocation. Using nested Middleware, a single request could invoke multiple Middleware functions, meaning multiple Middleware charges per request. A single Middleware means a single invocation per request and is more cost effective.
+- **Middleware can conveniently filter on things besides routes**: With nested Middleware, the Middleware files were located in the `pages` directory and Middleware was executed based on request paths. By moving to a single root Middleware, you can still execute code based on request paths, but you can now more conveniently execute Middleware based on other conditions, like `cookies` or the presence of a request header.
+- **Deterministic execution ordering**: With nested Middleware, a single request could match multiple Middleware functions. For example, a request to `/dashboard/users/*` would invoke Middleware defined in both `/dashboard/users/_middleware.ts` and `/dashboard/_middleware.js`. However, the execution order is difficult to reason about. Moving to a single, root Middleware more explicitly defines execution order.
+- **Supports Next.js Layouts (RFC)**: Moving to a single, root Middleware helps support the new [Layouts (RFC) in Next.js](https://nextjs.org/blog/layouts-rfc).
 
 ### How to upgrade
 
@@ -90,7 +94,7 @@ export function middleware(request: NextRequest) {
 
 ### Explanation
 
-To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
 The following patterns will no longer work:
 
