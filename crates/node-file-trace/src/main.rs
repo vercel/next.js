@@ -25,7 +25,10 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::AssetVc, context::AssetContextVc, reference::all_assets, source_asset::SourceAssetVc,
+    asset::{AssetVc, AssetsVc},
+    context::AssetContextVc,
+    reference::all_assets,
+    source_asset::SourceAssetVc,
 };
 
 use crate::nft_json::NftJsonAssetVc;
@@ -131,7 +134,8 @@ async fn add_glob_results(
     Ok(())
 }
 
-async fn input_to_modules<'a>(fs: FileSystemVc, input: &'a Vec<String>) -> Result<Vec<AssetVc>> {
+#[turbo_tasks::function]
+async fn input_to_modules<'a>(fs: FileSystemVc, input: Vec<String>) -> Result<AssetsVc> {
     let root = FileSystemPathVc::new(fs, "");
     let context = ModuleAssetContextVc::new(
         root,
@@ -143,7 +147,7 @@ async fn input_to_modules<'a>(fs: FileSystemVc, input: &'a Vec<String>) -> Resul
         let glob = GlobVc::new(input);
         add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
     }
-    Ok(list)
+    Ok(AssetsVc::slot(list))
 }
 
 fn process_context(dir: &PathBuf, context_directory: Option<&String>) -> Result<String> {
@@ -313,10 +317,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 Box::pin(async move {
                     let mut result = BTreeSet::new();
                     let fs = create_fs("context directory", &context, watch).await?;
-                    let modules = input_to_modules(fs, &input).await?;
-                    for module in modules {
-                        let set = all_assets(module);
-                        for asset in set.await?.assets.iter() {
+                    let modules = input_to_modules(fs, input).await?;
+                    for module in modules.iter() {
+                        let set = all_assets(*module);
+                        for asset in set.await?.iter() {
                             let path = asset.path().await?;
                             result.insert(path.path.to_string());
                         }
@@ -339,8 +343,8 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 let input = input.clone();
                 Box::pin(async move {
                     let fs = create_fs("context directory", &context, watch).await?;
-                    for module in input_to_modules(fs, &input).await? {
-                        let nft_asset = NftJsonAssetVc::new(module).into();
+                    for module in input_to_modules(fs, input).await?.iter() {
+                        let nft_asset = NftJsonAssetVc::new(*module).into();
                         emit(nft_asset)
                     }
                     Ok(NothingVc::new().into())
@@ -366,8 +370,8 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                     let out_fs = create_fs("output directory", &output, watch).await?;
                     let input_dir = FileSystemPathVc::new(fs, "");
                     let output_dir = FileSystemPathVc::new(out_fs, "");
-                    for module in input_to_modules(fs, &input).await? {
-                        let rebased = RebasedAssetVc::new(module, input_dir, output_dir).into();
+                    for module in input_to_modules(fs, input).await?.iter() {
+                        let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
                         emit(rebased);
                     }
                     Ok(NothingVc::new().into())

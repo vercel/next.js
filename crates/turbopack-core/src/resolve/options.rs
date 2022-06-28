@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
+use turbo_tasks::{primitives::BoolVc, trace::TraceRawVcs, Value};
 use turbo_tasks_fs::{
     glob::{Glob, GlobVc},
     FileSystemPathVc,
@@ -255,8 +255,8 @@ impl ResolveOptionsVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_typescript_types(self) -> Result<Vc<bool>> {
-        Ok(Vc::slot(self.await?.resolve_typescript_types))
+    pub async fn resolve_typescript_types(self) -> Result<BoolVc> {
+        Ok(BoolVc::slot(self.await?.resolve_typescript_types))
     }
 }
 

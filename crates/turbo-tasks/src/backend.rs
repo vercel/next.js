@@ -302,7 +302,7 @@ impl PersistentTaskType {
                             .map(|t| format!(" {}", t))
                             .collect::<String>();
                         Err(anyhow!(
-                            "{} doesn't implement trait {} (only{})",
+                            "{} doesn't implement {} (only{})",
                             this_value,
                             registry::get_trait(trait_type),
                             traits,

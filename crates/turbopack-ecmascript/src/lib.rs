@@ -3,6 +3,7 @@
 #![recursion_limit = "256"]
 
 pub mod analyzer;
+pub mod chunk;
 mod errors;
 pub(crate) mod parse;
 pub(crate) mod references;
@@ -13,27 +14,33 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
+use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc};
 use anyhow::Result;
+use chunk::{
+    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
+};
 use target::CompileTargetVc;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
+    chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
-    reference::AssetReferenceVc,
+    reference::AssetReferencesVc,
 };
 
 use self::references::module_references;
 
-#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization: auto_for_input)]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleAssetType {
     Ecmascript,
     Typescript,
     TypescriptDeclaration,
 }
 
-#[turbo_tasks::value(Asset)]
+#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset)]
+#[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
@@ -73,14 +80,76 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        module_references(
+    async fn references(&self) -> Result<AssetReferencesVc> {
+        Ok(module_references(
             self.source,
             self.context,
             Value::new(self.ty),
             self.target,
             self.node_native_bindings,
-        )
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableAsset for ModuleAsset {
+    #[turbo_tasks::function]
+    fn as_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+        EcmascriptChunkVc::new(context, self_vc.into()).into()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for ModuleAsset {
+    #[turbo_tasks::function]
+    fn as_chunk_item(
+        self_vc: ModuleAssetVc,
+        context: EcmascriptChunkContextVc,
+    ) -> EcmascriptChunkItemVc {
+        ModuleChunkItemVc::slot(ModuleChunkItem {
+            module: self_vc,
+            context,
+        })
+        .into()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleAsset {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
+            "ecmascript {}",
+            self.source.path().to_string().await?
+        )))
+    }
+}
+
+#[turbo_tasks::value(EcmascriptChunkItem)]
+struct ModuleChunkItem {
+    module: ModuleAssetVc,
+    context: EcmascriptChunkContextVc,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    async fn content(
+        &self,
+        _chunk_content: EcmascriptChunkContextVc,
+        _context: ChunkingContextVc,
+    ) -> Result<StringVc> {
+        // TODO: code generation
+        // Some(placeable) =
+        //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
+        // let id = context.id(placeable)
+        // generate:
+        // __turbopack_require__({id}) => exports / esm namespace object
+        // __turbopack_xxx__
+        Ok(StringVc::slot(format!(
+            "todo {};",
+            self.module.path().to_string().await?
+        )))
     }
 }
 

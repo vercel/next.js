@@ -1,12 +1,14 @@
 use std::{mem::replace, sync::Mutex};
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator, Vc};
+use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
     asset::{Asset, AssetVc},
-    reference::AssetReferenceVc,
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    resolve::ResolveResultVc,
 };
 
 #[derive(Serialize, Deserialize, TraceRawVcs)]
@@ -64,15 +66,48 @@ impl Asset for LazyAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
+    fn references(&self) -> AssetReferencesVc {
         let mut state = self.state.lock().unwrap();
         match &*state {
             LazyAssetState::Idle => {
                 *state = LazyAssetState::Waiting(get_invalidator());
-                Vc::slot(Vec::new())
+                AssetReferencesVc::slot(Vec::new())
             }
             LazyAssetState::Waiting(_) => unreachable!(),
             LazyAssetState::Expanded => self.asset.references(),
         }
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+struct LazyAssetReference {
+    reference: AssetReferenceVc,
+}
+
+#[turbo_tasks::value_impl]
+impl LazyAssetReferenceVc {
+    #[turbo_tasks::function]
+    fn new(reference: AssetReferenceVc) -> Self {
+        Self::slot(LazyAssetReference { reference })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for LazyAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let result = self.reference.resolve_reference().await?;
+        Ok(result
+            .map(
+                |a| async move { Ok(LazyAssetVc::new(a).into()) },
+                |r| async move { Ok(LazyAssetReferenceVc::new(r).into()) },
+            )
+            .await?
+            .into())
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> turbo_tasks::primitives::StringVc {
+        self.reference.description()
     }
 }

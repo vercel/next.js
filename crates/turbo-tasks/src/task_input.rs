@@ -410,6 +410,15 @@ impl TaskInput {
     }
 }
 
+pub trait FromTaskInput<'a>
+where
+    Self: Sized,
+{
+    type Error;
+
+    fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error>;
+}
+
 impl From<RawVc> for TaskInput {
     fn from(raw_vc: RawVc) -> Self {
         match raw_vc {
@@ -491,6 +500,23 @@ impl From<usize> for TaskInput {
     }
 }
 
+impl<T> From<Option<T>> for TaskInput
+where
+    TaskInput: From<T>,
+{
+    fn from(v: Option<T>) -> Self {
+        match v {
+            None => TaskInput::Nothing,
+            Some(v) => {
+                let result = v.into();
+                // Option<Option<T>> leads to problems with using Some(None)
+                debug_assert!(result != TaskInput::Nothing);
+                result
+            }
+        }
+    }
+}
+
 impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + TypedForInput + Send + Sync + 'static>
     From<Value<T>> for TaskInput
 where
@@ -524,7 +550,7 @@ impl<T: Into<TaskInput>> From<Vec<T>> for TaskInput {
     }
 }
 
-impl TryFrom<&TaskInput> for String {
+impl FromTaskInput<'_> for String {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -535,7 +561,7 @@ impl TryFrom<&TaskInput> for String {
     }
 }
 
-impl<'a> TryFrom<&'a TaskInput> for &'a str {
+impl<'a> FromTaskInput<'a> for &'a str {
     type Error = anyhow::Error;
 
     fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
@@ -546,7 +572,7 @@ impl<'a> TryFrom<&'a TaskInput> for &'a str {
     }
 }
 
-impl TryFrom<&TaskInput> for bool {
+impl FromTaskInput<'_> for bool {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -557,21 +583,21 @@ impl TryFrom<&TaskInput> for bool {
     }
 }
 
-impl<'a, T: TryFrom<&'a TaskInput, Error = anyhow::Error>> TryFrom<&'a TaskInput> for Vec<T> {
+impl<'a, T: FromTaskInput<'a, Error = anyhow::Error>> FromTaskInput<'a> for Vec<T> {
     type Error = anyhow::Error;
 
     fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::List(list) => Ok(list
                 .iter()
-                .map(|i| i.try_into())
+                .map(|i| FromTaskInput::try_from(i))
                 .collect::<Result<Vec<_>, _>>()?),
             _ => Err(anyhow!("invalid task input type, expected list")),
         }
     }
 }
 
-impl TryFrom<&TaskInput> for u32 {
+impl FromTaskInput<'_> for u32 {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -582,7 +608,7 @@ impl TryFrom<&TaskInput> for u32 {
     }
 }
 
-impl TryFrom<&TaskInput> for i32 {
+impl FromTaskInput<'_> for i32 {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -593,7 +619,7 @@ impl TryFrom<&TaskInput> for i32 {
     }
 }
 
-impl TryFrom<&TaskInput> for usize {
+impl FromTaskInput<'_> for usize {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
@@ -604,7 +630,21 @@ impl TryFrom<&TaskInput> for usize {
     }
 }
 
-impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + Send + Sync + 'static> TryFrom<&TaskInput>
+impl<'a, T> FromTaskInput<'a> for Option<T>
+where
+    T: FromTaskInput<'a>,
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::Nothing => Ok(None),
+            _ => FromTaskInput::try_from(value),
+        }
+    }
+}
+
+impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + Send + Sync + 'static> FromTaskInput<'_>
     for Value<T>
 where
     T: Serialize,
@@ -632,7 +672,7 @@ where
     }
 }
 
-impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + Send + Sync + 'static> TryFrom<&TaskInput>
+impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + Send + Sync + 'static> FromTaskInput<'_>
     for TransientValue<T>
 where
     T: Serialize,

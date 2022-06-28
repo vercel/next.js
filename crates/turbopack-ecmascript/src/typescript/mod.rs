@@ -2,13 +2,13 @@ pub mod resolve;
 
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
 };
 
@@ -43,7 +43,7 @@ impl Asset for TsConfigModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let mut references = Vec::new();
         let configs = read_tsconfigs(
             self.source.content().parse_json_with_comments(),
@@ -62,8 +62,7 @@ impl Asset for TsConfigModuleAsset {
                     .map(|s| (source, s.to_string()))
             })
             .await?;
-            let (source, compiler) =
-                compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
+            let (_, compiler) = compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
             references.push(
                 CompilerReferenceVc::new(
                     self.context,
@@ -85,7 +84,7 @@ impl Asset for TsConfigModuleAsset {
             })
             .await?;
             if let Some(require) = require {
-                for (source, request) in require {
+                for (_, request) in require {
                     references.push(
                         TsNodeRequireReferenceVc::new(
                             self.context,
@@ -112,7 +111,7 @@ impl Asset for TsConfigModuleAsset {
             })
             .await?;
             let types = types.unwrap_or_else(|| vec![(self.source, "node".to_string())]);
-            for (source, name) in types {
+            for (_, name) in types {
                 references.push(
                     TsConfigTypesReferenceVc::new(
                         self.context,
@@ -122,7 +121,7 @@ impl Asset for TsConfigModuleAsset {
                 );
             }
         }
-        Ok(Vc::slot(references))
+        Ok(AssetReferencesVc::slot(references))
     }
 }
 
@@ -149,8 +148,8 @@ impl AssetReference for CompilerReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "compiler reference {}",
             self.request.to_string().await?
         )))
@@ -179,8 +178,8 @@ impl AssetReference for TsExtendsReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "tsconfig extends {}",
             self.config.path().to_string().await?,
         )))
@@ -210,8 +209,8 @@ impl AssetReference for TsNodeRequireReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "tsconfig tsnode require {}",
             self.request.to_string().await?
         )))
@@ -241,8 +240,8 @@ impl AssetReference for TsConfigTypesReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "tsconfig types {}",
             self.request.to_string().await?,
         )))

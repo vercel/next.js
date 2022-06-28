@@ -1,12 +1,12 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    reference::{AssetReference, AssetReferenceVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::ResolveResultVc,
 };
 
@@ -43,7 +43,7 @@ impl Asset for RebasedAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<Vec<AssetReferenceVc>>> {
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let input_references = self.source.references().await?;
         let mut references = Vec::new();
         for reference in input_references.iter() {
@@ -56,7 +56,7 @@ impl Asset for RebasedAsset {
                 .into(),
             );
         }
-        Ok(Vc::slot(references))
+        Ok(AssetReferencesVc::slot(references))
     }
 }
 
@@ -93,8 +93,8 @@ impl AssetReference for RebasedAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "rebased {}",
             self.reference.description().await?
         )))

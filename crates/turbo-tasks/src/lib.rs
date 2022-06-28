@@ -19,6 +19,7 @@ mod no_move_vec;
 mod nothing;
 mod once_map;
 pub mod persisted_graph;
+pub mod primitives;
 mod raw_vc;
 pub mod registry;
 mod task_input;
@@ -26,7 +27,6 @@ pub mod trace;
 pub mod util;
 mod value;
 mod value_type;
-mod vc;
 
 pub use anyhow::{Error, Result};
 pub use completion::{Completion, CompletionVc};
@@ -43,12 +43,14 @@ pub use manager::{
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{RawVc, RawVcReadResult, ReadRawVcFuture};
-pub use task_input::{SharedReference, SharedValue, TaskInput};
+pub use raw_vc::{
+    RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture, ReadRawVcFuture,
+    ResolveTraitError,
+};
+pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
 pub use value::Value;
 pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
-pub use vc::Vc;
 
 pub mod macro_helpers {
     pub use super::manager::{find_slot_by_key, find_slot_by_type};
@@ -59,6 +61,5 @@ pub mod test_helpers {
 }
 
 pub fn register() {
-    vc::VALUE_TYPE.register("turbo_tasks::Vc");
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

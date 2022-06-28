@@ -8,8 +8,11 @@ use swc_ecmascript::{
     ast::{CallExpr, Expr, ExprOrSpread},
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::{Value, Vc};
-use turbopack_core::{asset::AssetVc, reference::AssetReferenceVc};
+use turbo_tasks::Value;
+use turbopack_core::{
+    asset::AssetVc,
+    reference::{AssetReferenceVc, AssetReferencesVc},
+};
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 
@@ -17,7 +20,7 @@ use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 pub async fn module_references(
     source: AssetVc,
     runtime: WebpackRuntimeVc,
-) -> Result<Vc<Vec<AssetReferenceVc>>> {
+) -> Result<AssetReferencesVc> {
     let parsed = parse(source, Value::new(ModuleAssetType::Ecmascript)).await?;
     match &*parsed {
         ParseResult::Ok {
@@ -40,9 +43,9 @@ pub async fn module_references(
                 // TODO report them in a stream
                 println!("{}", buf);
             }
-            Ok(Vc::slot(references))
+            Ok(AssetReferencesVc::slot(references))
         }
-        ParseResult::Unparseable | ParseResult::NotFound => Ok(Vc::default()),
+        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesVc::slot(Vec::new())),
     }
 }
 

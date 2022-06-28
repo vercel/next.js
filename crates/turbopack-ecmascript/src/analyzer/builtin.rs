@@ -370,7 +370,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::Call(_, box ref mut callee, ref mut args) => {
             match callee {
-                JsValue::Unknown(_, _) => {
+                JsValue::Unknown(..) => {
                     value.make_unknown("call of unknown function");
                     true
                 }

@@ -279,15 +279,22 @@ impl Task {
 
     pub(crate) fn get_description(&self) -> String {
         match &self.ty {
-            TaskType::Root(..) => "root".to_string(),
-            TaskType::Once(..) => "once".to_string(),
-            TaskType::Native(native_fn, _) => registry::get_function(*native_fn).name.clone(),
+            TaskType::Root(..) => format!("[{}] root", self.id),
+            TaskType::Once(..) => format!("[{}] once", self.id),
+            TaskType::Native(native_fn, _) => {
+                format!("[{}] {}", self.id, registry::get_function(*native_fn).name)
+            }
             TaskType::ResolveNative(native_fn) => {
-                format!("[resolve] {}", registry::get_function(*native_fn).name)
+                format!(
+                    "[{}] [resolve] {}",
+                    self.id,
+                    registry::get_function(*native_fn).name
+                )
             }
             TaskType::ResolveTrait(trait_type, fn_name) => {
                 format!(
-                    "[resolve trait] {} in trait {}",
+                    "[{}] [resolve trait] {} in trait {}",
+                    self.id,
                     fn_name,
                     registry::get_trait(*trait_type).name
                 )

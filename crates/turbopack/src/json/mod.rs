@@ -1,8 +1,7 @@
-use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    reference::AssetReferenceVc,
+    reference::AssetReferencesVc,
 };
 
 #[turbo_tasks::value(Asset)]
@@ -29,7 +28,7 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        Vc::default()
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
     }
 }

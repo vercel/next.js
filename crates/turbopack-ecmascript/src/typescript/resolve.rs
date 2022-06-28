@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::resolve::handle_resolve_error;
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -202,8 +202,8 @@ impl AssetReference for TypescriptTypesAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "typescript types {}",
             self.request.to_string().await?,
         )))

@@ -4,7 +4,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Literal, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     parenthesized,
@@ -112,6 +112,14 @@ fn get_trait_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Iden
     )
 }
 
+fn get_as_super_ident(ident: &Ident) -> Ident {
+    use convert_case::{Case, Casing};
+    Ident::new(
+        &format!("as_{}", ident.to_string().to_case(Case::Snake)),
+        ident.span(),
+    )
+}
+
 enum IntoMode {
     None,
     New,
@@ -175,6 +183,7 @@ struct ValueArguments {
     into_mode: IntoMode,
     slot_mode: IntoMode,
     manual_eq: bool,
+    transparent: bool,
 }
 
 impl Parse for ValueArguments {
@@ -185,6 +194,7 @@ impl Parse for ValueArguments {
             into_mode: IntoMode::None,
             slot_mode: IntoMode::Shared,
             manual_eq: false,
+            transparent: false,
         };
         if input.is_empty() {
             return Ok(result);
@@ -208,7 +218,6 @@ impl Parse for ValueArguments {
                     input.parse::<Token![:]>()?;
                     result.slot_mode = input.parse::<IntoMode>()?;
                 }
-
                 "eq" => {
                     input.parse::<Token![:]>()?;
                     let ident = input.parse::<Ident>()?;
@@ -221,6 +230,9 @@ impl Parse for ValueArguments {
                             format!("unexpected {}, expected \"manual\"", ident.to_string()),
                         ));
                     };
+                }
+                "transparent" => {
+                    result.transparent = true;
                 }
                 _ => {
                     result.traits.push(ident);
@@ -270,6 +282,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         into_mode,
         slot_mode,
         manual_eq,
+        transparent,
     } = parse_macro_input!(args as ValueArguments);
 
     let (vis, ident) = match &item {
@@ -289,97 +302,107 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let value_type_ident = get_value_type_ident(&ident);
     let value_type_id_ident = get_value_type_id_ident(&ident);
     let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
+    let as_trait_methods: Vec<_> = traits
+        .iter()
+        .map(|ident| get_as_super_ident(&ident))
+        .collect();
 
-    let into = match into_mode {
-        IntoMode::None => quote! {},
-        IntoMode::New => quote! {
-            impl From<#ident> for #ref_ident {
-                fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                    slot.update_shared(content);
-                    Self { node: slot.into() }
-                }
+    let mut inner_type = None;
+    if transparent {
+        if let Item::Struct(ItemStruct {
+            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
+            ..
+        }) = &item
+        {
+            if unnamed.len() == 1 {
+                let field = unnamed.iter().next().unwrap();
+                inner_type = Some(&field.ty);
             }
+        }
+    }
 
-            #(impl From<#ident> for #trait_refs {
-                fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                    slot.update_shared(content);
-                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
-                }
-            })*
-        },
-        IntoMode::Shared => quote! {
+    let into_update_op = match into_mode {
+        IntoMode::None => None,
+        IntoMode::New => Some(quote! {
+            slot.update_shared(content);
+        }),
+        IntoMode::Shared => Some(quote! {
             // TODO we could offer a From<&#ident> when #ident implemented Clone
-
-            impl From<#ident> for #ref_ident {
-                fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                    slot.compare_and_update_shared(content);
-                    Self { node: slot.into() }
-                }
-            }
-
-            #(impl From<#ident> for #trait_refs {
-                fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                    slot.compare_and_update_shared(content);
-                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
-                }
-            })*
-        },
+            slot.compare_and_update_shared(content);
+        }),
     };
 
-    let slot = match slot_mode {
-        IntoMode::None => quote! {},
-        IntoMode::New => quote! {
+    let into = if let Some(update_op) = into_update_op {
+        quote! {
+            impl From<#ident> for #ref_ident {
+                fn from(content: #ident) -> Self {
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    #update_op
+                    Self { node: slot.into() }
+                }
+            }
+
+            #(impl From<#ident> for #trait_refs {
+                fn from(content: #ident) -> Self {
+                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    #update_op
+                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
+                }
+            })*
+        }
+    } else {
+        quote! {}
+    };
+
+    let slot_update_op = match slot_mode {
+        IntoMode::None => None,
+        IntoMode::New => Some(quote! {
+            slot.update_shared(content);
+        }),
+        IntoMode::Shared => Some(quote! {
+            // TODO we could offer a From<&#ident> when #ident implemented Clone
+            slot.compare_and_update_shared(content);
+        }),
+    };
+
+    let (slot_prefix, slot_arg_type, slot_convert_content) = if let Some(inner_type) = inner_type {
+        (
+            quote! { pub },
+            quote! { #inner_type },
+            quote! {
+                let content = #ident(content);
+            },
+        )
+    } else {
+        (quote! {}, quote! { #ident }, quote! {})
+    };
+
+    let slot = if let Some(update_op) = slot_update_op {
+        quote! {
             /// Places a value in a slot of the current task.
-            /// Overrides the current value. Doesn't check of equallity.
             ///
             /// Slot is selected based on the value type and call order of `slot`.
-            fn slot(content: #ident) -> #ref_ident {
+            #slot_prefix fn slot(content: #slot_arg_type) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                slot.update_shared(content);
-               #ref_ident { node: slot.into() }
+                #slot_convert_content
+                #update_op
+                #ref_ident { node: slot.into() }
             }
 
             /// Places a value in a slot of the current task.
-            /// Overrides the current value. Doesn't check of equallity.
             ///
             /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
-            fn keyed_slot<
+            #slot_prefix fn keyed_slot<
                 K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(key: K, content: #ident) -> #ref_ident {
+            >(key: K, content: #slot_arg_type) -> #ref_ident {
                 let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
-                slot.update_shared(content);
+                #slot_convert_content
+                #update_op
                 #ref_ident { node: slot.into() }
             }
-        },
-        IntoMode::Shared => quote! {
-            /// Places a value in a slot of the current task.
-            /// If there is already a value in the slot it only overrides the value when
-            /// it's not equal to the provided value. (Requires `Eq` trait to be implemented on the type.)
-            ///
-            /// Slot is selected based on the value type and call order of `slot`.
-            fn slot(content: #ident) -> #ref_ident {
-                let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                slot.compare_and_update_shared(content);
-                #ref_ident { node: slot.into() }
-            }
-
-            /// Places a value in a slot of the current task.
-            /// If there is already a value in the slot it only overrides the value when
-            /// it's not equal to the provided value. (Requires `Eq` trait to be implemented on the type.)
-            ///
-            /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
-            fn keyed_slot<
-                K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(key: K, content: #ident) -> #ref_ident {
-                let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
-                slot.compare_and_update_shared(content);
-                #ref_ident { node: slot.into() }
-            }
-        },
+        }
+    } else {
+        quote! {}
     };
 
     let trait_registrations: Vec<_> = traits
@@ -433,6 +456,46 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
+    let into_future = if let Some(inner_type) = inner_type {
+        quote! {
+             // #[cfg(feature = "into_future")]
+             impl std::future::IntoFuture for #ref_ident {
+                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                fn into_future(self) -> Self::IntoFuture {
+                    self.node.into_read::<#ident>().map(|r| &r.0)
+                }
+            }
+
+            impl std::future::IntoFuture for &#ref_ident {
+                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                fn into_future(self) -> Self::IntoFuture {
+                    self.node.into_read::<#ident>().map(|r| &r.0)
+                }
+            }
+        }
+    } else {
+        quote! {
+             // #[cfg(feature = "into_future")]
+             impl std::future::IntoFuture for #ref_ident {
+                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                fn into_future(self) -> Self::IntoFuture {
+                    self.node.into_read::<#ident>()
+                }
+            }
+
+            impl std::future::IntoFuture for &#ref_ident {
+                type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                fn into_future(self) -> Self::IntoFuture {
+                    self.node.into_read::<#ident>()
+                }
+            }
+        }
+    };
+
     let expanded = quote! {
         #derive
         #eq_derive
@@ -479,26 +542,17 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
             }
+
+            #(
+                pub fn #as_trait_methods(self) -> #trait_refs {
+                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
+                }
+            )*
         }
 
-        // #[cfg(feature = "into_future")]
-        impl std::future::IntoFuture for #ref_ident {
-            type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-            type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
-            fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read::<#ident>()
-            }
-        }
+        #into_future
 
-        impl std::future::IntoFuture for &#ref_ident {
-            type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-            type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
-            fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read::<#ident>()
-            }
-        }
-
-        impl std::convert::TryFrom<&turbo_tasks::TaskInput> for #ref_ident {
+        impl turbo_tasks::FromTaskInput<'_> for #ref_ident {
             type Error = turbo_tasks::Error;
 
             fn try_from(value: &turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
@@ -698,6 +752,22 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let as_supertrait_methods: Vec<_> = supertraits
+        .iter()
+        .filter_map(|ident| {
+            if let TypeParamBound::Trait(TraitBound {
+                path: Path { segments, .. },
+                ..
+            }) = ident
+            {
+                let PathSegment { ident, .. } = segments.iter().next()?;
+                Some(get_as_super_ident(ident))
+            } else {
+                None
+            }
+        })
+        .collect();
+
     let ref_ident = get_ref_ident(ident);
     let mod_ident = get_trait_mod_ident(ident);
     let trait_type_ident = get_trait_type_ident(&ident);
@@ -771,24 +841,43 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(Self { node: self.node.resolve().await? })
             }
 
+            pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTraitError> {
+                let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
+                let raw_vc = raw_vc.resolve_trait(*#trait_type_id_ident).await?;
+                Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
+            }
+
+            pub fn cast_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Self {
+                let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
+                #ref_ident { node: raw_vc }
+            }
+
             #(pub #trait_fns)*
         }
 
-        impl #ident for #ref_ident {
+        impl<T> #ident for T where #ref_ident: std::convert::From<T>, turbo_tasks::TaskInput: for<'a> std::convert::From<&'a T> #(, #supertrait_refs: std::convert::From<T>)* {
             #(#trait_fns)*
         }
 
-        #(impl From<#ref_ident> for #supertrait_refs {
-            fn from(node_ref: #ref_ident) -> Self {
-                std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
+        #(
+            impl From<#ref_ident> for #supertrait_refs {
+                fn from(node_ref: #ref_ident) -> Self {
+                    std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
+                }
             }
-        })*
 
-        impl std::convert::TryFrom<&turbo_tasks::TaskInput> for #ref_ident {
+            impl #ref_ident {
+                pub fn #as_supertrait_methods(self) -> #supertrait_refs {
+                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
+                }
+            }
+        )*
+
+        impl turbo_tasks::FromTaskInput<'_> for #ref_ident {
             type Error = turbo_tasks::Error;
 
             fn try_from(value: &turbo_tasks::TaskInput) -> Result<Self, Self::Error> {
-                Ok(Self { node: value.try_into()? })
+                Ok(Self { node: std::convert::TryFrom::try_from(value)? })
             }
         }
 
@@ -968,21 +1057,33 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     });
                     let name =
                         Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
-                    let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
-                        quote! { #name },
-                        quote! { #struct_ident::#internal_function_ident },
-                        &function_ident,
-                        &function_id_ident,
-                        asyncness.is_some(),
-                        inputs,
-                        &output_type,
-                        Some(&ref_ident),
-                        false,
-                    );
+                    let (native_function_code, mut input_raw_vc_arguments) =
+                        gen_native_function_code(
+                            quote! { #name },
+                            quote! { #struct_ident::#internal_function_ident },
+                            &function_ident,
+                            &function_id_ident,
+                            asyncness.is_some(),
+                            inputs,
+                            &output_type,
+                            Some(&ref_ident),
+                            false,
+                        );
                     let mut new_sig = sig.clone();
                     new_sig.ident = internal_function_ident;
                     let mut external_sig = sig.clone();
                     external_sig.asyncness = None;
+                    let external_self = external_sig.inputs.first_mut().unwrap();
+                    let custom_self_type = matches!(sig.inputs.first().unwrap(), FnArg::Typed(..));
+                    if custom_self_type {
+                        *external_self = FnArg::Receiver(Receiver {
+                            attrs: Vec::new(),
+                            reference: Some((Token![&](Span::call_site()), None)),
+                            mutability: None,
+                            self_token: Token![self](Span::call_site()),
+                        });
+                        input_raw_vc_arguments[0] = quote! { self.into() };
+                    }
                     impl_functions.push(quote! {
                         impl #struct_ident {
                             #(#attrs)*
@@ -1007,7 +1108,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                     trait_functions.push(quote!{
                         #(#attrs)*
-                        #external_sig {
+                        pub #external_sig {
                             let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
                             #convert_result_code
                         }
@@ -1025,7 +1126,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
             #(#impl_functions)*
 
-            impl #trait_ident for #ref_ident {
+            impl #ref_ident {
                 #(#trait_functions)*
             }
         }
@@ -1218,7 +1319,7 @@ fn gen_native_function_code(
                         .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() self argument missing")))?;
                 });
                 input_convert.push(quote! {
-                    let __self = std::convert::TryInto::<#self_ref_type>::try_into(__self)?;
+                    let __self: #self_ref_type = turbo_tasks::FromTaskInput::try_from(__self)?;
                 });
                 input_clone.push(quote! {
                     let __self = std::clone::Clone::clone(&__self);
@@ -1264,7 +1365,7 @@ fn gen_native_function_code(
                         quote! { #elem }
                     };
                     input_convert.push(quote! {
-                        let #pat = std::convert::TryInto::<#ty>::try_into(#pat)?;
+                        let #pat: #ty = turbo_tasks::FromTaskInput::try_from(#pat)?;
                     });
                     input_clone.push(quote! {
                         let #pat = std::clone::Clone::clone(&#pat);
@@ -1274,7 +1375,7 @@ fn gen_native_function_code(
                     });
                 } else {
                     input_convert.push(quote! {
-                        let #pat = std::convert::TryInto::<#ty>::try_into(#pat)?;
+                        let #pat: #ty = turbo_tasks::FromTaskInput::try_from(#pat)?;
                     });
                     input_clone.push(quote! {
                         let #pat = std::clone::Clone::clone(&#pat);

@@ -8,14 +8,19 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    trace::TraceRawVcs,
+    util::try_join_all,
+    Value,
+};
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
 };
 
 use crate::{
-    asset::AssetVc,
+    asset::{AssetVc, AssetsVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         options::{ConditionValue, ResolvedMapVc},
@@ -232,9 +237,29 @@ impl ResolveResultVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self) -> Result<Vc<bool>> {
+    pub async fn is_unresolveable(self) -> Result<BoolVc> {
         let this = self.await?;
-        Ok(Vc::slot(this.is_unresolveable()))
+        Ok(BoolVc::slot(this.is_unresolveable()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn primary_assets(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        Ok(AssetsVc::slot(match &*this {
+            ResolveResult::Nested(nested) => {
+                let mut assets = HashSet::new();
+                for r in nested.iter() {
+                    for a in r.resolve_reference().primary_assets().await?.iter() {
+                        assets.insert(*a);
+                    }
+                }
+                assets.into_iter().collect()
+            }
+            ResolveResult::Single(asset, _) => vec![*asset],
+            ResolveResult::Keyed(map, _) => map.values().cloned().collect(),
+            ResolveResult::Alternatives(assets, _) => assets.iter().cloned().collect(),
+            ResolveResult::Special(_, _) | ResolveResult::Unresolveable(_) => Vec::new(),
+        }))
     }
 }
 
@@ -777,8 +802,8 @@ impl AssetReference for AffectingResolvingAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "resolving is affected by {}",
             self.file.to_string().await?
         )))

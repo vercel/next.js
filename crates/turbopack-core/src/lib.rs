@@ -2,6 +2,7 @@
 #![feature(option_get_or_insert_default)]
 
 pub mod asset;
+pub mod chunk;
 pub mod context;
 pub mod lazy;
 pub mod reference;

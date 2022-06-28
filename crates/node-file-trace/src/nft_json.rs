@@ -1,10 +1,9 @@
 use anyhow::Result;
 use json::object;
-use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileMeta, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    reference::{all_assets, AssetReferenceVc},
+    reference::{all_assets, AssetReferencesVc},
 };
 
 #[turbo_tasks::value(shared, Asset)]
@@ -37,7 +36,7 @@ impl Asset for NftJsonAsset {
         let self_path = context.get_relative_path_to(&*self.entry.path().await?);
         let mut result = Vec::new();
         let set = all_assets(self.entry);
-        for asset in set.await?.assets.iter() {
+        for asset in set.await?.iter() {
             let path = asset.path().await?;
             let rel_path = context.get_relative_path_to(&path);
             if rel_path != self_path {
@@ -58,7 +57,7 @@ impl Asset for NftJsonAsset {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        Vc::default()
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
     }
 }

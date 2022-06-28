@@ -1,19 +1,16 @@
-use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
-use crate::reference::AssetReferenceVc;
+use crate::reference::AssetReferencesVc;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, transparent)]
 #[derive(Hash)]
-pub struct AssetsSet {
-    pub assets: Vec<AssetVc>,
-}
+pub struct Assets(Vec<AssetVc>);
 
 #[turbo_tasks::value_impl]
-impl AssetsSetVc {
+impl AssetsVc {
     #[turbo_tasks::function]
     pub fn empty() -> Self {
-        AssetsSet { assets: Vec::new() }.into()
+        Assets(Vec::new()).into()
     }
 }
 
@@ -21,5 +18,5 @@ impl AssetsSetVc {
 pub trait Asset {
     fn path(&self) -> FileSystemPathVc;
     fn content(&self) -> FileContentVc;
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>>;
+    fn references(&self) -> AssetReferencesVc;
 }

@@ -11,12 +11,16 @@ use std::{
 use anyhow::Result;
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::{
+    backend::SlotContent,
     manager::{
-        read_task_output, read_task_output_untracked, read_task_slot_untracked, TurboTasksApi,
+        read_task_output, read_task_output_untracked, read_task_slot, read_task_slot_untracked,
+        TurboTasksApi,
     },
-    turbo_tasks, TaskId,
+    registry::get_value_type,
+    turbo_tasks, SharedReference, TaskId, TraitTypeId,
 };
 
 /// The result of reading a ValueVc.
@@ -33,6 +37,13 @@ pub struct RawVcReadResult<T: Any + Send + Sync> {
 impl<T: Any + Send + Sync> RawVcReadResult<T> {
     pub(crate) fn new(shared_ref: Arc<T>) -> Self {
         Self { inner: shared_ref }
+    }
+
+    fn map_read_result<O, F: Fn(&T) -> &O>(self, func: F) -> RawVcReadAndMapResult<T, O, F> {
+        RawVcReadAndMapResult {
+            inner: self.inner,
+            func,
+        }
     }
 }
 
@@ -54,6 +65,43 @@ impl<T: Debug + Any + Send + Sync> Debug for RawVcReadResult<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&**self, f)
     }
+}
+
+pub struct RawVcReadAndMapResult<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
+    inner: Arc<T>,
+    func: F,
+}
+
+impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> std::ops::Deref for RawVcReadAndMapResult<T, O, F> {
+    type Target = O;
+
+    fn deref(&self) -> &Self::Target {
+        (self.func)(&*self.inner)
+    }
+}
+
+impl<T: Any + Send + Sync, O: Display, F: Fn(&T) -> &O> Display for RawVcReadAndMapResult<T, O, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&**self, f)
+    }
+}
+
+impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapResult<T, O, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&**self, f)
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ResolveTraitError {
+    #[error("no content in the slot")]
+    NoContent,
+    #[error("the content in the slot has no type")]
+    UntypedContent,
+    #[error("content is not available as task execution failed")]
+    TaskError { source: anyhow::Error },
+    #[error("reading the slot content failed")]
+    ReadError { source: anyhow::Error },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -86,6 +134,42 @@ impl RawVc {
                             .await?
                             .cast::<T>()?,
                     );
+                }
+            }
+        }
+    }
+
+    pub async fn resolve_trait(
+        self,
+        trait_type: TraitTypeId,
+    ) -> Result<Option<RawVc>, ResolveTraitError> {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        let mut current = self;
+        loop {
+            match current {
+                RawVc::TaskOutput(task) => {
+                    current = read_task_output(&*tt, task)
+                        .await
+                        .map_err(|source| ResolveTraitError::TaskError { source })?;
+                }
+                RawVc::TaskSlot(task, index) => {
+                    let content = read_task_slot(&*tt, task, index)
+                        .await
+                        .map_err(|source| ResolveTraitError::ReadError { source })?;
+                    if let SlotContent(Some(shared_reference)) = content {
+                        if let SharedReference(Some(value_type), _) = shared_reference {
+                            if get_value_type(value_type).traits.contains(&trait_type) {
+                                return Ok(Some(RawVc::TaskSlot(task, index)));
+                            } else {
+                                return Ok(None);
+                            }
+                        } else {
+                            return Err(ResolveTraitError::UntypedContent);
+                        }
+                    } else {
+                        return Err(ResolveTraitError::NoContent);
+                    }
                 }
             }
         }
@@ -154,6 +238,13 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
             phantom_data: PhantomData,
         }
     }
+
+    pub fn map<O, F: Fn(&T) -> &O>(self, func: F) -> ReadAndMapRawVcFuture<T, O, F> {
+        ReadAndMapRawVcFuture {
+            inner: self,
+            func: Some(func),
+        }
+    }
 }
 
 impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
@@ -199,6 +290,30 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                     return std::task::Poll::Pending;
                 }
             };
+        }
+    }
+}
+
+pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
+    inner: ReadRawVcFuture<T>,
+    func: Option<F>,
+}
+
+impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<T, O, F> {
+    type Output = Result<RawVcReadAndMapResult<T, O, F>>;
+
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let this = unsafe { self.get_unchecked_mut() };
+        let inner_pin = Pin::new(&mut this.inner);
+        match inner_pin.poll(cx) {
+            std::task::Poll::Ready(r) => std::task::Poll::Ready(match r {
+                Ok(r) => Ok(r.map_read_result(this.func.take().unwrap())),
+                Err(e) => Err(e),
+            }),
+            std::task::Poll::Pending => std::task::Poll::Pending,
         }
     }
 }

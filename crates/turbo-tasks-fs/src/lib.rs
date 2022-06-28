@@ -35,7 +35,8 @@ use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use turbo_tasks::{
-    spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc, Invalidator, ValueToString, Vc,
+    primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
+    Invalidator, ValueToString,
 };
 use util::{join_path, normalize_path};
 
@@ -45,7 +46,7 @@ pub trait FileSystem {
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
-    fn to_string(&self) -> Vc<String>;
+    fn to_string(&self) -> StringVc;
 }
 
 mod watcher_ser {
@@ -481,8 +482,8 @@ impl FileSystem for DiskFileSystem {
         Ok(FileSystemPathVc::new(fs_path_value.fs, &p))
     }
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::slot(self.name.clone())
+    fn to_string(&self) -> StringVc {
+        StringVc::slot(self.name.clone())
     }
 }
 
@@ -528,8 +529,16 @@ impl FileSystemPath {
         if self.fs != other.fs {
             return None;
         }
-        let mut self_segments = self.path.split('/').peekable();
-        let mut other_segments = other.path.split('/').peekable();
+        fn split(s: &str) -> impl Iterator<Item = &str> {
+            let empty = s.is_empty();
+            let mut iterator = s.split('/');
+            if empty {
+                iterator.next();
+            }
+            iterator
+        }
+        let mut self_segments = split(&self.path).peekable();
+        let mut other_segments = split(&other.path).peekable();
         while self_segments.peek() == other_segments.peek() {
             self_segments.next();
             if other_segments.next().is_none() {
@@ -550,6 +559,9 @@ impl FileSystemPath {
         Some(result.join("/"))
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct FileSystemPathOption(Option<FileSystemPathVc>);
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathVc {
@@ -585,24 +597,28 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn try_join(self, path: &str) -> Result<Vc<Option<Self>>> {
+    pub async fn try_join(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
-            Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))))
+            Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+                this.fs, path,
+            ))))
         } else {
-            Ok(Vc::slot(None))
+            Ok(FileSystemPathOptionVc::slot(None))
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn try_join_inside(self, path: &str) -> Result<Vc<Option<Self>>> {
+    pub async fn try_join_inside(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
             if path.starts_with(&this.path) {
-                return Ok(Vc::slot(Some(Self::new_normalized(this.fs, path))));
+                return Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+                    this.fs, path,
+                ))));
             }
         }
-        Ok(Vc::slot(None))
+        Ok(FileSystemPathOptionVc::slot(None))
     }
 
     #[turbo_tasks::function]
@@ -696,14 +712,16 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_type(self) -> Result<Vc<FileSystemEntryType>> {
+    pub async fn get_type(self) -> Result<FileSystemEntryTypeVc> {
         let this = self.await?;
         if this.is_root() {
-            return Ok(Vc::slot(FileSystemEntryType::Directory));
+            return Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::Directory));
         }
         let dir_content = this.fs.read_dir(self.parent()).await?;
         match &*dir_content {
-            DirectoryContent::NotFound => Ok(Vc::slot(FileSystemEntryType::NotFound)),
+            DirectoryContent::NotFound => {
+                Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
+            }
             DirectoryContent::Entries(entries) => {
                 let basename = if let Some(i) = this.path.rfind('/') {
                     &this.path[i + 1..]
@@ -711,9 +729,9 @@ impl FileSystemPathVc {
                     &this.path
                 };
                 if let Some(entry) = entries.get(basename) {
-                    Ok(Vc::slot(entry.into()))
+                    Ok(FileSystemEntryTypeVc::slot(entry.into()))
                 } else {
-                    Ok(Vc::slot(FileSystemEntryType::NotFound))
+                    Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
                 }
             }
         }
@@ -733,8 +751,8 @@ impl FileSystemPathVc {
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::slot(format!(
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
             self.path
@@ -800,6 +818,13 @@ impl File {
                 meta: Default::default(),
                 content: output,
             })
+        }
+    }
+
+    pub fn from_source(str: String) -> Self {
+        File {
+            meta: Default::default(),
+            content: str.into_bytes(),
         }
     }
 }
@@ -1001,7 +1026,8 @@ pub enum DirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Copy, Debug)]
 pub enum FileSystemEntryType {
     NotFound,
     File,
@@ -1075,8 +1101,8 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::slot(String::from("null"))
+    fn to_string(&self) -> StringVc {
+        StringVc::slot(String::from("null"))
     }
 }
 

@@ -1,10 +1,10 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::primitives::StringVc;
 
 use crate::{
-    asset::{AssetVc, AssetsSet, AssetsSetVc},
+    asset::{AssetVc, AssetsVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
 
@@ -13,11 +13,22 @@ pub trait AssetReference {
     fn resolve_reference(&self) -> ResolveResultVc;
     // TODO think about different types
     // fn kind(&self) -> AssetReferenceTypeVc;
-    fn description(&self) -> Vc<String>;
+    fn description(&self) -> StringVc;
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AssetReferences(Vec<AssetReferenceVc>);
+
+#[turbo_tasks::value_impl]
+impl AssetReferencesVc {
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        AssetReferencesVc::slot(Vec::new())
+    }
 }
 
 #[turbo_tasks::function]
-pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsSetVc> {
+pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     let references_set = asset.references().await?;
     let mut assets = Vec::new();
     let mut queue = VecDeque::new();
@@ -55,24 +66,21 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsSetVc> {
             }
         }
     }
-    Ok(AssetsSet { assets }.into())
+    Ok(AssetsVc::slot(assets))
 }
 
 #[turbo_tasks::function]
-pub async fn all_assets(asset: AssetVc) -> Result<AssetsSetVc> {
+pub async fn all_assets(asset: AssetVc) -> Result<AssetsVc> {
     let mut queue = VecDeque::new();
     queue.push_back(all_referenced_assets(asset));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some(references) = queue.pop_front() {
-        for asset in references.await?.assets.iter() {
+        for asset in references.await?.iter() {
             if assets.insert(*asset) {
                 queue.push_back(all_referenced_assets(*asset));
             }
         }
     }
-    Ok(AssetsSet {
-        assets: assets.into_iter().collect(),
-    }
-    .into())
+    Ok(AssetsVc::slot(assets.into_iter().collect()))
 }

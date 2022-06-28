@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     collections::HashSet,
     fmt::Debug,
-    future::Future,
+    future::{Future, IntoFuture},
     hash::Hash,
     mem::take,
     pin::Pin,
@@ -14,7 +14,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use event_listener::{Event, EventListener};
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, task::JoinHandle, task_local};
@@ -26,7 +26,7 @@ use crate::{
     raw_vc::RawVc,
     task_input::{SharedReference, SharedValue, TaskInput},
     trace::TraceRawVcs,
-    NothingVc, TaskId, Typed, TypedForInput, ValueTypeId, Vc,
+    Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -221,18 +221,18 @@ impl<B: Backend> TurboTasks<B> {
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
         let task_id = self.spawn_once_task(async move {
             let result = future.await?;
-            Ok(Vc::slot_new(Mutex::new(RefCell::new(Some(result)))).into())
+            tx.send(result)
+                .map_err(|_| anyhow!("unable to send result"))?;
+            Ok(NothingVc::new().into())
         });
         // SAFETY: A Once task will never invalidate, therefore we don't need to track a
         // dependency
         let raw_result = unsafe { read_task_output_untracked(self, task_id) }.await?;
-        let read_result =
-            unsafe { raw_result.into_read_untracked::<Mutex<RefCell<Option<T>>>>(self) }.await?;
-        let exchange = &*read_result;
-        let guard = exchange.lock().unwrap();
-        Ok(guard.take().unwrap())
+        unsafe { raw_result.into_read_untracked::<Nothing>(self) }.await?;
+        Ok(rx.await?)
     }
 
     /// Call a native function with arguments.

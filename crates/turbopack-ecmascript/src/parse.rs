@@ -15,7 +15,7 @@ use swc_ecmascript::ast::{EsVersion, Program};
 use swc_ecmascript::parser::lexer::Lexer;
 use swc_ecmascript::parser::{EsConfig, Parser, Syntax, TsConfig};
 use swc_ecmascript::visit::VisitMutWith;
-use turbo_tasks::{Value, ValueToString};
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
 
 use crate::analyzer::graph::EvalContext;

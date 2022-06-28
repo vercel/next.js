@@ -677,7 +677,7 @@ impl Visit for Analyzer<'_> {
 
     fn visit_arrow_expr(&mut self, expr: &ArrowExpr) {
         let value = match &expr.body {
-            BlockStmtOrExpr::BlockStmt(block) => {
+            BlockStmtOrExpr::BlockStmt(_block) => {
                 let old = replace(&mut self.cur_fn_return_values, Some(vec![]));
                 expr.visit_children_with(self);
                 let return_value = self.take_return_values();

@@ -1,7 +1,6 @@
 pub mod node_native_binding;
 
 use anyhow::Result;
-use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     context::AssetContextVc,
