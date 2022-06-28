@@ -45,18 +45,18 @@ import type { NextRequest } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
-  return NextResponse.redirect(new URL('/about-2', request.url));
+  return NextResponse.redirect(new URL('/about-2', request.url))
 }
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: '/about/:path*'
+  matcher: '/about/:path*',
 }
 ```
 
 ## Matching Paths
 
-Middleware will be invoked for **every route in your project**. The following is the execution order: 
+Middleware will be invoked for **every route in your project**. The following is the execution order:
 
 1. `headers` from `next.config.js`
 2. `redirects` from `next.config.js`
@@ -67,14 +67,14 @@ Middleware will be invoked for **every route in your project**. The following is
 7. Dynamic Routes (`/blog/[slug]`)
 8. `fallback` (`rewrites`) from `next.config.js`
 
-There are two ways to define which paths Middleware will run on: 
+There are two ways to define which paths Middleware will run on:
 
 1. Custom matcher config
 2. Conditional statements
 
 ### Matcher
 
-`matcher` allows you to filter Middleware to run on specific paths. 
+`matcher` allows you to filter Middleware to run on specific paths.
 
 ```js
 export const config = {

@@ -151,21 +151,21 @@ If you were previously using Middleware to forward headers to an external API, y
 ```typescript
 // pages/api/proxy.ts
 
-import { type NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge'
-};
+  runtime: 'experimental-edge',
+}
 
 export default async function handler(req: NextRequest) {
-  const authorization = req.cookies.get('authorization');
+  const authorization = req.cookies.get('authorization')
   return fetch('https://backend-api.com/api/protected', {
     method: req.method,
     headers: {
-      authorization
+      authorization,
     },
-    redirect: 'manual'
-  });
+    redirect: 'manual',
+  })
 }
 ```
 
