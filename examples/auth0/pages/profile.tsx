@@ -2,8 +2,13 @@
 // import auth0 from '../lib/auth0'
 import { useFetchUser } from '../lib/user'
 import Layout from '../components/layout'
+import { User } from '../interfaces'
 
-function ProfileCard({ user }) {
+type ProfileCardProps = {
+  user: User
+}
+
+const ProfileCard = ({ user }: ProfileCardProps) => {
   return (
     <>
       <h1>Profile</h1>
@@ -18,7 +23,7 @@ function ProfileCard({ user }) {
   )
 }
 
-function Profile() {
+const Profile = () => {
   const { user, loading } = useFetchUser({ required: true })
 
   return (
