@@ -138,6 +138,51 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should resolve correctly when a redirect is returned', async () => {
+    const toRename = `standalone/.next/server/pages/route-resolving/[slug]/[project].html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+    try {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/route-resolving/import/first',
+        undefined,
+        {
+          redirect: 'manual',
+          headers: {
+            'x-matched-path': '/route-resolving/import/[slug]',
+          },
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+
+      await waitFor(3000)
+      expect(stderr).not.toContain('ENOENT')
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
+  it('should show invariant when an automatic static page is requested', async () => {
+    const toRename = `standalone/.next/server/pages/auto-static.html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+
+    try {
+      const res = await fetchViaHTTP(appPort, '/auto-static', undefined, {
+        headers: {
+          'x-matched-path': '/auto-static',
+        },
+      })
+
+      expect(res.status).toBe(500)
+      await check(() => stderr, /Invariant: failed to load static page/)
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
   it.each([
     {
       case: 'redirect no revalidate',
