@@ -126,7 +126,14 @@ export function reducer(
     // TODO: figure out something better for index pages
     segments.push('page')
 
-    const optimisticTree = createOptimisticTree(
+    const optimisticTreeWithoutRefetch = createOptimisticTree(
+      segments,
+      state.tree,
+      true,
+      true
+    )
+
+    const optimisticTreeWithRefetch = createOptimisticTree(
       segments,
       state.tree,
       true,
@@ -138,16 +145,16 @@ export function reducer(
 
     console.log('NEW PUSH', {
       existingCache: state.cache,
-      optimisticTree: optimisticTree,
+      optimisticTree: optimisticTreeWithRefetch,
     })
 
     // TODO: update url eagerly or not?
     // TODO: update during setting state or useEffect?
-    window.history[method]({ tree: optimisticTree }, '', href)
+    window.history[method]({ tree: optimisticTreeWithoutRefetch }, '', href)
 
     return {
       cache: state.cache,
-      tree: optimisticTree,
+      tree: optimisticTreeWithRefetch,
     }
   }
 

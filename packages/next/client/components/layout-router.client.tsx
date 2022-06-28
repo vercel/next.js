@@ -63,6 +63,8 @@ export function InnerLayoutRouter({
     console.log('KICKING OFF DATA FETCH IN RENDER', {
       path,
     })
+
+    // TODO: passing fullTree causes refetch to be missing in back/forward case.
     const data = fetchServerResponse(new URL(url, location.origin), fullTree)
     childNodes.set(path, {
       data,
