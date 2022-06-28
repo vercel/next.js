@@ -256,6 +256,11 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
+  /**
+   * @deprecated `unstable_revalidate` has been renamed to `revalidate`
+   */
+  unstable_revalidate: () => void
+
   revalidate: (
     urlPath: string,
     opts?: {
@@ -410,6 +415,13 @@ export class PageNotFoundError extends Error {
     super()
     this.code = 'ENOENT'
     this.message = `Cannot find module for page: ${page}`
+  }
+}
+
+export class MissingStaticPage extends Error {
+  constructor(page: string, message: string) {
+    super()
+    this.message = `Failed to load static file for page: ${page} ${message}`
   }
 }
 

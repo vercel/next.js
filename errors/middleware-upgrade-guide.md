@@ -88,7 +88,7 @@ export function middleware(request: NextRequest) {
 
 ### Summary of changes
 
-- Middleware can no longer respond with a body
+- Middleware can no longer produce a response body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
 - Migrate to using `rewrite`/`redirect` to pages/APIs handling a response
 
@@ -148,6 +148,31 @@ export function middleware(request: NextRequest) {
 }
 ```
 
+#### Edge API Routes
+
+If you were previously using Middleware to forward headers to an external API, you can now use [Edge API Routes](/docs/api-routes/edge-api-routes):
+
+```typescript
+// pages/api/proxy.ts
+
+import { type NextRequest } from 'next/server'
+
+export const config = {
+  runtime: 'experimental-edge',
+}
+
+export default async function handler(req: NextRequest) {
+  const authorization = req.cookies.get('authorization')
+  return fetch('https://backend-api.com/api/protected', {
+    method: req.method,
+    headers: {
+      authorization,
+    },
+    redirect: 'manual',
+  })
+}
+```
+
 ## Cookies API Revamped
 
 ### Summary of changes
@@ -175,6 +200,7 @@ As well as other extended methods from `Map`.
 #### Before
 
 ```javascript
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -250,7 +276,7 @@ The helper is imported from `next/server` and allows you to opt in to using the 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
@@ -295,7 +321,7 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
