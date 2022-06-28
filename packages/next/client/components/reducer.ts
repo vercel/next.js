@@ -56,7 +56,6 @@ export function reducer(
         }
       }
 ): AppRouterState {
-  console.log('ACTION', action)
   if (action.type === 'restore') {
     return {
       ...state,
@@ -142,11 +141,6 @@ export function reducer(
 
     // TODO: hard push should use optimisticTree to create a new cache. If the item already exists, it should not recurse down creating extra nodes
     // If the item does not exists it should keep the existing cache
-
-    console.log('NEW PUSH', {
-      existingCache: state.cache,
-      optimisticTree: optimisticTreeWithRefetch,
-    })
 
     // TODO: update url eagerly or not?
     // TODO: update during setting state or useEffect?

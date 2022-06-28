@@ -60,11 +60,6 @@ export function InnerLayoutRouter({
   }
 
   if (!childNodes.has(path)) {
-    console.log('KICKING OFF DATA FETCH IN RENDER', {
-      path,
-    })
-
-    // TODO: passing fullTree causes refetch to be missing in back/forward case.
     const walkAddRefetch = (
       segmentPathToWalk: FlightSegmentPath | undefined,
       treeToRecreate: FlightRouterState
@@ -73,8 +68,6 @@ export function InnerLayoutRouter({
         const [segment, parallelRouteKey] = segmentPathToWalk
         const isLast = segmentPathToWalk.length === 2
         if (treeToRecreate[0] === segment) {
-          console.log({ segmentPath: segmentPathToWalk, tree: treeToRecreate })
-
           if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
             if (isLast) {
               const subTree = walkAddRefetch(
@@ -111,9 +104,6 @@ export function InnerLayoutRouter({
       return treeToRecreate
     }
 
-    const refetchTree = walkAddRefetch(segmentPath, fullTree)
-    console.log({ refetchTree })
-
     const data = fetchServerResponse(
       new URL(url, location.origin),
       walkAddRefetch(segmentPath, fullTree)
@@ -132,7 +122,6 @@ export function InnerLayoutRouter({
   if (childNode.data) {
     // TODO: error case
     const root = childNode.data.readRoot()
-    console.log('ROOT', root)
 
     let fastPath: boolean = false
     // segmentPath matches what came back from the server. This is the happy path.
