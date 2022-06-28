@@ -1216,14 +1216,19 @@ export default class Router implements BaseRouter {
           handleHardNavigation({ url: as, router: this })
           return true
         }
-        resolvedAs = rewritesResult.asPath
+        if (!isMiddlewareMatch) {
+          resolvedAs = rewritesResult.asPath
+        }
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
           pathname = rewritesResult.resolvedHref
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       } else {
         parsed.pathname = resolveDynamicRoute(pathname, pages)
@@ -1231,7 +1236,10 @@ export default class Router implements BaseRouter {
         if (parsed.pathname !== pathname) {
           pathname = parsed.pathname
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       }
     }
@@ -1250,13 +1258,14 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     let route = removeTrailingSlash(pathname)
+    let routeMatch: { [paramName: string]: string | string[] } | false = false
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
 
       const routeRegex = getRouteRegex(route)
-      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      routeMatch = getRouteMatcher(routeRegex)(asPathname)
       const shouldInterpolate = route === asPathname
       const interpolatedAs = shouldInterpolate
         ? interpolateAs(route, asPathname, query)
@@ -1328,6 +1337,14 @@ export default class Router implements BaseRouter {
         pathname = routeInfo.route || route
         route = pathname
         query = Object.assign({}, routeInfo.query || {}, query)
+
+        if (routeMatch && pathname !== parsed.pathname) {
+          Object.keys(routeMatch).forEach((key) => {
+            if (routeMatch && query[key] === routeMatch[key]) {
+              delete query[key]
+            }
+          })
+        }
 
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
@@ -1994,6 +2011,17 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     let resolvedAs = asPath
 
+    const locale =
+      typeof options.locale !== 'undefined'
+        ? options.locale || undefined
+        : this.locale
+
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: asPath,
+      locale: locale,
+      router: this,
+    })
+
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
       let rewrites: any
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
@@ -2020,7 +2048,10 @@ export default class Router implements BaseRouter {
         // allow the correct page chunk to be loaded
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
-        url = formatWithValidation(parsed)
+
+        if (!isMiddlewareMatch) {
+          url = formatWithValidation(parsed)
+        }
       }
     }
     parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
@@ -2034,13 +2065,11 @@ export default class Router implements BaseRouter {
           parsePath(asPath).pathname
         ) || {}
       )
-      url = formatWithValidation(parsed)
-    }
 
-    const locale =
-      typeof options.locale !== 'undefined'
-        ? options.locale || undefined
-        : this.locale
+      if (!isMiddlewareMatch) {
+        url = formatWithValidation(parsed)
+      }
+    }
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {
