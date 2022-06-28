@@ -118,7 +118,6 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
-    layoutRaw?: boolean
     remotePatterns?: RemotePattern[]
     unoptimized?: boolean
     allowFutureImage?: boolean
@@ -543,7 +542,6 @@ export const defaultConfig: NextConfig = {
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     images: {
-      layoutRaw: false,
       remotePatterns: [],
     },
     forceSwcTransforms: false,
