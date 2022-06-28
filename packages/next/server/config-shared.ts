@@ -546,7 +546,7 @@ export const defaultConfig: NextConfig = {
     },
     swcTraceProfiling: false,
     forceSwcTransforms: false,
-    swcPlugins: [],
+    swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
