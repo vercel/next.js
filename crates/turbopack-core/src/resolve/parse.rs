@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_tasks::{
-    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc, Vc,
+    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
 };
 
 use super::pattern::Pattern;

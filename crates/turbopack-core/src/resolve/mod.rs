@@ -8,16 +8,14 @@ use std::{
 use anyhow::{anyhow, Result};
 use json::JsonValue;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::StringVc, trace::TraceRawVcs, util::try_join_all, Value, ValueToString, Vc,
-};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, util::try_join_all, Value, Vc};
 use turbo_tasks_fs::{
     util::{join_path, normalize_path, normalize_request},
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
 };
 
 use crate::{
-    asset::AssetVc,
+    asset::{AssetVc, AssetsVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         options::{ConditionValue, ResolvedMapVc},
@@ -237,6 +235,26 @@ impl ResolveResultVc {
     pub async fn is_unresolveable(self) -> Result<Vc<bool>> {
         let this = self.await?;
         Ok(Vc::slot(this.is_unresolveable()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn primary_assets(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        Ok(AssetsVc::slot(match &*this {
+            ResolveResult::Nested(nested) => {
+                let mut assets = HashSet::new();
+                for r in nested.iter() {
+                    for a in r.resolve_reference().primary_assets().await?.iter() {
+                        assets.insert(*a);
+                    }
+                }
+                assets.into_iter().collect()
+            }
+            ResolveResult::Single(asset, _) => vec![*asset],
+            ResolveResult::Keyed(map, _) => map.values().cloned().collect(),
+            ResolveResult::Alternatives(assets, _) => assets.iter().cloned().collect(),
+            ResolveResult::Special(_, _) | ResolveResult::Unresolveable(_) => Vec::new(),
+        }))
     }
 }
 

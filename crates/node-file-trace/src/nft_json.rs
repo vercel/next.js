@@ -37,7 +37,7 @@ impl Asset for NftJsonAsset {
         let self_path = context.get_relative_path_to(&*self.entry.path().await?);
         let mut result = Vec::new();
         let set = all_assets(self.entry);
-        for asset in set.await?.assets.iter() {
+        for asset in set.await?.iter() {
             let path = asset.path().await?;
             let rel_path = context.get_relative_path_to(&path);
             if rel_path != self_path {

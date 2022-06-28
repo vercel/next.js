@@ -137,7 +137,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 ObjectPart::KeyValue(_, value) => {
                                     values.push(take(value));
                                 }
-                                ObjectPart::Spread(value) => {
+                                ObjectPart::Spread(_) => {
                                     values.push(JsValue::Unknown(
                                         Some(Arc::new(JsValue::member(
                                             box JsValue::object(vec![take(part)]),
@@ -311,7 +311,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::Call(_, box ref mut callee, ref mut args) => {
             match callee {
-                JsValue::Unknown(inner, explainer) => {
+                JsValue::Unknown(..) => {
                     value.make_unknown("call of unknown function");
                     true
                 }

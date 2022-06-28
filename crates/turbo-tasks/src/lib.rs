@@ -46,6 +46,7 @@ pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
 pub use raw_vc::{
     RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture, ReadRawVcFuture,
+    ResolveTraitError,
 };
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::resolve::handle_resolve_error;
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,

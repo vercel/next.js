@@ -11,12 +11,16 @@ use std::{
 use anyhow::Result;
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::{
+    backend::SlotContent,
     manager::{
-        read_task_output, read_task_output_untracked, read_task_slot_untracked, TurboTasksApi,
+        read_task_output, read_task_output_untracked, read_task_slot, read_task_slot_untracked,
+        TurboTasksApi,
     },
-    turbo_tasks, TaskId,
+    registry::get_value_type,
+    turbo_tasks, SharedReference, TaskId, TraitTypeId,
 };
 
 /// The result of reading a ValueVc.
@@ -88,6 +92,18 @@ impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapR
     }
 }
 
+#[derive(Error, Debug)]
+pub enum ResolveTraitError {
+    #[error("no content in the slot")]
+    NoContent,
+    #[error("the content in the slot has no type")]
+    UntypedContent,
+    #[error("content is not available as task execution failed")]
+    TaskError { source: anyhow::Error },
+    #[error("reading the slot content failed")]
+    ReadError { source: anyhow::Error },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
@@ -118,6 +134,42 @@ impl RawVc {
                             .await?
                             .cast::<T>()?,
                     );
+                }
+            }
+        }
+    }
+
+    pub async fn resolve_trait(
+        self,
+        trait_type: TraitTypeId,
+    ) -> Result<Option<RawVc>, ResolveTraitError> {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        let mut current = self;
+        loop {
+            match current {
+                RawVc::TaskOutput(task) => {
+                    current = read_task_output(&*tt, task)
+                        .await
+                        .map_err(|source| ResolveTraitError::TaskError { source })?;
+                }
+                RawVc::TaskSlot(task, index) => {
+                    let content = read_task_slot(&*tt, task, index)
+                        .await
+                        .map_err(|source| ResolveTraitError::ReadError { source })?;
+                    if let SlotContent(Some(shared_reference)) = content {
+                        if let SharedReference(Some(value_type), _) = shared_reference {
+                            if get_value_type(value_type).traits.contains(&trait_type) {
+                                return Ok(Some(RawVc::TaskSlot(task, index)));
+                            } else {
+                                return Ok(None);
+                            }
+                        } else {
+                            return Err(ResolveTraitError::UntypedContent);
+                        }
+                    } else {
+                        return Err(ResolveTraitError::NoContent);
+                    }
                 }
             }
         }

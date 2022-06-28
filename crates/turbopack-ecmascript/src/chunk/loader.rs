@@ -1,72 +1,45 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
-use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::ChunkableAssetVc,
-    reference::AssetReferenceVc,
+    chunk::{ChunkableAssetVc, ChunkingContextVc},
 };
 
-use super::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-    EcmascriptChunkPlaceableVc,
-};
-
-#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable)]
-struct ChunkGroupLoaderAsset {
-    asset: ChunkableAssetVc,
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for ChunkGroupLoaderAsset {
-    #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        todo!()
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> FileContentVc {
-        todo!()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        todo!()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ChunkGroupLoaderAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(&self, context: EcmascriptChunkContextVc) -> EcmascriptChunkItemVc {
-        ChunkGroupLoaderChunkItemVc::slot(ChunkGroupLoaderChunkItem {
-            context,
-            asset: self.asset,
-        })
-        .into()
-    }
-}
+use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};
 
 #[turbo_tasks::value(EcmascriptChunkItem)]
-struct ChunkGroupLoaderChunkItem {
-    context: EcmascriptChunkContextVc,
+pub struct ChunkGroupLoaderChunkItem {
     asset: ChunkableAssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {}
+impl ChunkGroupLoaderChunkItemVc {
+    #[turbo_tasks::function]
+    pub fn new(asset: ChunkableAssetVc) -> Self {
+        Self::slot(ChunkGroupLoaderChunkItem { asset })
+    }
+}
 
 #[turbo_tasks::value_impl]
-impl Asset for ChunkGroupLoaderChunkItem {
+impl ValueToString for ChunkGroupLoaderChunkItem {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        let asset: AssetVc = self.asset.into();
-        asset.path().join("chunk-loader.turbopack")
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
+            "chunk loader for {}",
+            self.asset.path().await?
+        )))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<FileContentVc> {
-        let chunk_group = self.context.chunking_context().as_chunk_group(self.asset);
+    async fn content(
+        &self,
+        _chunk_content: EcmascriptChunkContextVc,
+        context: ChunkingContextVc,
+    ) -> Result<StringVc> {
+        let chunk_group = context.as_chunk_group(self.asset);
         let chunks = chunk_group.chunks().await?;
         let mut code = "TODO load chunk group".to_string();
         for chunk in chunks.iter() {
@@ -74,11 +47,6 @@ impl Asset for ChunkGroupLoaderChunkItem {
             let path = asset.path().await?;
             code += &format!("\n/{}", path.path);
         }
-        Ok(FileContent::Content(File::from_source(code)).into())
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<Vec<AssetReferenceVc>> {
-        todo!()
+        Ok(StringVc::slot(code))
     }
 }

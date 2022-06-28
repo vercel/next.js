@@ -525,8 +525,16 @@ impl FileSystemPath {
         if self.fs != other.fs {
             return None;
         }
-        let mut self_segments = self.path.split('/').peekable();
-        let mut other_segments = other.path.split('/').peekable();
+        fn split(s: &str) -> impl Iterator<Item = &str> {
+            let empty = s.is_empty();
+            let mut iterator = s.split('/');
+            if empty {
+                iterator.next();
+            }
+            iterator
+        }
+        let mut self_segments = split(&self.path).peekable();
+        let mut other_segments = split(&other.path).peekable();
         while self_segments.peek() == other_segments.peek() {
             self_segments.next();
             if other_segments.next().is_none() {

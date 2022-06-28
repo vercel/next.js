@@ -48,7 +48,7 @@ impl AggregatedGraphVc {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in all_referenced_assets(asset).await?.assets.iter() {
+                for reference in all_referenced_assets(asset).await?.iter() {
                     let reference = reference.resolve().await?;
                     if asset != reference {
                         refs.insert(AggregatedGraphVc::leaf(reference));
@@ -75,7 +75,7 @@ impl AggregatedGraphVc {
     async fn cost(self) -> Result<AggregationCostVc> {
         Ok(match *self.await? {
             AggregatedGraph::Leaf(asset) => {
-                AggregationCost(all_referenced_assets(asset).await?.assets.len()).into()
+                AggregationCost(all_referenced_assets(asset).await?.len()).into()
             }
             AggregatedGraph::Node { ref references, .. } => {
                 AggregationCost(references.len()).into()

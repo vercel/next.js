@@ -316,7 +316,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                     let modules = input_to_modules(fs, &input).await?;
                     for module in modules {
                         let set = all_assets(module);
-                        for asset in set.await?.assets.iter() {
+                        for asset in set.await?.iter() {
                             let path = asset.path().await?;
                             result.insert(path.path.to_string());
                         }

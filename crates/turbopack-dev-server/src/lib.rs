@@ -1,8 +1,12 @@
+pub mod fs;
+pub mod html;
+
 use std::{
     collections::{HashSet, VecDeque},
     future::Future,
     net::SocketAddr,
     pin::Pin,
+    time::Instant,
 };
 
 use anyhow::{anyhow, Result};
@@ -47,14 +51,13 @@ impl DevServerVc {
         visited.insert(root_asset);
         let mut queue = VecDeque::new();
         if let Some(sub_path) = root_path.get_path_to(p) {
-            println!("finding {path}: checking {sub_path}");
             if sub_path == path {
                 return Ok(FindAssetResult::Found(root_asset).into());
             }
             queue.push_back(root_asset);
             while let Some(asset) = queue.pop_front() {
                 let references = all_referenced_assets(asset).await?;
-                for inner in references.assets.iter() {
+                for inner in references.iter() {
                     if visited.insert(*inner) {
                         let p = &*inner.path().await?;
                         if let Some(sub_path) = root_path.get_path_to(p) {
@@ -81,16 +84,19 @@ impl DevServerVc {
             let tt = tt.clone();
             async move {
                 let handler = move |request: Request<Body>| {
+                    let start = Instant::now();
                     let tt = tt.clone();
                     async move {
                         let (tx, rx) = tokio::sync::oneshot::channel();
                         let task_id = tt.run_once(Box::pin(async move {
                             let uri = request.uri();
                             let path = uri.path();
-                            let asset_path = &path[1..];
-                            println!("request {asset_path}");
+                            let mut asset_path = path[1..].to_string();
+                            if asset_path == "" || asset_path.ends_with("/") {
+                                asset_path += "index.html";
+                            }
                             if let FindAssetResult::Found(asset) =
-                                &*self.find_asset(root_asset, asset_path).await?
+                                &*self.find_asset(root_asset, &asset_path).await?
                             {
                                 if let FileContent::Content(content) = &*asset.content().await? {
                                     tx.send(
@@ -99,11 +105,13 @@ impl DevServerVc {
                                             .body(Body::from(content.content().to_vec()))?,
                                     )
                                     .map_err(|_| anyhow!("receiver dropped"))?;
+                                    println!("[200] {} ({}ms)", path, start.elapsed().as_millis());
                                     return Ok(());
                                 }
                             }
                             tx.send(Response::builder().status(404).body(Body::empty())?)
                                 .map_err(|_| anyhow!("receiver dropped"))?;
+                            println!("[404] {} ({}ms)", path, start.elapsed().as_millis());
                             Ok(())
                         }));
                         loop {

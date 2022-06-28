@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_ecmascript::ast::Lit;
-use turbo_tasks::{primitives::StringVc, ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{

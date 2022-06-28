@@ -4,7 +4,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 
 use crate::target::{CompileTargetVc, Platform};

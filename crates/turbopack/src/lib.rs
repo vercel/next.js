@@ -263,9 +263,9 @@ async fn emit_aggregated_assets(aggregated: AggregatedGraphVc) -> Result<Complet
 
 #[turbo_tasks::function(cycle)]
 async fn emit_assets_recursive(asset: AssetVc) -> Result<()> {
-    let assets_set = all_referenced_assets(asset).await?;
+    let assets_set = all_referenced_assets(asset);
     emit_asset(asset);
-    for asset in assets_set.assets.iter() {
+    for asset in assets_set.await?.iter() {
         emit_assets_recursive(*asset);
     }
     Ok(())
@@ -304,12 +304,12 @@ async fn emit_assets_recursive_avoid_cycle(
     asset: AssetVc,
     cycle_detection: CycleDetectionVc,
 ) -> Result<()> {
-    let assets_set = all_referenced_assets(asset).await?;
     emit_asset(asset);
-    if !assets_set.assets.is_empty() {
+    let assets_set = all_referenced_assets(asset).await?;
+    if !assets_set.is_empty() {
         let cycle_detection_value = cycle_detection.await?;
         let new_cycle_detection = cycle_detection.concat(asset);
-        for ref_asset in assets_set.assets.iter() {
+        for ref_asset in assets_set.iter() {
             let ref_asset = ref_asset.resolve().await?;
             if ref_asset == asset {
                 continue;
@@ -346,7 +346,7 @@ async fn compute_back_references(aggregated: AggregatedGraphVc) -> Result<Refere
     Ok(match &*aggregated.content().await? {
         AggregatedGraphNodeContent::Asset(asset) => {
             let mut referenced_by = HashMap::new();
-            for reference in all_referenced_assets(*asset).await?.assets.iter() {
+            for reference in all_referenced_assets(*asset).await?.iter() {
                 referenced_by.insert(*reference, [*asset].into_iter().collect());
             }
             ReferencesList { referenced_by }.into()

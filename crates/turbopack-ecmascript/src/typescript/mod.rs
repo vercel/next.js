@@ -2,7 +2,7 @@ pub mod resolve;
 
 use anyhow::Result;
 use json::JsonValue;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::StringVc, Value, Vc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use turbopack_core::{
@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
 };
 
-use crate::{resolve::apply_cjs_specific_options, ProcessingGoal};
+use crate::resolve::apply_cjs_specific_options;
 
 use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
 
@@ -62,8 +62,7 @@ impl Asset for TsConfigModuleAsset {
                     .map(|s| (source, s.to_string()))
             })
             .await?;
-            let (source, compiler) =
-                compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
+            let (_, compiler) = compiler.unwrap_or_else(|| (self.source, "typescript".to_string()));
             references.push(
                 CompilerReferenceVc::new(
                     self.context,
@@ -85,7 +84,7 @@ impl Asset for TsConfigModuleAsset {
             })
             .await?;
             if let Some(require) = require {
-                for (source, request) in require {
+                for (_, request) in require {
                     references.push(
                         TsNodeRequireReferenceVc::new(
                             self.context,
@@ -112,7 +111,7 @@ impl Asset for TsConfigModuleAsset {
             })
             .await?;
             let types = types.unwrap_or_else(|| vec![(self.source, "node".to_string())]);
-            for (source, name) in types {
+            for (_, name) in types {
                 references.push(
                     TsConfigTypesReferenceVc::new(
                         self.context,
@@ -145,7 +144,7 @@ impl CompilerReferenceVc {
 impl AssetReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context, ProcessingGoal::Asset.into())
+        cjs_resolve(self.request, self.context)
     }
 
     #[turbo_tasks::function]
@@ -206,7 +205,7 @@ impl TsNodeRequireReferenceVc {
 impl AssetReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context, ProcessingGoal::Asset.into())
+        cjs_resolve(self.request, self.context)
     }
 
     #[turbo_tasks::function]

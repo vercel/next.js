@@ -1,7 +1,6 @@
 pub mod node_native_binding;
 
 use anyhow::Result;
-use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     context::AssetContextVc,
@@ -11,8 +10,6 @@ use turbopack_core::{
         ResolveResult, ResolveResultVc,
     },
 };
-
-use crate::ProcessingGoalVc;
 
 #[turbo_tasks::function]
 pub async fn apply_esm_specific_options(options: ResolveOptionsVc) -> Result<ResolveOptionsVc> {
@@ -51,11 +48,7 @@ pub async fn esm_resolve(request: RequestVc, context: AssetContextVc) -> Result<
 }
 
 #[turbo_tasks::function]
-pub async fn cjs_resolve(
-    request: RequestVc,
-    context: AssetContextVc,
-    processing_goal: ProcessingGoalVc,
-) -> Result<ResolveResultVc> {
+pub async fn cjs_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
     let options = apply_cjs_specific_options(context.resolve_options());
     specific_resolve(request, context, options, "commonjs request").await
 }

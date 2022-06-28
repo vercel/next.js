@@ -8,7 +8,6 @@ use crate::analyzer::{
     FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::target::CompileTargetVc;
-use crate::ProcessingGoalVc;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -30,10 +29,13 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks::ValueToString;
+use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbo_tasks::{util::try_join_all, Value, Vc};
 use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_core::chunk::{
+    AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
+    ChunkableAssetReferenceVc,
+};
 use turbopack_core::context::AssetContextVc;
 use turbopack_core::{
     asset::AssetVc,
@@ -63,7 +65,6 @@ pub(crate) async fn module_references(
     ty: Value<ModuleAssetType>,
     target: CompileTargetVc,
     node_native_bindings: bool,
-    processing_goal: ProcessingGoalVc,
 ) -> Result<Vc<Vec<AssetReferenceVc>>> {
     let mut references = Vec::new();
     let path = source.path();
@@ -153,8 +154,7 @@ pub(crate) async fn module_references(
                         let var_graph = create_graph(&program, eval_context);
 
                         // TODO migrate to effects
-                        let mut visitor =
-                            AssetReferencesVisitor::new(context, is_typescript, &mut references);
+                        let mut visitor = AssetReferencesVisitor::new(context, &mut references);
                         program.visit_with(&mut visitor);
 
                         (
@@ -222,7 +222,6 @@ pub(crate) async fn module_references(
                 references: &'a mut Vec<AssetReferenceVc>,
                 target: CompileTargetVc,
                 node_native_bindings: bool,
-                processing_goal: ProcessingGoalVc,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
                 Box::pin(handle_call(
                     handler,
@@ -237,7 +236,6 @@ pub(crate) async fn module_references(
                     references,
                     target,
                     node_native_bindings,
-                    processing_goal,
                 ))
             }
 
@@ -257,7 +255,6 @@ pub(crate) async fn module_references(
                 references: &mut Vec<AssetReferenceVc>,
                 target: CompileTargetVc,
                 node_native_bindings: bool,
-                processing_goal: ProcessingGoalVc,
             ) -> Result<()> {
                 fn explain_args(args: &Vec<JsValue>) -> (String, String) {
                     JsValue::explain_args(&args, 10, 2)
@@ -279,7 +276,6 @@ pub(crate) async fn module_references(
                                 references,
                                 target,
                                 node_native_bindings,
-                                processing_goal,
                             )
                             .await?;
                         }
@@ -300,10 +296,9 @@ pub(crate) async fn module_references(
                                 )
                             }
                             references.push(
-                                EsmAssetReferenceVc::new(
+                                EsmAsyncAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
-                                    is_typescript,
                                 )
                                 .into(),
                             );
@@ -336,7 +331,6 @@ pub(crate) async fn module_references(
                                 CjsAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
-                                    processing_goal,
                                 )
                                 .into(),
                             );
@@ -370,7 +364,6 @@ pub(crate) async fn module_references(
                                 CjsAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
-                                    processing_goal,
                                 )
                                 .into(),
                             );
@@ -453,7 +446,6 @@ pub(crate) async fn module_references(
                                     CjsAssetReferenceVc::new(
                                         context,
                                         RequestVc::parse(Value::new(pat)),
-                                        processing_goal,
                                     )
                                     .into(),
                                 );
@@ -504,7 +496,6 @@ pub(crate) async fn module_references(
                                 CjsAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
-                                    processing_goal,
                                 )
                                 .into(),
                             );
@@ -600,16 +591,8 @@ pub(crate) async fn module_references(
             }
 
             let cache = Mutex::new(LinkCache::new());
-            let linker = |value| {
-                value_visitor(
-                    source,
-                    context,
-                    value,
-                    target,
-                    node_native_bindings,
-                    processing_goal,
-                )
-            };
+            let linker =
+                |value| value_visitor(source, context, value, target, node_native_bindings);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
             for effect in var_graph.effects.iter() {
@@ -635,7 +618,6 @@ pub(crate) async fn module_references(
                             &mut references,
                             target,
                             node_native_bindings,
-                            processing_goal,
                         )
                         .await?;
                     }
@@ -672,7 +654,6 @@ pub(crate) async fn module_references(
                             &mut references,
                             target,
                             node_native_bindings,
-                            processing_goal,
                         )
                         .await?;
                     }
@@ -698,17 +679,8 @@ async fn value_visitor(
     v: JsValue,
     target: CompileTargetVc,
     node_native_bindings: bool,
-    processing_goal: ProcessingGoalVc,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, m) = value_visitor_inner(
-        source,
-        context,
-        v,
-        target,
-        node_native_bindings,
-        processing_goal,
-    )
-    .await?;
+    let (mut v, m) = value_visitor_inner(source, context, v, target, node_native_bindings).await?;
     v.normalize_shallow();
     Ok((v, m))
 }
@@ -719,7 +691,6 @@ async fn value_visitor_inner(
     v: JsValue,
     target: CompileTargetVc,
     node_native_bindings: bool,
-    processing_goal: ProcessingGoalVc,
 ) -> Result<(JsValue, bool)> {
     Ok((
         match v {
@@ -731,7 +702,7 @@ async fn value_visitor_inner(
                 if args.len() == 1 {
                     let pat = js_value_to_pattern(&args[0]);
                     let request = RequestVc::parse(Value::new(pat.clone()));
-                    let resolved = cjs_resolve(request, context, processing_goal).await?;
+                    let resolved = cjs_resolve(request, context).await?;
                     match &*resolved {
                         ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
                         ResolveResult::Alternatives(assets, _) => JsValue::alternatives(
@@ -868,7 +839,6 @@ impl StaticAnalyser {
 
 struct AssetReferencesVisitor<'a> {
     context: AssetContextVc,
-    is_typescript: bool,
     old_analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceVc>,
     webpack_runtime: Option<(String, Span)>,
@@ -876,14 +846,9 @@ struct AssetReferencesVisitor<'a> {
     webpack_chunks: Vec<Lit>,
 }
 impl<'a> AssetReferencesVisitor<'a> {
-    fn new(
-        context: AssetContextVc,
-        is_typescript: bool,
-        references: &'a mut Vec<AssetReferenceVc>,
-    ) -> Self {
+    fn new(context: AssetContextVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
         Self {
             context,
-            is_typescript,
             old_analyser: StaticAnalyser::default(),
             references,
             webpack_runtime: None,
@@ -897,12 +862,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         let src = export.src.value.to_string();
         self.references.push(
-            EsmAssetReferenceVc::new(
-                self.context,
-                RequestVc::parse(Value::new(src.into())),
-                self.is_typescript,
-            )
-            .into(),
+            EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into()))).into(),
         );
         visit::visit_export_all(self, export);
     }
@@ -910,12 +870,8 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
             self.references.push(
-                EsmAssetReferenceVc::new(
-                    self.context,
-                    RequestVc::parse(Value::new(src.into())),
-                    self.is_typescript,
-                )
-                .into(),
+                EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
+                    .into(),
             );
         }
         visit::visit_named_export(self, export);
@@ -926,7 +882,6 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             EsmAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.clone().into())),
-                self.is_typescript,
             )
             .into(),
         );
@@ -1115,7 +1070,7 @@ impl AssetReference for TsConfigReference {
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
+#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub context: AssetContextVc,
@@ -1125,7 +1080,7 @@ pub struct EsmAssetReference {
 #[turbo_tasks::value_impl]
 impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, from_typescript: bool) -> Self {
+    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
         Self::slot(EsmAssetReference { context, request })
     }
 }
@@ -1146,27 +1101,73 @@ impl AssetReference for EsmAssetReference {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl ChunkableAssetReference for EsmAssetReference {
+    #[turbo_tasks::function]
+    fn is_chunkable(&self) -> BoolVc {
+        BoolVc::slot(true)
+    }
+}
+
+#[turbo_tasks::value(AssetReference, ChunkableAssetReference, AsyncLoadableReference)]
+#[derive(Hash, Debug)]
+pub struct EsmAsyncAssetReference {
+    pub context: AssetContextVc,
+    pub request: RequestVc,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmAsyncAssetReferenceVc {
+    #[turbo_tasks::function]
+    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
+        Self::slot(EsmAsyncAssetReference { context, request })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for EsmAsyncAssetReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> ResolveResultVc {
+        esm_resolve(self.request, self.context)
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::slot(format!(
+            "dynamic import {}",
+            self.request.to_string().await?,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableAssetReference for EsmAsyncAssetReference {
+    #[turbo_tasks::function]
+    fn is_chunkable(&self) -> BoolVc {
+        BoolVc::slot(true)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AsyncLoadableReference for EsmAsyncAssetReference {
+    #[turbo_tasks::function]
+    fn is_loaded_async(&self) -> BoolVc {
+        BoolVc::slot(true)
+    }
+}
+
 #[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Debug)]
 pub struct CjsAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
-    pub processing_goal: ProcessingGoalVc,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(
-        context: AssetContextVc,
-        request: RequestVc,
-        processing_goal: ProcessingGoalVc,
-    ) -> Self {
-        Self::slot(CjsAssetReference {
-            context,
-            request,
-            processing_goal,
-        })
+    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
+        Self::slot(CjsAssetReference { context, request })
     }
 }
 
@@ -1174,7 +1175,7 @@ impl CjsAssetReferenceVc {
 impl AssetReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context, self.processing_goal)
+        cjs_resolve(self.request, self.context)
     }
 
     #[turbo_tasks::function]

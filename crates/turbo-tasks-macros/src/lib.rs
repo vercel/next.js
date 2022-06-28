@@ -4,7 +4,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Literal, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Literal, Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     parenthesized,
@@ -108,6 +108,14 @@ fn get_trait_impl_function_id_ident(struct_ident: &Ident, ident: &Ident) -> Iden
             + "_IMPL_"
             + &ident.to_string().to_uppercase()
             + "_FUNCTION_ID"),
+        ident.span(),
+    )
+}
+
+fn get_as_super_ident(ident: &Ident) -> Ident {
+    use convert_case::{Case, Casing};
+    Ident::new(
+        &format!("as_{}", ident.to_string().to_case(Case::Snake)),
         ident.span(),
     )
 }
@@ -294,6 +302,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let value_type_ident = get_value_type_ident(&ident);
     let value_type_id_ident = get_value_type_id_ident(&ident);
     let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
+    let as_trait_methods: Vec<_> = traits
+        .iter()
+        .map(|ident| get_as_super_ident(&ident))
+        .collect();
 
     let mut inner_type = None;
     if transparent {
@@ -530,6 +542,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
             }
+
+            #(
+                pub fn #as_trait_methods(self) -> #trait_refs {
+                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
+                }
+            )*
         }
 
         #into_future
@@ -734,6 +752,22 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let as_supertrait_methods: Vec<_> = supertraits
+        .iter()
+        .filter_map(|ident| {
+            if let TypeParamBound::Trait(TraitBound {
+                path: Path { segments, .. },
+                ..
+            }) = ident
+            {
+                let PathSegment { ident, .. } = segments.iter().next()?;
+                Some(get_as_super_ident(ident))
+            } else {
+                None
+            }
+        })
+        .collect();
+
     let ref_ident = get_ref_ident(ident);
     let mod_ident = get_trait_mod_ident(ident);
     let trait_type_ident = get_trait_type_ident(&ident);
@@ -807,14 +841,37 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(Self { node: self.node.resolve().await? })
             }
 
+            pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTraitError> {
+                let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
+                let raw_vc = raw_vc.resolve_trait(*#trait_type_id_ident).await?;
+                Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
+            }
+
+            pub fn cast_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Self {
+                let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
+                #ref_ident { node: raw_vc }
+            }
+
             #(pub #trait_fns)*
         }
 
-        #(impl From<#ref_ident> for #supertrait_refs {
-            fn from(node_ref: #ref_ident) -> Self {
-                std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
+        impl<T> #ident for T where #ref_ident: std::convert::From<T>, turbo_tasks::TaskInput: for<'a> std::convert::From<&'a T> #(, #supertrait_refs: std::convert::From<T>)* {
+            #(#trait_fns)*
+        }
+
+        #(
+            impl From<#ref_ident> for #supertrait_refs {
+                fn from(node_ref: #ref_ident) -> Self {
+                    std::convert::From::<turbo_tasks::RawVc>::from(node_ref.into())
+                }
             }
-        })*
+
+            impl #ref_ident {
+                pub fn #as_supertrait_methods(self) -> #supertrait_refs {
+                    std::convert::From::<turbo_tasks::RawVc>::from(self.node)
+                }
+            }
+        )*
 
         impl turbo_tasks::FromTaskInput<'_> for #ref_ident {
             type Error = turbo_tasks::Error;
@@ -1000,21 +1057,33 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     });
                     let name =
                         Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
-                    let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
-                        quote! { #name },
-                        quote! { #struct_ident::#internal_function_ident },
-                        &function_ident,
-                        &function_id_ident,
-                        asyncness.is_some(),
-                        inputs,
-                        &output_type,
-                        Some(&ref_ident),
-                        false,
-                    );
+                    let (native_function_code, mut input_raw_vc_arguments) =
+                        gen_native_function_code(
+                            quote! { #name },
+                            quote! { #struct_ident::#internal_function_ident },
+                            &function_ident,
+                            &function_id_ident,
+                            asyncness.is_some(),
+                            inputs,
+                            &output_type,
+                            Some(&ref_ident),
+                            false,
+                        );
                     let mut new_sig = sig.clone();
                     new_sig.ident = internal_function_ident;
                     let mut external_sig = sig.clone();
                     external_sig.asyncness = None;
+                    let external_self = external_sig.inputs.first_mut().unwrap();
+                    let custom_self_type = matches!(sig.inputs.first().unwrap(), FnArg::Typed(..));
+                    if custom_self_type {
+                        *external_self = FnArg::Receiver(Receiver {
+                            attrs: Vec::new(),
+                            reference: Some((Token![&](Span::call_site()), None)),
+                            mutability: None,
+                            self_token: Token![self](Span::call_site()),
+                        });
+                        input_raw_vc_arguments[0] = quote! { self.into() };
+                    }
                     impl_functions.push(quote! {
                         impl #struct_ident {
                             #(#attrs)*
@@ -1039,7 +1108,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                     trait_functions.push(quote!{
                         #(#attrs)*
-                        #external_sig {
+                        pub #external_sig {
                             let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
                             #convert_result_code
                         }
@@ -1057,7 +1126,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
             #(#impl_functions)*
 
-            impl #trait_ident for #ref_ident {
+            impl #ref_ident {
                 #(#trait_functions)*
             }
         }

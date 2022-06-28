@@ -14,7 +14,6 @@ use turbo_tasks_memory::{
 };
 use turbopack::rebase::RebasedAssetVc;
 use turbopack::{emit, register, GraphOptionsVc};
-use turbopack_core::context::AssetContext;
 use turbopack_core::source_asset::SourceAssetVc;
 use turbopack_ecmascript::target::CompileTarget;
 
