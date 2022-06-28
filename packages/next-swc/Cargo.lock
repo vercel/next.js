@@ -1109,12 +1109,12 @@ checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
 name = "indexmap"
-version = "1.8.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "282a6247722caba404c065016bbfa522806e51714c34f5dfc3e4a3a46fcb4223"
+checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
- "hashbrown 0.11.2",
+ "hashbrown 0.12.1",
  "rayon",
  "serde",
 ]
@@ -1152,6 +1152,16 @@ name = "is_ci"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "616cde7c720bb2bb5824a224687d8f77bfd38922027f01d825cd7453be5099fb"
+
+[[package]]
+name = "istanbul-oxide"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36315bd6d9ced11b0abffad052120f3f8b49211e6ed6d025c8d11781445f7546"
+dependencies = [
+ "indexmap",
+ "serde",
+]
 
 [[package]]
 name = "itertools"
@@ -1504,7 +1514,7 @@ dependencies = [
  "serde",
  "swc_cached",
  "swc_ecma_transforms_testing",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "testing",
 ]
 
@@ -1590,12 +1600,13 @@ dependencies = [
  "styled_components",
  "styled_jsx",
  "swc",
+ "swc-coverage-instrument",
  "swc_atoms",
  "swc_cached",
  "swc_common",
  "swc_ecma_loader",
  "swc_ecma_transforms_testing",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "swc_emotion",
  "swc_plugin_runner",
  "testing",
@@ -1625,7 +1636,7 @@ dependencies = [
  "swc_bundler",
  "swc_common",
  "swc_ecma_loader",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "swc_node_base",
  "swc_plugin_runner",
  "tracing",
@@ -2867,7 +2878,7 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecma_transforms_testing",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "testing",
  "tracing",
 ]
@@ -2881,7 +2892,7 @@ dependencies = [
  "swc_css",
  "swc_css_prefixer",
  "swc_ecma_transforms_testing",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "testing",
  "tracing",
 ]
@@ -2960,13 +2971,31 @@ dependencies = [
  "swc_ecma_transforms_optimization",
  "swc_ecma_utils",
  "swc_ecma_visit",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "swc_error_reporters",
  "swc_node_comments",
  "swc_plugin_proxy",
  "swc_plugin_runner",
  "swc_timer",
  "swc_visit",
+ "tracing",
+]
+
+[[package]]
+name = "swc-coverage-instrument"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65e3252d736fa76c88b7c1d217c699ffa0e4f1664819381aabc11e5c03b73ce2"
+dependencies = [
+ "istanbul-oxide",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_quote",
+ "swc_ecmascript 0.167.0",
  "tracing",
 ]
 
@@ -3381,6 +3410,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_ecma_quote"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4eba886449eabbaf684a8b895fc8fb45beea27866afc08eb693ec5695a6cd33c"
+dependencies = [
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_quote_macros",
+ "swc_ecma_utils",
+]
+
+[[package]]
+name = "swc_ecma_quote_macros"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f027387858d08e906b7988694d64e0d1165cfcfa1b87f7c78b084fa4af97c060"
+dependencies = [
+ "anyhow",
+ "pmutil",
+ "proc-macro2",
+ "quote",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_parser",
+ "swc_macros_common",
+ "syn",
+]
+
+[[package]]
 name = "swc_ecma_testing"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3670,6 +3730,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_ecmascript"
+version = "0.167.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df3f448a7c49540d33a45ed59f4ca6189d4d0ff7edf14181e27f1a9c91c4b135"
+dependencies = [
+ "swc_ecma_ast",
+ "swc_ecma_parser",
+ "swc_ecma_utils",
+ "swc_ecma_visit",
+]
+
+[[package]]
 name = "swc_emotion"
 version = "0.10.0"
 dependencies = [
@@ -3684,7 +3756,7 @@ dependencies = [
  "swc_atoms",
  "swc_common",
  "swc_ecma_transforms_testing",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "swc_trace_macro",
  "testing",
  "tracing",
@@ -4379,7 +4451,7 @@ dependencies = [
  "serde_json",
  "swc",
  "swc_common",
- "swc_ecmascript",
+ "swc_ecmascript 0.164.0",
  "swc_plugin_runner",
  "tracing",
  "wasm-bindgen",

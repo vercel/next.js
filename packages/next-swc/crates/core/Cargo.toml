@@ -33,6 +33,7 @@ swc_ecma_loader = { version = "0.30.2", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.164.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_plugin_runner = { version = "0.56.0", optional = true, default-features = false }
 swc_cached = "0.1.1"
+swc-coverage-instrument = "0.0.7"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 wasmer = { version = "2.3.0", optional = true, default-features = false }
 wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }

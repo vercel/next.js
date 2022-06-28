@@ -10,6 +10,7 @@ use next_swc::{
 };
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark};
+use swc_coverage_instrument::create_coverage_instrumentation_visitor;
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
@@ -204,6 +205,24 @@ fn shake_exports_fixture_default(input: PathBuf) {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![String::from("default").into()],
             })
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/coverage-instrument/input.js")]
+fn coverage_instrument_simple_default(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            swc_ecmascript::visit::as_folder(create_coverage_instrumentation_visitor(
+                tr.cm.clone(),
+                tr.comments.clone(),
+                Default::default(),
+                "anon".to_string(),
+            ))
         },
         &input,
         &output,

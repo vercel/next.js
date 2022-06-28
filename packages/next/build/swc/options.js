@@ -114,6 +114,7 @@ function getBaseSWCOptions({
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
+    coverageInstrument: getCoverageInstrumentOptions(nextConfig),
   }
 }
 
@@ -154,6 +155,15 @@ function getEmotionOptions(nextConfig, development) {
       ? nextConfig?.experimental?.emotion?.sourceMap ?? true
       : false,
   }
+}
+
+function getCoverageInstrumentOptions(nextConfig) {
+  const options = nextConfig?.experimental?.swcInstrumentCoverage
+  if (!options) {
+    return
+  }
+
+  return options === true ? {} : options
 }
 
 export function getJestSWCOptions({

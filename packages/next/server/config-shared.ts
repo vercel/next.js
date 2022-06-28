@@ -146,6 +146,14 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+  swcInstrumentCoverage?:
+    | boolean
+    | {
+        coverageVariable?: string
+        compact?: boolean
+        reportLogic?: boolean
+        ignoreClassMethods?: Array<string>
+      }
 }
 
 /**
@@ -549,6 +557,7 @@ export const defaultConfig: NextConfig = {
     forceSwcTransforms: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    swcInstrumentCoverage: false,
   },
 }
 

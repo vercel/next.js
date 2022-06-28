@@ -43,7 +43,7 @@ use swc_common::{FileName, SourceFile, SourceMap};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::parser::parse_file_as_module;
 use swc_ecmascript::transforms::pass::noop;
-use swc_ecmascript::visit::Fold;
+use swc_ecmascript::visit::{as_folder, Fold};
 
 pub mod amp_attributes;
 mod auto_cjs;
@@ -104,9 +104,12 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub modularize_imports: Option<modularize_imports::Config>,
+
+    #[serde(default)]
+    pub coverage_instrument: Option<swc_coverage_instrument::InstrumentOptions>,
 }
 
-pub fn custom_before_pass<'a, C: Comments + 'a>(
+pub fn custom_before_pass<'a, C: Comments + 'a + std::clone::Clone>(
     cm: Arc<SourceMap>,
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
@@ -182,8 +185,8 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
                         Either::Left(swc_emotion::EmotionTransformer::new(
                             config.clone(),
                             path,
-                            cm,
-                            comments,
+                            cm.clone(),
+                            comments.clone(),
                         ))
                     })
                 } else {
@@ -194,7 +197,18 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
         match &opts.modularize_imports {
             Some(config) => Either::Left(modularize_imports::modularize_imports(config.clone())),
             None => Either::Right(noop()),
-        }
+        },
+        match &opts.coverage_instrument {
+            Some(config) => Either::Left(as_folder(
+                swc_coverage_instrument::create_coverage_instrumentation_visitor(
+                    cm,
+                    comments,
+                    config.clone(),
+                    file.name.to_string()
+                )
+            )),
+            None => Either::Right(noop()),
+        },
     )
 }
 
