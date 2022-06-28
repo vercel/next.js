@@ -7,15 +7,11 @@ description: Learn how to use Middleware to run code before a request is complet
 <details open>
 <summary><b>Version History</b></summary>
 
-| Version | Changes |
-
+| Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
-
-| `v12.2.0` | Middleware is stable |
-
+| `v12.2.0` | Middleware is stable                                                                       |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
-
-| `v12.0.0` | Middleware (Beta) added |
+| `v12.0.0` | Middleware (Beta) added                                                                    |
 
 </details>
 
