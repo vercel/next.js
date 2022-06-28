@@ -544,7 +544,9 @@ export const defaultConfig: NextConfig = {
     images: {
       remotePatterns: [],
     },
+    swcTraceProfiling: false,
     forceSwcTransforms: false,
+    swcPlugins: [],
     largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }
