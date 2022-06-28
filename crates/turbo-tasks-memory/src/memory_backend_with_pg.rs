@@ -1408,13 +1408,17 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     }
 
     fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
-        let mem_state = state.memory.as_mut().unwrap();
-        let index = mem_state.slots.len();
-        mem_state
-            .slots
-            .push((TaskSlot::Content(SlotContent(None)), HashSet::new()));
-        index
+        let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
+        if let TaskType::Persistent(_) = task_info.task_type {
+            let mem_state = state.memory.as_mut().unwrap();
+            let index = mem_state.slots.len();
+            mem_state
+                .slots
+                .push((TaskSlot::Content(SlotContent(None)), HashSet::new()));
+            index
+        } else {
+            panic!("Only Persistent Tasks can store data")
+        }
     }
 
     fn update_task_slot(
