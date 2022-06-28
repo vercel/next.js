@@ -41,7 +41,7 @@ The second argument to the `webpack` function is an object with the following pr
 - `buildId`: `String` - The build id, used as a unique identifier between builds
 - `dev`: `Boolean` - Indicates if the compilation will be done in development
 - `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation
-- `nextRuntime`: `String | undefined` - The target runtime for server-side compilation; either `"edge"` or `"nodejs"`, it's `undefined` for client-side compilation.
+- `nextRuntime`: `String | undefined` - The target runtime for server-side compilation; either `"experimental-edge"` or `"nodejs"`, it's `undefined` for client-side compilation.
 - `defaultLoaders`: `Object` - Default loaders used internally by Next.js:
   - `babel`: `Object` - Default `babel-loader` configuration
 
@@ -71,7 +71,7 @@ module.exports = {
 
 #### `nextRuntime`
 
-Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, nextRuntime "`edge`" is currently for middleware and server components in edge runtime only.
+Notice that `isServer` is `true` when `nextRuntime` is `"experimental-edge"` or `"nodejs"`, nextRuntime "`edge`" is currently for middleware and server components in edge runtime only.
 
 ## Related
 
