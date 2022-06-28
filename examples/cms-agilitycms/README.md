@@ -33,7 +33,7 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
-- [Enterspeed](/examples/with-enterspeed)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 

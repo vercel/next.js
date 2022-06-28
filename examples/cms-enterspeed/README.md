@@ -10,7 +10,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-enterspeed&env=ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Enterspeed&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-enterspeed%23step-5-set-up-environment-variables&demo-title=Next.js%20with%20Enterspeed&demo-description=A%20statically%20generated%20blog%20example%20using%20Next.js%20and%20Enterspeed.)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed&env=ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Enterspeed&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed%23step-5-set-up-environment-variables&demo-title=Next.js%20with%20Enterspeed&demo-description=A%20statically%20generated%20blog%20example%20using%20Next.js%20and%20Enterspeed.)
 
 ### Related examples
 
@@ -36,11 +36,11 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-enterspeed enterspeed-app
+npx create-next-app --example cms-enterspeed enterspeed-app
 # or
-yarn create next-app --example with-enterspeed enterspeed-app
+yarn create next-app --example cms-enterspeed enterspeed-app
 # or
-pnpm create next-app -- --example with-enterspeed enterspeed-app
+pnpm create next-app -- --example cms-enterspeed enterspeed-app
 ```
 
 ## Configuration
@@ -318,4 +318,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-enterspeed&env=ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Enterspeed&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-enterspeed%23step-5-set-up-environment-variables&demo-title=Next.js%20with%20Enterspeed&demo-description=A%20statically%20generated%20blog%20example%20using%20Next.js%20and%20Enterspeed.)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed&env=ENTERSPEED_PRODUCTION_ENVIRONMENT_API_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Enterspeed&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-enterspeed%23step-5-set-up-environment-variables&demo-title=Next.js%20with%20Enterspeed&demo-description=A%20statically%20generated%20blog%20example%20using%20Next.js%20and%20Enterspeed.)

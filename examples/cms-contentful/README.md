@@ -30,7 +30,7 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
-- [Enterspeed](/examples/with-enterspeed)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
