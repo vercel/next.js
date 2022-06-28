@@ -72,6 +72,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::NodeResolveFrom => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
+
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::call(
                 box JsValue::WellKnownFunction(kind),

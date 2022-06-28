@@ -72,7 +72,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::ioredis("integration/ioredis.js", true)]
 #[case::isomorphic_unfetch("integration/isomorphic-unfetch.js", true)]
 #[case::jimp("integration/jimp.js", true)]
-#[case::jugglingdb("integration/jugglingdb.js", false)] // doesn't understand define
+#[case::jugglingdb("integration/jugglingdb.js", true)]
 #[case::koa("integration/koa.js", true)]
 #[case::leveldown("integration/leveldown.js", true)]
 #[case::lighthouse("integration/lighthouse.js", true)]
@@ -124,7 +124,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::vm2("integration/vm2.js", true)]
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]
-#[case::when("integration/when.js", false)] // doesn't understand define
+#[case::when("integration/when.js", true)]
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
