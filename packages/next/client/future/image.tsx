@@ -677,7 +677,7 @@ const ImageElement = ({
           }
         }}
       />
-      {(isLazy || placeholder === 'blur') && (
+      {placeholder === 'blur' && (
         <noscript>
           <img
             {...rest}
