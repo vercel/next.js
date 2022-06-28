@@ -1,44 +1,47 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
+
+// import fs from 'fs-extra'
 
 import {
-  fetchViaHTTP,
+  // fetchViaHTTP,
+  File,
   nextBuild,
   runDevSuite,
   runProdSuite,
 } from 'next-test-utils'
 
-import {
-  appDir,
-  nativeModuleTestAppDir,
-  appPage,
-  error500Page,
-  nextConfig,
-} from './utils'
+// import {
+// appDir,
+// nativeModuleTestAppDir,
+// appPage,
+// error500Page,
+// nextConfig,
+// } from './utils'
 
-import css from './css'
+// import css from './css'
 // import rsc from '../../react-server-components/test/rsc'
 import streaming from './streaming'
-import basic from './basic'
-import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
+// import basic from './basic'
+// import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
-const appWithGlobalCssAndHead = `
-import '../styles.css'
-import Head from 'next/head'
+// TODO: next/head in app in RSC case
+// const appWithGlobalCssAndHead = `
+// import '../styles.css'
+// import Head from 'next/head'
 
-function App({ Component, pageProps }) {
-  return <>
-    <Head>
-      <title>hi</title>
-    </Head>
-    <Component {...pageProps} />
-  </>
-}
+// function App({ Component, pageProps }) {
+//   return <>
+//     <Head>
+//       <title>hi</title>
+//     </Head>
+//     <Component {...pageProps} />
+//   </>
+// }
 
-export default App
-`
+// export default App
+// `
 
 const page500 = `
 export default function Page500() {
@@ -46,22 +49,31 @@ export default function Page500() {
 }
 `
 
-describe('Edge runtime - errors', () => {
-  it('should warn user that native node APIs are not supported', async () => {
-    const fsImportedErrorMessage =
-      getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('dns')
-    const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
-      stderr: true,
-    })
-    expect(stderr).toContain(fsImportedErrorMessage)
-  })
-})
+const appDir = join(__dirname, '../app')
+// const nativeModuleTestAppDir = join(
+//   __dirname,
+//   '../unsupported-native-module'
+// )
+// const appPage = new File(join(appDir, 'pages/_app.js'))
+const error500Page = new File(join(appDir, 'pages/500.js'))
+const nextConfig = new File(join(appDir, 'next.config.js'))
+
+// describe('Edge runtime - errors', () => {
+//   it('should warn user that native node APIs are not supported', async () => {
+//     const fsImportedErrorMessage =
+//       getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('dns')
+//     const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
+//       stderr: true,
+//     })
+//     expect(stderr).toContain(fsImportedErrorMessage)
+//   })
+// })
 
 const edgeRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'experimental-edge', env }
     const distDir = join(appDir, '.next')
-    basic(context, options)
+
     streaming(context, options)
     // rsc(context, options)
 
@@ -121,7 +133,7 @@ const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'nodejs', env }
     const distDir = join(appDir, '.next')
-    basic(context, options)
+    // basic(context, options)
     streaming(context, options)
     // rsc(context, options)
 
@@ -155,7 +167,7 @@ const nodejsRuntimeBasicSuite = {
   },
   beforeAll: () => {
     error500Page.write(page500)
-    nextConfig.replace("runtime: 'experimental-edge'", "runtime: 'nodejs'")
+    // nextConfig.replace("runtime: 'experimental-edge'", "runtime: 'nodejs'")
   },
   afterAll: () => {
     error500Page.delete()
@@ -163,16 +175,16 @@ const nodejsRuntimeBasicSuite = {
   },
 }
 
-const cssSuite = {
-  runTests: css,
-  beforeAll: () => appPage.write(appWithGlobalCssAndHead),
-  afterAll: () => appPage.delete(),
-}
+// const cssSuite = {
+//   runTests: css,
+//   beforeAll: () => appPage.write(appWithGlobalCssAndHead),
+//   afterAll: () => appPage.delete(),
+// }
 
 runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
+// runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
+// runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
 
-runDevSuite('CSS', appDir, cssSuite)
-runProdSuite('CSS', appDir, cssSuite)
+// runDevSuite('CSS', appDir, cssSuite)
+// runProdSuite('CSS', appDir, cssSuite)

@@ -4,7 +4,11 @@ import { renderViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
-import { getNodeBySelector } from '../../react-streaming/test/utils'
+
+function getNodeBySelector(html, selector) {
+  const $ = cheerio.load(html)
+  return $(selector)
+}
 
 export default function (context, { runtime, env }) {
   const distDir = join(context.appDir, '.next')
@@ -318,6 +322,62 @@ export default function (context, { runtime, env }) {
     expect(getNodeBySelector(page404HTML, id).text()).toBe(content)
     expect(getNodeBySelector(pageUnknownHTML, id).text()).toBe(content)
   })
+
+  it('should support streaming for flight response', async () => {
+    await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('component:index.server')
+      }
+    )
+  })
+
+  it('should support partial hydration with inlined server data', async () => {
+    await fetchViaHTTP(context.appPort, '/partial-hydration', null, {}).then(
+      async (response) => {
+        let gotFallback = false
+        let gotData = false
+        let gotInlinedData = false
+
+        await resolveStreamResponse(response, (_, result) => {
+          gotInlinedData = result.includes('self.__next_s=')
+          gotData = result.includes('next_streaming_data')
+          if (!gotFallback) {
+            gotFallback = result.includes('next_streaming_fallback')
+            if (gotFallback) {
+              expect(gotData).toBe(false)
+              expect(gotInlinedData).toBe(false)
+            }
+          }
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+        expect(gotInlinedData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/partial-hydration')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toContain('next_streaming_data')
+
+    // Should support partial hydration: the boundary should still be pending
+    // while another part is hydrated already.
+    expect(await browser.eval(`window.partial_hydration_suspense_result`)).toBe(
+      'next_streaming_fallback'
+    )
+    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
+      'count: 1'
+    )
+  })
+
+  // TODO: _app + next/head
+  xit('should support next/head inside _app with RSC', async () => {
+    const browser = await webdriver(context.appPort, '/multi')
+    const title = await browser.eval(`document.title`)
+    expect(title).toBe('hi')
+  })
 }
 
 /*
@@ -339,9 +399,13 @@ it('should include css modules with `serverComponents: true`', async () => {
   expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
 })
 
-it('should support next/head inside _app with RSC', async () => {
-  const browser = await webdriver(context.appPort, '/multi')
-  const title = await browser.eval(`document.title`)
-  expect(title).toBe('hi')
-})
+export default function (context) {
+  it("should include global styles under `runtime: 'edge'`", async () => {
+    const browser = await webdriver(context.appPort, '/global-styles')
+    const currentColor = await browser.eval(
+      `window.getComputedStyle(document.querySelector('#red')).color`
+    )
+    expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+  })
+}
 */
