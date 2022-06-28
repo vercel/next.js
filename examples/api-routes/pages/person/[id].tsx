@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 
-const fetcher = async (url) => {
+const fetcher = async (url: string) => {
   const res = await fetch(url)
   const data = await res.json()
 
@@ -11,7 +11,7 @@ const fetcher = async (url) => {
   return data
 }
 
-export default function Person() {
+const Person = () => {
   const { query } = useRouter()
   const { data, error } = useSWR(
     () => query.id && `/api/people/${query.id}`,
@@ -48,3 +48,5 @@ export default function Person() {
     </table>
   )
 }
+
+export default Person

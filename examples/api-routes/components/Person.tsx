@@ -1,6 +1,11 @@
 import Link from 'next/link'
+import { Person } from '../interfaces'
 
-export default function Person({ person }) {
+type PersonProps = {
+  person: Person
+}
+
+const PersonComponent = ({ person }: PersonProps) => {
   return (
     <li>
       <Link href="/person/[id]" as={`/person/${person.id}`}>
@@ -9,3 +14,5 @@ export default function Person({ person }) {
     </li>
   )
 }
+
+export default PersonComponent
