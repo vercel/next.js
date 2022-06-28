@@ -1519,7 +1519,6 @@ export default async function getBaseWebpackConfig(
           path: config.images.path,
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {
