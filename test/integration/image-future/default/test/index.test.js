@@ -645,12 +645,39 @@ function runTests(mode) {
       )
     })
 
-    it('should show error when not numeric string width or height', async () => {
-      const browser = await webdriver(appPort, '/invalid-width-or-height')
+    it('should show error when invalid width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-width')
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
+      )
+    })
+
+    it('should show error when invalid height prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
+      )
+    })
+
+    it('should show error when missing width prop', async () => {
+      const browser = await webdriver(appPort, '/missing-width')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "width" property.`
+      )
+    })
+
+    it('should show error when missing height prop', async () => {
+      const browser = await webdriver(appPort, '/missing-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" is missing required "height" property.`
       )
     })
 
