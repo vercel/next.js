@@ -1878,6 +1878,8 @@ export default class Router implements BaseRouter {
               ).data
             : props.__flight__,
         })
+      } else {
+        props.pageProps = Object.assign({}, props.pageProps)
       }
 
       routeInfo.props = props
