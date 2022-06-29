@@ -480,6 +480,12 @@ export default async function getBaseWebpackConfig(
             supportedBrowsers: config.experimental.browsersListForSwc
               ? supportedBrowsers
               : undefined,
+            swcCacheDir: path.join(
+              dir,
+              config?.distDir ?? '.next',
+              'cache',
+              'swc'
+            ),
           },
         }
       : {
