@@ -18,7 +18,7 @@ const edgeRuntimeBasicSuite = {
     // rsc(context, options)
 
     if (env === 'dev') {
-      it('should have content-type and content-encoding headers', async () => {
+      it.skip('should have content-type and content-encoding headers', async () => {
         // TODO: fix the compression header issue for `/`
         const res = await fetchViaHTTP(context.appPort, '/shared')
         expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8')
@@ -26,7 +26,7 @@ const edgeRuntimeBasicSuite = {
       })
     }
     if (env === 'prod') {
-      it('should warn user for experimental risk with edge runtime and server components', async () => {
+      it.skip('should warn user for experimental risk with edge runtime and server components', async () => {
         const edgeRuntimeWarning =
           'You are using the experimental Edge Runtime with `experimental.runtime`.'
         const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
@@ -34,7 +34,7 @@ const edgeRuntimeBasicSuite = {
         expect(context.stderr).toContain(rscWarning)
       })
 
-      it('should generate edge SSR manifests for edge runtime', async () => {
+      it.skip('should generate edge SSR manifests for edge runtime', async () => {
         const distServerDir = join(distDir, 'server')
         const files = [
           'edge-runtime-webpack.js',

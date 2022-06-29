@@ -33,7 +33,7 @@ export default function (context, { runtime, env }) {
   })
 
   // TODO: support RSC index route
-  xit('should render server components correctly', async () => {
+  it.skip('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
         'x-next-test-client': 'test-util',
@@ -132,7 +132,7 @@ export default function (context, { runtime, env }) {
   })
 
   // TODO: support dynamic routes for app dir
-  xit('should render dynamic routes correctly', async () => {
+  it.skip('should render dynamic routes correctly', async () => {
     const dynamicRoute1HTML = await renderViaHTTP(
       context.appPort,
       '/routes/dynamic1'
@@ -265,7 +265,7 @@ export default function (context, { runtime, env }) {
   if (env === 'dev') {
     // For prod build, the directory contains the build ID so it's not deterministic.
     // Only enable it for dev for now.
-    xit('should not bundle external imports into client builds for RSC', async () => {
+    it.skip('should not bundle external imports into client builds for RSC', async () => {
       const html = await renderViaHTTP(context.appPort, '/external-imports')
       expect(html).toContain('date:')
 
@@ -279,7 +279,7 @@ export default function (context, { runtime, env }) {
   }
 
   // TODO: support esm import for RSC
-  xit('should not pick browser field from package.json for external libraries', async () => {
+  it.skip('should not pick browser field from package.json for external libraries', async () => {
     const html = await renderViaHTTP(context.appPort, '/external-imports')
     expect(html).toContain('isomorphic-export')
   })
@@ -326,7 +326,7 @@ export default function (context, { runtime, env }) {
   })
 
   // TODO: support custom 404 for app dir
-  xit('should handle 404 requests and missing routes correctly', async () => {
+  it.skip('should handle 404 requests and missing routes correctly', async () => {
     const id = '#text'
     const content = 'custom-404-page'
     const page404HTML = await renderViaHTTP(context.appPort, '/404')
@@ -343,7 +343,7 @@ export default function (context, { runtime, env }) {
     expect(getNodeBySelector(pageUnknownHTML, id).text()).toBe(content)
   })
 
-  xit('should support streaming for flight response', async () => {
+  it.skip('should support streaming for flight response', async () => {
     await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
       async (response) => {
         const result = await resolveStreamResponse(response)
@@ -393,7 +393,7 @@ export default function (context, { runtime, env }) {
   })
 
   // TODO: _app + next/head
-  xit('should support next/head inside _app with RSC', async () => {
+  it.skip('should support next/head inside _app with RSC', async () => {
     const browser = await webdriver(context.appPort, '/multi')
     const title = await browser.eval(`document.title`)
     expect(title).toBe('hi')
@@ -403,7 +403,7 @@ export default function (context, { runtime, env }) {
 /*
 TODO: re-enable css suite once css is supported in app-dir
 
-it('should include global styles with `serverComponents: true`', async () => {
+it.skip('should include global styles with `serverComponents: true`', async () => {
   const browser = await webdriver(context.appPort, '/global-styles-rsc')
   const currentColor = await browser.eval(
     `window.getComputedStyle(document.querySelector('#red')).color`
@@ -411,7 +411,7 @@ it('should include global styles with `serverComponents: true`', async () => {
   expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
 })
 
-it('should include css modules with `serverComponents: true`', async () => {
+it.skip('should include css modules with `serverComponents: true`', async () => {
   const browser = await webdriver(context.appPort, '/css-modules')
   const currentColor = await browser.eval(
     `window.getComputedStyle(document.querySelector('h1')).color`
@@ -420,7 +420,7 @@ it('should include css modules with `serverComponents: true`', async () => {
 })
 
 export default function (context) {
-  it("should include global styles under `runtime: 'edge'`", async () => {
+  it.skip("should include global styles under `runtime: 'edge'`", async () => {
     const browser = await webdriver(context.appPort, '/global-styles')
     const currentColor = await browser.eval(
       `window.getComputedStyle(document.querySelector('#red')).color`
