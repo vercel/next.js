@@ -30,7 +30,7 @@ impl<'a> ApplyVisitors<'a> {
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
                 if self.index == child.0.len() {
-                    n.visit_mut_with(&mut child.1);
+                    n.visit_mut_with(&mut *child.1);
                 } else {
                     debug_assert!(self.index < child.0.len());
 
@@ -50,8 +50,6 @@ impl<'a> ApplyVisitors<'a> {
                 }
             }
         }
-
-        // TODO: check if we have a visitor for this node
     }
 }
 
