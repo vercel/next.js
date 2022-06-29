@@ -62,5 +62,4 @@ export const getStaticProps = async(props: staticProps) => {
   }
 }
 
-
 export default Index;

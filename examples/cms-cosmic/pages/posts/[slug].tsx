@@ -18,17 +18,16 @@ import { ParsedUrlQueryInput } from 'querystring'
 
 type PostProps = {
   post: Post;
-  morePosts: Post[]; 
+  morePosts: Post[];
   preview;
 };
 
 const Post = (props: PostProps) => {
-  const { 
-    post, 
-    morePosts, 
-    preview 
+  const {
+    post,
+    morePosts,
+    preview
   } = props;
-
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -74,30 +73,30 @@ type staticProps = {
   preview: boolean;
 };
 
-export const getStaticProps = async(props: staticProps) => {
-  const {  
+export const getStaticProps = async (props: staticProps) => {
+  const {
     params,
     preview = true
   } = props;
- try {
-  const data = await getPostAndMorePosts(params.slug as string, preview)
-  const content = await markdownToHtml(data['post']?.metadata?.content || '')
-  return {
-    props: {
-      preview,
-      post: {
-        ...data['post'],
-        content,
+  try {
+    const data = await getPostAndMorePosts(params.slug as string, preview)
+    const content = await markdownToHtml(data['post']?.metadata?.content || '')
+    return {
+      props: {
+        preview,
+        post: {
+          ...data['post'],
+          content,
+        },
+        morePosts: data['morePosts'] || [],
       },
-      morePosts: data['morePosts'] || [],
-    },
+    }
+  } catch (err) {
+    return <ErrorPage statusCode={err.status} />
   }
-} catch(err) {
-  return <ErrorPage statusCode={err.status} />
-}
 }
 
-export const getStaticPaths = async() => {
+export const getStaticPaths = async () => {
   const allPosts = (await getAllPostsWithSlug()) || []
   return {
     paths: allPosts.map((post) => `/posts/${post.slug}`),

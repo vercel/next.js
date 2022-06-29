@@ -81,7 +81,6 @@ export const getPostAndMorePosts = async (slug: string, preview: boolean): Promi
     object = data.objects[0]
   } catch (err) {
     throw err;
-
   }
   const moreObjects = await bucket.getObjects(moreObjectParams)
   const morePosts = moreObjects.objects
