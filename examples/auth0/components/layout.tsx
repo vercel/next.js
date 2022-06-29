@@ -1,7 +1,13 @@
 import Head from 'next/head'
 import Header from './header'
 
-function Layout({ user, loading = false, children }) {
+type LayoutProps = {
+  user?: any
+  loading?: boolean
+  children: React.ReactNode
+}
+
+const Layout = ({ user, loading = false, children }: LayoutProps) => {
   return (
     <>
       <Head>
