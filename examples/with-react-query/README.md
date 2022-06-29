@@ -1,4 +1,4 @@
-# React-Query
+# React Query
 
 **Note:** This example is maintained outside of the Next.js repository:
 
