@@ -139,11 +139,21 @@ mod tests {
 
             let mut m = parse(&fm);
 
+            let bar_span = span_of(&fm, "'bar'");
+
             let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
             let arr_span = span_of(&fm, "['baz']");
             let baz_span = span_of(&fm, "'baz'");
 
-            let mut map = HashMap::default();
+            let mut map = HashMap::<_, Vec<_>>::default();
+
+            let bar_span_vec = vec![bar_span];
+            let bar_replacer = replacer("bar", "bar-success");
+            {
+                let e = map.entry(expr_span).or_default();
+
+                e.push((&bar_span_vec, &bar_replacer));
+            }
 
             m.visit_mut_with(&mut ApplyVisitors::new(map));
 
