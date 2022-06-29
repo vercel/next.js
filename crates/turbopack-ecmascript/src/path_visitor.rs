@@ -14,12 +14,16 @@ pub type VisitorFn = Box<dyn Send + Sync + Fn() -> BoxedVisitor>;
 pub struct ApplyVisitors<'a> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    pub visitors: HashMap<Span, Vec<(&'a AstPath, &'a VisitorFn)>>,
+    visitors: HashMap<Span, Vec<(&'a AstPath, &'a VisitorFn)>>,
 
     index: usize,
 }
 
 impl<'a> ApplyVisitors<'a> {
+    pub fn new(visitors: HashMap<Span, Vec<(&'a AstPath, &'a VisitorFn)>>) -> Self {
+        Self { visitors, index: 0 }
+    }
+
     fn visit_if_required<N>(&mut self, n: &mut N)
     where
         N: Spanned
@@ -74,6 +78,8 @@ impl VisitMut for ApplyVisitors<'_> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use swc_common::{errors::HANDLER, BytePos, FileName, Mark, SourceFile, SourceMap, Span};
     use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{
@@ -81,6 +87,8 @@ mod tests {
         parser::parse_file_as_module,
         visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     };
+
+    use super::ApplyVisitors;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -129,11 +137,15 @@ mod tests {
         testing::run_test(false, |cm, handler| {
             let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz'])".into());
 
-            let m = parse(&fm);
+            let mut m = parse(&fm);
 
             let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
             let arr_span = span_of(&fm, "['baz']");
             let baz_span = span_of(&fm, "'baz'");
+
+            let mut map = HashMap::default();
+
+            m.visit_mut_with(&mut ApplyVisitors::new(map));
 
             Ok(())
         })
