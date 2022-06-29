@@ -1,7 +1,7 @@
 import Layout from '../components/layout'
 import { useFetchUser } from '../lib/user'
 
-function About() {
+const About = () => {
   const { user, loading } = useFetchUser()
 
   return (

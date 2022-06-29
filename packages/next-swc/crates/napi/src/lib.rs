@@ -79,6 +79,9 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
     )?;
     exports.create_named_method("teardownTraceSubscriber", util::teardown_trace_subscriber)?;
 
+    exports.create_named_method("initCrashReporter", util::init_crash_reporter)?;
+    exports.create_named_method("teardownCrashReporter", util::teardown_crash_reporter)?;
+
     Ok(())
 }
 

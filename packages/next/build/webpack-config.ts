@@ -1493,9 +1493,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
           config.devIndicators.buildActivityPosition
         ),
-        'process.env.__NEXT_PLUGINS': JSON.stringify(
-          config.experimental.plugins
-        ),
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
@@ -1519,7 +1516,6 @@ export default async function getBaseWebpackConfig(
           path: config.images.path,
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {
@@ -1806,9 +1802,7 @@ export default async function getBaseWebpackConfig(
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
-    plugins: config.experimental.plugins,
     reactStrictMode: config.reactStrictMode,
-    reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,

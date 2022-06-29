@@ -1,3 +1,4 @@
+import { UserProfile } from '@auth0/nextjs-auth0'
 import { useState, useEffect } from 'react'
 
 export async function fetchUser(cookie = '') {
@@ -21,14 +22,16 @@ export async function fetchUser(cookie = '') {
     return null
   }
 
-  const json = await res.json()
+  const json: UserProfile = await res.json()
   if (typeof window !== 'undefined') {
     window.__user = json
   }
   return json
 }
 
-export function useFetchUser({ required } = {}) {
+export function useFetchUser(
+  { required }: { required: boolean } = { required: false }
+) {
   const [loading, setLoading] = useState(
     () => !(typeof window !== 'undefined' && window.__user)
   )
