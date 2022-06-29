@@ -15,6 +15,7 @@ pub(crate) mod special_cases;
 pub mod target;
 pub mod typescript;
 pub mod utils;
+mod visitor;
 pub mod webpack;
 
 use std::future::IntoFuture;
