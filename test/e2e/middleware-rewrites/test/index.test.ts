@@ -50,6 +50,23 @@ describe('Middleware Rewrite', () => {
       }, /Welcome Page A/)
     })
 
+    it('should rewrite correctly when navigating via history after query update', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.elementByCss('#override-with-internal-rewrite').click()
+      await check(() => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /Welcome Page A/)
+
+      await browser.refresh()
+      await browser.waitForCondition(`!!window.next.router.isReady`)
+      await browser.back()
+      await browser.waitForElementByCss('#override-with-internal-rewrite')
+      await browser.forward()
+      await check(() => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /Welcome Page A/)
+    })
+
     it('should return HTML/data correctly for pre-rendered page', async () => {
       for (const slug of [
         'first',

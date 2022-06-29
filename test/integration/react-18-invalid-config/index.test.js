@@ -48,15 +48,15 @@ function writeNextConfig(config, reactVersion = 17) {
 }
 
 describe('Invalid react 18 webpack config', () => {
-  it('should enable `experimental.reactRoot` when `experimental.runtime` is enabled', async () => {
+  it('should install react 18 when `experimental.runtime` is enabled', async () => {
     writeNextConfig({
-      runtime: 'edge',
+      runtime: 'experimental-edge',
     })
     const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
     nextConfig.restore()
 
     expect(stderr).toContain(
-      '`experimental.runtime` requires `experimental.reactRoot` to be enabled along with React 18.'
+      '`experimental.runtime` requires React 18 to be installed.'
     )
   })
 })
@@ -68,18 +68,11 @@ describe('React 17 with React 18 config', () => {
       join(reactDomPackagePah, 'package.json'),
       JSON.stringify({ name: 'react-dom', version: '17.0.0' })
     )
-    writeNextConfig({ reactRoot: true })
+    writeNextConfig({})
   })
   afterAll(async () => {
     await fs.remove(reactDomPackagePah)
     nextConfig.restore()
-  })
-
-  it('should warn user when not using react 18 and `experimental.reactRoot` is enabled', async () => {
-    const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
-    expect(stderr).toContain(
-      'You have to use React 18 to use `experimental.reactRoot`.'
-    )
   })
 
   it('suspense is not allowed in blocking rendering mode', async () => {

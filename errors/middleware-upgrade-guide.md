@@ -2,12 +2,16 @@
 
 As we work on improving Middleware for General Availability (GA), we've made some changes to the Middleware APIs (and how you define Middleware in your application) based on your feedback.
 
-This upgrade guide will help you understand the changes and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
+This upgrade guide will help you understand the changes, why they were made, and how to migrate your existing Middleware to the new API. The guide is for Next.js developers who:
 
 - Currently use the beta Next.js Middleware features
 - Choose to upgrade to the next stable version of Next.js (`v12.2`)
 
-You can start upgrading your Middleware usage today with the latest canary release (`npm i next@canary`).
+You can start upgrading your Middleware usage today with the latest release (`npm i next@latest`).
+
+> **Note**: These changes described in this guide are included in Next.js `12.2`. You can keep your current site structure, including nested Middleware, until you move to `12.2` (or a `canary` build of Next.js).
+
+If you have ESLint configured, you will need to run `npm i eslint-config-next@latest --save-dev` to upgrade your ESLint configuration to ensure the same version is being used as the Next.js version. You might also need to restart VSCode for the changes to take effect.
 
 ## Using Next.js Middleware on Vercel
 
@@ -26,23 +30,25 @@ If you're using Next.js on Vercel, your existing deploys using Middleware will c
 
 ### Summary of changes
 
-- Define a single Middleware file at the root of your project
+- Define a single Middleware file next to your `pages` folder
 - No need to prefix the file with an underscore
 - A custom matcher can be used to define matching routes using an exported config object
 
 ### Explanation
 
-Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created. Beta customers found this route matching confusing. For example:
+Previously, you could create a `_middleware.ts` file under the `pages` directory at any level. Middleware execution was based on the file path where it was created.
 
-- Middleware in `pages/dashboard/_middleware.ts`
-- Middleware in `pages/dashboard/users/_middleware.ts`
-- A request to `/dashboard/users/*` **would match both.**
+Based on customer feedback, we have replaced this API with a single root Middleware, which provides the following improvements:
 
-Based on customer feedback, we have replaced this API with a single root Middleware.
+- **Faster execution with lower latency**: With nested Middleware, a single request could invoke multiple Middleware functions. A single Middleware means a single function execution, which is more efficient.
+- **Less expensive**: Middleware usage is billed per invocation. Using nested Middleware, a single request could invoke multiple Middleware functions, meaning multiple Middleware charges per request. A single Middleware means a single invocation per request and is more cost effective.
+- **Middleware can conveniently filter on things besides routes**: With nested Middleware, the Middleware files were located in the `pages` directory and Middleware was executed based on request paths. By moving to a single root Middleware, you can still execute code based on request paths, but you can now more conveniently execute Middleware based on other conditions, like `cookies` or the presence of a request header.
+- **Deterministic execution ordering**: With nested Middleware, a single request could match multiple Middleware functions. For example, a request to `/dashboard/users/*` would invoke Middleware defined in both `/dashboard/users/_middleware.ts` and `/dashboard/_middleware.js`. However, the execution order is difficult to reason about. Moving to a single, root Middleware more explicitly defines execution order.
+- **Supports Next.js Layouts (RFC)**: Moving to a single, root Middleware helps support the new [Layouts (RFC) in Next.js](https://nextjs.org/blog/layouts-rfc).
 
 ### How to upgrade
 
-You should declare **one single Middleware file** in your application, which should be located at the root of the project directory (**not** inside of the `pages` directory), and named **without** an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
+You should declare **one single Middleware file** in your application, which should be located next to the `pages` directory and named **without** an `_` prefix. Your Middleware file can still have either a `.ts` or `.js` extension.
 
 Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*` and `/dashboard/:path*`, the custom matcher is defined in an exported config object:
 
@@ -82,13 +88,13 @@ export function middleware(request: NextRequest) {
 
 ### Summary of changes
 
-- Middleware can no longer respond with a body
+- Middleware can no longer produce a response body
 - If your Middleware _does_ respond with a body, a runtime error will be thrown
-- Migrate to using `rewrites`/`redirects` to pages/APIs handling a response
+- Migrate to using `rewrite`/`redirect` to pages/APIs handling a response
 
 ### Explanation
 
-To help ensure security, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, we are removing the ability to send response bodies in Middleware. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](#cookies-api-revamped)).
 
 The following patterns will no longer work:
 
@@ -101,7 +107,7 @@ NextResponse.json()
 
 ### How to upgrade
 
-For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrites`/`redirects` to pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrite`/`redirect` to pages that show an authorization error, login forms, or to an API Route.
 
 #### Before
 
@@ -142,6 +148,31 @@ export function middleware(request: NextRequest) {
 }
 ```
 
+#### Edge API Routes
+
+If you were previously using Middleware to forward headers to an external API, you can now use [Edge API Routes](/docs/api-routes/edge-api-routes):
+
+```typescript
+// pages/api/proxy.ts
+
+import { type NextRequest } from 'next/server'
+
+export const config = {
+  runtime: 'experimental-edge',
+}
+
+export default async function handler(req: NextRequest) {
+  const authorization = req.cookies.get('authorization')
+  return fetch('https://backend-api.com/api/protected', {
+    method: req.method,
+    headers: {
+      authorization,
+    },
+    redirect: 'manual',
+  })
+}
+```
+
 ## Cookies API Revamped
 
 ### Summary of changes
@@ -169,6 +200,7 @@ As well as other extended methods from `Map`.
 #### Before
 
 ```javascript
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -218,6 +250,8 @@ export function middleware() {
 
   // clear all cookies means mark all of them as expired
   response.cookies.clear()
+
+  return response
 }
 ```
 
@@ -242,14 +276,14 @@ The helper is imported from `next/server` and allows you to opt in to using the 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const url = request.nextUrl
   const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(url)
+  return NextResponse.rewrite(url)
 }
 ```
 
@@ -264,7 +298,7 @@ export function middleware(request: NextRequest) {
   const { device } = userAgent(request)
   const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
   url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrites(url)
+  return NextResponse.rewrite(url)
 }
 ```
 
@@ -287,7 +321,7 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 #### Before
 
 ```typescript
-// middleware.ts
+// pages/_middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -352,6 +386,6 @@ export function middleware(request: NextRequest) {
 
 Prior to Next.js `v12.2`, Middleware was not executed for `_next` requests.
 
-For cases where Middleware is used for authorization, you should migrate to use `rewrites`/`redirects` to Pages that show an authorization error, login forms, or to an API Route.
+For cases where Middleware is used for authorization, you should migrate to use `rewrite`/`redirect` to Pages that show an authorization error, login forms, or to an API Route.
 
-See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrites`/`redirects`.
+See [No Reponse Body](#no-response-body) for an example of how to migrate to use `rewrite`/`redirect`.

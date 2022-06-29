@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
@@ -30,9 +31,8 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: any
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
-  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -180,13 +180,20 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const writable = transformStream.writable
-  const ServerComponentWrapper = (props: any) => {
-    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <ComponentToRender {...props} />,
-      serverComponentManifest
-    )
+  let RSCStream: ReadableStream<Uint8Array>
+  const createRSCStream = () => {
+    if (!RSCStream) {
+      RSCStream = renderToReadableStream(
+        <ComponentToRender />,
+        serverComponentManifest
+      )
+    }
+    return RSCStream
+  }
 
+  const writable = transformStream.writable
+  const ServerComponentWrapper = () => {
+    const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
       cachePrefix,

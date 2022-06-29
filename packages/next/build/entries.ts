@@ -1,8 +1,8 @@
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
-import type { MiddlewareSSRLoaderQuery } from './webpack/loaders/next-middleware-ssr-loader'
+import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
-import type { PageRuntime } from '../server/config-shared'
+import type { ServerRuntime } from '../server/config-shared'
 import type { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import type { LoadedEnvFiles } from '@next/env'
@@ -15,6 +15,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -164,8 +165,12 @@ export function getEdgeServerEntry(opts: {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
-      matcherRegexp:
-        opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source,
+      // pathMatcher can have special characters that break the loader params
+      // parsing so we base64 encode/decode the string
+      matcherRegexp: Buffer.from(
+        (opts.middleware?.pathMatcher && opts.middleware.pathMatcher.source) ||
+          ''
+      ).toString('base64'),
     }
 
     return `next-middleware-loader?${stringify(loaderParams)}!`
@@ -180,7 +185,7 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  const loaderParams: MiddlewareSSRLoaderQuery = {
+  const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
     absoluteDocumentPath: opts.pages['/_document'],
@@ -197,7 +202,7 @@ export function getEdgeServerEntry(opts: {
   }
 
   return {
-    import: `next-middleware-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
     layer: opts.isServerComponent ? 'sc_server' : undefined,
   }
 }
@@ -243,7 +248,6 @@ export function getServerlessEntry(opts: {
     page: opts.page,
     poweredByHeader: opts.config.poweredByHeader ? 'true' : '',
     previewProps: JSON.stringify(opts.previewMode),
-    reactRoot: !!opts.config.experimental.reactRoot ? 'true' : '',
     runtimeConfig:
       Object.keys(opts.config.publicRuntimeConfig).length > 0 ||
       Object.keys(opts.config.serverRuntimeConfig).length > 0
@@ -436,28 +440,27 @@ export function runDependingOnPageType<T>(params: {
   onEdgeServer: () => T
   onServer: () => T
   page: string
-  pageRuntime: PageRuntime
+  pageRuntime: ServerRuntime
 }) {
   if (isMiddlewareFile(params.page)) {
-    return [params.onEdgeServer()]
+    return { edgeServer: params.onEdgeServer() }
   } else if (params.page.match(API_ROUTE)) {
-    return params.pageRuntime === 'edge'
-      ? [params.onEdgeServer()]
-      : [params.onServer()]
+    return params.pageRuntime === SERVER_RUNTIME.edge
+      ? { edgeServer: params.onEdgeServer() }
+      : { server: params.onServer() }
   } else if (params.page === '/_document') {
-    return [params.onServer()]
+    return { server: params.onServer() }
   } else if (
     params.page === '/_app' ||
     params.page === '/_error' ||
     params.page === '/404' ||
     params.page === '/500'
   ) {
-    return [params.onClient(), params.onServer()]
+    return { client: params.onClient(), server: params.onServer() }
   } else {
-    return [
-      params.onClient(),
-      params.pageRuntime === 'edge' ? params.onEdgeServer() : params.onServer(),
-    ]
+    return params.pageRuntime === SERVER_RUNTIME.edge
+      ? { client: params.onClient(), edgeServer: params.onEdgeServer() }
+      : { client: params.onClient(), server: params.onServer() }
   }
 }
 

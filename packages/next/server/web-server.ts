@@ -138,7 +138,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       {
         ...renderOpts,
         disableOptimizedLoading: true,
-        runtime: 'edge',
+        runtime: 'experimental-edge',
       }
     )
   }

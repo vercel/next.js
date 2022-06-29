@@ -9,5 +9,5 @@ const Page = () => {
 export default Page
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'experimental-edge',
 }
