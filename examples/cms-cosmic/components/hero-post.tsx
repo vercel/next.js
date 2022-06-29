@@ -2,14 +2,14 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import Link from 'next/link'
-import { Author, Imgix } from 'interfaces'
+import { AuthorType, ImgixType } from 'interfaces'
 
 type HeroPostProps = {
   title: string
-  coverImage: Imgix
+  coverImage: ImgixType
   date: string
   excerpt: string
-  author: Author
+  author: AuthorType
   slug: string
 }
 

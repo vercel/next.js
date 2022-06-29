@@ -12,12 +12,12 @@ import PostTitle from '@/components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
 import markdownToHtml from '@/lib/markdownToHtml'
-import { Post } from 'interfaces'
+import { PostType } from 'interfaces'
 import { ParsedUrlQueryInput } from 'querystring'
 
 type PostProps = {
-  post: Post
-  morePosts: Post[]
+  post: PostType
+  morePosts: PostType[]
   preview
 }
 

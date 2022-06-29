@@ -6,10 +6,10 @@ import Layout from '@/components/layout'
 import { getAllPostsForHome } from '@/lib/api'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
-import { Post } from 'interfaces'
+import { PostType } from 'interfaces'
 
 type IndexProps = {
-  allPosts: Post[]
+  allPosts: PostType[]
   preview: boolean
 }
 
