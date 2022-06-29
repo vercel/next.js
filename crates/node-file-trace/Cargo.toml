@@ -10,12 +10,15 @@ bench = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+persistent_cache = ["dep:turbo-tasks-rocksdb"]
+
 [dependencies]
 "clap" = { version = "3.1.3", features = ["derive"] }
 "turbo-tasks" = { path = "../turbo-tasks" }
 # "turbo-tasks-memory" = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
+"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb", optional = true }
 "turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
 "turbopack" = { path = "../turbopack" }
 "turbopack-core" = { path = "../turbopack-core" }

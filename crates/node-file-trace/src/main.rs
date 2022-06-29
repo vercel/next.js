@@ -12,14 +12,12 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tokio::time::timeout;
 use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
 };
-use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend, MemoryBackendWithPersistedGraph};
-use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{
     ecmascript::target::CompileTarget, emit, rebase::RebasedAssetVc, GraphOptionsVc,
     ModuleAssetContextVc,
@@ -33,6 +31,27 @@ use turbopack_core::{
 
 use crate::nft_json::NftJsonAssetVc;
 
+#[cfg(feature = "persistent_cache")]
+use tokio::time::timeout;
+#[cfg(feature = "persistent_cache")]
+use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
+#[cfg(feature = "persistent_cache")]
+use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+
+#[cfg(feature = "persistent_cache")]
+#[derive(clap::Args, Debug, Clone)]
+struct CacheArgs {
+    #[clap(long)]
+    cache: Option<String>,
+
+    #[clap(long)]
+    cache_fully: bool,
+}
+
+#[cfg(not(feature = "persistent_cache"))]
+#[derive(clap::Args, Debug, Clone)]
+struct CacheArgs {}
+
 #[derive(clap::Args, Debug, Clone)]
 struct CommonArgs {
     input: Vec<String>,
@@ -40,14 +59,11 @@ struct CommonArgs {
     #[clap(short, long)]
     context_directory: Option<String>,
 
+    #[clap(flatten)]
+    cache: CacheArgs,
+
     #[clap(short, long)]
     visualize_graph: bool,
-
-    #[clap(long)]
-    cache: Option<String>,
-
-    #[clap(long)]
-    cache_fully: bool,
 
     #[clap(short, long)]
     watch: bool,
@@ -199,11 +215,15 @@ async fn main() {
     let &CommonArgs {
         ref input,
         visualize_graph,
-        ref cache,
-        ref cache_fully,
+        #[cfg(feature = "persistent_cache")]
+            cache: CacheArgs {
+            ref cache,
+            ref cache_fully,
+        },
         ref context_directory,
         ..
     } = args.common();
+    #[cfg(feature = "persistent_cache")]
     if let Some(cache) = cache {
         run(
             &args,
@@ -245,28 +265,29 @@ async fn main() {
             },
         )
         .await;
-    } else {
-        run(
-            &args,
-            || TurboTasks::new(MemoryBackend::new()),
-            |tt, root_task, _| async move {
-                if visualize_graph {
-                    let mut stats = Stats::new();
-                    let b = tt.backend();
-                    b.with_all_cached_tasks(|task| {
-                        stats.add_id(b, task);
-                    });
-                    stats.add_id(b, root_task);
-                    stats.merge_resolve();
-                    let tree = stats.treeify();
-                    let graph = viz::visualize_stats_tree(tree);
-                    fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
-                    println!("graph.html written");
-                }
-            },
-        )
-        .await;
+        return;
     }
+
+    run(
+        &args,
+        || TurboTasks::new(MemoryBackend::new()),
+        |tt, root_task, _| async move {
+            if visualize_graph {
+                let mut stats = Stats::new();
+                let b = tt.backend();
+                b.with_all_cached_tasks(|task| {
+                    stats.add_id(b, task);
+                });
+                stats.add_id(b, root_task);
+                stats.merge_resolve();
+                let tree = stats.treeify();
+                let graph = viz::visualize_stats_tree(tree);
+                fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
+                println!("graph.html written");
+            }
+        },
+    )
+    .await;
 }
 
 async fn run<B: Backend + 'static, F: Future<Output = ()>>(

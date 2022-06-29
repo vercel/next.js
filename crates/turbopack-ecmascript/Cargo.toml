@@ -44,7 +44,6 @@ difference = "2.0"
 rstest = "0.12.0"
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
 "turbo-tasks-testing" = { path = "../turbo-tasks-testing" }
 testing = "0.19.1"
 
