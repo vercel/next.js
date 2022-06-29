@@ -18,6 +18,7 @@ anyhow = "1.0.47"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-css = { path = "../turbopack-css" }
 turbopack-core = { path = "../turbopack-core" }
 tokio = "1.11.0"
 regex = "1.5.4"

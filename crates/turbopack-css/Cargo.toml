@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-css"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.47"
+
+turbopack-core = { path = "../turbopack-core" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+
+swc_atoms = "0.2.11"
+serde = "1.0.136"
+
+[dependencies.swc_common]
+version = "0.17.25"
+features = ["concurrent"]
+
+[dependencies.swc_css]
+version = "0.104.2"
+features = []
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
