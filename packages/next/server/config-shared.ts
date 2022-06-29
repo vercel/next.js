@@ -509,6 +509,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
@@ -544,7 +545,9 @@ export const defaultConfig: NextConfig = {
     images: {
       remotePatterns: [],
     },
+    swcTraceProfiling: false,
     forceSwcTransforms: false,
+    swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
   },
 }

@@ -44,6 +44,9 @@ tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
 wasmer = { version = "2.3.0", optional = true, default-features = false }
 wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }
+sentry = "0.27.0"
 
 [build-dependencies]
 napi-build = "1"
+serde = "1"
+serde_json = "1"
