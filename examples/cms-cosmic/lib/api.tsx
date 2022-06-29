@@ -1,5 +1,5 @@
 import Cosmic from 'cosmicjs'
-import { Post } from 'interfaces'
+import { PostType } from 'interfaces'
 import ErrorPage from 'next/error'
 
 const BUCKET_SLUG = process.env.COSMIC_BUCKET_SLUG
@@ -9,8 +9,6 @@ const bucket = Cosmic().bucket({
   slug: BUCKET_SLUG,
   read_key: READ_KEY,
 })
-
-const is404 = (error) => /not found/i.test(error.message)
 
 export const getPreviewPostBySlug = async (slug: string) => {
   const params = {
@@ -59,8 +57,8 @@ export const getPostAndMorePosts = async (
   slug: string,
   preview: boolean
 ): Promise<{
-  post: Post
-  morePosts: Post[]
+  post: PostType
+  morePosts: PostType[]
 }> => {
   const singleObjectParams = {
     query: {
