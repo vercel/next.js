@@ -296,11 +296,35 @@ export async function renderToHTML(
 
   type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
+  const pathParams = (renderOpts as any).params as ParsedUrlQuery
+
+  const getDynamicParamFromSegment = (
+    segment: string
+  ): { param: string; value: string } | null => {
+    // TODO: use correct matching for dynamic routes to get segment param
+    const segmentParam =
+      segment.startsWith('[') && segment.endsWith(']')
+        ? segment.slice(1, -1)
+        : null
+
+    if (!segmentParam || !pathParams[segmentParam]) {
+      return null
+    }
+
+    // TODO: handle case where value is an array
+    return { param: segmentParam, value: pathParams[segmentParam] }
+  }
+
   const createFlightRouterStateFromLoaderTree = (
     [segment, parallelRoutes]: LoaderTree,
     url?: string
   ): FlightRouterState => {
-    const segmentTree: FlightRouterState = [segment, {}]
+    const dynamicParam = getDynamicParamFromSegment(segment)
+
+    const segmentTree: FlightRouterState = [
+      dynamicParam ? dynamicParam.value : segment,
+      {},
+    ]
     if (url) {
       segmentTree.push(url)
     }
@@ -322,9 +346,11 @@ export async function renderToHTML(
   const createComponentTree = ({
     createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
+    parentParams,
   }: {
     createSegmentPath: CreateSegmentPath
     tree: LoaderTree
+    parentParams: { [key: string]: any }
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
@@ -332,13 +358,24 @@ export async function renderToHTML(
       ? interopDefault(layoutOrPageMod)
       : undefined
 
+    const segmentParam = getDynamicParamFromSegment(segment)
+    const currentParams = segmentParam
+      ? {
+          ...parentParams,
+          [segmentParam.param]: segmentParam.value,
+        }
+      : parentParams
+
+    const actualSegment = segmentParam ? segmentParam.value : segment
+
     // When this segment does not have a layout or page render the children without wrapping in a layout router
     if (!Component) {
       const { Component: Children } = createComponentTree({
         createSegmentPath: (child) => {
-          return createSegmentPath([segment, 'children', ...child])
+          return createSegmentPath([actualSegment, 'children', ...child])
         },
         tree: parallelRoutes.children,
+        parentParams: currentParams,
       })
       // If the segment has a loading.js still wrap with a loading component
       if (Loading) {
@@ -360,20 +397,26 @@ export async function renderToHTML(
       (list, currentValue) => {
         const { Component: ChildComponent } = createComponentTree({
           createSegmentPath: (child) => {
-            return createSegmentPath([segment, currentValue, ...child])
+            return createSegmentPath([actualSegment, currentValue, ...child])
           },
           tree: parallelRoutes[currentValue],
+          parentParams: currentParams,
         })
 
+        const childSegmentParam = getDynamicParamFromSegment(
+          parallelRoutes[currentValue][0]
+        )
         const childProp: ChildProp = {
           current: <ChildComponent />,
-          segment: parallelRoutes[currentValue][0],
+          segment: childSegmentParam
+            ? childSegmentParam.value
+            : parallelRoutes[currentValue][0],
         }
 
         list[currentValue] = (
           <LayoutRouter
             parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath([segment, currentValue])}
+            segmentPath={createSegmentPath([actualSegment, currentValue])}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
           />
@@ -384,7 +427,7 @@ export async function renderToHTML(
       {} as { [key: string]: React.ReactNode }
     )
 
-    const segmentPath = createSegmentPath([segment])
+    const segmentPath = createSegmentPath([actualSegment])
     const dataCacheKey = JSON.stringify(segmentPath)
     let fetcher: any
 
@@ -393,14 +436,18 @@ export async function renderToHTML(
     if (layoutOrPageMod.getServerSideProps) {
       fetcher = () =>
         Promise.resolve(
-          layoutOrPageMod.getServerSideProps!({
-            req: req as any,
-            res: res,
-            query,
-            resolvedUrl: (renderOpts as any).resolvedUrl as string,
-            ...(pageIsDynamic
-              ? { params: (renderOpts as any).params as ParsedUrlQuery }
-              : undefined),
+          layoutOrPageMod.getServerSideProps({
+            // TODO: Which of these should be passed?
+            // req: req as any,
+            // res: res,
+            // TODO: Reading query in client component
+            // query,
+            // resolvedUrl: (renderOpts as any).resolvedUrl as string,
+            // ...(pageIsDynamic
+            //   ? { params: (renderOpts as any).params as ParsedUrlQuery }
+            //   : undefined),
+            // TODO: dynamic params need to be passed in based on the segment
+            ...(pageIsDynamic ? { params: currentParams } : undefined),
             ...(isPreview
               ? { preview: true, previewData: previewData }
               : undefined),
@@ -415,10 +462,12 @@ export async function renderToHTML(
     if (layoutOrPageMod.getStaticProps) {
       fetcher = () =>
         Promise.resolve(
-          layoutOrPageMod.getStaticProps!({
-            ...(pageIsDynamic
-              ? { params: query as ParsedUrlQuery }
-              : undefined),
+          layoutOrPageMod.getStaticProps({
+            // ...(pageIsDynamic
+            //   ? { params: query as ParsedUrlQuery }
+            //   : undefined),
+            // TODO: dynamic params
+            ...(pageIsDynamic ? { params: currentParams } : undefined),
             ...(isPreview
               ? { preview: true, previewData: previewData }
               : undefined),
@@ -489,6 +538,7 @@ export async function renderToHTML(
               {
                 createSegmentPath: (child) => child,
                 tree: treeToFilter,
+                parentParams: {},
               }
             ).Component
           ),
@@ -524,6 +574,7 @@ export async function renderToHTML(
     )
   }
 
+  // TODO: this path is incorrect with dynamic routes
   const initialCanonicalUrl = pathname + (search ? `?${search}` : '')
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -533,6 +584,7 @@ export async function renderToHTML(
   const { Component: ComponentTree } = createComponentTree({
     createSegmentPath: (child) => child,
     tree,
+    parentParams: {},
   })
 
   const AppRouter = ComponentMod.AppRouter
