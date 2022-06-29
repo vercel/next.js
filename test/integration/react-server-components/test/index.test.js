@@ -1,74 +1,17 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import fs from 'fs-extra'
 
-// import fs from 'fs-extra'
+import { File, runDevSuite, runProdSuite } from 'next-test-utils'
 
-import {
-  // fetchViaHTTP,
-  File,
-  nextBuild,
-  runDevSuite,
-  runProdSuite,
-} from 'next-test-utils'
-
-// import {
-// appDir,
-// nativeModuleTestAppDir,
-// appPage,
-// error500Page,
-// nextConfig,
-// } from './utils'
-
-// import css from './css'
 import rsc from './rsc'
-// import streaming from './streaming'
-// import basic from './basic'
-// import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
-
-// TODO: next/head in app in RSC case
-// const appWithGlobalCssAndHead = `
-// import '../styles.css'
-// import Head from 'next/head'
-
-// function App({ Component, pageProps }) {
-//   return <>
-//     <Head>
-//       <title>hi</title>
-//     </Head>
-//     <Component {...pageProps} />
-//   </>
-// }
-
-// export default App
-// `
-
-const page500 = `
-export default function Page500() {
-  return 'custom-500-page'
-}
-`
 
 const appDir = join(__dirname, '../basic')
-// const nativeModuleTestAppDir = join(
-//   __dirname,
-//   '../unsupported-native-module'
-// )
-// const appPage = new File(join(appDir, 'pages/_app.js'))
-const error500Page = new File(join(appDir, 'pages/500.js'))
+
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
-// describe('Edge runtime - errors', () => {
-//   it('should warn user that native node APIs are not supported', async () => {
-//     const fsImportedErrorMessage =
-//       getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('dns')
-//     const { stderr } = await nextBuild(nativeModuleTestAppDir, [], {
-//       stderr: true,
-//     })
-//     expect(stderr).toContain(fsImportedErrorMessage)
-//   })
-// })
-
+/* TODO: support edge runtime in the future
 const edgeRuntimeBasicSuite = {
   runTests: (context, env) => {
     const options = { runtime: 'experimental-edge', env }
@@ -77,7 +20,6 @@ const edgeRuntimeBasicSuite = {
     streaming(context, options)
     // rsc(context, options)
 
-    /* TODO: migrate to rsc test suite
     if (env === 'dev') {
       it('should have content-type and content-encoding headers', async () => {
         // TODO: fix the compression header issue for `/`
@@ -119,15 +61,10 @@ const edgeRuntimeBasicSuite = {
           expect(fs.existsSync(requiredFilePath)).toBe(true)
         })
       })
-    }*/
+    }
   },
-  // beforeAll: () => {
-  //   error500Page.write(page500)
-  // },
-  // afterAll: () => {
-  //   error500Page.delete()
-  // },
 }
+*/
 
 const nodejsRuntimeBasicSuite = {
   runTests: (context, env) => {
@@ -162,12 +99,8 @@ const nodejsRuntimeBasicSuite = {
       })
     }
   },
-  beforeAll: () => {
-    error500Page.write(page500)
-    // nextConfig.replace("runtime: 'experimental-edge'", "runtime: 'nodejs'")
-  },
+  beforeAll: () => {},
   afterAll: () => {
-    error500Page.delete()
     nextConfig.restore()
   },
 }
