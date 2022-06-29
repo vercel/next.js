@@ -71,3 +71,53 @@ impl VisitMut for ApplyVisitors<'_> {
     method!(visit_mut_stmt, Stmt);
     method!(visit_mut_module_decl, ModuleDecl);
 }
+
+#[cfg(test)]
+mod tests {
+    use swc_common::{errors::HANDLER, BytePos, FileName, Mark, SourceFile, SourceMap, Span};
+    use swc_ecma_transforms_base::resolver;
+    use swc_ecmascript::{
+        ast::{EsVersion, Module},
+        parser::parse_file_as_module,
+        visit::VisitMutWith,
+    };
+
+    fn parse(fm: &SourceFile) -> Module {
+        let mut m = parse_file_as_module(
+            &fm,
+            Default::default(),
+            EsVersion::latest(),
+            None,
+            &mut vec![],
+        )
+        .map_err(|err| HANDLER.with(|handler| err.into_diagnostic(&handler).emit()))
+        .unwrap();
+
+        let unresolved_mark = Mark::new();
+        let top_level_mark = Mark::new();
+        m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+
+        m
+    }
+
+    fn span_of(fm: &SourceFile, text: &str) -> Span {
+        let idx = BytePos(fm.src.find(text).expect("span_of: text not found") as _);
+        let lo = fm.start_pos + idx;
+
+        Span::new(lo, lo + BytePos(text.len() as _), Default::default())
+    }
+
+    #[test]
+    fn case_1() {
+        testing::run_test(false, |cm, handler| {
+            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', 'baz')");
+
+            let m = parse(&fm);
+
+            let baz_span = span_of(&fm, "'baz'");
+
+            Ok(())
+        })
+        .unwrap();
+    }
+}
