@@ -11,16 +11,17 @@ pub struct ApplyVisitors {
 impl ApplyVisitors {
     fn visit_if_required<N>(&mut self, n: &mut N)
     where
-        N: Spanned + VisitMutWith<Box<dyn VisitMut + Send + Sync>>,
+        N: Spanned + VisitMutWith<Box<dyn VisitMut + Send + Sync>> + VisitMutWith<Self>,
     {
+        // TODO
+
+        n.visit_mut_children_with(self);
     }
 }
 
 macro_rules! method {
     ($name:ident,$T:ty) => {
         fn $name(&mut self, n: &mut $T) {
-            n.visit_mut_children_with(self);
-
             self.visit_if_required(n);
         }
     };
