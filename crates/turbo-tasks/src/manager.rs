@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     collections::HashSet,
     fmt::Debug,
-    future::{Future, IntoFuture},
+    future::Future,
     hash::Hash,
     mem::take,
     pin::Pin,

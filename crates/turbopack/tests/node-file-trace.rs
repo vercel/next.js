@@ -4,6 +4,7 @@ use std::{
     fs::remove_dir_all,
     io::ErrorKind,
     path::{Path, PathBuf},
+    sync::Arc,
     time::Duration,
 };
 
@@ -12,17 +13,18 @@ use difference::{Changeset, Difference};
 use lazy_static::lazy_static;
 use regex::Regex;
 use rstest::*;
+use rstest_reuse::{self, *};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::{TurboTasks, ValueToString};
+use turbo_tasks::{backend::Backend, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
-use turbo_tasks_memory::{MemoryBackend, MemoryBackendWithPersistedGraph};
-use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc, ModuleAssetContextVc,
 };
-use turbopack_core::{asset::Asset, context::AssetContext, source_asset::SourceAssetVc};
+use turbopack_core::source_asset::SourceAssetVc;
 use turbopack_ecmascript::target::CompileTarget;
 
+#[template]
 #[rstest]
 #[case::analytics_node("integration/analytics-node.js", true)]
 #[case::array_map_require("integration/array-map-require/index.js", true)]
@@ -128,10 +130,59 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::ts_package_base("integration/ts-package/index.ts", true)]
 #[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
 #[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
-fn node_file_trace(
-    #[values("memory"/*, "rocksdb"*/)] mode: &str,
-    #[case] input: String,
-    #[case] should_succeed: bool,
+fn test_cases() {}
+
+#[apply(test_cases)]
+fn node_file_trace_memory(#[case] input: String, #[case] should_succeed: bool) {
+    node_file_trace(
+        input,
+        should_succeed,
+        "memory",
+        1,
+        120,
+        || TurboTasks::new(MemoryBackend::new()),
+        |tt| {},
+    );
+}
+
+#[cfg(feature = "test_persistent_cache")]
+#[apply(test_cases)]
+fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) {
+    use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
+    use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+
+    node_file_trace(
+        input,
+        should_succeed,
+        "rockdb",
+        1,
+        240,
+        || {
+            TurboTasks::new(MemoryBackendWithPersistedGraph::new(
+                RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
+            ))
+        },
+        |tt| {
+            let b = tt.backend();
+            b.with_all_cached_tasks(|task| {
+                b.with_task(task, |task| {
+                    if task.is_pending() {
+                        println!("PENDING: {task}");
+                    }
+                })
+            });
+        },
+    );
+}
+
+fn node_file_trace<B: Backend + 'static>(
+    input: String,
+    should_succeed: bool,
+    mode: &str,
+    run_count: i32,
+    timeout_len: u64,
+    create_turbo_tasks: impl Fn() -> Arc<TurboTasks<B>>,
+    handle_timeout_error: impl Fn(&Arc<TurboTasks<B>>),
 ) {
     let r = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -163,9 +214,6 @@ fn node_file_trace(
                 }
             })
             .unwrap();
-
-        let run_count = if mode != "memory" { 1 } else { 1 };
-        let timeout_len = if mode != "memory" { 240 } else { 120 };
 
         for _ in 0..run_count {
             let tests_root = tests_root.clone();
@@ -217,47 +265,18 @@ fn node_file_trace(
                     }
                 };
 
-            match mode {
-                "memory" => {
-                    let tt = TurboTasks::new(MemoryBackend::new());
-                    let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;
-                    match output {
-                        Ok(result) => handle_result(result),
-                        Err(err) => {
-                            let mut pending_tasks = 0_usize;
-                            let b = tt.backend();
-                            b.with_all_cached_tasks(|task| {
-                                b.with_task(task, |task| {
-                                    if task.is_pending() {
-                                        println!("PENDING: {task}");
-                                        pending_tasks += 1;
-                                    }
-                                })
-                            });
-                            panic!(
-                                "Execution is hanging (for > {timeout_len}s, {pending_tasks} \
-                                 pending tasks): {err}"
-                            );
-                        }
-                    }
+            let tt = create_turbo_tasks();
+            let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;
+            let stop = timeout(Duration::from_secs(60), tt.stop_and_wait()).await;
+            match (output, stop) {
+                (Ok(result), Ok(_)) => handle_result(result),
+                (Err(err), _) => {
+                    handle_timeout_error(&tt);
+                    panic!("Execution is hanging (for > {timeout_len}s): {err}");
                 }
-                "rocksdb" => {
-                    let tt = TurboTasks::new(MemoryBackendWithPersistedGraph::new(
-                        RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
-                    ));
-                    let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;
-                    let stop = timeout(Duration::from_secs(60), tt.stop_and_wait()).await;
-                    match (output, stop) {
-                        (Ok(result), Ok(_)) => handle_result(result),
-                        (Err(err), _) => {
-                            panic!("Execution is hanging (for > {timeout_len}s): {err}");
-                        }
-                        (_, Err(err)) => {
-                            panic!("Stopping is hanging (for > 60s): {err}");
-                        }
-                    }
+                (_, Err(err)) => {
+                    panic!("Stopping is hanging (for > 60s): {err}");
                 }
-                _ => unreachable!(),
             }
         }
     })

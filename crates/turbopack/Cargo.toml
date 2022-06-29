@@ -9,6 +9,9 @@ bench = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+"test_persistent_cache" = ["dep:turbo-tasks-rocksdb"]
+
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
@@ -27,6 +30,8 @@ url = "2.2.2"
 indexmap = "1.8.0"
 serde = "1.0.136"
 serde_regex = "1.1.0"
+# turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
+"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb", optional = true }
 
 [dependencies.swc_common]
 version = "0.17.25"
@@ -43,9 +48,9 @@ version = "0.4"
 tokio = "1.11.0"
 difference = "2.0"
 rstest = "0.12.0"
+rstest_reuse = "0.3.0"
 criterion = { version = "0.3.5", features = ["tokio"] }
 "turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb" }
 testing = "0.19.1"
 
 [build-dependencies]
