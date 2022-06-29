@@ -13,9 +13,10 @@ impl ApplyVisitors {
     where
         N: Spanned + VisitMutWith<Box<dyn VisitMut + Send + Sync>> + VisitMutWith<Self>,
     {
-        // TODO
-
+        // TODO: check if we have a visitor for a child of this node
         n.visit_mut_children_with(self);
+
+        // TODO: check if we have a visitor for this node
     }
 }
 
