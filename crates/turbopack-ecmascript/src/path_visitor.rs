@@ -32,9 +32,13 @@ impl<'a> ApplyVisitors<'a> {
     {
         let span = n.span();
 
+        dbg!(self.index);
+
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                if self.index == child.0.len() {
+                dbg!(self.index, child.0.len());
+
+                if self.index == child.0.len() - 1 {
                     n.visit_mut_with(&mut child.1());
                 } else {
                     debug_assert!(self.index < child.0.len());
@@ -130,7 +134,10 @@ mod tests {
     }
 
     fn replacer(from: &'static str, to: &'static str) -> super::VisitorFn {
-        box || box StrReplacer { from, to }
+        box || {
+            eprintln!("Creating replacer");
+            box StrReplacer { from, to }
+        }
     }
 
     #[test]
@@ -145,6 +152,11 @@ mod tests {
             let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
             let arr_span = span_of(&fm, "['baz']");
             let baz_span = span_of(&fm, "'baz'");
+
+            dbg!(bar_span);
+            dbg!(expr_span);
+            dbg!(arr_span);
+            dbg!(baz_span);
 
             let mut map = HashMap::<_, Vec<_>>::default();
 
