@@ -242,7 +242,7 @@ describe('views dir', () => {
         const html = await renderViaHTTP(next.url, '/dynamic/books/hello-world')
         const $ = cheerio.load(html)
 
-        expect($('#dynamic-layout-params').text()).toBe('{}')
+        expect($('#dynamic-layout-params').text()).toBe('')
         expect($('#category-layout-params').text()).toBe('{"category":"books"}')
         expect($('#id-layout-params').text()).toBe(
           '{"category":"books","id":"hello-world"}'
