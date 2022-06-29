@@ -206,98 +206,91 @@ function runTests(mode) {
   })
 
   it('should callback onLoadingComplete when image is fully loaded', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/on-loading-complete')
+    let browser = await webdriver(appPort, '/on-loading-complete')
 
-      await browser.eval(
-        `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
-      )
+    await browser.eval(
+      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+    )
 
-      await check(
-        () => browser.eval(`document.getElementById("img1").currentSrc`),
-        /test(.*)jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img2").currentSrc`),
-        /test(.*).png/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img3").currentSrc`),
-        /test\.svg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img4").currentSrc`),
-        /test(.*)ico/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded 1 img1 with dimensions 128x128'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded 1 img2 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg3").textContent`),
-        'loaded 1 img3 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg4").textContent`),
-        'loaded 1 img4 with dimensions 32x32'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg5").textContent`),
-        'loaded 1 img5 with dimensions 3x5'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg6").textContent`),
-        'loaded 1 img6 with dimensions 3x5'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg7").textContent`),
-        'loaded 1 img7 with dimensions 400x400'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg8").textContent`),
-        'loaded 1 img8 with dimensions 640x373'
-      )
-      await check(
-        () =>
-          browser.eval(
-            `document.getElementById("img8").getAttribute("data-nimg")`
-          ),
-        'future'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img8").currentSrc`),
-        /wide.png/
-      )
-      await browser.eval('document.getElementById("toggle").click()')
-      await check(
-        () => browser.eval(`document.getElementById("msg8").textContent`),
-        'loaded 2 img8 with dimensions 400x300'
-      )
-      await check(
-        () =>
-          browser.eval(
-            `document.getElementById("img8").getAttribute("data-nimg")`
-          ),
-        'future'
-      )
-      await check(
-        () => browser.eval(`document.getElementById("img8").currentSrc`),
-        /test-rect.jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg9").textContent`),
-        'loaded 1 img9 with dimensions 400x400'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+    await check(
+      () => browser.eval(`document.getElementById("img1").currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img2").currentSrc`),
+      /test(.*).png/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img3").currentSrc`),
+      /test\.svg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img4").currentSrc`),
+      /test(.*)ico/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg1").textContent`),
+      'loaded 1 img1 with dimensions 128x128'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg2").textContent`),
+      'loaded 1 img2 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg3").textContent`),
+      'loaded 1 img3 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg4").textContent`),
+      'loaded 1 img4 with dimensions 32x32'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg5").textContent`),
+      'loaded 1 img5 with dimensions 3x5'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg6").textContent`),
+      'loaded 1 img6 with dimensions 3x5'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg7").textContent`),
+      'loaded 1 img7 with dimensions 400x400'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 1 img8 with dimensions 640x373'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'future'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /wide.png/
+    )
+    await browser.eval('document.getElementById("toggle").click()')
+    await check(
+      () => browser.eval(`document.getElementById("msg8").textContent`),
+      'loaded 2 img8 with dimensions 400x300'
+    )
+    await check(
+      () =>
+        browser.eval(
+          `document.getElementById("img8").getAttribute("data-nimg")`
+        ),
+      'future'
+    )
+    await check(
+      () => browser.eval(`document.getElementById("img8").currentSrc`),
+      /test-rect.jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById("msg9").textContent`),
+      'loaded 1 img9 with dimensions 400x400'
+    )
   })
 
   it('should callback native onLoad in most cases', async () => {
