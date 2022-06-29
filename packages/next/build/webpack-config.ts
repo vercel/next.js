@@ -12,6 +12,7 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -385,7 +386,7 @@ export default async function getBaseWebpackConfig(
     : config.experimental.disableOptimizedLoading
 
   if (isClient) {
-    if (config.experimental.runtime === 'edge') {
+    if (config.experimental.runtime === SERVER_RUNTIME.edge) {
       Log.warn(
         'You are using the experimental Edge Runtime with `experimental.runtime`.'
       )
@@ -1224,7 +1225,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
-        'next-middleware-ssr-loader',
+        'next-edge-ssr-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
       ].reduce((alias, loader) => {
@@ -1518,7 +1519,6 @@ export default async function getBaseWebpackConfig(
           path: config.images.path,
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {

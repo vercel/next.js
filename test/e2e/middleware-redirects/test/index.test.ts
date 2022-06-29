@@ -147,6 +147,12 @@ describe('Middleware Redirect', () => {
       await browser.elementByCss('#link-to-api-with-locale').click()
       await browser.waitForCondition('window.location.pathname === "/api/ok"')
       await check(() => browser.elementByCss('body').text(), 'ok')
+      const logs = await browser.log()
+      const errors = logs
+        .filter((x) => x.source === 'error')
+        .map((x) => x.message)
+        .join('\n')
+      expect(errors).not.toContain('Failed to lookup route')
     })
   }
 })

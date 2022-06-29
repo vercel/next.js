@@ -275,7 +275,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     children = childrenProp
 
-    if (legacyBehavior && typeof children === 'string') {
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
       children = <a>{children}</a>
     }
 
