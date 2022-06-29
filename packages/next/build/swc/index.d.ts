@@ -8,5 +8,4 @@ export function parse(src: string, options: any): any
 export const lockfilePatchPromise: { cur?: Promise<void> }
 export function initCustomTraceSubscriber(traceFileName?: string): void
 export function teardownTraceSubscriber(): void
-export function teardownCrashReporter(): void
 export function loadBindings(): Promise<void>
