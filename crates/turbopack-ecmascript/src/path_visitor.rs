@@ -77,9 +77,9 @@ mod tests {
     use swc_common::{errors::HANDLER, BytePos, FileName, Mark, SourceFile, SourceMap, Span};
     use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{
-        ast::{EsVersion, Module},
+        ast::*,
         parser::parse_file_as_module,
-        visit::VisitMutWith,
+        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     };
 
     fn parse(fm: &SourceFile) -> Module {
@@ -105,6 +105,23 @@ mod tests {
         let lo = fm.start_pos + idx;
 
         Span::new(lo, lo + BytePos(text.len() as _), Default::default())
+    }
+
+    struct StrReplacer<'a> {
+        from: &'a str,
+        to: &'a str,
+    }
+
+    impl VisitMut for StrReplacer<'_> {
+        noop_visit_mut_type!();
+
+        fn visit_mut_str(&mut self, s: &mut Str) {
+            s.value = s.value.replace(self.from, self.to).into();
+        }
+    }
+
+    fn replacer(from: &'static str, to: &'static str) -> super::VisitorFn {
+        box || box StrReplacer { from, to }
     }
 
     #[test]
