@@ -184,6 +184,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             ..
         } = &*parsed
         {
+            let mut program = program.clone();
             // TODO SWC magic to apply all visitors from the interval tree
             // to the "program" and generate code for that.
             Ok(EcmascriptChunkItemContent {
