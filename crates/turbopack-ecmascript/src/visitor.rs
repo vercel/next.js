@@ -13,7 +13,7 @@ pub type BoxedVisitor = Box<dyn VisitMut + Send + Sync>;
 pub struct ApplyVisitors<'a> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    pub visitors: HashMap<Span, &'a [(&'a AstPath, &'a BoxedVisitor)]>,
+    pub visitors: HashMap<Span, Vec<(&'a AstPath, &'a BoxedVisitor)>>,
 
     index: usize,
 }
@@ -29,10 +29,13 @@ impl<'a> ApplyVisitors<'a> {
 
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                let mut children_map = HashMap::with_capacity(child.0.len());
+                let mut children_map = HashMap::<_, Vec<_>>::with_capacity(child.0.len());
 
                 for span in child.0.iter().copied() {
-                    children_map.insert(span, child.1);
+                    children_map
+                        .entry(span)
+                        .or_default()
+                        .push((child.0, child.1));
                 }
 
                 // Instead of resetting, we create a new instance of this struct
