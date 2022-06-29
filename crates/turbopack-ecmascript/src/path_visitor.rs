@@ -125,6 +125,7 @@ mod tests {
 
         fn visit_mut_str(&mut self, s: &mut Str) {
             s.value = s.value.replace(self.from, self.to).into();
+            s.raw = None;
         }
     }
 
@@ -156,6 +157,10 @@ mod tests {
             }
 
             m.visit_mut_with(&mut ApplyVisitors::new(map));
+
+            if true {
+                panic!("{:?}", m)
+            }
 
             Ok(())
         })
