@@ -213,14 +213,12 @@ async fn main() {
 
     let args = Args::parse();
     let &CommonArgs {
-        ref input,
         visualize_graph,
         #[cfg(feature = "persistent_cache")]
             cache: CacheArgs {
             ref cache,
             ref cache_fully,
         },
-        ref context_directory,
         ..
     } = args.common();
     #[cfg(feature = "persistent_cache")]

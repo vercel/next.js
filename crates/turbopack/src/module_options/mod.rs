@@ -20,6 +20,12 @@ pub async fn the_module_options() -> ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
             ModuleRule::new(
+                vec![ModuleRuleCondition::ResourcePathEndsWith(
+                    ".css".to_string(),
+                )],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Css)],
+            ),
+            ModuleRule::new(
                 vec![ModuleRuleCondition::ResourcePathEndsWith(".js".to_string())],
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),

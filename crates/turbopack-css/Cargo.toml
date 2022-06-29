@@ -1,7 +1,8 @@
 [package]
-name = "turbo-tasks-fs"
+name = "turbopack-css"
 version = "0.1.0"
 edition = "2021"
+autobenches = false
 
 [lib]
 bench = false
@@ -9,19 +10,22 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
 anyhow = "1.0.47"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-tokio = "1.11.0"
-notify = "4.0.17"
-concurrent-queue = "1.2.2"
-json = "0.12.4"
-serde = { version = "1.0.136", features = ["rc"] }
 
-[dev-dependencies]
-sha2 = "0.10.2"
-rstest = "0.12.0"
+turbopack-core = { path = "../turbopack-core" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+
+swc_atoms = "0.2.11"
+serde = "1.0.136"
+
+[dependencies.swc_common]
+version = "0.17.25"
+features = ["concurrent"]
+
+[dependencies.swc_css]
+version = "0.104.2"
+features = []
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

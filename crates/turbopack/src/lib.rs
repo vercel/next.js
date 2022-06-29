@@ -82,6 +82,10 @@ impl GraphOptionsVc {
 
 #[turbo_tasks::function]
 async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetVc> {
+    module_(source, graph_options).await
+}
+
+async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetVc> {
     let path = source.path();
     let options = module_options(path.parent());
     let options = options.await?;
@@ -147,7 +151,10 @@ async fn module(source: AssetVc, graph_options: GraphOptionsVc) -> Result<AssetV
             .into(),
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
-            ModuleType::Css => todo!(),
+            ModuleType::Css => turbopack_css::ModuleAssetVc::new(
+                source,
+                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+            ).into(),
             ModuleType::Custom(_) => todo!(),
         },
     )
@@ -417,5 +424,6 @@ pub fn register() {
     turbo_tasks_fs::register();
     turbopack_core::register();
     turbopack_ecmascript::register();
+    turbopack_css::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

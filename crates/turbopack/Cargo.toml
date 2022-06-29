@@ -10,15 +10,16 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-"test_persistent_cache" = ["dep:turbo-tasks-rocksdb"]
+test_persistent_cache = ["dep:turbo-tasks-rocksdb"]
 
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
-"turbo-tasks" = { path = "../turbo-tasks" }
-"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
-"turbopack-ecmascript" = { path = "../turbopack-ecmascript" }
-"turbopack-core" = { path = "../turbopack-core" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-ecmascript = { path = "../turbopack-ecmascript" }
+turbopack-css = { path = "../turbopack-css" }
+turbopack-core = { path = "../turbopack-core" }
 tokio = "1.11.0"
 regex = "1.5.4"
 rand = "0.8.5"
@@ -31,7 +32,7 @@ indexmap = "1.8.0"
 serde = "1.0.136"
 serde_regex = "1.1.0"
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
-"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb", optional = true }
+turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
 [dependencies.swc_common]
 version = "0.17.25"
@@ -50,11 +51,11 @@ difference = "2.0"
 rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 criterion = { version = "0.3.5", features = ["tokio"] }
-"turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 testing = "0.19.1"
 
 [build-dependencies]
-"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [[bench]]
 name = "mod"
