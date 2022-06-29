@@ -75,6 +75,7 @@ importers:
       amphtml-validator: 1.0.35
       async-sema: 3.0.1
       browserslist: 4.20.2
+      chalk: 5.0.1
       cheerio: 0.22.0
       cookie: 0.4.1
       cors: 2.8.5
@@ -92,6 +93,7 @@ importers:
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
       eslint-plugin-react-hooks: 4.2.0
+      event-stream: 4.0.1
       execa: 2.0.3
       express: 4.17.0
       faker: 5.5.3
@@ -224,6 +226,7 @@ importers:
       amphtml-validator: 1.0.35
       async-sema: 3.0.1
       browserslist: 4.20.2
+      chalk: 5.0.1
       cheerio: 0.22.0
       cookie: 0.4.1
       cors: 2.8.5
@@ -241,6 +244,7 @@ importers:
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
       eslint-plugin-react-hooks: 4.2.0_eslint@7.24.0
+      event-stream: 4.0.1
       execa: 2.0.3
       express: 4.17.0
       faker: 5.5.3
@@ -7989,8 +7993,8 @@ packages:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
 
-  /chalk/5.0.0:
-    resolution: {integrity: sha512-/duVOqst+luxCQRKEo4bNxinsOQtMP80ZYm7mMqzuh5PociNL0PvmHFvREJ9ueYL2TxlHjBcmLCdmocx9Vg+IQ==}
+  /chalk/5.0.1:
+    resolution: {integrity: sha512-Fo07WOYGqMfCWHOzSXOt2CxDbC6skS/jO9ynEcmpANMoPrD+W1r1K6Vx7iNm+AQmETU1Xr2t+n8nzkV9t6xh3w==}
     engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
     dev: true
 
@@ -10615,7 +10619,7 @@ packages:
     dev: true
 
   /event-stream/3.1.7:
-    resolution: {integrity: sha1-tMVAAS0P4UmEIPPYlGAI22OTw3o=}
+    resolution: {integrity: sha512-ddACn1VEffD+nvbofs8gs/0qJZC9gtEGLG+WykE//rinSpYLSaTsnN96eVQV+gHdUhV/nVtxUNKC3OjrApuEMw==}
     dependencies:
       duplexer: 0.1.2
       from: 0.1.7
@@ -10623,6 +10627,18 @@ packages:
       pause-stream: 0.0.11
       split: 0.2.10
       stream-combiner: 0.0.4
+      through: 2.3.8
+    dev: true
+
+  /event-stream/4.0.1:
+    resolution: {integrity: sha512-qACXdu/9VHPBzcyhdOWR5/IahhGMf0roTeZJfzz077GwylcDd90yOHLouhmv7GJ5XzPi6ekaQWd8AvPP2nOvpA==}
+    dependencies:
+      duplexer: 0.1.2
+      from: 0.1.7
+      map-stream: 0.0.7
+      pause-stream: 0.0.11
+      split: 1.0.1
+      stream-combiner: 0.2.2
       through: 2.3.8
     dev: true
 
@@ -11296,7 +11312,7 @@ packages:
     dev: true
 
   /from/0.1.7:
-    resolution: {integrity: sha1-g8YK/Fi5xWmXAH7Rp2izqzA6RP4=}
+    resolution: {integrity: sha512-twe20eF1OxVxp/ML/kq2p1uc6KvFK/+vs8WjEbeKmV2He22MKm7YF2ANIt+EOqhJ5L3K/SuuPhk0hWQDjOM23g==}
     dev: true
 
   /from2/2.3.0:
@@ -14722,7 +14738,7 @@ packages:
     resolution: {integrity: sha512-l0x2DvrW294C9uDCoQe1VSU4gf529FkSZ6leBl4TiqZH/e+0R7hSfHQBNut2mNygDgHwvYHfFLn6Oxb3VWj2rA==}
     engines: {node: '>=12'}
     dependencies:
-      chalk: 5.0.0
+      chalk: 5.0.1
       is-unicode-supported: 1.1.0
     dev: true
 
@@ -14889,8 +14905,12 @@ packages:
     resolution: {integrity: sha512-glc9y00wgtwcDmp7GaE/0b0OnxpNJsVf3ael/An6Fe2Q51LLwN1er6sdomLRzz5h0+yMpiYLhWYF5R7HeqVd4g==}
     engines: {node: '>=8'}
 
+  /map-stream/0.0.7:
+    resolution: {integrity: sha512-C0X0KQmGm3N2ftbTGBhSyuydQ+vV1LC3f3zPvT3RXHXNZrvfPZcoXp/N5DOa8vedX/rTMm2CjTtivFg2STJMRQ==}
+    dev: true
+
   /map-stream/0.1.0:
-    resolution: {integrity: sha1-5WqpTEyAVaFkBKBnS3jyFffI4ZQ=}
+    resolution: {integrity: sha512-CkYQrPYZfWnu/DAmVCpTSX/xHpKZ80eKh2lAkyA6AJTef6bW+6JpbQZN5rofum7da+SyN1bi5ctTm+lTfcCW3g==}
     dev: true
 
   /map-visit/1.0.0:
@@ -16940,7 +16960,7 @@ packages:
     engines: {node: '>=8'}
 
   /pause-stream/0.0.11:
-    resolution: {integrity: sha1-/lo0sMvOErWqaitAPuLnO2AvFEU=}
+    resolution: {integrity: sha512-e3FBlXLmN/D1S+zHzanP4E/4Z60oFAa3O051qt1pxa7DEJWKAyil6upYVXCWadEnuoqa4Pkc9oUx9zsxYeRv8A==}
     dependencies:
       through: 2.3.8
     dev: true
@@ -17068,7 +17088,7 @@ packages:
     hasBin: true
     dependencies:
       '@types/liftoff': 4.0.0
-      chalk: 5.0.0
+      chalk: 5.0.1
       interpret: 2.2.0
       liftoff: 4.0.0
       minimist: 1.2.6
@@ -19933,7 +19953,7 @@ packages:
     dev: true
 
   /split/0.2.10:
-    resolution: {integrity: sha1-Zwl8YB1pfOE2j0GPBs0gHPBSGlc=}
+    resolution: {integrity: sha512-e0pKq+UUH2Xq/sXbYpZBZc3BawsfDZ7dgv+JtRTUPNcvF5CMR4Y9cvJqkMY0MoxWzTHvZuz1beg6pNEKlszPiQ==}
     dependencies:
       through: 2.3.8
     dev: true
@@ -20044,9 +20064,16 @@ packages:
     dev: true
 
   /stream-combiner/0.0.4:
-    resolution: {integrity: sha1-TV5DPBhSYd3mI8o/RMWGvPXErRQ=}
+    resolution: {integrity: sha512-rT00SPnTVyRsaSz5zgSPma/aHSOic5U1prhYdRy5HS2kTZviFpmDgzilbtsJsxiroqACmayynDN/9VzIbX5DOw==}
     dependencies:
       duplexer: 0.1.2
+    dev: true
+
+  /stream-combiner/0.2.2:
+    resolution: {integrity: sha512-6yHMqgLYDzQDcAkL+tjJDC5nSNuNIx0vZtRZeiPh7Saef7VHX9H5Ijn9l2VIol2zaNYlYEX6KyuT/237A58qEQ==}
+    dependencies:
+      duplexer: 0.1.2
+      through: 2.3.8
     dev: true
 
   /stream-each/1.2.3:
