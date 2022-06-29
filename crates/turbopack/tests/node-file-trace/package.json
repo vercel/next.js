@@ -94,6 +94,7 @@
     "stripe": "^7.4.0",
     "swig": "^1.4.2",
     "tiny-json-http": "^7.1.2",
+    "ts-morph": "^15.1.0",
     "ts-node": "^10.7.0",
     "tsconfig-paths": "^3.14.1",
     "twilio": "^3.33.0",
