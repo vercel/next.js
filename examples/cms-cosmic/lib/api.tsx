@@ -16,7 +16,7 @@ export const getPreviewPostBySlug = async (slug: string) => {
   const params = {
     query: {
       slug,
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug',
     status: 'any',
@@ -27,14 +27,14 @@ export const getPreviewPostBySlug = async (slug: string) => {
     return data.objects[0]
   } catch (err) {
     // Don't throw if an slug doesn't exist
-    return <ErrorPage statusCode={err.status}/>
+    return <ErrorPage statusCode={err.status} />
   }
 }
 
 export const getAllPostsWithSlug = async () => {
   const params = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug',
   }
@@ -45,7 +45,7 @@ export const getAllPostsWithSlug = async () => {
 export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
   const params = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     props: 'title,slug,metadata,created_at',
     sort: '-created_at',
@@ -55,21 +55,24 @@ export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
   return data.objects
 }
 
-export const getPostAndMorePosts = async (slug: string, preview: boolean): Promise<{
-  post: Post;
+export const getPostAndMorePosts = async (
+  slug: string,
+  preview: boolean
+): Promise<{
+  post: Post
   morePosts: Post[]
 }> => {
   const singleObjectParams = {
-    query: { 
+    query: {
       slug,
-      type: 'posts'
+      type: 'posts',
     },
     props: 'slug,title,metadata,created_at',
     ...(preview && { status: 'any' }),
   }
   const moreObjectParams = {
     query: {
-      type: 'posts'
+      type: 'posts',
     },
     limit: 3,
     props: 'title,slug,metadata,created_at',
@@ -80,7 +83,7 @@ export const getPostAndMorePosts = async (slug: string, preview: boolean): Promi
     const data = await bucket.getObjects(singleObjectParams)
     object = data.objects[0]
   } catch (err) {
-    throw err;
+    throw err
   }
   const moreObjects = await bucket.getObjects(moreObjectParams)
   const morePosts = moreObjects.objects

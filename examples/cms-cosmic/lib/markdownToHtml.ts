@@ -6,4 +6,4 @@ const markdownToHtml = async (markdown: string) => {
   return result.toString()
 }
 
-export default markdownToHtml;
+export default markdownToHtml

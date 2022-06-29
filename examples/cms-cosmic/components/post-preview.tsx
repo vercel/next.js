@@ -2,25 +2,19 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import Link from 'next/link'
-import { Author, Imgix } from 'interfaces';
+import { Author, Imgix } from 'interfaces'
 
 type PostPreviewProps = {
-  title: string;
-  coverImage: Imgix,
-  date: string,
-  excerpt: string;
-  author: Author;
-  slug: string;
-};
+  title: string
+  coverImage: Imgix
+  date: string
+  excerpt: string
+  author: Author
+  slug: string
+}
 
 const PostPreview = (props: PostPreviewProps) => {
-  const { title,
-    coverImage,
-    date,
-    excerpt,
-    author,
-    slug,
-  } = props;
+  const { title, coverImage, date, excerpt, author, slug } = props
 
   return (
     <div>
@@ -41,4 +35,4 @@ const PostPreview = (props: PostPreviewProps) => {
   )
 }
 
-export default PostPreview;
+export default PostPreview

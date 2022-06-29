@@ -1,7 +1,7 @@
 import { getPreviewPostBySlug } from '@/lib/api'
 
-const preview = async(req, res) => {
- // Check the secret and next parameters
+const preview = async (req, res) => {
+  // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
   if (
     req.query.secret !== process.env.COSMIC_PREVIEW_SECRET ||
@@ -27,4 +27,4 @@ const preview = async(req, res) => {
   res.end()
 }
 
-export default preview;
+export default preview

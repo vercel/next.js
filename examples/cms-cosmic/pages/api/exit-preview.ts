@@ -7,4 +7,4 @@ const exit = async (_, res) => {
   res.end()
 }
 
-export default exit;
+export default exit

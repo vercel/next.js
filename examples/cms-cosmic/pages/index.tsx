@@ -9,15 +9,12 @@ import { CMS_NAME } from '@/lib/constants'
 import { Post } from 'interfaces'
 
 type IndexProps = {
-  allPosts: Post[];
-  preview: boolean;
-};
+  allPosts: Post[]
+  preview: boolean
+}
 
 const Index = (props: IndexProps) => {
-  const {
-    allPosts,
-    preview
-  } = props;
+  const { allPosts, preview } = props
 
   const heroPost = allPosts[0]
   const morePosts = allPosts.slice(1)
@@ -47,18 +44,16 @@ const Index = (props: IndexProps) => {
   )
 }
 
-export default Index;
+export default Index
 
 type staticProps = {
-  preview: boolean;
-};
+  preview: boolean
+}
 
 export const getStaticProps = async (props: staticProps) => {
-  const {
-    preview= null
-  } = props;
+  const { preview = null } = props
   const allPosts = (await getAllPostsForHome(preview)) || []
   return {
-    props: { allPosts, preview }
+    props: { allPosts, preview },
   }
 }
