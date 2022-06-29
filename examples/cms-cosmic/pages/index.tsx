@@ -10,7 +10,7 @@ import { Post } from 'interfaces'
 
 type IndexProps = {
   allPosts: Post[];
-  preview
+  preview: boolean;
 };
 
 const Index = (props: IndexProps) => {
@@ -47,19 +47,18 @@ const Index = (props: IndexProps) => {
   )
 }
 
+export default Index;
 
 type staticProps = {
   preview: boolean;
 };
 
-export const getStaticProps = async(props: staticProps) => {
-  const {  
-    preview= true
+export const getStaticProps = async (props: staticProps) => {
+  const {
+    preview= null
   } = props;
   const allPosts = (await getAllPostsForHome(preview)) || []
   return {
-    props: { allPosts, preview },
+    props: { allPosts, preview }
   }
 }
-
-export default Index;

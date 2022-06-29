@@ -76,7 +76,7 @@ type staticProps = {
 export const getStaticProps = async (props: staticProps) => {
   const {
     params,
-    preview = true
+    preview= null
   } = props;
   try {
     const data = await getPostAndMorePosts(params.slug as string, preview)
