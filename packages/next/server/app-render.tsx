@@ -524,6 +524,7 @@ export async function renderToHTML(
     )
   }
 
+  const initialCanonicalUrl = pathname + (search ? `?${search}` : '')
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
     pathname + (search ? `?${search}` : '')
@@ -537,7 +538,7 @@ export async function renderToHTML(
   const AppRouter = ComponentMod.AppRouter
   const WrappedComponentTreeWithRouter = () => {
     return (
-      <AppRouter initialTree={initialTree}>
+      <AppRouter initialUrl={initialCanonicalUrl} initialTree={initialTree}>
         <ComponentTree />
       </AppRouter>
     )

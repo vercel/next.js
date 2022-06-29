@@ -38,16 +38,20 @@ const markRefetch = (
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
+  pushRef: { pendingPush: boolean }
+  canonicalUrl: string
 }
 
 type HistoryState = { tree: FlightRouterState }
-type RouterMethod = 'replaceState' | 'pushState'
 
 export function reducer(
   state: AppRouterState,
   action:
-    | { type: 'push'; payload: { url: URL; method: RouterMethod } }
-    | { type: 'restore'; payload: { historyState: HistoryState } }
+    | {
+        type: 'navigate'
+        payload: { url: URL; cacheType: 'soft' | 'hard' }
+      }
+    | { type: 'restore'; payload: { url: URL; historyState: HistoryState } }
     | {
         type: 'server-patch'
         payload: {
@@ -57,15 +61,21 @@ export function reducer(
       }
 ): AppRouterState {
   if (action.type === 'restore') {
+    const { url, historyState } = action.payload
+    const href = url.pathname + url.search
+
     return {
-      ...state,
-      tree: action.payload.historyState.tree,
+      canonicalUrl: href,
+      pushRef: state.pushRef,
+      cache: state.cache,
+      tree: historyState.tree,
     }
   }
 
-  if (action.type === 'push') {
-    const { url, method } = action.payload
+  if (action.type === 'navigate') {
+    const { url, cacheType } = action.payload
     const { pathname } = url
+    // TODO: include hash
     const href = url.pathname + url.search
 
     const createOptimisticTree = (
@@ -125,13 +135,6 @@ export function reducer(
     // TODO: figure out something better for index pages
     segments.push('page')
 
-    const optimisticTreeWithoutRefetch = createOptimisticTree(
-      segments,
-      state.tree,
-      true,
-      true
-    )
-
     const optimisticTreeWithRefetch = createOptimisticTree(
       segments,
       state.tree,
@@ -139,14 +142,16 @@ export function reducer(
       false
     )
 
+    // Create new cache
+    if (cacheType === 'hard') {
+    }
+
     // TODO: hard push should use optimisticTree to create a new cache. If the item already exists, it should not recurse down creating extra nodes
     // If the item does not exists it should keep the existing cache
 
-    // TODO: update url eagerly or not?
-    // TODO: update during setting state or useEffect?
-    window.history[method]({ tree: optimisticTreeWithoutRefetch }, '', href)
-
     return {
+      canonicalUrl: href,
+      pushRef: { pendingPush: true },
       cache: state.cache,
       tree: optimisticTreeWithRefetch,
     }
@@ -209,18 +214,18 @@ export function reducer(
     // Fill cache with data from flightDataTree
     const fillCache = (
       cacheNode: CacheNode,
-      flightSegmentPath: FlightData[0]
+      flightSegmentPath: FlightData[0] // ["", "children", "dashboard", "children"], ["integrations", {children: ["page", {}]}], React.ReactNode
     ) => {
       const [parallelRouteKey, currentSegment] = flightSegmentPath
       const lastSegment = flightSegmentPath.length === 1
 
       if (lastSegment) {
         if (cacheNode.parallelRoutes[parallelRouteKey].has(treePatch[0])) {
-          const childNode = cacheNode.parallelRoutes[parallelRouteKey].get(
-            treePatch[0]
-          )!
-          childNode.subTreeData = subTreeData
-          childNode.parallelRoutes = {}
+          // const childNode = cacheNode.parallelRoutes[parallelRouteKey].get(
+          //   treePatch[0]
+          // )!
+          // childNode.subTreeData = subTreeData
+          // childNode.parallelRoutes = {}
         } else {
           cacheNode.parallelRoutes[parallelRouteKey].set(treePatch[0], {
             subTreeData,
@@ -238,6 +243,8 @@ export function reducer(
     fillCache(state.cache, treePath.slice(1))
 
     return {
+      canonicalUrl: state.canonicalUrl,
+      pushRef: state.pushRef,
       tree: newTree,
       cache: state.cache,
     }

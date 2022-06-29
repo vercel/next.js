@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
@@ -31,21 +31,24 @@ export function fetchServerResponse(
 
 export default function AppRouter({
   initialTree,
+  initialCanonicalUrl,
   children,
 }: {
   initialTree: FlightRouterState
+  initialCanonicalUrl: string
   children: React.ReactNode
 }) {
-  const [{ tree, cache }, dispatch] = React.useReducer<typeof reducer>(
-    reducer,
-    {
-      tree: initialTree,
-      cache: {
-        subTreeData: null,
-        parallelRoutes: {},
-      },
-    }
-  )
+  const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
+    typeof reducer
+  >(reducer, {
+    tree: initialTree,
+    cache: {
+      subTreeData: null,
+      parallelRoutes: {},
+    },
+    pushRef: { pendingPush: false },
+    canonicalUrl: initialCanonicalUrl,
+  })
 
   // Server response only patches the tree
   const changeByServerResponse = React.useCallback(
@@ -69,10 +72,35 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: 'push',
+            type: 'navigate',
             payload: {
               url: new URL(href, location.origin),
-              method: 'replaceState',
+              cacheType: 'hard',
+            },
+          })
+        })
+      },
+      softReplace: (href) => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          // window.history[method]({ tree: null }, '', href)
+          dispatch({
+            type: 'navigate',
+            payload: {
+              url: new URL(href, location.origin),
+              cacheType: 'soft',
+            },
+          })
+        })
+      },
+      softPush: (href) => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'navigate',
+            payload: {
+              url: new URL(href, location.origin),
+              cacheType: 'soft',
             },
           })
         })
@@ -81,10 +109,10 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
-            type: 'push',
+            type: 'navigate',
             payload: {
               url: new URL(href, location.origin),
-              method: 'pushState',
+              cacheType: 'hard',
             },
           })
         })
@@ -93,6 +121,15 @@ export default function AppRouter({
 
     return routerInstance
   }, [])
+
+  useEffect(() => {
+    if (pushRef.pendingPush) {
+      pushRef.pendingPush = false
+      history.pushState({ tree }, '', canonicalUrl)
+    } else {
+      history.replaceState({ tree }, '', canonicalUrl)
+    }
+  }, [tree, pushRef, canonicalUrl])
 
   if (typeof window !== 'undefined') {
     // @ts-ignore this is for debugging
@@ -108,7 +145,14 @@ export default function AppRouter({
     // @ts-ignore useTransition exists
     // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
     React.startTransition(() => {
-      dispatch({ type: 'restore', payload: { historyState: state } })
+      dispatch({
+        type: 'restore',
+        payload: {
+          // TODO: fix location
+          url: new URL(window.location.href),
+          historyState: state,
+        },
+      })
     })
   }, [])
 

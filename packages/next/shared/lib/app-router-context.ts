@@ -16,7 +16,9 @@ export type CacheNode = {
 
 export type AppRouterInstance = {
   push(href: string): void
+  softPush(href: string): void
   replace(href: string): void
+  softReplace(href: string): void
   prefetch(href: string): Promise<void>
 }
 
