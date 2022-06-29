@@ -29,7 +29,7 @@ impl<'a> ApplyVisitors<'a> {
 
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                let mut children_map = HashMap::new();
+                let mut children_map = HashMap::with_capacity(child.0.len());
 
                 for span in child.0.iter().copied() {
                     children_map.insert(span, child.1);
@@ -37,7 +37,7 @@ impl<'a> ApplyVisitors<'a> {
 
                 // Instead of resetting, we create a new instance of this struct
                 n.visit_mut_with(&mut ApplyVisitors {
-                    visitors: children,
+                    visitors: children_map,
                     index: 0,
                 });
             }
