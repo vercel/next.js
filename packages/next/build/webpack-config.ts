@@ -678,6 +678,10 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
+      '@swc/helpers': path.dirname(
+        require.resolve('@swc/helpers/package.json')
+      ),
+
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(isClient || isEdgeServer
@@ -814,6 +818,12 @@ export default async function getBaseWebpackConfig(
       if (notExternalModules.test(request)) {
         return
       }
+    }
+
+    // @swc/helpers should not be external as it would
+    // require hoisting the package which we can't rely on
+    if (request.includes('@swc/helpers')) {
+      return
     }
 
     // When in esm externals mode, and using import, we resolve with
