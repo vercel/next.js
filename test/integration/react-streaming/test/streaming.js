@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
+import cheerio from 'cheerio'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 function getNodeBySelector(html, selector) {
