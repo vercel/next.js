@@ -1,4 +1,5 @@
 /* eslint-env jest */
+/* eslint-disable jest/no-commented-out-tests */
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, fetchViaHTTP, check } from 'next-test-utils'
 import { join } from 'path'

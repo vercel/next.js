@@ -1,5 +1,5 @@
 /* eslint-env jest */
-
+/* eslint-disable jest/no-commented-out-tests */
 import { join } from 'path'
 import fs from 'fs-extra'
 import { File, runDevSuite, runProdSuite } from 'next-test-utils'
