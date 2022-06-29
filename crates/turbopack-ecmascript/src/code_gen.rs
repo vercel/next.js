@@ -7,8 +7,10 @@ use swc_ecmascript::visit::VisitMut;
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     #[trace_ignore]
-    pub visitors: Vec<(Span, Box<dyn VisitMut + Send + Sync>)>,
+    pub visitors: Vec<(Span, Box<dyn Send + Sync + Fn() -> Visitor>)>,
 }
+
+pub type Visitor = Box<dyn VisitMut + Send + Sync>;
 
 #[turbo_tasks::value_trait]
 pub trait CodeGenerationReference {
