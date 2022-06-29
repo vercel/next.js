@@ -2,13 +2,10 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-
 import { File, runDevSuite, runProdSuite } from 'next-test-utils'
-
 import rsc from './rsc'
 
 const appDir = join(__dirname, '../basic')
-
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
 /* TODO: support edge runtime in the future
@@ -105,16 +102,5 @@ const nodejsRuntimeBasicSuite = {
   },
 }
 
-// const cssSuite = {
-//   runTests: css,
-//   beforeAll: () => appPage.write(appWithGlobalCssAndHead),
-//   afterAll: () => appPage.delete(),
-// }
-
 runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
 runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-// runDevSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-// runProdSuite('Edge runtime', appDir, edgeRuntimeBasicSuite)
-
-// runDevSuite('CSS', appDir, cssSuite)
-// runProdSuite('CSS', appDir, cssSuite)
