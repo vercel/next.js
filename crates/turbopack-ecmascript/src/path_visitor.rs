@@ -110,10 +110,12 @@ mod tests {
     #[test]
     fn case_1() {
         testing::run_test(false, |cm, handler| {
-            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', 'baz')");
+            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz'])".into());
 
             let m = parse(&fm);
 
+            let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
+            let arr_span = span_of(&fm, "['baz']");
             let baz_span = span_of(&fm, "'baz'");
 
             Ok(())
