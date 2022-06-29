@@ -1,6 +1,11 @@
 import Link from 'next/link'
 
-function Header({ user, loading }) {
+type HeaderProps = {
+  user?: any
+  loading: boolean
+}
+
+const Header = ({ user, loading }: HeaderProps) => {
   return (
     <header>
       <nav>
