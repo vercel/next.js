@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use swc_common::{Span, Spanned};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::visit::{noop_visit_mut_type, VisitMut, VisitMutWith};
@@ -8,12 +10,18 @@ pub struct ApplyVisitors {
     pub visitors: Vec<(Span, Box<dyn VisitMut + Send + Sync>)>,
 }
 
+struct AstPathMap<'a> {
+    vistors: &'a [Box<dyn VisitMut + Send + Sync>],
+    children: HashMap<Span, Box<AstPathMap<'a>>>,
+}
+
 impl ApplyVisitors {
     fn visit_if_required<N>(&mut self, n: &mut N)
     where
         N: Spanned + VisitMutWith<Box<dyn VisitMut + Send + Sync>> + VisitMutWith<Self>,
     {
         // TODO: check if we have a visitor for a child of this node
+
         n.visit_mut_children_with(self);
 
         // TODO: check if we have a visitor for this node
