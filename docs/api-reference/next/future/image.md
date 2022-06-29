@@ -205,50 +205,6 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
-**Example pointing to a DOM element**
-
-```jsx
-import Image from 'next/future/image'
-import React from 'react'
-
-const lazyRoot = React.useRef(null)
-
-const Example = () => (
-  <div ref={lazyRoot} style={{ overflowX: 'scroll', width: '500px' }}>
-    <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-    <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-  </div>
-)
-```
-
-**Example pointing to a React component**
-
-```jsx
-import Image from 'next/future/image'
-import React from 'react'
-
-const Container = React.forwardRef((props, ref) => {
-  return (
-    <div ref={ref} style={{ overflowX: 'scroll', width: '500px' }}>
-      {props.children}
-    </div>
-  )
-})
-
-const Example = () => {
-  const lazyRoot = React.useRef(null)
-
-  return (
-    <Container ref={lazyRoot}>
-      <Image lazyRoot={lazyRoot} src="/one.jpg" width="500" height="500" />
-      <Image lazyRoot={lazyRoot} src="/two.jpg" width="500" height="500" />
-    </Container>
-  )
-}
-```
-
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/root)
-
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
