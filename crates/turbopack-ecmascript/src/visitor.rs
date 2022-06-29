@@ -29,20 +29,25 @@ impl<'a> ApplyVisitors<'a> {
 
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                let mut children_map = HashMap::<_, Vec<_>>::with_capacity(child.0.len());
+                if self.index == child.0.len() {
+                    n.visit_mut_with(&mut child.1);
+                } else {
+                    debug_assert!(self.index < child.0.len());
 
-                for span in child.0.iter().copied() {
-                    children_map
-                        .entry(span)
-                        .or_default()
-                        .push((child.0, child.1));
+                    let mut children_map = HashMap::<_, Vec<_>>::with_capacity(child.0.len());
+                    for span in child.0.iter().copied() {
+                        children_map
+                            .entry(span)
+                            .or_default()
+                            .push((child.0, child.1));
+                    }
+
+                    // Instead of resetting, we create a new instance of this struct
+                    n.visit_mut_with(&mut ApplyVisitors {
+                        visitors: children_map,
+                        index: self.index + 1,
+                    });
                 }
-
-                // Instead of resetting, we create a new instance of this struct
-                n.visit_mut_with(&mut ApplyVisitors {
-                    visitors: children_map,
-                    index: self.index + 1,
-                });
             }
         }
 
