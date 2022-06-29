@@ -10,6 +10,14 @@ pub enum CompileTarget {
     Target(Target),
 }
 
+#[turbo_tasks::value_impl]
+impl CompileTargetVc {
+    #[turbo_tasks::function]
+    pub fn current() -> Self {
+        Self::slot(CompileTarget::Current)
+    }
+}
+
 impl Display for CompileTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
