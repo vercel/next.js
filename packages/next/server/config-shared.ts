@@ -90,17 +90,14 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   profiling?: boolean
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
   optimizeCss?: boolean
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -522,7 +519,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
@@ -548,7 +544,13 @@ export const defaultConfig: NextConfig = {
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
+    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    disablePostcssPresetEnv: undefined,
+    amp: undefined,
+    urlImports: undefined,
+    middlewareSourceMaps: undefined,
+    modularizeImports: undefined,
   },
 }
 
