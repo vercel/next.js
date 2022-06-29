@@ -170,7 +170,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let mut interval_tree = Vec::new();
         for code_gen in code_generation {
             for (span, visitor) in code_gen.visitors.iter() {
-                interval_tree.push((span, visitor));
+                interval_tree.push((*span, visitor));
             }
         }
 
