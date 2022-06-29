@@ -41,7 +41,7 @@ impl<'a> ApplyVisitors<'a> {
                 // Instead of resetting, we create a new instance of this struct
                 n.visit_mut_with(&mut ApplyVisitors {
                     visitors: children_map,
-                    index: 0,
+                    index: self.index + 1,
                 });
             }
         }
