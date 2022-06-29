@@ -9,11 +9,12 @@ use swc_ecmascript::{
 pub type AstPath = Vec<Span>;
 
 pub type BoxedVisitor = Box<dyn VisitMut + Send + Sync>;
+pub type VisitorFn = Box<dyn Send + Sync + Fn() -> BoxedVisitor>;
 
 pub struct ApplyVisitors<'a> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    pub visitors: HashMap<Span, Vec<(&'a AstPath, &'a BoxedVisitor)>>,
+    pub visitors: HashMap<Span, Vec<(&'a AstPath, &'a VisitorFn)>>,
 
     index: usize,
 }
@@ -30,7 +31,7 @@ impl<'a> ApplyVisitors<'a> {
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
                 if self.index == child.0.len() {
-                    n.visit_mut_with(&mut *child.1);
+                    n.visit_mut_with(&mut child.1());
                 } else {
                     debug_assert!(self.index < child.0.len());
 
