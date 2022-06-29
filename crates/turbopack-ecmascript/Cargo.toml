@@ -12,9 +12,9 @@ bench = false
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
-"turbopack-core" = { path = "../turbopack-core" }
-"turbo-tasks" = { path = "../turbo-tasks" }
-"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 tokio = "1.11.0"
 regex = "1.5.4"
 rand = "0.8.5"
@@ -43,12 +43,12 @@ version = "0.4"
 difference = "2.0"
 rstest = "0.12.0"
 criterion = { version = "0.3.5", features = ["async_tokio"] }
-"turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-"turbo-tasks-testing" = { path = "../turbo-tasks-testing" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
 testing = "0.19.1"
 
 [build-dependencies]
-"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [[bench]]
 name = "mod"

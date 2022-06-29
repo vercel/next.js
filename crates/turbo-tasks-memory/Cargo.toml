@@ -11,7 +11,7 @@ bench = false
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
-"turbo-tasks" = { path = "../turbo-tasks" }
+turbo-tasks = { path = "../turbo-tasks" }
 event-listener = "2.5.2"
 tokio = "1.11.0"
 flurry = "0.4.0"
