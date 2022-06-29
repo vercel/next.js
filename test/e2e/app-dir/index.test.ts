@@ -237,6 +237,22 @@ describe('views dir', () => {
       expect(html).toContain('hello from app/shared-component-route')
     })
 
+    describe('dynamic routes', () => {
+      it('should only pass params that apply to the layout', async () => {
+        const html = await renderViaHTTP(next.url, '/dynamic/books/hello-world')
+        const $ = cheerio.load(html)
+
+        expect($('#dynamic-layout-params').text()).toBe('{}')
+        expect($('#category-layout-params').text()).toBe('{"category":"books"}')
+        expect($('#id-layout-params').text()).toBe(
+          '{"category":"books","id":"hello-world"}'
+        )
+        expect($('#id-page-params').text()).toBe(
+          '{"category":"books","id":"hello-world"}'
+        )
+      })
+    })
+
     describe('should serve client component', () => {
       it('should serve server-side', async () => {
         const html = await renderViaHTTP(next.url, '/client-component-route')
