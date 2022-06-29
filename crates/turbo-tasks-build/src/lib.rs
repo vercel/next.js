@@ -23,7 +23,7 @@ pub fn generate_register() {
     let tests_dir = crate_dir.join("tests");
     let cargo_lock_path = workspace_dir.join("Cargo.lock");
 
-    let lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
+    let _lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
 
     let mut entries = Vec::new();
 

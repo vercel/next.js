@@ -14,14 +14,14 @@ bench = false
 persistent_cache = ["dep:turbo-tasks-rocksdb"]
 
 [dependencies]
-"clap" = { version = "3.1.3", features = ["derive"] }
-"turbo-tasks" = { path = "../turbo-tasks" }
-# "turbo-tasks-memory" = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
-"turbo-tasks-memory" = { path = "../turbo-tasks-memory" }
-"turbo-tasks-rocksdb" = { path = "../turbo-tasks-rocksdb", optional = true }
-"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
-"turbopack" = { path = "../turbopack" }
-"turbopack-core" = { path = "../turbopack-core" }
+clap = { version = "3.1.3", features = ["derive"] }
+turbo-tasks = { path = "../turbo-tasks" }
+# turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack = { path = "../turbopack" }
+turbopack-core = { path = "../turbopack-core" }
 anyhow = "1.0.47"
 tokio = { version = "1.11.0", features = ["full", "tracing"] }
 json = "0.12.4"
@@ -29,4 +29,4 @@ serde = "1.0.136"
 console-subscriber = "0.1.6"
 
 [build-dependencies]
-"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { path = "../turbo-tasks-build" }

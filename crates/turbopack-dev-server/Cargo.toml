@@ -12,13 +12,13 @@ bench = false
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
-"turbo-tasks" = { path = "../turbo-tasks" }
-"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
-"turbopack-core" = { path = "../turbopack-core" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
 tokio = "1.11.0"
 hyper = { version = "0.14", features = ["full"] }
 serde = "1.0.136"
 mime_guess = "2.0.4"
 
 [build-dependencies]
-"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { path = "../turbo-tasks-build" }

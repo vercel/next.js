@@ -100,39 +100,48 @@ pub async fn resolve_node_pre_gyp_files(
             let config_file_dir = config_file_path.parent();
             let node_pre_gyp_config: NodePreGypConfigJson =
                 serde_json::from_slice(config_file.content())?;
-            let mut assets: HashSet<AssetVc> = node_pre_gyp_config
-                .binary
-                .napi_versions
-                .iter()
-                .map(|version| {
-                    let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
-                        node_pre_gyp_config.binary.module_path.as_str(),
-                        format!("{}", version),
-                    );
-                    let platform = compile_target.platform();
-                    let native_binding_path =
-                        PLATFORM_TEMPLATE.replace(&native_binding_path, platform);
-                    let native_binding_path =
-                        ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch());
-                    let native_binding_path = LIBC_TEMPLATE.replace(
-                        &native_binding_path,
-                        // node-pre-gyp only cares about libc on linux
-                        if platform == Platform::Linux.to_str() {
-                            compile_target.libc()
-                        } else {
-                            "unknown"
-                        },
-                    );
-                    let resolved_file_vc = config_file_dir.join(
-                        format!(
-                            "{}/{}.node",
-                            native_binding_path, node_pre_gyp_config.binary.module_name
-                        )
-                        .as_str(),
-                    );
-                    SourceAssetVc::new(resolved_file_vc.into()).into()
-                })
-                .collect();
+            let mut assets: HashSet<AssetVc> = HashSet::default();
+            for version in node_pre_gyp_config.binary.napi_versions.iter() {
+                let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
+                    node_pre_gyp_config.binary.module_path.as_str(),
+                    format!("{}", version),
+                );
+                let platform = compile_target.platform();
+                let native_binding_path = PLATFORM_TEMPLATE.replace(&native_binding_path, platform);
+                let native_binding_path =
+                    ARCH_TEMPLATE.replace(&native_binding_path, compile_target.arch());
+                let native_binding_path = LIBC_TEMPLATE.replace(
+                    &native_binding_path,
+                    // node-pre-gyp only cares about libc on linux
+                    if platform == Platform::Linux.to_str() {
+                        compile_target.libc()
+                    } else {
+                        "unknown"
+                    },
+                );
+                let resolved_file_vc = config_file_dir.join(
+                    format!(
+                        "{}/{}.node",
+                        native_binding_path, node_pre_gyp_config.binary.module_name
+                    )
+                    .as_str(),
+                );
+                for (_, entry) in config_file_dir
+                    .join(native_binding_path.as_ref())
+                    .read_glob(
+                        GlobVc::new(format!("*.{}", compile_target.dylib_ext()).as_str()),
+                        false,
+                    )
+                    .await?
+                    .results
+                    .iter()
+                {
+                    if let DirectoryEntry::File(dylib) = entry {
+                        assets.insert(SourceAssetVc::new(*dylib).into());
+                    }
+                }
+                assets.insert(SourceAssetVc::new(resolved_file_vc.into()).into());
+            }
             for (_, entry) in &config_path
                 .path()
                 .parent()

@@ -12,8 +12,8 @@ bench = false
 [dependencies]
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
-"turbo-tasks" = { path = "../turbo-tasks" }
-"turbo-tasks-fs" = { path = "../turbo-tasks-fs" }
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 tokio = "1.11.0"
 regex = "1.5.4"
 rand = "0.8.5"
@@ -25,7 +25,7 @@ serde_regex = "1.1.0"
 serde_json = "1.0.81"
 
 [build-dependencies]
-"turbo-tasks-build" = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [dev-dependencies]
 rstest = "0.12.0"
