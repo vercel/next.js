@@ -21,11 +21,27 @@ pub struct ApplyVisitors<'a> {
 impl<'a> ApplyVisitors<'a> {
     fn visit_if_required<N>(&mut self, n: &mut N)
     where
-        N: Spanned + VisitMutWith<Box<dyn VisitMut + Send + Sync>> + VisitMutWith<Self>,
+        N: Spanned
+            + VisitMutWith<Box<dyn VisitMut + Send + Sync>>
+            + for<'aa> VisitMutWith<ApplyVisitors<'aa>>,
     {
-        // TODO: check if we have a visitor for a child of this node
+        let span = n.span();
 
-        n.visit_mut_children_with(self);
+        if let Some(children) = self.visitors.get(&span) {
+            for child in children.iter() {
+                let mut children_map = HashMap::new();
+
+                for span in child.0.iter().copied() {
+                    children_map.insert(span, child.1);
+                }
+
+                // Instead of resetting, we create a new instance of this struct
+                n.visit_mut_with(&mut ApplyVisitors {
+                    visitors: children,
+                    index: 0,
+                });
+            }
+        }
 
         // TODO: check if we have a visitor for this node
     }
