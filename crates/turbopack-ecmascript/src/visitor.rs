@@ -29,6 +29,9 @@ macro_rules! method {
 impl VisitMut for ApplyVisitors {
     noop_visit_mut_type!();
 
-    method!(visit_mut_stmt, Stmt);
+    method!(visit_mut_prop, Prop);
     method!(visit_mut_expr, Expr);
+    method!(visit_mut_pat, Pat);
+    method!(visit_mut_stmt, Stmt);
+    method!(visit_mut_module_decl, ModuleDecl);
 }
