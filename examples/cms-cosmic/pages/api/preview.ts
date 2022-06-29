@@ -1,4 +1,4 @@
-import { getPreviewPostBySlug } from '../../lib/api'
+import { getPreviewPostBySlug } from '@/lib/api'
 
 const preview = async(req, res) => {
  // Check the secret and next parameters

@@ -1,7 +1,7 @@
 import { parseISO, format } from 'date-fns'
 
 type DateProps = {
-  dateString
+  dateString: string;
 };
 
 const Date = (props: DateProps) => {

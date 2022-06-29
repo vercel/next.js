@@ -1,5 +1,7 @@
+import { ReactNode } from "react";
+
 type PostTitleProps = {
-  children;
+  children: ReactNode;
 };
 
 const PostTitle = (props: PostTitleProps) => {

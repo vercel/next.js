@@ -2,14 +2,15 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import Link from 'next/link'
+import { Author, Imgix } from 'interfaces';
 
 type HeroPostProps = {
-  title,
-  coverImage,
-  date,
-  excerpt,
-  author,
-  slug,
+  title: string;
+  coverImage: Imgix;
+  date: string;
+  excerpt: string;
+  author: Author;
+  slug: string;
 };
 
 const HeroPost = (props: HeroPostProps) => {

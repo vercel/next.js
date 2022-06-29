@@ -12,12 +12,14 @@ import PostTitle from '@/components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '@/lib/constants'
 import markdownToHtml from '@/lib/markdownToHtml'
+import { Post } from 'interfaces'
+import { ParsedUrlQueryInput } from 'querystring'
 
 
 type PostProps = {
-  post, 
-  morePosts, 
-  preview
+  post: Post;
+  morePosts: Post[]; 
+  preview;
 };
 
 const Post = (props: PostProps) => {
@@ -26,7 +28,7 @@ const Post = (props: PostProps) => {
     morePosts, 
     preview 
   } = props;
-  
+
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -67,19 +69,18 @@ const Post = (props: PostProps) => {
 }
 export default Post;
 
-
-
 type staticProps = {
-  params,
-  preview,
+  params: ParsedUrlQueryInput;
+  preview: boolean;
 };
 
 export const getStaticProps = async(props: staticProps) => {
   const {  
     params,
-    preview = null
+    preview = true
   } = props;
-  const data = await getPostAndMorePosts(params.slug, preview)
+ try {
+  const data = await getPostAndMorePosts(params.slug as string, preview)
   const content = await markdownToHtml(data['post']?.metadata?.content || '')
   return {
     props: {
@@ -91,6 +92,9 @@ export const getStaticProps = async(props: staticProps) => {
       morePosts: data['morePosts'] || [],
     },
   }
+} catch(err) {
+  return <ErrorPage statusCode={err.status} />
+}
 }
 
 export const getStaticPaths = async() => {

@@ -2,12 +2,13 @@ import Avatar from './avatar'
 import Date from './date'
 import CoverImage from './cover-image'
 import PostTitle from './post-title'
+import { Author, Imgix } from 'interfaces';
 
 type PostHeaderProps = {
-  title, 
-  coverImage, 
-  date, 
-  author 
+  title: string; 
+  coverImage: Imgix;
+  date: string;
+  author: Author
 };
 
 const PostHeader = (props: PostHeaderProps) => {
@@ -30,7 +31,7 @@ const PostHeader = (props: PostHeaderProps) => {
         </div>
         <div className="max-w-2xl mx-auto">
           <div className="block md:hidden mb-6">
-            <Avatar name={author.name} picture={author.picture} />
+            <Avatar name={author.title} picture={author.metadata.picture.imgix_url} />
           </div>
           <div className="mb-6 text-lg">
             <Date dateString={date} />

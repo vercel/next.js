@@ -1,8 +1,8 @@
 import Image from 'next/image'
 
 type AvatarProps = {
-  name,
-  picture
+  name: string;
+  picture: string;
 };
   
 const Avatar = (props: AvatarProps) => {

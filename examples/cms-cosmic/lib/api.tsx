@@ -1,4 +1,5 @@
 import Cosmic from 'cosmicjs'
+import { Post } from 'interfaces'
 import ErrorPage from 'next/error'
 
 const BUCKET_SLUG = process.env.COSMIC_BUCKET_SLUG
@@ -18,7 +19,7 @@ export const getPreviewPostBySlug = async (slug: string) => {
       type: 'posts'
     },
     props: 'slug',
-    status: 'all',
+    status: 'any',
   }
 
   try {
@@ -41,28 +42,30 @@ export const getAllPostsWithSlug = async () => {
   return data.objects
 }
 
-
-export const getAllPostsForHome = async (preview) => {
+export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
   const params = {
     query: {
       type: 'posts'
     },
     props: 'title,slug,metadata,created_at',
     sort: '-created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const data = await bucket.getObjects(params)
   return data.objects
 }
 
-export const getPostAndMorePosts = async (slug, preview) => {
+export const getPostAndMorePosts = async (slug: string, preview: boolean): Promise<{
+  post: Post;
+  morePosts: Post[]
+}> => {
   const singleObjectParams = {
     query: { 
       slug,
       type: 'posts'
     },
     props: 'slug,title,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   const moreObjectParams = {
     query: {
@@ -70,14 +73,15 @@ export const getPostAndMorePosts = async (slug, preview) => {
     },
     limit: 3,
     props: 'title,slug,metadata,created_at',
-    ...(preview && { status: 'all' }),
+    ...(preview && { status: 'any' }),
   }
   let object
   try {
     const data = await bucket.getObjects(singleObjectParams)
     object = data.objects[0]
   } catch (err) {
-    return <ErrorPage statusCode={err.status} />
+    throw err;
+
   }
   const moreObjects = await bucket.getObjects(moreObjectParams)
   const morePosts = moreObjects.objects
