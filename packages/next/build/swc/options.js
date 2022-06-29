@@ -1,3 +1,5 @@
+import path from 'path'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -46,6 +48,7 @@ function getBaseSWCOptions({
   const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
     .filter(Array.isArray)
     .map(([name, options]) => [require.resolve(name), options])
+
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -59,6 +62,7 @@ function getBaseSWCOptions({
       experimental: {
         keepImportAssertions: true,
         plugins,
+        cacheRoot: path.join(nextConfig?.distDir ?? '.next', 'swc'),
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
