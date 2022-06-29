@@ -3,9 +3,9 @@ import { join } from 'path'
 
 const fixtureDir = join(__dirname, 'fixtures')
 
-function createNextConfig(runtime?: 'edge' | 'nodejs') {
+function createNextConfig(runtime?: 'experimental-edge' | 'nodejs') {
   return {
-    experimental: { reactRoot: true, runtime },
+    experimental: { runtime },
   }
 }
 
@@ -31,7 +31,7 @@ describe('parse page runtime config', () => {
       pageFilePath: join(fixtureDir, 'page-runtime/edge.js'),
       nextConfig: createNextConfig(),
     })
-    expect(runtime).toBe('edge')
+    expect(runtime).toBe('experimental-edge')
   })
 
   it('should return undefined if no runtime is specified', async () => {
@@ -47,16 +47,16 @@ describe('fallback to the global runtime configuration', () => {
   it('should fallback when gSP is defined and exported', async () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/fallback-with-gsp.js'),
-      nextConfig: createNextConfig('edge'),
+      nextConfig: createNextConfig('experimental-edge'),
     })
-    expect(runtime).toBe('edge')
+    expect(runtime).toBe('experimental-edge')
   })
 
   it('should fallback when gSP is re-exported from other module', async () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/fallback-re-export-gsp.js'),
-      nextConfig: createNextConfig('edge'),
+      nextConfig: createNextConfig('experimental-edge'),
     })
-    expect(runtime).toBe('edge')
+    expect(runtime).toBe('experimental-edge')
   })
 })

@@ -21,6 +21,7 @@ import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -83,16 +84,15 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer =
-  parseInt(React.version) >= 18
-    ? require('react-dom/server.browser')
-    : require('react-dom/server')
+const ReactDOMServer = shouldUseReactRoot
+  ? require('react-dom/server.browser')
+  : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
@@ -239,12 +239,11 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
   images: ImageConfigComplete
-  reactRoot: boolean
   largePageDataBytes?: number
 }
 

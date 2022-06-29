@@ -1,12 +1,13 @@
 name: Validate issue
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: ./.github/issue-validator
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/issue-validator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

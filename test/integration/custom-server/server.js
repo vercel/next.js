@@ -2,18 +2,27 @@ if (process.env.POLYFILL_FETCH) {
   global.fetch = require('node-fetch').default
 }
 
-const http = require('http')
+const { readFileSync } = require('fs')
 const next = require('next')
+const { join } = require('path')
 
 const dev = process.env.NODE_ENV !== 'production'
 const dir = __dirname
 const port = process.env.PORT || 3000
+const { createServer } = require(process.env.USE_HTTPS === 'true'
+  ? 'https'
+  : 'http')
 
-const app = next({ dev, dir })
+const app = next({ dev, hostname: 'localhost', port, dir })
 const handleNextRequests = app.getRequestHandler()
 
+const httpOptions = {
+  key: readFileSync(join(__dirname, 'ssh/privkey.pem')),
+  cert: readFileSync(join(__dirname, 'ssh/cert.pem')),
+}
+
 app.prepare().then(() => {
-  const server = new http.Server(async (req, res) => {
+  const server = createServer(httpOptions, async (req, res) => {
     if (req.url === '/no-query') {
       return app.render(req, res, '/no-query')
     }

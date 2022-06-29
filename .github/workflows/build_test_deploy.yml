@@ -8,7 +8,7 @@ name: Build, test, and deploy
 
 env:
   NAPI_CLI_VERSION: 2.7.0
-  TURBO_VERSION: 1.2.14
+  TURBO_VERSION: 1.3.1
   RUST_TOOLCHAIN: nightly-2022-02-23
   PNPM_VERSION: 7.2.1
 
