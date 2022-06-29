@@ -1,5 +1,3 @@
-import path from 'path'
-
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -33,6 +31,7 @@ function getBaseSWCOptions({
   nextConfig,
   resolvedBaseUrl,
   jsConfig,
+  swcCacheDir,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -62,7 +61,7 @@ function getBaseSWCOptions({
       experimental: {
         keepImportAssertions: true,
         plugins,
-        cacheRoot: path.join(nextConfig?.distDir ?? '.next', 'swc'),
+        cacheRoot: swcCacheDir,
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -210,6 +209,7 @@ export function getLoaderSWCOptions({
   nextConfig,
   jsConfig,
   supportedBrowsers,
+  swcCacheDir,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -221,6 +221,7 @@ export function getLoaderSWCOptions({
     nextConfig,
     jsConfig,
     // resolvedBaseUrl,
+    swcCacheDir,
   })
 
   const isNextDist = nextDistPath.test(filename)
