@@ -1,6 +1,6 @@
 import type { NextConfig } from 'next'
 
-const NextBundleAnalyzer =
+type NextBundleAnalyzer =
   (options?: { enabled?: boolean; openAnalyzer?: boolean }) =>
   (config?: NextConfig) =>
     NextConfig
