@@ -32,12 +32,8 @@ impl<'a> ApplyVisitors<'a> {
     {
         let span = n.span();
 
-        dbg!(self.index);
-
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                dbg!(self.index, child.0.len());
-
                 if self.index == child.0.len() - 1 {
                     n.visit_mut_with(&mut child.1());
                 } else {
