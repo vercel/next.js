@@ -1927,11 +1927,6 @@ describe('Prerender', () => {
       })
     }
 
-    // this should come very last
-    it('should not have attempted sending invalid payload', async () => {
-      expect(next.cliOutput).not.toContain('argument entity must be string')
-    })
-
     if ((global as any).isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
@@ -2321,6 +2316,25 @@ describe('Prerender', () => {
         expect(initialTime).not.toBe($2('#time').text())
       })
     }
+
+    it('should respond for catch-all deep folder', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/catchall/first/second/third.json`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('["first","second","third"]')
+    })
+
+    // this should come very last
+    it('should not fail to update incremental cache', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('Failed to update prerender cache')
+    })
+
+    it('should not have attempted sending invalid payload', async () => {
+      expect(next.cliOutput).not.toContain('argument entity must be string')
+    })
   }
   runTests((global as any).isNextDev, (global as any).isNextDeploy)
 })
