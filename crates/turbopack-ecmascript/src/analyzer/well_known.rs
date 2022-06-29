@@ -1,7 +1,6 @@
 use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
-use swc_atoms::{js_word, JsWord};
 use url::Url;
 
 use crate::target::CompileTargetVc;
@@ -169,11 +168,12 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-// TODO: support real path.join function logics
-//
-// Bypass here because of the usage of `@mapbox/node-pre-gyp` contains only
-// one parameter
 pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
+    // If no path segments are passed, `path.resolve()` will return the absolute
+    // path of the current working directory.
+    if args.is_empty() {
+        return JsValue::Unknown(None, "cwd is not static analyzable");
+    }
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
     }
