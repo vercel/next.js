@@ -40,7 +40,3 @@ export default function () {
     </>
   )
 }
-
-export const config = {
-  runtime: 'experimental-edge',
-}

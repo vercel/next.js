@@ -3,7 +3,7 @@ import Time from '../utils/time'
 
 export default function Page({ type }) {
   return (
-    <div className="node-rsc-ssg">
+    <div>
       This is a {type} RSC page.
       <br />
       <Runtime />
@@ -16,11 +16,8 @@ export default function Page({ type }) {
 export function getStaticProps() {
   return {
     props: {
-      type: 'SSG',
+      type: 'ISR',
     },
+    revalidate: 3,
   }
-}
-
-export const config = {
-  runtime: 'nodejs',
 }

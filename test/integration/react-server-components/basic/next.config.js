@@ -8,6 +8,5 @@ module.exports = {
     appDir: true,
     runtime: 'nodejs',
     serverComponents: true,
-    runtime: 'experimental-edge',
   },
 }

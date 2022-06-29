@@ -14,7 +14,7 @@ export default function Nav() {
         </Link>
       </div>
       <div>
-        <Link href={'/'}>
+        <Link href={'/root'}>
           <a id="goto-home">home</a>
         </Link>
       </div>

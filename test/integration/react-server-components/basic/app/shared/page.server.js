@@ -2,7 +2,7 @@ import ClientFromDirect from '../../components/client.client'
 import ClientFromShared from '../../components/shared'
 import SharedFromClient from '../../components/shared.client'
 import Random from '../../components/random-module-instance.client'
-import { default as CssModules } from './css-modules.server'
+import Bar from '../../components/bar.server'
 
 import { random } from 'random-module-instance'
 
@@ -28,7 +28,7 @@ export default function Page() {
       <br />
       <SharedFromClient />
       <br />
-      <CssModules />
+      <Bar />
     </div>
   )
 }

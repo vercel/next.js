@@ -5,7 +5,6 @@ const safeSetTimeout = (callback: () => void) => setTimeout(callback)
 // `style-loader` in development. It must be called before hydration, or else
 // rendering won't have the correct computed values in effects.
 export function displayContent(): Promise<void> {
-  console.log('displayContent')
   return new Promise((resolve) => {
     ;(window.requestAnimationFrame || safeSetTimeout)(function () {
       for (
