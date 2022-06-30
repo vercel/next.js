@@ -1,9 +1,4 @@
-import type {
-  NextConfig,
-  NextConfigComplete,
-  ServerRuntime,
-} from '../server/config-shared'
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import type { NextConfigComplete, ServerRuntime } from '../server/config-shared'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -26,7 +21,6 @@ import {
   MIDDLEWARE_FILENAME,
   SERVER_RUNTIME,
 } from '../lib/constants'
-import { EDGE_RUNTIME_WEBPACK } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -47,9 +41,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { getPageStaticInfo } from './analysis/get-page-static-info'
 
-const { builtinModules } = require('module')
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -1120,16 +1112,6 @@ export function isServerComponentPage(
   })
 }
 
-export function getUnresolvedModuleFromError(
-  error: string
-): string | undefined {
-  const moduleErrorRegex = new RegExp(
-    `Module not found: Error: Can't resolve '(\\w+)'`
-  )
-  const [, moduleName] = error.match(moduleErrorRegex) || []
-  return builtinModules.find((item: string) => item === moduleName)
-}
-
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
@@ -1263,49 +1245,6 @@ export function isReservedPage(page: string) {
 
 export function isCustomErrorPage(page: string) {
   return page === '/404' || page === '/500'
-}
-
-// FIX ME: it does not work for non-middleware edge functions
-//  since chunks don't contain runtime specified somehow
-export async function isEdgeRuntimeCompiled(
-  compilation: webpack5.Compilation,
-  module: any,
-  config: NextConfig
-) {
-  if (!module) return false
-
-  for (const chunk of compilation.chunkGraph.getModuleChunksIterable(module)) {
-    let runtimes: string[]
-    if (typeof chunk.runtime === 'string') {
-      runtimes = [chunk.runtime]
-    } else if (chunk.runtime) {
-      runtimes = [...chunk.runtime]
-    } else {
-      runtimes = []
-    }
-
-    if (runtimes.some((r) => r === EDGE_RUNTIME_WEBPACK)) {
-      return true
-    }
-  }
-
-  const staticInfo = await getPageStaticInfo({
-    pageFilePath: module.resource,
-    nextConfig: config,
-  })
-
-  // Check the page runtime as well since we cannot detect the runtime from
-  // compilation when it's for the client part of edge function
-  return staticInfo.runtime === SERVER_RUNTIME.edge
-}
-
-export function getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(
-  name: string
-) {
-  return (
-    `You're using a Node.js module (${name}) which is not supported in the Edge Runtime.\n` +
-    'Learn more: https://nextjs.org/docs/api-reference/edge-runtime'
-  )
 }
 
 export function isMiddlewareFile(file: string) {

@@ -1,256 +1,424 @@
 /* eslint-env jest */
 
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
-import fs from 'fs-extra'
-import { dirname, join } from 'path'
+import { join } from 'path'
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
   killApp,
   launchApp,
   nextBuild,
-  waitFor,
+  nextStart,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
-const WEBPACK_BREAKING_CHANGE = 'BREAKING CHANGE:'
 const context = {
   appDir: join(__dirname, '../'),
-  buildLogs: { output: '', stdout: '', stderr: '' },
   logs: { output: '', stdout: '', stderr: '' },
   middleware: new File(join(__dirname, '../middleware.js')),
+  lib: new File(join(__dirname, '../lib.js')),
   page: new File(join(__dirname, '../pages/index.js')),
 }
+const appOption = {
+  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+  onStdout(msg) {
+    context.logs.output += msg
+    context.logs.stdout += msg
+  },
+  onStderr(msg) {
+    context.logs.output += msg
+    context.logs.stderr += msg
+  },
+}
 
-describe('Middleware importing Node.js modules', () => {
-  function getModuleNotFound(name) {
-    return `Module not found: Can't resolve '${name}'`
-  }
-
-  function escapeLF(s) {
-    return s.replace(/\n/g, '\\n')
-  }
+describe('Middleware with imports', () => {
+  beforeEach(async () => {
+    context.appPort = await findPort()
+    context.logs = { output: '', stdout: '', stderr: '' }
+  })
 
   afterEach(() => {
-    context.middleware.restore()
-    context.page.restore()
     if (context.app) {
       killApp(context.app)
     }
   })
 
-  describe('dev mode', () => {
-    // restart the app for every test since the latest error is not shown sometimes
-    // See https://github.com/vercel/next.js/issues/36575
-    beforeEach(async () => {
-      context.logs = { output: '', stdout: '', stderr: '' }
-      context.appPort = await findPort()
-      context.app = await launchApp(context.appDir, context.appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-        onStdout(msg) {
-          context.logs.output += msg
-          context.logs.stdout += msg
-        },
-        onStderr(msg) {
-          context.logs.output += msg
-          context.logs.stderr += msg
-        },
-      })
+  afterEach(() => {
+    context.middleware.restore()
+    context.lib.restore()
+    context.page.restore()
+  })
+
+  describe('Middleware statically importing node.js module', () => {
+    const moduleName = 'path'
+    const importStatement = `import { basename } from "${moduleName}"`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+${importStatement}
+
+export async function middleware(request) {
+  basename()
+  return NextResponse.next()
+}`)
     })
 
-    it('shows the right error when importing `path` on middleware', async () => {
-      context.middleware.write(`
-        import { NextResponse } from 'next/server'
-        import { basename } from 'path'
-
-        export async function middleware(request) {
-          console.log(basename('/foo/bar/baz/asdf/quux.html'))
-          return NextResponse.next()
-        }
-      `)
+    it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, '/')
-      const text = await res.text()
-      await waitFor(500)
-      const msg = getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('path')
       expect(res.status).toBe(500)
-      expect(context.logs.output).toContain(getModuleNotFound('path'))
-      expect(context.logs.output).toContain(msg)
-      expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(context.logs.output)).toContain(
-        "import { basename } from 'path'"
+      expectUnsupportedModuleDevError(
+        moduleName,
+        importStatement,
+        await res.text()
       )
-      expect(context.logs.output).not.toContain(WEBPACK_BREAKING_CHANGE)
     })
 
-    it('shows the right error when importing `child_process` on middleware', async () => {
-      context.middleware.write(`
-        import { NextResponse } from 'next/server'
-        import { spawn } from 'child_process'
-        
-        export async function middleware(request) {
-          console.log(spawn('ls', ['-lh', '/usr']))
-          return NextResponse.next()
-        }      
-      `)
-      const res = await fetchViaHTTP(context.appPort, '/')
-      const text = await res.text()
-      await waitFor(500)
-      const msg =
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      expect(res.status).toBe(500)
-      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
-      expect(context.logs.output).toContain(msg)
-      expect(text).toContain(escapeLF(msg))
-      expect(stripAnsi(context.logs.output)).toContain(
-        "import { spawn } from 'child_process'"
-      )
-      expect(context.logs.output).not.toContain(WEBPACK_BREAKING_CHANGE)
-    })
-
-    it('shows the right error when importing a non-node-builtin module on middleware', async () => {
-      context.middleware.write(`
-        import { NextResponse } from 'next/server'
-        import NotExist from 'not-exist'
-        
-        export async function middleware(request) {
-          new NotExist()
-          return NextResponse.next()
-        }
-      `)
+    it('throws unsupported module error in production at runtime and prints error on logs', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, '/')
       expect(res.status).toBe(500)
-
-      const text = await res.text()
-      await waitFor(500)
-      const msg =
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('not-exist')
-      expect(context.logs.output).toContain(getModuleNotFound('not-exist'))
-      expect(context.logs.output).not.toContain(msg)
-      expect(text).not.toContain(escapeLF(msg))
-    })
-
-    it('shows the right error when importing `child_process` on a page', async () => {
-      context.page.write(`
-        import { spawn } from 'child_process'
-        export default function Page() {
-          spawn('ls', ['-lh', '/usr'])
-          return <div>ok</div>
-        }      
-      `)
-
-      await fetchViaHTTP(context.appPort, '/')
-
-      // Need to request twice
-      // See: https://github.com/vercel/next.js/issues/36387
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(500)
-
-      const text = await res.text()
-      await waitFor(500)
-      const msg =
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      expect(context.logs.output).toContain(getModuleNotFound('child_process'))
-      expect(context.logs.output).not.toContain(msg)
-      expect(text).not.toContain(escapeLF(msg))
-    })
-
-    it('warns about nested middleware being not allowed', async () => {
-      const aboutMiddleware = join(__dirname, '../pages/about/_middleware.js')
-      const apiMiddleware = join(__dirname, '../pages/api/_middleware.js')
-
-      await fs.ensureDir(dirname(aboutMiddleware))
-      await fs.ensureDir(dirname(apiMiddleware))
-      await fs.writeFile(aboutMiddleware, `export function middleware() {}`)
-      await fs.writeFile(apiMiddleware, `export function middleware() {}`)
-
-      try {
-        const res = await fetchViaHTTP(context.appPort, '/about')
-        expect(res.status).toBe(200)
-
-        await check(() => {
-          return context.logs.stderr.includes(
-            'Nested Middleware is not allowed, found:'
-          ) &&
-            context.logs.stderr.includes('pages/about/_middleware') &&
-            context.logs.stderr.includes('pages/api/_middleware')
-            ? 'success'
-            : context.logs.output
-        }, 'success')
-      } finally {
-        await fs.remove(aboutMiddleware)
-        await fs.remove(apiMiddleware)
-      }
+      expectUnsupportedModuleProdError(moduleName)
     })
   })
 
-  describe('production mode', () => {
-    it('fails with the right middleware error during build', async () => {
+  describe('Middleware dynamically importing node.js module', () => {
+    const moduleName = 'fs'
+    const importStatement = `await import("${moduleName}")`
+
+    beforeEach(() => {
       context.middleware.write(`
-        import { NextResponse } from 'next/server'
-        import { spawn } from 'child_process'
-        
-        export async function middleware(request) {
-          console.log(spawn('ls', ['-lh', '/usr']))
-          return NextResponse.next()
-        }      
-      `)
-      const buildResult = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-        stdout: true,
-      })
+import { NextResponse } from 'next/server'
 
-      expect(buildResult.stderr).toContain(getModuleNotFound('child_process'))
-      expect(buildResult.stderr).toContain(
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      )
-      expect(buildResult.stderr).not.toContain(WEBPACK_BREAKING_CHANGE)
+export async function middleware(request) {
+  const { writeFile } = ${importStatement}
+  return NextResponse.next()
+}`)
     })
 
-    it('fails with the right page error during build', async () => {
+    it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectUnsupportedModuleDevError(
+        moduleName,
+        importStatement,
+        await res.text()
+      )
+    })
+
+    it('throws unsupported module error in production at runtime and prints error on logs', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectUnsupportedModuleProdError(moduleName)
+    })
+  })
+
+  describe('Middleware dynamically importing node.js module in a lib', () => {
+    const moduleName = 'os'
+    const importStatement = `await import("${moduleName}")`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+import throwAsync from './lib'
+
+export async function middleware(request) {
+  await throwAsync()
+  return NextResponse.next()
+}`)
+      context.lib.write(`
+export default async function throwAsync() {
+  (${importStatement}).cwd()
+}`)
+    })
+
+    it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectUnsupportedModuleDevError(
+        moduleName,
+        importStatement,
+        await res.text()
+      )
+    })
+
+    it('throws unsupported module error in production at runtime and prints error on logs', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectUnsupportedModuleProdError(moduleName)
+    })
+  })
+
+  describe('Middleware statically importing 3rd party module', () => {
+    const moduleName = 'not-exist'
+    const importStatement = `import Unknown from "${moduleName}"`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+${importStatement}
+
+export async function middleware(request) {
+  new Unknown()
+  return NextResponse.next()
+}`)
+    })
+
+    it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectModuleNotFoundDevError(
+        moduleName,
+        importStatement,
+        await res.text()
+      )
+    })
+
+    it('throws not-found module error in production at runtime and prints error on logs', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectModuleNotFoundProdError(moduleName)
+    })
+  })
+
+  describe('Middleware dynamically importing 3rd party module', () => {
+    const moduleName = 'not-exist'
+    const importStatement = `await import("${moduleName}")`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+
+export async function middleware(request) {
+  new (${importStatement})()
+  return NextResponse.next()
+}`)
+    })
+
+    it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectModuleNotFoundDevError(
+        moduleName,
+        importStatement,
+        await res.text()
+      )
+    })
+
+    it('throws not-found module error in production at runtime and prints error on logs', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
+      expectModuleNotFoundProdError(moduleName)
+    })
+  })
+
+  describe('Middleware importing unused 3rd party module', () => {
+    const moduleName = 'not-exist'
+    const importStatement = `await import("${moduleName}")`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+
+export async function middleware(request) {
+  if (process.env === 'production') {
+    new (${importStatement})()
+  }
+  return NextResponse.next()
+}`)
+    })
+
+    it('does not throw in dev at runtime', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expectNoError(moduleName)
+    })
+
+    it('does not throw in production at runtime', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expectNoError(moduleName)
+    })
+  })
+
+  describe('Middleware importing unused node.js module', () => {
+    const moduleName = 'child_process'
+    const importStatement = `await import("${moduleName}")`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+
+export async function middleware(request) {
+  if (process.env === 'production') {
+    (${importStatement}).spawn('ls', ['-lh', '/usr'])
+  }
+  return NextResponse.next()
+}`)
+    })
+
+    it('does not throw in dev at runtime', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expectNoError(moduleName)
+    })
+
+    it('does not throw in production at runtime', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expectNoError(moduleName)
+    })
+  })
+
+  describe('Middleware importing vanilla 3rd party module', () => {
+    const moduleName = 'nanoid'
+    const importStatement = `import { nanoid } from "${moduleName}"`
+
+    beforeEach(() => {
+      context.middleware.write(`
+import { NextResponse } from 'next/server'
+${importStatement}
+
+export async function middleware(request) {
+  const response = NextResponse.next()
+  response.headers.set('x-from-middleware', nanoid())
+  return response
+}`)
+    })
+
+    it('does not throw in dev at runtime', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-from-middleware')).toBeDefined()
+      expectNoError(moduleName)
+    })
+
+    it('does not throw in production at runtime', async () => {
+      await nextBuild(context.appDir)
+      context.app = await nextStart(context.appDir, context.appPort, appOption)
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-from-middleware')).toBeDefined()
+      expectNoError(moduleName)
+    })
+  })
+
+  describe('Page statically importing node.js module', () => {
+    const moduleName = 'child_process'
+    const importStatement = `import { spawn } from "${moduleName}"`
+
+    beforeEach(() => {
       context.page.write(`
-        import { spawn } from 'child_process'
-        export default function Page() {
-          spawn('ls', ['-lh', '/usr'])
-          return <div>ok</div>
-        }      
-      `)
+${importStatement}
 
-      const buildResult = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-        stdout: true,
-      })
-
-      expect(buildResult.stderr).toContain(getModuleNotFound('child_process'))
-      expect(buildResult.stderr).not.toContain(
-        getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage('child_process')
-      )
+export default function Page() {
+  spawn('ls', ['-lh', '/usr'])
+  return <div>ok</div>
+}`)
     })
 
-    it('fails when there is a not allowed middleware', async () => {
-      const aboutMiddleware = join(__dirname, '../pages/about/_middleware.js')
-      const apiMiddleware = join(__dirname, '../pages/api/_middleware.js')
+    it('throws native error in dev at runtime and highlights the faulty line', async () => {
+      context.app = await launchApp(context.appDir, context.appPort, appOption)
+      // Need to request twice since the first response succeeds and is empty
+      // See: https://github.com/vercel/next.js/issues/36387
+      await fetchViaHTTP(context.appPort, '/')
+      const res = await fetchViaHTTP(context.appPort, '/')
+      expect(res.status).toBe(500)
 
-      await fs.ensureDir(dirname(aboutMiddleware))
-      await fs.ensureDir(dirname(apiMiddleware))
-      await fs.writeFile(aboutMiddleware, `export function middleware() {}`)
-      await fs.writeFile(apiMiddleware, `export function middleware() {}`)
+      const moduleNotFoundMessage = `Module not found: Can't resolve '${moduleName}'`
+      expect(context.logs.output).toContain(moduleNotFoundMessage)
+      expect(stripAnsi(context.logs.output)).toContain(importStatement)
+      expect(await res.text()).toContain(escapeLF(moduleNotFoundMessage))
+    })
 
-      const buildResult = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-        stdout: true,
-      })
-      await fs.remove(aboutMiddleware)
-      await fs.remove(apiMiddleware)
-
-      expect(buildResult.stderr).toContain(
-        'Nested Middleware is not allowed, found:'
+    it('fails to build', async () => {
+      await expect(nextBuild(context.appDir)).rejects.toThrow(
+        `Module not found: Can't resolve '${moduleName}'`
       )
-      expect(buildResult.stderr).toContain('pages/about/_middleware')
-      expect(buildResult.stderr).toContain('pages/api/_middleware')
     })
   })
 })
+
+function getModuleNotFound(name) {
+  return `Can't resolve '${name}' module`
+}
+
+function getUnsupportedModule(name) {
+  return `The edge runtime does not support Node.js '${name}' module`
+}
+
+function escapeLF(s) {
+  return s.replace(/\n/g, '\\n')
+}
+
+function expectUnsupportedModuleProdError(moduleName) {
+  const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
+  expect(context.logs.output).toContain(moduleNotSupportedMessage)
+  const moduleNotFoundMessage = getModuleNotFound(moduleName)
+  expect(context.logs.output).not.toContain(moduleNotFoundMessage)
+}
+
+function expectUnsupportedModuleDevError(
+  moduleName,
+  importStatement,
+  responseText
+) {
+  expectUnsupportedModuleProdError(moduleName)
+  expect(stripAnsi(context.logs.output)).toContain(importStatement)
+
+  const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
+  expect(responseText).toContain(escapeLF(moduleNotSupportedMessage))
+
+  const moduleNotFoundMessage = getModuleNotFound(moduleName)
+  expect(responseText).not.toContain(escapeLF(moduleNotFoundMessage))
+}
+
+function expectModuleNotFoundProdError(moduleName) {
+  const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
+  expect(context.logs.output).not.toContain(moduleNotSupportedMessage)
+  const moduleNotFoundMessage = getModuleNotFound(moduleName)
+  expect(context.logs.output).toContain(moduleNotFoundMessage)
+}
+
+function expectModuleNotFoundDevError(
+  moduleName,
+  importStatement,
+  responseText
+) {
+  expectModuleNotFoundProdError(moduleName)
+  expect(stripAnsi(context.logs.output)).toContain(importStatement)
+
+  const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
+  expect(responseText).not.toContain(escapeLF(moduleNotSupportedMessage))
+
+  const moduleNotFoundMessage = getModuleNotFound(moduleName)
+  expect(responseText).toContain(escapeLF(moduleNotFoundMessage))
+}
+
+function expectNoError(moduleName) {
+  expect(context.logs.output).not.toContain(getUnsupportedModule(moduleName))
+  expect(context.logs.output).not.toContain(getModuleNotFound(moduleName))
+}
