@@ -849,10 +849,37 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
             }
         }
 
+        // umd may use (function (factory){
+        //   // Somewhere, define(['require', 'exports'], factory)
+        // }(function (require, exports){}))
+        //
+        // In all module system which has `require`, `require` in the factory function can be
+        // treated as a well-known require.
         Expr::Fn(FnExpr {
             function: Function { params, .. },
             ..
-        }) => {}
+        }) => {
+            if params.len() == 1 {
+                match args.first().and_then(|arg| arg.expr.as_fn_expr()) {
+                    Some(FnExpr {
+                        function: Function { params, .. },
+                        ..
+                    }) => {
+                        if params.len() == 1 {
+                            match &params[0].pat {
+                                Pat::Ident(param) => {
+                                    if &*param.id.sym == "require" {
+                                        return Some(param.to_id());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         _ => {}
     }
