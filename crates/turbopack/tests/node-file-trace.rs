@@ -22,7 +22,7 @@ use turbopack::{
     emit_with_completion, rebase::RebasedAssetVc, register, GraphOptionsVc, ModuleAssetContextVc,
 };
 use turbopack_core::source_asset::SourceAssetVc;
-use turbopack_ecmascript::target::CompileTarget;
+use turbopack_ecmascript::target::CompileTargetVc;
 
 #[template]
 #[rstest]
@@ -141,28 +141,7 @@ fn node_file_trace_memory(#[case] input: String, #[case] should_succeed: bool) {
         "memory",
         1,
         120,
-        || TurboTasks::new(MemoryBackend::new()),
-        |tt| {},
-    );
-}
-
-#[cfg(feature = "test_persistent_cache")]
-#[apply(test_cases)]
-fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) {
-    use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
-    use turbo_tasks_rocksdb::RocksDbPersistedGraph;
-
-    node_file_trace(
-        input,
-        should_succeed,
-        "rockdb",
-        1,
-        240,
-        || {
-            TurboTasks::new(MemoryBackendWithPersistedGraph::new(
-                RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
-            ))
-        },
+        |_| TurboTasks::new(MemoryBackend::new()),
         |tt| {
             let b = tt.backend();
             b.with_all_cached_tasks(|task| {
@@ -176,13 +155,34 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
     );
 }
 
+#[cfg(feature = "test_persistent_cache")]
+#[apply(test_cases)]
+fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) {
+    use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
+    use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+
+    node_file_trace(
+        input,
+        should_succeed,
+        "rockdb",
+        2,
+        240,
+        |directory_path| {
+            TurboTasks::new(MemoryBackendWithPersistedGraph::new(
+                RocksDbPersistedGraph::new(directory_path.join(".db")).unwrap(),
+            ))
+        },
+        |_| {},
+    );
+}
+
 fn node_file_trace<B: Backend + 'static>(
     input: String,
     should_succeed: bool,
     mode: &str,
     run_count: i32,
     timeout_len: u64,
-    create_turbo_tasks: impl Fn() -> Arc<TurboTasks<B>>,
+    create_turbo_tasks: impl Fn(&Path) -> Arc<TurboTasks<B>>,
     handle_timeout_error: impl Fn(&Arc<TurboTasks<B>>),
 ) {
     let r = tokio::runtime::Builder::new_current_thread()
@@ -234,7 +234,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let source = SourceAssetVc::new(input);
                 let context = ModuleAssetContextVc::new(
                     input_dir,
-                    GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
+                    GraphOptionsVc::new(false, true, CompileTargetVc::current()),
                 );
                 let module = context.process(source.into());
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
@@ -266,8 +266,9 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                 };
 
-            let tt = create_turbo_tasks();
+            let tt = create_turbo_tasks(directory_path.as_path());
             let output = timeout(Duration::from_secs(timeout_len), tt.run_once(task)).await;
+            let _ = timeout(Duration::from_secs(2), tt.wait_background_done()).await;
             let stop = timeout(Duration::from_secs(60), tt.stop_and_wait()).await;
             match (output, stop) {
                 (Ok(result), Ok(_)) => handle_result(result),
