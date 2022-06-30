@@ -5,8 +5,8 @@ import type { Route } from './router'
 import {
   CacheFs,
   DecodeError,
-  execOnce,
   PageNotFoundError,
+  MiddlewareNotFoundError,
 } from '../shared/lib/utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
@@ -25,7 +25,6 @@ import type {
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
-import React from 'react'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
 import {
@@ -36,7 +35,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
@@ -87,8 +86,9 @@ import {
   requestToBodyStream,
 } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
+import { shouldUseReactRoot } from './utils'
 
-const shouldUseReactRoot = parseInt(React.version) >= 18
 if (shouldUseReactRoot) {
   ;(process.env as any).__NEXT_REACT_ROOT = 'true'
 }
@@ -108,12 +108,6 @@ export interface NodeRequestHandler {
     parsedUrl?: NextUrlWithParsedQuery | undefined
   ): Promise<void>
 }
-
-const middlewareBetaWarning = execOnce(() => {
-  Log.warn(
-    `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-  )
-})
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
@@ -552,20 +546,19 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async runApi(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
+    req: BaseNextRequest | NodeNextRequest,
+    res: BaseNextResponse | NodeNextResponse,
     query: ParsedUrlQuery,
-    params: Params | false,
+    params: Params | undefined,
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const handledAsEdgeFunction = await this.runEdgeFunctionApiEndpoint({
+    const handledAsEdgeFunction = await this.runEdgeFunction({
       req,
       res,
       query,
       params,
       page,
-      builtPagePath,
     })
 
     if (handledAsEdgeFunction) {
@@ -587,8 +580,8 @@ export default class NextNodeServer extends BaseServer {
     }
 
     await apiResolver(
-      req.originalRequest,
-      res.originalResponse,
+      (req as NodeNextRequest).originalRequest,
+      (res as NodeNextResponse).originalResponse,
       query,
       pageModule,
       {
@@ -754,11 +747,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getServerComponentManifest() {
     if (!this.nextConfig.experimental.serverComponents) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-    ))
+    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1045,23 +1034,40 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected getMiddlewareManifest(): MiddlewareManifest | null {
+    if (this.minimalMode) return null
+    const manifest: MiddlewareManifest = require(join(
+      this.serverDistDir,
+      MIDDLEWARE_MANIFEST
+    ))
+    return manifest
+  }
+
   /**
    * Return a list of middleware routing items. This method exists to be later
    * overridden by the development server in order to use a different source
    * to get the list.
    */
   protected getMiddleware(): RoutingItem[] {
-    if (this.minimalMode) {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
       return []
     }
 
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
-
     return manifest.sortedMiddleware.map((page) => ({
       match: getMiddlewareMatcher(manifest.middleware[page]),
+      page,
+    }))
+  }
+
+  protected getEdgeFunctions(): RoutingItem[] {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return []
+    }
+
+    return Object.keys(manifest.functions).map((page) => ({
+      match: getMiddlewareMatcher(manifest.functions[page]),
       page,
     }))
   }
@@ -1086,14 +1092,18 @@ export default class NextNodeServer extends BaseServer {
     try {
       foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
-      throw new PageNotFoundError(params.page)
+      return null
     }
 
     let pageInfo = params.middleware
       ? manifest.middleware[foundPage]
       : manifest.functions[foundPage]
+
     if (!pageInfo) {
-      throw new PageNotFoundError(foundPage)
+      if (!params.middleware) {
+        throw new PageNotFoundError(foundPage)
+      }
+      return null
     }
 
     return {
@@ -1116,14 +1126,8 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     _isSSR?: boolean
   ): Promise<boolean> {
-    try {
-      return (
-        this.getEdgeFunctionInfo({ page: pathname, middleware: true }).paths
-          .length > 0
-      )
-    } catch (_) {}
-
-    return false
+    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    return Boolean(info && info.paths.length > 0)
   }
 
   /**
@@ -1146,9 +1150,7 @@ export default class NextNodeServer extends BaseServer {
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
-    middlewareBetaWarning()
-
-    // middleware is skipped for on-demand revalidate requests
+    // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate
@@ -1160,9 +1162,12 @@ export default class NextNodeServer extends BaseServer {
     // For middleware to "fetch" we must always provide an absolute URL
     const query = urlQueryToSearchParams(params.parsed.query).toString()
     const locale = params.parsed.query.__nextLocale
-    const url = `http://${this.hostname}:${this.port}${
-      locale ? `/${locale}` : ''
-    }${params.parsed.pathname}${query ? `?${query}` : ''}`
+
+    const url = `${getRequestMeta(params.request, '_protocol')}://${
+      this.hostname
+    }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
+      query ? `?${query}` : ''
+    }`
 
     if (!url.startsWith('http')) {
       throw new Error(
@@ -1192,7 +1197,8 @@ export default class NextNodeServer extends BaseServer {
         ? clonableBodyForRequest(params.request.body)
         : undefined
 
-    for (const middleware of this.getMiddleware()) {
+    const middlewareList = this.getMiddleware()
+    for (const middleware of middlewareList) {
       if (middleware.match(normalizedPathname)) {
         if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
@@ -1202,8 +1208,12 @@ export default class NextNodeServer extends BaseServer {
         await this.ensureMiddleware(middleware.page, middleware.ssr)
         const middlewareInfo = this.getEdgeFunctionInfo({
           page: middleware.page,
-          middleware: true,
+          middleware: !middleware.ssr,
         })
+
+        if (!middlewareInfo) {
+          throw new MiddlewareNotFoundError()
+        }
 
         result = await run({
           name: middlewareInfo.name,
@@ -1262,16 +1272,55 @@ export default class NextNodeServer extends BaseServer {
     return result
   }
 
-  protected generateCatchAllMiddlewareRoute(
-    devReady?: boolean
-  ): Route | undefined {
-    if (this.minimalMode) return undefined
+  protected generateCatchAllMiddlewareRoute(devReady?: boolean): Route[] {
+    if (this.minimalMode) return []
 
-    if ((!this.renderOpts.dev || devReady) && !this.getMiddleware().length) {
-      return undefined
+    const edgeCatchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      name: 'edge functions catchall',
+      fn: async (req, res, _params, parsed) => {
+        const edgeFunctions = this.getEdgeFunctions()
+        if (!edgeFunctions.length) return { finished: false }
+
+        const { query, pathname } = parsed
+        const normalizedPathname = removeTrailingSlash(pathname || '')
+        let page = normalizedPathname
+        let params: Params | undefined = undefined
+        let pageFound = !isDynamicRoute(page)
+
+        if (this.dynamicRoutes) {
+          for (const dynamicRoute of this.dynamicRoutes) {
+            params = dynamicRoute.match(normalizedPathname) || undefined
+            if (params) {
+              page = dynamicRoute.page
+              pageFound = true
+              break
+            }
+          }
+        }
+
+        if (!pageFound) {
+          return {
+            finished: false,
+          }
+        }
+
+        const edgeSSRResult = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params,
+          page,
+        })
+
+        return {
+          finished: !!edgeSSRResult,
+        }
+      },
     }
 
-    return {
+    const middlewareCatchAllRoute: Route = {
       match: getPathMatch('/:path*'),
       matchesBasePath: true,
       matchesLocale: true,
@@ -1439,6 +1488,14 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     }
+
+    const routes = []
+    if (!this.renderOpts.dev || devReady) {
+      if (this.getMiddleware().length) routes[0] = middlewareCatchAllRoute
+      if (this.getEdgeFunctions().length) routes[1] = edgeCatchAllRoute
+    }
+
+    return routes
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
@@ -1454,23 +1511,27 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, ROUTES_MANIFEST))
   }
 
-  private async runEdgeFunctionApiEndpoint(params: {
-    req: NodeNextRequest
-    res: NodeNextResponse
+  protected async runEdgeFunction(params: {
+    req: BaseNextRequest | NodeNextRequest
+    res: BaseNextResponse | NodeNextResponse
     query: ParsedUrlQuery
-    params: Params | false
+    params: Params | undefined
     page: string
-    builtPagePath: string
-  }): Promise<boolean> {
+  }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
     try {
+      await this.ensureMiddleware(params.page, true)
       middlewareInfo = this.getEdgeFunctionInfo({
         page: params.page,
         middleware: false,
       })
     } catch {
-      return false
+      return null
+    }
+
+    if (!middlewareInfo) {
+      return null
     }
 
     // For middleware to "fetch" we must always provide an absolute URL
@@ -1480,6 +1541,8 @@ export default class NextNodeServer extends BaseServer {
         'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
       )
     }
+
+    const nodeReq = params.req as NodeNextRequest
 
     const result = await run({
       name: middlewareInfo.name,
@@ -1499,9 +1562,11 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        body: ['GET', 'HEAD'].includes(params.req.method)
-          ? undefined
-          : requestToBodyStream(params.req.originalRequest),
+        body:
+          ['GET', 'HEAD'].includes(params.req.method) ||
+          !nodeReq.originalRequest
+            ? undefined
+            : requestToBodyStream(nodeReq.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
       onWarning: (_warning: Error) => {
@@ -1522,13 +1587,13 @@ export default class NextNodeServer extends BaseServer {
     if (result.response.body) {
       // TODO(gal): not sure that we always need to stream
       bodyStreamToNodeStream(result.response.body).pipe(
-        params.res.originalResponse
+        (params.res as NodeNextResponse).originalResponse
       )
     } else {
-      params.res.originalResponse.end()
+      ;(params.res as NodeNextResponse).originalResponse.end()
     }
 
-    return true
+    return result
   }
 }
 

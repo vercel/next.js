@@ -118,7 +118,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       )
     )(`warns for $api during build`, ({ api, line }) => {
       expect(buildResult.stderr)
-        .toContain(`You're using a Node.js API (${api} at line: ${line}) which is not supported in the Edge Runtime that Middleware uses. 
+        .toContain(`You're using a Node.js API (${api} at line: ${line}) which is not supported in the Edge Runtime that Middleware uses.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     })
   })

@@ -8,7 +8,7 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
@@ -26,7 +26,6 @@ interface EdgeFunctionDefinition {
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
-  clientInfo: [location: string, isSSR: boolean][]
   middleware: { [page: string]: EdgeFunctionDefinition }
   functions: { [page: string]: EdgeFunctionDefinition }
 }
@@ -42,7 +41,6 @@ interface EntryMetadata {
 const NAME = 'MiddlewarePlugin'
 const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
-  clientInfo: [],
   middleware: {},
   functions: {},
   version: 1,
@@ -512,7 +510,7 @@ function getCreateAssets(params: {
         wasm: Array.from(metadata.wasmBindings),
       }
 
-      if (metadata.edgeApiFunction /* || metadata.edgeSSR */) {
+      if (metadata.edgeApiFunction || metadata.edgeSSR) {
         middlewareManifest.functions[page] = edgeFunctionDefinition
       } else {
         middlewareManifest.middleware[page] = edgeFunctionDefinition
@@ -521,13 +519,6 @@ function getCreateAssets(params: {
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
-    )
-
-    middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
-      (key) => [
-        middlewareManifest.middleware[key].regexp,
-        !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
-      ]
     )
 
     assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
@@ -540,7 +531,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(
@@ -624,7 +615,7 @@ function makeUnsupportedApiError(
   loc: any
 ) {
   const error = new WebpackError(
-    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses. 
+    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
   )
   error.name = NAME

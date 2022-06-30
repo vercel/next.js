@@ -1,3 +1,4 @@
+import type { ServerRuntime } from '../server/config-shared'
 import { join } from '../shared/lib/isomorphic/path'
 
 export const NEXT_PROJECT_ROOT = join(__dirname, '..', '..')
@@ -84,3 +85,8 @@ export const ESLINT_PROMPT_VALUES = [
     config: null,
   },
 ]
+
+export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
+  edge: 'experimental-edge',
+  nodejs: 'nodejs',
+}

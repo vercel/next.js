@@ -19,6 +19,7 @@ export interface RequestMeta {
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
   _nextRewroteUrl?: string
+  _protocol?: string
 }
 
 export function getRequestMeta(
