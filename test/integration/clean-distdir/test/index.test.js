@@ -7,6 +7,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 const customFile = join(appDir, '.next/extra-file.txt')
 const cacheDir = join(appDir, '.next/cache')
+const swcCacheDir = join(appDir, '.next/cache/swc')
 const nextConfig = join(appDir, 'next.config.js')
 
 let nextConfigContent
@@ -18,6 +19,7 @@ async function checkFileWrite(existsAfterBuild) {
   expect(fs.existsSync(customFile)).toBe(existsAfterBuild)
   // `.next/cache` should be preserved in all cases
   expect(fs.existsSync(cacheDir)).toBe(true)
+  expect(fs.existsSync(swcCacheDir)).toBe(true)
 }
 
 const runTests = () => {
