@@ -15,25 +15,20 @@ use crate::{
     resolve::{ResolveResult, ResolveResultVc},
 };
 
+/// A module id, which can be a number or string
 #[turbo_tasks::value]
 pub enum ModuleId {
     Number(i32),
     String(String),
 }
 
+/// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     fn as_chunk_path(&self, path: FileSystemPathVc) -> FileSystemPathVc;
 }
 
-impl ChunkingContextVc {
-    pub fn as_chunk_group(self, asset: ChunkableAssetVc) -> ChunkGroupVc {
-        ChunkGroupVc::slot(ChunkGroup {
-            entry: asset.as_chunk(self),
-        })
-    }
-}
-
+/// An [Asset] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
 pub trait ChunkableAsset: Asset {
     fn as_chunk(&self, context: ChunkingContextVc) -> ChunkVc;
@@ -49,6 +44,17 @@ pub struct Chunks(Vec<ChunkVc>);
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupVc {
+    /// Creates a chunk group from an asset as entrypoint
+    #[turbo_tasks::function]
+    pub fn from_asset(asset: ChunkableAssetVc, context: ChunkingContextVc) -> Self {
+        Self::slot(ChunkGroup {
+            entry: asset.as_chunk(context),
+        })
+    }
+
+    /// Lists all chunks that are in this chunk group.
+    /// These chunks need to be loaded to fulfill that chunk group.
+    /// All chunks should be loaded in parallel.
     #[turbo_tasks::function]
     pub async fn chunks(self) -> Result<ChunksVc> {
         let mut chunks = HashSet::new();
@@ -87,24 +93,42 @@ impl ValueToString for ChunkGroup {
     }
 }
 
+/// A chunk is one type of asset.
+/// It usually contains multiple chunk items.
+/// There is an optional trait [ParallelChunkReference] that
+/// [AssetReference]s from a [Chunk] can implement.
+/// If they implement that and [ParallelChunkReference::is_loaded_in_parallel]
+/// returns true, all referenced assets (if they are [Chunk]s) are placed in the
+/// same chunk group.
 #[turbo_tasks::value_trait]
 pub trait Chunk: Asset + ValueToString {}
 
+/// see [Chunk] for explanation
 #[turbo_tasks::value_trait]
 pub trait ParallelChunkReference: AssetReference {
     fn is_loaded_in_parallel(&self) -> BoolVc;
 }
 
+/// An [AssetReference] implementing this trait and returning true for
+/// [ChunkableAssetReference::is_chunkable] are considered as potentially
+/// chunkable references. When all [Asset]s of such a reference implement
+/// [ChunkableAsset] they are placed in [Chunk]s during chunking.
+/// They are even potentially placed in the same [Chunk] when a chunk type
+/// specific interface is implemented.
 #[turbo_tasks::value_trait]
 pub trait ChunkableAssetReference: AssetReference {
     fn is_chunkable(&self) -> BoolVc;
 }
 
+/// When this trait is implemented by an [AssetReference] the chunks needed are
+/// potentially loaded async, as a separate chunk group. If it's not implemented
+/// chunks are loaded within the current chunk group
 #[turbo_tasks::value_trait]
 pub trait AsyncLoadableReference: AssetReference {
     fn is_loaded_async(&self) -> BoolVc;
 }
 
+/// A reference to a [Chunk]. Can be loaded in parallel, see [Chunk].
 #[turbo_tasks::value(AssetReference, ParallelChunkReference)]
 pub struct ChunkReference {
     chunk: ChunkVc,
@@ -154,6 +178,7 @@ impl ParallelChunkReference for ChunkReference {
     }
 }
 
+/// A reference to multiple chunks from a [ChunkGroup]
 #[turbo_tasks::value(AssetReference)]
 pub struct ChunkGroupReference {
     chunk_group: ChunkGroupVc,

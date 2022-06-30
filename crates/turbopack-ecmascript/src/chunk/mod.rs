@@ -82,7 +82,8 @@ async fn chunk_content(context: ChunkingContextVc, entry: AssetVc) -> Result<Chu
                             {
                                 let chunk_item = ChunkGroupLoaderChunkItemVc::new(chunkable_asset);
                                 inner_chunk_items.push(chunk_item.into());
-                                inner_chunk_groups.push(context.as_chunk_group(chunkable_asset));
+                                inner_chunk_groups
+                                    .push(ChunkGroupVc::from_asset(chunkable_asset, context));
                                 continue;
                             } else {
                                 external_asset_references.push(*r);
