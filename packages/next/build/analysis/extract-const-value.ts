@@ -16,7 +16,7 @@ import type {
 
 /**
  * Extracts the value of an exported const variable named `exportedName`
- * (e.g. "export const config = { runtime: 'edge' }") from swc's AST.
+ * (e.g. "export const config = { runtime: 'experimental-edge' }") from swc's AST.
  * The value must be one of (or throws UnsupportedValueError):
  *   - string
  *   - boolean

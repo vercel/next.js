@@ -81,3 +81,38 @@ describe('Export with custom loader next/image component', () => {
     await pagesIndexJs.restore()
   })
 })
+
+describe('Export with unoptimized next/image component', () => {
+  beforeAll(async () => {
+    await nextConfig.replace(
+      '{ /* replaceme */ }',
+      JSON.stringify({
+        experimental: {
+          images: {
+            unoptimized: true,
+          },
+        },
+      })
+    )
+  })
+  it('should build successfully', async () => {
+    await fs.remove(join(appDir, '.next'))
+    const { code } = await nextBuild(appDir)
+    if (code !== 0) throw new Error(`build failed with status ${code}`)
+  })
+
+  it('should export successfully', async () => {
+    const { code } = await nextExport(appDir, { outdir })
+    if (code !== 0) throw new Error(`export failed with status ${code}`)
+  })
+
+  it('should contain img element with same src in html output', async () => {
+    const html = await fs.readFile(join(outdir, 'index.html'))
+    const $ = cheerio.load(html)
+    expect($('img[src="/o.png"]')).toBeDefined()
+  })
+
+  afterAll(async () => {
+    await nextConfig.restore()
+  })
+})
