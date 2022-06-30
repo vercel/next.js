@@ -26,16 +26,10 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-#[cfg(feature = "sentry_native_tls")]
-use _sentry_native_tls::{init, types::Dsn, ClientInitGuard, ClientOptions};
-#[cfg(feature = "sentry_rustls")]
-use _sentry_rustls::{init, types::Dsn, ClientInitGuard, ClientOptions};
 use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, Env, JsBuffer, JsExternal, JsString, JsUndefined, JsUnknown, Status};
 use serde::de::DeserializeOwned;
-use std::{
-    any::type_name, borrow::Cow, cell::RefCell, convert::TryFrom, env, path::PathBuf, str::FromStr,
-};
+use std::{any::type_name, cell::RefCell, convert::TryFrom, env, path::PathBuf};
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
@@ -160,24 +154,40 @@ pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
     // However, this is techinically not identical to the behavior of the telemetry
     // itself as sentry's debug option does not provides full payuload output.
     let debug = env::var("NEXT_TELEMETRY_DEBUG").map_or_else(|_| false, |v| v == "1");
-    let dsn = if debug {
-        None
-    } else {
-        Dsn::from_str("https://7619e5990e3045cda747e50e6ed087a7@o205439.ingest.sentry.io/6528434")
+
+    #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
+    let guard = {
+        #[cfg(feature = "sentry_native_tls")]
+        use _sentry_native_tls::{init, types::Dsn, ClientOptions};
+        #[cfg(feature = "sentry_rustls")]
+        use _sentry_rustls::{init, types::Dsn, ClientOptions};
+        use std::{borrow::Cow, str::FromStr};
+
+        let dsn = if debug {
+            None
+        } else {
+            Dsn::from_str(
+                "https://7619e5990e3045cda747e50e6ed087a7@o205439.ingest.sentry.io/6528434",
+            )
             .ok()
+        };
+
+        Some(init(ClientOptions {
+            release: Some(Cow::Borrowed(PACKAGE_VERSION)),
+            dsn,
+            debug,
+            // server_name includes device host name, which _can_ be considered as PII depends on
+            // the machine name.
+            server_name: Some(Cow::Borrowed("[REDACTED]")),
+            ..Default::default()
+        }))
     };
 
-    let guard = init(ClientOptions {
-        release: Some(Cow::Borrowed(PACKAGE_VERSION)),
-        dsn,
-        debug,
-        // server_name includes device host name, which _can_ be considered as PII depends on
-        // the machine name.
-        server_name: Some(Cow::Borrowed("[REDACTED]")),
-        ..Default::default()
-    });
+    // aarch64_msvc neither compiles native-tls nor rustls for sentry transport
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    let guard: Option<usize> = None;
 
-    let guard_cell = RefCell::new(Some(guard));
+    let guard_cell = RefCell::new(guard);
     cx.env.create_external(guard_cell, None)
 }
 
@@ -186,13 +196,22 @@ pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
 /// in napi context.
 #[js_function(1)]
 pub fn teardown_crash_reporter(cx: CallContext) -> napi::Result<JsUndefined> {
-    let guard_external = cx.get::<JsExternal>(0)?;
-    let guard_cell = &*cx
-        .env
-        .get_value_external::<RefCell<Option<ClientInitGuard>>>(&guard_external)?;
+    #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
+    {
+        #[cfg(feature = "sentry_native_tls")]
+        use _sentry_native_tls::ClientInitGuard;
+        #[cfg(feature = "sentry_rustls")]
+        use _sentry_rustls::ClientInitGuard;
 
-    if let Some(guard) = guard_cell.take() {
-        drop(guard);
+        let guard_external = cx.get::<JsExternal>(0)?;
+        let guard_cell = &*cx
+            .env
+            .get_value_external::<RefCell<Option<ClientInitGuard>>>(&guard_external)?;
+
+        if let Some(guard) = guard_cell.take() {
+            drop(guard);
+        }
     }
+
     cx.env.get_undefined()
 }
