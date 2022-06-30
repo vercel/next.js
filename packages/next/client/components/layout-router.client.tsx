@@ -1,6 +1,6 @@
 import React, { useContext } from 'react'
 import type { ChildProp } from '../../server/app-render'
-import type { CacheNode } from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -39,7 +39,7 @@ export function InnerLayoutRouter({
 }: {
   parallelRouterKey: string
   url: string
-  childNodes: CacheNode['parallelRoutes']['children']
+  childNodes: ChildSegmentMap
   childProp: ChildProp | null
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
@@ -49,21 +49,20 @@ export function InnerLayoutRouter({
   const { changeByServerResponse, tree: fullTree } =
     useContext(FullAppTreeContext)
 
-  const childNode = childNodes.get(path)
-  const isMissingData =
-    childNode.subTreeData === null && childNode.data === null
+  let childNode = childNodes.get(path)
 
-  if (childProp && (!childNode || isMissingData)) {
+  if (childProp && !childNode) {
     childNodes.set(path, {
+      data: null,
       subTreeData: childProp.current,
-      parallelRoutes: {
-        [parallelRouterKey]: new Map(),
-      },
+      parallelRoutes: new Map([[parallelRouterKey, new Map()]]),
     })
     childProp.current = null
+    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+    childNode = childNodes.get(path)
   }
 
-  if (!childNode || isMissingData) {
+  if (!childNode) {
     const walkAddRefetch = (
       segmentPathToWalk: FlightSegmentPath | undefined,
       treeToRecreate: FlightRouterState
@@ -108,6 +107,7 @@ export function InnerLayoutRouter({
       return treeToRecreate
     }
 
+    console.log('FETCHING IN LAYOUT ROUTER', url)
     const data = fetchServerResponse(
       new URL(url, location.origin),
       walkAddRefetch(segmentPath, fullTree)
@@ -115,10 +115,17 @@ export function InnerLayoutRouter({
     childNodes.set(path, {
       data,
       subTreeData: null,
-      parallelRoutes: {
-        [parallelRouterKey]: new Map(),
-      },
+      parallelRoutes: new Map([[parallelRouterKey, new Map()]]),
     })
+    // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+    childNode = childNodes.get(path)
+  }
+
+  // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+  childNode = childNodes.get(path)
+
+  if (!childNode) {
+    throw new Error('Child node should always exist')
   }
 
   if (childNode.subTreeData && childNode.data) {
@@ -128,20 +135,21 @@ export function InnerLayoutRouter({
   if (childNode.data) {
     // TODO: error case
     const root = childNode.data.readRoot()
+    console.log('LAYOUT ROOT', root)
 
     let fastPath: boolean = false
     // segmentPath matches what came back from the server. This is the happy path.
-    if (root.length === 1) {
-      if (pathMatches(root[0], segmentPath)) {
-        childNode.data = null
-        // Last item is the subtreeData
-        // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
-        childNode.subTreeData = subTreeData
-        childNode.parallelRoutes = {}
-        fastPath = true
-      }
-    }
+    // if (root.length === 1) {
+    //   if (pathMatches(root[0], segmentPath)) {
+    //     childNode.data = null
+    //     // Last item is the subtreeData
+    //     // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
+    //     const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
+    //     childNode.subTreeData = subTreeData
+    //     childNode.parallelRoutes = new Map()
+    //     fastPath = true
+    //   }
+    // }
 
     if (!fastPath) {
       // For push we can set data in the cache
@@ -157,7 +165,13 @@ export function InnerLayoutRouter({
         })
       })
       // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      if (!infinitePromise) infinitePromise = new Promise(() => {})
+      if (!infinitePromise)
+        infinitePromise = new Promise((resolve, reject) => {
+          setTimeout(() => {
+            infinitePromise = new Error('Infinite promise')
+            resolve()
+          }, 5000)
+        })
       throw infinitePromise
     }
   }
@@ -208,8 +222,10 @@ export default function OuterLayoutRouter({
 }) {
   const { childNodes, tree, url } = useContext(AppTreeContext)
 
-  if (!childNodes[parallelRouterKey]) {
-    childNodes[parallelRouterKey] = new Map()
+  let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
+  if (!childNodesForParallelRouter) {
+    childNodes.set(parallelRouterKey, new Map())
+    childNodesForParallelRouter = childNodes.get(parallelRouterKey)!
   }
 
   // This relates to the segments in the current router
@@ -226,7 +242,7 @@ export default function OuterLayoutRouter({
               parallelRouterKey={parallelRouterKey}
               url={url}
               tree={tree}
-              childNodes={childNodes[parallelRouterKey]}
+              childNodes={childNodesForParallelRouter!}
               childProp={
                 childProp.segment === preservedSegment ? childProp : null
               }

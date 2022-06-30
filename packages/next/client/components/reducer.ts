@@ -11,16 +11,8 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  const isLastEntry = flightDataPath.length <= 2
-
-  if (isLastEntry) {
-    const [, subTreeData] = flightDataPath
-
-    if (!newCache.data && !newCache.subTreeData) {
-      newCache.subTreeData = subTreeData
-    }
-    return
-  }
+  // TODO: handle case of / (root of the tree) refetch
+  const isLastEntry = flightDataPath.length <= 4
 
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -41,6 +33,23 @@ const fillCacheWithNewSubTreeData = (
 
   const existingChildCacheNode = existingChildSegmentMap.get(segment)
   let childCacheNode = childSegmentMap.get(segment)
+
+  // In case of last segment start off the fetch at this level and don't copy further down.
+  if (isLastEntry) {
+    if (
+      !childCacheNode ||
+      !childCacheNode.data ||
+      childCacheNode === existingChildCacheNode
+    ) {
+      childSegmentMap.set(segment, {
+        data: null,
+        subTreeData: flightDataPath[3],
+        parallelRoutes: new Map(),
+      })
+    }
+    return
+  }
+
   if (!childCacheNode || !existingChildCacheNode) {
     // Bailout because the existing cache does not have the path to the leaf node
     // Will trigger lazy fetch in layout-router because of missing segment
@@ -60,6 +69,81 @@ const fillCacheWithNewSubTreeData = (
     childCacheNode,
     existingChildCacheNode,
     flightDataPath.slice(2)
+  )
+}
+
+const fillCacheWithDataProperty = (
+  newCache: CacheNode,
+  existingCache: CacheNode,
+  segments: string[],
+  fetchResponse: any
+): { bailOptimistic: boolean } | undefined => {
+  const isLastEntry = segments.length === 1
+
+  const parallelRouteKey = 'children'
+  const [segment] = segments
+
+  const existingChildSegmentMap =
+    existingCache.parallelRoutes.get(parallelRouteKey)
+
+  if (!existingChildSegmentMap) {
+    // Bailout because the existing cache does not have the path to the leaf node
+    // Will trigger lazy fetch in layout-router because of missing segment
+    return { bailOptimistic: true }
+  }
+
+  let childSegmentMap = newCache.parallelRoutes.get(parallelRouteKey)
+
+  if (!childSegmentMap || childSegmentMap === existingChildSegmentMap) {
+    childSegmentMap = new Map(existingChildSegmentMap)
+    newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
+  }
+
+  const existingChildCacheNode = existingChildSegmentMap.get(segment)
+  let childCacheNode = childSegmentMap.get(segment)
+
+  // In case of last segment start off the fetch at this level and don't copy further down.
+  if (isLastEntry) {
+    if (
+      !childCacheNode ||
+      !childCacheNode.data ||
+      childCacheNode === existingChildCacheNode
+    ) {
+      childSegmentMap.set(segment, {
+        data: fetchResponse(),
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      })
+    }
+    return
+  }
+
+  if (!childCacheNode || !existingChildCacheNode) {
+    // Start fetch in the place where the existing cache doesn't have the data yet.
+    if (!childCacheNode) {
+      childSegmentMap.set(segment, {
+        data: fetchResponse(),
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      })
+    }
+    return
+  }
+
+  if (childCacheNode === existingChildCacheNode) {
+    childCacheNode = {
+      data: childCacheNode.data,
+      subTreeData: childCacheNode.subTreeData,
+      parallelRoutes: new Map(childCacheNode.parallelRoutes),
+    }
+    childSegmentMap.set(segment, childCacheNode)
+  }
+
+  return fillCacheWithDataProperty(
+    childCacheNode,
+    existingChildCacheNode,
+    segments.slice(1),
+    fetchResponse
   )
 }
 
@@ -117,6 +201,43 @@ const createOptimisticTree = (
   return result
 }
 
+const walkTreeWithFlightDataPath = (
+  flightSegmentPath: FlightData[0],
+  flightRouterState: FlightRouterState,
+  treePatch: FlightRouterState
+): FlightRouterState => {
+  const [segment, parallelRoutes, url] = flightRouterState
+  const [currentSegment, parallelRouteKey] = flightSegmentPath
+
+  // Tree path returned from the server should always match up with the current tree in the browser
+  // TODO: verify
+  if (segment !== currentSegment) {
+    throw new Error('TREE MISMATCH')
+  }
+
+  const lastSegment = flightSegmentPath.length === 2
+
+  const tree: FlightRouterState = [
+    flightSegmentPath[0],
+    {
+      ...parallelRoutes,
+      [parallelRouteKey]: lastSegment
+        ? treePatch
+        : walkTreeWithFlightDataPath(
+            flightSegmentPath.slice(2),
+            parallelRoutes[parallelRouteKey],
+            treePatch
+          ),
+    },
+  ]
+
+  if (url) {
+    tree.push(url)
+  }
+
+  return tree
+}
+
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
@@ -139,9 +260,11 @@ export function reducer(
         payload: {
           flightData: FlightData
           previousTree: FlightRouterState
+          cache: CacheNode
         }
       }
 ): AppRouterState {
+  console.log(action.type, action.payload)
   if (action.type === 'restore') {
     const { url, historyState } = action.payload
     const href = url.pathname + url.search
@@ -160,128 +283,159 @@ export function reducer(
     // TODO: include hash
     const href = url.pathname + url.search
 
-    // TODO: hard push with optimistic tree
-    // - Build optimistic tree
-    // - Pass that in to fetch - if the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-    // - Fill in the cache with blank that holds the `data` field.
-    // Extra: implement refresh at the root level
-
     const segments = pathname.split('/')
     // TODO: figure out something better for index pages
     segments.push('page')
 
-    // Create new cache
+    // In case of soft push data fetching happens in layout-router if a segment is missing
+    if (cacheType === 'soft') {
+      const optimisticTree = createOptimisticTree(
+        segments,
+        state.tree,
+        true,
+        false,
+        href
+      )
+
+      return {
+        canonicalUrl: href,
+        pushRef: { pendingPush: true },
+        cache: state.cache,
+        tree: optimisticTree,
+      }
+    }
+
+    // When doing a hard push there can be two cases: with optimistic tree and without
+    // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
+    // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
     if (cacheType === 'hard') {
+      // TODO: flag on the tree of which part of the tree for if there is a loading boundary
+      const isOptimistic = false
+
+      // TODO: hard push with optimistic tree
+      // - Build optimistic tree
+      // - Pass that in to fetch - if the optimistic tree is deeper than the current state leave that deeper part out of the fetch
+      // - Fill in the cache with blank that holds the `data` field.
+      // Extra: implement refresh at the root level
+      if (isOptimistic) {
+        // Build optimistic tree
+        // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
+        const optimisticTree = createOptimisticTree(
+          segments,
+          state.tree,
+          true,
+          false,
+          href
+        )
+
+        // Fill in the cache with blank that holds the `data` field.
+        // TODO: segments.slice(1) strips '', we can get rid of '' altogether.
+        const res = fillCacheWithDataProperty(
+          cache,
+          state.cache,
+          segments.slice(1),
+          () => fetchServerResponse(url, optimisticTree)
+        )
+
+        if (!res?.bailOptimistic) {
+          return {
+            canonicalUrl: href,
+            pushRef: { pendingPush: true },
+            cache: cache,
+            tree: optimisticTree,
+          }
+        }
+      }
+
       if (!cache.data) {
         cache.data = fetchServerResponse(url, state.tree)
       }
       const root = cache.data.readRoot()
-      cache.data = null
+      console.log('ROOT FROM PUSH', root)
+      // TODO: FIX
+      // cache.data = null
 
+      // TODO: ensure flightDataPath does not have "" as first item
       const flightDataPath = root[0]
 
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-      // TODO: patch the tree to reflect the flightDataPath tree
+      const [treePatch, subTreeData] = flightDataPath.slice(-2)
+      const treePath = flightDataPath.slice(0, -2)
+      const newTree = walkTreeWithFlightDataPath(
+        treePath,
+        state.tree,
+        treePatch
+      )
+
+      // TODO: refactor path returned from the server
+      const path = [
+        ...flightDataPath.slice(0, -2),
+        treePatch[0],
+        treePatch,
+        subTreeData,
+      ]
+
+      fillCacheWithNewSubTreeData(cache, state.cache, path.slice(1))
+      console.log('CACHE', {
+        flightDataPath: path.slice(1),
+        cache,
+        previousCache: state.cache,
+      })
+
+      return {
+        canonicalUrl: href,
+        pushRef: { pendingPush: true },
+        cache: cache,
+        tree: newTree,
+      }
     }
 
-    return {
-      canonicalUrl: href,
-      pushRef: { pendingPush: true },
-      cache: cache ? cache : state.cache,
-      tree: optimisticTreeWithRefetch,
-    }
+    return state
   }
 
   if (action.type === 'server-patch') {
-    const { flightData, previousTree /* , newCache */ } = action.payload
-    if (previousTree !== state.tree) {
+    const { flightData, previousTree, cache } = action.payload
+    if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
       console.log('TREE MISMATCH')
-      // TODO: Refetch here
-      // return existingValue
+      // TODO: Handle tree mismatch
+      return {
+        canonicalUrl: state.canonicalUrl,
+        pushRef: state.pushRef,
+        tree: state.tree,
+        cache: state.cache,
+      }
     }
 
     // TODO: flightData could hold multiple paths
     const flightDataPath = flightData[0]
-
-    const walkTreeWithFlightDataPath = (
-      flightSegmentPath: FlightData[0],
-      flightRouterState: FlightRouterState,
-      treePatch: FlightRouterState
-    ): FlightRouterState => {
-      const [segment, parallelRoutes, url] = flightRouterState
-      const [currentSegment, parallelRouteKey] = flightSegmentPath
-
-      // Tree path returned from the server should always match up with the current tree in the browser
-      // TODO: verify
-      if (segment !== currentSegment) {
-        throw new Error('TREE MISMATCH')
-      }
-
-      const lastSegment = flightSegmentPath.length === 2
-
-      const tree: FlightRouterState = [
-        flightSegmentPath[0],
-        {
-          ...parallelRoutes,
-          [parallelRouteKey]: lastSegment
-            ? treePatch
-            : walkTreeWithFlightDataPath(
-                flightSegmentPath.slice(2),
-                parallelRoutes[parallelRouteKey],
-                treePatch
-              ),
-        },
-      ]
-
-      if (url) {
-        tree.push(url)
-      }
-
-      return tree
-    }
 
     const treePath = flightDataPath.slice(0, -2)
     const [treePatch, subTreeData] = flightDataPath.slice(-2)
 
     // TODO: put the new tree into history?
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
+    console.log('NEW TREE', { newTree })
 
-    // Fill cache with data from flightDataTree
-    // const fillCache = (
-    //   cacheNode: CacheNode,
-    //   flightSegmentPath: FlightData[0] // ["", "children", "dashboard", "children"], ["integrations", {children: ["page", {}]}], React.ReactNode
-    // ) => {
-    //   const [parallelRouteKey, currentSegment] = flightSegmentPath
-    //   const lastSegment = flightSegmentPath.length === 1
+    // TODO: refactor path returned from the server
+    const path = [
+      ...flightDataPath.slice(0, -2),
+      treePatch[0],
+      treePatch,
+      subTreeData,
+    ]
 
-    //   if (lastSegment) {
-    //     if (cacheNode.parallelRoutes[parallelRouteKey].has(treePatch[0])) {
-    //       // const childNode = cacheNode.parallelRoutes[parallelRouteKey].get(
-    //       //   treePatch[0]
-    //       // )!
-    //       // childNode.subTreeData = subTreeData
-    //       // childNode.parallelRoutes = {}
-    //     } else {
-    //       cacheNode.parallelRoutes[parallelRouteKey].set(treePatch[0], {
-    //         subTreeData,
-    //         parallelRoutes: {},
-    //       })
-    //     }
-    //   } else {
-    //     const childNode =
-    //       cacheNode.parallelRoutes[parallelRouteKey].get(currentSegment)!
-    //     fillCache(childNode, flightSegmentPath.slice(2))
-    //   }
-    // }
-
-    // TODO: handle `/` case
-    // fillCache(state.cache, treePath.slice(1))
+    // TODO: update flightDataPath to not have "" as first item
+    fillCacheWithNewSubTreeData(cache, state.cache, path.slice(1))
+    console.log('CACHE', {
+      flightDataPath: path.slice(1),
+      cache,
+      previousCache: state.cache,
+    })
 
     return {
       canonicalUrl: state.canonicalUrl,
       pushRef: state.pushRef,
       tree: newTree,
-      cache: state.cache,
+      cache: cache,
     }
   }
 

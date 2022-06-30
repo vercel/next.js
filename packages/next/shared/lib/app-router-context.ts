@@ -1,7 +1,8 @@
 import React from 'react'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
-type ParallelRoutesCacheNodes = Map<string, Map<string, CacheNode>>
+export type ChildSegmentMap = Map<string, CacheNode>
+type ParallelRoutesCacheNodes = Map<string, ChildSegmentMap>
 
 export type CacheNode = {
   data: ReturnType<

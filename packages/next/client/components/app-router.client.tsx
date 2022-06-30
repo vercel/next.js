@@ -59,6 +59,11 @@ export default function AppRouter({
         payload: {
           flightData,
           previousTree,
+          cache: {
+            data: null,
+            subTreeData: null,
+            parallelRoutes: new Map(),
+          },
         },
       })
     },
@@ -143,12 +148,14 @@ export default function AppRouter({
     return routerInstance
   }, [])
 
+  console.log('RENDER', { tree, pushRef, canonicalUrl })
   useEffect(() => {
+    console.log('UPDATE URL', pushRef.pendingPush ? 'push' : 'replace', tree)
     if (pushRef.pendingPush) {
       pushRef.pendingPush = false
-      history.pushState({ tree }, '', canonicalUrl)
+      window.history.pushState({ tree }, '', canonicalUrl)
     } else {
-      history.replaceState({ tree }, '', canonicalUrl)
+      window.history.replaceState({ tree }, '', canonicalUrl)
     }
   }, [tree, pushRef, canonicalUrl])
 
@@ -165,6 +172,7 @@ export default function AppRouter({
 
     // @ts-ignore useTransition exists
     // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+    // Without startTransition works if the cache is there for this path
     React.startTransition(() => {
       dispatch({
         type: 'restore',
