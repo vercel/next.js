@@ -17,7 +17,7 @@ describe('@next/eslint-plugin-next index', () => {
   rulePaths.forEach((rulePath) => {
     const rule = require(rulePath)
     const ruleName = getRuleNameFromRulePath(rulePath)
-    const { recommended } = rule.meta.docs
+    const { recommended = false } = rule.meta.docs
 
     it(`${ruleName}: recommend should be \`${recommended}\``, () => {
       expect(
