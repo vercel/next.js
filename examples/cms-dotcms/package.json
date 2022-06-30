@@ -7,9 +7,9 @@
   },
   "dependencies": {
     "classnames": "2.3.1",
-    "cross-fetch": "3.1.4",
+    "cross-fetch": "^3.1.5",
     "date-fns": "2.25.0",
-    "next": "latest",
+    "next": "^12.2.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },
