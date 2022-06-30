@@ -18,6 +18,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -45,7 +46,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -674,14 +675,8 @@ export default async function build(
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             ...(hasServerComponents
               ? [
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-                  ),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
@@ -1079,7 +1074,7 @@ export default async function build(
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
+          pageKeys.map((page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
               page,
             })
@@ -1123,7 +1118,7 @@ export default async function build(
               if (
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
-                pageRuntime !== 'edge'
+                pageRuntime !== SERVER_RUNTIME.edge
               ) {
                 try {
                   let isPageStaticSpan =

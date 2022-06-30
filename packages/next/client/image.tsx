@@ -18,11 +18,8 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { warnOnce } from '../shared/lib/utils'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-const {
-  experimentalLayoutRaw = false,
-  experimentalRemotePatterns = [],
-  experimentalUnoptimized,
-} = (process.env.__NEXT_IMAGE_OPTS as any) || {}
+const { experimentalRemotePatterns = [], experimentalUnoptimized } =
+  (process.env.__NEXT_IMAGE_OPTS as any) || {}
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -74,7 +71,6 @@ const VALID_LAYOUT_VALUES = [
   'fixed',
   'intrinsic',
   'responsive',
-  'raw',
   undefined,
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
@@ -175,10 +171,7 @@ function getWidths(
   layout: LayoutValue,
   sizes: string | undefined
 ): { widths: number[]; kind: 'w' | 'x' } {
-  if (
-    sizes &&
-    (layout === 'fill' || layout === 'responsive' || layout === 'raw')
-  ) {
+  if (sizes && (layout === 'fill' || layout === 'responsive')) {
     // Find all the "vw" percent sizes used in the sizes prop
     const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
     const percentSizes = []
@@ -333,19 +326,6 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (layout === 'raw') {
-        const heightModified =
-          img.height.toString() !== img.getAttribute('height')
-        const widthModified = img.width.toString() !== img.getAttribute('width')
-        if (
-          (heightModified && !widthModified) ||
-          (!heightModified && widthModified)
-        ) {
-          warnOnce(
-            `Image with src "${src}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
-          )
-        }
-      }
       if (img.parentElement?.parentElement) {
         const parent = getComputedStyle(img.parentElement.parentElement)
         if (!parent.position) {
@@ -460,11 +440,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (
-    typeof window !== 'undefined' &&
-    loadedImageURLs.has(src) &&
-    layout !== 'raw'
-  ) {
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
   if (experimentalUnoptimized) {
@@ -478,7 +454,7 @@ export default function Image({
       rootMargin: lazyBoundary || '200px',
       disabled: !isLazy,
     })
-  const isVisible = !isLazy || isIntersected || layout === 'raw'
+  const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
@@ -529,9 +505,6 @@ export default function Image({
     objectPosition,
   }
 
-  if (process.env.NODE_ENV !== 'production' && layout !== 'raw' && style) {
-  }
-
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -541,17 +514,18 @@ export default function Image({
       )
     }
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
+      if ((layout as any) === 'raw') {
+        throw new Error(
+          `The layout="raw" experiment has been moved to a new module. Please import \`next/future/image\` instead.`
+        )
+      }
       throw new Error(
         `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
           String
         ).join(',')}.`
       )
     }
-    if (layout === 'raw' && !experimentalLayoutRaw) {
-      throw new Error(
-        `The "raw" layout is currently experimental and may be subject to breaking changes. To use layout="raw", include \`experimental: { images: { layoutRaw: true } }\` in your next.config.js file.`
-      )
-    }
+
     if (
       (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
       (typeof heightInt !== 'undefined' && isNaN(heightInt))
@@ -577,36 +551,9 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (layout === 'raw') {
-      if (objectFit) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "objectFit='${objectFit}'". For raw images, these and other styles should be specified using the "style" attribute.`
-        )
-      }
-      if (objectPosition) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "objectPosition='${objectPosition}'". For raw images, these and other styles should be specified using the "style" attribute.`
-        )
-      }
-      if (lazyRoot) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "lazyRoot='${lazyRoot}'". For raw images, native lazy loading is used so "lazyRoot" cannot be used.`
-        )
-      }
-      if (lazyBoundary) {
-        throw new Error(
-          `Image with src "${src}" has "layout='raw'" and "lazyBoundary='${lazyBoundary}'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
-        )
-      }
-    }
-    if (
-      sizes &&
-      layout !== 'fill' &&
-      layout !== 'responsive' &&
-      layout !== 'raw'
-    ) {
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
       warnOnce(
-        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'", "layout='responsive'", or "layout='raw'`
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'"`
       )
     }
     if (placeholder === 'blur') {
@@ -655,7 +602,7 @@ export default function Image({
       }
     }
 
-    if (style && layout !== 'raw') {
+    if (style) {
       let overwrittenStyles = Object.keys(style).filter(
         (key) => key in layoutStyle
       )
@@ -704,21 +651,14 @@ export default function Image({
       }
     }
   }
-  const imgStyle = Object.assign({}, style, layout === 'raw' ? {} : layoutStyle)
-  const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'%3E%3C/image%3E%3C/svg%3E");`
+  const imgStyle = Object.assign({}, style, layoutStyle)
   const blurStyle =
     placeholder === 'blur' && !blurComplete
       ? {
           backgroundSize: objectFit || 'cover',
           backgroundPosition: objectPosition || '0% 0%',
-          ...(layout === 'raw' && blurDataURL?.startsWith('data:image')
-            ? {
-                backgroundImage: svgBlurPlaceholder,
-              }
-            : {
-                filter: 'blur(20px)',
-                backgroundImage: `url("${blurDataURL}")`,
-              }),
+          filter: 'blur(20px)',
+          backgroundImage: `url("${blurDataURL}")`,
         }
       : {}
   if (layout === 'fill') {
@@ -852,9 +792,7 @@ export default function Image({
   }
   return (
     <>
-      {layout === 'raw' ? (
-        <ImageElement {...imgElementArgs} />
-      ) : (
+      {
         <span style={wrapperStyle}>
           {hasSizer ? (
             <span style={sizerStyle}>
@@ -880,7 +818,7 @@ export default function Image({
           ) : null}
           <ImageElement {...imgElementArgs} />
         </span>
-      )}
+      }
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -937,12 +875,9 @@ const ImageElement = ({
       <img
         {...rest}
         {...imgAttributes}
-        {...(layout === 'raw' ? { height: heightInt, width: widthInt } : {})}
         decoding="async"
         data-nimg={layout}
         className={className}
-        // @ts-ignore - TODO: upgrade to `@types/react@17`
-        loading={layout === 'raw' ? loading : undefined}
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
@@ -1005,9 +940,6 @@ const ImageElement = ({
               sizes: noscriptSizes,
               loader,
             })}
-            {...(layout === 'raw'
-              ? { height: heightInt, width: widthInt }
-              : {})}
             decoding="async"
             data-nimg={layout}
             style={imgStyle}

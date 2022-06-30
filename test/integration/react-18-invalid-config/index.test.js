@@ -50,7 +50,7 @@ function writeNextConfig(config, reactVersion = 17) {
 describe('Invalid react 18 webpack config', () => {
   it('should install react 18 when `experimental.runtime` is enabled', async () => {
     writeNextConfig({
-      runtime: 'edge',
+      runtime: 'experimental-edge',
     })
     const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
     nextConfig.restore()
