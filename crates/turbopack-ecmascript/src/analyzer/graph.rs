@@ -865,7 +865,7 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
                         function: Function { params, .. },
                         ..
                     }) => {
-                        if params.len() == 1 {
+                        if params.len() > 0 {
                             match &params[0].pat {
                                 Pat::Ident(param) => {
                                     if &*param.id.sym == "require" {
