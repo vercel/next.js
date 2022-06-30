@@ -1989,7 +1989,7 @@ export async function shared(task, opts) {
     .source(
       opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
     )
-    .swc('server', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
 }
@@ -1999,7 +1999,7 @@ export async function shared_re_exported(task, opts) {
     .source(
       opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
     )
-    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
   notify('Compiled shared re-exported files')
 }
