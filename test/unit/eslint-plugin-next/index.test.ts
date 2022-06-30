@@ -1,7 +1,5 @@
 import { basename } from 'path'
-
 import glob from 'glob'
-
 import index from '@next/eslint-plugin-next'
 
 const getRuleNameFromRulePath = (path) => basename(path, '.js')
