@@ -187,7 +187,7 @@ mod tests {
                 m.visit_mut_with(&mut ApplyVisitors::new(map));
 
                 let s = format!("{:?}", m);
-                assert!(!s.contains("bar-success"));
+                assert!(!s.contains("bar-success"), "{:#?}", m);
             }
 
             Ok(())
