@@ -3,7 +3,7 @@ use std::{any::type_name, collections::HashMap};
 use swc_common::{Span, Spanned};
 use swc_ecmascript::{
     ast::*,
-    visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith},
+    visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
 };
 
 pub type AstPath = Vec<Span>;
@@ -84,10 +84,41 @@ where
 {
     spans: Vec<Span>,
     creator: V,
+    visitors: Vec<(Vec<Span>, VisitorFn)>,
 }
 
 pub trait CreateVisitorFn {
-    fn create_visitor_fn(&mut self, ast_path: &[Span]) -> VisitorFn;
+    fn create_visitor_fn(&mut self, ast_path: &[Span]) -> Option<VisitorFn>;
+}
+
+macro_rules! visit_rule {
+    ($name:ident,$T:ty) => {
+        fn $name(&mut self, n: &$T) {
+            self.check(n);
+        }
+    };
+}
+
+impl<V> VisitWithPath<V>
+where
+    V: CreateVisitorFn,
+{
+    fn check<N>(&mut self, n: &N)
+    where
+        N: VisitWith<Self> + Spanned,
+    {
+        let span = n.span();
+
+        self.spans.push(span);
+        let v = self.creator.create_visitor_fn(&self.spans);
+        if let Some(v) = v {
+            self.visitors.push((self.spans.clone(), v));
+        }
+
+        n.visit_children_with(self);
+
+        self.spans.pop();
+    }
 }
 
 impl<V> Visit for VisitWithPath<V>
@@ -95,6 +126,12 @@ where
     V: CreateVisitorFn,
 {
     noop_visit_type!();
+
+    visit_rule!(visit_prop, Prop);
+    visit_rule!(visit_expr, Expr);
+    visit_rule!(visit_pat, Pat);
+    visit_rule!(visit_stmt, Stmt);
+    visit_rule!(visit_module_decl, ModuleDecl);
 }
 
 #[cfg(test)]
