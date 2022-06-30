@@ -18,7 +18,7 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
-use std::future::IntoFuture;
+use std::{collections::HashMap, future::IntoFuture};
 
 use anyhow::Result;
 use chunk::{
@@ -26,6 +26,8 @@ use chunk::{
 };
 use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
+use path_visitor::ApplyVisitors;
+use swc_ecmascript::visit::VisitMutWith;
 use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
@@ -171,7 +173,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let mut interval_tree = Vec::new();
         for code_gen in code_generation {
             for (span, visitor) in code_gen.visitors.iter() {
-                interval_tree.push((*span, visitor()));
+                interval_tree.push((span, visitor));
             }
         }
 
@@ -185,6 +187,17 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         } = &*parsed
         {
             let mut program = program.clone();
+
+            let mut map = HashMap::<_, Vec<_>>::new();
+
+            for (ast_path, visitor) in interval_tree.into_iter() {
+                map.entry(ast_path[0])
+                    .or_default()
+                    .push((ast_path, visitor));
+            }
+
+            program.visit_mut_with(&mut ApplyVisitors::new(map));
+
             // TODO SWC magic to apply all visitors from the interval tree
             // to the "program" and generate code for that.
             Ok(EcmascriptChunkItemContent {
