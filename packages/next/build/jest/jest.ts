@@ -6,6 +6,7 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
+import { getNextImageOpts } from '../image-opts'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -78,6 +79,10 @@ export default function nextJest(options: { dir?: string } = {}) {
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur
+      }
+
+      if (nextConfig?.images && !process.env.__NEXT_IMAGE_OPTS) {
+        process.env.__NEXT_IMAGE_OPTS = getNextImageOpts(nextConfig, true)
       }
 
       return {

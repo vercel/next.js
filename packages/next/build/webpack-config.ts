@@ -56,6 +56,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
+import { getNextImageOpts } from './image-opts'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1526,22 +1527,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
-        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-          deviceSizes: config.images.deviceSizes,
-          imageSizes: config.images.imageSizes,
-          path: config.images.path,
-          loader: config.images.loader,
-          experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalFuture: config.experimental?.images?.allowFutureImage,
-          ...(dev
-            ? {
-                // pass domains in development to allow validating on the client
-                domains: config.images.domains,
-                experimentalRemotePatterns:
-                  config.experimental?.images?.remotePatterns,
-              }
-            : {}),
-        }),
+        'process.env.__NEXT_IMAGE_OPTS': getNextImageOpts(config, dev),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
