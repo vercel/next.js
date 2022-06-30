@@ -1,7 +1,6 @@
 {
   "private": true,
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "build": "ncc -m build index.js --license licenses.txt"
   },
