@@ -72,8 +72,6 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
 - [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
 
-You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
-
 This will take precedence over the configuration from `next.config.js`.
 
 ## ESLint Plugin
