@@ -32,10 +32,16 @@ impl<'a> ApplyVisitors<'a> {
     {
         let span = n.span();
 
+        dbg!(&self.index, span);
+
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
+                dbg!(&child.0);
+
                 if self.index == child.0.len() - 1 {
-                    n.visit_mut_with(&mut child.1());
+                    if child.0.last() == Some(&span) {
+                        n.visit_mut_with(&mut child.1());
+                    }
                 } else {
                     debug_assert!(self.index < child.0.len());
 
@@ -141,7 +147,7 @@ mod tests {
         testing::run_test(false, |cm, handler| {
             let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz'])".into());
 
-            let mut m = parse(&fm);
+            let m = parse(&fm);
 
             let bar_span = span_of(&fm, "'bar'");
 
@@ -157,7 +163,7 @@ mod tests {
             {
                 let mut map = HashMap::<_, Vec<_>>::default();
 
-                let bar_span_vec = vec![bar_span];
+                let bar_span_vec = vec![expr_span, bar_span];
                 let bar_replacer = replacer("bar", "bar-success");
                 {
                     let e = map.entry(expr_span).or_default();
