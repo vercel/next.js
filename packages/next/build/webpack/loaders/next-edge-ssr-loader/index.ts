@@ -78,7 +78,7 @@ export default async function edgeSSRLoader(this: any) {
       buildId: ${JSON.stringify(buildId)},
     })
 
-    export default function rscMiddleware(opts) {
+    export default function(opts) {
       return adapter({
         ...opts,
         handler: render

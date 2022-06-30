@@ -804,8 +804,6 @@ jobs:
       # test rsc hydration on firefox due to limited support of TransformStream api
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-      - run: xvfb-run pnpm testheadless test/integration/react-streaming-and-server-components/test/index.test.js -t "should handle streaming server components correctly"
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
     name: Test Safari (production)
