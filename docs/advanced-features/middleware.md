@@ -1,94 +1,161 @@
 ---
-description: Learn how to use Middleware in Next.js to run code before a request is completed.
+description: Learn how to use Middleware to run code before a request is completed.
 ---
 
-# Middleware (Beta)
+# Middleware
 
 <details open>
-  <summary><b>Version History</b></summary>
+<summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------- |
-| `canary`  | Preparing for stability, see [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide) |
-| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410))              |
-| `v12.0.0` | Middleware (Beta) added.                                                                                |
+| Version   | Changes                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `v12.2.0` | Middleware is stable                                                                       |
+| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
+| `v12.0.0` | Middleware (Beta) added                                                                    |
 
 </details>
 
-Middleware enables you to run code before a request is completed. Based on the user's incoming request, you can modify the response by rewriting, redirecting, adding headers, or even streaming HTML.
+Middleware allows you to run code before a request is completed, then based on the incoming request, you can modify the response by rewriting, redirecting, adding headers, or setting cookies.
 
-## Usage
+Middleware runs _before_ cached content, so you can personalize static files and pages. Common examples of Middleware would be authentication, A/B testing, localized pages, bot protection, and more. Regarding localized pages, you can start with [i18n routing](/docs/advanced-features/i18n-routing) and implement Middleware for more advanced use cases.
 
-1. Install the canary version of Next.js:
+> **Note:** If you were using Middleware prior to `12.2`, please see the [upgrade guide](https://nextjs.org/docs/messages/middleware-upgrade-guide).
 
-```jsx
-npm install next@canary
+## Using Middleware
+
+To begin using Middleware, follow the steps below:
+
+1. Install the latest version of Next.js:
+
+```bash
+npm install next@latest
 ```
 
-2. Then, create a `middleware.ts` file under your project root directory.
+2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` directory
+3. Export a middleware function from the `middleware.ts` file:
 
-3. Finally, export a middleware function from the `middleware.ts` file.
-
-```jsx
+```typescript
 // middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-import type { NextRequest, NextResponse } from 'next/server'
-import { areCredentialsValid } from '../lib'
+// This function can be marked `async` if using `await` inside
+export function middleware(request: NextRequest) {
+  return NextResponse.redirect(new URL('/about-2', request.url))
+}
 
-export function middleware(req: NextRequest) {
-  if (areCredentialsValid(req.headers.get('authorization'))) {
-    return NextResponse.next()
-  }
-  return NextResponse.redirect(
-    new URL(`/login?from=${req.nextUrl.pathname}`, req.url)
-  )
+// See "Matching Paths" below to learn more
+export const config = {
+  matcher: '/about/:path*',
 }
 ```
 
-In this example, we use the standard Web API Response ([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Response)).
+## Matching Paths
 
-## API
+Middleware will be invoked for **every route in your project**. The following is the execution order:
 
-Middleware is created by using a `middleware` function that lives inside a `middleware` file. Its API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+1. `headers` from `next.config.js`
+2. `redirects` from `next.config.js`
+3. Middleware (`rewrites`, `redirects`, etc.)
+4. `beforeFiles` (`rewrites`) from `next.config.js`
+5. Filesystem routes (`public/`, `_next/static/`, Pages, etc.)
+6. `afterFiles` (`rewrites`) from `next.config.js`
+7. Dynamic Routes (`/blog/[slug]`)
+8. `fallback` (`rewrites`) from `next.config.js`
 
-These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
+There are two ways to define which paths Middleware will run on:
 
-The function signature:
+1. Custom matcher config
+2. Conditional statements
 
-```ts
-import type { NextFetchEvent } from 'next/server'
-import type { NextRequest } from 'next/server'
+### Matcher
 
-export type Middleware = (
-  request: NextRequest,
-  event: NextFetchEvent
-) => Promise<Response | undefined> | Response | undefined
+`matcher` allows you to filter Middleware to run on specific paths.
+
+```js
+export const config = {
+  matcher: '/about/:path*',
+}
 ```
 
-The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
+You can match a single path or multiple paths with an array syntax:
 
-Read the full [Middleware API reference](/docs/api-reference/edge-runtime.md), note [Node.js APIs are not supported in this environment](/docs/api-reference/edge-runtime.md#unsupported-apis)
+```js
+export const config = {
+  matcher: ['/about/:path*', '/dashboard/:path*'],
+}
+```
 
-## Examples
+### Conditional Statements
 
-Middleware can be used for anything that shares logic for a set of pages, including:
+```typescript
+// middleware.ts
 
-- [Authentication](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Bot protection](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Redirects and rewrites](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Handling unsupported browsers](https://github.com/vercel/examples/tree/main/edge-functions/user-agent-based-rendering)
-- [Feature flags and A/B tests](https://github.com/vercel/examples/tree/main/edge-functions)
-- [Advanced i18n routing requirements](https://github.com/vercel/examples/tree/main/edge-functions)
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-## Execution Order
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/about')) {
+    return NextResponse.rewrite(new URL('/about-2', request.url))
+  }
 
-Middleware runs directly after `redirects` and `headers`, before the first filesystem lookup. This excludes `/_next` files.
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.rewrite(new URL('/dashboard/user', request.url))
+  }
+}
+```
 
-## Deployment
+## NextResponse
 
-Middleware uses a [strict runtime](/docs/api-reference/edge-runtime.md) that supports standard Web APIs like `fetch`. This works out of the box using `next start`, as well as on Edge platforms like Vercel, which use [Edge Functions](http://www.vercel.com/edge).
+The [`NextResponse`](#nextresponse) API allows you to:
+
+- `redirect` the incoming request to a different URL
+- `rewrite` the response by displaying a given URL
+- Set response cookies
+- Set response headers
+
+To produce a response from Middleware, you should `rewrite` to a route ([Page](/docs/basic-features/pages.md) or [Edge API Route](/docs/api-routes/edge-api-routes.md)) that produces a response.
+
+## Using Cookies
+
+The `cookies` API extends [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) and allows you to `get`, `set`, and `delete` cookies. It also includes methods like [entries](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries) and [values](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries).
+
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Setting cookies on the response
+  const response = NextResponse.next()
+  response.cookies.set('vercel', 'fast')
+  response.cookies.set('vercel', 'fast', { path: '/test' })
+
+  // Getting cookies from the request
+  const cookie = request.cookies.get('vercel')
+  console.log(cookie) // => 'fast'
+  const allCookies = request.cookies.entries()
+  console.log(allCookies) // => [{ key: 'vercel', value: 'fast' }]
+  const { value, options } = response.cookies.getWithOptions('vercel')
+  console.log(value) // => 'fast'
+  console.log(options) // => { Path: '/test' }
+
+  // Deleting cookies
+  response.cookies.delete('vercel')
+  response.cookies.clear()
+
+  return response
+}
+```
 
 ## Related
+
+<div class="card">
+  <a href="/docs/api-reference/edge-runtime.md">
+    <b>Edge Runtime</b>
+    <small>Learn more about the supported Web APIs available.</small>
+  </a>
+</div>
 
 <div class="card">
   <a href="/docs/api-reference/next/server.md">
@@ -98,8 +165,8 @@ Middleware uses a [strict runtime](/docs/api-reference/edge-runtime.md) that sup
 </div>
 
 <div class="card">
-  <a href="/docs/api-reference/edge-runtime.md">
-    <b>Edge Runtime</b>
-    <small>Learn more about the supported Web APIs available.</small>
+  <a href="/docs/api-routes/edge-api-routes.md">
+    <b>Edge API Routes</b>
+    <small>Build high performance APIs in Next.js. </small>
   </a>
 </div>
