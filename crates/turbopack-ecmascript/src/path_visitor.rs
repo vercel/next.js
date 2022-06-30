@@ -146,7 +146,7 @@ mod tests {
         visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     };
 
-    use super::ApplyVisitors;
+    use super::{ApplyVisitors, CreateVisitorFn, VisitorFn};
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -187,7 +187,7 @@ mod tests {
         }
     }
 
-    fn replacer(from: &'static str, to: &'static str) -> super::VisitorFn {
+    fn replacer(from: &'static str, to: &'static str) -> VisitorFn {
         box || {
             eprintln!("Creating replacer");
             box StrReplacer { from, to }
@@ -253,6 +253,48 @@ mod tests {
                     m
                 );
             }
+
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    struct TestVisitorCreator {
+        created: Vec<Vec<Span>>,
+    }
+
+    impl CreateVisitorFn for TestVisitorCreator {
+        fn create_visitor_fn(&mut self, spans: &[Span]) -> Option<VisitorFn> {
+            if spans.len() == 1 {
+                eprintln!("Creating visitor");
+
+                self.created.push(spans.to_vec());
+                Some(replacer("", ""))
+            } else {
+                None
+            }
+        }
+    }
+
+    #[test]
+    fn visit_with_path() {
+        testing::run_test(false, |cm, handler| {
+            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
+
+            let m = parse(&fm);
+
+            let bar_span = span_of(&fm, "'bar'");
+
+            let stmt_span = span_of(&fm, "('foo', 'bar', ['baz']);");
+            let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
+            let seq_span = span_of(&fm, "'foo', 'bar', ['baz']");
+            let arr_span = span_of(&fm, "['baz']");
+            let baz_span = span_of(&fm, "'baz'");
+
+            dbg!(bar_span);
+            dbg!(expr_span);
+            dbg!(arr_span);
+            dbg!(baz_span);
 
             Ok(())
         })
