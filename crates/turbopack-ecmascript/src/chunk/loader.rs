@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkableAssetVc, ChunkingContextVc},
+    chunk::{ChunkGroupVc, ChunkableAssetVc, ChunkingContextVc},
 };
 
 use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};
@@ -39,7 +39,7 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
         _chunk_content: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<StringVc> {
-        let chunk_group = context.as_chunk_group(self.asset);
+        let chunk_group = ChunkGroupVc::from_asset(self.asset, context);
         let chunks = chunk_group.chunks().await?;
         let mut code = "TODO load chunk group".to_string();
         for chunk in chunks.iter() {

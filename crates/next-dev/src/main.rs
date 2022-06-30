@@ -8,7 +8,7 @@ use turbopack::{ecmascript::target::CompileTarget, GraphOptionsVc, ModuleAssetCo
 use turbopack_core::{
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
-        ChunkableAssetVc,
+        ChunkGroupVc, ChunkableAssetVc,
     },
     context::AssetContextVc,
     lazy::LazyAssetVc,
@@ -49,9 +49,10 @@ async fn main() {
                 root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
             }
             .into();
-            let chunk_group = chunking_context
-                .as_chunking_context()
-                .as_chunk_group(ChunkableAssetVc::cast_from(module));
+            let chunk_group = ChunkGroupVc::from_asset(
+                ChunkableAssetVc::cast_from(module),
+                chunking_context.into(),
+            );
             let html = DevHtmlAsset {
                 path: FileSystemPathVc::new(dev_server_fs, "index.html"),
                 chunk_group,
