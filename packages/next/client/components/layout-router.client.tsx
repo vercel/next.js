@@ -49,7 +49,11 @@ export function InnerLayoutRouter({
   const { changeByServerResponse, tree: fullTree } =
     useContext(FullAppTreeContext)
 
-  if (childProp && !childNodes.has(path)) {
+  const childNode = childNodes.get(path)
+  const isMissingData =
+    childNode.subTreeData === null && childNode.data === null
+
+  if (childProp && (!childNode || isMissingData)) {
     childNodes.set(path, {
       subTreeData: childProp.current,
       parallelRoutes: {
@@ -59,7 +63,7 @@ export function InnerLayoutRouter({
     childProp.current = null
   }
 
-  if (!childNodes.has(path)) {
+  if (!childNode || isMissingData) {
     const walkAddRefetch = (
       segmentPathToWalk: FlightSegmentPath | undefined,
       treeToRecreate: FlightRouterState
@@ -117,7 +121,9 @@ export function InnerLayoutRouter({
     })
   }
 
-  const childNode = childNodes.get(path)!
+  if (childNode.subTreeData && childNode.data) {
+    throw new Error('Child node should not have both subTreeData and data')
+  }
 
   if (childNode.data) {
     // TODO: error case
@@ -135,18 +141,6 @@ export function InnerLayoutRouter({
         childNode.parallelRoutes = {}
         fastPath = true
       }
-
-      // segmentPath from the server is deeper than the layout's segmentPath
-      // if (false) {
-      //   const currentData = childNode.data
-      //   childNode.data = null
-
-      //   // keep recursing down the cache nodes until it matches
-      //   // deeperNode.data = currentData
-      //   // copy the the cache upward back to where the childNode was. This ensures we don't edit the cache in place.
-      //   // childNode.childNodes = clonedCache
-      //   // fastPath = true
-      // }
     }
 
     if (!fastPath) {

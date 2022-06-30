@@ -43,8 +43,9 @@ export default function AppRouter({
   >(reducer, {
     tree: initialTree,
     cache: {
+      data: null,
       subTreeData: null,
-      parallelRoutes: {},
+      parallelRoutes: new Map(),
     },
     pushRef: { pendingPush: false },
     canonicalUrl: initialCanonicalUrl,
@@ -76,6 +77,11 @@ export default function AppRouter({
             payload: {
               url: new URL(href, location.origin),
               cacheType: 'hard',
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
             },
           })
         })
@@ -89,6 +95,11 @@ export default function AppRouter({
             payload: {
               url: new URL(href, location.origin),
               cacheType: 'soft',
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
             },
           })
         })
@@ -101,6 +112,11 @@ export default function AppRouter({
             payload: {
               url: new URL(href, location.origin),
               cacheType: 'soft',
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
             },
           })
         })
@@ -113,6 +129,11 @@ export default function AppRouter({
             payload: {
               url: new URL(href, location.origin),
               cacheType: 'hard',
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
             },
           })
         })

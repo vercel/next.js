@@ -299,6 +299,7 @@ export async function renderToHTML(
   const pathParams = (renderOpts as any).params as ParsedUrlQuery
 
   const getDynamicParamFromSegment = (
+    // [id] or [slug]
     segment: string
   ): { param: string; value: string } | null => {
     // TODO: use correct matching for dynamic routes to get segment param

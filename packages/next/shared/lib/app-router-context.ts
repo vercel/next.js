@@ -1,17 +1,14 @@
 import React from 'react'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
-type ParallelRoutesCacheNodes = {
-  [key: string]: Map<string, CacheNode>
-}
+type ParallelRoutesCacheNodes = Map<string, Map<string, CacheNode>>
 
 export type CacheNode = {
-  data?: ReturnType<
+  data: ReturnType<
     typeof import('../../client/components/app-router.client').fetchServerResponse
   > | null
   subTreeData: null | React.ReactNode
   parallelRoutes: ParallelRoutesCacheNodes
-  previousParallelRoutes?: ParallelRoutesCacheNodes
 }
 
 export type AppRouterInstance = {
