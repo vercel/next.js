@@ -1,12 +1,18 @@
-import React from 'react';
-import { setCookies, getCookies, getCookie, removeCookies, checkCookies } from 'cookies-next'
+import React from 'react'
+import {
+  setCookie,
+  getCookies,
+  getCookie,
+  deleteCookie,
+  hasCookie,
+} from 'cookies-next'
 
 const Home = () => {
-  const handleSetCookie = () => setCookies('client-cookie', 'mock client value');
-  const handleCheckCookie = () => console.log(checkCookies('client-cookie'));
-  const handleGetCookie = () => console.log(getCookie('client-cookie'));
-  const handleGetCookies = () => console.log(getCookies());
-  const handleRemoveCookies = () => removeCookies('client-cookie');
+  const handleSetCookie = () => setCookie('client-cookie', 'mock client value')
+  const handleCheckCookie = () => console.log(hasCookie('client-cookie'))
+  const handleGetCookie = () => console.log(getCookie('client-cookie'))
+  const handleGetCookies = () => console.log(getCookies())
+  const handleDeleteCookies = () => deleteCookie('client-cookie')
 
   return (
     <div>
@@ -20,7 +26,7 @@ const Home = () => {
       <br />
       <button onClick={handleGetCookies}>Get All Cookies</button>
       <br />
-      <button onClick={handleRemoveCookies}>Remove Cookies</button>
+      <button onClick={handleDeleteCookies}>Remove Cookies</button>
     </div>
   )
 }
