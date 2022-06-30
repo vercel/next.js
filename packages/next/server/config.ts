@@ -523,7 +523,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result.swcMinify) {
-    Log.warn(
+    Log.info(
       'SWC minify release candidate enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
   }
