@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::collections::HashMap;
 
 use swc_common::{Span, Spanned};
@@ -32,6 +33,7 @@ impl<'a> ApplyVisitors<'a> {
     {
         let span = n.span();
 
+        dbg!(type_name::<N>());
         dbg!(&self.index, span);
 
         if let Some(children) = self.visitors.get(&span) {
@@ -54,7 +56,7 @@ impl<'a> ApplyVisitors<'a> {
                     }
 
                     // Instead of resetting, we create a new instance of this struct
-                    n.visit_mut_with(&mut ApplyVisitors {
+                    n.visit_mut_children_with(&mut ApplyVisitors {
                         visitors: children_map,
                         index: self.index + 1,
                     });
@@ -145,13 +147,15 @@ mod tests {
     #[test]
     fn case_1() {
         testing::run_test(false, |cm, handler| {
-            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz'])".into());
+            let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
 
             let m = parse(&fm);
 
             let bar_span = span_of(&fm, "'bar'");
 
+            let stmt_span = span_of(&fm, "('foo', 'bar', ['baz']);");
             let expr_span = span_of(&fm, "('foo', 'bar', ['baz'])");
+            let seq_span = span_of(&fm, "'foo', 'bar', ['baz']");
             let arr_span = span_of(&fm, "['baz']");
             let baz_span = span_of(&fm, "'baz'");
 
@@ -163,10 +167,10 @@ mod tests {
             {
                 let mut map = HashMap::<_, Vec<_>>::default();
 
-                let bar_span_vec = vec![expr_span, bar_span];
+                let bar_span_vec = vec![stmt_span, expr_span, seq_span, bar_span];
                 let bar_replacer = replacer("bar", "bar-success");
                 {
-                    let e = map.entry(expr_span).or_default();
+                    let e = map.entry(stmt_span).or_default();
 
                     e.push((&bar_span_vec, &bar_replacer));
                 }
@@ -175,7 +179,7 @@ mod tests {
                 m.visit_mut_with(&mut ApplyVisitors::new(map));
 
                 let s = format!("{:?}", m);
-                assert!(s.contains("bar-success"));
+                assert!(s.contains("bar-success"), "Should be replaced: {:#?}", m);
             }
 
             {
@@ -184,7 +188,7 @@ mod tests {
                 let wrong_span_vec = vec![baz_span];
                 let bar_replacer = replacer("bar", "bar-success");
                 {
-                    let e = map.entry(expr_span).or_default();
+                    let e = map.entry(stmt_span).or_default();
 
                     e.push((&wrong_span_vec, &bar_replacer));
                 }
@@ -193,7 +197,11 @@ mod tests {
                 m.visit_mut_with(&mut ApplyVisitors::new(map));
 
                 let s = format!("{:?}", m);
-                assert!(!s.contains("bar-success"), "{:#?}", m);
+                assert!(
+                    !s.contains("bar-success"),
+                    "Should not be replaced: {:#?}",
+                    m
+                );
             }
 
             Ok(())
