@@ -26,9 +26,12 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+#[cfg(feature = "sentry_native_tls")]
+use _sentry_native_tls::{init, types::Dsn, ClientInitGuard, ClientOptions};
+#[cfg(feature = "sentry_rustls")]
+use _sentry_rustls::{init, types::Dsn, ClientInitGuard, ClientOptions};
 use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, Env, JsBuffer, JsExternal, JsString, JsUndefined, JsUnknown, Status};
-use sentry::{types::Dsn, ClientInitGuard, ClientOptions};
 use serde::de::DeserializeOwned;
 use std::{
     any::type_name, borrow::Cow, cell::RefCell, convert::TryFrom, env, path::PathBuf, str::FromStr,
@@ -164,10 +167,13 @@ pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
             .ok()
     };
 
-    let guard = sentry::init(ClientOptions {
+    let guard = init(ClientOptions {
         release: Some(Cow::Borrowed(PACKAGE_VERSION)),
         dsn,
         debug,
+        // server_name includes device host name, which _can_ be considered as PII depends on
+        // the machine name.
+        server_name: Some(Cow::Borrowed("[REDACTED]")),
         ..Default::default()
     });
 
