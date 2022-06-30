@@ -553,7 +553,15 @@ function renderReactElement(
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
       // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+      reactRoot = ReactDOM.hydrateRoot(
+        domEl,
+        reactEl,
+        Boolean(process.env.__NEXT_REACT_ONRECOVERABLE_ERROR)
+          ? {
+              onRecoverableError: process.env.__NEXT_REACT_ONRECOVERABLE_ERROR,
+            }
+          : undefined
+      )
       // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
       shouldHydrate = false
     } else {
