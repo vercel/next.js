@@ -569,37 +569,11 @@ impl Visit for Analyzer<'_> {
         match &n.callee {
             Callee::Expr(callee) => {
                 if n.args.len() == 1 {
-                    match unparen(callee) {
-                        Expr::Ident(Ident { sym, .. }) => {
-                            if &**sym == "define" {
-                                match &*n.args[0].expr {
-                                    Expr::Fn(FnExpr {
-                                        function: Function { params, .. },
-                                        ..
-                                    }) => {
-                                        if params.len() == 1 {
-                                            match &params[0].pat {
-                                                Pat::Ident(param) => {
-                                                    if &*param.id.sym == "require" {
-                                                        self.add_value(
-                                                            param.to_id(),
-                                                            JsValue::WellKnownFunction(
-                                                                WellKnownFunctionKind::Require,
-                                                            ),
-                                                        );
-                                                    }
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-
-                                    _ => {}
-                                }
-                            }
-                        }
-
-                        _ => {}
+                    if let Some(require_var_id) = extract_var_from_umd_factory(callee, &n.args) {
+                        self.add_value(
+                            require_var_id,
+                            JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                        );
                     }
                 }
             }
@@ -847,4 +821,68 @@ impl Visit for Analyzer<'_> {
             values.push(return_value);
         }
     }
+}
+
+fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<Id> {
+    match unparen(callee) {
+        Expr::Ident(Ident { sym, .. }) => {
+            if &**sym == "define" {
+                match &*args[0].expr {
+                    Expr::Fn(FnExpr {
+                        function: Function { params, .. },
+                        ..
+                    }) => {
+                        if params.len() == 1 {
+                            match &params[0].pat {
+                                Pat::Ident(param) => {
+                                    if &*param.id.sym == "require" {
+                                        return Some(param.to_id());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+
+                    _ => {}
+                }
+            }
+        }
+
+        // umd may use (function (factory){
+        //   // Somewhere, define(['require', 'exports'], factory)
+        // }(function (require, exports){}))
+        //
+        // In all module system which has `require`, `require` in the factory function can be
+        // treated as a well-known require.
+        Expr::Fn(FnExpr {
+            function: Function { params, .. },
+            ..
+        }) => {
+            if params.len() == 1 {
+                match args.first().and_then(|arg| arg.expr.as_fn_expr()) {
+                    Some(FnExpr {
+                        function: Function { params, .. },
+                        ..
+                    }) => {
+                        if params.len() > 0 {
+                            match &params[0].pat {
+                                Pat::Ident(param) => {
+                                    if &*param.id.sym == "require" {
+                                        return Some(param.to_id());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        _ => {}
+    }
+
+    None
 }

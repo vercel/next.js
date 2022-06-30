@@ -121,7 +121,7 @@ use turbopack_ecmascript::target::CompileTarget;
 #[case::tensorflow("integration/tensorflow.js", true)]
 #[case::tiny_json_http("integration/tiny-json-http.js", true)]
 #[case::twilio("integration/twilio.js", true)]
-#[case::ts_morph("integration/ts-morph.js", false)] // umd
+#[case::ts_morph("integration/ts-morph.js", true)]
 #[case::typescript("integration/typescript.js", true)]
 #[case::uglify("integration/uglify.js", true)]
 #[case::vm2("integration/vm2.js", true)]
