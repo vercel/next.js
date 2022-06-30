@@ -17,10 +17,12 @@ type EventCliSessionStarted = {
   basePathEnabled: boolean
   i18nEnabled: boolean
   imageEnabled: boolean
+  imageFutureEnabled: boolean
   locales: string | null
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
+  imageRemotePatternsCount: number | null
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
@@ -61,10 +63,12 @@ export function eventCliSession(
     | 'basePathEnabled'
     | 'i18nEnabled'
     | 'imageEnabled'
+    | 'imageFutureEnabled'
     | 'locales'
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
+    | 'imageRemotePatternsCount'
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
@@ -77,7 +81,7 @@ export function eventCliSession(
     return []
   }
 
-  const { images, i18n } = nextConfig || {}
+  const { images, i18n, experimental } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -91,12 +95,16 @@ export function eventCliSession(
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
+    imageFutureEnabled: !!experimental.images?.allowFutureImage,
     basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
+    imageRemotePatternsCount: experimental?.images?.remotePatterns
+      ? experimental.images.remotePatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,

@@ -71,8 +71,33 @@ export function runTests(ctx) {
           undefined,
           { redirect: 'manual' }
         )
+
+        if (locale !== 'en-US') {
+          expect(res.status).toBe(404)
+          expect(await res.text()).toContain('could not be found')
+        } else {
+          // We only 404 for non-default locale
+          expect(res.status).toBe(200)
+        }
+      }
+    }
+  })
+
+  it('should 404 for locale prefixed public folder files', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}/${locale}/files/texts/file.txt`,
+        undefined,
+        { redirect: 'manual' }
+      )
+
+      if (locale !== 'en-US') {
         expect(res.status).toBe(404)
         expect(await res.text()).toContain('could not be found')
+      } else {
+        // We only 404 for non-default locale
+        expect(res.status).toBe(200)
       }
     }
   })

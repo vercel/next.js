@@ -87,7 +87,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       // check we copied default `.gitignore`
       expect(
@@ -96,6 +96,24 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
       ).toBe(true)
+    })
+  })
+
+  it('valid example without package.json', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'valid-example-without-package-json'
+      const res = await run([projectName, '--example', 'with-docker-compose'], {
+        cwd,
+      })
+      expect(res.exitCode).toBe(0)
+
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.dockerignore'))
+      ).toBeTruthy()
+      // check we copied default `.gitignore`
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
     })
   })
 
@@ -157,7 +175,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -183,7 +201,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -215,7 +233,7 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -399,7 +417,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'package-lock.json',
         'node_modules/next',
@@ -431,6 +449,13 @@ describe('create next app', () => {
   })
 
   it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
     await usingTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
       const res = await run(
@@ -446,7 +471,7 @@ describe('create next app', () => {
 
       const files = [
         'package.json',
-        'pages/index.js',
+        'pages/index.tsx',
         '.gitignore',
         'pnpm-lock.yaml',
         'node_modules/next',

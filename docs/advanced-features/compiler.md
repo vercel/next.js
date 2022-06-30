@@ -9,6 +9,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 | Version   | Changes                                                                                                                            |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
 | `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
 | `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
 
@@ -40,12 +41,31 @@ We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
 First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
 
 ```js
-// next.config.js
-
 module.exports = {
   compiler: {
-    // ssr and displayName are configured by default
-    styledComponents: true,
+    // see https://styled-components.com/docs/tooling#babel-plugin for more info on the options.
+    styledComponents: boolean | {
+      // Enabled by default in development, disabled in production to reduce file size,
+      // setting this will override the default for all environments.
+      displayName?: boolean,
+      // Enabled by default.
+      ssr?: boolean,
+      // Enabled by default.
+      fileName?: boolean,
+      // Empty by default.
+      topLevelImportPaths?: string[],
+      // Defaults to ["index"].
+      meaninglessFileNames?: string[],
+      // Enabled by default.
+      cssProp?: boolean,
+      // Empty by default.
+      namespace?: string,
+      // Not supported yet.
+      minify?: boolean,
+      // Not supported yet.
+      transpileTemplateLiterals?: boolean,
+      // Not supported yet.
+      pure?: boolean,
   },
 }
 ```
@@ -70,7 +90,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 const nextJest = require('next/jest')
 
 // Providing the path to your Next.js app which will enable loading next.config.js and .env files
-const createJestConfig = nextJest({ dir })
+const createJestConfig = nextJest({ dir: './' })
 
 // Any custom config you want to pass to Jest
 const customJestConfig = {
@@ -187,8 +207,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 }
 ```
 
-## Experimental Features
-
 ### Emotion
 
 We're working to port `@emotion/babel-plugin` to the Next.js Compiler.
@@ -199,7 +217,7 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 // next.config.js
 
 module.exports = {
-  experimental: {
+  compiler: {
     emotion: boolean | {
       // default is true. It will be disabled when build type is production.
       sourceMap?: boolean,
@@ -219,6 +237,8 @@ module.exports = {
 
 Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
+## Experimental Features
+
 ### Minification
 
 You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
@@ -232,6 +252,29 @@ module.exports = {
 ```
 
 If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
+### Minifier debug options
+
+While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcMinifyDebugOptions: {
+      compress: {
+        defaults: true,
+        side_effects: false,
+      },
+    },
+  },
+  swcMinify: true,
+}
+```
+
+If your app works with the options above, it means `side_effects` is the problematic option.
+See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
 
 ### Modularize Imports
 
@@ -315,6 +358,42 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
 3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+
+### SWC Trace profiling
+
+You can generate SWC's internal transform traces as chromium's [trace event format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?mode=html#%21=).
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcTraceProfiling: true,
+  },
+}
+```
+
+Once enabled, swc will generate trace named as `swc-trace-profile-${timestamp}.json` under `.next/`. Chromium's trace viewer (chrome://tracing/, https://ui.perfetto.dev/), or compatible flamegraph viewer (https://www.speedscope.app/) can load & visualize generated traces.
+
+### SWC Plugins (Experimental)
+
+You can configure swc's transform to use SWC's experimental plugin support written in wasm to customize transformation behavior.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcPlugins: [
+      ['plugin', {
+        ..pluginOptions
+      }]
+    ]
+  }
+}
+```
+
+`swcPlugins` accepts an array of tuples for configuring plugins. A tuple for the plugin contains the path to the plugin and an object for plugin configuration. The path to the plugin can be an npm module package name or an absolute path to the `.wasm` binary itself.
 
 ## Unsupported Features
 

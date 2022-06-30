@@ -73,6 +73,7 @@ export class TerserPlugin {
       'terser-webpack-plugin-optimize'
     )
     terserSpan.setAttribute('compilationName', compilation.name)
+    terserSpan.setAttribute('swcMinify', this.options.swcMinify)
 
     return terserSpan.traceAsyncFn(async () => {
       let numberOfAssetsForMinify = 0
@@ -101,7 +102,7 @@ export class TerserPlugin {
             // and doesn't provide too much of a benefit as it's server-side
             if (
               name.match(
-                /(edge-runtime-webpack\.js|edge-chunks|_middleware\.js$)/
+                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
               )
             ) {
               return false

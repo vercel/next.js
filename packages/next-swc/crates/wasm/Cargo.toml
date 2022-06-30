@@ -7,6 +7,15 @@ version = "0.0.0"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+plugin = [
+  "swc/plugin",
+  "swc_plugin_runner/memory_cache",
+  "wasmer/js-default",
+  "wasmer-wasi/js-default",
+  "getrandom/js"
+]
+
 [dependencies]
 anyhow = "1.0.42"
 console_error_panic_hook = "0.1.6"
@@ -16,9 +25,13 @@ parking_lot_core = "=0.8.0"
 path-clean = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
-swc = "0.172.1"
-swc_common = { version = "0.17.25", features = ["concurrent", "sourcemap"] }
-swc_ecmascript = { version = "0.150.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc = "0.188.0"
+swc_common = { version = "0.18.9", features = ["concurrent", "sourcemap"] }
+swc_ecmascript = { version = "0.164.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_plugin_runner = { version = "0.56.0", default-features = false, optional = true }
 tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"
+wasmer = { version = "2.3.0", optional = true, default-features = false }
+wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }
+getrandom = { version = "0.2.5", optional = true, default-features = false }

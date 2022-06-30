@@ -1,6 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
@@ -414,6 +413,8 @@ export const css = curry(async function css(
 
   if (ctx.isClient && ctx.isProduction) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
+    const MiniCssExtractPlugin =
+      require('../../../plugins/mini-css-extract-plugin').default
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat

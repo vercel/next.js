@@ -4,7 +4,7 @@ import Link from 'next/link'
 export async function getStaticProps({ params }) {
   return {
     props: {
-      lotsOfData: new Array(128 * 1000).fill('a').join(''),
+      lotsOfData: new Array(256 * 1000).fill('a').join(''),
     },
     revalidate: false,
   }

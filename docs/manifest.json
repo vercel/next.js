@@ -4,7 +4,10 @@
       "title": "Documentation",
       "heading": true,
       "routes": [
-        { "title": "Getting Started", "path": "/docs/getting-started.md" },
+        {
+          "title": "Getting Started",
+          "path": "/docs/getting-started.md"
+        },
         {
           "title": "Basic Features",
           "open": true,
@@ -139,6 +142,10 @@
             {
               "title": "Response Helpers",
               "path": "/docs/api-routes/response-helpers.md"
+            },
+            {
+              "title": "Edge API Routes (Beta)",
+              "path": "/docs/api-routes/edge-api-routes.md"
             }
           ]
         },
@@ -259,6 +266,10 @@
               "path": "/docs/advanced-features/src-directory.md"
             },
             {
+              "title": "CI Build Caching",
+              "path": "/docs/advanced-features/ci-build-caching.md"
+            },
+            {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
             },
@@ -267,7 +278,7 @@
               "path": "/docs/advanced-features/measuring-performance.md"
             },
             {
-              "title": "Middleware (Beta)",
+              "title": "Middleware",
               "path": "/docs/advanced-features/middleware.md"
             },
             {
@@ -352,14 +363,20 @@
             }
           ]
         },
-        { "title": "FAQ", "path": "/docs/faq.md" }
+        {
+          "title": "FAQ",
+          "path": "/docs/faq.md"
+        }
       ]
     },
     {
       "title": "API Reference",
       "heading": true,
       "routes": [
-        { "title": "CLI", "path": "/docs/api-reference/cli.md" },
+        {
+          "title": "CLI",
+          "path": "/docs/api-reference/cli.md"
+        },
         {
           "title": "Create Next App",
           "path": "/docs/api-reference/create-next-app.md"
@@ -395,6 +412,10 @@
         {
           "title": "next/streaming",
           "path": "/docs/api-reference/next/streaming.md"
+        },
+        {
+          "title": "next/future/image (experimental)",
+          "path": "/docs/api-reference/next/future/image.md"
         },
         {
           "title": "Edge Runtime",

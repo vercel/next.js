@@ -21,8 +21,7 @@ export default (()=><_StyledDiv >
 
     </Card>
 
-  </_StyledDiv>
-);
+  </_StyledDiv>);
 var _StyledDiv = _styled("div")`
       width: 35em;
     `;

@@ -1,6 +1,6 @@
-query getPostsDocument($relativePath: String!) {
-  getPostsDocument(relativePath: $relativePath) {
-    sys {
+query posts($relativePath: String!) {
+  posts(relativePath: $relativePath) {
+    _sys {
       filename
       basename
       breadcrumbs
@@ -9,19 +9,17 @@ query getPostsDocument($relativePath: String!) {
       extension
     }
     id
-    data {
-      ...PostsParts
-    }
+    ...PostsParts
   }
 }
 
-query getPostsList {
-  getPostsList {
+query postsConnection {
+  postsConnection {
     totalCount
     edges {
       node {
         id
-        sys {
+        _sys {
           filename
           basename
           breadcrumbs
@@ -29,9 +27,7 @@ query getPostsList {
           relativePath
           extension
         }
-        data {
-          ...PostsParts
-        }
+        ...PostsParts
       }
     }
   }

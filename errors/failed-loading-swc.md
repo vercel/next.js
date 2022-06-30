@@ -8,7 +8,7 @@ SWC requires a binary be downloaded that is compatible specific to your system. 
 
 #### Possible Ways to Fix It
 
-When on an M1 Mac and switching from a Node.js version without M1 support e.g. v14 to a version with e.g. v16, you may need a different swc dependency which can require re-installing `node_modules` (`npm i --force` or `yarn install --force`).
+When on an M1 Mac and switching from a Node.js version without M1 support to one with, e.g. v14 to v16, you may need a different swc dependency which can require re-installing `node_modules` (`npm i --force` or `yarn install --force`).
 
 On Windows make sure you have Microsoft Visual C++ Redistributable installed. https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
 

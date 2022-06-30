@@ -19,7 +19,7 @@ import '../server/node-polyfill-fetch'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
@@ -60,7 +60,7 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  rootDir?: boolean
+  appDir?: boolean
 }
 
 interface ExportPageResults {
@@ -85,7 +85,7 @@ interface RenderOpts {
   locale?: string
   defaultLocale?: string
   trailingSlash?: boolean
-  rootDir?: boolean
+  appDir?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -99,7 +99,7 @@ export default async function exportPage({
   pathMap,
   distDir,
   outDir,
-  rootDir,
+  appDir,
   pagesDataDir,
   renderOpts,
   buildExport,
@@ -221,8 +221,13 @@ export default async function exportPage({
       // extension of `.slug]`
       const pageExt = isDynamic ? '' : extname(page)
       const pathExt = isDynamic ? '' : extname(path)
+
+      // force output 404.html for backwards compat
+      if (path === '/404.html') {
+        htmlFilename = path
+      }
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-      if (pageExt !== pathExt && pathExt !== '') {
+      else if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
           (p) => p === path || p === path + '.html'
         )
@@ -270,7 +275,7 @@ export default async function exportPage({
           page,
           serverless,
           serverComponents,
-          rootDir
+          appDir
         )
         const ampState = {
           ampFirst: pageConfig?.amp === true,

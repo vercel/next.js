@@ -1,43 +1,16 @@
-/* eslint-env jest */
+/**
+ * @jest-environment @edge-runtime/jest-environment
+ */
 
-import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
-import { Crypto } from 'next/dist/server/web/sandbox/polyfills'
-import { Response } from 'next/dist/server/web/spec-compliant/response'
-import { Headers } from 'next/dist/server/web/spec-compliant/headers'
-import * as streams from 'web-streams-polyfill/ponyfill'
+import { NextResponse } from 'next/server/web/spec-extension/response'
 
-beforeAll(() => {
-  global['Blob'] = Blob
-  global['crypto'] = new Crypto()
-  global['File'] = File
-  global['FormData'] = FormData
-  global['Headers'] = Headers
-  global['ReadableStream'] = streams.ReadableStream
-  global['TransformStream'] = streams.TransformStream
-  global['Response'] = Response
-})
-
-afterAll(() => {
-  delete global['Blob']
-  delete global['crypto']
-  delete global['File']
-  delete global['Headers']
-  delete global['FormData']
-  delete global['ReadableStream']
-  delete global['TransformStream']
-})
-
-const toJSON = async (response) => ({
+const toJSON = async (response: Response) => ({
   body: await response.json(),
   contentType: response.headers.get('content-type'),
   status: response.status,
 })
 
 it('automatically parses and formats JSON', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
-
   expect(await toJSON(NextResponse.json({ message: 'hello!' }))).toMatchObject({
     contentType: 'application/json',
     body: { message: 'hello!' },
@@ -72,13 +45,16 @@ it('automatically parses and formats JSON', async () => {
   })
 })
 
-it('response.cookie does not modify options', async () => {
-  const { NextResponse } = await import(
-    'next/dist/server/web/spec-extension/response'
-  )
+it('can be cloned', async () => {
+  const fetchResponse = await fetch('https://example.vercel.sh')
+  const newResponse = new NextResponse(fetchResponse.body, fetchResponse)
+  expect(await newResponse.text()).toContain('Example Domain')
+  expect(Object.fromEntries(newResponse.headers)).toMatchObject({
+    server: 'Vercel',
+  })
+})
 
-  const options = { maxAge: 10000 }
-  const response = NextResponse.json(null)
-  response.cookie('cookieName', 'cookieValue', options)
-  expect(options).toEqual({ maxAge: 10000 })
+it('can return JSON', async () => {
+  const response = NextResponse.json({ hello: 'world' })
+  expect(await response.json()).toEqual({ hello: 'world' })
 })

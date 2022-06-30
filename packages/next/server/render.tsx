@@ -20,6 +20,8 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -42,7 +44,7 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -78,30 +80,24 @@ import {
   continueFromInitialStream,
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { FlushEffectsContext } from '../shared/lib/flush-effects'
-import { interopDefault } from '../lib/interop-default'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
+import { postProcessHTML } from './post-process'
+import { htmlEscapeJsonString } from './htmlescape'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 
-let optimizeAmp: typeof import('./optimize-amp').default
-let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
-let postProcess: typeof import('../shared/lib/post-process').default
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
-  optimizeAmp = require('./optimize-amp').default
-  getFontDefinitionFromManifest =
-    require('./font-utils').getFontDefinitionFromManifest
   tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
-  postProcess = require('../shared/lib/post-process').default
 } else {
   warn = console.warn.bind(console)
 }
@@ -202,21 +198,10 @@ function enhanceComponents(
 }
 
 function renderPageTree(
-  App: any,
-  Component: any,
-  props: any,
-  isServerComponent: boolean
+  App: AppType,
+  Component: NextComponentType,
+  props: any
 ) {
-  const { router: _, ...rest } = props
-
-  if (isServerComponent) {
-    return (
-      <App>
-        <Component {...rest} />
-      </App>
-    )
-  }
-
   return <App Component={Component} {...props} />
 }
 
@@ -254,12 +239,12 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
   images: ImageConfigComplete
-  reactRoot: boolean
+  largePageDataBytes?: number
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -328,119 +313,100 @@ function checkRedirectValues(
 
 const rscCache = new Map()
 
-function createFlightHook() {
-  return ({
-    id,
-    req,
-    inlinedDataWritable,
-    staticDataWritable,
-    bootstrap,
-  }: {
-    id: string
-    req: ReadableStream<Uint8Array>
-    bootstrap: boolean
-    inlinedDataWritable: WritableStream<Uint8Array>
-    staticDataWritable: WritableStream<Uint8Array> | null
-  }) => {
-    let entry = rscCache.get(id)
-    if (!entry) {
-      const [renderStream, forwardStream] = readableStreamTee(req)
-      entry = createFromReadableStream(renderStream)
-      rscCache.set(id, entry)
+function useFlightResponse({
+  cachePrefix,
+  req,
+  pageData,
+  inlinedDataWritable,
+  serverComponentManifest,
+}: {
+  cachePrefix: string
+  req: ReadableStream<Uint8Array>
+  pageData: { current: string } | null
+  inlinedDataWritable: WritableStream<Uint8Array>
+  serverComponentManifest: any
+}) {
+  const id = cachePrefix + ',' + (React as any).useId()
+  let entry = rscCache.get(id)
+  if (!entry) {
+    const [renderStream, forwardStream] = readableStreamTee(req)
 
-      let bootstrapped = false
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
+    rscCache.set(id, entry)
 
-      const forwardReader = forwardStream.getReader()
-      const inlinedDataWriter = inlinedDataWritable.getWriter()
-      const staticDataWriter = staticDataWritable
-        ? staticDataWritable.getWriter()
-        : null
+    let bootstrapped = false
 
-      function process() {
-        forwardReader.read().then(({ done, value }) => {
-          if (bootstrap && !bootstrapped) {
-            bootstrapped = true
-            inlinedDataWriter.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [0, id]
-                )})</script>`
-              )
+    const forwardReader = forwardStream.getReader()
+    const inlinedDataWriter = inlinedDataWritable.getWriter()
+
+    function process() {
+      forwardReader.read().then(({ done, value }) => {
+        if (!bootstrapped) {
+          bootstrapped = true
+          inlinedDataWriter.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([0, id])
+              )})</script>`
             )
-          }
-          if (done) {
-            rscCache.delete(id)
-            inlinedDataWriter.close()
-            if (staticDataWriter) {
-              staticDataWriter.close()
-            }
-          } else {
-            inlinedDataWriter.write(
-              encodeText(
-                `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                  [1, id, decodeText(value)]
-                )})</script>`
-              )
+          )
+        }
+        if (done) {
+          rscCache.delete(id)
+          inlinedDataWriter.close()
+        } else {
+          const decodedValue = decodeText(value)
+          inlinedDataWriter.write(
+            encodeText(
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, decodedValue])
+              )})</script>`
             )
-            if (staticDataWriter) {
-              staticDataWriter.write(value)
-            }
-            process()
+          )
+          if (pageData) {
+            pageData.current += decodedValue
           }
-        })
-      }
-      process()
+          process()
+        }
+      })
     }
-    return entry
+    process()
   }
+  return entry
 }
-
-const useFlightResponse = createFlightHook()
 
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
-  App: any,
-  ComponentMod: any,
+  Component: any,
   {
     cachePrefix,
+    pageData,
     inlinedTransformStream,
-    staticTransformStream,
     serverComponentManifest,
   }: {
     cachePrefix: string
+    pageData: { current: string } | null
     inlinedTransformStream: TransformStream<Uint8Array, Uint8Array>
-    staticTransformStream: null | TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
   }
 ) {
-  // We need to expose the `__webpack_require__` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  // @ts-ignore
-  globalThis.__webpack_require__ = ComponentMod.__next_rsc__.__webpack_require__
-  const Component = interopDefault(ComponentMod)
-
   function ServerComponentWrapper({ router, ...props }: any) {
-    const id = (React as any).useId()
-
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <App>
-        <Component {...props} />
-      </App>,
+      <Component {...props} />,
       serverComponentManifest
     )
 
     const response = useFlightResponse({
-      id: cachePrefix + ',' + id,
+      cachePrefix,
       req: reqStream,
+      pageData,
       inlinedDataWritable: inlinedTransformStream.writable,
-      staticDataWritable: staticTransformStream
-        ? staticTransformStream.writable
-        : null,
-      bootstrap: true,
+      serverComponentManifest,
     })
 
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
@@ -477,7 +443,6 @@ export async function renderToHTML(
     ampPath = '',
     pageConfig = {},
     buildManifest,
-    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -493,8 +458,7 @@ export async function renderToHTML(
     images,
     runtime: globalRuntime,
     ComponentMod,
-    AppMod,
-    AppServerMod,
+    App,
   } = renderOpts
 
   let Document = renderOpts.Document
@@ -510,37 +474,15 @@ export async function renderToHTML(
     renderOpts.Component
   const OriginComponent = Component
 
-  const App = interopDefault(isServerComponent ? AppServerMod : AppMod)
-
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
   > | null = null
-  let serverComponentsPageDataTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > | null =
+
+  const serverComponentsStaticPageData: { current: string } | null =
     isServerComponent && process.env.NEXT_RUNTIME !== 'edge'
-      ? new TransformStream()
+      ? { current: '' }
       : null
-
-  if (isServerComponent) {
-    serverComponentsInlinedTransformStream = new TransformStream()
-    const search = urlQueryToSearchParams(query).toString()
-    Component = createServerComponentRenderer(App, ComponentMod, {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
-      inlinedTransformStream: serverComponentsInlinedTransformStream,
-      staticTransformStream: serverComponentsPageDataTransformStream,
-      serverComponentManifest,
-    })
-  }
-
-  const getFontDefinition = (url: string): string => {
-    if (fontManifest) {
-      return getFontDefinitionFromManifest(url, fontManifest)
-    }
-    return ''
-  }
 
   let renderServerComponentData = isServerComponent
     ? query.__flight__ !== undefined
@@ -551,8 +493,28 @@ export async function renderToHTML(
       ? JSON.parse(query.__props__ as string)
       : undefined
 
-  delete query.__flight__
-  delete query.__props__
+  const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
+
+  stripInternalQueries(query)
+
+  // next internal queries should be stripped out
+  if (isServerComponent) {
+    serverComponentsInlinedTransformStream = new TransformStream()
+    const search = urlQueryToSearchParams(query).toString()
+
+    // @ts-ignore
+    globalThis.__next_require__ = ComponentMod.__next_rsc__.__webpack_require__
+    // @ts-ignore
+    globalThis.__next_chunk_load__ = () => Promise.resolve()
+
+    Component = createServerComponentRenderer(Component, {
+      cachePrefix: pathname + (search ? `?${search}` : ''),
+      inlinedTransformStream: serverComponentsInlinedTransformStream,
+      pageData: serverComponentsStaticPageData,
+      serverComponentManifest,
+    })
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -578,13 +540,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const isFallback = !!query.__nextFallback
-  const notFoundSrcPage = query.__nextNotFoundSrcPage
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
-
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
@@ -595,24 +550,30 @@ export async function renderToHTML(
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
+  const defaultErrorGetInitialProps =
+    pathname === '/_error' &&
+    (Component as any).getInitialProps ===
+      (Component as any).origGetInitialProps
+
+  if (
+    renderOpts.nextExport &&
+    hasPageGetInitialProps &&
+    !defaultErrorGetInitialProps
+  ) {
+    warn(
+      `Detected getInitialProps on page '${pathname}'` +
+        `while running "next export". It's recommended to use getStaticProps` +
+        `which has a more correct behavior for static exporting.` +
+        `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
+    )
+  }
+
   const isAutoExport =
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps &&
     !isServerComponent
-
-  for (const methodName of [
-    'getStaticProps',
-    'getServerSideProps',
-    'getStaticPaths',
-  ]) {
-    if ((Component as any)?.[methodName]) {
-      throw new Error(
-        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
-      )
-    }
-  }
 
   if (hasPageGetInitialProps && isSSG) {
     throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT + ` ${pathname}`)
@@ -699,6 +660,18 @@ export async function renderToHTML(
     }
   }
 
+  for (const methodName of [
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    if ((Component as any)?.[methodName]) {
+      throw new Error(
+        `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
+      )
+    }
+  }
+
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   let isPreview
@@ -752,12 +725,7 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(
-            App,
-            OriginComponent,
-            { ...props, router },
-            isServerComponent
-          )}
+          {renderPageTree(App, OriginComponent, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -808,62 +776,33 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  let flushEffects: Array<() => React.ReactNode> | null = null
-  function FlushEffectContainer({ children }: { children: JSX.Element }) {
-    // If the client tree suspends, this component will be rendered multiple
-    // times before we flush. To ensure we don't call old callbacks corresponding
-    // to a previous render, we clear any registered callbacks whenever we render.
-    flushEffects = null
-
-    const flushEffectsImpl = React.useCallback(
-      (callbacks: Array<() => React.ReactNode>) => {
-        if (flushEffects) {
-          throw new Error(
-            'The `useFlushEffects` hook cannot be used more than once.' +
-              '\nRead more: https://nextjs.org/docs/messages/multiple-flush-effects'
-          )
-        }
-        flushEffects = callbacks
-      },
-      []
-    )
-
-    return (
-      <FlushEffectsContext.Provider value={flushEffectsImpl}>
-        {children}
-      </FlushEffectsContext.Provider>
-    )
-  }
-
   const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <FlushEffectContainer>
-      <RouterContext.Provider value={router}>
-        <AmpStateContext.Provider value={ampState}>
-          <HeadManagerContext.Provider
-            value={{
-              updateHead: (state) => {
-                head = state
-              },
-              updateScripts: (scripts) => {
-                scriptLoader = scripts
-              },
-              scripts: initialScripts,
-              mountedInstances: new Set(),
-            }}
+    <RouterContext.Provider value={router}>
+      <AmpStateContext.Provider value={ampState}>
+        <HeadManagerContext.Provider
+          value={{
+            updateHead: (state) => {
+              head = state
+            },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: initialScripts,
+            mountedInstances: new Set(),
+          }}
+        >
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <StyleRegistry registry={jsxStyleRegistry}>
-                <ImageConfigContext.Provider value={images}>
-                  {children}
-                </ImageConfigContext.Provider>
-              </StyleRegistry>
-            </LoadableContext.Provider>
-          </HeadManagerContext.Provider>
-        </AmpStateContext.Provider>
-      </RouterContext.Provider>
-    </FlushEffectContainer>
+            <StyleRegistry registry={jsxStyleRegistry}>
+              <ImageConfigContext.Provider value={images}>
+                {children}
+              </ImageConfigContext.Provider>
+            </StyleRegistry>
+          </LoadableContext.Provider>
+        </HeadManagerContext.Provider>
+      </AmpStateContext.Provider>
+    </RouterContext.Provider>
   )
 
   // The `useId` API uses the path indexes to generate an ID for each node.
@@ -1228,7 +1167,7 @@ export async function renderToHTML(
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
     // For server components, we still need to render the page to get the flight
     // data.
-    if (!serverComponentsPageDataTransformStream) {
+    if (!serverComponentsStaticPageData) {
       return RenderResult.fromStatic(JSON.stringify(props))
     }
   }
@@ -1250,15 +1189,7 @@ export async function renderToHTML(
   if (renderServerComponentData) {
     return new RenderResult(
       renderToReadableStream(
-        renderPageTree(
-          App,
-          OriginComponent,
-          {
-            ...props.pageProps,
-            ...serverComponentProps,
-          },
-          isServerComponent
-        ),
+        <OriginComponent {...props.pageProps} {...serverComponentProps} />,
         serverComponentManifest
       ).pipeThrough(createBufferedTransformStream())
     )
@@ -1341,11 +1272,11 @@ export async function renderToHTML(
       }
     }
 
-    async function documentInitialProps(
+    async function loadDocumentInitialProps(
       renderShell?: (
         _App: AppType,
         _Component: NextComponentType
-      ) => Promise<void>
+      ) => Promise<ReactReadableStream>
     ) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
@@ -1374,22 +1305,22 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         if (renderShell) {
-          return renderShell(EnhancedApp, EnhancedComponent).then(() => {
-            // When using concurrent features, we don't have or need the full
-            // html so it's fine to return nothing here.
-            return { html: '', head }
-          })
+          return renderShell(EnhancedApp, EnhancedComponent).then(
+            async (stream) => {
+              const forwardStream = readableStreamTee(stream)[1]
+              const html = await streamToString(forwardStream)
+              return { html, head }
+            }
+          )
         }
 
         const html = ReactDOMServer.renderToString(
           <Body>
             <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(
-                EnhancedApp,
-                EnhancedComponent,
-                { ...props, router },
-                false
-              )}
+              {renderPageTree(EnhancedApp, EnhancedComponent, {
+                ...props,
+                router,
+              })}
             </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
@@ -1424,12 +1355,10 @@ export async function renderToHTML(
       ) : (
         <Body>
           <AppContainerWithIsomorphicFiberStructure>
-            {renderPageTree(
-              EnhancedApp,
-              EnhancedComponent,
-              { ...(isServerComponent ? props.pageProps : props), router },
-              isServerComponent
-            )}
+            {renderPageTree(EnhancedApp, EnhancedComponent, {
+              ...props,
+              router,
+            })}
           </AppContainerWithIsomorphicFiberStructure>
         </Body>
       )
@@ -1438,9 +1367,9 @@ export async function renderToHTML(
     if (!process.env.__NEXT_REACT_ROOT) {
       // Enabling react legacy rendering mode: __NEXT_REACT_ROOT = false
       if (Document.getInitialProps) {
-        const documentInitialPropsRes = await documentInitialProps()
-        if (documentInitialPropsRes === null) return null
-        const { docProps, documentCtx } = documentInitialPropsRes
+        const documentInitialProps = await loadDocumentInitialProps()
+        if (documentInitialProps === null) return null
+        const { docProps, documentCtx } = documentInitialProps
 
         return {
           bodyResult: (suffix: string) =>
@@ -1473,74 +1402,29 @@ export async function renderToHTML(
       }
     } else {
       // Enabling react concurrent rendering mode: __NEXT_REACT_ROOT = true
-      let renderStream: ReadableStream<Uint8Array> & {
-        allReady?: Promise<void> | undefined
-      }
-
       const renderShell = async (
         EnhancedApp: AppType,
         EnhancedComponent: NextComponentType
       ) => {
         const content = renderContent(EnhancedApp, EnhancedComponent)
-        renderStream = await renderToInitialStream({
+        return await renderToInitialStream({
           ReactDOMServer,
           element: content,
         })
       }
 
-      const bodyResult = async (suffix: string) => {
+      const createBodyResult = (
+        initialStream: ReactReadableStream,
+        suffix?: string
+      ) => {
         // this must be called inside bodyResult so appWrappers is
         // up to date when `wrapApp` is called
-
         const flushEffectHandler = (): string => {
-          const allFlushEffects = [
-            styledJsxFlushEffect,
-            ...(flushEffects || []),
-          ]
-          const flushed = ReactDOMServer.renderToString(
-            <>
-              {allFlushEffects.map((flushEffect, i) => (
-                <React.Fragment key={i}>{flushEffect()}</React.Fragment>
-              ))}
-            </>
-          )
+          const flushed = ReactDOMServer.renderToString(styledJsxFlushEffect())
           return flushed
         }
 
-        // Handle static data for server components.
-        async function generateStaticFlightDataIfNeeded() {
-          if (serverComponentsPageDataTransformStream) {
-            // If it's a server component with the Node.js runtime, we also
-            // statically generate the page data.
-            let data = ''
-
-            const readable = serverComponentsPageDataTransformStream.readable
-            const reader = readable.getReader()
-            const textDecoder = new TextDecoder()
-
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-              data += decodeText(value, textDecoder)
-            }
-
-            ;(renderOpts as any).pageData = {
-              ...(renderOpts as any).pageData,
-              __flight__: data,
-            }
-            return data
-          }
-        }
-
-        // @TODO: A potential improvement would be to reuse the inlined
-        // data stream, or pass a callback inside as this doesn't need to
-        // be streamed.
-        // Do not use `await` here.
-        generateStaticFlightDataIfNeeded()
-        return await continueFromInitialStream({
-          renderStream,
+        return continueFromInitialStream(initialStream, {
           suffix,
           dataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML,
@@ -1554,16 +1438,23 @@ export async function renderToHTML(
         !Document.getInitialProps
       )
 
+      let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
+
       // If it has getInitialProps, we will render the shell in `renderPage`.
       // Otherwise we do it right now.
       let documentInitialPropsRes:
         | {}
-        | Awaited<ReturnType<typeof documentInitialProps>>
+        | Awaited<ReturnType<typeof loadDocumentInitialProps>>
       if (hasDocumentGetInitialProps) {
-        documentInitialPropsRes = await documentInitialProps(renderShell)
+        documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
         if (documentInitialPropsRes === null) return null
+        const { docProps } = documentInitialPropsRes as any
+        // includes suffix in initial html stream
+        bodyResult = (suffix: string) =>
+          createBodyResult(streamFromArray([docProps.html, suffix]))
       } else {
-        await renderShell(App, Component)
+        const stream = await renderShell(App, Component)
+        bodyResult = (suffix: string) => createBodyResult(stream, suffix)
         documentInitialPropsRes = {}
       }
 
@@ -1579,6 +1470,7 @@ export async function renderToHTML(
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()
@@ -1687,6 +1579,7 @@ export async function renderToHTML(
     optimizeFonts: renderOpts.optimizeFonts,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
+    largePageDataBytes: renderOpts.largePageDataBytes,
   }
 
   const document = (
@@ -1735,96 +1628,70 @@ export async function renderToHTML(
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
 
-  let streams = [
+  const streams = [
     streamFromArray(prefix),
     await documentResult.bodyResult(renderTargetSuffix),
   ]
 
+  // After the page is fully rendered, we can assign the flight response to
+  // page data of `renderOpts` now.
+  function updateServerComponentPageData() {
+    if (serverComponentsStaticPageData) {
+      ;(renderOpts as any).pageData = {
+        ...(renderOpts as any).pageData,
+        __flight__: serverComponentsStaticPageData.current,
+      }
+    }
+  }
+
   if (
-    serverComponentsPageDataTransformStream &&
+    serverComponentsStaticPageData &&
     ((isDataReq && !isSSG) || (renderOpts as any).isRedirect)
   ) {
     await streamToString(streams[1])
+    updateServerComponentPageData()
     return RenderResult.fromStatic((renderOpts as any).pageData)
   }
 
-  const postProcessors: Array<((html: string) => Promise<string>) | null> = (
-    generateStaticHTML
-      ? [
-          inAmpMode
-            ? async (html: string) => {
-                html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
-                if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-                  await renderOpts.ampValidator(html, pathname)
-                }
-                return html
-              }
-            : null,
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          process.env.__NEXT_OPTIMIZE_FONTS
-            ? async (html: string) => {
-                return await postProcess(
-                  html,
-                  { getFontDefinition },
-                  {
-                    optimizeFonts: renderOpts.optimizeFonts,
-                  }
-                )
-              }
-            : null,
-          process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
-            ? async (html: string) => {
-                // eslint-disable-next-line import/no-extraneous-dependencies
-                const Critters = require('critters')
-                const cssOptimizer = new Critters({
-                  ssrMode: true,
-                  reduceInlineStyles: false,
-                  path: renderOpts.distDir,
-                  publicPath: `${renderOpts.assetPrefix}/_next/`,
-                  preload: 'media',
-                  fonts: false,
-                  ...renderOpts.optimizeCss,
-                })
-                return await cssOptimizer.process(html)
-              }
-            : null,
-          inAmpMode || hybridAmp
-            ? async (html: string) => {
-                return html.replace(/&amp;amp=1/g, '&amp=1')
-              }
-            : null,
-        ]
-      : []
-  ).filter(Boolean)
+  const postOptimize = (html: string) =>
+    postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
 
-  if (generateStaticHTML || postProcessors.length > 0) {
-    let html = await streamToString(chainStreams(streams))
-    for (const postProcessor of postProcessors) {
-      if (postProcessor) {
-        html = await postProcessor(html)
-      }
-    }
-    return new RenderResult(html)
+  if (generateStaticHTML) {
+    const html = await streamToString(chainStreams(streams))
+    updateServerComponentPageData()
+    const optimizedHtml = await postOptimize(html)
+    return new RenderResult(optimizedHtml)
   }
 
   return new RenderResult(
-    chainStreams(streams).pipeThrough(createBufferedTransformStream())
+    chainStreams(streams).pipeThrough(
+      createBufferedTransformStream(postOptimize)
+    )
   )
 }
 
 function errorToJSON(err: Error) {
+  let source: 'server' | 'edge-server' = 'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
   return {
     name: err.name,
+    source,
     message: stripAnsi(err.message),
     stack: err.stack,
-    middleware: (err as any).middleware,
   }
 }
 
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number } {
+): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
   if (dev) {
     return errorToJSON(err)
   }
