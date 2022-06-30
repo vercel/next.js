@@ -103,6 +103,14 @@ impl<V> VisitWithPath<V>
 where
     V: CreateVisitorFn,
 {
+    pub fn new(creator: V) -> Self {
+        Self {
+            spans: Vec::new(),
+            creator,
+            visitors: Vec::new(),
+        }
+    }
+
     fn check<N>(&mut self, n: &N)
     where
         N: VisitWith<Self> + Spanned,
@@ -145,6 +153,8 @@ mod tests {
         parser::parse_file_as_module,
         visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     };
+
+    use crate::path_visitor::VisitWithPath;
 
     use super::{ApplyVisitors, CreateVisitorFn, VisitorFn};
 
@@ -282,6 +292,7 @@ mod tests {
             let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
 
             let m = parse(&fm);
+            let creator = TestVisitorCreator { created: vec![] };
 
             let bar_span = span_of(&fm, "'bar'");
 
@@ -295,6 +306,8 @@ mod tests {
             dbg!(expr_span);
             dbg!(arr_span);
             dbg!(baz_span);
+
+            let mut v = VisitWithPath::new(creator);
 
             Ok(())
         })
