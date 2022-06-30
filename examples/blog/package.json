@@ -8,8 +8,8 @@
   "dependencies": {
     "gray-matter": "^4.0.3",
     "next": "latest",
-    "nextra": "^1.1.0",
-    "nextra-theme-blog": "^0.1.6",
+    "nextra": "^2.0.0-beta.5",
+    "nextra-theme-blog": "^2.0.0-beta.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "rss": "^1.2.2"

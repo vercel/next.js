@@ -5,6 +5,3 @@ date: 2021-03-18
 ---
 
 # Posts
-
-- [Markdown](/posts/markdown)
-- [Pages](/posts/pages)
