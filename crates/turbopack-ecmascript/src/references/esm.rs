@@ -66,10 +66,7 @@ impl ChunkableAssetReference for EsmAssetReference {
 impl CodeGenerationReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self) -> Result<CodeGenerationVc> {
-        Ok(CodeGeneration {
-            visitors: vec![(*self.span.await?, todo!())],
-        }
-        .into())
+        Ok(CodeGeneration { visitors: todo!() }.into())
     }
 }
 
@@ -129,9 +126,6 @@ impl AsyncLoadableReference for EsmAsyncAssetReference {
 impl CodeGenerationReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(&self) -> Result<CodeGenerationVc> {
-        Ok(CodeGeneration {
-            visitors: vec![(*self.span.await?, todo!())],
-        }
-        .into())
+        Ok(CodeGeneration { visitors: todo!() }.into())
     }
 }
