@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn case_1() {
+    fn path_visitor() {
         testing::run_test(false, |cm, handler| {
             let fm = cm.new_source_file(FileName::Anon, "('foo', 'bar', ['baz']);".into());
 
