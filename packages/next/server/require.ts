@@ -2,24 +2,16 @@ import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
-  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
-  VIEW_PATHS_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type { WasmBinding } from '../build/webpack/loaders/get-module-build-info'
-
-export function pageNotFoundError(page: string): Error {
-  const err: any = new Error(`Cannot find module for page: ${page}`)
-  err.code = 'ENOENT'
-  return err
-}
+import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 
 export function getPagePath(
   page: string,
@@ -27,7 +19,7 @@ export function getPagePath(
   serverless: boolean,
   dev?: boolean,
   locales?: string[],
-  rootEnabled?: boolean
+  appDirEnabled?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
@@ -35,11 +27,11 @@ export function getPagePath(
   )
   let rootPathsManifest: undefined | PagesManifest
 
-  if (rootEnabled) {
+  if (appDirEnabled) {
     if (page === '/_root') {
       return join(serverBuildPath, 'root.js')
     }
-    rootPathsManifest = require(join(serverBuildPath, VIEW_PATHS_MANIFEST))
+    rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
     serverBuildPath,
@@ -50,7 +42,7 @@ export function getPagePath(
     page = denormalizePagePath(normalizePagePath(page))
   } catch (err) {
     console.error(err)
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
 
   const checkManifest = (manifest: PagesManifest) => {
@@ -78,7 +70,7 @@ export function getPagePath(
   }
 
   if (!pagePath) {
-    throw pageNotFoundError(page)
+    throw new PageNotFoundError(page)
   }
   return join(serverBuildPath, pagePath)
 }
@@ -87,7 +79,7 @@ export function requirePage(
   page: string,
   distDir: string,
   serverless: boolean,
-  rootEnabled?: boolean
+  appDirEnabled?: boolean
 ): any {
   const pagePath = getPagePath(
     page,
@@ -95,10 +87,12 @@ export function requirePage(
     serverless,
     false,
     undefined,
-    rootEnabled
+    appDirEnabled
   )
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(pagePath, 'utf8')
+    return promises.readFile(pagePath, 'utf8').catch((err) => {
+      throw new MissingStaticPage(page, err.message)
+    })
   }
   return require(pagePath)
 }
@@ -110,49 +104,4 @@ export function requireFontManifest(distDir: string, serverless: boolean) {
   )
   const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
   return fontManifest
-}
-
-export function getMiddlewareInfo(params: {
-  dev?: boolean
-  distDir: string
-  page: string
-  serverless: boolean
-}): {
-  name: string
-  paths: string[]
-  env: string[]
-  wasm: WasmBinding[]
-} {
-  const serverBuildPath = join(
-    params.distDir,
-    params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-  )
-
-  const middlewareManifest: MiddlewareManifest = require(join(
-    serverBuildPath,
-    MIDDLEWARE_MANIFEST
-  ))
-
-  let page: string
-
-  try {
-    page = denormalizePagePath(normalizePagePath(params.page))
-  } catch (err) {
-    throw pageNotFoundError(params.page)
-  }
-
-  let pageInfo = middlewareManifest.middleware[page]
-  if (!pageInfo) {
-    throw pageNotFoundError(page)
-  }
-
-  return {
-    name: pageInfo.name,
-    paths: pageInfo.files.map((file) => join(params.distDir, file)),
-    env: pageInfo.env ?? [],
-    wasm: (pageInfo.wasm ?? []).map((binding) => ({
-      ...binding,
-      filePath: join(params.distDir, binding.filePath),
-    })),
-  }
 }

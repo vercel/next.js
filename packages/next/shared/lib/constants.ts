@@ -4,7 +4,7 @@ export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const VIEW_PATHS_MANIFEST = 'view-paths-manifest.json'
+export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
@@ -36,8 +36,8 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/middleware-flight-manifest.js
-export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/flight-manifest.js
+export const FLIGHT_MANIFEST = 'flight-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -68,3 +68,29 @@ export const OPTIMIZED_FONT_PROVIDERS = [
 ]
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+
+// comparing
+// https://nextjs.org/docs/api-reference/edge-runtime
+// with
+// https://nodejs.org/docs/latest/api/globals.html
+export const EDGE_UNSUPPORTED_NODE_APIS = [
+  'clearImmediate',
+  'setImmediate',
+  'BroadcastChannel',
+  'Buffer',
+  'ByteLengthQueuingStrategy',
+  'CompressionStream',
+  'CountQueuingStrategy',
+  'DecompressionStream',
+  'DomException',
+  'MessageChannel',
+  'MessageEvent',
+  'MessagePort',
+  'ReadableByteStreamController',
+  'ReadableStreamBYOBRequest',
+  'ReadableStreamDefaultController',
+  'TextDecoderStream',
+  'TextEncoderStream',
+  'TransformStreamDefaultController',
+  'WritableStreamDefaultController',
+]

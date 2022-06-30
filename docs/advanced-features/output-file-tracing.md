@@ -18,7 +18,7 @@ Next.js' production server is also traced for its needed files and output at `.n
 
 To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace which are relative to the `.nft.json` file and then copy them to your deployment location.
 
-## Automatically Copying Traced Files (experimental)
+## Automatically Copying Traced Files
 
 Next.js can automatically create a `standalone` folder which copies only the necessary files for a production deployment including select files in `node_modules`.
 
@@ -26,9 +26,7 @@ To leverage this automatic copying you can enable it in your `next.config.js`:
 
 ```js
 module.exports = {
-  experimental: {
-    outputStandalone: true,
-  },
+  output: 'standalone',
 }
 ```
 

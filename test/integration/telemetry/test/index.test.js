@@ -502,6 +502,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
+    expect(event1).toMatch(/"imageEnabled": true/)
+    expect(event1).toMatch(/"imageFutureEnabled": false/)
     expect(event1).toMatch(/"imageDomainsCount": 2/)
     expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
@@ -789,18 +791,10 @@ describe('Telemetry CLI', () => {
     expect(nextScriptWorkers).toContain(`"invocationCount": 1`)
   })
 
-  it('emits telemetry for usage of _middleware', async () => {
+  it('emits telemetry for usage of middleware', async () => {
     await fs.writeFile(
-      path.join(appDir, 'pages/ssg/_middleware.js'),
-      `export function middleware (evt) {
-        evt.respondWith(new Response(null))
-      }`
-    )
-    await fs.writeFile(
-      path.join(appDir, 'pages/_middleware.js'),
-      `export function middleware (evt) {
-        evt.respondWith(new Response(null))
-      }`
+      path.join(appDir, 'middleware.js'),
+      `export function middleware () { }`
     )
 
     const { stderr } = await nextBuild(appDir, [], {
@@ -808,11 +802,10 @@ describe('Telemetry CLI', () => {
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 
-    await fs.remove(path.join(appDir, 'pages/ssg/_middleware.js'))
-    await fs.remove(path.join(appDir, 'pages/_middleware.js'))
+    await fs.remove(path.join(appDir, 'middleware.js'))
 
     const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
     const optimizedEvt = regex.exec(stderr).pop()
-    expect(optimizedEvt).toContain(`"middlewareCount": 2`)
+    expect(optimizedEvt).toContain(`"middlewareCount": 1`)
   })
 })

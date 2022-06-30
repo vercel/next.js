@@ -7,7 +7,8 @@ LABEL repository="https://github.com/vercel/next-stats-action"
 COPY . /next-stats
 
 # Install node_modules
-RUN cd /next-stats && yarn install --production
+RUN npm i -g pnpm@7.2.1
+RUN cd /next-stats && pnpm install --production
 
 RUN git config --global user.email 'stats@localhost'
 RUN git config --global user.name 'next stats'

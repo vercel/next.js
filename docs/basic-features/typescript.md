@@ -28,7 +28,7 @@ npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
 # or
-pnpm create next-app -- --ts
+pnpm create next-app --ts
 ```
 
 ## Existing projects
@@ -64,7 +64,7 @@ npm run dev
 
 You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!
 
-> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it or edit it** as it can change at any time.
+> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it or edit it** as it can change at any time. As such this file should not be committed and should be ignored by version control.
 
 > TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
