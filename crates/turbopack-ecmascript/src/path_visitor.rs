@@ -154,20 +154,40 @@ mod tests {
             dbg!(arr_span);
             dbg!(baz_span);
 
-            let mut map = HashMap::<_, Vec<_>>::default();
-
-            let bar_span_vec = vec![bar_span];
-            let bar_replacer = replacer("bar", "bar-success");
             {
-                let e = map.entry(expr_span).or_default();
+                let mut map = HashMap::<_, Vec<_>>::default();
 
-                e.push((&bar_span_vec, &bar_replacer));
+                let bar_span_vec = vec![bar_span];
+                let bar_replacer = replacer("bar", "bar-success");
+                {
+                    let e = map.entry(expr_span).or_default();
+
+                    e.push((&bar_span_vec, &bar_replacer));
+                }
+
+                let mut m = m.clone();
+                m.visit_mut_with(&mut ApplyVisitors::new(map));
+
+                let s = format!("{:?}", m);
+                assert!(s.contains("bar-success"));
             }
 
-            m.visit_mut_with(&mut ApplyVisitors::new(map));
+            {
+                let mut map = HashMap::<_, Vec<_>>::default();
 
-            if true {
-                panic!("{:?}", m)
+                let wrong_span_vec = vec![baz_span];
+                let bar_replacer = replacer("bar", "bar-success");
+                {
+                    let e = map.entry(expr_span).or_default();
+
+                    e.push((&wrong_span_vec, &bar_replacer));
+                }
+
+                let mut m = m.clone();
+                m.visit_mut_with(&mut ApplyVisitors::new(map));
+
+                let s = format!("{:?}", m);
+                assert!(!s.contains("bar-success"));
             }
 
             Ok(())
