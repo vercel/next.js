@@ -33,13 +33,8 @@ impl<'a> ApplyVisitors<'a> {
     {
         let span = n.span();
 
-        dbg!(type_name::<N>());
-        dbg!(&self.index, span);
-
         if let Some(children) = self.visitors.get(&span) {
             for child in children.iter() {
-                dbg!(&child.0);
-
                 if self.index == child.0.len() - 1 {
                     if child.0.last() == Some(&span) {
                         n.visit_mut_with(&mut child.1());
