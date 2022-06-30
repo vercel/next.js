@@ -1,10 +1,9 @@
-use std::any::type_name;
-use std::collections::HashMap;
+use std::{any::type_name, collections::HashMap};
 
 use swc_common::{Span, Spanned};
 use swc_ecmascript::{
     ast::*,
-    visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
+    visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith},
 };
 
 pub type AstPath = Vec<Span>;
@@ -77,6 +76,25 @@ impl VisitMut for ApplyVisitors<'_> {
     method!(visit_mut_pat, Pat);
     method!(visit_mut_stmt, Stmt);
     method!(visit_mut_module_decl, ModuleDecl);
+}
+
+pub struct VisitWithPath<V>
+where
+    V: CreateVisitorFn,
+{
+    spans: Vec<Span>,
+    creator: V,
+}
+
+pub trait CreateVisitorFn {
+    fn create_visitor_fn(&mut self, ast_path: &[Span]) -> VisitorFn;
+}
+
+impl<V> Visit for VisitWithPath<V>
+where
+    V: CreateVisitorFn,
+{
+    noop_visit_type!();
 }
 
 #[cfg(test)]
