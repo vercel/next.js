@@ -808,4 +808,54 @@ describe('Telemetry CLI', () => {
     const optimizedEvt = regex.exec(stderr).pop()
     expect(optimizedEvt).toContain(`"middlewareCount": 1`)
   })
+
+  it('emits telemetry for usage of swc plugins', async () => {
+    await fs.remove(path.join(appDir, 'next.config.js'))
+    await fs.remove(path.join(appDir, 'package.json'))
+
+    await fs.rename(
+      path.join(appDir, 'next.config.swc-plugins'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    await fs.rename(
+      path.join(appDir, 'package.swc-plugins'),
+      path.join(appDir, 'package.json')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    console.log(stderr)
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.swc-plugins')
+    )
+
+    await fs.rename(
+      path.join(appDir, 'package.json'),
+      path.join(appDir, 'package.swc-plugins')
+    )
+
+    const regex = /NEXT_SWC_PLUGIN_DETECTED[\s\S]+?{([\s\S]+?)}/g
+
+    const coverage = regex.exec(stderr).pop()
+    expect(coverage).toContain(
+      `"packageName": "swc-plugin-coverage-instrument"`
+    )
+    expect(coverage).toContain(`"packageVersion": "0.0.6"`)
+
+    const relay = regex.exec(stderr).pop()
+    expect(relay).toContain(`"packageName": "@swc/plugin-relay"`)
+    expect(relay).toContain(`"packageVersion": "0.2.0"`)
+
+    const absolute = regex.exec(stderr).pop()
+    expect(absolute).toContain(
+      `"packageName": "/test/absolute_path/plugin.wasm"`
+    )
+    expect(absolute).not.toContain(`packageVersion`)
+  })
 })
