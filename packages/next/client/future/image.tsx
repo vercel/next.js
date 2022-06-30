@@ -228,13 +228,13 @@ function generateImgAttrs({
 }
 
 function getInt(x: unknown): number | undefined {
-  if (typeof x === 'number') {
+  if (typeof x === 'number' || typeof x === 'undefined') {
     return x
   }
-  if (typeof x === 'string') {
+  if (typeof x === 'string' && /^[0-9]+$/.test(x)) {
     return parseInt(x, 10)
   }
-  return undefined
+  return NaN
 }
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
@@ -382,12 +382,22 @@ export default function Image({
         )}`
       )
     }
-    if (
-      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
-      (typeof heightInt !== 'undefined' && isNaN(heightInt))
-    ) {
+    if (typeof widthInt === 'undefined') {
       throw new Error(
-        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+        `Image with src "${src}" is missing required "width" property.`
+      )
+    } else if (isNaN(widthInt)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
+      )
+    }
+    if (typeof heightInt === 'undefined') {
+      throw new Error(
+        `Image with src "${src}" is missing required "height" property.`
+      )
+    } else if (isNaN(heightInt)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
       )
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -677,7 +687,7 @@ const ImageElement = ({
           }
         }}
       />
-      {(isLazy || placeholder === 'blur') && (
+      {placeholder === 'blur' && (
         <noscript>
           <img
             {...rest}

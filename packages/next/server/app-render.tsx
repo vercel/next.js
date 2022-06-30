@@ -180,13 +180,20 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const writable = transformStream.writable
-  const ServerComponentWrapper = (props: any) => {
-    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <ComponentToRender {...props} />,
-      serverComponentManifest
-    )
+  let RSCStream: ReadableStream<Uint8Array>
+  const createRSCStream = () => {
+    if (!RSCStream) {
+      RSCStream = renderToReadableStream(
+        <ComponentToRender />,
+        serverComponentManifest
+      )
+    }
+    return RSCStream
+  }
 
+  const writable = transformStream.writable
+  const ServerComponentWrapper = () => {
+    const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
       cachePrefix,

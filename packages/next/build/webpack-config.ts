@@ -480,6 +480,12 @@ export default async function getBaseWebpackConfig(
             supportedBrowsers: config.experimental.browsersListForSwc
               ? supportedBrowsers
               : undefined,
+            swcCacheDir: path.join(
+              dir,
+              config?.distDir ?? '.next',
+              'cache',
+              'swc'
+            ),
           },
         }
       : {
@@ -672,6 +678,10 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
+      '@swc/helpers': path.dirname(
+        require.resolve('@swc/helpers/package.json')
+      ),
+
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(isClient || isEdgeServer
@@ -808,6 +818,12 @@ export default async function getBaseWebpackConfig(
       if (notExternalModules.test(request)) {
         return
       }
+    }
+
+    // @swc/helpers should not be external as it would
+    // require hoisting the package which we can't rely on
+    if (request.includes('@swc/helpers')) {
+      return
     }
 
     // When in esm externals mode, and using import, we resolve with
@@ -1493,9 +1509,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
           config.devIndicators.buildActivityPosition
         ),
-        'process.env.__NEXT_PLUGINS': JSON.stringify(
-          config.experimental.plugins
-        ),
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
@@ -1519,7 +1532,6 @@ export default async function getBaseWebpackConfig(
           path: config.images.path,
           loader: config.images.loader,
           experimentalUnoptimized: config?.experimental?.images?.unoptimized,
-          experimentalLayoutRaw: config.experimental?.images?.layoutRaw,
           experimentalFuture: config.experimental?.images?.allowFutureImage,
           ...(dev
             ? {
@@ -1806,9 +1818,7 @@ export default async function getBaseWebpackConfig(
     buildActivity: config.devIndicators.buildActivity,
     buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
-    plugins: config.experimental.plugins,
     reactStrictMode: config.reactStrictMode,
-    reactMode: config.experimental.reactMode,
     optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,

@@ -68,6 +68,26 @@ describe('Production Usage', () => {
     await killApp(app)
   })
 
+  it('should navigate through history after query update', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.next.router.push("/about?a=b")')
+    await browser.waitForElementByCss('.about-page')
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+
+    await browser.refresh()
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+    await browser.back()
+    await browser.waitForElementByCss('.index-page')
+    await browser.forward()
+    await browser.waitForElementByCss('.about-page')
+    await browser.back()
+    await browser.waitForElementByCss('.index-page')
+    await browser.refresh()
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+    await browser.forward()
+    await browser.waitForElementByCss('.about-page')
+  })
+
   it('should not show target deprecation warning', () => {
     expect(output).not.toContain(
       'The `target` config is deprecated and will be removed in a future version'

@@ -61,11 +61,11 @@ function runTests() {
     await check(
       () =>
         browser.eval(`document.getElementById("external-image").currentSrc`),
-      /placeholder.com/
+      'https://image-optimization-test.vercel.app/test.jpg'
     )
     await check(
       () => browser.elementById('internal-image').getAttribute('src'),
-      /test\.png/
+      '/test.png'
     )
     await check(
       () => browser.elementById('static-image').getAttribute('src'),
@@ -73,11 +73,11 @@ function runTests() {
     )
     await check(
       () => browser.elementById('external-image').getAttribute('src'),
-      /https:\/\/via\.placeholder\.com\/800\/000\/FFF\.png\?text=test/
+      'https://image-optimization-test.vercel.app/test.jpg'
     )
     await check(
       () => browser.elementById('eager-image').getAttribute('src'),
-      /test\.webp/
+      '/test.webp'
     )
 
     expect(
