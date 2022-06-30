@@ -404,7 +404,8 @@ export const SP = typeof performance !== 'undefined'
 export const ST =
   SP &&
   typeof performance.mark === 'function' &&
-  typeof performance.measure === 'function'
+  typeof performance.measure === 'function' &&
+  typeof performance.getEntriesByName === 'function'
 
 export class DecodeError extends Error {}
 export class NormalizeError extends Error {}
