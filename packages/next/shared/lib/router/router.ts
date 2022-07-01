@@ -1857,8 +1857,9 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
+      let flightInfo
       if (routeInfo.__N_RSC) {
-        props.pageProps = Object.assign(props.pageProps, {
+        flightInfo = {
           __flight__: useStreamedFlightData
             ? (
                 await this._getData(() =>
@@ -1877,9 +1878,10 @@ export default class Router implements BaseRouter {
                 )
               ).data
             : props.__flight__,
-        })
+        }
       }
 
+      props.pageProps = Object.assign({}, props.pageProps, flightInfo)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
