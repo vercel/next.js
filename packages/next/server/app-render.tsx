@@ -374,30 +374,6 @@ export async function renderToHTML(
 
     const actualSegment = segmentParam ? segmentParam.value : segment
 
-    // When this segment does not have a layout or page render the children without wrapping in a layout router
-    if (!Component) {
-      const { Component: Children } = createComponentTree({
-        createSegmentPath: (child) => {
-          return createSegmentPath([actualSegment, 'children', ...child])
-        },
-        tree: parallelRoutes.children,
-        parentParams: currentParams,
-      })
-      // If the segment has a loading.js still wrap with a loading component
-      if (Loading) {
-        return {
-          Component: () => (
-            <React.Suspense fallback={<Loading />}>
-              <Children />
-            </React.Suspense>
-          ),
-        }
-      }
-      return {
-        Component: Children,
-      }
-    }
-
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
       (list, currentValue) => {
@@ -432,6 +408,13 @@ export async function renderToHTML(
       },
       {} as { [key: string]: React.ReactNode }
     )
+
+    // When the segment does not have a layout/page we still have to add the layout router to ensure the path holds the loading component
+    if (!Component) {
+      return {
+        Component: () => <>{parallelRouteComponents.children}</>,
+      }
+    }
 
     const segmentPath = createSegmentPath([actualSegment])
     const dataCacheKey = JSON.stringify(segmentPath)
@@ -520,18 +503,19 @@ export async function renderToHTML(
 
   if (isFlight) {
     // TODO: throw on invalid flightRouterState
-    // TODO: throw on invalid flightRouterState
-    // TODO: throw on invalid flightRouterState
     const walkTreeWithFlightRouterState = (
       treeToFilter: LoaderTree,
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): FlightDataPath => {
       const [segment, parallelRoutes] = treeToFilter
+      const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const renderComponentsOnThisLevel =
         !flightRouterState ||
         segment !== flightRouterState[0] ||
+        // Last item in the tree
+        parallelRoutesKeys.length === 0 ||
         // Explicit refresh
         flightRouterState[3] === 'refetch'
 
@@ -551,7 +535,7 @@ export async function renderToHTML(
         ]
       }
 
-      for (const parallelRouteKey of Object.keys(parallelRoutes)) {
+      for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
         const path = walkTreeWithFlightRouterState(
           parallelRoute,

@@ -13,7 +13,6 @@ const fillCacheWithNewSubTreeData = (
 ) => {
   // TODO: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
-
   const [parallelRouteKey, segment] = flightDataPath
 
   const existingChildSegmentMap =
@@ -352,7 +351,9 @@ export function reducer(
       }
       const root = cache.data.readRoot()
       console.log('ROOT FROM PUSH', root)
-      // TODO: FIX
+      // TODO: This causes an infinite loop
+      // The reason seems to be that in the other case we check if subTreeData was already written but in this case we don't. This causes it to start the fetch again
+      // Maybe it needs another variable passed in for this case that can be mutated so that we fetch only once.
       // cache.data = null
 
       // TODO: ensure flightDataPath does not have "" as first item
@@ -376,6 +377,7 @@ export function reducer(
 
       fillCacheWithNewSubTreeData(cache, state.cache, path.slice(1))
       console.log('CACHE', {
+        path,
         flightDataPath: path.slice(1),
         cache,
         previousCache: state.cache,
