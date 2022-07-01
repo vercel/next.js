@@ -251,7 +251,15 @@ export function reducer(
   action:
     | {
         type: 'navigate'
-        payload: { url: URL; cacheType: 'soft' | 'hard'; cache: CacheNode }
+        payload: {
+          url: URL
+          cacheType: 'soft' | 'hard'
+          cache: CacheNode
+          mutable: {
+            previousTree: FlightRouterState
+            patchedTree: FlightRouterState
+          }
+        }
       }
     | { type: 'restore'; payload: { url: URL; historyState: HistoryState } }
     | {
@@ -277,7 +285,7 @@ export function reducer(
   }
 
   if (action.type === 'navigate') {
-    const { url, cacheType, cache } = action.payload
+    const { url, cacheType, cache, mutable } = action.payload
     const { pathname } = url
     // TODO: include hash
     const href = url.pathname + url.search
@@ -341,6 +349,15 @@ export function reducer(
         }
       }
 
+      if (mutable.patchedTree && mutable.previousTree === state.tree) {
+        return {
+          canonicalUrl: href,
+          pushRef: { pendingPush: true },
+          cache: cache,
+          tree: mutable.patchedTree,
+        }
+      }
+
       if (!cache.data) {
         cache.data = fetchServerResponse(url, state.tree)
       }
@@ -362,6 +379,9 @@ export function reducer(
         state.tree,
         treePatch
       )
+
+      mutable.previousTree = state.tree
+      mutable.patchedTree = newTree
 
       fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
       console.log('CACHE', {

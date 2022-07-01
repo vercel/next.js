@@ -82,6 +82,7 @@ export default function AppRouter({
             subTreeData: null,
             parallelRoutes: new Map(),
           },
+          mutable: {},
         },
       })
     }
