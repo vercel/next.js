@@ -367,6 +367,7 @@ export async function renderToHTML(
       : undefined
 
     const segmentParam = getDynamicParamFromSegment(segment)
+
     const currentParams = segmentParam
       ? {
           ...parentParams,
@@ -511,15 +512,26 @@ export async function renderToHTML(
     // TODO: throw on invalid flightRouterState
     const walkTreeWithFlightRouterState = (
       treeToFilter: LoaderTree,
+      parentParams: { [key: string]: any },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): FlightDataPath => {
       const [segment, parallelRoutes] = treeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
+      const segmentParam = getDynamicParamFromSegment(segment)
+      const actualSegment = segmentParam ? segmentParam.value : segment
+
+      const currentParams = segmentParam
+        ? {
+            ...parentParams,
+            [segmentParam.param]: segmentParam.value,
+          }
+        : parentParams
+
       const renderComponentsOnThisLevel =
         !flightRouterState ||
-        segment !== flightRouterState[0] ||
+        actualSegment !== flightRouterState[0] ||
         // Last item in the tree
         parallelRoutesKeys.length === 0 ||
         // Explicit refresh
@@ -527,7 +539,7 @@ export async function renderToHTML(
 
       if (!parentRendered && renderComponentsOnThisLevel) {
         return [
-          segment,
+          actualSegment,
           createFlightRouterStateFromLoaderTree(treeToFilter),
           React.createElement(
             createComponentTree(
@@ -535,7 +547,7 @@ export async function renderToHTML(
               {
                 createSegmentPath: (child) => child,
                 tree: treeToFilter,
-                parentParams: {},
+                parentParams: currentParams,
                 firstItem: true,
               }
             ).Component
@@ -547,21 +559,24 @@ export async function renderToHTML(
         const parallelRoute = parallelRoutes[parallelRouteKey]
         const path = walkTreeWithFlightRouterState(
           parallelRoute,
+          currentParams,
           flightRouterState && flightRouterState[1][parallelRouteKey],
           parentRendered || renderComponentsOnThisLevel
         )
 
         if (typeof path[path.length - 1] !== 'string') {
-          return [segment, parallelRouteKey, ...path]
+          return [actualSegment, parallelRouteKey, ...path]
         }
       }
 
-      return [segment]
+      return [actualSegment]
     }
 
     const flightData: FlightData = [
       // TODO: change walk to output without ''
-      walkTreeWithFlightRouterState(tree, providedFlightRouterState).slice(1),
+      walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
+        1
+      ),
     ]
 
     return new RenderResult(
