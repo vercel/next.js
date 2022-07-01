@@ -1,4 +1,10 @@
-module.exports = {
+const path = require('path')
+const withReactChannel = require(path.join(
+  __dirname,
+  '../../../lib/with-react-channel.js'
+))
+
+module.exports = withReactChannel('exp', {
   reactStrictMode: true,
   onDemandEntries: {
     maxInactiveAge: 1000 * 60 * 60,
@@ -9,4 +15,4 @@ module.exports = {
     runtime: 'nodejs',
     serverComponents: true,
   },
-}
+})

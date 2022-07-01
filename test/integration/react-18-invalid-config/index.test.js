@@ -11,7 +11,7 @@ import {
 } from 'next-test-utils'
 
 const appDir = __dirname
-const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
+const nodeArgs = ['-r', join(appDir, '../../lib/react-channel-require-hook.js')]
 const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const documentPage = new File(join(appDir, 'pages/_document.js'))
@@ -41,8 +41,10 @@ Document.getInitialProps = (ctx) => {
 function writeNextConfig(config, reactVersion = 17) {
   const content = `
     const path = require('path')
-    const withReact = ${reactVersion} === 18 ? v => v : require(path.join(__dirname, '../../lib/with-react-17.js'))
-    module.exports = withReact({ experimental: ${JSON.stringify(config)} })
+    const withReactChannel = ${reactVersion} === 18 ? v => v : require(path.join(__dirname, '../../lib/with-react-channel.js'))
+    module.exports = withReactChannel(17, { experimental: ${JSON.stringify(
+      config
+    )} })
   `
   nextConfig.write(content)
 }
@@ -52,7 +54,11 @@ describe('Invalid react 18 webpack config', () => {
     writeNextConfig({
       runtime: 'experimental-edge',
     })
-    const { stderr } = await nextBuild(appDir, [], { stderr: true, nodeArgs })
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      nodeArgs,
+      env: { __NEXT_REACT_CHANNEL: '17' },
+    })
     nextConfig.restore()
 
     expect(stderr).toContain(
@@ -79,6 +85,9 @@ describe('React 17 with React 18 config', () => {
     const { stderr, code } = await nextBuild(appDir, [], {
       stderr: true,
       nodeArgs,
+      env: {
+        __NEXT_REACT_CHANNEL: '17',
+      },
     })
     expect(stderr).toContain(
       'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
