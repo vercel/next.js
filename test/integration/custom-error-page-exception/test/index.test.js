@@ -13,6 +13,7 @@ describe('Custom error page exception', () => {
   beforeAll(async () => {
     await nextBuild(appDir, undefined, {
       nodeArgs,
+      env: { __NEXT_REACT_CHANNEL: '17' },
     })
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
