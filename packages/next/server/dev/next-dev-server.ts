@@ -337,9 +337,8 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
