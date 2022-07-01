@@ -366,7 +366,7 @@ export function reducer(
       // TODO: This causes an infinite loop
       // The reason seems to be that in the other case we check if subTreeData was already written but in this case we don't. This causes it to start the fetch again
       // Maybe it needs another variable passed in for this case that can be mutated so that we fetch only once.
-      // cache.data = null
+      cache.data = null
 
       // TODO: ensure flightDataPath does not have "" as first item
       const flightDataPath = root[0]
