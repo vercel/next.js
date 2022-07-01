@@ -12,7 +12,7 @@ import {
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
 
-let infinitePromise: Promise<void>
+let infinitePromise: Promise<void> | Error
 
 function equalArray(a: any[], b: any[]) {
   return a.length === b.length && a.every((val, i) => val === b[i])
@@ -168,7 +168,7 @@ export function InnerLayoutRouter({
       })
       // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
       if (!infinitePromise)
-        infinitePromise = new Promise((resolve, reject) => {
+        infinitePromise = new Promise((resolve) => {
           setTimeout(() => {
             infinitePromise = new Error('Infinite promise')
             resolve()
