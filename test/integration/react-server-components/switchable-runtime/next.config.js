@@ -1,13 +1,7 @@
-const path = require('path')
-const withReactChannel = require(path.join(
-  __dirname,
-  '../../../lib/with-react-channel.js'
-))
-
-module.exports = withReactChannel('exp', {
+module.exports = {
   reactStrictMode: true,
   experimental: {
     serverComponents: true,
     // runtime: 'experimental-edge',
   },
-})
+}

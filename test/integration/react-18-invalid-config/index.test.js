@@ -38,21 +38,16 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
-function writeNextConfig(reactVersion, config) {
-  const rv = JSON.stringify(reactVersion)
+function writeNextConfig(config) {
   const content = `
-    const path = require('path')
-    const withReactChannel = ${rv} === '18' ? ((v, conf) => conf) : require(path.join(__dirname, '../../lib/with-react-channel.js'))
-    module.exports = withReactChannel(${rv}, { experimental: ${JSON.stringify(
-    config
-  )} })
+    module.exports = { experimental: ${JSON.stringify(config)} }
   `
   nextConfig.write(content)
 }
 
 describe('Invalid react 18 webpack config', () => {
   it('should install react 18 when `experimental.runtime` is enabled', async () => {
-    writeNextConfig('17', {
+    writeNextConfig({
       runtime: 'experimental-edge',
     })
     const { stderr } = await nextBuild(appDir, [], {
@@ -75,7 +70,7 @@ describe('React 17 with React 18 config', () => {
       join(reactDomPackagePah, 'package.json'),
       JSON.stringify({ name: 'react-dom', version: '17.0.0' })
     )
-    writeNextConfig('17', {})
+    writeNextConfig({})
   })
   afterAll(async () => {
     await fs.remove(reactDomPackagePah)
@@ -111,7 +106,7 @@ const documentSuite = {
     }
   },
   beforeAll: async () => {
-    writeNextConfig('exp', {
+    writeNextConfig({
       serverComponents: true,
     })
     documentPage.write(documentWithGip)
