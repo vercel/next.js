@@ -2,7 +2,6 @@ use anyhow::Result;
 use swc_ecmascript::ast::Lit;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
-
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContextVc,
@@ -15,7 +14,6 @@ use self::{
     parse::{WebpackRuntime, WebpackRuntimeVc},
     references::module_references,
 };
-
 use super::resolve::apply_cjs_specific_options;
 
 pub mod parse;

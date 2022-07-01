@@ -1,16 +1,13 @@
 #![feature(trivial_bounds)]
 #![feature(hash_drain_filter)]
 #![feature(into_future)]
+#![feature(min_specialization)]
 #![feature(iter_advance_by)]
 
 pub mod glob;
 mod invalidator_map;
 mod read_glob;
 pub mod util;
-
-use read_glob::read_glob;
-pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
-use serde::{Deserialize, Serialize};
 
 #[cfg(unix)]
 use std::io::Read;
@@ -34,9 +31,12 @@ use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use json::{parse, JsonValue};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use read_glob::read_glob;
+pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::StringVc, spawn_blocking, spawn_thread, trace::TraceRawVcs, CompletionVc,
-    Invalidator, ValueToString,
+    Invalidator, ValueToString, ValueToStringVc,
 };
 use util::{join_path, normalize_path};
 
@@ -487,7 +487,7 @@ impl FileSystem for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(ValueToString)]
 #[derive(Debug)]
 pub struct FileSystemPath {
     pub fs: FileSystemVc,

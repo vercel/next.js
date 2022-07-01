@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkGroupVc, ChunkableAssetVc, ChunkingContextVc},
@@ -7,7 +7,7 @@ use turbopack_core::{
 
 use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};
 
-#[turbo_tasks::value(EcmascriptChunkItem)]
+#[turbo_tasks::value(EcmascriptChunkItem, ValueToString)]
 pub struct ChunkGroupLoaderChunkItem {
     asset: ChunkableAssetVc,
 }

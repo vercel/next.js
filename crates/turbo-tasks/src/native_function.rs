@@ -1,14 +1,16 @@
-use crate::{
-    self as turbo_tasks, registry::register_function, task_input::TaskInput, util::SharedError,
-    RawVc,
-};
-use anyhow::Result;
 use std::{
     fmt::Debug,
     future::Future,
     hash::Hash,
     pin::Pin,
     sync::atomic::{AtomicUsize, Ordering},
+};
+
+use anyhow::Result;
+
+use crate::{
+    self as turbo_tasks, registry::register_function, task_input::TaskInput, util::SharedError,
+    RawVc,
 };
 
 type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;

@@ -1,13 +1,10 @@
-use std::fmt::Display;
-use std::sync::Arc;
-use std::{future::Future, pin::Pin, task::Poll};
+use std::{fmt::Display, future::Future, pin::Pin, sync::Arc, task::Poll};
 
 use anyhow::Error;
 
-pub use super::id_factory::IdFactory;
-pub use super::infinite_vec::InfiniteVec;
-pub use super::no_move_vec::NoMoveVec;
-pub use super::once_map::*;
+pub use super::{
+    id_factory::IdFactory, infinite_vec::InfiniteVec, no_move_vec::NoMoveVec, once_map::*,
+};
 
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]

@@ -1,6 +1,7 @@
+use std::{fmt::Debug, hash::Hash, ops::Deref};
+
 use flurry::HashMap;
 use lazy_static::lazy_static;
-use std::{fmt::Debug, hash::Hash, ops::Deref};
 
 use crate::{
     id::{FunctionId, TraitTypeId, ValueTypeId},

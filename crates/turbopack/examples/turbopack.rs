@@ -1,23 +1,25 @@
 #![feature(trivial_bounds)]
 #![feature(once_cell)]
 #![feature(into_future)]
+#![feature(min_specialization)]
 
-use std::fs;
-use std::time::Instant;
-use std::{env::current_dir, time::Duration};
+use std::{
+    env::current_dir,
+    fs,
+    time::{Duration, Instant},
+};
+
 use tokio::{spawn, time::sleep};
 use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{
     stats::Stats,
     viz::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::rebase::RebasedAssetVc;
-use turbopack::{emit, register, GraphOptionsVc};
+use turbopack::{emit, rebase::RebasedAssetVc, register, GraphOptionsVc};
 use turbopack_core::source_asset::SourceAssetVc;
 use turbopack_ecmascript::target::CompileTarget;
-
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 
 #[tokio::main]
 async fn main() {

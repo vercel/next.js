@@ -3,9 +3,8 @@ use std::{mem::take, sync::Arc};
 use anyhow::Result;
 use url::Url;
 
-use crate::target::CompileTargetVc;
-
 use super::{ConstantValue, JsValue, WellKnownFunctionKind, WellKnownObjectKind};
+use crate::target::CompileTargetVc;
 
 pub async fn replace_well_known(
     value: JsValue,

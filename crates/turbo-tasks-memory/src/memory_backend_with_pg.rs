@@ -15,8 +15,10 @@ use anyhow::{anyhow, Result};
 use concurrent_queue::ConcurrentQueue;
 use event_listener::{Event, EventListener};
 use turbo_tasks::{
-    backend::{Backend, PersistentTaskType, TransientTaskType},
-    backend::{BackgroundJobId, SlotContent, SlotMappings, TaskExecutionSpec},
+    backend::{
+        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
+        TransientTaskType,
+    },
     persisted_graph::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
         PersistedGraphApi, ReadTaskState, TaskData, TaskSlot,

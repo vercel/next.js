@@ -1,6 +1,4 @@
 use core::fmt;
-use mopa::mopafy;
-use serde::{de::DeserializeSeed, Deserialize, Serialize};
 use std::{
     any::{type_name, Any, TypeId},
     cmp::Ordering,
@@ -9,6 +7,9 @@ use std::{
     ops::DerefMut,
     sync::Arc,
 };
+
+use mopa::mopafy;
+use serde::{de::DeserializeSeed, Deserialize, Serialize};
 
 pub trait MagicAny: mopa::Any + Send + Sync {
     fn magic_any_arc(self: Arc<Self>) -> Arc<dyn Any + Sync + Send>;

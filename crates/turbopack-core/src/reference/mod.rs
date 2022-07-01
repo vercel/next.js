@@ -8,6 +8,15 @@ use crate::{
     resolve::{ResolveResult, ResolveResultVc},
 };
 
+/// A reference to one or multiple [Asset]s or other special things.
+/// There are a bunch of optional traits that can influence how these references
+/// are handled. e. g. [ChunkableAssetReference], [AsyncLoadableReference] or
+/// [ParallelChunkReference]
+///
+/// [Asset]: crate::asset::Asset
+/// [ChunkableAssetReference]: crate::chunk::ChunkableAssetReference
+/// [AsyncLoadableReference]: crate::chunk::AsyncLoadableReference
+/// [ParallelChunkReference]: crate::chunk::ParallelChunkReference
 #[turbo_tasks::value_trait]
 pub trait AssetReference {
     fn resolve_reference(&self) -> ResolveResultVc;
@@ -16,17 +25,24 @@ pub trait AssetReference {
     fn description(&self) -> StringVc;
 }
 
+/// Multiple [AssetReference]s
 #[turbo_tasks::value(transparent)]
 pub struct AssetReferences(Vec<AssetReferenceVc>);
 
 #[turbo_tasks::value_impl]
 impl AssetReferencesVc {
+    /// An empty list of [AssetReference]s
     #[turbo_tasks::function]
     pub fn empty() -> Self {
         AssetReferencesVc::slot(Vec::new())
     }
 }
 
+/// Aggregates all [Asset]s referenced by an [Asset]. [AssetReference]
+/// This does not include transitively references [Asset]s, but it includes
+/// primary and secondary [Asset]s referenced.
+///
+/// [Asset]: crate::asset::Asset
 #[turbo_tasks::function]
 pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     let references_set = asset.references().await?;
@@ -69,6 +85,9 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     Ok(AssetsVc::slot(assets))
 }
 
+/// Aggregates all [Asset]s referenced by an [Asset] including transitively
+/// referenced [Asset]s. This basically gives all [Asset]s in a subgraph
+/// starting from the passed [Asset].
 #[turbo_tasks::function]
 pub async fn all_assets(asset: AssetVc) -> Result<AssetsVc> {
     let mut queue = VecDeque::new();

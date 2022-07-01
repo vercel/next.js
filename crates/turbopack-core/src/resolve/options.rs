@@ -8,12 +8,11 @@ use turbo_tasks_fs::{
     FileSystemPathVc,
 };
 
-use crate::resolve::parse::RequestVc;
-
 use super::{
     prefix_tree::{PrefixTree, WildcardReplacable},
     ResolveResult, ResolveResultVc, SpecialType,
 };
+use crate::resolve::parse::RequestVc;
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]

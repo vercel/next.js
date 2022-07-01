@@ -263,8 +263,9 @@ impl GlobVc {
 
 #[cfg(test)]
 mod tests {
-    use super::Glob;
     use rstest::*;
+
+    use super::Glob;
 
     #[rstest]
     #[case::file("file.js", "file.js")]

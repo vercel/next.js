@@ -1,19 +1,18 @@
 #![feature(trivial_bounds)]
 #![feature(once_cell)]
 #![feature(into_future)]
+#![feature(min_specialization)]
+
+use std::{collections::BTreeMap, env::current_dir, time::Instant};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use std::time::Instant;
-use std::{collections::BTreeMap, env::current_dir};
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks::{NothingVc, TurboTasks};
-use turbo_tasks_memory::MemoryBackend;
-
+use turbo_tasks::{primitives::StringVc, NothingVc, TurboTasks};
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc,
     FileSystemVc,
 };
+use turbo_tasks_memory::MemoryBackend;
 
 #[tokio::main]
 async fn main() {

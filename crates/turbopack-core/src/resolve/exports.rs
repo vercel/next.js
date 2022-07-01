@@ -9,6 +9,9 @@ use super::{
     prefix_tree::{PrefixTree, PrefixTreeIterator, WildcardReplacable},
 };
 
+/// The result an "exports" or "imports" field describes. Can represent multiple
+/// alternatives, conditional result, ignored result (null mapping) and a plain
+/// result.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum ExportsValue {
     Alternatives(Vec<ExportsValue>),
@@ -67,6 +70,10 @@ impl WildcardReplacable for ExportsValue {
 }
 
 impl ExportsValue {
+    /// Walks the [ExportsValue] and adds results to the `target` vector. It
+    /// uses the `conditions` to skip or enter conditional results.
+    /// The state of conditions is stored within `condition_overrides`, which is
+    /// also exposed to the consumer.
     pub fn add_results<'a>(
         &'a self,
         conditions: &BTreeMap<String, ConditionValue>,
@@ -174,9 +181,11 @@ impl TryFrom<&JsonValue> for ExportsValue {
     }
 }
 
+/// Content of an "exports" field in a package.json
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportsField(PrefixTree<ExportsValue>);
 
+/// Content of an "imports" field in a package.json
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImportsField(PrefixTree<ExportsValue>);
 
@@ -211,12 +220,18 @@ impl TryFrom<&JsonValue> for ImportsField {
 }
 
 impl ExportsField {
+    /// Looks up a request string in the "exports" field. Returns an iterator of
+    /// matching requests. Usually only the first one is relevant, expect
+    /// when conditions doesn't match or only partially match.
     pub fn lookup<'a>(&'a self, request: &'a str) -> PrefixTreeIterator<'a, ExportsValue> {
         self.0.lookup(request)
     }
 }
 
 impl ImportsField {
+    /// Looks up a request string in the "imports" field. Returns an iterator of
+    /// matching requests. Usually only the first one is relevant, expect
+    /// when conditions doesn't match or only partially match.
     pub fn lookup<'a>(&'a self, request: &'a str) -> PrefixTreeIterator<'a, ExportsValue> {
         self.0.lookup(request)
     }

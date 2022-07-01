@@ -3,7 +3,6 @@ use std::hash::Hash;
 use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
-
 use turbopack_core::{
     asset::{Asset, AssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},

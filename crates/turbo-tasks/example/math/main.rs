@@ -1,6 +1,7 @@
 #![feature(trivial_bounds)]
 #![feature(once_cell)]
 #![feature(into_future)]
+#![feature(min_specialization)]
 
 use anyhow::Result;
 use tokio::task::{block_on, sleep, spawn};

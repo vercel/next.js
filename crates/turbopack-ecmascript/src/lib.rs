@@ -1,5 +1,6 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
+#![feature(min_specialization)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
@@ -14,13 +15,12 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
-use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc};
 use anyhow::Result;
 use chunk::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
 };
 use target::CompileTargetVc;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -30,6 +30,7 @@ use turbopack_core::{
 };
 
 use self::references::module_references;
+use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc};
 
 #[turbo_tasks::value(serialization: auto_for_input)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -39,7 +40,7 @@ pub enum ModuleAssetType {
     TypescriptDeclaration,
 }
 
-#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset)]
+#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -102,10 +103,7 @@ impl ChunkableAsset for ModuleAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
-        self_vc: ModuleAssetVc,
-        context: EcmascriptChunkContextVc,
-    ) -> EcmascriptChunkItemVc {
+    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
         ModuleChunkItemVc::slot(ModuleChunkItem {
             module: self_vc,
             context,
@@ -128,7 +126,7 @@ impl ValueToString for ModuleAsset {
 #[turbo_tasks::value(EcmascriptChunkItem)]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
-    context: EcmascriptChunkContextVc,
+    context: ChunkingContextVc,
 }
 
 #[turbo_tasks::value_impl]

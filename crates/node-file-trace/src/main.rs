@@ -1,7 +1,7 @@
+#![feature(min_specialization)]
+
 mod nft_json;
 
-use anyhow::{anyhow, Context, Result};
-use clap::Parser;
 use std::{
     collections::BTreeSet,
     env::current_dir,
@@ -12,6 +12,9 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+
+use anyhow::{anyhow, Context, Result};
+use clap::Parser;
 use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
@@ -30,13 +33,6 @@ use turbopack_core::{
 };
 
 use crate::nft_json::NftJsonAssetVc;
-
-#[cfg(feature = "persistent_cache")]
-use tokio::time::timeout;
-#[cfg(feature = "persistent_cache")]
-use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
-#[cfg(feature = "persistent_cache")]
-use turbo_tasks_rocksdb::RocksDbPersistedGraph;
 
 #[cfg(feature = "persistent_cache")]
 #[derive(clap::Args, Debug, Clone)]
@@ -223,6 +219,10 @@ async fn main() {
     } = args.common();
     #[cfg(feature = "persistent_cache")]
     if let Some(cache) = cache {
+        use tokio::time::timeout;
+        use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
+        use turbo_tasks_rocksdb::RocksDbPersistedGraph;
+
         run(
             &args,
             || {

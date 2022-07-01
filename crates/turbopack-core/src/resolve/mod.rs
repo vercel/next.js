@@ -19,6 +19,14 @@ use turbo_tasks_fs::{
     FileJsonContent, FileJsonContentVc, FileSystemEntryType, FileSystemPathVc,
 };
 
+use self::{
+    exports::{ExportsField, ExportsValue},
+    options::{
+        resolve_modules_options, ImportMapResult, ResolveIntoPackage, ResolveModules,
+        ResolveModulesOptionsVc, ResolveOptionsVc,
+    },
+    parse::{Request, RequestVc},
+};
 use crate::{
     asset::{AssetVc, AssetsVc},
     reference::{AssetReference, AssetReferenceVc},
@@ -27,15 +35,6 @@ use crate::{
         pattern::{read_matches, Pattern, PatternMatch, PatternVc},
     },
     source_asset::SourceAssetVc,
-};
-
-use self::{
-    exports::{ExportsField, ExportsValue},
-    options::{
-        resolve_modules_options, ImportMapResult, ResolveIntoPackage, ResolveModules,
-        ResolveModulesOptionsVc, ResolveOptionsVc,
-    },
-    parse::{Request, RequestVc},
 };
 
 mod exports;

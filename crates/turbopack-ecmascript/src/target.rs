@@ -192,11 +192,11 @@ impl CompileTarget {
 )]
 #[non_exhaustive]
 pub struct Target {
-    /// https://nodejs.org/api/os.html#osarch
+    /// <https://nodejs.org/api/os.html#osarch>
     pub arch: Arch,
-    /// https://nodejs.org/api/os.html#osplatform
+    /// <https://nodejs.org/api/os.html#osplatform>
     pub platform: Platform,
-    /// https://nodejs.org/api/os.html#endianness
+    /// <https://nodejs.org/api/os.html#endianness>
     pub endianness: Endianness,
     pub libc: Libc,
 }

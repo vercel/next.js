@@ -2,6 +2,7 @@
 #![feature(box_syntax)]
 #![feature(trivial_bounds)]
 #![feature(into_future)]
+#![feature(min_specialization)]
 #![feature(map_try_insert)]
 #![feature(option_get_or_insert_default)]
 #![feature(once_cell)]
@@ -22,11 +23,11 @@ use module_options::{
 use resolve::{resolve_options, typescript_resolve_options};
 use turbo_tasks::{primitives::BoolVc, CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::reference::all_referenced_assets;
-use turbopack_core::{asset::AssetVc, resolve::parse::RequestVc};
 use turbopack_core::{
+    asset::AssetVc,
     context::{AssetContext, AssetContextVc},
-    resolve::{options::ResolveOptionsVc, ResolveResultVc},
+    reference::all_referenced_assets,
+    resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
 };
 
 mod graph;
@@ -154,7 +155,8 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
             ModuleType::Css => turbopack_css::ModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), graph_options).into(),
-            ).into(),
+            )
+            .into(),
             ModuleType::Custom(_) => todo!(),
         },
     )

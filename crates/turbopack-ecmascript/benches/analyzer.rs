@@ -10,12 +10,14 @@ use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
 use swc_ecma_transforms_base::resolver;
 use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
 use turbo_tasks_testing::VcStorage;
-use turbopack_ecmascript::analyzer::{
-    graph::{create_graph, EvalContext},
-    linker::{link, LinkCache},
-    test_utils::visitor,
+use turbopack_ecmascript::{
+    analyzer::{
+        graph::{create_graph, EvalContext},
+        linker::{link, LinkCache},
+        test_utils::visitor,
+    },
+    target::CompileTarget,
 };
-use turbopack_ecmascript::target::CompileTarget;
 
 pub fn benchmark(c: &mut Criterion) {
     turbopack_ecmascript::register();

@@ -8,12 +8,11 @@ use swc_ecmascript::{
     visit::{Visit, VisitWith},
 };
 
+use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
 use crate::{
     analyzer::{is_unresolved, FreeVarKind},
     utils::unparen,
 };
-
-use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
 
 #[derive(Debug, Clone)]
 pub enum Effect {

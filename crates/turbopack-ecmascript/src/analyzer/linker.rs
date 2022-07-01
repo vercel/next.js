@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::{
     cmp::min,
     collections::{HashMap, HashSet},
@@ -6,6 +5,8 @@ use std::{
     mem::{swap, take},
     sync::{Arc, Mutex},
 };
+
+use anyhow::Result;
 use swc_ecmascript::utils::Id;
 
 use super::{graph::VarGraph, JsValue};

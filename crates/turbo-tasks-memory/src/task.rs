@@ -1,5 +1,3 @@
-use anyhow::Result;
-use event_listener::{Event, EventListener};
 #[cfg(feature = "report_expensive")]
 use std::time::Instant;
 use std::{
@@ -15,6 +13,9 @@ use std::{
         Mutex, RwLock,
     },
 };
+
+use anyhow::Result;
+use event_listener::{Event, EventListener};
 use tokio::task_local;
 use turbo_tasks::{
     backend::{PersistentTaskType, SlotMappings},

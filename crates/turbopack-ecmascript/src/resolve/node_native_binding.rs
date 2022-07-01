@@ -6,11 +6,6 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
-
-use crate::{
-    references::SourceAssetReferenceVc,
-    target::{CompileTargetVc, Platform},
-};
 use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReference, AssetReferenceVc},
@@ -19,6 +14,11 @@ use turbopack_core::{
         resolve_raw, AffectingResolvingAssetReferenceVc, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
+};
+
+use crate::{
+    references::SourceAssetReferenceVc,
+    target::{CompileTargetVc, Platform},
 };
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -1,27 +1,31 @@
-use std::fmt::Display;
-use std::io::Write;
-use std::mem::take;
-use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::{
+    fmt::Display,
+    io::Write,
+    mem::take,
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::{anyhow, Result};
-use swc_common::comments::{SingleThreadedComments, SingleThreadedCommentsMapInner};
-use swc_common::errors::{Handler, HANDLER};
-use swc_common::input::StringInput;
-use swc_common::sync::Lrc;
-use swc_common::{FileName, Globals, Mark, SourceMap, GLOBALS};
+use swc_common::{
+    comments::{SingleThreadedComments, SingleThreadedCommentsMapInner},
+    errors::{Handler, HANDLER},
+    input::StringInput,
+    sync::Lrc,
+    FileName, Globals, Mark, SourceMap, GLOBALS,
+};
 use swc_ecma_transforms_base::resolver;
-use swc_ecmascript::ast::{EsVersion, Program};
-use swc_ecmascript::parser::lexer::Lexer;
-use swc_ecmascript::parser::{EsConfig, Parser, Syntax, TsConfig};
-use swc_ecmascript::visit::VisitMutWith;
+use swc_ecmascript::{
+    ast::{EsVersion, Program},
+    parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
+    visit::VisitMutWith,
+};
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
-
-use crate::analyzer::graph::EvalContext;
 use turbopack_core::asset::AssetVc;
 
 use super::ModuleAssetType;
+use crate::analyzer::graph::EvalContext;
 
 #[turbo_tasks::value(shared, serialization: none, eq: manual)]
 pub enum ParseResult {

@@ -849,8 +849,9 @@ pub async fn read_matches(
 
 #[cfg(test)]
 mod tests {
-    use super::Pattern;
     use rstest::*;
+
+    use super::Pattern;
 
     #[test]
     fn normalize() {

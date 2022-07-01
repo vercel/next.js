@@ -1,9 +1,12 @@
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+
 use crate::{
     asset::{Asset, AssetVc},
     reference::AssetReferencesVc,
 };
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
+/// The raw [Asset]. It represents raw content from a path without any
+/// references to other [Asset]s.
 #[turbo_tasks::value(Asset)]
 pub struct SourceAsset {
     pub path: FileSystemPathVc,

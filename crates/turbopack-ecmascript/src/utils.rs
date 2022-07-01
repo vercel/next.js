@@ -1,7 +1,7 @@
 use swc_ecmascript::ast::Expr;
+use turbopack_core::resolve::pattern::Pattern;
 
 use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
-use turbopack_core::resolve::pattern::Pattern;
 
 pub fn unparen(expr: &Expr) -> &Expr {
     if let Some(expr) = expr.as_paren() {

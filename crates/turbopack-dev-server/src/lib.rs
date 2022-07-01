@@ -1,3 +1,5 @@
+#![feature(min_specialization)]
+
 pub mod fs;
 pub mod html;
 

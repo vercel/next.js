@@ -1,24 +1,13 @@
-use super::errors;
-use super::{utils::js_value_to_pattern, ModuleAssetType};
-use crate::analyzer::ObjectPart;
-use crate::analyzer::{
-    builtin::replace_builtin,
-    graph::{create_graph, Effect},
-    linker::{link, LinkCache},
-    well_known::replace_well_known,
-    ConstantValue, FreeVarKind, JsValue, WellKnownFunctionKind, WellKnownObjectKind,
-};
-use crate::target::CompileTargetVc;
-use anyhow::Result;
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::collections::HashSet;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
 };
+
+use anyhow::Result;
+use lazy_static::lazy_static;
+use regex::Regex;
 use swc_common::{
     comments::CommentKind,
     errors::{DiagnosticId, Handler, HANDLER},
@@ -31,10 +20,12 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::primitives::{BoolVc, StringVc};
-use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    util::try_join_all,
+    Value,
+};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack_core::reference::{AssetReference, AssetReferenceVc};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{
@@ -42,7 +33,7 @@ use turbopack_core::{
         ChunkableAssetReferenceVc,
     },
     context::AssetContextVc,
-    reference::AssetReferencesVc,
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{
         find_context_file,
         parse::RequestVc,
@@ -53,14 +44,28 @@ use turbopack_core::{
 };
 
 use super::{
+    errors,
     parse::{parse, Buffer, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
     special_cases::special_cases,
     typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
+    utils::js_value_to_pattern,
     webpack::{
         parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
     },
+    ModuleAssetType,
+};
+use crate::{
+    analyzer::{
+        builtin::replace_builtin,
+        graph::{create_graph, Effect},
+        linker::{link, LinkCache},
+        well_known::replace_well_known,
+        ConstantValue, FreeVarKind, JsValue, ObjectPart, WellKnownFunctionKind,
+        WellKnownObjectKind,
+    },
+    target::CompileTargetVc,
 };
 
 #[turbo_tasks::function]
@@ -623,8 +628,10 @@ pub(crate) async fn module_references(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
-                        use crate::analyzer::ConstantValue;
-                        use crate::resolve::node_native_binding::NodeGypBuildReferenceVc;
+                        use crate::{
+                            analyzer::ConstantValue,
+                            resolve::node_native_binding::NodeGypBuildReferenceVc,
+                        };
 
                         let args = linked_args().await?;
                         if args.len() == 1 {
@@ -653,8 +660,10 @@ pub(crate) async fn module_references(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings) => {
-                        use crate::analyzer::ConstantValue;
-                        use crate::resolve::node_native_binding::NodeBindingsReferenceVc;
+                        use crate::{
+                            analyzer::ConstantValue,
+                            resolve::node_native_binding::NodeBindingsReferenceVc,
+                        };
 
                         let args = linked_args().await?;
                         if args.len() == 1 {

@@ -1,7 +1,3 @@
-use crate::{
-    parse::{parse, Buffer, ParseResult},
-    ModuleAssetType,
-};
 use anyhow::Result;
 use swc_common::errors::{Handler, HANDLER};
 use swc_ecmascript::{
@@ -15,6 +11,10 @@ use turbopack_core::{
 };
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
+use crate::{
+    parse::{parse, Buffer, ParseResult},
+    ModuleAssetType,
+};
 
 #[turbo_tasks::function]
 pub async fn module_references(

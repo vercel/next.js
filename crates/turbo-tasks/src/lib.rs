@@ -1,6 +1,7 @@
 #![feature(backtrace)]
 #![feature(trivial_bounds)]
 #![feature(into_future)]
+#![feature(min_specialization)]
 #![feature(try_trait_v2)]
 #![feature(hash_drain_filter)]
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -48,7 +49,7 @@ pub use raw_vc::{
     ResolveTraitError,
 };
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
-pub use turbo_tasks_macros::{constructor, function, value, value_impl, value_trait};
+pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
 pub use value::Value;
 pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
 

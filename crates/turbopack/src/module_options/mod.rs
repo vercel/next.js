@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPathVc;
 

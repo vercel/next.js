@@ -16,7 +16,7 @@ use turbopack_core::{
 
 use self::loader::ChunkGroupLoaderChunkItemVc;
 
-#[turbo_tasks::value(Chunk, Asset)]
+#[turbo_tasks::value(Chunk, Asset, ValueToString)]
 pub struct EcmascriptChunk {
     context: ChunkingContextVc,
     /// must implement [EcmascriptChunkPlaceableVc] too

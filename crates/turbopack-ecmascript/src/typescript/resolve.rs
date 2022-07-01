@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::resolve::handle_resolve_error;
 use anyhow::Result;
 use json::JsonValue;
 use turbo_tasks::{primitives::StringVc, Value};
@@ -10,13 +9,17 @@ use turbopack_core::{
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
-        options::{ConditionValue, ResolveIntoPackage, ResolveModules, ResolveOptionsVc},
-        options::{ImportMap, ImportMapping},
+        options::{
+            ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
+            ResolveOptionsVc,
+        },
         parse::{Request, RequestVc},
         resolve, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
+
+use crate::resolve::handle_resolve_error;
 
 #[turbo_tasks::function]
 pub async fn apply_typescript_options(

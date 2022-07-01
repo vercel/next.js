@@ -11,7 +11,7 @@ bench = false
 [dependencies]
 any_key = "0.1.1"
 anyhow = "1.0.47"
-tokio = "1.11.0"
+tokio = { version = "1.11.0", features = ["full", "tracing"] }
 bitflags = "1.3.2"
 flurry = "0.4.0"
 event-listener = "2.5.2"
@@ -19,7 +19,7 @@ lazy_static = "1.4.0"
 turbo-tasks-macros = { path = "../turbo-tasks-macros" }
 weak-table = "0.3.2"
 mopa = "0.2.0"
-serde = "1.0.136"
+serde = { version = "1.0.136", features = ["rc", "derive"] }
 erased-serde = "0.3.20"
 thiserror = "1.0.31"
 

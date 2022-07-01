@@ -1,8 +1,6 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use turbo_tasks::TurboTasksBackendApi;
-
-use turbo_tasks::{backend::SlotContent, TaskId};
+use turbo_tasks::{backend::SlotContent, TaskId, TurboTasksBackendApi};
 
 #[derive(Default, Debug)]
 pub struct Slot {

@@ -1,6 +1,3 @@
-use anyhow::{anyhow, Result};
-use event_listener::EventListener;
-use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
     collections::HashMap,
@@ -10,6 +7,11 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::{anyhow, Result};
+use event_listener::EventListener;
+use serde::{Deserialize, Serialize};
+
+pub use crate::id::BackgroundJobId;
 use crate::{
     manager::TurboTasksBackendApi,
     registry,
@@ -17,8 +19,6 @@ use crate::{
     FunctionId, RawVc, RawVcReadResult, TaskId, TaskIdProvider, TaskInput, TraitTypeId,
     ValueTypeId,
 };
-
-pub use crate::id::BackgroundJobId;
 
 /// Different Task types
 pub enum TaskType {

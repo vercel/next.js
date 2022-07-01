@@ -8,7 +8,6 @@ use std::{
     sync::Arc,
 };
 
-pub(crate) use self::imports::ImportMap;
 use indexmap::IndexSet;
 use num_bigint::BigInt;
 use swc_atoms::{js_word, JsWord};
@@ -18,6 +17,8 @@ use swc_ecmascript::{
     utils::Id,
 };
 use url::Url;
+
+pub(crate) use self::imports::ImportMap;
 
 pub mod builtin;
 pub mod graph;
@@ -1870,13 +1871,13 @@ fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use std::sync::Arc;
 
+    use anyhow::Result;
+
     use super::{
         well_known::replace_well_known, FreeVarKind, JsValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     };
-    use crate::analyzer::builtin::replace_builtin;
-    use crate::target::CompileTargetVc;
-    use anyhow::Result;
+    use crate::{analyzer::builtin::replace_builtin, target::CompileTargetVc};
 
     pub async fn visitor(v: JsValue, target: CompileTargetVc) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
@@ -1927,13 +1928,12 @@ mod tests {
     use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
     use testing::NormalizedOutput;
 
-    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform, Target};
-
     use super::{
         graph::{create_graph, EvalContext},
         linker::{link, LinkCache},
         JsValue,
     };
+    use crate::target::{Arch, CompileTarget, Endianness, Libc, Platform, Target};
 
     #[testing::fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {

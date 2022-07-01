@@ -4,7 +4,6 @@ use anyhow::Result;
 use json::JsonValue;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
-
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContextVc,
@@ -12,11 +11,9 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
 };
 
-use crate::resolve::apply_cjs_specific_options;
-
 use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
-
 use super::resolve::cjs_resolve;
+use crate::resolve::apply_cjs_specific_options;
 
 #[turbo_tasks::value(Asset)]
 pub struct TsConfigModuleAsset {

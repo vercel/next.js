@@ -13,14 +13,20 @@ use crate::{
 
 #[derive(Serialize, Deserialize, TraceRawVcs)]
 enum LazyAssetState {
+    /// neither content() or references() was requested
     Idle,
+    /// references() was requested by content() wasn't
+    /// Once content() is requested the [Invalidator] should be invalidated when
+    /// state was changed to [LazyAssetState::Expanded]
     Waiting(Invalidator),
+    /// content() was requested. We don't store if references() was requested.
     Expanded,
 }
 
 /// Asset decorator that only expands references of an asset when the content
 /// has been read.
-#[turbo_tasks::value(Asset, eq: manual)]
+/// It does that by keeping some state. See [LazyAssetState]
+#[turbo_tasks::value(Asset, eq: manual, serialization: none)]
 pub struct LazyAsset {
     asset: AssetVc,
     state: Mutex<LazyAssetState>,
@@ -79,6 +85,8 @@ impl Asset for LazyAsset {
     }
 }
 
+/// An [AssetReference] decorator that wraps the resulting [Asset]s in a
+/// [LazyAsset]
 #[turbo_tasks::value(AssetReference)]
 struct LazyAssetReference {
     reference: AssetReferenceVc,
