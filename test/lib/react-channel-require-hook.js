@@ -3,14 +3,19 @@ const mod = require('module')
 // The value will be '17' or 'exp' to alias the actual react channel
 const reactVersion = process.env.__NEXT_REACT_CHANNEL
 
+const reactDir = `react-${reactVersion}`
+const reactDomDir = `react-dom-${reactVersion}`
+
 const hookPropertyMap = new Map([
-  ['react', `react-${reactVersion}`],
-  ['react/jsx-runtime', `react-${reactVersion}/jsx-runtime`],
-  ['react/jsx-dev-runtime', `react-${reactVersion}/jsx-dev-runtime`],
-  ['react-dom', `react-dom-${reactVersion}`],
-  ['react-dom/client', `react-dom-${reactVersion}/client`],
-  ['react-dom/server', `react-dom-${reactVersion}/server`],
-  ['react-dom/server.browser', `react-dom-${reactVersion}/server.browser`],
+  ['react', reactDir],
+  ['react/package.json', `${reactDir}/package.json`],
+  ['react/jsx-runtime', `${reactDir}/jsx-runtime`],
+  ['react/jsx-dev-runtime', `${reactDir}/jsx-dev-runtime`],
+  ['react-dom', `${reactDomDir}`],
+  ['react-dom/package.json', `${reactDomDir}/package.json`],
+  ['react-dom/client', `${reactDomDir}/client`],
+  ['react-dom/server', `${reactDomDir}/server`],
+  ['react-dom/server.browser', `${reactDomDir}/server.browser`],
 ])
 
 const resolveFilename = mod._resolveFilename
