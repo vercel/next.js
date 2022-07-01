@@ -6,7 +6,11 @@ import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type {
+  NextConfig,
+  NextConfigComplete,
+  ServerRuntime,
+} from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
@@ -18,6 +22,7 @@ import {
   NormalizeError,
   DecodeError,
   normalizeRepeatedSlashes,
+  MissingStaticPage,
 } from '../shared/lib/utils'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -172,7 +177,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
-    runtime?: 'nodejs' | 'edge'
+    runtime?: ServerRuntime
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
@@ -786,7 +791,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             _parsedUrl.query.__nextDefaultLocale =
               defaultLocale || this.nextConfig.i18n.defaultLocale
 
-            if (!detectedLocale) {
+            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
@@ -1810,7 +1815,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
-    return null
+    return false
   }
 
   private async renderToResponse(
@@ -1826,7 +1831,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // route correctly and not loaded immediately without parsing params.
       if (!isDynamicRoute(page)) {
         const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-        if (result) return result
+        if (result !== false) return result
       }
 
       if (this.dynamicRoutes) {
@@ -1847,11 +1852,31 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             },
             bubbleNoFallback
           )
-          if (result) return result
+          if (result !== false) return result
         }
       }
     } catch (error) {
       const err = getProperError(error)
+
+      if (error instanceof MissingStaticPage) {
+        console.error(
+          'Invariant: failed to load static page',
+          JSON.stringify(
+            {
+              page,
+              url: ctx.req.url,
+              matchedPath: ctx.req.headers['x-matched-path'],
+              initUrl: getRequestMeta(ctx.req, '__NEXT_INIT_URL'),
+              didRewrite: getRequestMeta(ctx.req, '_nextDidRewrite'),
+              rewroteUrl: getRequestMeta(ctx.req, '_nextRewroteUrl'),
+            },
+            null,
+            2
+          )
+        )
+        throw err
+      }
+
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }

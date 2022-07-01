@@ -23,12 +23,6 @@ const Page = () => {
         layout="fixed"
         placeholder="blur"
       />
-      <Image
-        id="basic-static-raw"
-        src={testImg}
-        layout="raw"
-        placeholder="blur"
-      />
       <TallImage />
       <Image
         id="defined-size-static"

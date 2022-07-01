@@ -1,7 +1,7 @@
 name: Validate issue
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
 
 jobs:
   validate:

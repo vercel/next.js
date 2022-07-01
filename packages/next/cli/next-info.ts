@@ -56,6 +56,7 @@ const nextInfo: cliCommand = async (argv) => {
       pnpm: ${getBinaryVersion('pnpm')}
     Relevant packages:
       next: ${installedRelease}
+      eslint-config-next: ${getPackageVersion('eslint-config-next')}
       react: ${getPackageVersion('react')}
       react-dom: ${getPackageVersion('react-dom')}
 `)

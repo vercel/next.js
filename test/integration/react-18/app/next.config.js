@@ -1,7 +1,7 @@
 module.exports = {
   // reactStrictMode: true,
   experimental: {
-    // runtime: 'edge',
+    // runtime: 'experimental-edge',
   },
   images: {
     deviceSizes: [480, 1024, 1600, 2000],

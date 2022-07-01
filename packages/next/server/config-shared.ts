@@ -8,7 +8,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -90,17 +90,14 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   profiling?: boolean
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
   optimizeCss?: boolean
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -112,14 +109,13 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
@@ -510,6 +506,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: false,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    runtime: undefined,
     manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
@@ -522,7 +519,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
@@ -543,11 +539,18 @@ export const defaultConfig: NextConfig = {
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     images: {
-      layoutRaw: false,
       remotePatterns: [],
     },
+    swcTraceProfiling: false,
     forceSwcTransforms: false,
+    swcPlugins: undefined,
+    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    disablePostcssPresetEnv: undefined,
+    amp: undefined,
+    urlImports: undefined,
+    middlewareSourceMaps: undefined,
+    modularizeImports: undefined,
   },
 }
 
