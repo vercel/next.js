@@ -657,7 +657,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
 
       react: `${reactDir}`,
-      ['react-dom']: `${reactDomDir}`,
+      'react-dom': `${reactDomDir}`,
 
       ...customAppAliases,
       ...customErrorAlias,
