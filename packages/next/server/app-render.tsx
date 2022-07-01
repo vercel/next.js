@@ -521,6 +521,7 @@ export async function renderToHTML(
 
       if (!parentRendered && renderComponentsOnThisLevel) {
         return [
+          segment,
           createFlightRouterStateFromLoaderTree(treeToFilter),
           React.createElement(
             createComponentTree(

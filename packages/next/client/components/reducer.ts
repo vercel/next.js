@@ -311,11 +311,6 @@ export function reducer(
       // TODO: flag on the tree of which part of the tree for if there is a loading boundary
       const isOptimistic = false
 
-      // TODO: hard push with optimistic tree
-      // - Build optimistic tree
-      // - Pass that in to fetch - if the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-      // - Fill in the cache with blank that holds the `data` field.
-      // Extra: implement refresh at the root level
       if (isOptimistic) {
         // Build optimistic tree
         // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
@@ -359,26 +354,17 @@ export function reducer(
       // TODO: ensure flightDataPath does not have "" as first item
       const flightDataPath = root[0]
 
-      const [treePatch, subTreeData] = flightDataPath.slice(-2)
-      const treePath = flightDataPath.slice(0, -2)
+      const [treePatch] = flightDataPath.slice(-2)
+      const treePath = flightDataPath.slice(0, -3)
       const newTree = walkTreeWithFlightDataPath(
         treePath,
         state.tree,
         treePatch
       )
 
-      // TODO: refactor path returned from the server
-      const path = [
-        ...flightDataPath.slice(0, -2),
-        treePatch[0],
-        treePatch,
-        subTreeData,
-      ]
-
-      fillCacheWithNewSubTreeData(cache, state.cache, path.slice(1))
+      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath.slice(1))
       console.log('CACHE', {
-        path,
-        flightDataPath: path.slice(1),
+        flightDataPath,
         cache,
         previousCache: state.cache,
       })
@@ -410,24 +396,16 @@ export function reducer(
     // TODO: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
-    const treePath = flightDataPath.slice(0, -2)
-    const [treePatch, subTreeData] = flightDataPath.slice(-2)
+    // TODO: Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
+    const treePath = flightDataPath.slice(0, -3)
+    const [treePatch] = flightDataPath.slice(-2)
 
-    // TODO: put the new tree into history?
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
-    // TODO: refactor path returned from the server
-    const path = [
-      ...flightDataPath.slice(0, -2),
-      treePatch[0],
-      treePatch,
-      subTreeData,
-    ]
-
     // TODO: update flightDataPath to not have "" as first item
-    fillCacheWithNewSubTreeData(cache, state.cache, path.slice(1))
+    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath.slice(1))
     console.log('CACHE', {
-      flightDataPath: path.slice(1),
+      flightDataPath,
       cache,
       previousCache: state.cache,
     })
