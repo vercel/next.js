@@ -357,12 +357,13 @@ export function reducer(
       const [treePatch] = flightDataPath.slice(-2)
       const treePath = flightDataPath.slice(0, -3)
       const newTree = walkTreeWithFlightDataPath(
-        treePath,
+        // TODO: remove ''
+        ['', ...treePath],
         state.tree,
         treePatch
       )
 
-      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath.slice(1))
+      fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
       console.log('CACHE', {
         flightDataPath,
         cache,
@@ -403,7 +404,7 @@ export function reducer(
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
     // TODO: update flightDataPath to not have "" as first item
-    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath.slice(1))
+    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
     console.log('CACHE', {
       flightDataPath,
       cache,

@@ -353,10 +353,12 @@ export async function renderToHTML(
     createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
     parentParams,
+    firstItem,
   }: {
     createSegmentPath: CreateSegmentPath
     tree: LoaderTree
     parentParams: { [key: string]: any }
+    firstItem?: boolean
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
@@ -379,7 +381,11 @@ export async function renderToHTML(
       (list, currentValue) => {
         const { Component: ChildComponent } = createComponentTree({
           createSegmentPath: (child) => {
-            return createSegmentPath([actualSegment, currentValue, ...child])
+            return createSegmentPath(
+              firstItem
+                ? [currentValue, ...child]
+                : [actualSegment, currentValue, ...child]
+            )
           },
           tree: parallelRoutes[currentValue],
           parentParams: currentParams,
@@ -398,7 +404,9 @@ export async function renderToHTML(
         list[currentValue] = (
           <LayoutRouter
             parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath([actualSegment, currentValue])}
+            segmentPath={createSegmentPath(
+              firstItem ? [currentValue] : [actualSegment, currentValue]
+            )}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
           />
@@ -530,6 +538,7 @@ export async function renderToHTML(
                 createSegmentPath: (child) => child,
                 tree: treeToFilter,
                 parentParams: {},
+                firstItem: true,
               }
             ).Component
           ),
@@ -553,7 +562,8 @@ export async function renderToHTML(
     }
 
     const flightData: FlightData = [
-      walkTreeWithFlightRouterState(tree, providedFlightRouterState),
+      // TODO: change walk to output without ''
+      walkTreeWithFlightRouterState(tree, providedFlightRouterState).slice(1),
     ]
 
     return new RenderResult(
@@ -574,6 +584,7 @@ export async function renderToHTML(
     createSegmentPath: (child) => child,
     tree,
     parentParams: {},
+    firstItem: true,
   })
 
   const AppRouter = ComponentMod.AppRouter
