@@ -134,17 +134,19 @@ export function InnerLayoutRouter({
 
   if (childNode.data) {
     // TODO: error case
-    const root = childNode.data.readRoot()
-    console.log('LAYOUT ROOT', root)
+    const flightData = childNode.data.readRoot()
+    console.log('LAYOUT ROOT', flightData)
 
     let fastPath: boolean = false
     // segmentPath matches what came back from the server. This is the happy path.
-    if (root.length === 1) {
-      if (pathMatches(root[0], segmentPath)) {
+    if (flightData.length === 1) {
+      const flightDataPath = flightData[0]
+
+      if (pathMatches(flightDataPath, segmentPath)) {
         childNode.data = null
         // Last item is the subtreeData
         // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
-        const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
+        const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
         childNode.subTreeData = subTreeData
         childNode.parallelRoutes = new Map()
         fastPath = true
@@ -161,7 +163,7 @@ export function InnerLayoutRouter({
         // @ts-ignore TODO: startTransition exists
         React.startTransition(() => {
           // TODO: handle redirect
-          changeByServerResponse(fullTree, root)
+          changeByServerResponse(fullTree, flightData)
         })
       })
       // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.

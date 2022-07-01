@@ -395,8 +395,8 @@ export function reducer(
   if (action.type === 'server-patch') {
     const { flightData, previousTree, cache } = action.payload
     if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
-      console.log('TREE MISMATCH')
       // TODO: Handle tree mismatch
+      console.log('TREE MISMATCH')
       return {
         canonicalUrl: state.canonicalUrl,
         pushRef: state.pushRef,
@@ -413,7 +413,6 @@ export function reducer(
 
     // TODO: put the new tree into history?
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
-    console.log('NEW TREE', { newTree })
 
     // TODO: refactor path returned from the server
     const path = [
