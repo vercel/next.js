@@ -1012,7 +1012,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeAppPath(entry)] = entry
+      appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes
   }
