@@ -379,13 +379,13 @@ export async function renderToHTML(
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
       (list, currentValue) => {
+        const currentSegmentPath = firstItem
+          ? [currentValue]
+          : [actualSegment, currentValue]
+
         const { Component: ChildComponent } = createComponentTree({
           createSegmentPath: (child) => {
-            return createSegmentPath(
-              firstItem
-                ? [currentValue, ...child]
-                : [actualSegment, currentValue, ...child]
-            )
+            return createSegmentPath([...currentSegmentPath, ...child])
           },
           tree: parallelRoutes[currentValue],
           parentParams: currentParams,
@@ -404,9 +404,7 @@ export async function renderToHTML(
         list[currentValue] = (
           <LayoutRouter
             parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath(
-              firstItem ? [currentValue] : [actualSegment, currentValue]
-            )}
+            segmentPath={createSegmentPath(currentSegmentPath)}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
           />
