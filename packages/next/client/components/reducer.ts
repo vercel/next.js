@@ -212,7 +212,7 @@ const walkTreeWithFlightDataPath = (
   // Tree path returned from the server should always match up with the current tree in the browser
   // TODO: verify
   if (segment !== currentSegment) {
-    throw new Error('TREE MISMATCH')
+    throw new Error('SEGMENT MISMATCH')
   }
 
   const lastSegment = flightSegmentPath.length === 2
