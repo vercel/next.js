@@ -139,17 +139,17 @@ export function InnerLayoutRouter({
 
     let fastPath: boolean = false
     // segmentPath matches what came back from the server. This is the happy path.
-    // if (root.length === 1) {
-    //   if (pathMatches(root[0], segmentPath)) {
-    //     childNode.data = null
-    //     // Last item is the subtreeData
-    //     // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
-    //     const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
-    //     childNode.subTreeData = subTreeData
-    //     childNode.parallelRoutes = new Map()
-    //     fastPath = true
-    //   }
-    // }
+    if (root.length === 1) {
+      if (pathMatches(root[0], segmentPath)) {
+        childNode.data = null
+        // Last item is the subtreeData
+        // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
+        const [, /* routerTreePatch */ subTreeData] = root[0].slice(-2)
+        childNode.subTreeData = subTreeData
+        childNode.parallelRoutes = new Map()
+        fastPath = true
+      }
+    }
 
     if (!fastPath) {
       // For push we can set data in the cache
@@ -187,7 +187,8 @@ export function InnerLayoutRouter({
       value={{
         tree: tree[1][parallelRouterKey],
         childNodes: childNode.parallelRoutes,
-        url: tree[2] ?? url,
+        // TODO: overriding of url for parallel routes
+        url: url,
       }}
     >
       {childNode.subTreeData}

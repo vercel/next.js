@@ -71,76 +71,48 @@ export default function AppRouter({
   )
 
   const appRouter = React.useMemo<AppRouterInstance>(() => {
+    const navigate = (href: string, cacheType: 'hard' | 'soft') => {
+      return dispatch({
+        type: 'navigate',
+        payload: {
+          url: new URL(href, location.origin),
+          cacheType: cacheType,
+          cache: {
+            data: null,
+            subTreeData: null,
+            parallelRoutes: new Map(),
+          },
+        },
+      })
+    }
+
     const routerInstance: AppRouterInstance = {
       // TODO: implement prefetching of loading / flight
       prefetch: (_href) => Promise.resolve(),
       replace: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          dispatch({
-            type: 'navigate',
-            payload: {
-              url: new URL(href, location.origin),
-              cacheType: 'hard',
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-            },
-          })
+          // TODO: replace case shouldn't push url
+          navigate(href, 'hard')
         })
       },
       softReplace: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          // window.history[method]({ tree: null }, '', href)
-          dispatch({
-            type: 'navigate',
-            payload: {
-              url: new URL(href, location.origin),
-              cacheType: 'soft',
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-            },
-          })
+          // TODO: replace case shouldn't push url
+          navigate(href, 'soft')
         })
       },
       softPush: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          dispatch({
-            type: 'navigate',
-            payload: {
-              url: new URL(href, location.origin),
-              cacheType: 'soft',
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-            },
-          })
+          navigate(href, 'soft')
         })
       },
       push: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          dispatch({
-            type: 'navigate',
-            payload: {
-              url: new URL(href, location.origin),
-              cacheType: 'hard',
-              cache: {
-                data: null,
-                subTreeData: null,
-                parallelRoutes: new Map(),
-              },
-            },
-          })
+          navigate(href, 'hard')
         })
       },
     }
@@ -148,7 +120,6 @@ export default function AppRouter({
     return routerInstance
   }, [])
 
-  console.log('RENDER', { tree, pushRef, canonicalUrl })
   useEffect(() => {
     console.log('UPDATE URL', pushRef.pendingPush ? 'push' : 'replace', tree)
     if (pushRef.pendingPush) {
@@ -209,7 +180,7 @@ export default function AppRouter({
             childNodes: cache.parallelRoutes,
             tree: tree,
             // Root node always has `url`
-            url: tree[2] as string,
+            url: canonicalUrl,
           }}
         >
           {children}

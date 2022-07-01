@@ -316,19 +316,16 @@ export async function renderToHTML(
     return { param: segmentParam, value: pathParams[segmentParam] }
   }
 
-  const createFlightRouterStateFromLoaderTree = (
-    [segment, parallelRoutes]: LoaderTree,
-    url?: string
-  ): FlightRouterState => {
+  const createFlightRouterStateFromLoaderTree = ([
+    segment,
+    parallelRoutes,
+  ]: LoaderTree): FlightRouterState => {
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
       dynamicParam ? dynamicParam.value : segment,
       {},
     ]
-    if (url) {
-      segmentTree.push(url)
-    }
 
     if (parallelRoutes) {
       segmentTree[1] = Object.keys(parallelRoutes).reduce(
@@ -575,13 +572,10 @@ export async function renderToHTML(
     )
   }
 
-  // TODO: this path is incorrect with dynamic routes
-  const initialCanonicalUrl = pathname + (search ? `?${search}` : '')
+  // TODO: validate req.url as it gets passed to render.
+  const initialCanonicalUrl = req.url
 
-  const initialTree = createFlightRouterStateFromLoaderTree(
-    tree,
-    pathname + (search ? `?${search}` : '')
-  )
+  const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
   const { Component: ComponentTree } = createComponentTree({
     createSegmentPath: (child) => child,
