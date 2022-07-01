@@ -119,7 +119,7 @@ import { isAuthValid } from './lib/auth'
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
-  if (isAuthValid(req)) {
+  if (isAuthValid(request)) {
     return NextResponse.next()
   }
 
@@ -137,7 +137,7 @@ import { isAuthValid } from './lib/auth'
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
-  if (isAuthValid(req)) {
+  if (isAuthValid(request)) {
     return NextResponse.next()
   }
 
