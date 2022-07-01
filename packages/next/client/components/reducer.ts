@@ -284,7 +284,7 @@ export function reducer(
 
     const segments = pathname.split('/')
     // TODO: figure out something better for index pages
-    segments.push('page')
+    segments.push('')
 
     // In case of soft push data fetching happens in layout-router if a segment is missing
     if (cacheType === 'soft') {
