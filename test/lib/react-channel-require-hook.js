@@ -8,6 +8,7 @@ const hookPropertyMap = new Map([
   ['react/jsx-runtime', `react-${reactVersion}/jsx-runtime`],
   ['react/jsx-dev-runtime', `react-${reactVersion}/jsx-dev-runtime`],
   ['react-dom', `react-dom-${reactVersion}`],
+  ['react-dom/client', `react-${reactVersion}/client`],
   ['react-dom/server', `react-dom-${reactVersion}/server`],
   ['react-dom/server.browser', `react-dom-${reactVersion}/server.browser`],
 ])

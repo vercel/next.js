@@ -38,20 +38,21 @@ Document.getInitialProps = (ctx) => {
 }
 `
 
-function writeNextConfig(config, reactVersion = 17) {
+function writeNextConfig(reactVersion, config) {
+  const rv = JSON.stringify(reactVersion)
   const content = `
     const path = require('path')
-    const withReactChannel = ${reactVersion} === 18 ? v => v : require(path.join(__dirname, '../../lib/with-react-channel.js'))
-    module.exports = withReactChannel(17, { experimental: ${JSON.stringify(
-      config
-    )} })
+    const withReactChannel = ${rv} === '18' ? ((v, conf) => conf) : require(path.join(__dirname, '../../lib/with-react-channel.js'))
+    module.exports = withReactChannel(${rv}, { experimental: ${JSON.stringify(
+    config
+  )} })
   `
   nextConfig.write(content)
 }
 
 describe('Invalid react 18 webpack config', () => {
   it('should install react 18 when `experimental.runtime` is enabled', async () => {
-    writeNextConfig({
+    writeNextConfig('17', {
       runtime: 'experimental-edge',
     })
     const { stderr } = await nextBuild(appDir, [], {
@@ -74,7 +75,7 @@ describe('React 17 with React 18 config', () => {
       join(reactDomPackagePah, 'package.json'),
       JSON.stringify({ name: 'react-dom', version: '17.0.0' })
     )
-    writeNextConfig({})
+    writeNextConfig('17', {})
   })
   afterAll(async () => {
     await fs.remove(reactDomPackagePah)
@@ -110,12 +111,9 @@ const documentSuite = {
     }
   },
   beforeAll: async () => {
-    writeNextConfig(
-      {
-        serverComponents: true,
-      },
-      18
-    )
+    writeNextConfig('exp', {
+      serverComponents: true,
+    })
     documentPage.write(documentWithGip)
     await fs.rename(indexPage, indexServerPage)
   },
@@ -123,6 +121,9 @@ const documentSuite = {
     documentPage.delete()
     nextConfig.restore()
     await fs.rename(indexServerPage, indexPage)
+  },
+  env: {
+    __NEXT_REACT_CHANNEL: 'exp',
   },
 }
 
