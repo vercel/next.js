@@ -149,7 +149,6 @@ export default function AppRouter({
       dispatch({
         type: 'restore',
         payload: {
-          // TODO: fix location
           url: new URL(window.location.href),
           historyState: state,
         },

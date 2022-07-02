@@ -274,7 +274,7 @@ export function reducer(
   console.log(action.type, action.payload)
   if (action.type === 'restore') {
     const { url, historyState } = action.payload
-    const href = url.pathname + url.search
+    const href = url.pathname + url.search + url.hash
 
     return {
       canonicalUrl: href,
@@ -287,8 +287,7 @@ export function reducer(
   if (action.type === 'navigate') {
     const { url, cacheType, cache, mutable } = action.payload
     const { pathname } = url
-    // TODO: include hash
-    const href = url.pathname + url.search
+    const href = url.pathname + url.search + url.hash
 
     const segments = pathname.split('/')
     // TODO: figure out something better for index pages
@@ -366,9 +365,6 @@ export function reducer(
       }
       const root = cache.data.readRoot()
       console.log('ROOT FROM PUSH', root)
-      // TODO: This causes an infinite loop
-      // The reason seems to be that in the other case we check if subTreeData was already written but in this case we don't. This causes it to start the fetch again
-      // Maybe it needs another variable passed in for this case that can be mutated so that we fetch only once.
       cache.data = null
 
       // TODO: ensure flightDataPath does not have "" as first item
@@ -420,7 +416,7 @@ export function reducer(
     // TODO: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
-    // TODO: Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
+    // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
     const treePath = flightDataPath.slice(0, -3)
     const [treePatch] = flightDataPath.slice(-2)
 

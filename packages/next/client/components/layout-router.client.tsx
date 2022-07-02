@@ -160,7 +160,7 @@ export function InnerLayoutRouter({
       childNode.data = null
 
       setTimeout(() => {
-        // @ts-ignore TODO: startTransition exists
+        // @ts-ignore startTransition exists
         React.startTransition(() => {
           // TODO: handle redirect
           changeByServerResponse(fullTree, flightData)

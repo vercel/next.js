@@ -577,11 +577,9 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(
-        // TODO: update `children` to be the children to replace on the client-side
-        flightData,
-        serverComponentManifest
-      ).pipeThrough(createBufferedTransformStream())
+      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
+        createBufferedTransformStream()
+      )
     )
   }
 
