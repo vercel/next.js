@@ -36,3 +36,6 @@ yarn-error.log*
 # lingui
 locale/_build
 locale/*/*.js
+
+# cache
+*.swc/

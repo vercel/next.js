@@ -37,3 +37,6 @@ pnpm-lock.yaml
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

@@ -44,3 +44,6 @@ lib/graphql-operations.ts
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

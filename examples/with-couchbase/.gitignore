@@ -31,3 +31,6 @@ yarn-error.log*
 
 # IDE Files
 .idea/
+
+# cache
+*.swc/

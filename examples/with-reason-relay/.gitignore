@@ -39,3 +39,6 @@ schema/schema.graphql
 lib/
 .merlin
 *.bs.js
+
+# cache
+*.swc/

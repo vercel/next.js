@@ -35,3 +35,6 @@ yarn-error.log*
 
 # Linaria
 .linaria-cache/
+
+# cache
+*.swc/

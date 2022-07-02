@@ -38,3 +38,6 @@ public/svg
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

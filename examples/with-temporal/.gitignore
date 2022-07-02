@@ -38,3 +38,6 @@ temporal/lib
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

@@ -35,3 +35,6 @@ yarn-error.log*
 
 # cssed compilation artifacts
 .*.module.css
+
+# cache
+*.swc/

@@ -38,3 +38,6 @@ convex/_generated
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

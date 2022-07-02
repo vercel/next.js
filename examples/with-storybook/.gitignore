@@ -38,3 +38,6 @@ storybook-static
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

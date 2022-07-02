@@ -37,3 +37,6 @@ compiled-lang
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

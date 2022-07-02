@@ -30,3 +30,6 @@
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

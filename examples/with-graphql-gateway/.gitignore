@@ -35,3 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 
 .mesh/
+
+# cache
+*.swc/

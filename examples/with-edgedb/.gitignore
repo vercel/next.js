@@ -39,3 +39,6 @@ dbschema/edgeql-js
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/

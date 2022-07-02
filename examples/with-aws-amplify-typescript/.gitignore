@@ -53,3 +53,6 @@ amplifytools.xcconfig
 
 # typescript
 *.tsbuildinfo
+
+# cache
+*.swc/
