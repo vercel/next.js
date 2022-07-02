@@ -767,6 +767,7 @@ function runSuite(suiteName, context, options) {
         const { stdout, stderr, code } = await nextBuild(appDir, [], {
           stderr: true,
           stdout: true,
+          env: options.env || {},
         })
         context.stdout = stdout
         context.stderr = stderr
@@ -774,12 +775,14 @@ function runSuite(suiteName, context, options) {
         context.server = await nextStart(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await launchApp(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
         })
       }
     })
@@ -797,7 +800,7 @@ function runSuite(suiteName, context, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runDevSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'dev' }, options)
@@ -807,7 +810,7 @@ export function runDevSuite(suiteName, appDir, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)
