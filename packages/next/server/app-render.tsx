@@ -428,7 +428,6 @@ export async function renderToHTML(
     let fetcher: any
 
     // TODO: pass a shared cache from previous getStaticProps/getServerSideProps calls?
-    // TODO: update parameters particular to layout
     if (layoutOrPageMod.getServerSideProps) {
       fetcher = () =>
         Promise.resolve(
@@ -442,7 +441,6 @@ export async function renderToHTML(
             // ...(pageIsDynamic
             //   ? { params: (renderOpts as any).params as ParsedUrlQuery }
             //   : undefined),
-            // TODO: dynamic params need to be passed in based on the segment
             ...(pageIsDynamic ? { params: currentParams } : undefined),
             ...(isPreview
               ? { preview: true, previewData: previewData }
@@ -454,7 +452,6 @@ export async function renderToHTML(
         )
     }
     // TODO: implement layout specific caching for getStaticProps
-    // TODO: update parameters particular to layout
     if (layoutOrPageMod.getStaticProps) {
       fetcher = () =>
         Promise.resolve(
@@ -462,7 +459,7 @@ export async function renderToHTML(
             // ...(pageIsDynamic
             //   ? { params: query as ParsedUrlQuery }
             //   : undefined),
-            // TODO: dynamic params
+            // TODO: dynamic params come from `query` in getStaticProps, currently reads from `params`.
             ...(pageIsDynamic ? { params: currentParams } : undefined),
             ...(isPreview
               ? { preview: true, previewData: previewData }
