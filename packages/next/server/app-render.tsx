@@ -320,7 +320,7 @@ export async function renderToHTML(
       return null
     }
 
-    // TODO: handle case where value is an array
+    // @ts-expect-error TODO:  handle case where value is an array
     return { param: segmentParam, value: pathParams[segmentParam] }
   }
 
