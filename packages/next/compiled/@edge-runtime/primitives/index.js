@@ -1,39 +1,12 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __spreadValues = (a, b) => {
-  for (var prop in b || (b = {}))
-    if (__hasOwnProp.call(b, prop))
-      __defNormalProp(a, prop, b[prop]);
-  if (__getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(b)) {
-      if (__propIsEnum.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    }
-  return a;
-};
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-var __objRest = (source, exclude) => {
-  var target = {};
-  for (var prop in source)
-    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
-      target[prop] = source[prop];
-  if (source != null && __getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(source)) {
-      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
-        target[prop] = source[prop];
-    }
-  return target;
-};
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -67,6 +40,7 @@ var __privateAdd = (obj, member, value) => {
 // src/constants.js
 var require_constants = __commonJS({
   "src/constants.js"(exports, module2) {
+    "use strict";
     module2.exports.ENUMERABLE_PROPERTIES = [
       "AbortController",
       "AbortSignal",
@@ -170,6 +144,7 @@ var require_constants = __commonJS({
 // src/utils.js
 var require_utils = __commonJS({
   "src/utils.js"(exports, module2) {
+    "use strict";
     var CONSTANTS = require_constants();
     function defineEnumerableProperty(obj, key, value) {
       if (!CONSTANTS.ENUMERABLE_PROPERTIES.includes(key)) {
@@ -917,6 +892,7 @@ var require_cjs = __commonJS({
 // src/polyfills/base64.js
 var require_base64 = __commonJS({
   "src/polyfills/base64.js"(exports, module2) {
+    "use strict";
     module2.exports.atob = (enc) => Buffer.from(enc, "base64").toString("binary");
     module2.exports.btoa = (str) => Buffer.from(str, "binary").toString("base64");
   }
@@ -3488,6 +3464,7 @@ var require_cjs2 = __commonJS({
 // src/polyfills/buffer.js
 var require_buffer = __commonJS({
   "src/polyfills/buffer.js"(exports, module2) {
+    "use strict";
     var buffer = require_buffer();
     buffer.Blob = require_cjs2().Blob;
     module2.exports = buffer;
@@ -4098,10 +4075,11 @@ function HexBlock(BaseClass) {
       return this.valueHexView.byteLength === this.valueHexView.buffer.byteLength ? this.valueHexView.buffer : this.valueHexView.slice().buffer;
     }
     toJSON() {
-      return __spreadProps(__spreadValues({}, super.toJSON()), {
+      return {
+        ...super.toJSON(),
         isHexOnly: this.isHexOnly,
         valueHex: Convert.ToHex(this.valueHexView)
-      });
+      };
     }
   }, "Some"), _a2.NAME = "hexBlock", _a2;
 }
@@ -4971,11 +4949,12 @@ var init_index_es2 = __esm({
         return inputOffset + this.blockLength;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           tagClass: this.tagClass,
           tagNumber: this.tagNumber,
           isConstructed: this.isConstructed
-        });
+        };
       }
     };
     __name(LocalIdentificationBlock, "LocalIdentificationBlock");
@@ -5069,19 +5048,19 @@ var init_index_es2 = __esm({
         return retBuf;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           isIndefiniteForm: this.isIndefiniteForm,
           longFormUsed: this.longFormUsed,
           length: this.length
-        });
+        };
       }
     };
     __name(LocalLengthBlock, "LocalLengthBlock");
     LocalLengthBlock.NAME = "lengthBlock";
     typeStore = {};
     BaseBlock = class extends LocalBaseBlock {
-      constructor(_a2 = {}, valueBlockType) {
-        var _b = _a2, { name = EMPTY_STRING, optional = false, primitiveSchema } = _b, parameters = __objRest(_b, ["name", "optional", "primitiveSchema"]);
+      constructor({ name = EMPTY_STRING, optional = false, primitiveSchema, ...parameters } = {}, valueBlockType) {
         super(parameters);
         this.name = name;
         this.optional = optional;
@@ -5130,13 +5109,14 @@ var init_index_es2 = __esm({
         return EMPTY_BUFFER;
       }
       toJSON() {
-        const object = __spreadProps(__spreadValues({}, super.toJSON()), {
+        const object = {
+          ...super.toJSON(),
           idBlock: this.idBlock.toJSON(),
           lenBlock: this.lenBlock.toJSON(),
           valueBlock: this.valueBlock.toJSON(),
           name: this.name,
           optional: this.optional
-        });
+        };
         if (this.primitiveSchema)
           object.primitiveSchema = this.primitiveSchema.toJSON();
         return object;
@@ -5166,8 +5146,7 @@ var init_index_es2 = __esm({
     BaseBlock.NAME = "BaseBlock";
     __name(prepareIndefiniteForm, "prepareIndefiniteForm");
     BaseStringBlock = class extends BaseBlock {
-      constructor(_a2 = {}, stringValueBlockType) {
-        var _b = _a2, { value = EMPTY_STRING } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value = EMPTY_STRING, ...parameters } = {}, stringValueBlockType) {
         super(parameters, stringValueBlockType);
         if (value) {
           this.fromString(value);
@@ -5201,8 +5180,7 @@ var init_index_es2 = __esm({
     __name(BaseStringBlock, "BaseStringBlock");
     BaseStringBlock.NAME = "BaseStringBlock";
     LocalPrimitiveValueBlock = class extends HexBlock(ValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { isHexOnly = true } = _b, parameters = __objRest(_b, ["isHexOnly"]);
+      constructor({ isHexOnly = true, ...parameters } = {}) {
         super(parameters);
         this.isHexOnly = isHexOnly;
       }
@@ -5226,8 +5204,7 @@ var init_index_es2 = __esm({
     __name(fromBER, "fromBER");
     __name(checkLen, "checkLen");
     LocalConstructedValueBlock = class extends ValueBlock {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value = [], isIndefiniteForm = false } = _b, parameters = __objRest(_b, ["value", "isIndefiniteForm"]);
+      constructor({ value = [], isIndefiniteForm = false, ...parameters } = {}) {
         super(parameters);
         this.value = value;
         this.isIndefiniteForm = isIndefiniteForm;
@@ -5278,10 +5255,11 @@ var init_index_es2 = __esm({
         return EMPTY_BUFFER;
       }
       toJSON() {
-        const object = __spreadProps(__spreadValues({}, super.toJSON()), {
+        const object = {
+          ...super.toJSON(),
           isIndefiniteForm: this.isIndefiniteForm,
           value: []
-        });
+        };
         for (const value of this.value) {
           object.value.push(value.toJSON());
         }
@@ -5392,8 +5370,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     Null.NAME = "NULL";
     LocalBooleanValueBlock = class extends HexBlock(ValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value, ...parameters } = {}) {
         super(parameters);
         if (parameters.valueHex) {
           this.valueHexView = BufferSourceConverter.toUint8Array(parameters.valueHex);
@@ -5432,9 +5409,10 @@ ${values.join("\n")}` : `${blockName} :`;
         return this.valueHexView.slice();
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           value: this.value
-        });
+        };
       }
     };
     __name(LocalBooleanValueBlock, "LocalBooleanValueBlock");
@@ -5462,8 +5440,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     Boolean2.NAME = "BOOLEAN";
     LocalOctetStringValueBlock = class extends HexBlock(LocalConstructedValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { isConstructed = false } = _b, parameters = __objRest(_b, ["isConstructed"]);
+      constructor({ isConstructed = false, ...parameters } = {}) {
         super(parameters);
         this.isConstructed = isConstructed;
       }
@@ -5502,26 +5479,29 @@ ${values.join("\n")}` : `${blockName} :`;
         return sizeOnly ? new ArrayBuffer(this.valueHexView.byteLength) : this.valueHexView.slice().buffer;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           isConstructed: this.isConstructed
-        });
+        };
       }
     };
     __name(LocalOctetStringValueBlock, "LocalOctetStringValueBlock");
     LocalOctetStringValueBlock.NAME = "OctetStringValueBlock";
     OctetString = class extends BaseBlock {
-      constructor(_a2 = {}) {
-        var _b = _a2, { idBlock = {}, lenBlock = {} } = _b, parameters = __objRest(_b, ["idBlock", "lenBlock"]);
-        var _b2, _c;
-        (_b2 = parameters.isConstructed) !== null && _b2 !== void 0 ? _b2 : parameters.isConstructed = !!((_c = parameters.value) === null || _c === void 0 ? void 0 : _c.length);
-        super(__spreadValues({
-          idBlock: __spreadValues({
-            isConstructed: parameters.isConstructed
-          }, idBlock),
-          lenBlock: __spreadProps(__spreadValues({}, lenBlock), {
+      constructor({ idBlock = {}, lenBlock = {}, ...parameters } = {}) {
+        var _b, _c;
+        (_b = parameters.isConstructed) !== null && _b !== void 0 ? _b : parameters.isConstructed = !!((_c = parameters.value) === null || _c === void 0 ? void 0 : _c.length);
+        super({
+          idBlock: {
+            isConstructed: parameters.isConstructed,
+            ...idBlock
+          },
+          lenBlock: {
+            ...lenBlock,
             isIndefiniteForm: !!parameters.isIndefiniteForm
-          })
-        }, parameters), LocalOctetStringValueBlock);
+          },
+          ...parameters
+        }, LocalOctetStringValueBlock);
         this.idBlock.tagClass = 1;
         this.idBlock.tagNumber = 4;
       }
@@ -5576,8 +5556,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     OctetString.NAME = OCTET_STRING_NAME;
     LocalBitStringValueBlock = class extends HexBlock(LocalConstructedValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { unusedBits = 0, isConstructed = false } = _b, parameters = __objRest(_b, ["unusedBits", "isConstructed"]);
+      constructor({ unusedBits = 0, isConstructed = false, ...parameters } = {}) {
         super(parameters);
         this.unusedBits = unusedBits;
         this.isConstructed = isConstructed;
@@ -5657,27 +5636,30 @@ ${values.join("\n")}` : `${blockName} :`;
         return retView.buffer;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           unusedBits: this.unusedBits,
           isConstructed: this.isConstructed
-        });
+        };
       }
     };
     __name(LocalBitStringValueBlock, "LocalBitStringValueBlock");
     LocalBitStringValueBlock.NAME = "BitStringValueBlock";
     BitString = class extends BaseBlock {
-      constructor(_a2 = {}) {
-        var _b = _a2, { idBlock = {}, lenBlock = {} } = _b, parameters = __objRest(_b, ["idBlock", "lenBlock"]);
-        var _b2, _c;
-        (_b2 = parameters.isConstructed) !== null && _b2 !== void 0 ? _b2 : parameters.isConstructed = !!((_c = parameters.value) === null || _c === void 0 ? void 0 : _c.length);
-        super(__spreadValues({
-          idBlock: __spreadValues({
-            isConstructed: parameters.isConstructed
-          }, idBlock),
-          lenBlock: __spreadProps(__spreadValues({}, lenBlock), {
+      constructor({ idBlock = {}, lenBlock = {}, ...parameters } = {}) {
+        var _b, _c;
+        (_b = parameters.isConstructed) !== null && _b !== void 0 ? _b : parameters.isConstructed = !!((_c = parameters.value) === null || _c === void 0 ? void 0 : _c.length);
+        super({
+          idBlock: {
+            isConstructed: parameters.isConstructed,
+            ...idBlock
+          },
+          lenBlock: {
+            ...lenBlock,
             isIndefiniteForm: !!parameters.isIndefiniteForm
-          })
-        }, parameters), LocalBitStringValueBlock);
+          },
+          ...parameters
+        }, LocalBitStringValueBlock);
         this.idBlock.tagClass = 1;
         this.idBlock.tagNumber = 3;
       }
@@ -5710,8 +5692,7 @@ ${values.join("\n")}` : `${blockName} :`;
     __name(power2, "power2");
     __name(viewSub, "viewSub");
     LocalIntegerValueBlock = class extends HexBlock(ValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value, ...parameters } = {}) {
         super(parameters);
         this._valueDec = 0;
         if (parameters.valueHex) {
@@ -5790,9 +5771,10 @@ ${values.join("\n")}` : `${blockName} :`;
         return sizeOnly ? new ArrayBuffer(this.valueHexView.length) : this.valueHexView.slice().buffer;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           valueDec: this.valueDec
-        });
+        };
       }
       toString() {
         const firstBit = this.valueHexView.length * 8 - 1;
@@ -5913,8 +5895,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     Enumerated.NAME = "ENUMERATED";
     LocalSidValueBlock = class extends HexBlock(ValueBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { valueDec = -1, isFirstSid = false } = _b, parameters = __objRest(_b, ["valueDec", "isFirstSid"]);
+      constructor({ valueDec = -1, isFirstSid = false, ...parameters } = {}) {
         super(parameters);
         this.valueDec = valueDec;
         this.isFirstSid = isFirstSid;
@@ -6017,17 +5998,17 @@ ${values.join("\n")}` : `${blockName} :`;
         return result;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           valueDec: this.valueDec,
           isFirstSid: this.isFirstSid
-        });
+        };
       }
     };
     __name(LocalSidValueBlock, "LocalSidValueBlock");
     LocalSidValueBlock.NAME = "sidBlock";
     LocalObjectIdentifierValueBlock = class extends ValueBlock {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value = EMPTY_STRING } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value = EMPTY_STRING, ...parameters } = {}) {
         super(parameters);
         this.value = [];
         if (value) {
@@ -6137,10 +6118,11 @@ ${values.join("\n")}` : `${blockName} :`;
         return result;
       }
       toJSON() {
-        const object = __spreadProps(__spreadValues({}, super.toJSON()), {
+        const object = {
+          ...super.toJSON(),
           value: this.toString(),
           sidArray: []
-        });
+        };
         for (let i = 0; i < this.value.length; i++) {
           object.sidArray.push(this.value[i].toJSON());
         }
@@ -6165,9 +6147,10 @@ ${values.join("\n")}` : `${blockName} :`;
         return `${this.constructor.NAME} : ${this.valueBlock.toString() || "empty"}`;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           value: this.getValue()
-        });
+        };
       }
     };
     __name(ObjectIdentifier, "ObjectIdentifier");
@@ -6177,8 +6160,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     ObjectIdentifier.NAME = "OBJECT IDENTIFIER";
     LocalRelativeSidValueBlock = class extends HexBlock(LocalBaseBlock) {
-      constructor(_a2 = {}) {
-        var _b = _a2, { valueDec = 0 } = _b, parameters = __objRest(_b, ["valueDec"]);
+      constructor({ valueDec = 0, ...parameters } = {}) {
         super(parameters);
         this.valueDec = valueDec;
       }
@@ -6250,16 +6232,16 @@ ${values.join("\n")}` : `${blockName} :`;
         return result;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           valueDec: this.valueDec
-        });
+        };
       }
     };
     __name(LocalRelativeSidValueBlock, "LocalRelativeSidValueBlock");
     LocalRelativeSidValueBlock.NAME = "relativeSidBlock";
     LocalRelativeObjectIdentifierValueBlock = class extends ValueBlock {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value = EMPTY_STRING } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value = EMPTY_STRING, ...parameters } = {}) {
         super(parameters);
         this.value = [];
         if (value) {
@@ -6331,10 +6313,11 @@ ${values.join("\n")}` : `${blockName} :`;
         return result;
       }
       toJSON() {
-        const object = __spreadProps(__spreadValues({}, super.toJSON()), {
+        const object = {
+          ...super.toJSON(),
           value: this.toString(),
           sidArray: []
-        });
+        };
         for (let i = 0; i < this.value.length; i++)
           object.sidArray.push(this.value[i].toJSON());
         return object;
@@ -6358,9 +6341,10 @@ ${values.join("\n")}` : `${blockName} :`;
         return `${this.constructor.NAME} : ${this.valueBlock.toString() || "empty"}`;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           value: this.getValue()
-        });
+        };
       }
     };
     __name(RelativeObjectIdentifier, "RelativeObjectIdentifier");
@@ -6396,16 +6380,16 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     Set2.NAME = "SET";
     LocalStringValueBlock = class extends HexBlock(ValueBlock) {
-      constructor(_a2 = {}) {
-        var parameters = __objRest(_a2, []);
+      constructor({ ...parameters } = {}) {
         super(parameters);
         this.isHexOnly = true;
         this.value = EMPTY_STRING;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           value: this.value
-        });
+        };
       }
     };
     __name(LocalStringValueBlock, "LocalStringValueBlock");
@@ -6415,8 +6399,7 @@ ${values.join("\n")}` : `${blockName} :`;
     __name(LocalSimpleStringValueBlock, "LocalSimpleStringValueBlock");
     LocalSimpleStringValueBlock.NAME = "SimpleStringValueBlock";
     LocalSimpleStringBlock = class extends BaseStringBlock {
-      constructor(_a2 = {}) {
-        var parameters = __objRest(_a2, []);
+      constructor({ ...parameters } = {}) {
         super(parameters, LocalSimpleStringValueBlock);
       }
       fromBuffer(inputBuffer) {
@@ -6475,8 +6458,7 @@ ${values.join("\n")}` : `${blockName} :`;
     __name(LocalBmpStringValueBlock, "LocalBmpStringValueBlock");
     LocalBmpStringValueBlock.NAME = "BmpStringValueBlock";
     BmpString = class extends LocalBmpStringValueBlock {
-      constructor(_a2 = {}) {
-        var parameters = __objRest(_a2, []);
+      constructor({ ...parameters } = {}) {
         super(parameters);
         this.idBlock.tagClass = 1;
         this.idBlock.tagNumber = 30;
@@ -6518,8 +6500,7 @@ ${values.join("\n")}` : `${blockName} :`;
     __name(LocalUniversalStringValueBlock, "LocalUniversalStringValueBlock");
     LocalUniversalStringValueBlock.NAME = "UniversalStringValueBlock";
     UniversalString = class extends LocalUniversalStringValueBlock {
-      constructor(_a2 = {}) {
-        var parameters = __objRest(_a2, []);
+      constructor({ ...parameters } = {}) {
         super(parameters);
         this.idBlock.tagClass = 1;
         this.idBlock.tagNumber = 28;
@@ -6649,8 +6630,7 @@ ${values.join("\n")}` : `${blockName} :`;
     })();
     CharacterString.NAME = "CharacterString";
     UTCTime = class extends VisibleString {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value, valueDate } = _b, parameters = __objRest(_b, ["value", "valueDate"]);
+      constructor({ value, valueDate, ...parameters } = {}) {
         super(parameters);
         this.year = 0;
         this.month = 0;
@@ -6729,14 +6709,15 @@ ${values.join("\n")}` : `${blockName} :`;
         return `${this.constructor.NAME} : ${this.toDate().toISOString()}`;
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           year: this.year,
           month: this.month,
           day: this.day,
           hour: this.hour,
           minute: this.minute,
           second: this.second
-        });
+        };
       }
     };
     __name(UTCTime, "UTCTime");
@@ -6911,9 +6892,10 @@ ${values.join("\n")}` : `${blockName} :`;
         return super.toString(encoding);
       }
       toJSON() {
-        return __spreadProps(__spreadValues({}, super.toJSON()), {
+        return {
+          ...super.toJSON(),
           millisecond: this.millisecond
-        });
+        };
       }
     };
     __name(GeneralizedTime, "GeneralizedTime");
@@ -6995,16 +6977,14 @@ ${values.join("\n")}` : `${blockName} :`;
     };
     __name(Any, "Any");
     Choice = class extends Any {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value = [] } = _b, parameters = __objRest(_b, ["value"]);
+      constructor({ value = [], ...parameters } = {}) {
         super(parameters);
         this.value = value;
       }
     };
     __name(Choice, "Choice");
     Repeated = class extends Any {
-      constructor(_a2 = {}) {
-        var _b = _a2, { value = new Any(), local = false } = _b, parameters = __objRest(_b, ["value", "local"]);
+      constructor({ value = new Any(), local = false, ...parameters } = {}) {
         super(parameters);
         this.value = value;
         this.local = local;
@@ -7036,10 +7016,10 @@ ${values.join("\n")}` : `${blockName} :`;
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/enums.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/enums.js
 var AsnTypeTypes, AsnPropTypes;
 var init_enums = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/enums.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/enums.js"() {
     (function(AsnTypeTypes2) {
       AsnTypeTypes2[AsnTypeTypes2["Sequence"] = 0] = "Sequence";
       AsnTypeTypes2[AsnTypeTypes2["Set"] = 1] = "Set";
@@ -7077,7 +7057,7 @@ var init_enums = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/converters.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/converters.js
 function createStringConverter(Asn1Type) {
   return {
     fromASN: (value) => value.valueBlock.value,
@@ -7136,7 +7116,7 @@ function defaultConverter(type) {
 }
 var AsnAnyConverter, AsnIntegerConverter, AsnEnumeratedConverter, AsnBitStringConverter, AsnObjectIdentifierConverter, AsnBooleanConverter, AsnOctetStringConverter, AsnUtf8StringConverter, AsnBmpStringConverter, AsnUniversalStringConverter, AsnNumericStringConverter, AsnPrintableStringConverter, AsnTeletexStringConverter, AsnVideotexStringConverter, AsnIA5StringConverter, AsnGraphicStringConverter, AsnVisibleStringConverter, AsnGeneralStringConverter, AsnCharacterStringConverter, AsnUTCTimeConverter, AsnGeneralizedTimeConverter, AsnNullConverter;
 var init_converters = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/converters.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/converters.js"() {
     init_index_es2();
     init_enums();
     AsnAnyConverter = {
@@ -7153,7 +7133,7 @@ var init_converters = __esm({
       }
     };
     AsnIntegerConverter = {
-      fromASN: (value) => value.valueBlock.valueHex.byteLength > 4 ? value.valueBlock.toString() : value.valueBlock.valueDec,
+      fromASN: (value) => value.valueBlock.valueHexView.byteLength >= 4 ? value.valueBlock.toString() : value.valueBlock.valueDec,
       toASN: (value) => new Integer({ value })
     };
     AsnEnumeratedConverter = {
@@ -7207,31 +7187,31 @@ var init_converters = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/bit_string.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/bit_string.js
 var init_bit_string = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/bit_string.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/bit_string.js"() {
     init_index_es2();
     init_index_es();
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/octet_string.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/octet_string.js
 var init_octet_string = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/octet_string.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/octet_string.js"() {
     init_index_es2();
     init_index_es();
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/index.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/index.js
 var init_types = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/types/index.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/types/index.js"() {
     init_bit_string();
     init_octet_string();
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/helper.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/helper.js
 function isConvertible(target) {
   if (target && target.prototype) {
     if (target.prototype.toASN && target.prototype.fromASN) {
@@ -7271,17 +7251,17 @@ function isArrayEqual(bytes1, bytes2) {
   return true;
 }
 var init_helper = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/helper.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/helper.js"() {
     __name(isConvertible, "isConvertible");
     __name(isTypeOfArray, "isTypeOfArray");
     __name(isArrayEqual, "isArrayEqual");
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/schema.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/schema.js
 var AsnSchemaStorage;
 var init_schema = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/schema.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/schema.js"() {
     init_index_es2();
     init_enums();
     init_helper();
@@ -7430,20 +7410,21 @@ var init_schema = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/storage.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/storage.js
 var schemaStorage;
 var init_storage = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/storage.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/storage.js"() {
     init_schema();
     schemaStorage = new AsnSchemaStorage();
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/decorators.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/decorators.js
 var AsnType, AsnProp;
 var init_decorators = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/decorators.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/decorators.js"() {
     init_converters();
+    init_enums();
     init_storage();
     AsnType = /* @__PURE__ */ __name((options) => (target) => {
       let schema;
@@ -7476,10 +7457,10 @@ var init_decorators = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/errors/schema_validation.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/errors/schema_validation.js
 var AsnSchemaValidationError;
 var init_schema_validation = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/errors/schema_validation.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/errors/schema_validation.js"() {
     AsnSchemaValidationError = class extends Error {
       constructor() {
         super(...arguments);
@@ -7490,17 +7471,17 @@ var init_schema_validation = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/errors/index.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/errors/index.js
 var init_errors = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/errors/index.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/errors/index.js"() {
     init_schema_validation();
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/parser.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/parser.js
 var AsnParser;
 var init_parser = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/parser.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/parser.js"() {
     init_index_es2();
     init_enums();
     init_converters();
@@ -7509,17 +7490,7 @@ var init_parser = __esm({
     init_storage();
     AsnParser = class {
       static parse(data, target) {
-        let buf;
-        if (data instanceof ArrayBuffer) {
-          buf = data;
-        } else if (typeof Buffer !== "undefined" && Buffer.isBuffer(data)) {
-          buf = new Uint8Array(data).buffer;
-        } else if (ArrayBuffer.isView(data) || data.buffer instanceof ArrayBuffer) {
-          buf = data.buffer;
-        } else {
-          throw new TypeError("Wrong type of 'data' argument");
-        }
-        const asn1Parsed = fromBER(buf);
+        const asn1Parsed = fromBER(data);
         if (asn1Parsed.result.error) {
           throw new Error(asn1Parsed.result.error);
         }
@@ -7548,7 +7519,7 @@ var init_parser = __esm({
               delete asn1Schema[key];
             }
           }
-          const asn1ComparedSchema = compareSchema(asn1Schema, asn1Schema, targetSchema);
+          const asn1ComparedSchema = compareSchema({}, asn1Schema, targetSchema);
           if (!asn1ComparedSchema.verified) {
             throw new AsnSchemaValidationError(`Data does not match to ${target.name} ASN1 schema. ${asn1ComparedSchema.result.error}`);
           }
@@ -7565,7 +7536,8 @@ var init_parser = __esm({
             }
           }
           for (const key in schema.items) {
-            if (!asn1Schema[key]) {
+            const asn1SchemaValue = asn1ComparedSchema.result[key];
+            if (!asn1SchemaValue) {
               continue;
             }
             const schemaItem = schema.items[key];
@@ -7578,14 +7550,14 @@ var init_parser = __esm({
                 if (schemaItem.implicit) {
                   const Container = schemaItem.repeated === "sequence" ? Sequence : Set2;
                   const newItem = new Container();
-                  newItem.valueBlock = asn1Schema[key].valueBlock;
+                  newItem.valueBlock = asn1SchemaValue.valueBlock;
                   const value = fromBER(newItem.toBER(false)).result.valueBlock.value;
                   res[key] = Array.from(value, (element) => converter.fromASN(element));
                 } else {
-                  res[key] = Array.from(asn1Schema[key], (element) => converter.fromASN(element));
+                  res[key] = Array.from(asn1SchemaValue, (element) => converter.fromASN(element));
                 }
               } else {
-                let value = asn1Schema[key];
+                let value = asn1SchemaValue;
                 if (schemaItem.implicit) {
                   let newItem;
                   if (isConvertible(schemaItem.type)) {
@@ -7605,9 +7577,9 @@ var init_parser = __esm({
               }
             } else {
               if (schemaItem.repeated) {
-                res[key] = Array.from(asn1Schema[key], (element) => this.fromASN(element, schemaItem.type));
+                res[key] = Array.from(asn1SchemaValue, (element) => this.fromASN(element, schemaItem.type));
               } else {
-                res[key] = this.fromASN(asn1Schema[key], schemaItem.type);
+                res[key] = this.fromASN(asn1SchemaValue, schemaItem.type);
               }
             }
           }
@@ -7624,10 +7596,10 @@ var init_parser = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/serializer.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/serializer.js
 var AsnSerializer;
 var init_serializer = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/serializer.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/serializer.js"() {
     init_index_es2();
     init_converters();
     init_enums();
@@ -7671,13 +7643,14 @@ var init_serializer = __esm({
                 if (!schemaItem.repeated && (typeof schemaItem.type === "number" || isConvertible(schemaItem.type))) {
                   const value = {};
                   value.valueHex = asn1Item instanceof Null ? asn1Item.valueBeforeDecode : asn1Item.valueBlock.toBER();
-                  asn1Value.push(new Primitive(__spreadValues({
+                  asn1Value.push(new Primitive({
                     optional: schemaItem.optional,
                     idBlock: {
                       tagClass: 3,
                       tagNumber: schemaItem.context
-                    }
-                  }, value)));
+                    },
+                    ...value
+                  }));
                 } else {
                   asn1Value.push(new Constructed({
                     optional: schemaItem.optional,
@@ -7756,16 +7729,16 @@ var init_serializer = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/objects.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/objects.js
 var init_objects = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/objects.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/objects.js"() {
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/convert.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/convert.js
 var AsnConvert;
 var init_convert = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/convert.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/convert.js"() {
     init_index_es2();
     init_index_es();
     init_parser();
@@ -7790,9 +7763,9 @@ var init_convert = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/index.js
+// ../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/index.js
 var init_es2015 = __esm({
-  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.1.8/node_modules/@peculiar/asn1-schema/build/es2015/index.js"() {
+  "../../node_modules/.pnpm/@peculiar+asn1-schema@2.2.0/node_modules/@peculiar/asn1-schema/build/es2015/index.js"() {
     init_converters();
     init_types();
     init_decorators();
@@ -8550,7 +8523,7 @@ var init_index_es3 = __esm({
         }
       }
       static getSchemaByName(schema, name = DEFAULT_SCHEMA) {
-        return __spreadValues(__spreadValues({}, schema.names[DEFAULT_SCHEMA]), schema.names[name]);
+        return { ...schema.names[DEFAULT_SCHEMA], ...schema.names[name] };
       }
     };
     __name(JsonTransform, "JsonTransform");
@@ -8674,10 +8647,11 @@ var init_index_es3 = __esm({
                 obj[key] = value;
               }
             } else {
-              const newOptions = __spreadProps(__spreadValues({}, options), {
+              const newOptions = {
+                ...options,
                 targetSchema: item.type,
                 schemaName
-              });
+              };
               if (item.repeated) {
                 obj[key] = value.map((el) => this.fromJSON(el, newOptions));
               } else {
@@ -9798,9 +9772,10 @@ var init_webcrypto_core_es = __esm({
         const oid = new ObjectIdentifier2();
         oid.value = item.id;
         const raw = AsnConvert.serialize(oid);
-        this.items.push(__spreadProps(__spreadValues({}, item), {
+        this.items.push({
+          ...item,
           raw
-        }));
+        });
         this.names.push(item.name);
       }
       static find(nameOrId) {
@@ -9941,7 +9916,7 @@ var init_webcrypto_core_es = __esm({
         this.defaultLength = 0;
       }
       digest(...args) {
-        args[0] = __spreadValues({ length: this.defaultLength }, args[0]);
+        args[0] = { length: this.defaultLength, ...args[0] };
         return super.digest.apply(this, args);
       }
       checkDigest(algorithm, data) {
@@ -10042,7 +10017,7 @@ var init_webcrypto_core_es = __esm({
         const [algorithm, extractable, keyUsages, ...params] = args;
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.generateKey(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), extractable, keyUsages, ...params);
+        const result = await provider.generateKey({ ...preparedAlgorithm, name: provider.name }, extractable, keyUsages, ...params);
         return result;
       }
       async sign(...args) {
@@ -10052,7 +10027,7 @@ var init_webcrypto_core_es = __esm({
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const preparedData = BufferSourceConverter.toArrayBuffer(data);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.sign(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), key, preparedData, ...params);
+        const result = await provider.sign({ ...preparedAlgorithm, name: provider.name }, key, preparedData, ...params);
         return result;
       }
       async verify(...args) {
@@ -10063,7 +10038,7 @@ var init_webcrypto_core_es = __esm({
         const preparedData = BufferSourceConverter.toArrayBuffer(data);
         const preparedSignature = BufferSourceConverter.toArrayBuffer(signature);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.verify(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), key, preparedSignature, preparedData, ...params);
+        const result = await provider.verify({ ...preparedAlgorithm, name: provider.name }, key, preparedSignature, preparedData, ...params);
         return result;
       }
       async encrypt(...args) {
@@ -10073,7 +10048,7 @@ var init_webcrypto_core_es = __esm({
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const preparedData = BufferSourceConverter.toArrayBuffer(data);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.encrypt(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), key, preparedData, { keyUsage: true }, ...params);
+        const result = await provider.encrypt({ ...preparedAlgorithm, name: provider.name }, key, preparedData, { keyUsage: true }, ...params);
         return result;
       }
       async decrypt(...args) {
@@ -10083,7 +10058,7 @@ var init_webcrypto_core_es = __esm({
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const preparedData = BufferSourceConverter.toArrayBuffer(data);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.decrypt(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), key, preparedData, { keyUsage: true }, ...params);
+        const result = await provider.decrypt({ ...preparedAlgorithm, name: provider.name }, key, preparedData, { keyUsage: true }, ...params);
         return result;
       }
       async deriveBits(...args) {
@@ -10092,7 +10067,7 @@ var init_webcrypto_core_es = __esm({
         this.checkCryptoKey(baseKey);
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const provider = this.getProvider(preparedAlgorithm.name);
-        const result = await provider.deriveBits(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), baseKey, length, { keyUsage: true }, ...params);
+        const result = await provider.deriveBits({ ...preparedAlgorithm, name: provider.name }, baseKey, length, { keyUsage: true }, ...params);
         return result;
       }
       async deriveKey(...args) {
@@ -10104,7 +10079,7 @@ var init_webcrypto_core_es = __esm({
         const preparedAlgorithm = this.prepareAlgorithm(algorithm);
         const provider = this.getProvider(preparedAlgorithm.name);
         provider.checkCryptoKey(baseKey, "deriveKey");
-        const derivedBits = await provider.deriveBits(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), baseKey, derivedKeyType.length || 512, { keyUsage: false }, ...params);
+        const derivedBits = await provider.deriveBits({ ...preparedAlgorithm, name: provider.name }, baseKey, derivedKeyType.length || 512, { keyUsage: false }, ...params);
         return this.importKey("raw", derivedBits, derivedKeyType, extractable, keyUsages, ...params);
       }
       async exportKey(...args) {
@@ -10122,13 +10097,13 @@ var init_webcrypto_core_es = __esm({
         const provider = this.getProvider(preparedAlgorithm.name);
         if (["pkcs8", "spki", "raw"].indexOf(format) !== -1) {
           const preparedData = BufferSourceConverter.toArrayBuffer(keyData);
-          return provider.importKey(format, preparedData, __spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), extractable, keyUsages, ...params);
+          return provider.importKey(format, preparedData, { ...preparedAlgorithm, name: provider.name }, extractable, keyUsages, ...params);
         } else {
           if (!keyData.kty) {
             throw new TypeError("keyData: Is not JSON");
           }
         }
-        return provider.importKey(format, keyData, __spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), extractable, keyUsages, ...params);
+        return provider.importKey(format, keyData, { ...preparedAlgorithm, name: provider.name }, extractable, keyUsages, ...params);
       }
       async wrapKey(format, key, wrappingKey, wrapAlgorithm, ...args) {
         let keyData = await this.exportKey(format, key, ...args);
@@ -10139,13 +10114,13 @@ var init_webcrypto_core_es = __esm({
         const preparedAlgorithm = this.prepareAlgorithm(wrapAlgorithm);
         const preparedData = BufferSourceConverter.toArrayBuffer(keyData);
         const provider = this.getProvider(preparedAlgorithm.name);
-        return provider.encrypt(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), wrappingKey, preparedData, { keyUsage: false }, ...args);
+        return provider.encrypt({ ...preparedAlgorithm, name: provider.name }, wrappingKey, preparedData, { keyUsage: false }, ...args);
       }
       async unwrapKey(format, wrappedKey, unwrappingKey, unwrapAlgorithm, unwrappedKeyAlgorithm, extractable, keyUsages, ...args) {
         const preparedAlgorithm = this.prepareAlgorithm(unwrapAlgorithm);
         const preparedData = BufferSourceConverter.toArrayBuffer(wrappedKey);
         const provider = this.getProvider(preparedAlgorithm.name);
-        let keyData = await provider.decrypt(__spreadProps(__spreadValues({}, preparedAlgorithm), { name: provider.name }), unwrappingKey, preparedData, { keyUsage: false }, ...args);
+        let keyData = await provider.decrypt({ ...preparedAlgorithm, name: provider.name }, unwrappingKey, preparedData, { keyUsage: false }, ...args);
         if (format === "jwk") {
           try {
             keyData = JSON.parse(Convert.ToUtf8String(keyData));
@@ -10169,11 +10144,11 @@ var init_webcrypto_core_es = __esm({
           };
         }
         if (SubtleCrypto.isHashedAlgorithm(algorithm)) {
-          const preparedAlgorithm = __spreadValues({}, algorithm);
+          const preparedAlgorithm = { ...algorithm };
           preparedAlgorithm.hash = this.prepareAlgorithm(algorithm.hash);
           return preparedAlgorithm;
         }
-        return __spreadValues({}, algorithm);
+        return { ...algorithm };
       }
       getProvider(name) {
         const provider = this.providers.get(name);
@@ -11226,9 +11201,10 @@ ${key.data.toString("base64")}
         ];
       }
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await RsaCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await RsaCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11244,7 +11220,7 @@ ${key.data.toString("base64")}
         return RsaCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await RsaCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await RsaCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11272,9 +11248,10 @@ ${key.data.toString("base64")}
         ];
       }
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await RsaCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await RsaCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11290,7 +11267,7 @@ ${key.data.toString("base64")}
         return RsaCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await RsaCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await RsaCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11349,9 +11326,10 @@ ${key.data.toString("base64")}
     __name(ShaCrypto, "ShaCrypto");
     RsaOaepProvider2 = class extends RsaOaepProvider {
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await RsaCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await RsaCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11451,7 +11429,7 @@ ${internalKey.data.toString("base64")}
         return RsaCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await RsaCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await RsaCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11492,9 +11470,10 @@ ${internalKey.data.toString("base64")}
         };
       }
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await RsaCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await RsaCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11533,7 +11512,7 @@ ${internalKey.data.toString("base64")}
         return RsaCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await RsaCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await RsaCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11934,9 +11913,10 @@ ${key.data.toString("base64")}
         ];
       }
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await EcCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await EcCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11952,7 +11932,7 @@ ${key.data.toString("base64")}
         return EcCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await EcCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await EcCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11970,9 +11950,10 @@ ${key.data.toString("base64")}
         this.namedCurves = EcCurves.names;
       }
       async onGenerateKey(algorithm, extractable, keyUsages) {
-        const keys = await EcCrypto.generateKey(__spreadProps(__spreadValues({}, algorithm), {
+        const keys = await EcCrypto.generateKey({
+          ...algorithm,
           name: this.name
-        }), extractable, keyUsages);
+        }, extractable, keyUsages);
         return {
           privateKey: setCryptoKey(keys.privateKey),
           publicKey: setCryptoKey(keys.publicKey)
@@ -11982,7 +11963,7 @@ ${key.data.toString("base64")}
         return EcCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await EcCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await EcCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
       checkCryptoKey(key, keyUsage) {
@@ -11993,7 +11974,7 @@ ${key.data.toString("base64")}
         }
       }
       async onDeriveBits(algorithm, baseKey, length) {
-        const bits = await EcCrypto.deriveBits(__spreadProps(__spreadValues({}, algorithm), { public: getCryptoKey(algorithm.public) }), getCryptoKey(baseKey), length);
+        const bits = await EcCrypto.deriveBits({ ...algorithm, public: getCryptoKey(algorithm.public) }, getCryptoKey(baseKey), length);
         return bits;
       }
     };
@@ -12239,7 +12220,7 @@ ${key.data.toString("base64")}
         return EdCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await EdCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await EdCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
     };
@@ -12256,14 +12237,14 @@ ${key.data.toString("base64")}
         };
       }
       async onDeriveBits(algorithm, baseKey, length) {
-        const bits = await EdCrypto.deriveBits(__spreadProps(__spreadValues({}, algorithm), { public: getCryptoKey(algorithm.public) }), getCryptoKey(baseKey), length);
+        const bits = await EdCrypto.deriveBits({ ...algorithm, public: getCryptoKey(algorithm.public) }, getCryptoKey(baseKey), length);
         return bits;
       }
       async onExportKey(format, key) {
         return EdCrypto.exportKey(format, getCryptoKey(key));
       }
       async onImportKey(format, keyData, algorithm, extractable, keyUsages) {
-        const key = await EdCrypto.importKey(format, keyData, __spreadProps(__spreadValues({}, algorithm), { name: this.name }), extractable, keyUsages);
+        const key = await EdCrypto.importKey(format, keyData, { ...algorithm, name: this.name }, extractable, keyUsages);
         return setCryptoKey(key);
       }
     };
@@ -12320,10 +12301,11 @@ ${key.data.toString("base64")}
       async onGenerateKey(algorithm, extractable, keyUsages) {
         const length = (algorithm.length || this.getDefaultLength(algorithm.hash.name)) >> 3 << 3;
         const key = new HmacCryptoKey();
-        key.algorithm = __spreadProps(__spreadValues({}, algorithm), {
+        key.algorithm = {
+          ...algorithm,
           length,
           name: this.name
-        });
+        };
         key.extractable = extractable;
         key.usages = keyUsages;
         key.data = import_crypto.default.randomBytes(length >> 3);
@@ -13018,6 +13000,7 @@ var require_dist = __commonJS({
 // src/polyfills/web-crypto.js
 var require_web_crypto = __commonJS({
   "src/polyfills/web-crypto.js"(exports, module2) {
+    "use strict";
     var { Crypto: WebCrypto, CryptoKey: CryptoKey3 } = (init_webcrypto_es(), __toCommonJS(webcrypto_es_exports));
     var { v4: uuid } = require_dist();
     var _randomUUID;
@@ -13443,6 +13426,7 @@ var require_errors = __commonJS({
 // src/polyfills/web-streams.js
 var require_web_streams = __commonJS({
   "src/polyfills/web-streams.js"(exports, module2) {
+    "use strict";
     var streams = require_ponyfill();
     var {
       ReadableStream,
@@ -14945,11 +14929,12 @@ var require_response = __commonJS({
         if (init === null || typeof init !== "object") {
           throw new TypeError(`Failed to execute 'json' on 'Response': init must be a RequestInit, found ${typeof init}.`);
         }
-        init = __spreadValues({
+        init = {
           status: 200,
           statusText: "",
-          headers: new HeadersList()
-        }, init);
+          headers: new HeadersList(),
+          ...init
+        };
         const bytes = new TextEncoder("utf-8").encode(serializeJavascriptValueToJSONString(data));
         const body = extractBody(bytes);
         const relevantRealm = { settingsObject: {} };
@@ -15093,7 +15078,7 @@ var require_response = __commonJS({
       if (response.internalResponse) {
         return filterResponse(cloneResponse(response.internalResponse), response.type);
       }
-      const newResponse = makeResponse(__spreadProps(__spreadValues({}, response), { body: null }));
+      const newResponse = makeResponse({ ...response, body: null });
       if (response.body != null) {
         newResponse.body = cloneBody(response.body);
       }
@@ -15101,7 +15086,7 @@ var require_response = __commonJS({
     }
     __name(cloneResponse, "cloneResponse");
     function makeResponse(init) {
-      return __spreadProps(__spreadValues({
+      return {
         aborted: false,
         rangeRequested: false,
         timingAllowPassed: false,
@@ -15110,11 +15095,11 @@ var require_response = __commonJS({
         status: 200,
         timingInfo: null,
         cacheState: "",
-        statusText: ""
-      }, init), {
+        statusText: "",
+        ...init,
         headersList: init.headersList ? new HeadersList(init.headersList) : new HeadersList(),
         urlList: init.urlList ? [...init.urlList] : []
-      });
+      };
     }
     __name(makeResponse, "makeResponse");
     function makeNetworkError(reason) {
@@ -15129,9 +15114,10 @@ var require_response = __commonJS({
     }
     __name(makeNetworkError, "makeNetworkError");
     function makeFilteredResponse(response, state) {
-      state = __spreadValues({
-        internalResponse: response
-      }, state);
+      state = {
+        internalResponse: response,
+        ...state
+      };
       return new Proxy(response, {
         get(target, p) {
           return p in state ? state[p] : target[p];
@@ -15610,7 +15596,7 @@ var require_request = __commonJS({
     __name(Request, "Request");
     mixinBody(Request.prototype);
     function makeRequest(init) {
-      const request = __spreadProps(__spreadValues({
+      const request = {
         method: "GET",
         localURLsOnly: false,
         unsafeRequest: false,
@@ -15645,16 +15631,16 @@ var require_request = __commonJS({
         responseTainting: "basic",
         preventNoCacheCacheControlHeaderModification: false,
         done: false,
-        timingAllowFailed: false
-      }, init), {
+        timingAllowFailed: false,
+        ...init,
         headersList: init.headersList ? new HeadersList(init.headersList) : new HeadersList()
-      });
+      };
       request.url = request.urlList[0];
       return request;
     }
     __name(makeRequest, "makeRequest");
     function cloneRequest(request) {
-      const newRequest = makeRequest(__spreadProps(__spreadValues({}, request), { body: null }));
+      const newRequest = makeRequest({ ...request, body: null });
       if (request.body != null) {
         newRequest.body = cloneBody(request.body);
       }
@@ -16477,7 +16463,7 @@ var require_fetch = __commonJS({
         httpRequest = request;
       } else {
         httpRequest = makeRequest(request);
-        httpFetchParams = __spreadValues({}, fetchParams);
+        httpFetchParams = { ...fetchParams };
         httpFetchParams.request = httpRequest;
       }
       const includeCredentials = request.credentials === "include" || request.credentials === "same-origin" && request.responseTainting === "basic";
@@ -17493,7 +17479,7 @@ var require_redirect = __commonJS({
         this.dispatcher = dispatcher;
         this.location = null;
         this.abort = null;
-        this.opts = __spreadProps(__spreadValues({}, opts), { maxRedirections: 0 });
+        this.opts = { ...opts, maxRedirections: 0 };
         this.maxRedirections = maxRedirections;
         this.handler = handler;
         this.history = [];
@@ -17614,12 +17600,11 @@ var require_connect = __commonJS({
     var util = require_util();
     var { InvalidArgumentError: InvalidArgumentError2, ConnectTimeoutError } = require_errors();
     var tls;
-    function buildConnector(_a2) {
-      var _b = _a2, { maxCachedSessions, socketPath, timeout } = _b, opts = __objRest(_b, ["maxCachedSessions", "socketPath", "timeout"]);
+    function buildConnector({ maxCachedSessions, socketPath, timeout, ...opts }) {
       if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
         throw new InvalidArgumentError2("maxCachedSessions must be a positive integer or zero");
       }
-      const options = __spreadValues({ path: socketPath }, opts);
+      const options = { path: socketPath, ...opts };
       const sessionCache = /* @__PURE__ */ new Map();
       timeout = timeout == null ? 1e4 : timeout;
       maxCachedSessions = maxCachedSessions == null ? 100 : maxCachedSessions;
@@ -17633,15 +17618,15 @@ var require_connect = __commonJS({
           const sessionKey = servername || hostname;
           const session = sessionCache.get(sessionKey) || null;
           assert(sessionKey);
-          socket = tls.connect(__spreadProps(__spreadValues({
-            highWaterMark: 16384
-          }, options), {
+          socket = tls.connect({
+            highWaterMark: 16384,
+            ...options,
             servername,
             session,
             socket: httpSocket,
             port: port || 443,
             host: hostname
-          }));
+          });
           socket.on("session", function(session2) {
             if (maxCachedSessions === 0) {
               return;
@@ -17658,12 +17643,12 @@ var require_connect = __commonJS({
           });
         } else {
           assert(!httpSocket, "httpSocket can only be sent on TLS update");
-          socket = net.connect(__spreadProps(__spreadValues({
-            highWaterMark: 64 * 1024
-          }, options), {
+          socket = net.connect({
+            highWaterMark: 64 * 1024,
+            ...options,
             port: port || 80,
             host: hostname
-          }));
+          });
         }
         const timeoutId = timeout ? setTimeout(onConnectTimeout, timeout, socket) : null;
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
@@ -18198,11 +18183,13 @@ var require_client = __commonJS({
           throw new InvalidArgumentError2("maxRequestsPerClient must be a positive number");
         }
         if (typeof connect2 !== "function") {
-          connect2 = buildConnector(__spreadValues(__spreadProps(__spreadValues({}, tls), {
+          connect2 = buildConnector({
+            ...tls,
             maxCachedSessions,
             socketPath,
-            timeout: connectTimeout
-          }), connect2));
+            timeout: connectTimeout,
+            ...connect2
+          });
         }
         this[kUrl] = util.parseOrigin(url);
         this[kConnector] = connect2;
@@ -19390,24 +19377,16 @@ var require_pool = __commonJS({
     }
     __name(defaultFactory, "defaultFactory");
     var Pool = class extends PoolBase {
-      constructor(origin, _a2 = {}) {
-        var _b = _a2, {
-          connections,
-          factory = defaultFactory,
-          connect,
-          connectTimeout,
-          tls,
-          maxCachedSessions,
-          socketPath
-        } = _b, options = __objRest(_b, [
-          "connections",
-          "factory",
-          "connect",
-          "connectTimeout",
-          "tls",
-          "maxCachedSessions",
-          "socketPath"
-        ]);
+      constructor(origin, {
+        connections,
+        factory = defaultFactory,
+        connect,
+        connectTimeout,
+        tls,
+        maxCachedSessions,
+        socketPath,
+        ...options
+      } = {}) {
         super();
         if (connections != null && (!Number.isFinite(connections) || connections < 0)) {
           throw new InvalidArgumentError2("invalid connections");
@@ -19419,15 +19398,17 @@ var require_pool = __commonJS({
           throw new InvalidArgumentError2("connect must be a function or an object");
         }
         if (typeof connect !== "function") {
-          connect = buildConnector(__spreadValues(__spreadProps(__spreadValues({}, tls), {
+          connect = buildConnector({
+            ...tls,
             maxCachedSessions,
             socketPath,
-            timeout: connectTimeout == null ? 1e4 : connectTimeout
-          }), connect));
+            timeout: connectTimeout == null ? 1e4 : connectTimeout,
+            ...connect
+          });
         }
         this[kConnections] = connections || null;
         this[kUrl] = util.parseOrigin(origin);
-        this[kOptions] = __spreadProps(__spreadValues({}, util.deepClone(options)), { connect });
+        this[kOptions] = { ...util.deepClone(options), connect };
         this[kFactory] = factory;
       }
       [kGetDispatcher]() {
@@ -19508,8 +19489,7 @@ var require_agent = __commonJS({
     }
     __name(defaultFactory, "defaultFactory");
     var Agent = class extends DispatcherBase {
-      constructor(_a2 = {}) {
-        var _b = _a2, { factory = defaultFactory, maxRedirections = 0, connect } = _b, options = __objRest(_b, ["factory", "maxRedirections", "connect"]);
+      constructor({ factory = defaultFactory, maxRedirections = 0, connect, ...options } = {}) {
         super();
         if (typeof factory !== "function") {
           throw new InvalidArgumentError2("factory must be a function.");
@@ -19521,9 +19501,9 @@ var require_agent = __commonJS({
           throw new InvalidArgumentError2("maxRedirections must be a positive number");
         }
         if (connect && typeof connect !== "function") {
-          connect = __spreadValues({}, connect);
+          connect = { ...connect };
         }
-        this[kOptions] = __spreadProps(__spreadValues({}, util.deepClone(options)), { connect });
+        this[kOptions] = { ...util.deepClone(options), connect };
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
@@ -19573,7 +19553,7 @@ var require_agent = __commonJS({
         }
         const { maxRedirections = this[kMaxRedirections] } = opts;
         if (maxRedirections != null && maxRedirections !== 0) {
-          opts = __spreadProps(__spreadValues({}, opts), { maxRedirections: 0 });
+          opts = { ...opts, maxRedirections: 0 };
           handler = new RedirectHandler(this, maxRedirections, opts, handler);
         }
         return dispatcher.dispatch(opts, handler);
@@ -19607,6 +19587,7 @@ var require_agent = __commonJS({
 // src/polyfills/undici.js
 var require_undici = __commonJS({
   "src/polyfills/undici.js"(exports, module2) {
+    "use strict";
     var abort = require_abort_controller();
     global.AbortController = abort.AbortController;
     global.AbortSignal = abort.AbortSignal;
@@ -19877,6 +19858,7 @@ var require_cache = __commonJS({
 // src/polyfills/web-event.js
 var require_web_event = __commonJS({
   "src/polyfills/web-event.js"(exports, module2) {
+    "use strict";
     var EventTargetShim = require_event_target_shim();
     var { EventTarget } = EventTargetShim;
     var Event = class extends EventTargetShim {

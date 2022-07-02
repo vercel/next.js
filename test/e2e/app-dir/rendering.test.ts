@@ -31,6 +31,11 @@ describe('views dir rendering', () => {
   })
   afterAll(() => next.destroy())
 
+  it('should serve app/page.server.js at /', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('app/page.server.js')
+  })
+
   describe('getServerSideProps only', () => {
     it('should run getServerSideProps in layout and page', async () => {
       const html = await renderViaHTTP(
