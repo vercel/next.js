@@ -100,6 +100,9 @@ const nodejsRuntimeBasicSuite = {
   afterAll: () => {
     nextConfig.restore()
   },
+  env: {
+    __NEXT_REACT_CHANNEL: 'exp',
+  },
 }
 
 runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
