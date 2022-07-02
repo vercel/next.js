@@ -349,7 +349,10 @@ export function reducer(
         }
       }
 
-      if (mutable.patchedTree && mutable.previousTree === state.tree) {
+      if (
+        mutable.patchedTree &&
+        JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
+      ) {
         return {
           canonicalUrl: href,
           pushRef: { pendingPush: true },
