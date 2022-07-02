@@ -39,4 +39,4 @@ compiled-lang
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

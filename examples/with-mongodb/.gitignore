@@ -30,4 +30,4 @@ yarn-error.log*
 .env.production.local
 
 # cache
-*.swc/
+.swc/

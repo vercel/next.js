@@ -36,4 +36,4 @@ yarn-error.log*
 public/feed.xml
 
 # cache
-*.swc/
+.swc/

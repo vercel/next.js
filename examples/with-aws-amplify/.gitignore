@@ -45,4 +45,4 @@ aws-exports.js
 awsconfiguration.json
 
 # cache
-*.swc/
+.swc/

@@ -33,4 +33,4 @@ yarn-error.log*
 .idea/
 
 # cache
-*.swc/
+.swc/

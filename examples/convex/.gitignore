@@ -40,4 +40,4 @@ convex/_generated
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

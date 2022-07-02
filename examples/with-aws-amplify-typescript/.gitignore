@@ -55,4 +55,4 @@ amplifytools.xcconfig
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

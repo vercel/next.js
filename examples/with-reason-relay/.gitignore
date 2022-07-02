@@ -41,4 +41,4 @@ lib/
 *.bs.js
 
 # cache
-*.swc/
+.swc/

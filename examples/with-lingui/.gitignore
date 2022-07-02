@@ -38,4 +38,4 @@ locale/_build
 locale/*/*.js
 
 # cache
-*.swc/
+.swc/

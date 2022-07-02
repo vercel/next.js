@@ -39,4 +39,4 @@ pnpm-lock.yaml
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

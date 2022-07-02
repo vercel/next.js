@@ -35,4 +35,4 @@ yarn-error.log*
 test-results/
 
 # cache
-*.swc/
+.swc/

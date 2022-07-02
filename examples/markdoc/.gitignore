@@ -32,4 +32,4 @@
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

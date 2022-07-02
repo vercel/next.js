@@ -37,4 +37,4 @@ yarn-error.log*
 .*.module.css
 
 # cache
-*.swc/
+.swc/

@@ -38,4 +38,4 @@ yarn-error.log*
 .contentlayer
 
 # cache
-*.swc/
+.swc/

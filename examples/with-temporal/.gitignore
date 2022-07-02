@@ -40,4 +40,4 @@ temporal/lib
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

@@ -38,4 +38,4 @@ __generated__/
 schema/schema.graphql
 
 # cache
-*.swc/
+.swc/

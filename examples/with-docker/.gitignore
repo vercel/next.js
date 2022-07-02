@@ -38,4 +38,4 @@ yarn.lock
 package-lock.json
 
 # cache
-*.swc/
+.swc/

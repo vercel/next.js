@@ -46,4 +46,4 @@ lib/graphql-operations.ts
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

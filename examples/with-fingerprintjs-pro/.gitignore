@@ -38,4 +38,4 @@ yarn-error.log*
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

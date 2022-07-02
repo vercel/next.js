@@ -40,4 +40,4 @@ storybook-static
 *.tsbuildinfo
 
 # cache
-*.swc/
+.swc/

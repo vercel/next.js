@@ -37,4 +37,4 @@ yarn-error.log*
 .mesh/
 
 # cache
-*.swc/
+.swc/
