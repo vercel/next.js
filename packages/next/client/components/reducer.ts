@@ -256,8 +256,8 @@ export function reducer(
           cacheType: 'soft' | 'hard'
           cache: CacheNode
           mutable: {
-            previousTree: FlightRouterState
-            patchedTree: FlightRouterState
+            previousTree?: FlightRouterState
+            patchedTree?: FlightRouterState
           }
         }
       }
