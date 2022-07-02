@@ -425,7 +425,7 @@ export async function renderToHTML(
 
     const segmentPath = createSegmentPath([actualSegment])
     const dataCacheKey = JSON.stringify(segmentPath)
-    let fetcher: any
+    let fetcher: (() => Promise<any>) | null = null
 
     // TODO: pass a shared cache from previous getStaticProps/getServerSideProps calls?
     if (layoutOrPageMod.getServerSideProps) {
