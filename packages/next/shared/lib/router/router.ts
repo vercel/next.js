@@ -1272,37 +1272,48 @@ export default class Router implements BaseRouter {
         : ({} as { result: undefined; params: undefined })
 
       if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
-        const missingParams = Object.keys(routeRegex.groups).filter(
-          (param) => !query[param]
-        )
+        if (!isMiddlewareMatch) {
+          const missingParams = Object.keys(routeRegex.groups).filter(
+            (param) => !query[param] && !routeRegex.groups[param].optional
+          )
 
-        if (missingParams.length > 0 && !isMiddlewareMatch) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(
-              `${
-                shouldInterpolate
-                  ? `Interpolating href`
-                  : `Mismatching \`as\` and \`href\``
-              } failed to manually provide ` +
-                `the params: ${missingParams.join(
-                  ', '
-                )} in the \`href\`'s \`query\``
+          if (missingParams.length > 0) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(
+                `${
+                  shouldInterpolate
+                    ? `Interpolating href`
+                    : `Mismatching \`as\` and \`href\``
+                } failed to manually provide ` +
+                  `the params: ${missingParams.join(
+                    ', '
+                  )} in the \`href\`'s \`query\``
+              )
+            }
+
+            throw new Error(
+              (shouldInterpolate
+                ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                    ', '
+                  )}) to be interpolated properly. `
+                : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+                `Read more: https://nextjs.org/docs/messages/${
+                  shouldInterpolate
+                    ? 'href-interpolation-failed'
+                    : 'incompatible-href-as'
+                }`
             )
           }
-
-          throw new Error(
-            (shouldInterpolate
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-                  ', '
-                )}) to be interpolated properly. `
-              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-              `Read more: https://nextjs.org/docs/messages/${
-                shouldInterpolate
-                  ? 'href-interpolation-failed'
-                  : 'incompatible-href-as'
-              }`
-          )
         }
+
+        // change string to array for catch-all groups
+        Object.keys(routeRegex.groups)
+          .filter((param) => routeRegex.groups[param].repeat)
+          .forEach((param) => {
+            if (typeof query[param] === 'string') {
+              query[param] = [query[param] as string]
+            }
+          })
       } else if (shouldInterpolate) {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
