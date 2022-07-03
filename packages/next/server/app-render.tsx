@@ -258,7 +258,8 @@ export async function renderToHTML(
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  isPagesDir: boolean
 ): Promise<RenderResult | null> {
   // don't modify original query object
   query = Object.assign({}, query)
@@ -272,6 +273,17 @@ export async function renderToHTML(
   } = renderOpts
 
   const isFlight = query.__flight__ !== undefined
+
+  if (isFlight && isPagesDir) {
+    // Empty so that the client-side router will do a full page navigation.
+    const flightData: FlightData = []
+    return new RenderResult(
+      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
+        createBufferedTransformStream()
+      )
+    )
+  }
+
   // TODO: verify the tree is valid
   // TODO: verify query param is single value (not an array)
   // TODO: verify tree can't grow out of control

@@ -11,6 +11,7 @@ import {
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
+import { root } from 'cheerio'
 
 let infinitePromise: Promise<void> | Error
 
@@ -136,6 +137,12 @@ export function InnerLayoutRouter({
     // TODO: error case
     const flightData = childNode.data.readRoot()
     console.log('LAYOUT ROOT', flightData)
+
+    // Handle case when navigating to page in `pages` from page in `app`
+    if (root.length === 0) {
+      window.location.href = url
+      return null
+    }
 
     let fastPath: boolean = false
     // segmentPath matches what came back from the server. This is the happy path.
