@@ -4,7 +4,7 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { join } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
-import { cliCommand } from '../bin/next'
+import { cliCommand } from '../lib/commands'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
