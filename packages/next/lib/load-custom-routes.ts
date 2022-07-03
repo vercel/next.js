@@ -42,9 +42,13 @@ export type Redirect = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
-  statusCode?: number
-  permanent?: boolean
-}
+} & ({
+  statusCode?: never
+  permanent: boolean
+} | {
+  statusCode: number
+  permanent?: never
+})
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
