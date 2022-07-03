@@ -903,6 +903,8 @@ export default class Router implements BaseRouter {
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
+        // @ts-ignore internal value not exposed on types
+        _h: 0,
       }),
       forcedScroll
     )
@@ -1153,7 +1155,7 @@ export default class Router implements BaseRouter {
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
-    let pages: any, rewrites: any
+    let pages: string[], rewrites: any
     try {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         this.pageLoader.getPageList(),
@@ -1197,7 +1199,7 @@ export default class Router implements BaseRouter {
         router: this,
       }))
 
-    if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
+    if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1214,14 +1216,19 @@ export default class Router implements BaseRouter {
           handleHardNavigation({ url: as, router: this })
           return true
         }
-        resolvedAs = rewritesResult.asPath
+        if (!isMiddlewareMatch) {
+          resolvedAs = rewritesResult.asPath
+        }
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
           pathname = rewritesResult.resolvedHref
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       } else {
         parsed.pathname = resolveDynamicRoute(pathname, pages)
@@ -1229,7 +1236,10 @@ export default class Router implements BaseRouter {
         if (parsed.pathname !== pathname) {
           pathname = parsed.pathname
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       }
     }
@@ -1248,34 +1258,44 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     let route = removeTrailingSlash(pathname)
+    let routeMatch: { [paramName: string]: string | string[] } | false = false
 
-    if (!isMiddlewareMatch && isDynamicRoute(route)) {
+    if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
 
       const routeRegex = getRouteRegex(route)
-      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      routeMatch = getRouteMatcher(routeRegex)(asPathname)
       const shouldInterpolate = route === asPathname
       const interpolatedAs = shouldInterpolate
         ? interpolateAs(route, asPathname, query)
         : ({} as { result: undefined; params: undefined })
 
-      const missingParams = Object.keys(routeRegex.groups).filter(
-        (param) => !query[param] && !routeRegex.groups[param].optional
-      )
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
+        const missingParams = Object.keys(routeRegex.groups).filter(
+          (param) => !query[param]
+        )
 
-      if (!routeMatch) {
-        if (missingParams.length > 0) {
+        if (missingParams.length > 0 && !isMiddlewareMatch) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `Mismatching \`as\` and \`href\` failed to manually provide the params: ${missingParams.join(
-                ', '
-              )} in the \`href\`'s \`query\``
+              `${
+                shouldInterpolate
+                  ? `Interpolating href`
+                  : `Mismatching \`as\` and \`href\``
+              } failed to manually provide ` +
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
             )
           }
 
           throw new Error(
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
               `Read more: https://nextjs.org/docs/messages/${
                 shouldInterpolate
                   ? 'href-interpolation-failed'
@@ -1283,30 +1303,6 @@ export default class Router implements BaseRouter {
               }`
           )
         }
-
-        // change string to array for catch-all groups
-        Object.keys(routeRegex.groups)
-          .filter((param) => routeRegex.groups[param].repeat)
-          .forEach((param) => {
-            if (typeof query[param] === 'string') {
-              query[param] = [query[param] as string]
-            }
-          })
-      } else if (shouldInterpolate && !interpolatedAs.result) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.warn(
-            `Interpolating href failed to manually provide the params: ${missingParams.join(
-              ', '
-            )} in the \`href\`'s \`query\``
-          )
-        }
-
-        throw new Error(
-          `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-            ', '
-          )}) to be interpolated properly. ` +
-            `Read more: https://nextjs.org/docs/messages/href-interpolation-failed`
-        )
       } else if (shouldInterpolate) {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
@@ -1342,6 +1338,14 @@ export default class Router implements BaseRouter {
         route = pathname
         query = Object.assign({}, routeInfo.query || {}, query)
 
+        if (routeMatch && pathname !== parsed.pathname) {
+          Object.keys(routeMatch).forEach((key) => {
+            if (routeMatch && query[key] === routeMatch[key]) {
+              delete query[key]
+            }
+          })
+        }
+
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
             routeInfo.resolvedAs ||
@@ -1359,10 +1363,10 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const routeMatch = getRouteMatcher(routeRegex)(rewriteAs)
+          const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
 
-          if (routeMatch) {
-            Object.assign(query, routeMatch)
+          if (curRouteMatch) {
+            Object.assign(query, curRouteMatch)
           }
         }
       }
@@ -1748,6 +1752,11 @@ export default class Router implements BaseRouter {
             : undefined
       }
 
+      if (route === '/api' || route.startsWith('/api/')) {
+        handleHardNavigation({ url: resolvedAs, router: this })
+        return new Promise<never>(() => {})
+      }
+
       const routeInfo =
         cachedRouteInfo ||
         (await this.fetchComponent(route).then<CompletePrivateRouteInfo>(
@@ -1848,8 +1857,9 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
+      let flightInfo
       if (routeInfo.__N_RSC) {
-        props.pageProps = Object.assign(props.pageProps, {
+        flightInfo = {
           __flight__: useStreamedFlightData
             ? (
                 await this._getData(() =>
@@ -1868,9 +1878,10 @@ export default class Router implements BaseRouter {
                 )
               ).data
             : props.__flight__,
-        })
+        }
       }
 
+      props.pageProps = Object.assign({}, props.pageProps, flightInfo)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
@@ -2002,6 +2013,17 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     let resolvedAs = asPath
 
+    const locale =
+      typeof options.locale !== 'undefined'
+        ? options.locale || undefined
+        : this.locale
+
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: asPath,
+      locale: locale,
+      router: this,
+    })
+
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
       let rewrites: any
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
@@ -2028,18 +2050,25 @@ export default class Router implements BaseRouter {
         // allow the correct page chunk to be loaded
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-      }
-    } else {
-      parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
 
-      if (parsed.pathname !== pathname) {
-        pathname = parsed.pathname
-        parsed.pathname = pathname
-        Object.assign(
-          query,
-          getRouteMatcher(getRouteRegex(parsed.pathname))(asPath) || {}
-        )
+        if (!isMiddlewareMatch) {
+          url = formatWithValidation(parsed)
+        }
+      }
+    }
+    parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
+
+    if (isDynamicRoute(parsed.pathname)) {
+      pathname = parsed.pathname
+      parsed.pathname = pathname
+      Object.assign(
+        query,
+        getRouteMatcher(getRouteRegex(parsed.pathname))(
+          parsePath(asPath).pathname
+        ) || {}
+      )
+
+      if (!isMiddlewareMatch) {
         url = formatWithValidation(parsed)
       }
     }
@@ -2048,11 +2077,6 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       return
     }
-
-    const locale =
-      typeof options.locale !== 'undefined'
-        ? options.locale || undefined
-        : this.locale
 
     // TODO: if the route middleware's data request
     // resolves to is not an SSG route we should bust the cache

@@ -35,7 +35,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
@@ -747,11 +747,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getServerComponentManifest() {
     if (!this.nextConfig.experimental.serverComponents) return undefined
-    return require(join(
-      this.distDir,
-      'server',
-      MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-    ))
+    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
   }
 
   protected getCacheFilesystem(): CacheFs {
