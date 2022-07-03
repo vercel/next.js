@@ -227,20 +227,21 @@ async function main() {
   }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
-  const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package.json')),
-    'bin/jest.js'
-  )
   const children = new Set()
+  const jestPath = path.join(
+    __dirname,
+    'node_modules',
+    '.bin',
+    `jest${process.platform === 'win32' ? '.CMD' : ''}`
+  )
 
   const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
       const child = spawn(
-        'node',
+        jestPath,
         [
-          jestPath,
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -286,20 +287,13 @@ async function main() {
           if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
-            let trimmedOutputSize = 0
-            const trimmedOutputLimit = 64 * 1024
             const trimmedOutput = []
 
             for (let i = outputChunks.length; i >= 0; i--) {
               const chunk = outputChunks[i]
               if (!chunk) continue
 
-              trimmedOutputSize += chunk.byteLength || chunk.length
               trimmedOutput.unshift(chunk)
-
-              if (trimmedOutputSize > trimmedOutputLimit) {
-                break
-              }
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }

@@ -28,6 +28,7 @@ import { denormalizePagePath } from '../../../../shared/lib/page-path/denormaliz
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { addRequestMeta } from '../../../../server/request-meta'
+import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
 
 export const vercelHeader = 'x-vercel-id'
 
@@ -98,7 +99,11 @@ export function getUtils({
     let fsPathname = parsedUrl.pathname
 
     const matchesPage = () => {
-      return fsPathname === page || dynamicRouteMatcher?.(fsPathname)
+      const fsPathnameNoSlash = removeTrailingSlash(fsPathname || '')
+      return (
+        fsPathnameNoSlash === removeTrailingSlash(page) ||
+        dynamicRouteMatcher?.(fsPathnameNoSlash)
+      )
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {
@@ -340,7 +345,10 @@ export function getUtils({
     }
   }
 
-  function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
+  function normalizeDynamicRouteParams(
+    params: ParsedUrlQuery,
+    ignoreOptional?: boolean
+  ) {
     let hasValidParams = true
     if (!defaultRouteRegex) return { params, hasValidParams: false }
 
@@ -351,6 +359,7 @@ export function getUtils({
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
       const defaultValue = defaultRouteMatches![key]
+      const isOptional = defaultRouteRegex!.groups[key].optional
 
       const isDefaultValue = Array.isArray(defaultValue)
         ? defaultValue.some((defaultVal) => {
@@ -360,14 +369,17 @@ export function getUtils({
           })
         : value?.includes(defaultValue as string)
 
-      if (isDefaultValue || typeof value === 'undefined') {
+      if (
+        isDefaultValue ||
+        (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+      ) {
         hasValidParams = false
       }
 
       // non-provided optional values should be undefined so normalize
       // them to undefined
       if (
-        defaultRouteRegex!.groups[key].optional &&
+        isOptional &&
         (!value ||
           (Array.isArray(value) &&
             value.length === 1 &&

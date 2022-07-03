@@ -18,7 +18,8 @@ description: 'Learn how to create or update static pages at runtime with Increme
 
 | Version   | Changes                                                                                 |
 | --------- | --------------------------------------------------------------------------------------- |
-| `v12.1.0` | On-demand ISR added (Beta).                                                             |
+| `v12.2.0` | On-Demand ISR is stable                                                                 |
+| `v12.1.0` | On-Demand ISR added (beta).                                                             |
 | `v12.0.0` | [Bot-aware ISR fallback](https://nextjs.org/blog/next-12#bot-aware-isr-fallback) added. |
 | `v9.5.0`  | Base Path added.                                                                        |
 
@@ -87,16 +88,18 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache. ISR on Vercel [persists the cache globally and handles rollbacks](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration).
 
-## On-demand Revalidation (Beta)
+> Note: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the ISR cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header.
+
+## On-demand Revalidation
 
 If you set a `revalidate` time of `60`, all visitors will see the same generated version of your site for one minute. The only way to invalidate the cache is from someone visiting that page after the minute has passed.
 
-Starting with `v12.1.0`, Next.js supports on-demand Incremental Static Regeneration to manually purge the Next.js cache for a specific page. This makes it easier to update your site when:
+Starting with `v12.2.0`, Next.js supports On-Demand Incremental Static Regeneration to manually purge the Next.js cache for a specific page. This makes it easier to update your site when:
 
 - Content from your headless CMS is created or updated
 - Ecommerce metadata changes (price, description, category, reviews, etc.)
 
-Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `unstable_revalidate` is called.
+Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `revalidate()` is called.
 
 ### Using On-Demand Revalidation
 
@@ -118,7 +121,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    await res.unstable_revalidate('/path-to-revalidate')
+    // this should be the actual path not a rewritten path
+    // e.g. for "/blog/[slug]" this should be "/blog/post-1"
+    await res.revalidate('/path-to-revalidate')
     return res.json({ revalidated: true })
   } catch (err) {
     // If there was an error, Next.js will continue
@@ -130,7 +135,7 @@ export default async function handler(req, res) {
 
 [View our demo](https://on-demand-isr.vercel.app) to see on-demand revalidation in action and provide feedback.
 
-### Testing on-demand ISR during development
+### Testing on-Demand ISR during development
 
 When running locally with `next dev`, `getStaticProps` is invoked on every request. To verify your on-demand ISR configuration is correct, you will need to create a [production build](/docs/api-reference/cli.md#build) and start the [production server](/docs/api-reference/cli.md#production):
 
@@ -139,7 +144,7 @@ $ next build
 $ next start
 ```
 
-Then, you are able to validate static pages are successfully revalidated.
+Then, you can confirm that static pages have successfully revalidated.
 
 ## Error handling and revalidation
 

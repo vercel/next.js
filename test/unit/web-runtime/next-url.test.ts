@@ -1,4 +1,6 @@
-/* eslint-env jest */
+/**
+ * @jest-environment @edge-runtime/jest-environment
+ */
 import { NextURL } from 'next/dist/server/web/next-url'
 
 // TODO Make NextURL extend URL
@@ -59,7 +61,7 @@ it('allows to update search params', () => {
 it('parses and formats the basePath', () => {
   const url = new NextURL('/root/example', {
     base: 'http://127.0.0.1',
-    basePath: '/root',
+    nextConfig: { basePath: '/root' },
   })
 
   expect(url.basePath).toEqual('/root')
@@ -67,7 +69,7 @@ it('parses and formats the basePath', () => {
   expect(url.toString()).toEqual('http://localhost/root/example')
 
   const url2 = new NextURL('https://foo.com/root/bar', {
-    basePath: '/root',
+    nextConfig: { basePath: '/root' },
   })
 
   expect(url2.basePath).toEqual('/root')
@@ -80,7 +82,7 @@ it('parses and formats the basePath', () => {
   expect(url2.toString()).toEqual('https://foo.com/test/bar')
 
   const url3 = new NextURL('https://foo.com/example', {
-    basePath: '/root',
+    nextConfig: { basePath: '/root' },
   })
 
   expect(url3.basePath).toEqual('')
@@ -114,9 +116,11 @@ it('doesnt allow to set an unexisting locale', () => {
 it('always get a default locale', () => {
   const url = new NextURL('/bar', {
     base: 'http://127.0.0.1',
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en', 'es', 'fr'],
+    nextConfig: {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
     },
   })
 
@@ -126,10 +130,12 @@ it('always get a default locale', () => {
 it('parses and formats the default locale', () => {
   const url = new NextURL('/es/bar', {
     base: 'http://127.0.0.1',
-    basePath: '/root',
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en', 'es', 'fr'],
+    nextConfig: {
+      basePath: '/root',
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
     },
   })
 
@@ -143,6 +149,35 @@ it('parses and formats the default locale', () => {
   url.locale = 'en'
   expect(url.locale).toEqual('en')
   expect(url.toString()).toEqual('http://localhost/root/bar')
+
+  url.locale = 'fr'
+  expect(url.locale).toEqual('fr')
+  expect(url.toString()).toEqual('http://localhost/root/fr/bar')
+})
+
+it('parses and formats the default locale with forceLocale', () => {
+  const url = new NextURL('/es/bar', {
+    base: 'http://127.0.0.1',
+    forceLocale: true,
+    nextConfig: {
+      basePath: '/root',
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  expect(url.locale).toEqual('es')
+  expect(url.toString()).toEqual('http://localhost/es/bar')
+
+  url.basePath = '/root'
+  expect(url.locale).toEqual('es')
+  expect(url.toString()).toEqual('http://localhost/root/es/bar')
+
+  url.locale = 'en'
+  expect(url.locale).toEqual('en')
+  expect(url.toString()).toEqual('http://localhost/root/en/bar')
 
   url.locale = 'fr'
   expect(url.locale).toEqual('fr')
@@ -174,10 +209,12 @@ it('allows to change the port', () => {
 it('allows to clone a new copy', () => {
   const url = new NextURL('/root/es/bar', {
     base: 'http://127.0.0.1',
-    basePath: '/root',
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en', 'es', 'fr'],
+    nextConfig: {
+      basePath: '/root',
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
     },
   })
 
@@ -191,9 +228,11 @@ it('allows to clone a new copy', () => {
 
 it('does not add locale for api route', () => {
   const url = new NextURL('http:///localhost:3000/api', {
-    i18n: {
-      defaultLocale: 'en',
-      locales: ['en', 'es', 'fr'],
+    nextConfig: {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
     },
   })
   url.locale = 'fr'
@@ -209,4 +248,140 @@ it('does not add locale for api route', () => {
   expect(url.href).toEqual(expected)
   expect(url.toString()).toEqual(expected)
   expect(url.toJSON()).toEqual(expected)
+})
+
+it('correctly parses a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/1234/en/hello.json',
+    'http://127.0.0.1:3000'
+  )
+  expect(url.buildId).toEqual('1234')
+  expect(url.pathname).toEqual('/en/hello')
+  expect(url.locale).toEqual('')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/1234/en/hello.json'
+  )
+})
+
+it('correctly parses a prefetch index url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/index.json',
+    'http://127.0.0.1:3000'
+  )
+  expect(url.pathname).toEqual('/')
+})
+
+it('correctly parses a prefetch url with i18n', async () => {
+  const url = new NextURL(
+    '/_next/data/development/en/hello.json',
+    'http://127.0.0.1:3000',
+    {
+      nextConfig: {
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'es', 'fr'],
+        },
+      },
+    }
+  )
+  expect(url.buildId).toEqual('development')
+  expect(url.pathname).toEqual('/hello')
+  expect(url.locale).toEqual('en')
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/en/hello.json'
+  )
+})
+
+it('allows to update the pathname for a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/en/hello.json',
+    'http://127.0.0.1:3000',
+    {
+      nextConfig: {
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'es', 'fr'],
+        },
+      },
+    }
+  )
+
+  url.pathname = '/foo'
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/en/foo.json'
+  )
+})
+
+it('allows to update the pathname to the root path for a prefetch url', async () => {
+  const url = new NextURL(
+    '/_next/data/development/hello.json',
+    'http://127.0.0.1:3000'
+  )
+  url.pathname = '/'
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/data/development/index.json'
+  )
+})
+
+it('preserves the trailingSlash', async () => {
+  const url = new NextURL('/es/', {
+    base: 'http://127.0.0.1:3000',
+    nextConfig: {
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  expect(String(url)).toEqual('http://localhost:3000/es/')
+})
+
+it('formats correctly the trailingSlash for root pages', async () => {
+  const url = new NextURL('/', {
+    base: 'http://127.0.0.1:3000',
+    nextConfig: {
+      trailingSlash: true,
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  url.locale = 'es'
+  expect(String(url)).toEqual('http://localhost:3000/es/')
+})
+
+it('keeps the trailingSlash format for non root pages', async () => {
+  const url = new NextURL('/es', {
+    base: 'http://127.0.0.1:3000',
+    nextConfig: {
+      trailingSlash: true,
+      i18n: {
+        defaultLocale: 'en',
+        locales: ['en', 'es', 'fr'],
+      },
+    },
+  })
+
+  expect(String(url)).toEqual('http://localhost:3000/es')
+})
+
+it('allows to preserve a json request', async () => {
+  const url = new NextURL(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json',
+    {
+      nextConfig: {
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'es', 'fr'],
+        },
+      },
+    }
+  )
+
+  expect(String(url)).toEqual(
+    'http://localhost:3000/_next/static/development/_devMiddlewareManifest.json'
+  )
 })

@@ -2,7 +2,7 @@ import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
@@ -17,8 +17,8 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
-  MIDDLEWARE_FILE,
   PAGES_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -46,7 +46,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -94,7 +94,6 @@ import {
   getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
   isServerComponentPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
@@ -108,9 +107,11 @@ import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
-import { injectedClientEntries } from './webpack/plugins/flight-manifest-plugin'
+import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
+import { RemotePattern } from '../shared/lib/image-config'
+import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -205,9 +206,9 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const { pages: pagesDir, views: viewsDir } = findPagesDir(
+      const { pages: pagesDir, appDir } = findPagesDir(
         dir,
-        config.experimental.viewsDir
+        config.experimental.appDir
       )
 
       const hasPublicDir = await fileExists(publicDir)
@@ -223,6 +224,10 @@ export default async function build(
       )
 
       eventNextPlugins(path.resolve(dir)).then((events) =>
+        telemetry.record(events)
+      )
+
+      eventSwcPlugins(path.resolve(dir), config).then((events) =>
         telemetry.record(events)
       )
 
@@ -270,7 +275,7 @@ export default async function build(
         nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
           verifyTypeScriptSetup(
             dir,
-            [pagesDir, viewsDir].filter(Boolean) as string[],
+            [pagesDir, appDir].filter(Boolean) as string[],
             !ignoreTypeScriptErrors,
             config.typescript.tsconfigPath,
             config.images.disableStaticImages,
@@ -333,25 +338,26 @@ export default async function build(
           )
         )
 
-      let viewPaths: string[] | undefined
+      let appPaths: string[] | undefined
 
-      if (viewsDir) {
-        viewPaths = await nextBuildSpan
-          .traceChild('collect-view-paths')
+      if (appDir) {
+        appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
             recursiveReadDir(
-              viewsDir,
+              appDir,
               new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }
 
-      const rootPaths = await flatReaddir(
-        dir,
-        new RegExp(
-          `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
-        )
+      const middlewareDetectionRegExp = new RegExp(
+        `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
+
+      const rootPaths = (
+        await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -377,17 +383,17 @@ export default async function build(
           })
         )
 
-      let mappedViewPaths: { [page: string]: string } | undefined
+      let mappedappPaths: { [page: string]: string } | undefined
 
-      if (viewPaths && viewsDir) {
-        mappedViewPaths = nextBuildSpan
-          .traceChild('create-views-mapping')
+      if (appPaths && appDir) {
+        mappedappPaths = nextBuildSpan
+          .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: viewPaths!,
+              pagePaths: appPaths!,
               hasServerComponents,
               isDev: false,
-              pagesType: 'views',
+              pagesType: 'app',
               pageExtensions: config.pageExtensions,
             })
           )
@@ -418,8 +424,8 @@ export default async function build(
             target,
             rootDir: dir,
             rootPaths: mappedRootPaths,
-            viewsDir,
-            viewPaths: mappedViewPaths,
+            appDir,
+            appPaths: mappedappPaths,
             pageExtensions: config.pageExtensions,
           })
         )
@@ -429,12 +435,6 @@ export default async function build(
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
-
-      if (mappedRootPaths?.[MIDDLEWARE_FILE]) {
-        Log.warn(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
-      }
 
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = await fileExists(
@@ -680,14 +680,8 @@ export default async function build(
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             ...(hasServerComponents
               ? [
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-                  ),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
@@ -719,7 +713,8 @@ export default async function build(
           rewrites,
           runWebpackSpan,
           target,
-          viewsDir,
+          appDir,
+          middlewareRegex: entrypoints.middlewareRegex,
         }
 
         const configs = await runWebpackSpan
@@ -1084,7 +1079,7 @@ export default async function build(
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
+          pageKeys.map((page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
               page,
             })
@@ -1128,7 +1123,7 @@ export default async function build(
               if (
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
-                pageRuntime !== 'edge'
+                pageRuntime !== SERVER_RUNTIME.edge
               ) {
                 try {
                   let isPageStaticSpan =
@@ -1254,10 +1249,7 @@ export default async function build(
                 isHybridAmp,
                 ssgPageRoutes,
                 initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
+                runtime: pageRuntime,
                 pageDuration: undefined,
                 ssgPageDurations: undefined,
               })
@@ -1445,33 +1437,38 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = path.parse(dir).root
-            const serverResult = await nodeFileTrace(
-              [require.resolve('next/dist/server/next-server')],
-              {
-                base: root,
-                processCwd: dir,
-                ignore: [
-                  '**/next/dist/pages/**/*',
-                  '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                  '**/node_modules/webpack5/**/*',
-                  '**/next/dist/server/lib/squoosh/**/*.wasm',
-                  ...(ciEnvironment.hasNextSupport
-                    ? [
-                        // only ignore image-optimizer code when
-                        // this is being handled outside of next-server
-                        '**/next/dist/server/image-optimizer.js',
-                        '**/node_modules/sharp/**/*',
-                      ]
-                    : []),
-                  ...(!hasSsrAmpPages
-                    ? [
-                        '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-                      ]
-                    : []),
-                ],
-              }
-            )
+            const root = config.experimental.outputFileTracingRoot || dir
+            const toTrace = [require.resolve('next/dist/server/next-server')]
+
+            // ensure we trace any dependencies needed for custom
+            // incremental cache handler
+            if (config.experimental.incrementalCacheHandlerPath) {
+              toTrace.push(
+                require.resolve(config.experimental.incrementalCacheHandlerPath)
+              )
+            }
+
+            const serverResult = await nodeFileTrace(toTrace, {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/webpack5/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                ...(ciEnvironment.hasNextSupport
+                  ? [
+                      // only ignore image-optimizer code when
+                      // this is being handled outside of next-server
+                      '**/next/dist/server/image-optimizer.js',
+                      '**/node_modules/sharp/**/*',
+                    ]
+                  : []),
+                ...(!hasSsrAmpPages
+                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                  : []),
+              ],
+            })
 
             const tracedFiles = new Set()
 
@@ -1643,7 +1640,7 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         await nextBuildSpan
           .traceChild('copy-traced-files')
           .traceAsyncFn(async () => {
@@ -2200,23 +2197,18 @@ export default async function build(
         )
       }
 
-      await promises.writeFile(
-        path.join(
-          distDir,
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          '_middlewareManifest.js'
-        ),
-        `self.__MIDDLEWARE_MANIFEST=${devalue(
-          middlewareManifest.clientInfo
-        )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-      )
-
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns =
+      ;(images as any).remotePatterns = (
         config?.experimental?.images?.remotePatterns || []
+      ).map((p: RemotePattern) => ({
+        // Should be the same as matchRemotePattern()
+        protocol: p.protocol,
+        hostname: makeRe(p.hostname).source,
+        port: p.port,
+        pathname: makeRe(p.pathname ?? '**').source,
+      }))
 
       await promises.writeFile(
         path.join(distDir, IMAGES_MANIFEST),
@@ -2243,7 +2235,7 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         for (const file of [
           ...requiredServerFiles.files,
           path.join(config.distDir, SERVER_FILES_MANIFEST),
@@ -2365,6 +2357,7 @@ function verifyTypeScriptSetup(
     {
       numWorkers,
       enableWorkerThreads,
+      maxRetries: 0,
     }
   ) as JestWorker & {
     verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
@@ -2396,13 +2389,15 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages = new Set<string>([
-    ...Object.entries(prerenderManifest.routes)
-      // Filter out dynamic routes
-      .filter(([, { srcRoute }]) => srcRoute == null)
-      .map(([route]) => normalizeLocalePath(route, locales).pathname),
-    ...Object.keys(prerenderManifest.dynamicRoutes),
-  ])
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
 
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages

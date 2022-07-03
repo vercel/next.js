@@ -4,7 +4,6 @@ import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
 import { BuildError } from './container/BuildError'
 import { Errors, SupportedErrorEvent } from './container/Errors'
-import { FullRefreshWarning } from './container/FullRefreshWarning'
 import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
@@ -14,8 +13,6 @@ type OverlayState = {
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
-  fullRefreshReason: string | null
-  isAboutToFullRefresh: boolean
 }
 
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
@@ -25,19 +22,6 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
     }
     case Bus.TYPE_BUILD_ERROR: {
       return { ...state, buildError: ev.message }
-    }
-    case Bus.TYPE_FULL_REFRESH_NEEDED: {
-      const aboutToRefreshNewState: OverlayState = {
-        ...state,
-        fullRefreshReason: null,
-        isAboutToFullRefresh: true,
-      }
-
-      if (ev.reason === null) {
-        return aboutToRefreshNewState
-      }
-
-      return { ...aboutToRefreshNewState, fullRefreshReason: ev.reason }
     }
     case Bus.TYPE_REFRESH: {
       return { ...state, buildError: null, errors: [] }
@@ -58,7 +42,7 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   }
 }
 
-type ErrorType = 'runtime' | 'build' | 'full-refresh'
+type ErrorType = 'runtime' | 'build'
 
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
@@ -73,8 +57,6 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
     nextId: 1,
     buildError: null,
     errors: [],
-    fullRefreshReason: null,
-    isAboutToFullRefresh: false,
   })
 
   React.useEffect(() => {
@@ -93,9 +75,8 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
 
   const hasBuildError = state.buildError != null
   const hasRuntimeErrors = Boolean(state.errors.length)
-  const isAboutToFullRefresh = state.isAboutToFullRefresh
 
-  const isMounted = hasBuildError || hasRuntimeErrors || isAboutToFullRefresh
+  const isMounted = hasBuildError || hasRuntimeErrors
 
   return (
     <React.Fragment>
@@ -109,20 +90,12 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
           <ComponentStyles />
 
           {shouldPreventDisplay(
-            hasBuildError
-              ? 'build'
-              : hasRuntimeErrors
-              ? 'runtime'
-              : isAboutToFullRefresh
-              ? 'full-refresh'
-              : null,
+            hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
             preventDisplay
           ) ? null : hasBuildError ? (
             <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
-          ) : isAboutToFullRefresh ? (
-            <FullRefreshWarning reason={state.fullRefreshReason} />
           ) : undefined}
         </ShadowPortal>
       ) : undefined}

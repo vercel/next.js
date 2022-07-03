@@ -88,7 +88,7 @@ store.subscribe((state) => {
         return
       }
     }
-
+    startTime = 0
     // Ensure traces are flushed after each compile in development mode
     flushAllTraces()
     teardownTraceSubscriber()
