@@ -138,7 +138,7 @@ export function InnerLayoutRouter({
     const flightData = childNode.data.readRoot()
     console.log('LAYOUT ROOT', flightData)
 
-    // Handle case when navigating to page in `pages` from page in `app`
+    // Handle case when navigating to page in `pages` from `app`
     if (root.length === 0) {
       window.location.href = url
       return null

@@ -366,7 +366,7 @@ export function reducer(
       const root = cache.data.readRoot()
       console.log('ROOT FROM PUSH', root)
 
-      // Handle case when navigating to page in `pages` from page in `app`
+      // Handle case when navigating to page in `pages` from `app`
       if (root.length === 0) {
         window.location.href = href
         return state
