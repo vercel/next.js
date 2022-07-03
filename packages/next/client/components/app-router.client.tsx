@@ -71,12 +71,17 @@ export default function AppRouter({
   )
 
   const appRouter = React.useMemo<AppRouterInstance>(() => {
-    const navigate = (href: string, cacheType: 'hard' | 'soft') => {
+    const navigate = (
+      href: string,
+      cacheType: 'hard' | 'soft',
+      navigateType: 'push' | 'replace'
+    ) => {
       return dispatch({
         type: 'navigate',
         payload: {
           url: new URL(href, location.origin),
-          cacheType: cacheType,
+          cacheType,
+          navigateType,
           cache: {
             data: null,
             subTreeData: null,
@@ -93,27 +98,25 @@ export default function AppRouter({
       replace: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          // TODO: replace case shouldn't push url
-          navigate(href, 'hard')
+          navigate(href, 'hard', 'replace')
         })
       },
       softReplace: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          // TODO: replace case shouldn't push url
-          navigate(href, 'soft')
+          navigate(href, 'soft', 'replace')
         })
       },
       softPush: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'soft')
+          navigate(href, 'soft', 'push')
         })
       },
       push: (href) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'hard')
+          navigate(href, 'hard', 'push')
         })
       },
     }

@@ -254,6 +254,7 @@ export function reducer(
         payload: {
           url: URL
           cacheType: 'soft' | 'hard'
+          navigateType: 'push' | 'replace'
           cache: CacheNode
           mutable: {
             previousTree?: FlightRouterState
@@ -285,7 +286,8 @@ export function reducer(
   }
 
   if (action.type === 'navigate') {
-    const { url, cacheType, cache, mutable } = action.payload
+    const { url, cacheType, navigateType, cache, mutable } = action.payload
+    const pendingPush = navigateType === 'push' ? true : false
     const { pathname } = url
     const href = url.pathname + url.search + url.hash
 
@@ -305,7 +307,7 @@ export function reducer(
 
       return {
         canonicalUrl: href,
-        pushRef: { pendingPush: true },
+        pushRef: { pendingPush },
         cache: state.cache,
         tree: optimisticTree,
       }
@@ -341,7 +343,7 @@ export function reducer(
         if (!res?.bailOptimistic) {
           return {
             canonicalUrl: href,
-            pushRef: { pendingPush: true },
+            pushRef: { pendingPush },
             cache: cache,
             tree: optimisticTree,
           }
@@ -354,7 +356,7 @@ export function reducer(
       ) {
         return {
           canonicalUrl: href,
-          pushRef: { pendingPush: true },
+          pushRef: { pendingPush },
           cache: cache,
           tree: mutable.patchedTree,
         }
@@ -398,7 +400,7 @@ export function reducer(
 
       return {
         canonicalUrl: href,
-        pushRef: { pendingPush: true },
+        pushRef: { pendingPush },
         cache: cache,
         tree: newTree,
       }
