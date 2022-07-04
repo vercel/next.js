@@ -630,6 +630,12 @@ export default async function getBaseWebpackConfig(
   const reactDir = dirname(require.resolve('react/package.json'))
   const reactDomDir = dirname(require.resolve('react-dom/package.json'))
 
+  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
+    server: ['main', 'module'],
+    client: ['browser', 'module', 'main'],
+    'edge-server': ['browser', 'module', 'main'],
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -700,11 +706,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: isClient
-      ? ['browser', 'module', 'main']
-      : isEdgeServer
-      ? ['module', 'main']
-      : ['main', 'module'],
+    mainFields: mainFieldsPerCompiler[compilerType],
     plugins: [],
   }
 
