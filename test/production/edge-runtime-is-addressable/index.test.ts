@@ -1,6 +1,8 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
+import fs from 'fs-extra'
+import path from 'path'
 
 describe('Edge Runtime is addressable', () => {
   let next: NextInstance
@@ -16,11 +18,11 @@ describe('Edge Runtime is addressable', () => {
         'middleware.js': `
           import { NextResponse } from 'next/server'
 
-          // if (typeof EdgeRuntime === 'undefined') {
-          //   console.log("EdgeRuntime is undefined");
-          // } else {
-          //   console.log("EdgeRuntime is defined");
-          // }
+          if (typeof EdgeRuntime === 'undefined') {
+            console.log("EdgeRuntime is undefined");
+          } else {
+            console.log("EdgeRuntime is defined");
+          }
 
           export default (req) => {
             return NextResponse.next({
@@ -40,7 +42,17 @@ describe('Edge Runtime is addressable', () => {
     const resp = await fetchViaHTTP(next.url, '/')
     expect(await resp.text()).toContain('hello world')
     expect(Object.fromEntries(resp.headers)).toMatchObject({
-      'x-runtime-version': 'hello',
+      'x-runtime-version': expect.stringMatching(/^\d+\.\d+\.\d+/),
     })
+  })
+
+  test('removes the undefined branch with dead code elimination', async () => {
+    const compiledMiddlewareFile = await fs.readFile(
+      path.join(next.testDir, '.next/server/middleware.js'),
+      'utf8'
+    )
+
+    expect(compiledMiddlewareFile).toContain('EdgeRuntime is defined')
+    expect(compiledMiddlewareFile).not.toContain('EdgeRuntime is undefined')
   })
 })
