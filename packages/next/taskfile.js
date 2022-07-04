@@ -216,6 +216,14 @@ export async function ncc_edge_runtime(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
     .target('compiled/edge-runtime')
+  const pkg = await fs.readJson(require.resolve('edge-runtime/package.json'))
+  const dest = 'compiled/edge-runtime'
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: 'edge-runtime',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
 }
 
 // eslint-disable-next-line camelcase
