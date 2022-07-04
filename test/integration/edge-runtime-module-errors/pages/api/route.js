@@ -1,6 +1,5 @@
-
 import { NextResponse } from 'next/server'
-import { basename } from "path"
+import { basename } from 'path'
 
 export async function middleware(request) {
   basename()
