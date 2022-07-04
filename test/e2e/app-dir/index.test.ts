@@ -5,6 +5,8 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
+const isDev = (global as any).isNextDev
+
 describe('views dir', () => {
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
@@ -279,5 +281,20 @@ describe('views dir', () => {
         )
       })
     })
+  })
+
+  describe('css support', () => {
+    if (isDev) {
+      it('should support css modules inside client layouts', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
+
+        // Should render h1 in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+    }
   })
 })
