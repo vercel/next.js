@@ -121,6 +121,26 @@ function runTests(startServer = nextStart) {
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Max-Age']).toBe(expiry)
   })
+  it('should set custom path cookies', async () => {
+    const path = '/preview-test'
+    const res = await fetchViaHTTP(appPort, '/api/preview', {
+      cookiePath: path,
+    })
+    expect(res.status).toBe(200)
+
+    const originalCookies = res.headers.get('set-cookie').split(',')
+    const cookies = originalCookies.map(cookie.parse)
+
+    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+
+    expect(cookies.length).toBe(2)
+    expect(cookies[0]).toMatchObject({ SameSite: 'None' })
+    expect(cookies[0]).toHaveProperty('__prerender_bypass')
+    expect(cookies[0]['Path']).toBe(path)
+    expect(cookies[1]).toMatchObject({ SameSite: 'None' })
+    expect(cookies[1]).toHaveProperty('__next_preview_data')
+    expect(cookies[1]['Max-Age']).toBe(path)
+  })
   it('should not return fallback page on preview request', async () => {
     const res = await fetchViaHTTP(
       appPort,
