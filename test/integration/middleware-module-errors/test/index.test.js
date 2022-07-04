@@ -185,12 +185,14 @@ export async function middleware(request) {
       )
     })
 
-    it('throws not-found module error in production at runtime and prints error on logs', async () => {
-      await nextBuild(context.appDir)
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(500)
-      expectModuleNotFoundProdError(moduleName)
+    it('does not build and reports', async () => {
+      const { code, stderr } = await nextBuild(context.appDir, undefined, {
+        ignoreFail: true,
+        stdout: true,
+        stderr: true,
+      })
+      expect(code).toEqual(1)
+      expectModuleNotFoundProdError(moduleName, stderr)
     })
   })
 
@@ -219,12 +221,14 @@ export async function middleware(request) {
       )
     })
 
-    it('throws not-found module error in production at runtime and prints error on logs', async () => {
-      await nextBuild(context.appDir)
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(500)
-      expectModuleNotFoundProdError(moduleName)
+    it('does not build and reports', async () => {
+      const { code, stderr } = await nextBuild(context.appDir, undefined, {
+        ignoreFail: true,
+        stdout: true,
+        stderr: true,
+      })
+      expect(code).toEqual(1)
+      expectModuleNotFoundProdError(moduleName, stderr)
     })
   })
 
@@ -247,16 +251,22 @@ export async function middleware(request) {
     it('does not throw in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(200)
-      expectNoError(moduleName)
+      expect(res.status).toBe(500)
+      expectModuleNotFoundDevError(
+        moduleName,
+        importStatement,
+        await res.text()
+      )
     })
 
-    it('does not throw in production at runtime', async () => {
-      await nextBuild(context.appDir)
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, '/')
-      expect(res.status).toBe(200)
-      expectNoError(moduleName)
+    it('does not build and reports', async () => {
+      const { code, stderr } = await nextBuild(context.appDir, undefined, {
+        ignoreFail: true,
+        stdout: true,
+        stderr: true,
+      })
+      expect(code).toEqual(1)
+      expectModuleNotFoundProdError(moduleName, stderr)
     })
   })
 
@@ -363,7 +373,7 @@ export default function Page() {
 })
 
 function getModuleNotFound(name) {
-  return `Can't resolve '${name}' module`
+  return `Module not found: Can't resolve '${name}'`
 }
 
 function getUnsupportedModule(name) {
@@ -374,20 +384,24 @@ function escapeLF(s) {
   return s.replace(/\n/g, '\\n')
 }
 
-function expectUnsupportedModuleProdError(moduleName) {
+function expectUnsupportedModuleProdError(
+  moduleName,
+  output = context.logs.output
+) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(context.logs.output).toContain(moduleNotSupportedMessage)
+  expect(output).toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(context.logs.output).not.toContain(moduleNotFoundMessage)
+  expect(output).not.toContain(moduleNotFoundMessage)
 }
 
 function expectUnsupportedModuleDevError(
   moduleName,
   importStatement,
-  responseText
+  responseText,
+  output = context.logs.output
 ) {
-  expectUnsupportedModuleProdError(moduleName)
-  expect(stripAnsi(context.logs.output)).toContain(importStatement)
+  expectUnsupportedModuleProdError(moduleName, output)
+  expect(stripAnsi(output)).toContain(importStatement)
 
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(responseText).toContain(escapeLF(moduleNotSupportedMessage))
@@ -396,20 +410,24 @@ function expectUnsupportedModuleDevError(
   expect(responseText).not.toContain(escapeLF(moduleNotFoundMessage))
 }
 
-function expectModuleNotFoundProdError(moduleName) {
+function expectModuleNotFoundProdError(
+  moduleName,
+  output = context.logs.output
+) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(context.logs.output).not.toContain(moduleNotSupportedMessage)
+  expect(output).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(context.logs.output).toContain(moduleNotFoundMessage)
+  expect(output).toContain(moduleNotFoundMessage)
 }
 
 function expectModuleNotFoundDevError(
   moduleName,
   importStatement,
-  responseText
+  responseText,
+  output = context.logs.output
 ) {
-  expectModuleNotFoundProdError(moduleName)
-  expect(stripAnsi(context.logs.output)).toContain(importStatement)
+  expectModuleNotFoundProdError(moduleName, output)
+  expect(stripAnsi(output)).toContain(importStatement)
 
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(responseText).not.toContain(escapeLF(moduleNotSupportedMessage))

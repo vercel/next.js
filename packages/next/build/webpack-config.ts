@@ -35,7 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import MiddlewarePlugin, {
-  handleWebpackExternalForMiddleware,
+  handleWebpackExtenalForEdgeRuntime,
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -976,7 +976,7 @@ export default async function getBaseWebpackConfig(
                     'next/dist/compiled/chalk': '{}',
                     'react-dom': '{}',
                   },
-                  handleWebpackExternalForMiddleware,
+                  handleWebpackExtenalForEdgeRuntime,
                 ]
               : []),
           ]

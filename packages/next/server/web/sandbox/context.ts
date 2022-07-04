@@ -354,9 +354,6 @@ function decorateUnhandledError(error: any) {
 
 function getUnsupportedModuleErrorMessage(module: string) {
   // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
-  return require('module').builtinModules.includes(module)
-    ? `The edge runtime does not support Node.js '${module}' module.
+  return `The edge runtime does not support Node.js '${module}' module.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
-    : `Can't resolve '${module}' module.
-Learn More: https://nextjs.org/docs/messages/module-not-found`
 }

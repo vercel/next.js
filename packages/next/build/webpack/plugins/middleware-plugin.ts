@@ -96,7 +96,7 @@ export default class MiddlewarePlugin {
   }
 }
 
-export async function handleWebpackExternalForMiddleware({
+export async function handleWebpackExtenalForEdgeRuntime({
   request,
   contextInfo,
 }: {
@@ -105,26 +105,9 @@ export async function handleWebpackExternalForMiddleware({
 }) {
   if (
     contextInfo.issuerLayer === 'middleware' &&
-    (require('module').builtinModules.includes(request) ||
-      isUnknownModule(request))
+    require('module').builtinModules.includes(request)
   ) {
     return `root  __import_unsupported('${request}')`
-  }
-}
-
-function isUnknownModule(module: string) {
-  if (
-    module.startsWith('.') ||
-    module.startsWith('next-middleware-loader') ||
-    module.startsWith('private-next-root')
-  ) {
-    return false
-  }
-  try {
-    require.resolve(module)
-    return false
-  } catch (err) {
-    return true
   }
 }
 
@@ -306,7 +289,7 @@ function getCodeAnalizer(params: {
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
-      if (isInMiddlewareLayer(parser) && node.source?.value && node?.loc) {
+      if (node.source?.value && node?.loc) {
         const { module, source } = parser.state
         const buildInfo = getModuleBuildInfo(module)
         if (!buildInfo.importLocByPath) {
