@@ -23,7 +23,8 @@ function pathMatches(
   layoutSegmentPath: FlightSegmentPath
 ): boolean {
   // The last two items are the tree and subTreeData
-  const pathToLayout = flightDataPath.slice(0, -2)
+  // TODO: check
+  const pathToLayout = flightDataPath.slice(0, -3)
   return equalArray(layoutSegmentPath, pathToLayout)
 }
 
@@ -70,6 +71,7 @@ export function InnerLayoutRouter({
       if (segmentPathToWalk) {
         const [segment, parallelRouteKey] = segmentPathToWalk
         const isLast = segmentPathToWalk.length === 2
+
         if (treeToRecreate[0] === segment) {
           if (treeToRecreate[1].hasOwnProperty(parallelRouteKey)) {
             if (isLast) {
@@ -107,11 +109,11 @@ export function InnerLayoutRouter({
       return treeToRecreate
     }
 
-    console.log('FETCHING IN LAYOUT ROUTER', url)
-    const data = fetchServerResponse(
-      new URL(url, location.origin),
-      walkAddRefetch(segmentPath, fullTree)
-    )
+    // TODO: remove ''
+    const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+    console.log('FETCHING IN LAYOUT ROUTER', url, refetchTree)
+
+    const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
       data,
       subTreeData: null,
