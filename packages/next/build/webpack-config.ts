@@ -1480,6 +1480,11 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
+        ...(compilerType !== 'edge-server'
+          ? {}
+          : {
+              EdgeRuntime: JSON.stringify('edge-runtime'),
+            }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
