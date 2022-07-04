@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  console.log('Middleware called from', request.url)
   if (request.nextUrl.pathname === '/about') {
     return NextResponse.redirect(new URL('/redirected', request.url))
   }
