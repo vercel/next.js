@@ -7,6 +7,7 @@ import ThirdPartyEmailPassword, {
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '../config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
+import { useSessionContext } from 'supertokens-auth-react/recipe/session'
 
 export async function getServerSideProps(context) {
   // this runs on the backend, so we must call init on supertokens-node SDK
@@ -40,6 +41,7 @@ export default function Home(props) {
         <h1 className={styles.title}>
           Welcome to <a href="https://nextjs.org">Next.js!</a>
         </h1>
+
         <ThirdPartyEmailPasswordAuth requireAuth={true}>
           <ProtectedPage userId={props.userId} />
         </ThirdPartyEmailPasswordAuth>
@@ -59,6 +61,8 @@ export default function Home(props) {
 }
 
 function ProtectedPage({ userId }) {
+  const session = useSessionContext()
+
   async function logoutClicked() {
     await ThirdPartyEmailPassword.signOut()
     ThirdPartyEmailPassword.redirectToAuth()
@@ -72,12 +76,23 @@ function ProtectedPage({ userId }) {
     }
   }
 
+  if (session.loading === true) {
+    // It should never come here, since this is wrapped by ThirdPartyEmailPasswordAuth with requireAuth=true
+    return null
+  }
+
   return (
     <>
       <p className={styles.description}>
-        You are authenticated with SuperTokens! (UserID: {userId})
+        You are authenticated with SuperTokens!
       </p>
 
+      <p className={styles.description}>
+        UserId: {session.userId} <br /> (from SSR: {userId})
+      </p>
+      <p className={styles.description}>
+        Access token payload: {JSON.stringify(session.accessTokenPayload)}
+      </p>
       <div
         style={{
           display: 'flex',
