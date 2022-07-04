@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { ParsedUrlQuery, stringify as stringifyQuery } from 'querystring'
@@ -19,6 +20,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
+import { stripInternalQueries } from './utils'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -29,9 +31,8 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: any
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
-  reactRoot: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -179,13 +180,20 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const writable = transformStream.writable
-  const ServerComponentWrapper = (props: any) => {
-    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <ComponentToRender {...props} />,
-      serverComponentManifest
-    )
+  let RSCStream: ReadableStream<Uint8Array>
+  const createRSCStream = () => {
+    if (!RSCStream) {
+      RSCStream = renderToReadableStream(
+        <ComponentToRender />,
+        serverComponentManifest
+      )
+    }
+    return RSCStream
+  }
 
+  const writable = transformStream.writable
+  const ServerComponentWrapper = () => {
+    const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
       cachePrefix,
@@ -219,8 +227,8 @@ export async function renderToHTML(
 
   const isFlight = query.__flight__ !== undefined
   const flightRouterPath = isFlight ? query.__flight_router_path__ : undefined
-  delete query.__flight__
-  delete query.__flight_router_path__
+
+  stripInternalQueries(query)
 
   const hasConcurrentFeatures = !!runtime
   const pageIsDynamic = isDynamicRoute(pathname)

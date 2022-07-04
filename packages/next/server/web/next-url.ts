@@ -25,6 +25,7 @@ export class NextURL {
     domainLocale?: DomainLocale
     locale?: string
     options: Options
+    trailingSlash?: boolean
     url: URL
   }
 
@@ -77,6 +78,7 @@ export class NextURL {
     this[Internal].basePath = pathnameInfo.basePath ?? ''
     this[Internal].buildId = pathnameInfo.buildId
     this[Internal].locale = pathnameInfo.locale ?? defaultLocale
+    this[Internal].trailingSlash = pathnameInfo.trailingSlash
   }
 
   private formatPathname() {
@@ -88,6 +90,7 @@ export class NextURL {
         : undefined,
       locale: this[Internal].locale,
       pathname: this[Internal].url.pathname,
+      trailingSlash: this[Internal].trailingSlash,
     })
   }
 

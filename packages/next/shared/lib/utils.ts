@@ -92,7 +92,7 @@ export type NEXT_DATA = {
   autoExport?: boolean
   isFallback?: boolean
   dynamicIds?: (string | number)[]
-  err?: Error & { statusCode?: number }
+  err?: Error & { statusCode?: number; source?: 'server' | 'edge-server' }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
@@ -256,7 +256,12 @@ export type NextApiResponse<T = any> = ServerResponse & {
   ) => NextApiResponse<T>
   clearPreviewData: () => NextApiResponse<T>
 
-  unstable_revalidate: (
+  /**
+   * @deprecated `unstable_revalidate` has been renamed to `revalidate`
+   */
+  unstable_revalidate: () => void
+
+  revalidate: (
     urlPath: string,
     opts?: {
       unstable_onlyGenerated?: boolean
@@ -398,8 +403,9 @@ export { warnOnce }
 export const SP = typeof performance !== 'undefined'
 export const ST =
   SP &&
-  typeof performance.mark === 'function' &&
-  typeof performance.measure === 'function'
+  (['mark', 'measure', 'getEntriesByName'] as const).every(
+    (method) => typeof performance[method] === 'function'
+  )
 
 export class DecodeError extends Error {}
 export class NormalizeError extends Error {}
@@ -410,6 +416,22 @@ export class PageNotFoundError extends Error {
     super()
     this.code = 'ENOENT'
     this.message = `Cannot find module for page: ${page}`
+  }
+}
+
+export class MissingStaticPage extends Error {
+  constructor(page: string, message: string) {
+    super()
+    this.message = `Failed to load static file for page: ${page} ${message}`
+  }
+}
+
+export class MiddlewareNotFoundError extends Error {
+  code: string
+  constructor() {
+    super()
+    this.code = 'ENOENT'
+    this.message = `Cannot find the middleware module`
   }
 }
 

@@ -12,6 +12,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
+import { shouldUseReactRoot } from './utils'
 
 let ServerImpl: typeof Server
 
@@ -182,10 +183,6 @@ function createServer(options: NextServerOptions): NextServer {
     )
   }
 
-  // Make sure env of custom server is overridden.
-  // Use dynamic require to make sure it's executed in it's own context.
-  const ReactDOMServer = require('react-dom/server')
-  const shouldUseReactRoot = !!ReactDOMServer.renderToPipeableStream
   if (shouldUseReactRoot) {
     ;(process.env as any).__NEXT_REACT_ROOT = 'true'
   }

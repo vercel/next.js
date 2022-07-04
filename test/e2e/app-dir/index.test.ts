@@ -64,6 +64,11 @@ describe('views dir', () => {
     expect(html).toContain('hello from app/dashboard/index')
   })
 
+  it('should load chunks generated via async import correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/index')
+    expect(html).toContain('hello from lazy')
+  })
+
   it('should include layouts when no direct parent layout', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)

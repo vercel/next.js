@@ -14,7 +14,7 @@ const chunkFilenameMap = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId) => {
-  return getChunkScriptFilename(chunkId) || chunkFilenameMap[chunkId]
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
 }
 
 // Ignore the module ID transform in client.

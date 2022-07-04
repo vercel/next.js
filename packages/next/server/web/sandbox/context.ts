@@ -1,5 +1,9 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import {
+  decorateServerError,
+  getServerError,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
@@ -98,6 +102,7 @@ export async function getModuleContext(options: ModuleContextOptions) {
  */
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
+  const warnedWasmCodegens = new Set<string>()
   const wasm = await loadWasm(options.wasm)
   const runtime = new EdgeRuntime({
     codeGeneration:
@@ -116,10 +121,58 @@ async function createModuleContext(options: ModuleContextOptions) {
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
           warnedEvals.add(key)
-          options.onWarning(warning)
+          options.onWarning(getServerError(warning, 'edge-server'))
         }
         return fn()
       }
+
+      context.__next_webassembly_compile__ =
+        function __next_webassembly_compile__(fn: Function) {
+          const key = fn.toString()
+          if (!warnedWasmCodegens.has(key)) {
+            const warning = getServerError(
+              new Error(
+                "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
+                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+              ),
+              'edge-server'
+            )
+            warning.name = 'DynamicWasmCodeGenerationWarning'
+            Error.captureStackTrace(warning, __next_webassembly_compile__)
+            warnedWasmCodegens.add(key)
+            options.onWarning(warning)
+          }
+          return fn()
+        }
+
+      context.__next_webassembly_instantiate__ =
+        async function __next_webassembly_instantiate__(fn: Function) {
+          const result = await fn()
+
+          // If a buffer is given, WebAssembly.instantiate returns an object
+          // containing both a module and an instance while it returns only an
+          // instance if a WASM module is given. Utilize the fact to determine
+          // if the WASM code generation happens.
+          //
+          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+          const instantiatedFromBuffer = result.hasOwnProperty('module')
+
+          const key = fn.toString()
+          if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
+            const warning = getServerError(
+              new Error(
+                "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
+                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
+              ),
+              'edge-server'
+            )
+            warning.name = 'DynamicWasmCodeGenerationWarning'
+            Error.captureStackTrace(warning, __next_webassembly_instantiate__)
+            warnedWasmCodegens.add(key)
+            options.onWarning(warning)
+          }
+          return result
+        }
 
       const __fetch = context.fetch
       context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
@@ -183,6 +236,9 @@ async function createModuleContext(options: ModuleContextOptions) {
       return context
     },
   })
+
+  runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
+  runtime.context.addEventListener('error', decorateUnhandledError)
 
   return {
     runtime,
@@ -268,5 +324,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     contextOptions.onWarning(warning)
     console.warn(warning.message)
     warnedAlready.add(name)
+  }
+}
+
+function decorateUnhandledError(error: any) {
+  if (error instanceof Error) {
+    decorateServerError(error, 'edge-server')
   }
 }

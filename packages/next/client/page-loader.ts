@@ -7,11 +7,7 @@ import { addLocale } from './add-locale'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import {
-  createRouteLoader,
-  getClientBuildManifest,
-  getMiddlewareManifest,
-} from './route-loader'
+import { createRouteLoader, getClientBuildManifest } from './route-loader'
 
 declare global {
   interface Window {
@@ -87,7 +83,11 @@ export default class PageLoader {
 
   getMiddlewareList() {
     if (process.env.NODE_ENV === 'production') {
-      return getMiddlewareManifest()
+      const middlewareRegex = process.env.__NEXT_MIDDLEWARE_REGEX
+      window.__MIDDLEWARE_MANIFEST = middlewareRegex
+        ? [[middlewareRegex, false]]
+        : []
+      return window.__MIDDLEWARE_MANIFEST
     } else {
       if (window.__DEV_MIDDLEWARE_MANIFEST) {
         return window.__DEV_MIDDLEWARE_MANIFEST
@@ -117,6 +117,7 @@ export default class PageLoader {
     asPath: string
     href: string
     locale?: string | false
+    skipInterpolation?: boolean
   }): string {
     const { asPath, href, locale } = params
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
@@ -138,7 +139,9 @@ export default class PageLoader {
     }
 
     return getHrefForSlug(
-      isDynamicRoute(route)
+      params.skipInterpolation
+        ? asPathname
+        : isDynamicRoute(route)
         ? interpolateAs(hrefPathname, asPathname, query).result
         : route
     )

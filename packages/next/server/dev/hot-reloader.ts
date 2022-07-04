@@ -15,6 +15,7 @@ import {
   runDependingOnPageType,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
+import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE, APP_DIR_ALIAS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
@@ -351,6 +352,15 @@ export default class HotReloader {
               }
               break
             }
+            case 'client-full-reload': {
+              Log.warn(
+                'Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/basic-features/fast-refresh#how-it-works'
+              )
+              if (payload.stackTrace) {
+                console.warn(payload.stackTrace)
+              }
+              break
+            }
             default: {
               break
             }
@@ -563,6 +573,8 @@ export default class HotReloader {
 
             const isServerComponent =
               serverComponentRegex.test(absolutePagePath)
+            const isInsideAppDir =
+              this.appDir && absolutePagePath.startsWith(this.appDir)
 
             const staticInfo = await getPageStaticInfo({
               pageFilePath: absolutePagePath,
@@ -593,7 +605,7 @@ export default class HotReloader {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                if (isServerComponent) {
+                if (isServerComponent || isInsideAppDir) {
                   entries[pageKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     name: bundlePath,
@@ -889,7 +901,6 @@ export default class HotReloader {
 
     this.onDemandEntries = onDemandEntryHandler({
       multiCompiler,
-      watcher: this.watcher,
       pagesDir: this.pagesDir,
       appDir: this.appDir,
       rootDir: this.dir,
@@ -905,6 +916,7 @@ export default class HotReloader {
         rootDirectory: this.dir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
       }),
     ]
   }

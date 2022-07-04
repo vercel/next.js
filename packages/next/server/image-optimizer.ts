@@ -423,10 +423,7 @@ export async function imageOptimizer(
       optimizedBuffer = await transformer.toBuffer()
       // End sharp transformation logic
     } else {
-      if (
-        showSharpMissingWarning &&
-        nextConfig.experimental?.outputStandalone
-      ) {
+      if (showSharpMissingWarning && nextConfig.output === 'standalone') {
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
@@ -567,14 +564,16 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
     isStatic
       ? 'public, max-age=315360000, immutable'
-      : `public, max-age=0, must-revalidate`
+      : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`
   )
   if (sendEtagResponse(req, res, etag)) {
     // already called res.end() so we're finished
@@ -608,7 +607,9 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string,
+  maxAge: number,
+  isDev: boolean
 ) {
   const contentType = getContentType(extension)
   const etag = getHash([buffer])
@@ -620,7 +621,9 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy
+    contentSecurityPolicy,
+    maxAge,
+    isDev
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))

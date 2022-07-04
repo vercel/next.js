@@ -1,17 +1,19 @@
-import type { PageRuntime } from '../../server/config-shared'
+import type { ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
-import { isMiddlewareFile } from '../utils'
+import * as Log from '../output/log'
+import { SERVER_RUNTIME } from '../../lib/constants'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
 }
 
 export interface PageStaticInfo {
-  runtime?: PageRuntime
+  runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
   middleware?: Partial<MiddlewareConfig>
@@ -38,15 +40,18 @@ export async function getPageStaticInfo(params: {
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
 
-    const runtime =
-      config?.runtime === 'edge'
-        ? 'edge'
+    let runtime =
+      SERVER_RUNTIME.edge === config?.runtime
+        ? SERVER_RUNTIME.edge
         : ssr || ssg
         ? config?.runtime || nextConfig.experimental?.runtime
         : undefined
 
-    const middlewareConfig =
-      isMiddlewareFile(params.page!) && getMiddlewareConfig(config)
+    if (runtime === SERVER_RUNTIME.edge) {
+      warnAboutExperimentalEdgeApiFunctions()
+    }
+
+    const middlewareConfig = getMiddlewareConfig(config, nextConfig)
 
     return {
       ssr,
@@ -118,12 +123,15 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
+function getMiddlewareConfig(
+  config: any,
+  nextConfig: NextConfig
+): Partial<MiddlewareConfig> {
   const result: Partial<MiddlewareConfig> = {}
 
   if (config.matcher) {
     result.pathMatcher = new RegExp(
-      getMiddlewareRegExpStrings(config.matcher).join('|')
+      getMiddlewareRegExpStrings(config.matcher, nextConfig).join('|')
     )
 
     if (result.pathMatcher.source.length > 4096) {
@@ -136,9 +144,14 @@ function getMiddlewareConfig(config: any): Partial<MiddlewareConfig> {
   return result
 }
 
-function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
+function getMiddlewareRegExpStrings(
+  matcherOrMatchers: unknown,
+  nextConfig: NextConfig
+): string[] {
   if (Array.isArray(matcherOrMatchers)) {
-    return matcherOrMatchers.flatMap((x) => getMiddlewareRegExpStrings(x))
+    return matcherOrMatchers.flatMap((matcher) =>
+      getMiddlewareRegExpStrings(matcher, nextConfig)
+    )
   }
 
   if (typeof matcherOrMatchers !== 'string') {
@@ -153,24 +166,37 @@ function getMiddlewareRegExpStrings(matcherOrMatchers: unknown): string[] {
     throw new Error('`matcher`: path matcher must start with /')
   }
 
+  if (nextConfig.i18n?.locales) {
+    matcher = `/:nextInternalLocale(${nextConfig.i18n.locales
+      .map((locale) => escapeStringRegexp(locale))
+      .join('|')})${
+      matcher === '/' && !nextConfig.trailingSlash ? '' : matcher
+    }`
+  }
+
+  if (nextConfig.basePath) {
+    matcher = `${nextConfig.basePath}${matcher === '/' ? '' : matcher}`
+  }
+
   const parsedPage = tryToParsePath(matcher)
   if (parsedPage.error) {
     throw new Error(`Invalid path matcher: ${matcher}`)
   }
 
-  const dataMatcher = `/_next/data/:__nextjsBuildId__${matcher}.json`
-
-  const parsedDataRoute = tryToParsePath(dataMatcher)
-  if (parsedDataRoute.error) {
-    throw new Error(`Invalid data path matcher: ${dataMatcher}`)
-  }
-
-  const regexes = [parsedPage.regexStr, parsedDataRoute.regexStr].filter(
-    (x): x is string => !!x
-  )
-  if (regexes.length < 2) {
+  const regexes = [parsedPage.regexStr].filter((x): x is string => !!x)
+  if (regexes.length < 1) {
     throw new Error("Can't parse matcher")
   } else {
     return regexes
   }
 }
+
+function warnAboutExperimentalEdgeApiFunctions() {
+  if (warnedAboutExperimentalEdgeApiFunctions) {
+    return
+  }
+  Log.warn(`You are using an experimental edge runtime, the API might change.`)
+  warnedAboutExperimentalEdgeApiFunctions = true
+}
+
+let warnedAboutExperimentalEdgeApiFunctions = false

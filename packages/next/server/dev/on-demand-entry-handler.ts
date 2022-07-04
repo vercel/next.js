@@ -66,7 +66,6 @@ export function onDemandEntryHandler({
   pagesDir,
   rootDir,
   appDir,
-  watcher,
 }: {
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
@@ -75,9 +74,8 @@ export function onDemandEntryHandler({
   pagesDir: string
   rootDir: string
   appDir?: string
-  watcher: any
 }) {
-  invalidator = new Invalidator(watcher)
+  invalidator = new Invalidator(multiCompiler)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
 
@@ -206,6 +204,8 @@ export function onDemandEntryHandler({
           const isServerComponent = serverComponentRegex.test(
             pagePathData.absolutePagePath
           )
+          const isInsideAppDir =
+            appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
           const pageKey = `${type}${pagePathData.page}`
 
@@ -217,7 +217,7 @@ export function onDemandEntryHandler({
               return
             }
           } else {
-            if (type === 'client' && isServerComponent) {
+            if (type === 'client' && (isServerComponent || isInsideAppDir)) {
               // Skip adding the client entry here.
             } else {
               entryAdded = true
@@ -243,7 +243,7 @@ export function onDemandEntryHandler({
         nextConfig,
       })
 
-      const promises = runDependingOnPageType({
+      const result = runDependingOnPageType({
         page: pagePathData.page,
         pageRuntime: staticInfo.runtime,
         onClient: () => addPageEntry('client'),
@@ -251,13 +251,14 @@ export function onDemandEntryHandler({
         onEdgeServer: () => addPageEntry('edge-server'),
       })
 
+      const promises = Object.values(result)
       if (entryAdded) {
         reportTrigger(
           !clientOnly && promises.length > 1
             ? `${pagePathData.page} (client and server)`
             : pagePathData.page
         )
-        invalidator.invalidate()
+        invalidator.invalidate(Object.keys(result))
       }
 
       return Promise.all(promises)
@@ -313,18 +314,18 @@ function disposeInactiveEntries(
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  private watcher: any
+  private multiCompiler: webpack.MultiCompiler
   private building: boolean
   public rebuildAgain: boolean
 
-  constructor(watcher: any) {
-    this.watcher = watcher
+  constructor(multiCompiler: webpack.MultiCompiler) {
+    this.multiCompiler = multiCompiler
     // contains an array of types of compilers currently building
     this.building = false
     this.rebuildAgain = false
   }
 
-  invalidate() {
+  invalidate(keys: string[] = []) {
     // If there's a current build is processing, we won't abort it by invalidating.
     // (If aborted, it'll cause a client side hard reload)
     // But let it to invalidate just after the completion.
@@ -335,7 +336,23 @@ class Invalidator {
     }
 
     this.building = true
-    this.watcher.invalidate()
+
+    if (!keys || keys.length === 0) {
+      this.multiCompiler.compilers[0].watching.invalidate()
+      this.multiCompiler.compilers[1].watching.invalidate()
+      this.multiCompiler.compilers[2].watching.invalidate()
+      return
+    }
+
+    for (const key of keys) {
+      if (key === 'client') {
+        this.multiCompiler.compilers[0].watching.invalidate()
+      } else if (key === 'server') {
+        this.multiCompiler.compilers[1].watching.invalidate()
+      } else if (key === 'edgeServer') {
+        this.multiCompiler.compilers[2].watching.invalidate()
+      }
+    }
   }
 
   startBuilding() {
