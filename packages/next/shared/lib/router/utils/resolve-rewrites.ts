@@ -34,10 +34,13 @@ export default function resolveRewrites(
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = getPathMatch(rewrite.source + '(/)?', {
-      removeUnnamedParams: true,
-      strict: true,
-    })
+    const matcher = getPathMatch(
+      rewrite.source + (process.env.__NEXT_TRAILING_SLASH ? '(/)?' : ''),
+      {
+        removeUnnamedParams: true,
+        strict: true,
+      }
+    )
 
     let params = matcher(parsedAs.pathname)
 
