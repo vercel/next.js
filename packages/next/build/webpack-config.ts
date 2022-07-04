@@ -56,7 +56,6 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import fs from 'fs'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1475,14 +1474,7 @@ export default async function getBaseWebpackConfig(
         ...(compilerType !== 'edge-server'
           ? {}
           : {
-              EdgeRuntime: JSON.stringify(
-                (() => {
-                  const jsonfile = require.resolve(
-                    'next/dist/compiled/edge-runtime/package.json'
-                  )
-                  return JSON.parse(fs.readFileSync(jsonfile, 'utf8')).version
-                })()
-              ),
+              EdgeRuntime: JSON.stringify('edge-runtime'),
             }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(

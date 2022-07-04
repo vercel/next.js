@@ -11,7 +11,7 @@ describe('Edge Runtime is addressable', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>hello world</p>
           }
         `,
@@ -42,7 +42,7 @@ describe('Edge Runtime is addressable', () => {
     const resp = await fetchViaHTTP(next.url, '/')
     expect(await resp.text()).toContain('hello world')
     expect(Object.fromEntries(resp.headers)).toMatchObject({
-      'x-runtime-version': expect.stringMatching(/^\d+\.\d+\.\d+/),
+      'x-runtime-version': 'edge-runtime',
     })
   })
 
