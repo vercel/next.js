@@ -50,6 +50,9 @@ export const config = {
 }
 ```
 
+
+> **Note**: Middleware doesn't run when `useFileSystemPublicRoutes` is set to `false` in your `next.config.js`.
+
 ## Matching Paths
 
 Middleware will be invoked for **every route in your project**. The following is the execution order:
