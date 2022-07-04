@@ -289,7 +289,7 @@ function getCodeAnalizer(params: {
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
-      if (node.source?.value && node?.loc) {
+      if (isInMiddlewareLayer(parser) && node.source?.value && node?.loc) {
         const { module, source } = parser.state
         const buildInfo = getModuleBuildInfo(module)
         if (!buildInfo.importLocByPath) {

@@ -482,8 +482,8 @@ export function finalizeEntrypoint({
       ? { import: value }
       : value
 
+  const isApi = name.startsWith('pages/api/')
   if (compilerType === 'server') {
-    const isApi = name.startsWith('pages/api/')
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
@@ -494,7 +494,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) || isApi ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
