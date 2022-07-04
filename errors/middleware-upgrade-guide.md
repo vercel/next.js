@@ -155,7 +155,7 @@ If you were previously using Middleware to forward headers to an external API, y
 ```typescript
 // pages/api/proxy.ts
 
-import { type NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export const config = {
   runtime: 'experimental-edge',
