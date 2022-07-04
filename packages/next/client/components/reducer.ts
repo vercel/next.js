@@ -240,7 +240,7 @@ const walkTreeWithFlightDataPath = (
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
-  pushRef: { pendingPush: boolean }
+  pushRef: { pendingPush: boolean; mpaNavigation: boolean }
   canonicalUrl: string
 }
 
@@ -307,7 +307,7 @@ export function reducer(
 
       return {
         canonicalUrl: href,
-        pushRef: { pendingPush },
+        pushRef: { pendingPush, mpaNavigation: false },
         cache: state.cache,
         tree: optimisticTree,
       }
@@ -343,7 +343,7 @@ export function reducer(
         if (!res?.bailOptimistic) {
           return {
             canonicalUrl: href,
-            pushRef: { pendingPush },
+            pushRef: { pendingPush, mpaNavigation: false },
             cache: cache,
             tree: optimisticTree,
           }
@@ -356,7 +356,7 @@ export function reducer(
       ) {
         return {
           canonicalUrl: href,
-          pushRef: { pendingPush },
+          pushRef: { pendingPush, mpaNavigation: false },
           cache: cache,
           tree: mutable.patchedTree,
         }
@@ -365,19 +365,23 @@ export function reducer(
       if (!cache.data) {
         cache.data = fetchServerResponse(url, state.tree)
       }
-      const root = cache.data.readRoot()
-      console.log('ROOT FROM PUSH', root)
+      const flightData = cache.data.readRoot()
+      console.log('ROOT FROM PUSH', flightData)
 
       // Handle case when navigating to page in `pages` from `app`
-      if (root.length === 0) {
-        window.location.href = href
-        return state
+      if (typeof flightData === 'string') {
+        return {
+          canonicalUrl: flightData,
+          pushRef: { pendingPush: true, mpaNavigation: true },
+          cache: state.cache,
+          tree: state.tree,
+        }
       }
 
       cache.data = null
 
       // TODO: ensure flightDataPath does not have "" as first item
-      const flightDataPath = root[0]
+      const flightDataPath = flightData[0]
 
       const [treePatch] = flightDataPath.slice(-2)
       const treePath = flightDataPath.slice(0, -3)
@@ -400,7 +404,7 @@ export function reducer(
 
       return {
         canonicalUrl: href,
-        pushRef: { pendingPush },
+        pushRef: { pendingPush, mpaNavigation: false },
         cache: cache,
         tree: newTree,
       }

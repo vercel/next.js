@@ -47,7 +47,7 @@ export default function AppRouter({
       subTreeData: null,
       parallelRoutes: new Map(),
     },
-    pushRef: { pendingPush: false },
+    pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
 
@@ -125,7 +125,18 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
-    console.log('UPDATE URL', pushRef.pendingPush ? 'push' : 'replace', tree)
+    console.log(
+      'UPDATE URL',
+      pushRef.pendingPush ? 'push' : 'replace',
+      pushRef.mpaNavigation ? 'MPA' : '',
+      tree
+    )
+
+    if (pushRef.mpaNavigation) {
+      window.location.href = canonicalUrl
+      return
+    }
+
     if (pushRef.pendingPush) {
       pushRef.pendingPush = false
       window.history.pushState({ tree }, '', canonicalUrl)

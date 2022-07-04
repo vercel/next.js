@@ -139,7 +139,7 @@ export function InnerLayoutRouter({
     console.log('LAYOUT ROOT', flightData)
 
     // Handle case when navigating to page in `pages` from `app`
-    if (root.length === 0) {
+    if (typeof flightData === 'string') {
       window.location.href = url
       return null
     }

@@ -250,7 +250,7 @@ export type FlightDataPath =
       subTreeData: React.ReactNode
     ]
 
-export type FlightData = Array<FlightDataPath>
+export type FlightData = Array<FlightDataPath> | string
 export type ChildProp = { current: React.ReactNode; segment: string }
 
 export async function renderToHTML(
@@ -275,8 +275,11 @@ export async function renderToHTML(
   const isFlight = query.__flight__ !== undefined
 
   if (isFlight && isPagesDir) {
+    stripInternalQueries(query)
+    const search = stringifyQuery(query)
+
     // Empty so that the client-side router will do a full page navigation.
-    const flightData: FlightData = []
+    const flightData: FlightData = pathname + (search ? `?${search}` : '')
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
         createBufferedTransformStream()
@@ -515,8 +518,6 @@ export async function renderToHTML(
     }
   }
 
-  const search = stringifyQuery(query)
-
   if (isFlight) {
     // TODO: throw on invalid flightRouterState
     const walkTreeWithFlightRouterState = (
@@ -594,6 +595,8 @@ export async function renderToHTML(
       )
     )
   }
+
+  const search = stringifyQuery(query)
 
   // TODO: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url
