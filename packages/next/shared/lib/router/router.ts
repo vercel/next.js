@@ -1225,10 +1225,10 @@ export default class Router implements BaseRouter {
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
+          pathname = rewritesResult.resolvedHref
+          parsed.pathname = addBasePath(pathname)
 
           if (!isMiddlewareMatch) {
-            pathname = rewritesResult.resolvedHref
-            parsed.pathname = addBasePath(pathname)
             url = formatWithValidation(parsed)
           }
         }
@@ -1236,9 +1236,10 @@ export default class Router implements BaseRouter {
         parsed.pathname = resolveDynamicRoute(pathname, pages)
 
         if (parsed.pathname !== pathname) {
+          pathname = parsed.pathname
+          parsed.pathname = addBasePath(pathname)
+
           if (!isMiddlewareMatch) {
-            pathname = parsed.pathname
-            parsed.pathname = addBasePath(pathname)
             url = formatWithValidation(parsed)
           }
         }
