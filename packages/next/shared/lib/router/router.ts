@@ -1191,13 +1191,15 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch =
-      !options.shallow &&
-      (await matchesMiddleware({
-        asPath: as,
-        locale: nextState.locale,
-        router: this,
-      }))
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: as,
+      locale: nextState.locale,
+      router: this,
+    })
+
+    if (options.shallow && isMiddlewareMatch) {
+      pathname = this.pathname
+    }
 
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1223,10 +1225,10 @@ export default class Router implements BaseRouter {
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
-          pathname = rewritesResult.resolvedHref
-          parsed.pathname = addBasePath(pathname)
 
           if (!isMiddlewareMatch) {
+            pathname = rewritesResult.resolvedHref
+            parsed.pathname = addBasePath(pathname)
             url = formatWithValidation(parsed)
           }
         }
@@ -1234,10 +1236,9 @@ export default class Router implements BaseRouter {
         parsed.pathname = resolveDynamicRoute(pathname, pages)
 
         if (parsed.pathname !== pathname) {
-          pathname = parsed.pathname
-          parsed.pathname = addBasePath(pathname)
-
           if (!isMiddlewareMatch) {
+            pathname = parsed.pathname
+            parsed.pathname = addBasePath(pathname)
             url = formatWithValidation(parsed)
           }
         }
@@ -1672,16 +1673,12 @@ export default class Router implements BaseRouter {
      * for shallow routing purposes.
      */
     let route = requestedRoute
+
     try {
       const handleCancelled = getCancelledHandler({ route, router: this })
 
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (
-        !hasMiddleware &&
-        routeProps.shallow &&
-        existingInfo &&
-        this.route === route
-      ) {
+      if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
 

@@ -107,7 +107,7 @@ export function getUtils({
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {
-      const matcher = getPathMatch(rewrite.source, {
+      const matcher = getPathMatch(rewrite.source + '(/)?', {
         removeUnnamedParams: true,
         strict: true,
       })

@@ -34,7 +34,7 @@ export default function resolveRewrites(
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = getPathMatch(rewrite.source, {
+    const matcher = getPathMatch(rewrite.source + '(/)?', {
       removeUnnamedParams: true,
       strict: true,
     })
