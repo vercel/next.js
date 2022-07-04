@@ -23,7 +23,6 @@ function pathMatches(
   layoutSegmentPath: FlightSegmentPath
 ): boolean {
   // The last two items are the tree and subTreeData
-  // TODO: check
   const pathToLayout = flightDataPath.slice(0, -3)
   return equalArray(layoutSegmentPath, pathToLayout)
 }
