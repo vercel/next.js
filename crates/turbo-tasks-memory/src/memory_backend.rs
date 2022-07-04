@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashSet, future::Future, pin::Pin};
+use std::{cell::RefCell, collections::HashSet, future::Future, pin::Pin, sync::Mutex};
 
 use anyhow::Result;
 use event_listener::EventListener;
@@ -15,11 +15,14 @@ use turbo_tasks::{
 
 use crate::{
     output::Output,
+    scope::{TaskScope, TaskScopeId},
     task::{Task, DEPENDENCIES_TO_TRACK},
 };
 
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
+    memory_task_scopes: NoMoveVec<Mutex<TaskScope>>,
+    scope_id_factory: IdFactory<TaskScopeId>,
     background_jobs: NoMoveVec<BackgroundJob>,
     background_job_id_factory: IdFactory<BackgroundJobId>,
     task_cache: FHashMap<PersistentTaskType, TaskId>,
@@ -29,6 +32,8 @@ impl MemoryBackend {
     pub fn new() -> Self {
         Self {
             memory_tasks: NoMoveVec::new(),
+            memory_task_scopes: NoMoveVec::new(),
+            scope_id_factory: IdFactory::new(),
             background_jobs: NoMoveVec::new(),
             background_job_id_factory: IdFactory::new(),
             task_cache: FHashMap::new(),
@@ -71,6 +76,56 @@ impl MemoryBackend {
 
     pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
         func(&self.memory_tasks.get(*id).unwrap())
+    }
+
+    pub fn with_scope<T>(&self, id: TaskScopeId, func: impl FnOnce(&mut TaskScope) -> T) -> T {
+        func(&mut *self.memory_task_scopes.get(*id).unwrap().lock().unwrap())
+    }
+
+    pub fn create_new_scope(&self) -> TaskScopeId {
+        let id = self.scope_id_factory.get();
+        unsafe {
+            self.memory_task_scopes
+                .insert(*id, Mutex::new(TaskScope::new()));
+        }
+        id
+    }
+
+    pub fn create_new_active_scope(&self) -> TaskScopeId {
+        let id = self.scope_id_factory.get();
+        unsafe {
+            self.memory_task_scopes
+                .insert(*id, Mutex::new(TaskScope::new_active()));
+        }
+        id
+    }
+
+    pub(crate) fn increase_scope_active(
+        &self,
+        scope: TaskScopeId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut queue = vec![scope];
+        while let Some(scope) = queue.pop() {
+            if let Some(tasks) = self.with_scope(scope, |scope| scope.increment_active(&mut queue))
+            {
+                for task in tasks.into_iter() {
+                    self.with_task(task, |task| {
+                        task.schedule_when_dirty(turbo_tasks);
+                    })
+                }
+            }
+        }
+    }
+    pub(crate) fn decrease_scope_active(
+        &self,
+        scope: TaskScopeId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut queue = vec![scope];
+        while let Some(scope) = queue.pop() {
+            self.with_scope(scope, |scope| scope.decrement_active(&mut queue));
+        }
     }
 }
 
@@ -308,36 +363,26 @@ impl Backend for MemoryBackend {
             TransientTaskType::Once(f) => Task::new_once(id, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet
-        unsafe {
-            self.memory_tasks.insert(*id, task);
-        }
+        let task = unsafe { self.memory_tasks.insert(*id, task) };
+        let scope = self.create_new_active_scope();
+        task.add_to_scope(scope, self, turbo_tasks);
         id
     }
 }
 
 pub(crate) enum BackgroundJob {
-    RemoveTasks(HashSet<TaskId>),
-    RemoveTask(TaskId),
-    DeactivateTasks(Vec<TaskId>),
+    RemoveFromScopes(HashSet<TaskId>, Vec<TaskScopeId>),
 }
 
 impl BackgroundJob {
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
-            BackgroundJob::RemoveTasks(tasks) => {
-                for id in tasks {
-                    backend.with_task(id, |task| {
-                        task.remove(backend, turbo_tasks);
+            BackgroundJob::RemoveFromScopes(tasks, scopes) => {
+                for task in tasks {
+                    backend.with_task(task, |task| {
+                        task.remove_from_scopes(scopes.iter().cloned(), backend, turbo_tasks)
                     });
                 }
-            }
-            BackgroundJob::RemoveTask(id) => {
-                backend.with_task(id, |task| {
-                    task.remove(backend, turbo_tasks);
-                });
-            }
-            BackgroundJob::DeactivateTasks(tasks) => {
-                Task::deactivate_tasks(tasks, backend, turbo_tasks);
             }
         }
     }

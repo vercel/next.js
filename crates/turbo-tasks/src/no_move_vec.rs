@@ -75,7 +75,7 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     }
 
     /// SAFETY: There must not be a concurrent operation to this idx
-    pub unsafe fn insert(&self, idx: usize, value: T) {
+    pub unsafe fn insert(&self, idx: usize, value: T) -> &T {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket = unsafe { self.buckets.get_unchecked(bucket_idx as usize) };
         let mut bucket_ptr = bucket.0.load(Ordering::Acquire);
@@ -110,6 +110,7 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         let item = unsafe { &mut *bucket_ptr.add(index) };
         *item = Some(value);
         fence(Ordering::Release);
+        item.as_ref().unwrap()
     }
 
     /// SAFETY: There must not be a concurrent operation to this idx

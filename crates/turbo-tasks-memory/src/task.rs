@@ -3,15 +3,12 @@ use std::time::Instant;
 use std::{
     cell::RefCell,
     collections::HashSet,
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{self, Debug, Display, Formatter, Write},
     future::Future,
     hash::Hash,
-    mem::{swap, take},
+    mem::take,
     pin::Pin,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Mutex, RwLock,
-    },
+    sync::{Mutex, RwLock, RwLockWriteGuard},
 };
 
 use anyhow::Result;
@@ -96,10 +93,6 @@ pub struct Task {
     ty: TaskType,
     /// The mutable state of the task
     state: RwLock<TaskState>,
-    /// A counter how many other active Tasks are using that task.
-    /// When this counter reaches 0 the task will be marked inactive.
-    /// When it becomes non-zero the task will be marked active.
-    active_parents: AtomicU32,
     // TODO technically we need no lock here as it's only written
     // during execution, which doesn't happen in parallel
     /// Mutable state that is used during task execution.
@@ -128,7 +121,7 @@ impl Debug for Task {
         let state = self.state.read().unwrap();
         let mut result = f.debug_struct("Task");
         result.field("type", &self.ty);
-        result.field("active", &state.active);
+        result.field("scopes", &state.scopes.iter().collect::<Vec<_>>());
         result.field("state", &state.state_type);
         result.finish()
     }
@@ -137,11 +130,7 @@ impl Debug for Task {
 /// The state of a [Task]
 #[derive(Default)]
 struct TaskState {
-    /// true, when the task is transitively a child of a root task.
-    ///
-    /// It will be set to `false` in a background process, so it might be still
-    /// `true` even if it's no longer connected.
-    active: bool,
+    scopes: TaskScopeList,
 
     // TODO using a Atomic might be possible here
     /// More flags of task state, where not all combinations are possible.
@@ -196,7 +185,13 @@ impl Default for TaskStateType {
 
 use TaskStateType::*;
 
-use crate::{cell::Cell, memory_backend::BackgroundJob, output::Output, stats, MemoryBackend};
+use crate::{
+    cell::Cell,
+    memory_backend::BackgroundJob,
+    output::Output,
+    scope::{AddResult, RemoveResult, TaskScopeId, TaskScopeList},
+    stats, MemoryBackend,
+};
 
 impl Task {
     pub(crate) fn new_native(id: TaskId, inputs: Vec<TaskInput>, native_fn: FunctionId) -> Self {
@@ -206,7 +201,6 @@ impl Task {
             inputs,
             ty: TaskType::Native(native_fn, bound_fn),
             state: Default::default(),
-            active_parents: Default::default(),
             execution_data: Default::default(),
         }
     }
@@ -221,7 +215,6 @@ impl Task {
             inputs,
             ty: TaskType::ResolveNative(native_fn),
             state: Default::default(),
-            active_parents: Default::default(),
             execution_data: Default::default(),
         }
     }
@@ -237,7 +230,6 @@ impl Task {
             inputs,
             ty: TaskType::ResolveTrait(trait_type, trait_fn_name),
             state: Default::default(),
-            active_parents: Default::default(),
             execution_data: Default::default(),
         }
     }
@@ -251,11 +243,9 @@ impl Task {
             inputs: Vec::new(),
             ty: TaskType::Root(Box::new(functor)),
             state: RwLock::new(TaskState {
-                active: true,
                 state_type: Scheduled,
                 ..Default::default()
             }),
-            active_parents: AtomicU32::new(1),
             execution_data: Default::default(),
         }
     }
@@ -269,11 +259,9 @@ impl Task {
             inputs: Vec::new(),
             ty: TaskType::Once(Mutex::new(Some(Box::pin(functor)))),
             state: RwLock::new(TaskState {
-                active: true,
                 state_type: Scheduled,
                 ..Default::default()
             }),
-            active_parents: AtomicU32::new(1),
             execution_data: Default::default(),
         }
     }
@@ -300,54 +288,6 @@ impl Task {
                     registry::get_trait(*trait_type).name
                 )
             }
-        }
-    }
-
-    pub(crate) fn remove(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
-        if self.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-            self.deactivate(1, backend, turbo_tasks);
-        }
-    }
-
-    #[cfg(not(feature = "report_expensive"))]
-    pub(crate) fn deactivate_tasks(
-        tasks: Vec<TaskId>,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        for child in tasks.into_iter() {
-            backend.with_task(child, |child| child.deactivate(1, backend, turbo_tasks));
-        }
-    }
-
-    #[cfg(feature = "report_expensive")]
-    pub(crate) fn deactivate_tasks(
-        tasks: Vec<TaskId>,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        let start = Instant::now();
-        let mut count = 0;
-        let mut len = 0;
-        for child in tasks.into_iter() {
-            count += backend.with_task(child, |child| child.deactivate(1, turbo_tasks));
-            len += 1;
-        }
-        let elapsed = start.elapsed();
-        if elapsed.as_millis() >= 10 {
-            println!(
-                "deactivate_tasks({}, {}) took {} ms",
-                count,
-                len,
-                elapsed.as_millis(),
-            );
-        } else if count > 10000 {
-            println!(
-                "deactivate_tasks({}, {}) took {} µs",
-                count,
-                len,
-                elapsed.as_micros(),
-            );
         }
     }
 
@@ -417,9 +357,6 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         let mut state = self.state.write().unwrap();
-        if !state.active {
-            return false;
-        }
         match state.state_type {
             Done | InProgress | InProgressDirty => {
                 // should not start in this state
@@ -429,10 +366,11 @@ impl Task {
                 state.state_type = InProgress;
                 state.executions += 1;
                 if !state.children.is_empty() {
-                    let mut set = HashSet::new();
-                    swap(&mut set, &mut state.children);
+                    let set = take(&mut state.children);
+                    let scopes = state.scopes.iter().collect::<Vec<_>>();
+                    // TODO potentially convert something to a root scope to make it more efficient
                     turbo_tasks.schedule_backend_background_job(
-                        backend.create_background_job(BackgroundJob::RemoveTasks(set)),
+                        backend.create_background_job(BackgroundJob::RemoveFromScopes(set, scopes)),
                     );
                 }
             }
@@ -478,7 +416,7 @@ impl Task {
         &self,
         cell_mappings: Option<CellMappings>,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
             let mut execution_data = self.execution_data.lock().unwrap();
@@ -498,7 +436,14 @@ impl Task {
                 }
                 InProgressDirty => {
                     clear_dependencies = true;
-                    if state.active {
+                    let mut active = false;
+                    for scope in state.scopes.iter() {
+                        if backend.with_scope(scope, |scope| scope.is_active()) {
+                            active = true;
+                            break;
+                        }
+                    }
+                    if active {
                         state.state_type = Scheduled;
                         schedule_task = true;
                     } else {
@@ -528,94 +473,6 @@ impl Task {
         schedule_task
     }
 
-    /// This method should be called after adding the first parent
-    fn activate(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        let mut state = self.state.write().unwrap();
-
-        if self.active_parents.load(Ordering::Acquire) == 0 {
-            return 0;
-        }
-
-        if state.active {
-            return 0;
-        }
-
-        state.active = true;
-
-        let mut count = 1;
-
-        // This locks the whole tree, but avoids cloning children
-
-        for child in state.children.iter() {
-            backend.with_task(*child, |child| {
-                if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
-                    count += child.activate(backend, turbo_tasks);
-                }
-            })
-        }
-        match state.state_type {
-            Dirty => {
-                state.state_type = Scheduled;
-                drop(state);
-                turbo_tasks.schedule(self.id);
-            }
-            Done | Scheduled | InProgress | InProgressDirty => {
-                drop(state);
-            }
-        }
-        count
-    }
-
-    /// This method should be called after removing the last parent
-    fn deactivate(
-        &self,
-        depth: u8,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> usize {
-        let mut state = self.state.write().unwrap();
-
-        if self.active_parents.load(Ordering::Acquire) != 0 {
-            return 0;
-        }
-
-        if !state.active {
-            return 0;
-        }
-
-        state.active = false;
-
-        let mut count = 1;
-
-        if depth < 4 {
-            // This locks the whole tree, but avoids cloning children
-
-            for child in state.children.iter() {
-                backend.with_task(*child, |child| {
-                    if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                        count += child.deactivate(depth + 1, backend, turbo_tasks);
-                    }
-                })
-            }
-            drop(state);
-            count
-        } else {
-            let mut scheduled = Vec::new();
-            for child_id in state.children.iter() {
-                backend.with_task(*child_id, |child| {
-                    if child.active_parents.fetch_sub(1, Ordering::AcqRel) == 1 {
-                        scheduled.push(*child_id);
-                    }
-                })
-            }
-            drop(state);
-            turbo_tasks.schedule_backend_background_job(
-                backend.create_background_job(BackgroundJob::DeactivateTasks(scheduled)),
-            );
-            count
-        }
-    }
-
     fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
@@ -629,7 +486,18 @@ impl Task {
                 // already dirty
             }
             Done => {
-                if state.active {
+                // add to dirty lists and potentially schedule
+                let mut active = false;
+                for scope in state.scopes.iter() {
+                    backend.with_scope(scope, |scope| {
+                        if scope.is_active() {
+                            active = true;
+                        } else {
+                            scope.dirty_tasks.insert(self.id);
+                        }
+                    });
+                }
+                if active {
                     state.state_type = Scheduled;
                     drop(state);
                     turbo_tasks.schedule(self.id);
@@ -641,6 +509,121 @@ impl Task {
             InProgress => {
                 state.state_type = InProgressDirty;
             }
+        }
+    }
+
+    pub(crate) fn schedule_when_dirty(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+        let mut state = self.state.write().unwrap();
+        if state.state_type == TaskStateType::Dirty {
+            state.state_type = Scheduled;
+            drop(state);
+            turbo_tasks.schedule(self.id);
+        }
+    }
+
+    pub(crate) fn add_to_scope(
+        &self,
+        id: TaskScopeId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut state = self.state.write().unwrap();
+        if let Some(root) = state.scopes.root {
+            if backend.with_scope(id, |scope| scope.add_child(root)) {
+                drop(state);
+                backend.increase_scope_active(root, turbo_tasks);
+            }
+        } else {
+            match state.scopes.try_add(id) {
+                AddResult::Root => {
+                    // root doesn't have to be added
+                    // this is called when it is circular
+                }
+                AddResult::Existing => {
+                    // nothing to do, we can stop propagating as this task is
+                    // already part of that scope
+                }
+                AddResult::New => {
+                    for child in state.children.iter() {
+                        // TODO this could deadlock, when there are cycles
+                        backend.with_task(*child, |child| {
+                            child.add_to_scope(id, backend, turbo_tasks);
+                        })
+                    }
+                    // add to dirty list of the scope (potentially schedule)
+                    if state.state_type == TaskStateType::Dirty {
+                        backend.with_scope(id, move |scope| {
+                            if scope.is_active() {
+                                state.state_type = Scheduled;
+                                drop(state);
+                                turbo_tasks.schedule(self.id);
+                            } else {
+                                scope.dirty_tasks.insert(self.id);
+                            }
+                        })
+                    }
+                }
+                AddResult::Full => {
+                    todo!("create new root scope here and add as child of existing scopes")
+                }
+            }
+        }
+    }
+
+    fn remove_from_scope_interal(
+        &self,
+        state: &mut RwLockWriteGuard<TaskState>,
+        id: TaskScopeId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        match state.scopes.remove(id) {
+            RemoveResult::Root => {
+                // root doesn't have to be removed
+                // this is called when it is circular
+            }
+            RemoveResult::NoEntry => {
+                if let Some(root) = state.scopes.root {
+                    if backend.with_scope(id, |scope| scope.remove_child(root)) {
+                        drop(state);
+                        backend.decrease_scope_active(root, turbo_tasks);
+                    }
+                } else {
+                    panic!("Tried to remove from scope it's not part of")
+                }
+            }
+            RemoveResult::Decreased => {
+                // nothing to do, we can stop propagating
+            }
+            RemoveResult::Removed => {
+                for child in state.children.iter() {
+                    backend.with_task(*child, |child| {
+                        child.add_to_scope(id, backend, turbo_tasks);
+                    })
+                }
+            }
+        }
+    }
+
+    pub(crate) fn remove_from_scope(
+        &self,
+        id: TaskScopeId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut state = self.state.write().unwrap();
+        self.remove_from_scope_interal(&mut state, id, backend, turbo_tasks)
+    }
+
+    pub(crate) fn remove_from_scopes(
+        &self,
+        scopes: impl Iterator<Item = TaskScopeId>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut state = self.state.write().unwrap();
+        for id in scopes {
+            self.remove_from_scope_interal(&mut state, id, backend, turbo_tasks)
         }
     }
 
@@ -775,14 +758,28 @@ impl Task {
     }
 
     fn state_string(state: &TaskState) -> String {
-        let state_str = match state.state_type {
+        let mut state_str = match state.state_type {
             Scheduled => "scheduled".to_string(),
             InProgress => "in progress".to_string(),
             InProgressDirty => "in progress (dirty)".to_string(),
             Done => "done".to_string(),
             Dirty => "dirty".to_string(),
         };
-        state_str + if state.active { "" } else { " (inactive)" }
+        if let Some(root) = state.scopes.root {
+            write!(state_str, " (root scope {})", *root).unwrap();
+        }
+        let mut has_scopes = false;
+        for scope in state.scopes.iter_non_root() {
+            if !has_scopes {
+                write!(state_str, " (scopes").unwrap();
+                has_scopes = true;
+            }
+            write!(state_str, " {}", *scope).unwrap();
+        }
+        if has_scopes {
+            write!(state_str, ")").unwrap();
+        }
+        state_str
     }
 
     pub(crate) fn connect_child(
@@ -793,38 +790,34 @@ impl Task {
     ) {
         let mut state = self.state.write().unwrap();
         if state.children.insert(child_id) {
-            let active = state.active;
+            let scopes = state.scopes.clone();
             drop(state);
 
-            if active {
-                backend.with_task(child_id, |child| {
-                    if child.active_parents.fetch_add(1, Ordering::AcqRel) == 0 {
-                        #[cfg(not(feature = "report_expensive"))]
-                        child.activate(backend, turbo_tasks);
-                        #[cfg(feature = "report_expensive")]
-                        {
-                            let start = Instant::now();
-                            let count = child.activate(turbo_tasks);
-                            let elapsed = start.elapsed();
-                            if elapsed.as_millis() >= 100 {
-                                println!(
-                                    "activate({}) took {} ms: {:?}",
-                                    count,
-                                    elapsed.as_millis(),
-                                    &**child
-                                );
-                            } else if elapsed.as_millis() >= 10 || count > 10000 {
-                                println!(
-                                    "activate({}) took {} µs: {:?}",
-                                    count,
-                                    elapsed.as_micros(),
-                                    &**child
-                                );
-                            }
+            backend.with_task(child_id, |child| {
+                for scope in scopes.iter() {
+                    #[cfg(not(feature = "report_expensive"))]
+                    child.add_to_scope(scope, backend, turbo_tasks);
+                    #[cfg(feature = "report_expensive")]
+                    {
+                        let start = Instant::now();
+                        child.add_to_scope(scope, backend, turbo_tasks);
+                        let elapsed = start.elapsed();
+                        if elapsed.as_millis() >= 100 {
+                            println!(
+                                "add_to_scope took {} ms: {:?}",
+                                elapsed.as_millis(),
+                                &**child
+                            );
+                        } else if elapsed.as_millis() >= 10 || count > 10000 {
+                            println!(
+                                "add_to_scope took {} µs: {:?}",
+                                elapsed.as_micros(),
+                                &**child
+                            );
                         }
                     }
-                });
-            }
+                }
+            });
         }
     }
 

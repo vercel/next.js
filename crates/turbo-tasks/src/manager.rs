@@ -285,77 +285,79 @@ impl<B: Backend> TurboTasks<B> {
             *self.start.lock().unwrap() = Some(Instant::now());
         }
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-        tokio::task::Builder::new()
-            .name(&this.backend.get_task_description(task_id))
-            .spawn(TURBO_TASKS.scope(
-                this.clone(),
-                CURRENT_TASK_ID.scope(
-                    task_id,
-                    TASKS_TO_NOTIFY.scope(
-                        Default::default(),
-                        self.backend.execution_scope(task_id, async move {
-                            loop {
-                                if this.stopped.load(Ordering::Acquire) {
-                                    break;
-                                }
-                                if let Some(execution) =
-                                    this.backend.try_start_task_execution(task_id, &*this)
-                                {
-                                    // Setup thread locals
-                                    let has_cell_mappings = execution.cell_mappings.is_some();
-
-                                    let cell_mappings =
-                                        RefCell::new(execution.cell_mappings.unwrap_or_default());
-                                    let (result, cell_mappings) = PREVIOUS_CELLS
-                                        .scope(cell_mappings, async {
-                                            let result = execution.future.await;
-                                            let cell_mappings = if has_cell_mappings {
-                                                Some(
-                                                    PREVIOUS_CELLS
-                                                        .with(|s| take(&mut *s.borrow_mut())),
-                                                )
-                                            } else {
-                                                None
-                                            };
-                                            (result, cell_mappings)
-                                        })
-                                        .await;
-                                    if let Err(err) = &result {
-                                        println!("{} errored {}", task_id, err);
-                                    }
-                                    let reexecute = this.backend.task_execution_completed(
-                                        task_id,
-                                        cell_mappings,
-                                        result,
-                                        &*this,
-                                    );
-                                    this.notify_scheduled_tasks_internal();
-                                    if !reexecute {
-                                        break;
-                                    }
-                                } else {
-                                    break;
-                                }
+        #[cfg(debug_assertions)]
+        let description = this.backend.get_task_description(task_id);
+        let future = TURBO_TASKS.scope(
+            this.clone(),
+            CURRENT_TASK_ID.scope(
+                task_id,
+                TASKS_TO_NOTIFY.scope(
+                    Default::default(),
+                    self.backend.execution_scope(task_id, async move {
+                        loop {
+                            if this.stopped.load(Ordering::Acquire) {
+                                break;
                             }
-                            if this
-                                .currently_scheduled_tasks
-                                .fetch_sub(1, Ordering::AcqRel)
-                                == 1
+                            if let Some(execution) =
+                                this.backend.try_start_task_execution(task_id, &*this)
                             {
-                                // That's not super race-condition-safe, but it's only for
-                                // statistical reasons
-                                let total = this.scheduled_tasks.load(Ordering::Acquire);
-                                this.scheduled_tasks.store(0, Ordering::Release);
-                                if let Some(start) = *this.start.lock().unwrap() {
-                                    *this.last_update.lock().unwrap() =
-                                        Some((start.elapsed(), total));
+                                // Setup thread locals
+                                let has_cell_mappings = execution.cell_mappings.is_some();
+
+                                let cell_mappings =
+                                    RefCell::new(execution.cell_mappings.unwrap_or_default());
+                                let (result, cell_mappings) = PREVIOUS_CELLS
+                                    .scope(cell_mappings, async {
+                                        let result = execution.future.await;
+                                        let cell_mappings = if has_cell_mappings {
+                                            Some(
+                                                PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())),
+                                            )
+                                        } else {
+                                            None
+                                        };
+                                        (result, cell_mappings)
+                                    })
+                                    .await;
+                                if let Err(err) = &result {
+                                    println!("{} errored {}", task_id, err);
                                 }
-                                this.event.notify(usize::MAX);
+                                let reexecute = this.backend.task_execution_completed(
+                                    task_id,
+                                    cell_mappings,
+                                    result,
+                                    &*this,
+                                );
+                                this.notify_scheduled_tasks_internal();
+                                if !reexecute {
+                                    break;
+                                }
+                            } else {
+                                break;
                             }
-                        }),
-                    ),
+                        }
+                        if this
+                            .currently_scheduled_tasks
+                            .fetch_sub(1, Ordering::AcqRel)
+                            == 1
+                        {
+                            // That's not super race-condition-safe, but it's only for
+                            // statistical reasons
+                            let total = this.scheduled_tasks.load(Ordering::Acquire);
+                            this.scheduled_tasks.store(0, Ordering::Release);
+                            if let Some(start) = *this.start.lock().unwrap() {
+                                *this.last_update.lock().unwrap() = Some((start.elapsed(), total));
+                            }
+                            this.event.notify(usize::MAX);
+                        }
+                    }),
                 ),
-            ))
+            ),
+        );
+        #[cfg(debug_assertions)]
+        return tokio::task::Builder::new().name(&description).spawn(future);
+        #[cfg(not(debug_assertions))]
+        return tokio::task::spawn(future);
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {

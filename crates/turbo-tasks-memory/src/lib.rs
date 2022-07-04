@@ -6,6 +6,7 @@ mod cell;
 mod memory_backend;
 mod memory_backend_with_pg;
 mod output;
+mod scope;
 pub mod stats;
 mod task;
 pub mod viz;
