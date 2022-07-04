@@ -3,6 +3,7 @@ module.exports = {
     'google-font-display': require('./rules/google-font-display'),
     'google-font-preconnect': require('./rules/google-font-preconnect'),
     'inline-script-id': require('./rules/inline-script-id'),
+    'invalid-head-children': require('./rules/invalid-head-children'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
     'no-assign-module-variable': require('./rules/no-assign-module-variable'),
     'no-before-interactive-script-outside-document': require('./rules/no-before-interactive-script-outside-document'),
@@ -28,6 +29,7 @@ module.exports = {
         // warnings
         '@next/next/google-font-display': 'warn',
         '@next/next/google-font-preconnect': 'warn',
+        '@next/next/invalid-head-children': 'warn',
         '@next/next/next-script-for-ga': 'warn',
         '@next/next/no-before-interactive-script-outside-document': 'warn',
         '@next/next/no-css-tags': 'warn',
