@@ -13,6 +13,7 @@ import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
+import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -833,7 +834,13 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (type === 'warning') {
+            if (src === 'edge-server') {
+              console[type === 'warning' ? 'warn' : 'error'](
+                `${(type === 'warning' ? chalk.yellow : chalk.red)(
+                  err.name
+                )}: ${err.message}`
+              )
+            } else if (type === 'warning') {
               Log.warn(err)
             } else if (type) {
               Log.error(`${type}:`, err)
