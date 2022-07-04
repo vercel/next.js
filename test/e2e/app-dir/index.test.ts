@@ -54,12 +54,17 @@ describe('views dir', () => {
 
   it('should serve from app', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard')
-    expect(html).toContain('hello from root/dashboard')
+    expect(html).toContain('hello from app/dashboard')
   })
 
   it('should serve /index as separate page', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/index')
-    expect(html).toContain('hello from root/dashboard/index')
+    expect(html).toContain('hello from app/dashboard/index')
+  })
+
+  it('should load chunks generated via async import correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/index')
+    expect(html).toContain('hello from lazy')
   })
 
   it('should include layouts when no direct parent layout', async () => {
@@ -68,7 +73,7 @@ describe('views dir', () => {
     // Should not be nested in dashboard
     expect($('h1').text()).toBe('Dashboard')
     // Should include the page text
-    expect($('p').text()).toBe('hello from root/dashboard/integrations')
+    expect($('p').text()).toBe('hello from app/dashboard/integrations')
   })
 
   it('should not include parent when not in parent directory with route in directory', async () => {
@@ -86,7 +91,7 @@ describe('views dir', () => {
     expect($('h1').text()).toBeFalsy()
 
     // Should render the page text
-    expect($('p').text()).toBe('hello from root/dashboard/rootonly/hello')
+    expect($('p').text()).toBe('hello from app/dashboard/rootonly/hello')
   })
 
   it('should use new root layout when provided', async () => {
@@ -123,7 +128,7 @@ describe('views dir', () => {
 
     // Should render the page text
     expect($('p').text()).toBe(
-      'hello from root/dashboard/(custom)/deployments/breakdown'
+      'hello from app/dashboard/(custom)/deployments/breakdown'
     )
   })
 
@@ -141,7 +146,7 @@ describe('views dir', () => {
     // Should not be nested in dashboard
     expect($('h1').text()).toBeFalsy()
     // Should include the page text
-    expect($('p').text()).toBe('hello from root/dashboard/changelog')
+    expect($('p').text()).toBe('hello from app/dashboard/changelog')
   })
 
   it('should serve nested parent', async () => {
@@ -158,7 +163,7 @@ describe('views dir', () => {
     const $ = cheerio.load(html)
     // Should include the page text with the parameter
     expect($('p').text()).toBe(
-      'hello from root/dashboard/deployments/[id]. ID is: 123'
+      'hello from app/dashboard/deployments/[id]. ID is: 123'
     )
   })
 
@@ -180,7 +185,7 @@ describe('views dir', () => {
   // to work for /pages as well?
   it.skip('should match partial parameters', async () => {
     const html = await renderViaHTTP(next.url, '/partial-match-123')
-    expect(html).toContain('hello from root/partial-match-[id]. ID is: 123')
+    expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
   })
 
   describe('server components', () => {
@@ -189,7 +194,7 @@ describe('views dir', () => {
     it('should not serve .server.js as a path', async () => {
       // Without .server.js should serve
       const html = await renderViaHTTP(next.url, '/should-not-serve-server')
-      expect(html).toContain('hello from root/should-not-serve-server')
+      expect(html).toContain('hello from app/should-not-serve-server')
 
       // Should not serve `.server`
       const res = await fetchViaHTTP(
@@ -211,7 +216,7 @@ describe('views dir', () => {
     it('should not serve .client.js as a path', async () => {
       // Without .client.js should serve
       const html = await renderViaHTTP(next.url, '/should-not-serve-client')
-      expect(html).toContain('hello from root/should-not-serve-client')
+      expect(html).toContain('hello from app/should-not-serve-client')
 
       // Should not serve `.client`
       const res = await fetchViaHTTP(
@@ -233,7 +238,7 @@ describe('views dir', () => {
     it('should serve shared component', async () => {
       // Without .client.js should serve
       const html = await renderViaHTTP(next.url, '/shared-component-route')
-      expect(html).toContain('hello from root/shared-component-route')
+      expect(html).toContain('hello from app/shared-component-route')
     })
 
     describe('should serve client component', () => {
@@ -241,7 +246,7 @@ describe('views dir', () => {
         const html = await renderViaHTTP(next.url, '/client-component-route')
         const $ = cheerio.load(html)
         expect($('p').text()).toBe(
-          'hello from root/client-component-route. count: 0'
+          'hello from app/client-component-route. count: 0'
         )
       })
 
@@ -250,7 +255,7 @@ describe('views dir', () => {
 
         // After hydration count should be 1
         expect(await browser.elementByCss('p').text()).toBe(
-          'hello from root/client-component-route. count: 1'
+          'hello from app/client-component-route. count: 1'
         )
       })
     })
@@ -262,7 +267,7 @@ describe('views dir', () => {
         // Should not be nested in dashboard
         expect($('h1').text()).toBe('Client Nested. Count: 0')
         // Should include the page text
-        expect($('p').text()).toBe('hello from root/client-nested')
+        expect($('p').text()).toBe('hello from app/client-nested')
       })
 
       it('should include it client-side', async () => {
@@ -275,7 +280,7 @@ describe('views dir', () => {
 
         // After hydration count should be 1
         expect(await browser.elementByCss('p').text()).toBe(
-          'hello from root/client-nested'
+          'hello from app/client-nested'
         )
       })
     })

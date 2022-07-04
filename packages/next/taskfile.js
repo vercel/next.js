@@ -6,6 +6,8 @@ const { relative, basename, resolve, join, dirname } = require('path')
 const glob = require('glob')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const fs = require('fs-extra')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const escapeRegex = require('escape-string-regexp')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -36,6 +38,38 @@ export async function copy_regenerator_runtime(task, opts) {
   await task
     .source(join(dirname(require.resolve('regenerator-runtime')), '**/*'))
     .target('compiled/regenerator-runtime')
+}
+
+// eslint-disable-next-line camelcase
+export async function copy_styled_jsx_types(task, opts) {
+  // we copy the styled-jsx types so that we can reference them
+  // in the next-env.d.ts file so it doesn't matter if the styled-jsx
+  // package is hoisted out of Next.js' node_modules or not
+  const styledJsxPath = dirname(require.resolve('styled-jsx/package.json'))
+  const typeFiles = glob.sync('*.d.ts', { cwd: styledJsxPath })
+  const outputDir = join(__dirname, 'dist/styled-jsx-types')
+  let typeReferences = ``
+
+  await fs.ensureDir(outputDir)
+
+  for (const file of typeFiles) {
+    const fileNoExt = file.replace(/\.d\.ts/, '')
+    const content = await fs.readFile(join(styledJsxPath, file), 'utf8')
+    const exportsIndex = content.indexOf('export')
+
+    await fs.writeFile(
+      join(outputDir, file),
+      `${content.substring(0, exportsIndex)}\n` +
+        `declare module 'styled-jsx${
+          file === 'index.d.ts' ? '' : '/' + fileNoExt
+        }' {
+        ${content.substring(exportsIndex)}
+      }`
+    )
+    typeReferences += `/// <reference types="./${fileNoExt}" />\n`
+  }
+
+  await fs.writeFile(join(outputDir, 'global.d.ts'), typeReferences)
 }
 
 const externals = {
@@ -80,7 +114,14 @@ export async function ncc_node_html_parser(task, opts) {
   fs.writeFileSync(
     filePath,
     content.replace(
-      'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return E}))}else ',
+      new RegExp(
+        escapeRegex(
+          'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){define((function(){return '
+        ) +
+          '\\w' +
+          escapeRegex('}))}else '),
+        'g'
+      ),
       ''
     )
   )
@@ -1794,6 +1835,7 @@ export async function compile(task, opts) {
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
+      'copy_styled_jsx_types',
     ],
     opts
   )
@@ -1947,7 +1989,7 @@ export async function shared(task, opts) {
     .source(
       opts.src || 'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)'
     )
-    .swc('server', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
 }
@@ -1957,7 +1999,7 @@ export async function shared_re_exported(task, opts) {
     .source(
       opts.src || 'shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)'
     )
-    .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
   notify('Compiled shared re-exported files')
 }

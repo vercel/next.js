@@ -6,7 +6,7 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
 
@@ -137,7 +137,10 @@ export class FlightManifestPlugin {
               chunks: appDir
                 ? chunk.ids.map((chunkId: string) => {
                     return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                      chunkId +
+                      ':' +
+                      (chunk.name || chunkId) +
+                      (dev ? '' : '-' + chunk.hash)
                     )
                   })
                 : [],
@@ -173,7 +176,7 @@ export class FlightManifestPlugin {
       })
     })
 
-    const file = 'server/' + MIDDLEWARE_FLIGHT_MANIFEST
+    const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)

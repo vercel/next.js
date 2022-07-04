@@ -1,6 +1,4 @@
-import React, { Component } from 'react'
-
-const isServer = typeof window === 'undefined'
+import React, { Children, useEffect, useLayoutEffect } from 'react'
 
 type State = JSX.Element[] | undefined
 
@@ -12,49 +10,65 @@ type SideEffectProps = {
   handleStateChange?: (state: State) => void
   headManager: any
   inAmpMode?: boolean
+  children: React.ReactNode
 }
 
-export default class extends Component<SideEffectProps> {
-  private _hasHeadManager: boolean
+const isServer = typeof window === 'undefined'
+const useClientOnlyLayoutEffect = isServer ? () => {} : useLayoutEffect
+const useClientOnlyEffect = isServer ? () => {} : useEffect
 
-  emitChange = (): void => {
-    if (this._hasHeadManager) {
-      this.props.headManager.updateHead(
-        this.props.reduceComponentsToState(
-          [...this.props.headManager.mountedInstances],
-          this.props
-        )
-      )
+export default function SideEffect(props: SideEffectProps) {
+  const { headManager, reduceComponentsToState } = props
+
+  function emitChange() {
+    if (headManager && headManager.mountedInstances) {
+      const headElements = Children.toArray(
+        Array.from(headManager.mountedInstances as Set<unknown>).filter(Boolean)
+      ) as React.ReactElement[]
+      headManager.updateHead(reduceComponentsToState(headElements, props))
     }
   }
 
-  constructor(props: any) {
-    super(props)
-    this._hasHeadManager =
-      this.props.headManager && this.props.headManager.mountedInstances
-
-    if (isServer && this._hasHeadManager) {
-      this.props.headManager.mountedInstances.add(this)
-      this.emitChange()
-    }
-  }
-  componentDidMount() {
-    if (this._hasHeadManager) {
-      this.props.headManager.mountedInstances.add(this)
-    }
-    this.emitChange()
-  }
-  componentDidUpdate() {
-    this.emitChange()
-  }
-  componentWillUnmount() {
-    if (this._hasHeadManager) {
-      this.props.headManager.mountedInstances.delete(this)
-    }
-    this.emitChange()
+  if (isServer) {
+    headManager?.mountedInstances?.add(props.children)
+    emitChange()
   }
 
-  render() {
-    return null
-  }
+  useClientOnlyLayoutEffect(() => {
+    headManager?.mountedInstances?.add(props.children)
+    return () => {
+      headManager?.mountedInstances?.delete(props.children)
+    }
+  })
+
+  // We need to call `updateHead` method whenever the `SideEffect` is trigger in all
+  // life-cycles: mount, update, unmount. However, if there are multiple `SideEffect`s
+  // being rendered, we only trigger the method from the last one.
+  // This is ensured by keeping the last unflushed `updateHead` in the `_pendingUpdate`
+  // singleton in the layout effect pass, and actually trigger it in the effect pass.
+  useClientOnlyLayoutEffect(() => {
+    if (headManager) {
+      headManager._pendingUpdate = emitChange
+    }
+    return () => {
+      if (headManager) {
+        headManager._pendingUpdate = emitChange
+      }
+    }
+  })
+
+  useClientOnlyEffect(() => {
+    if (headManager && headManager._pendingUpdate) {
+      headManager._pendingUpdate()
+      headManager._pendingUpdate = null
+    }
+    return () => {
+      if (headManager && headManager._pendingUpdate) {
+        headManager._pendingUpdate()
+        headManager._pendingUpdate = null
+      }
+    }
+  })
+
+  return null
 }
