@@ -32,7 +32,7 @@ export async function getServerSideProps(context) {
 
 export default function Home(props) {
   return (
-    <ThirdPartyEmailPasswordAuth requireAuth={true}>
+    <ThirdPartyEmailPasswordAuth>
       <ProtectedPage userId={props.userId} />
     </ThirdPartyEmailPasswordAuth>
   )
@@ -55,7 +55,6 @@ function ProtectedPage({ userId }) {
   }
 
   if (session.loading === true) {
-    // It should never come here, since this is wrapped by ThirdPartyEmailPasswordAuth with requireAuth=true
     return null
   }
 
