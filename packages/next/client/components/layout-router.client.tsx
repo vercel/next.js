@@ -11,7 +11,6 @@ import {
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
-import { root } from 'cheerio'
 
 let infinitePromise: Promise<void> | Error
 
