@@ -4,12 +4,12 @@
 
 The code in your [Middleware][middleware] or your [Edge API routes][routes] is using a feature from Node.js runtime.
 
-However, the Edge Runtime does not support [Node.js APIs and primitives][node-primitives].
+However, the Edge Runtime does not support [Node.js APIs and globals][node-primitives].
 
 #### Possible Ways to Fix It
 
-When it runs in dev mode, your application will show in the console, and in your browser, which file is importing and using an unsupported primitive.
-This primitive must be avoided: either by not using it, or by using a polyfill.
+When it runs in dev mode, your application will show in the console, and in your browser, which file is importing and using an unsupported module.
+This module must be avoided: either by not importing it, or by replacing it with a polyfill.
 
 Please note your code can import Node.js modules **as long as they are not used**.
 The following example builds and works at runtime:
