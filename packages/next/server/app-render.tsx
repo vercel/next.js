@@ -21,6 +21,8 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { stripInternalQueries } from './utils'
+import { fromNodeHeaders } from './web/utils'
+import { NextCookies } from './web/spec-extension/cookies'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -377,6 +379,8 @@ export async function renderToHTML(
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
+    // TODO: improve detection
+    const isPage = !firstItem && segment === ''
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
@@ -460,48 +464,58 @@ export async function renderToHTML(
     const dataCacheKey = JSON.stringify(segmentPath)
     let fetcher: (() => Promise<any>) | null = null
 
+    type GetServerSidePropsContext = {
+      headers: Headers
+      cookies: NextCookies
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type getServerSidePropsContextPage = GetServerSidePropsContext & {
+      query: URLSearchParams
+      pathname: string
+    }
+
     // TODO: pass a shared cache from previous getStaticProps/getServerSideProps calls?
     if (layoutOrPageMod.getServerSideProps) {
+      // TODO: recommendation for i18n
+      // locales: (renderOpts as any).locales, // always the same
+      // locale: (renderOpts as any).locale, // /nl/something -> nl
+      // defaultLocale: (renderOpts as any).defaultLocale, // changes based on domain
+      const getServerSidePropsContext:
+        | GetServerSidePropsContext
+        | getServerSidePropsContextPage = {
+        headers: fromNodeHeaders(req.headers),
+        // TODO: convert to NextCookies
+        cookies: req.cookies,
+        layoutSegments: segmentPath,
+        // TODO: change this to be URLSearchParams instead?
+        ...(isPage ? { query, pathname } : {}),
+        ...(pageIsDynamic ? { params: currentParams } : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      }
       fetcher = () =>
         Promise.resolve(
-          layoutOrPageMod.getServerSideProps({
-            // TODO: Which of these should be passed?
-            // req: req as any,
-            // res: res,
-            // TODO: Reading query in client component
-            // query,
-            // resolvedUrl: (renderOpts as any).resolvedUrl as string,
-            // ...(pageIsDynamic
-            //   ? { params: (renderOpts as any).params as ParsedUrlQuery }
-            //   : undefined),
-            ...(pageIsDynamic ? { params: currentParams } : undefined),
-            ...(isPreview
-              ? { preview: true, previewData: previewData }
-              : undefined),
-            locales: (renderOpts as any).locales,
-            locale: (renderOpts as any).locale,
-            defaultLocale: (renderOpts as any).defaultLocale,
-          })
+          layoutOrPageMod.getServerSideProps(getServerSidePropsContext)
         )
     }
     // TODO: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
+      const getStaticPropsContext = {
+        layoutSegments: segmentPath,
+        // TODO: change this to be URLSearchParams instead?
+        ...(isPage ? { pathname } : {}),
+        ...(pageIsDynamic ? { params: currentParams } : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+      }
       fetcher = () =>
-        Promise.resolve(
-          layoutOrPageMod.getStaticProps({
-            // ...(pageIsDynamic
-            //   ? { params: query as ParsedUrlQuery }
-            //   : undefined),
-            // TODO: dynamic params come from `query` in getStaticProps, currently reads from `params`.
-            ...(pageIsDynamic ? { params: currentParams } : undefined),
-            ...(isPreview
-              ? { preview: true, previewData: previewData }
-              : undefined),
-            locales: (renderOpts as any).locales,
-            locale: (renderOpts as any).locale,
-            defaultLocale: (renderOpts as any).defaultLocale,
-          })
-        )
+        Promise.resolve(layoutOrPageMod.getStaticProps(getStaticPropsContext))
     }
 
     if (fetcher) {
@@ -531,7 +545,18 @@ export async function renderToHTML(
           }
         }
 
-        return <Component {...props} {...parallelRouteComponents} />
+        return (
+          <Component
+            {...props}
+            {...parallelRouteComponents}
+            // TODO: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+            // Params are always the current params that apply to the layout
+            // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
+            params={currentParams}
+            // Query is only provided to page
+            {...(isPage ? { query } : {})}
+          />
+        )
       },
     }
   }
@@ -619,6 +644,9 @@ export async function renderToHTML(
   // TODO: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url
 
+  // TODO: change tree to accommodate this
+  // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
+  // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
   const { Component: ComponentTree } = createComponentTree({
