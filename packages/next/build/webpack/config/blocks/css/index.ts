@@ -360,11 +360,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: {
-                and: [
-                  ctx.rootDirectory,
-                  /layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/,
-                ],
-                not: [/node_modules/],
+                and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
             }),
@@ -400,18 +396,18 @@ export const css = curry(async function css(
       oneOf: [
         markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
-          issuer: {
-            // If it's inside the app dir, but not importing from a layout file,
-            // throw an error.
-            or: ctx.experimental.appDir
-              ? [
+          issuer: ctx.experimental.appDir
+            ? {
+                // If it's inside the app dir, but not importing from a layout file,
+                // throw an error.
+                or: [
                   {
                     and: [ctx.rootDirectory],
                     not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
                   },
-                ]
-              : [],
-          },
+                ],
+              }
+            : undefined,
           use: {
             loader: 'error-loader',
             options: {
