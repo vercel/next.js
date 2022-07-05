@@ -145,41 +145,11 @@ export class FlightManifestPlugin {
         }
 
         moduleExportedKeys.forEach((name) => {
-          let requiredChunks = []
           if (!moduleExports[name]) {
             const isUnrenderedChunk = (c: webpack5.Chunk) =>
-              !c.hasRuntime() && !c.hasAsyncChunks() && !c.rendered // &&
-            // chunk.id !== c.id &&
-            // !c.name // critical condition
+              !c.hasRuntime() && !c.hasAsyncChunks() && !c.rendered
 
-            console.log(
-              'syncChunks',
-              chunk.id,
-              chunk.name,
-              chunk.isOnlyInitial(),
-              chunkGroup.chunks.filter(isUnrenderedChunk).map((c: any) => {
-                return [
-                  c.id,
-                  [
-                    'canBeInitial',
-                    c.canBeInitial(),
-                    'isOnlyInitial',
-                    c.isOnlyInitial(),
-                    'hasRuntime',
-                    c.hasRuntime(),
-                    'hasAsyncChunks',
-                    c.hasAsyncChunks(),
-                    'rendered',
-                    c.rendered,
-                  ],
-                ]
-              })
-            )
-            // if (chunk.id === 645) {
-            // }
-            requiredChunks = chunkGroup.chunks.filter(isUnrenderedChunk)
-            // .map((c: any) => [c.id, c.hash])
-            // console.log('chunkIdHashPairs', chunkIdHashPairs)
+            const requiredChunks = chunkGroup.chunks.filter(isUnrenderedChunk)
             moduleExports[name] = {
               id,
               name,

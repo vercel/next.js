@@ -1,5 +1,13 @@
+// import Head from 'next/head'
 import Bar from '../../components/bar.server'
 
 export default function Multi() {
-  return <Bar />
+  return (
+    <>
+      {/* <Head>
+        <title>hi</title>
+      </Head> */}
+      <Bar />
+    </>
+  )
 }
