@@ -504,22 +504,22 @@ function setPreviewData<T>(
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
-      ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
-        : undefined),
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
         : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
-      ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
-        : undefined),
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        : undefined),
+      ...(options.path !== undefined
+        ? ({ path: options.path } as CookieSerializeOptions)
         : undefined),
     }),
   ])
