@@ -16,6 +16,7 @@ export function getCssModuleLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
+        isAppDir: !!ctx.experimental.appDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })
