@@ -714,7 +714,12 @@ export default class DevServer extends Server {
     page: string
   }) {
     try {
-      return super.runEdgeFunction(params)
+      return super.runEdgeFunction({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning')
+        },
+      })
     } catch (error) {
       if (error instanceof DecodeError) {
         throw error
