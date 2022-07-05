@@ -138,11 +138,30 @@ function useFlightResponse(
           rscCache.delete(id)
           writer.close()
         } else {
+          const flightResponsePartial = decodeText(value)
+          const css = flightResponsePartial
+            .split('\n')
+            .map((line) => {
+              const match = line.match(/^M\d+:(.+)/)
+              if (match) {
+                return JSON.parse(match[1])
+                  .chunks.filter((id: string) => id.endsWith('.css'))
+                  .map(
+                    (file: string) =>
+                      `<link rel="stylesheet" href="/_next/${file}">`
+                  )
+                  .join('')
+              }
+              return ''
+            })
+            .join('')
+
           writer.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, decodeText(value)])
-              )})</script>`
+              css +
+                `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                  JSON.stringify([1, id, flightResponsePartial])
+                )})</script>`
             )
           )
           process()
