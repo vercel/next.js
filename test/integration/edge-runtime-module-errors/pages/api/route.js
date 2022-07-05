@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server'
-import { basename } from 'path'
-
-export async function middleware(request) {
-  basename()
-  return NextResponse.next()
+export default async function handler(request) {
+  return Response.json({ ok: true })
 }
+
+export const config = { runtime: 'experimental-edge' }
