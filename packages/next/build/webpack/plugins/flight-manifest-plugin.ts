@@ -10,6 +10,7 @@ import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
 import { getEntrypointFiles } from './build-manifest-plugin'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -66,7 +67,7 @@ export class FlightManifestPlugin {
     })
   }
 
-  createAsset(assets: any, compilation: any, context: string) {
+  createAsset(assets: any, compilation: webpack5.Compilation, context: string) {
     const manifest: any = {}
     const appDir = this.appDir
     const dev = this.dev
@@ -125,7 +126,7 @@ export class FlightManifestPlugin {
                 return exportInfo.name
               }
               return null
-            }),
+            }) as string[],
             ...cjsExports
           )
           .filter((name) => name !== null)
@@ -144,21 +145,54 @@ export class FlightManifestPlugin {
         }
 
         moduleExportedKeys.forEach((name) => {
+          let requiredChunks = []
           if (!moduleExports[name]) {
+            const isUnrenderedChunk = (c: webpack5.Chunk) =>
+              !c.hasRuntime() && !c.hasAsyncChunks() && !c.rendered // &&
+            // chunk.id !== c.id &&
+            // !c.name // critical condition
+
+            console.log(
+              'syncChunks',
+              chunk.id,
+              chunk.name,
+              chunk.isOnlyInitial(),
+              chunkGroup.chunks.filter(isUnrenderedChunk).map((c: any) => {
+                return [
+                  c.id,
+                  [
+                    'canBeInitial',
+                    c.canBeInitial(),
+                    'isOnlyInitial',
+                    c.isOnlyInitial(),
+                    'hasRuntime',
+                    c.hasRuntime(),
+                    'hasAsyncChunks',
+                    c.hasAsyncChunks(),
+                    'rendered',
+                    c.rendered,
+                  ],
+                ]
+              })
+            )
+            // if (chunk.id === 645) {
+            // }
+            requiredChunks = chunkGroup.chunks.filter(isUnrenderedChunk)
+            // .map((c: any) => [c.id, c.hash])
+            // console.log('chunkIdHashPairs', chunkIdHashPairs)
             moduleExports[name] = {
               id,
               name,
               chunks: appDir
-                ? chunk.ids
-                    .map((chunkId: string) => {
-                      return (
-                        chunkId +
-                        ':' +
-                        (chunk.name || chunkId) +
-                        (dev ? '' : '-' + chunk.hash)
-                      )
-                    })
-                    .concat(cssChunks)
+                ? requiredChunks.map((requiredChunk: webpack5.Chunk) => {
+                    return (
+                      requiredChunk.id +
+                      ':' +
+                      (requiredChunk.name || requiredChunk.id) +
+                      (dev ? '' : '-' + requiredChunk.hash)
+                    )
+                  })
+                  .concat(cssChunks)
                 : [],
             }
           }
@@ -183,8 +217,9 @@ export class FlightManifestPlugin {
           recordModule(chunk, modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
-          if (mod.modules) {
-            mod.modules.forEach((concatenatedMod: any) => {
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            anyModule.modules.forEach((concatenatedMod: any) => {
               recordModule(chunk, modId, concatenatedMod)
             })
           }

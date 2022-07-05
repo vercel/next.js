@@ -34,7 +34,7 @@ export default function (context, { runtime, env }) {
   })
 
   // TODO: support RSC index route
-  it.skip('should render server components correctly', async () => {
+  it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
       headers: {
         'x-next-test-client': 'test-util',
