@@ -145,7 +145,7 @@ function useFlightResponse(
               const match = line.match(/^M\d+:(.+)/)
               if (match) {
                 return JSON.parse(match[1])
-                  .chunks.filter((id: string) => id.endsWith('.css'))
+                  .chunks.filter((chunkId: string) => chunkId.endsWith('.css'))
                   .map(
                     (file: string) =>
                       `<link rel="stylesheet" href="/_next/${file}">`
