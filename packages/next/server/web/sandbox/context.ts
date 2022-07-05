@@ -115,13 +115,16 @@ async function createModuleContext(options: ModuleContextOptions) {
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
         if (!warnedEvals.has(key)) {
-          const warning = new Error(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+          const warning = getServerError(
+            new Error(
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+            ),
+            'edge-server'
           )
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
           warnedEvals.add(key)
-          options.onWarning(getServerError(warning, 'edge-server'))
+          options.onWarning(warning)
         }
         return fn()
       }
