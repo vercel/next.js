@@ -120,6 +120,7 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
+    let remainingFlightResponse = ''
     const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
@@ -138,21 +139,32 @@ function useFlightResponse(
           rscCache.delete(id)
           writer.close()
         } else {
-          const flightResponsePartial = decodeText(value)
-          const css = flightResponsePartial
+          const responsePartial = decodeText(value)
+          const css = responsePartial
             .split('\n')
-            .map((line) => {
-              const match = line.match(/^M\d+:(.+)/)
-              if (match) {
-                return JSON.parse(match[1])
-                  .chunks.filter((chunkId: string) => chunkId.endsWith('.css'))
-                  .map(
-                    (file: string) =>
-                      `<link rel="stylesheet" href="/_next/${file}">`
-                  )
-                  .join('')
+            .map((partialLine) => {
+              const line = remainingFlightResponse + partialLine
+              remainingFlightResponse = ''
+
+              try {
+                const match = line.match(/^M\d+:(.+)/)
+                if (match) {
+                  return JSON.parse(match[1])
+                    .chunks.filter((chunkId: string) =>
+                      chunkId.endsWith('.css')
+                    )
+                    .map(
+                      (file: string) =>
+                        `<link rel="stylesheet" href="/_next/${file}">`
+                    )
+                    .join('')
+                }
+                return ''
+              } catch (err) {
+                // The JSON is partial
+                remainingFlightResponse = line
+                return ''
               }
-              return ''
             })
             .join('')
 
@@ -160,7 +172,7 @@ function useFlightResponse(
             encodeText(
               css +
                 `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([1, id, flightResponsePartial])
+                  JSON.stringify([1, id, responsePartial])
                 )})</script>`
             )
           )
