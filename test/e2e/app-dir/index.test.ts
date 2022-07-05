@@ -297,5 +297,16 @@ describe('views dir', () => {
         )
       ).toBe('rgb(255, 0, 0)')
     })
+
+    it('should support css modules inside client pages', async () => {
+      const browser = await webdriver(next.url, '/client-component-route')
+
+      // Should render p in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('p')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
   })
 })
