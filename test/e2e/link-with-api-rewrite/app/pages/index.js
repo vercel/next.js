@@ -2,8 +2,13 @@ import Link from 'next/link'
 
 export default function Page() {
   return (
-    <Link href="/some/route/for?json=true">
-      <a id="link">to /some/route/for?json=true</a>
-    </Link>
+    <div>
+      <Link href="/some/route/for?json=true">
+        <a id="rewrite">to /some/route/for?json=true</a>
+      </Link>
+      <Link href="/api/json">
+        <a id="direct">to /api/json</a>
+      </Link>
+    </div>
   )
 }
