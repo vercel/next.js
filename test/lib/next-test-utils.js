@@ -169,6 +169,18 @@ export function runNextCommand(argv, options = {}) {
       }
     )
 
+    console.log(
+      'cmd',
+      [
+        ...(options.nodeArgs || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ].join(' ')
+    )
+
     if (typeof options.instance === 'function') {
       options.instance(instance)
     }
@@ -768,6 +780,7 @@ function runSuite(suiteName, context, options) {
           stderr: true,
           stdout: true,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
         context.stdout = stdout
         context.stderr = stderr
@@ -776,6 +789,7 @@ function runSuite(suiteName, context, options) {
           onStderr,
           onStdout,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
@@ -783,6 +797,7 @@ function runSuite(suiteName, context, options) {
           onStderr,
           onStdout,
           env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       }
     })

@@ -1035,7 +1035,6 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
-      // chunkIds: 'named',
       ...(hasServerComponents
         ? {
             // We have to use the names here instead of hashes to ensure the consistency between compilers.

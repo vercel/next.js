@@ -145,25 +145,39 @@ export class FlightManifestPlugin {
         }
 
         moduleExportedKeys.forEach((name) => {
+          let requiredChunks = []
           if (!moduleExports[name]) {
-            const isUnrenderedChunk = (c: webpack5.Chunk) =>
-              !c.hasRuntime() && !c.hasAsyncChunks() && !c.rendered
+            const isNonInitialChunk = (c: webpack5.Chunk) =>
+              !c.hasAsyncChunks() &&
+              !c.rendered &&
+              !c.name?.startsWith('pages/')
 
-            const requiredChunks = chunkGroup.chunks.filter(isUnrenderedChunk)
+            if (appDir) {
+              requiredChunks = dev
+                ? chunk.ids.map((chunkId: number) => {
+                    return (
+                      chunkId +
+                      ':' +
+                      (chunk.name || chunkId) +
+                      (dev ? '' : '-' + chunk.hash)
+                    )
+                  })
+                : chunkGroup.chunks
+                    .filter(isNonInitialChunk)
+                    .map((requiredChunk: webpack5.Chunk) => {
+                      return (
+                        requiredChunk.id +
+                        ':' +
+                        (requiredChunk.name || requiredChunk.id) +
+                        (dev ? '' : '-' + requiredChunk.hash)
+                      )
+                    })
+            }
+
             moduleExports[name] = {
               id,
               name,
-              chunks: appDir
-                ? requiredChunks.map((requiredChunk: webpack5.Chunk) => {
-                    return (
-                      requiredChunk.id +
-                      ':' +
-                      (requiredChunk.name || requiredChunk.id) +
-                      (dev ? '' : '-' + requiredChunk.hash)
-                    )
-                  })
-                  .concat(cssChunks)
-                : [],
+              chunks: requiredChunks.concat(cssChunks),
             }
           }
           if (!moduleIdMapping[id][name]) {
