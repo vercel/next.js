@@ -903,6 +903,8 @@ export default class Router implements BaseRouter {
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
+        // @ts-ignore internal value not exposed on types
+        _h: 0,
       }),
       forcedScroll
     )
@@ -1189,15 +1191,17 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch =
-      !options.shallow &&
-      (await matchesMiddleware({
-        asPath: as,
-        locale: nextState.locale,
-        router: this,
-      }))
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: as,
+      locale: nextState.locale,
+      router: this,
+    })
 
-    if (!isMiddlewareMatch && shouldResolveHref && pathname !== '/_error') {
+    if (options.shallow && isMiddlewareMatch) {
+      pathname = this.pathname
+    }
+
+    if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1214,14 +1218,19 @@ export default class Router implements BaseRouter {
           handleHardNavigation({ url: as, router: this })
           return true
         }
-        resolvedAs = rewritesResult.asPath
+        if (!isMiddlewareMatch) {
+          resolvedAs = rewritesResult.asPath
+        }
 
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
           pathname = rewritesResult.resolvedHref
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       } else {
         parsed.pathname = resolveDynamicRoute(pathname, pages)
@@ -1229,7 +1238,10 @@ export default class Router implements BaseRouter {
         if (parsed.pathname !== pathname) {
           pathname = parsed.pathname
           parsed.pathname = addBasePath(pathname)
-          url = formatWithValidation(parsed)
+
+          if (!isMiddlewareMatch) {
+            url = formatWithValidation(parsed)
+          }
         }
       }
     }
@@ -1248,13 +1260,14 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     let route = removeTrailingSlash(pathname)
+    let routeMatch: { [paramName: string]: string | string[] } | false = false
 
-    if (!isMiddlewareMatch && isDynamicRoute(route)) {
+    if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
 
       const routeRegex = getRouteRegex(route)
-      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      routeMatch = getRouteMatcher(routeRegex)(asPathname)
       const shouldInterpolate = route === asPathname
       const interpolatedAs = shouldInterpolate
         ? interpolateAs(route, asPathname, query)
@@ -1265,7 +1278,7 @@ export default class Router implements BaseRouter {
           (param) => !query[param]
         )
 
-        if (missingParams.length > 0) {
+        if (missingParams.length > 0 && !isMiddlewareMatch) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
               `${
@@ -1327,6 +1340,14 @@ export default class Router implements BaseRouter {
         route = pathname
         query = Object.assign({}, routeInfo.query || {}, query)
 
+        if (routeMatch && pathname !== parsed.pathname) {
+          Object.keys(routeMatch).forEach((key) => {
+            if (routeMatch && query[key] === routeMatch[key]) {
+              delete query[key]
+            }
+          })
+        }
+
         if (isDynamicRoute(pathname)) {
           const prefixedAs =
             routeInfo.resolvedAs ||
@@ -1344,10 +1365,10 @@ export default class Router implements BaseRouter {
             rewriteAs = localeResult.pathname
           }
           const routeRegex = getRouteRegex(pathname)
-          const routeMatch = getRouteMatcher(routeRegex)(rewriteAs)
+          const curRouteMatch = getRouteMatcher(routeRegex)(rewriteAs)
 
-          if (routeMatch) {
-            Object.assign(query, routeMatch)
+          if (curRouteMatch) {
+            Object.assign(query, curRouteMatch)
           }
         }
       }
@@ -1653,16 +1674,12 @@ export default class Router implements BaseRouter {
      * for shallow routing purposes.
      */
     let route = requestedRoute
+
     try {
       const handleCancelled = getCancelledHandler({ route, router: this })
 
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (
-        !hasMiddleware &&
-        routeProps.shallow &&
-        existingInfo &&
-        this.route === route
-      ) {
+      if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
 
@@ -1838,8 +1855,9 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
+      let flightInfo
       if (routeInfo.__N_RSC) {
-        props.pageProps = Object.assign(props.pageProps, {
+        flightInfo = {
           __flight__: useStreamedFlightData
             ? (
                 await this._getData(() =>
@@ -1858,9 +1876,10 @@ export default class Router implements BaseRouter {
                 )
               ).data
             : props.__flight__,
-        })
+        }
       }
 
+      props.pageProps = Object.assign({}, props.pageProps, flightInfo)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
@@ -1992,6 +2011,17 @@ export default class Router implements BaseRouter {
     const pages = await this.pageLoader.getPageList()
     let resolvedAs = asPath
 
+    const locale =
+      typeof options.locale !== 'undefined'
+        ? options.locale || undefined
+        : this.locale
+
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: asPath,
+      locale: locale,
+      router: this,
+    })
+
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
       let rewrites: any
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
@@ -2018,18 +2048,25 @@ export default class Router implements BaseRouter {
         // allow the correct page chunk to be loaded
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-      }
-    } else {
-      parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
 
-      if (parsed.pathname !== pathname) {
-        pathname = parsed.pathname
-        parsed.pathname = pathname
-        Object.assign(
-          query,
-          getRouteMatcher(getRouteRegex(parsed.pathname))(asPath) || {}
-        )
+        if (!isMiddlewareMatch) {
+          url = formatWithValidation(parsed)
+        }
+      }
+    }
+    parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
+
+    if (isDynamicRoute(parsed.pathname)) {
+      pathname = parsed.pathname
+      parsed.pathname = pathname
+      Object.assign(
+        query,
+        getRouteMatcher(getRouteRegex(parsed.pathname))(
+          parsePath(asPath).pathname
+        ) || {}
+      )
+
+      if (!isMiddlewareMatch) {
         url = formatWithValidation(parsed)
       }
     }
@@ -2038,11 +2075,6 @@ export default class Router implements BaseRouter {
     if (process.env.NODE_ENV !== 'production') {
       return
     }
-
-    const locale =
-      typeof options.locale !== 'undefined'
-        ? options.locale || undefined
-        : this.locale
 
     // TODO: if the route middleware's data request
     // resolves to is not an SSG route we should bust the cache
