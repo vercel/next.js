@@ -377,6 +377,23 @@ export async function renderToHTML(
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
+
+    const isClientComponentModule =
+      layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
+
+    // Only server components can have getServerSideProps / getStaticProps
+    if (isClientComponentModule) {
+      if (layoutOrPageMod.getServerSideProps) {
+        throw new Error(
+          'getServerSideProps is not supported on Client Components'
+        )
+      }
+
+      if (layoutOrPageMod.getStaticProps) {
+        throw new Error('getStaticProps is not supported on Client Components')
+      }
+    }
+
     const Component = layoutOrPageMod
       ? interopDefault(layoutOrPageMod)
       : undefined
