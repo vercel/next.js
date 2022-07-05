@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use swc_ecmascript::utils::Id;
+use swc_ecmascript::ast::Id;
 
 use super::{graph::VarGraph, JsValue};
 

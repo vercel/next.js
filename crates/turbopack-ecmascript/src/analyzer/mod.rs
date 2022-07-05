@@ -12,10 +12,7 @@ use indexmap::IndexSet;
 use num_bigint::BigInt;
 use swc_atoms::{js_word, JsWord};
 use swc_common::Mark;
-use swc_ecmascript::{
-    ast::{Ident, Lit},
-    utils::Id,
-};
+use swc_ecmascript::ast::{Id, Ident, Lit};
 use url::Url;
 
 pub(crate) use self::imports::ImportMap;

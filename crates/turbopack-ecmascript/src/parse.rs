@@ -145,6 +145,7 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                 import_assertions: true,
                                 private_in_object: true,
                                 allow_super_outside_method: true,
+                                allow_return_outside_function: true,
                             }),
                             ModuleAssetType::Typescript => Syntax::Typescript(TsConfig {
                                 decorators: true,
