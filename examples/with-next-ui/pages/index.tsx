@@ -4,7 +4,6 @@ import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 import dynamic from 'next/dynamic'
 import { Avatar, Pagination } from '@nextui-org/react'
-import { CSSProperties } from 'react'
 
 const CustomModel = dynamic(() => import('../components/Model'))
 const CustomCheckbox = dynamic(() => import('../components/Checkbox'))
