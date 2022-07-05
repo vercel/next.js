@@ -13,7 +13,7 @@ version = "0.10.0"
 easy-error = "1.0.0"
 swc_common = { version = "0.20.2", features = ["concurrent", "sourcemap"] }
 swc_css = "0.108.0"
-swc_css_prefixer = "0.101.0"
+swc_css_prefixer = "0.104.0"
 swc_ecmascript = { version = "0.175.0", features = ["parser", "minifier", "utils", "visit"] }
 tracing = "0.1.32"
 
