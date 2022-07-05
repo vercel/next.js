@@ -28,4 +28,3 @@ turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [features]
 assert_task_state = []
-report_expensive = []

@@ -97,10 +97,14 @@ impl DevServerVc {
                             if asset_path == "" || asset_path.ends_with("/") {
                                 asset_path += "index.html";
                             }
-                            if let FindAssetResult::Found(asset) =
-                                &*self.find_asset(root_asset, &asset_path).await?
+                            if let FindAssetResult::Found(asset) = &*self
+                                .find_asset(root_asset, &asset_path)
+                                .strongly_consistent()
+                                .await?
                             {
-                                if let FileContent::Content(content) = &*asset.content().await? {
+                                if let FileContent::Content(content) =
+                                    &*asset.content().strongly_consistent().await?
+                                {
                                     tx.send(
                                         Response::builder()
                                             .status(200)
@@ -117,7 +121,7 @@ impl DevServerVc {
                             Ok(())
                         }));
                         loop {
-                            match unsafe { tt.try_read_task_output_untracked(task_id)? } {
+                            match unsafe { tt.try_read_task_output_untracked(task_id, false)? } {
                                 Ok(_) => break,
                                 Err(listener) => listener.await,
                             }

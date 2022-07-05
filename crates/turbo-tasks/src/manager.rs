@@ -21,10 +21,11 @@ use tokio::{runtime::Handle, task::JoinHandle, task_local};
 
 use crate::{
     backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
-    id::{BackgroundJobId, FunctionId, TraitTypeId},
+    id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
     task_input::{SharedReference, SharedValue, TaskInput},
+    timed_future::TimedFuture,
     trace::TraceRawVcs,
     Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
 };
@@ -52,10 +53,15 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>>;
+    fn try_read_task_output(
+        &self,
+        task: TaskId,
+        strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
@@ -98,7 +104,8 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi>;
 
     fn schedule(&self, task: TaskId);
-    fn schedule_backend_background_job(&self, id: BackgroundJobId);
+    fn schedule_backend_background_job(&self, id: BackendJobId);
+    fn schedule_backend_foreground_job(&self, id: BackendJobId);
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
@@ -230,7 +237,7 @@ impl<B: Backend> TurboTasks<B> {
         });
         // SAFETY: A Once task will never invalidate, therefore we don't need to track a
         // dependency
-        let raw_result = unsafe { read_task_output_untracked(self, task_id) }.await?;
+        let raw_result = unsafe { read_task_output_untracked(self, task_id, false) }.await?;
         unsafe { raw_result.into_read_untracked::<Nothing>(self) }.await?;
         Ok(rx.await?)
     }
@@ -277,13 +284,7 @@ impl<B: Backend> TurboTasks<B> {
 
     pub(crate) fn schedule(&self, task_id: TaskId) -> JoinHandle<()> {
         let this = self.pin();
-        if self
-            .currently_scheduled_tasks
-            .fetch_add(1, Ordering::AcqRel)
-            == 0
-        {
-            *self.start.lock().unwrap() = Some(Instant::now());
-        }
+        self.begin_foreground_task();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
         #[cfg(debug_assertions)]
         let description = this.backend.get_task_description(task_id);
@@ -306,9 +307,10 @@ impl<B: Backend> TurboTasks<B> {
 
                                 let cell_mappings =
                                     RefCell::new(execution.cell_mappings.unwrap_or_default());
-                                let (result, cell_mappings) = PREVIOUS_CELLS
+                                let (result, duration, cell_mappings) = PREVIOUS_CELLS
                                     .scope(cell_mappings, async {
-                                        let result = execution.future.await;
+                                        let (result, duration) =
+                                            TimedFuture::new(execution.future).await;
                                         let cell_mappings = if has_cell_mappings {
                                             Some(
                                                 PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())),
@@ -316,15 +318,23 @@ impl<B: Backend> TurboTasks<B> {
                                         } else {
                                             None
                                         };
-                                        (result, cell_mappings)
+                                        (result, duration, cell_mappings)
                                     })
                                     .await;
                                 if let Err(err) = &result {
                                     println!("{} errored {}", task_id, err);
                                 }
+                                if duration.as_millis() > 10 {
+                                    println!(
+                                        "{} took {} ms",
+                                        this.backend.get_task_description(task_id),
+                                        duration.as_millis()
+                                    )
+                                }
                                 let reexecute = this.backend.task_execution_completed(
                                     task_id,
                                     cell_mappings,
+                                    duration,
                                     result,
                                     &*this,
                                 );
@@ -336,20 +346,7 @@ impl<B: Backend> TurboTasks<B> {
                                 break;
                             }
                         }
-                        if this
-                            .currently_scheduled_tasks
-                            .fetch_sub(1, Ordering::AcqRel)
-                            == 1
-                        {
-                            // That's not super race-condition-safe, but it's only for
-                            // statistical reasons
-                            let total = this.scheduled_tasks.load(Ordering::Acquire);
-                            this.scheduled_tasks.store(0, Ordering::Release);
-                            if let Some(start) = *this.start.lock().unwrap() {
-                                *this.last_update.lock().unwrap() = Some((start.elapsed(), total));
-                            }
-                            this.event.notify(usize::MAX);
-                        }
+                        this.finish_foreground_task();
                     }),
                 ),
             ),
@@ -358,6 +355,33 @@ impl<B: Backend> TurboTasks<B> {
         return tokio::task::Builder::new().name(&description).spawn(future);
         #[cfg(not(debug_assertions))]
         return tokio::task::spawn(future);
+    }
+
+    fn begin_foreground_task(&self) {
+        if self
+            .currently_scheduled_tasks
+            .fetch_add(1, Ordering::AcqRel)
+            == 0
+        {
+            *self.start.lock().unwrap() = Some(Instant::now());
+        }
+    }
+
+    fn finish_foreground_task(&self) {
+        if self
+            .currently_scheduled_tasks
+            .fetch_sub(1, Ordering::AcqRel)
+            == 1
+        {
+            // That's not super race-condition-safe, but it's only for
+            // statistical reasons
+            let total = self.scheduled_tasks.load(Ordering::Acquire);
+            self.scheduled_tasks.store(0, Ordering::Release);
+            if let Some(start) = *self.start.lock().unwrap() {
+                *self.last_update.lock().unwrap() = Some((start.elapsed(), total));
+            }
+            self.event.notify(usize::MAX);
+        }
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {
@@ -437,6 +461,23 @@ impl<B: Backend> TurboTasks<B> {
         }));
     }
 
+    pub(crate) fn schedule_foreground_job<
+        T: FnOnce(Arc<TurboTasks<B>>) -> F + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
+    >(
+        &self,
+        func: T,
+    ) {
+        let this = self.pin();
+        this.begin_foreground_task();
+        tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
+            if !this.stopped.load(Ordering::Acquire) {
+                func(this.clone()).await;
+            }
+            this.finish_foreground_task();
+        }));
+    }
+
     fn notify_scheduled_tasks_internal(&self) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let tasks = tasks.take();
@@ -494,16 +535,28 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         });
     }
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>> {
-        self.backend
-            .try_read_task_output(task, current_task("reading Vcs"), self)
+    fn try_read_task_output(
+        &self,
+        task: TaskId,
+        strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>> {
+        self.backend.try_read_task_output(
+            task,
+            current_task("reading Vcs"),
+            strongly_consistent,
+            self,
+        )
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
-        unsafe { self.backend.try_read_task_output_untracked(task, self) }
+        unsafe {
+            self.backend
+                .try_read_task_output_untracked(task, strongly_consistent, self)
+        }
     }
 
     fn try_read_task_cell(
@@ -556,9 +609,14 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi> {
         self.pin()
     }
-    fn schedule_backend_background_job(&self, id: BackgroundJobId) {
+    fn schedule_backend_background_job(&self, id: BackendJobId) {
         self.schedule_background_job(move |this| async move {
-            this.backend.run_background_job(id, &*this).await;
+            this.backend.run_backend_job(id, &*this).await;
+        })
+    }
+    fn schedule_backend_foreground_job(&self, id: BackendJobId) {
+        self.schedule_foreground_job(move |this| async move {
+            this.backend.run_backend_job(id, &*this).await;
         })
     }
 
@@ -735,9 +793,13 @@ pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
     });
 }
 
-pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {
+pub(crate) async fn read_task_output(
+    this: &dyn TurboTasksApi,
+    id: TaskId,
+    strongly_consistent: bool,
+) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id)? {
+        match this.try_read_task_output(id, strongly_consistent)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -747,9 +809,10 @@ pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Re
 pub(crate) async unsafe fn read_task_output_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
+    strongly_consistent: bool,
 ) -> Result<RawVc> {
     loop {
-        match unsafe { this.try_read_task_output_untracked(id) }? {
+        match unsafe { this.try_read_task_output_untracked(id, strongly_consistent) }? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }

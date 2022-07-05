@@ -167,7 +167,12 @@ fn visualize_stats_references_internal<'a>(
 }
 
 fn get_task_label(ty: &TaskType, stats: &TaskStats) -> String {
-    format!("{}\n{}", escape(&ty.to_string()), stats.count)
+    format!(
+        "{}\n{}\n{} ms",
+        escape(&ty.to_string()),
+        stats.count,
+        stats.total_duration.as_millis()
+    )
 }
 
 fn get_child_label(_ty: &ReferenceType, stats: &ReferenceStats, source_count: usize) -> String {

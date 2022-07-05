@@ -111,7 +111,13 @@ pub enum RawVc {
 }
 
 impl RawVc {
-    pub fn into_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<T> {
+    pub fn into_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<T, false> {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        ReadRawVcFuture::new(self)
+    }
+
+    pub fn into_strongly_consistent_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<T, true> {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new(self)
@@ -121,12 +127,30 @@ impl RawVc {
         self,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<RawVcReadResult<T>> {
+        unsafe { self.into_read_untracked_internal(false, turbo_tasks).await }
+    }
+
+    pub async unsafe fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> Result<RawVcReadResult<T>> {
+        unsafe { self.into_read_untracked_internal(true, turbo_tasks).await }
+    }
+
+    async unsafe fn into_read_untracked_internal<T: Any + Send + Sync>(
+        self,
+        strongly_consistent: bool,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> Result<RawVcReadResult<T>> {
         turbo_tasks.notify_scheduled_tasks();
         let mut current = self;
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = unsafe { read_task_output_untracked(turbo_tasks, task) }.await?
+                    current = unsafe {
+                        read_task_output_untracked(turbo_tasks, task, strongly_consistent)
+                    }
+                    .await?
                 }
                 RawVc::TaskCell(task, index) => {
                     return Ok(
@@ -149,7 +173,7 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task)
+                    current = read_task_output(&*tt, task, false)
                         .await
                         .map_err(|source| ResolveTraitError::TaskError { source })?;
                 }
@@ -186,7 +210,7 @@ impl RawVc {
                         tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    current = read_task_output(&*tt, task).await?;
+                    current = read_task_output(&*tt, task, false).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
             }
@@ -220,14 +244,14 @@ impl Display for RawVc {
     }
 }
 
-pub struct ReadRawVcFuture<T: Any + Send + Sync> {
+pub struct ReadRawVcFuture<T: Any + Send + Sync, const SC: bool> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     current: RawVc,
     listener: Option<EventListener>,
     phantom_data: PhantomData<Pin<Box<T>>>,
 }
 
-impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
+impl<T: Any + Send + Sync, const SC: bool> ReadRawVcFuture<T, SC> {
     fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
@@ -239,7 +263,7 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
         }
     }
 
-    pub fn map<O, F: Fn(&T) -> &O>(self, func: F) -> ReadAndMapRawVcFuture<T, O, F> {
+    pub fn map<O, F: Fn(&T) -> &O>(self, func: F) -> ReadAndMapRawVcFuture<T, SC, O, F> {
         ReadAndMapRawVcFuture {
             inner: self,
             func: Some(func),
@@ -247,7 +271,7 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
     }
 }
 
-impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
+impl<T: Any + Send + Sync, const SC: bool> Future for ReadRawVcFuture<T, SC> {
     type Output = Result<RawVcReadResult<T>>;
 
     fn poll(
@@ -265,7 +289,7 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                 this.listener = None;
             }
             let mut listener = match this.current {
-                RawVc::TaskOutput(task) => match this.turbo_tasks.try_read_task_output(task) {
+                RawVc::TaskOutput(task) => match this.turbo_tasks.try_read_task_output(task, SC) {
                     Ok(Ok(vc)) => {
                         this.current = vc;
                         continue 'outer;
@@ -294,12 +318,14 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
     }
 }
 
-pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
-    inner: ReadRawVcFuture<T>,
+pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, const SC: bool, O, F: Fn(&T) -> &O> {
+    inner: ReadRawVcFuture<T, SC>,
     func: Option<F>,
 }
 
-impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<T, O, F> {
+impl<T: Any + Send + Sync, const SC: bool, O, F: Fn(&T) -> &O> Future
+    for ReadAndMapRawVcFuture<T, SC, O, F>
+{
     type Output = Result<RawVcReadAndMapResult<T, O, F>>;
 
     fn poll(

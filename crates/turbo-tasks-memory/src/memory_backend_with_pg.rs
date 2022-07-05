@@ -8,7 +8,7 @@ use std::{
         atomic::{fence, AtomicU32, AtomicUsize, Ordering},
         Mutex, MutexGuard,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{anyhow, Result};
@@ -16,7 +16,7 @@ use concurrent_queue::ConcurrentQueue;
 use event_listener::{Event, EventListener};
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
+        Backend, BackendJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     persisted_graph::{
@@ -71,7 +71,6 @@ struct MemoryTaskState {
     children: HashSet<TaskId>,
     event: Event,
     event_cells: Event,
-    start: Option<Instant>,
 }
 
 #[derive(Default, Debug)]
@@ -115,7 +114,7 @@ pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph> {
     pub pg: P,
     tasks: InfiniteVec<Option<Task>>,
     cache: flurry::HashMap<PersistentTaskType, TaskId>,
-    background_job_id_factory: IdFactory<BackgroundJobId>,
+    background_job_id_factory: IdFactory<BackendJobId>,
     background_jobs: InfiniteVec<Option<BackgroundJob>>,
     only_known_to_memory_tasks: flurry::HashSet<TaskId>,
     /// Tasks that were selected to persist
@@ -125,7 +124,7 @@ pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph> {
     /// Task sorted by importance, sharded to avoid lock contention
     persist_queue_by_duration: [Mutex<BinaryHeap<(Duration, TaskId)>>; 64],
     persist_capacity: AtomicUsize,
-    persist_job: BackgroundJobId,
+    persist_job: BackendJobId,
     partial_lookups: flurry::HashMap<PersistentTaskType, bool>,
     #[cfg(feature = "unsafe_once_map")]
     partial_lookup: turbo_tasks::util::OnceConcurrentlyMap<PersistentTaskType, bool>,
@@ -1024,7 +1023,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         let children = take(&mut mem_state.children);
         let mut cell_mappings = mem_state.cell_mappings.take().unwrap_or_default();
         cell_mappings.reset();
-        mem_state.start = Some(Instant::now());
         drop(state);
         for dep in deps {
             let (mut state, _) = self.mem_state_mut(dep.get_task_id(), turbo_tasks);
@@ -1064,6 +1062,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
+        duration: Duration,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
@@ -1101,11 +1100,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             take(&mut mem_state.output_dependent)
         } else {
             HashSet::new()
-        };
-        let duration = if let Some(start) = mem_state.start {
-            start.elapsed()
-        } else {
-            Duration::from_secs(1)
         };
         mem_state.need_persist = true;
         let has_changes = mem_state.has_changes;
@@ -1147,9 +1141,9 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         false
     }
 
-    fn run_background_job<'a>(
+    fn run_backend_job<'a>(
         &'a self,
-        id: BackgroundJobId,
+        id: BackendJobId,
         turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         if id == self.persist_job {
@@ -1196,6 +1190,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         reader: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
@@ -1234,6 +1229,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
         let (state, task_info) = self.mem_state_mut(task, turbo_tasks);

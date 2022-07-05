@@ -297,7 +297,9 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => read_task_output(&*tt, task_id).await?.into(),
+                TaskInput::TaskOutput(task_id) => {
+                    read_task_output(&*tt, task_id, false).await?.into()
+                }
                 TaskInput::TaskCell(task_id, index) => {
                     read_task_cell(&*tt, task_id, index).await?.into()
                 }
@@ -311,7 +313,9 @@ impl TaskInput {
         let mut current = self;
         loop {
             current = match current {
-                TaskInput::TaskOutput(task_id) => read_task_output(&*tt, task_id).await?.into(),
+                TaskInput::TaskOutput(task_id) => {
+                    read_task_output(&*tt, task_id, false).await?.into()
+                }
                 TaskInput::List(list) => {
                     if list.iter().all(|i| i.is_resolved()) {
                         return Ok(TaskInput::List(list));

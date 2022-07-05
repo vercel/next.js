@@ -5,13 +5,14 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
 
-pub use crate::id::BackgroundJobId;
+pub use crate::id::BackendJobId;
 use crate::{
     manager::TurboTasksBackendApi,
     registry,
@@ -174,12 +175,13 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
+        duration: Duration,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
-    fn run_background_job<'a>(
+    fn run_backend_job<'a>(
         &'a self,
-        id: BackgroundJobId,
+        id: BackendJobId,
         turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -187,11 +189,13 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>>;
 

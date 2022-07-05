@@ -24,6 +24,7 @@ pub mod primitives;
 mod raw_vc;
 pub mod registry;
 mod task_input;
+mod timed_future;
 pub mod trace;
 pub mod util;
 mod value;

@@ -24,4 +24,5 @@ log_running_tasks = []
 log_scheduled_tasks = []
 log_activate_tasks = []
 log_connect_tasks = []
+report_expensive = []
 

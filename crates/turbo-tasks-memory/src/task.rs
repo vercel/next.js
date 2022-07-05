@@ -1,5 +1,3 @@
-#[cfg(feature = "report_expensive")]
-use std::time::Instant;
 use std::{
     cell::RefCell,
     collections::HashSet,
@@ -9,6 +7,7 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{Mutex, RwLock, RwLockWriteGuard},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -118,11 +117,12 @@ struct TaskExecutionData {
 
 impl Debug for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let state = self.state.read().unwrap();
         let mut result = f.debug_struct("Task");
         result.field("type", &self.ty);
-        result.field("scopes", &state.scopes.iter().collect::<Vec<_>>());
-        result.field("state", &state.state_type);
+        if let Ok(state) = self.state.try_read() {
+            result.field("scopes", &state.scopes.iter().collect::<Vec<_>>());
+            result.field("state", &state.state_type);
+        }
         result.finish()
     }
 }
@@ -131,6 +131,7 @@ impl Debug for Task {
 #[derive(Default)]
 struct TaskState {
     scopes: TaskScopeList,
+    scopes_removed: u32,
 
     // TODO using a Atomic might be possible here
     /// More flags of task state, where not all combinations are possible.
@@ -144,6 +145,7 @@ struct TaskState {
     created_cells: Vec<Cell>,
     event: Event,
     executions: u32,
+    total_duration: Duration,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -187,9 +189,9 @@ use TaskStateType::*;
 
 use crate::{
     cell::Cell,
-    memory_backend::BackgroundJob,
+    memory_backend::Job,
     output::Output,
-    scope::{AddResult, RemoveResult, TaskScopeId, TaskScopeList},
+    scope::{AddResult, RemoveResult, SetRootResult, TaskScopeId, TaskScopeList},
     stats, MemoryBackend,
 };
 
@@ -323,6 +325,7 @@ impl Task {
 
     #[cfg(feature = "report_expensive")]
     fn clear_dependencies(&self, backend: &MemoryBackend) {
+        use std::time::Instant;
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
@@ -339,14 +342,14 @@ impl Task {
                 "clear_dependencies({}) took {} ms: {:?}",
                 count,
                 elapsed.as_millis(),
-                &**self
+                self
             );
         } else if elapsed.as_millis() >= 10 || count > 10000 {
             println!(
                 "clear_dependencies({}) took {} µs: {:?}",
                 count,
                 elapsed.as_micros(),
-                &**self
+                self
             );
         }
     }
@@ -370,7 +373,7 @@ impl Task {
                     let scopes = state.scopes.iter().collect::<Vec<_>>();
                     // TODO potentially convert something to a root scope to make it more efficient
                     turbo_tasks.schedule_backend_background_job(
-                        backend.create_background_job(BackgroundJob::RemoveFromScopes(set, scopes)),
+                        backend.create_backend_job(Job::RemoveFromScopes(set, scopes)),
                     );
                 }
             }
@@ -415,8 +418,9 @@ impl Task {
     pub(crate) fn execution_completed(
         &self,
         cell_mappings: Option<CellMappings>,
+        duration: Duration,
         backend: &MemoryBackend,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
             let mut execution_data = self.execution_data.lock().unwrap();
@@ -429,16 +433,24 @@ impl Task {
         let mut clear_dependencies = false;
         {
             let mut state = self.state.write().unwrap();
+            state.total_duration += duration;
             match state.state_type {
                 InProgress => {
                     state.state_type = Done;
+                    for scope in state.scopes.iter() {
+                        backend.with_scope(scope, |scope| {
+                            scope.decrement_unfinished_tasks();
+                        })
+                    }
                     state.event.notify(usize::MAX);
                 }
                 InProgressDirty => {
                     clear_dependencies = true;
                     let mut active = false;
                     for scope in state.scopes.iter() {
-                        if backend.with_scope(scope, |scope| scope.is_active()) {
+                        if backend
+                            .with_scope(scope, |scope| scope.state.lock().unwrap().is_active())
+                        {
                             active = true;
                             break;
                         }
@@ -465,11 +477,11 @@ impl Task {
         // TODO enabled these lines once "Once" tasks correctly bring values up to date
         // on reading eventually consistent doesn't work for them...
 
-        // if let TaskType::Once(_) = self.ty {
-        //     let job =
-        // backend.create_background_job(BackgroundJob::RemoveTask(self.id));
-        //     turbo_tasks.schedule_backend_background_job(job);
-        // }
+        if let TaskType::Once(_) = self.ty {
+            turbo_tasks.schedule_backend_background_job(
+                backend.create_backend_job(Job::RemoveRootScope(self.id)),
+            );
+        }
         schedule_task
     }
 
@@ -490,6 +502,8 @@ impl Task {
                 let mut active = false;
                 for scope in state.scopes.iter() {
                     backend.with_scope(scope, |scope| {
+                        scope.increment_unfinished_tasks();
+                        let mut scope = scope.state.lock().unwrap();
                         if scope.is_active() {
                             active = true;
                         } else {
@@ -512,6 +526,11 @@ impl Task {
         }
     }
 
+    pub(crate) fn set_root_scope(&self, id: TaskScopeId) -> SetRootResult {
+        let mut state = self.state.write().unwrap();
+        state.scopes.set_root(id)
+    }
+
     pub(crate) fn schedule_when_dirty(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
         let mut state = self.state.write().unwrap();
         if state.state_type == TaskStateType::Dirty {
@@ -528,55 +547,90 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write().unwrap();
-        if let Some(root) = state.scopes.root {
-            if backend.with_scope(id, |scope| scope.add_child(root)) {
-                drop(state);
-                backend.increase_scope_active(root, turbo_tasks);
-            }
-        } else {
-            match state.scopes.try_add(id) {
-                AddResult::Root => {
-                    // root doesn't have to be added
-                    // this is called when it is circular
+        loop {
+            if let Some(root) = state.scopes.root {
+                if backend.with_scope(id, |scope| scope.state.lock().unwrap().add_child(root)) {
+                    drop(state);
+                    backend.increase_scope_active(root, turbo_tasks);
                 }
-                AddResult::Existing => {
-                    // nothing to do, we can stop propagating as this task is
-                    // already part of that scope
-                }
-                AddResult::New => {
-                    for child in state.children.iter() {
-                        // TODO this could deadlock, when there are cycles
-                        backend.with_task(*child, |child| {
-                            child.add_to_scope(id, backend, turbo_tasks);
-                        })
+            } else {
+                match state.scopes.try_add(id) {
+                    AddResult::Root => {
+                        // root doesn't have to be added
+                        // this is called when it is circular
                     }
-                    // add to dirty list of the scope (potentially schedule)
-                    if state.state_type == TaskStateType::Dirty {
-                        backend.with_scope(id, move |scope| {
-                            if scope.is_active() {
-                                state.state_type = Scheduled;
-                                drop(state);
-                                turbo_tasks.schedule(self.id);
-                            } else {
-                                scope.dirty_tasks.insert(self.id);
-                            }
-                        })
+                    AddResult::Existing => {
+                        // nothing to do, we can stop propagating as this task
+                        // is already part of that scope
                     }
-                }
-                AddResult::Full => {
-                    todo!("create new root scope here and add as child of existing scopes")
+                    AddResult::New => {
+                        for child in state.children.iter() {
+                            // TODO this could deadlock, when there are cycles
+                            backend.with_task(*child, |child| {
+                                child.add_to_scope(id, backend, turbo_tasks);
+                            })
+                        }
+                        self.add_self_to_new_scope(state, id, backend, turbo_tasks);
+                    }
+                    AddResult::Full => {
+                        if let Some(s) = self.make_root_scoped_internal(state, backend, turbo_tasks)
+                        {
+                            state = s;
+                        } else {
+                            state = self.state.write().unwrap();
+                        }
+                        continue;
+                    }
                 }
             }
+            break;
         }
+    }
+
+    fn add_self_to_new_scope<'a>(
+        &self,
+        mut state: RwLockWriteGuard<'a, TaskState>,
+        id: TaskScopeId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Option<RwLockWriteGuard<'a, TaskState>> {
+        // add to dirty list of the scope (potentially schedule)
+        backend.with_scope(id, move |scope| {
+            scope.increment_tasks();
+            if !matches!(state.state_type, TaskStateType::Done) {
+                scope.increment_unfinished_tasks();
+                if state.state_type == TaskStateType::Dirty {
+                    let mut scope = scope.state.lock().unwrap();
+                    if scope.is_active() {
+                        drop(scope);
+                        state.state_type = Scheduled;
+                        drop(state);
+                        turbo_tasks.schedule(self.id);
+                        None
+                    } else {
+                        scope.dirty_tasks.insert(self.id);
+                        Some(state)
+                    }
+                } else {
+                    Some(state)
+                }
+            } else {
+                Some(state)
+            }
+        })
     }
 
     fn remove_from_scope_interal(
         &self,
         state: &mut RwLockWriteGuard<TaskState>,
         id: TaskScopeId,
+        mut reset_removal_counter: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
+    ) -> usize {
+        if reset_removal_counter {
+            state.scopes_removed = 0;
+        }
         match state.scopes.remove(id) {
             RemoveResult::Root => {
                 // root doesn't have to be removed
@@ -584,7 +638,9 @@ impl Task {
             }
             RemoveResult::NoEntry => {
                 if let Some(root) = state.scopes.root {
-                    if backend.with_scope(id, |scope| scope.remove_child(root)) {
+                    if backend
+                        .with_scope(id, |scope| scope.state.lock().unwrap().remove_child(root))
+                    {
                         drop(state);
                         backend.decrease_scope_active(root, turbo_tasks);
                     }
@@ -596,13 +652,39 @@ impl Task {
                 // nothing to do, we can stop propagating
             }
             RemoveResult::Removed => {
+                backend.with_scope(id, |scope| {
+                    if !matches!(state.state_type, Done) {
+                        scope.decrement_unfinished_tasks();
+                    }
+                    scope.decrement_tasks();
+                });
+                if !reset_removal_counter && state.children.len() > 1 {
+                    state.scopes_removed += 1;
+                    if state.scopes_removed > 4 {
+                        state.scopes_removed = 0;
+                        turbo_tasks.schedule_backend_background_job(
+                            backend.create_backend_job(Job::MakeRootScoped(self.id)),
+                        );
+                        reset_removal_counter = true;
+                    }
+                }
+                let mut count = 1;
                 for child in state.children.iter() {
                     backend.with_task(*child, |child| {
-                        child.add_to_scope(id, backend, turbo_tasks);
+                        let mut state = child.state.write().unwrap();
+                        count += child.remove_from_scope_interal(
+                            &mut state,
+                            id,
+                            reset_removal_counter,
+                            backend,
+                            turbo_tasks,
+                        );
                     })
                 }
+                return count;
             }
         }
+        0
     }
 
     pub(crate) fn remove_from_scope(
@@ -610,9 +692,9 @@ impl Task {
         id: TaskScopeId,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
+    ) -> usize {
         let mut state = self.state.write().unwrap();
-        self.remove_from_scope_interal(&mut state, id, backend, turbo_tasks)
+        self.remove_from_scope_interal(&mut state, id, false, backend, turbo_tasks)
     }
 
     pub(crate) fn remove_from_scopes(
@@ -620,10 +702,105 @@ impl Task {
         scopes: impl Iterator<Item = TaskScopeId>,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> usize {
+        let mut state = self.state.write().unwrap();
+        let mut count = 0;
+        for id in scopes {
+            count += self.remove_from_scope_interal(&mut state, id, false, backend, turbo_tasks)
+        }
+        count
+    }
+
+    pub(crate) fn remove_root_scope(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write().unwrap();
-        for id in scopes {
-            self.remove_from_scope_interal(&mut state, id, backend, turbo_tasks)
+        if let Some(root) = state.scopes.root {
+            println!("removing root scope {root}");
+            state.scopes.root = None;
+            turbo_tasks.schedule_backend_background_job(backend.create_backend_job(
+                Job::RemoveFromScope(state.children.iter().copied().collect(), root),
+            ));
+        }
+    }
+
+    pub(crate) fn make_root_scoped(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let state = self.state.write().unwrap();
+        #[cfg(not(feature = "report_expensive"))]
+        self.make_root_scoped_internal(state, backend, turbo_tasks);
+        #[cfg(feature = "report_expensive")]
+        {
+            use std::time::Instant;
+            let start = Instant::now();
+            drop(self.make_root_scoped_internal(state, backend, turbo_tasks));
+            let elapsed = start.elapsed();
+            if elapsed.as_millis() >= 100 {
+                println!(
+                    "make_root_scoped took {} ms: {:?}",
+                    elapsed.as_millis(),
+                    self
+                );
+            } else if elapsed.as_millis() >= 10 {
+                println!(
+                    "make_root_scoped took {} µs: {:?}",
+                    elapsed.as_micros(),
+                    self
+                );
+            }
+        };
+    }
+
+    fn make_root_scoped_internal<'a>(
+        &self,
+        mut state: RwLockWriteGuard<'a, TaskState>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Option<RwLockWriteGuard<'a, TaskState>> {
+        if matches!(state.scopes.root, None) {
+            let root_scope = backend.create_new_scope();
+            let scopes = state.scopes.iter_non_root().collect::<Vec<TaskScopeId>>();
+            println!(
+                "new {root_scope} for {:?} as internal root scope (replacing {scopes:?})",
+                self.ty
+            );
+            let active_counter = scopes
+                .iter()
+                .filter(|scope| {
+                    backend.with_scope(**scope, |scope| {
+                        scope.state.lock().unwrap().add_child(root_scope)
+                    })
+                })
+                .count();
+            if active_counter > 0 {
+                backend.increase_scope_active_by(root_scope, active_counter, turbo_tasks);
+            }
+
+            // Set the root scope of the current task
+            state.scopes.root = Some(root_scope);
+
+            // Remove first, then add, to avoid overflowing scope list
+            for scope in scopes.iter() {
+                // Note this also removes the scope from the children
+                self.remove_from_scope_interal(&mut state, *scope, true, backend, turbo_tasks);
+            }
+
+            // Add children to new root scope
+            for child in state.children.iter() {
+                // TODO this could deadlock, when there are cycles
+                backend.with_task(*child, |child| {
+                    child.add_to_scope(root_scope, backend, turbo_tasks);
+                })
+            }
+
+            self.add_self_to_new_scope(state, root_scope, backend, turbo_tasks)
+        } else {
+            Some(state)
         }
     }
 
@@ -723,6 +900,11 @@ impl Task {
         state.state_type != TaskStateType::Done
     }
 
+    pub fn get_total_duration(&self) -> Duration {
+        let state = self.state.read().unwrap();
+        state.total_duration
+    }
+
     pub fn get_stats_type(self: &Task) -> stats::TaskType {
         match &self.ty {
             TaskType::Root(_) => stats::TaskType::Root(self.id),
@@ -791,41 +973,103 @@ impl Task {
         let mut state = self.state.write().unwrap();
         if state.children.insert(child_id) {
             let scopes = state.scopes.clone();
+            let children = state.children.len();
             drop(state);
 
+            let scopes_count = scopes.len();
             backend.with_task(child_id, |child| {
                 for scope in scopes.iter() {
                     #[cfg(not(feature = "report_expensive"))]
                     child.add_to_scope(scope, backend, turbo_tasks);
                     #[cfg(feature = "report_expensive")]
                     {
+                        use std::time::Instant;
                         let start = Instant::now();
                         child.add_to_scope(scope, backend, turbo_tasks);
                         let elapsed = start.elapsed();
                         if elapsed.as_millis() >= 100 {
                             println!(
-                                "add_to_scope took {} ms: {:?}",
+                                "add_to_scope {scope} took {} ms: {:?}",
                                 elapsed.as_millis(),
-                                &**child
+                                child
                             );
-                        } else if elapsed.as_millis() >= 10 || count > 10000 {
+                        } else if elapsed.as_millis() >= 10 {
                             println!(
-                                "add_to_scope took {} µs: {:?}",
+                                "add_to_scope {scope} took {} µs: {:?}",
                                 elapsed.as_micros(),
-                                &**child
+                                child
                             );
                         }
                     }
                 }
             });
+            if scopes_count > 1 && children * (scopes_count as usize) > 100 {
+                turbo_tasks.schedule_backend_background_job(
+                    backend.create_backend_job(Job::MakeRootScoped(self.id)),
+                );
+            }
         }
     }
 
     pub(crate) fn get_or_wait_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
+        strongly_consistent: bool,
         func: F,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<T, EventListener>> {
         let mut state = self.state.write().unwrap();
+        if strongly_consistent {
+            while state.scopes.root.is_none() {
+                #[cfg(not(feature = "report_expensive"))]
+                let result = self.make_root_scoped_internal(state, backend, turbo_tasks);
+                #[cfg(feature = "report_expensive")]
+                let result = {
+                    use std::time::Instant;
+                    let start = Instant::now();
+                    let result = self.make_root_scoped_internal(state, backend, turbo_tasks);
+                    let elapsed = start.elapsed();
+                    if elapsed.as_millis() >= 100 {
+                        println!(
+                            "make_root_scoped took {} ms: {:?}",
+                            elapsed.as_millis(),
+                            self
+                        );
+                    } else if elapsed.as_millis() >= 10 {
+                        println!(
+                            "make_root_scoped took {} µs: {:?}",
+                            elapsed.as_micros(),
+                            self
+                        );
+                    }
+                    result
+                };
+                if let Some(s) = result {
+                    state = s;
+                    break;
+                } else {
+                    // We need to acquire a new lock and everything might have changed in between
+                    state = self.state.write().unwrap();
+                    continue;
+                }
+            }
+            let root = state.scopes.root.unwrap();
+            if let Some(listener) = backend.with_scope(root, |scope| {
+                if let Some(listener) = scope.has_unfinished_tasks(root, backend) {
+                    return Some(listener);
+                }
+                if let Some(listener) = scope.has_unfinished_tasks(root, backend) {
+                    println!(
+                        "First has_unfinished_tasks call lied to us (race condition?): {:?}",
+                        self.ty
+                    );
+                    return Some(listener);
+                }
+                None
+            }) {
+                return Ok(Err(listener));
+            }
+        }
         match state.state_type {
             Done => {
                 let result = func(&mut state.output)?;

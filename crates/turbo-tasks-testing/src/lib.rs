@@ -58,13 +58,18 @@ impl TurboTasksApi for VcStorage {
         // ignore
     }
 
-    fn try_read_task_output(&self, _task: TaskId) -> Result<Result<RawVc, EventListener>> {
+    fn try_read_task_output(
+        &self,
+        _task: TaskId,
+        _strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         _task: TaskId,
+        _strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }

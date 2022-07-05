@@ -457,7 +457,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
              // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, false, #inner_type, fn(&#ident) -> &#inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
@@ -465,7 +465,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, false, #inner_type, fn(&#ident) -> &#inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
@@ -476,7 +476,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
              // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, false>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -484,7 +484,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, false>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -537,6 +537,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// This is async and will rethrow any fatal error that happened during task execution.
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
+            }
+
+            #[must_use]
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident, true> {
+                self.node.into_strongly_consistent_read::<#ident>()
             }
 
             #(
