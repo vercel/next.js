@@ -25,15 +25,25 @@ describe('Edge compiler module exports preference', () => {
             })
           }
         `,
-        'node_modules/my-lib/package.json': JSON.stringify({
+        'my-lib/package.json': JSON.stringify({
           name: 'my-lib',
           version: '1.0.0',
           main: 'index.js',
           browser: 'browser.js',
         }),
-        'node_modules/my-lib/index.js': `module.exports = "Node.js"`,
-        'node_modules/my-lib/browser.js': `module.exports = "Browser"`,
+        'my-lib/index.js': `module.exports = "Node.js"`,
+        'my-lib/browser.js': `module.exports = "Browser"`,
       },
+      packageJson: {
+        scripts: {
+          setup: `cp -r ./my-lib ./node_modules`,
+          build: 'yarn setup && next build',
+          dev: 'yarn setup && next dev',
+          start: 'next start',
+        },
+      },
+      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
+      buildCommand: 'yarn build',
       dependencies: {},
     })
   })
