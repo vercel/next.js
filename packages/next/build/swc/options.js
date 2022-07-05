@@ -244,8 +244,8 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
+    // Matches the target of precompiled client side files
+    baseOptions.jsc.target = 'es2016'
     return {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
