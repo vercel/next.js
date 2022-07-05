@@ -11,7 +11,7 @@ const fetcher = async (url: string) => {
   return data
 }
 
-const Person = () => {
+export default function Person() {
   const { query } = useRouter()
   const { data, error } = useSWR(
     () => query.id && `/api/people/${query.id}`,
@@ -48,5 +48,3 @@ const Person = () => {
     </table>
   )
 }
-
-export default Person

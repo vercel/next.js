@@ -4,7 +4,7 @@ import { Person } from '../interfaces'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-const Index = () => {
+export default function Index() {
   const { data, error } = useSWR('/api/people', fetcher)
 
   if (error) return <div>Failed to load</div>
@@ -18,5 +18,3 @@ const Index = () => {
     </ul>
   )
 }
-
-export default Index
