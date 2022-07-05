@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 
+import styles from './style.module.css'
+
 export default function ClientNestedLayout({ children }) {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -7,7 +9,7 @@ export default function ClientNestedLayout({ children }) {
   }, [])
   return (
     <>
-      <h1>Client Nested. Count: {count}</h1>
+      <h1 className={styles.red}>Client Nested. Count: {count}</h1>
       <button onClick={() => setCount(count + 1)}>{count}</button>
       {children}
     </>

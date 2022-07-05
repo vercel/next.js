@@ -5,6 +5,7 @@ module.exports = {
     docs: {
       description:
         'Prevent usage of `<title>` with `Head` component from `next/document`.',
+      recommended: true,
       url,
     },
   },

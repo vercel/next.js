@@ -3,7 +3,7 @@ import Header from '../../components/header'
 
 const Comment = () => {
   const router = useRouter()
-  const slug = router.query.slug || []
+  const slug = (router.query.slug as string[]) || []
 
   return (
     <>
