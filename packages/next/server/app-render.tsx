@@ -21,7 +21,6 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { stripInternalQueries } from './utils'
-import { fromNodeHeaders } from './web/utils'
 import { NextCookies } from './web/spec-extension/cookies'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
@@ -164,10 +163,14 @@ function createServerComponentRenderer(
     cachePrefix,
     transformStream,
     serverComponentManifest,
+    serverContexts,
   }: {
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    serverContexts: Array<
+      [ServerContextName: string, JSONValue: { [key: string]: any }]
+    >
   }
 ) {
   // We need to expose the `__webpack_require__` API globally for
@@ -183,11 +186,15 @@ function createServerComponentRenderer(
   }
 
   let RSCStream: ReadableStream<Uint8Array>
+
   const createRSCStream = () => {
     if (!RSCStream) {
       RSCStream = renderToReadableStream(
         <ComponentToRender />,
-        serverComponentManifest
+        serverComponentManifest,
+        {
+          context: serverContexts,
+        }
       )
     }
     return RSCStream
@@ -306,6 +313,9 @@ export async function renderToHTML(
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
 
+  const headers = req.headers
+  const cookies = req.cookies
+
   const tree: LoaderTree = ComponentMod.tree
 
   // Reads of this are cached on the `req` object, so this should resolve
@@ -317,6 +327,13 @@ export async function renderToHTML(
     (renderOpts as any).previewProps
   )
   const isPreview = previewData !== false
+  const serverContexts = [
+    ['WORKAROUND', null], // TODO: First value has a bug currently where the value is not set on the second request
+    ['HeadersContext', headers],
+    ['CookiesContext', cookies],
+    ['PreviewDataContext', previewData],
+  ]
+
   const dataCache = new Map<string, Record>()
 
   type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -465,6 +482,7 @@ export async function renderToHTML(
     let fetcher: (() => Promise<any>) | null = null
 
     type GetServerSidePropsContext = {
+      // TODO: has to be serializable
       headers: Headers
       cookies: NextCookies
       layoutSegments: FlightSegmentPath
@@ -487,9 +505,9 @@ export async function renderToHTML(
       const getServerSidePropsContext:
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
-        headers: fromNodeHeaders(req.headers),
+        headers,
         // TODO: convert to NextCookies
-        cookies: req.cookies,
+        cookies,
         layoutSegments: segmentPath,
         // TODO: change this to be URLSearchParams instead?
         ...(isPage ? { query, pathname } : {}),
@@ -686,6 +704,7 @@ export async function renderToHTML(
       cachePrefix: pathname + (search ? `?${search}` : ''),
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
+      serverContexts,
     }
   )
 
