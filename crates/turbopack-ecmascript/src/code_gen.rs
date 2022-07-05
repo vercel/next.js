@@ -10,7 +10,7 @@ pub struct CodeGeneration {
     pub visitors: Vec<(Vec<Span>, Box<dyn Send + Sync + Fn() -> Visitor>)>,
 }
 
-pub type Visitor = Box<dyn VisitMut + Send + Sync>;
+pub type Visitor = Box<dyn VisitMutAstPath + Send + Sync>;
 
 #[turbo_tasks::value_trait]
 pub trait CodeGenerationReference {
