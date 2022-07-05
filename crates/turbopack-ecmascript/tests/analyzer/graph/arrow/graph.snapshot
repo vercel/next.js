@@ -1,6 +1,6 @@
 [
     (
-        "*anonymous function 115*",
+        "*anonymous function 116*",
         Function(
             2,
             Constant(
@@ -13,7 +13,7 @@
         ),
     ),
     (
-        "*anonymous function 338*",
+        "*anonymous function 339*",
         Function(
             2,
             Constant(
@@ -26,7 +26,7 @@
         ),
     ),
     (
-        "*arrow function 10*",
+        "*arrow function 11*",
         Function(
             2,
             Constant(
@@ -39,7 +39,7 @@
         ),
     ),
     (
-        "*arrow function 213*",
+        "*arrow function 214*",
         Function(
             2,
             Constant(
@@ -52,7 +52,7 @@
         ),
     ),
     (
-        "*arrow function 235*",
+        "*arrow function 236*",
         Function(
             2,
             Constant(
@@ -65,7 +65,7 @@
         ),
     ),
     (
-        "*arrow function 258*",
+        "*arrow function 259*",
         Function(
             2,
             Constant(
@@ -78,7 +78,7 @@
         ),
     ),
     (
-        "*arrow function 29*",
+        "*arrow function 299*",
         Function(
             2,
             Constant(
@@ -91,7 +91,7 @@
         ),
     ),
     (
-        "*arrow function 298*",
+        "*arrow function 30*",
         Function(
             2,
             Constant(
@@ -104,7 +104,7 @@
         ),
     ),
     (
-        "*arrow function 49*",
+        "*arrow function 50*",
         Function(
             2,
             Constant(
@@ -117,7 +117,7 @@
         ),
     ),
     (
-        "*arrow function 82*",
+        "*arrow function 83*",
         Function(
             2,
             Constant(
@@ -133,7 +133,7 @@
         "a",
         Variable(
             (
-                Atom('*arrow function 10*' type=dynamic),
+                Atom('*arrow function 11*' type=dynamic),
                 #0,
             ),
         ),
@@ -142,7 +142,7 @@
         "b",
         Variable(
             (
-                Atom('*arrow function 29*' type=dynamic),
+                Atom('*arrow function 30*' type=dynamic),
                 #0,
             ),
         ),
@@ -151,7 +151,7 @@
         "c",
         Variable(
             (
-                Atom('*arrow function 49*' type=dynamic),
+                Atom('*arrow function 50*' type=dynamic),
                 #0,
             ),
         ),
@@ -160,7 +160,7 @@
         "d",
         Variable(
             (
-                Atom('*arrow function 82*' type=dynamic),
+                Atom('*arrow function 83*' type=dynamic),
                 #0,
             ),
         ),
@@ -169,7 +169,7 @@
         "e#1",
         Variable(
             (
-                Atom('*anonymous function 115*' type=dynamic),
+                Atom('*anonymous function 116*' type=dynamic),
                 #0,
             ),
         ),
@@ -211,7 +211,7 @@
         "xa",
         Variable(
             (
-                Atom('*arrow function 213*' type=dynamic),
+                Atom('*arrow function 214*' type=dynamic),
                 #0,
             ),
         ),
@@ -220,7 +220,7 @@
         "xb",
         Variable(
             (
-                Atom('*arrow function 235*' type=dynamic),
+                Atom('*arrow function 236*' type=dynamic),
                 #0,
             ),
         ),
@@ -229,7 +229,7 @@
         "xc",
         Variable(
             (
-                Atom('*arrow function 258*' type=dynamic),
+                Atom('*arrow function 259*' type=dynamic),
                 #0,
             ),
         ),
@@ -238,7 +238,7 @@
         "xd",
         Variable(
             (
-                Atom('*arrow function 298*' type=dynamic),
+                Atom('*arrow function 299*' type=dynamic),
                 #0,
             ),
         ),
@@ -247,7 +247,7 @@
         "xe#3",
         Variable(
             (
-                Atom('*anonymous function 338*' type=dynamic),
+                Atom('*anonymous function 339*' type=dynamic),
                 #0,
             ),
         ),

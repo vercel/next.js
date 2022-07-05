@@ -1,6 +1,6 @@
 [
     (
-        "*anonymous function 180*",
+        "*anonymous function 181*",
         Function(
             9,
             MemberCall(
@@ -51,7 +51,7 @@
         ),
     ),
     (
-        "*anonymous function 5012*",
+        "*anonymous function 5013*",
         Function(
             4,
             Add(
@@ -72,7 +72,7 @@
         ),
     ),
     (
-        "*anonymous function 5162*",
+        "*anonymous function 5163*",
         Function(
             4,
             Add(
@@ -93,7 +93,7 @@
         ),
     ),
     (
-        "*anonymous function 5312*",
+        "*anonymous function 5313*",
         Function(
             4,
             Add(
@@ -114,7 +114,7 @@
         ),
     ),
     (
-        "*anonymous function 5453*",
+        "*anonymous function 5454*",
         Function(
             4,
             Add(
@@ -135,7 +135,7 @@
         ),
     ),
     (
-        "*anonymous function 5684*",
+        "*anonymous function 5685*",
         Function(
             11,
             Alternatives(
@@ -5333,7 +5333,7 @@
         "md5",
         Variable(
             (
-                Atom('*anonymous function 180*' type=dynamic),
+                Atom('*anonymous function 181*' type=dynamic),
                 #0,
             ),
         ),
