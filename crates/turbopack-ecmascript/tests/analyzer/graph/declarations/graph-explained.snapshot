@@ -1,10 +1,10 @@
-*anonymous function 24* = (...) => FreeVar(undefined)
+*anonymous function 25* = (...) => FreeVar(undefined)
 
 a = (...) => FreeVar(undefined)
 
 aa = a
 
-b = *anonymous function 24*
+b = *anonymous function 25*
 
 bb = b
 
