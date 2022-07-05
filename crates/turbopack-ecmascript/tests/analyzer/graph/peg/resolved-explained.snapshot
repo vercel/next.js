@@ -1,34 +1,34 @@
-*anonymous function 10063* = (...) => "OR"
+*anonymous function 10064* = (...) => "OR"
 
-*anonymous function 10191* = (...) => "NOT"
+*anonymous function 10192* = (...) => "NOT"
 
-*anonymous function 10795* = (...) => {"type": "identifier", "name": arguments[0]}
+*anonymous function 10796* = (...) => {"type": "identifier", "name": arguments[0]}
 
-*anonymous function 11186* = (...) => (arguments[0] + arguments[1]["join"](""))
+*anonymous function 11187* = (...) => (arguments[0] + arguments[1]["join"](""))
 
-*anonymous function 11338* = ???*0*
+*anonymous function 11339* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 11667* = ???*0*
+*anonymous function 11668* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 11724* = (...) => arguments[0]
+*anonymous function 11725* = (...) => arguments[0]
 
-*anonymous function 11889* = (...) => ""
+*anonymous function 11890* = (...) => ""
 
-*anonymous function 12015* = (...) => ""
+*anonymous function 12016* = (...) => ""
 
-*anonymous function 12141* = (...) => "
+*anonymous function 12142* = (...) => "
 "
 
-*anonymous function 12267* = (...) => ""
+*anonymous function 12268* = (...) => ""
 
-*anonymous function 12393* = (...) => "	"
+*anonymous function 12394* = (...) => "	"
 
-*anonymous function 12448* = ???*0*
+*anonymous function 12449* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 12576* = (...) => ???*0*
+*anonymous function 12577* = (...) => ???*0*
 - *0* ???*1*(???*3*)
   ⚠️  call of unknown function
 - *1* ???*2*["fromCharCode"]
@@ -40,90 +40,90 @@
 - *4* FreeVar(parseInt)
   ⚠️  unknown global
 
-*anonymous function 1270* = (...) => "any character"
+*anonymous function 1271* = (...) => "any character"
 
-*anonymous function 12828* = (...) => arguments[1]
+*anonymous function 12829* = (...) => arguments[1]
 
-*anonymous function 12891* = (...) => {"property": arguments[0], "alias": arguments[1]}
+*anonymous function 12892* = (...) => {"property": arguments[0], "alias": arguments[1]}
 
-*anonymous function 12976* = (...) => arguments[0]
+*anonymous function 12977* = (...) => arguments[0]
 
-*anonymous function 13047* = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
+*anonymous function 13048* = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
 
-*anonymous function 13180* = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
+*anonymous function 13181* = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
 
-*anonymous function 13314* = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
+*anonymous function 13315* = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
 
-*anonymous function 1342* = (...) => "end of input"
+*anonymous function 1343* = (...) => "end of input"
 
-*anonymous function 13448* = (...) => {"property": arguments[1], "computed": false}
+*anonymous function 13449* = (...) => {"property": arguments[1], "computed": false}
 
-*anonymous function 13542* = (...) => {"property": arguments[1], "computed": true}
+*anonymous function 13543* = (...) => {"property": arguments[1], "computed": true}
 
-*anonymous function 13635* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+*anonymous function 13636* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
 - *0* unsupported expression
 
-*anonymous function 13890* = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
+*anonymous function 13891* = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
 
-*anonymous function 1415* = (...) => arguments[0]["description"]
+*anonymous function 1416* = (...) => arguments[0]["description"]
 
-*anonymous function 14187* = (...) => {
+*anonymous function 14188* = (...) => {
     "type": "scalar_conditional_expression",
     "test": arguments[0],
     "consequent": arguments[1],
     "alternate": arguments[2]
 }
 
-*anonymous function 14447* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+*anonymous function 14448* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
 - *0* unsupported expression
 
-*anonymous function 15046* = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
+*anonymous function 15047* = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
 
-*anonymous function 15184* = (...) => {
+*anonymous function 15185* = (...) => {
     "type": "scalar_between_expression",
     "value": arguments[0],
     "begin": arguments[1],
     "end": arguments[2]
 }
 
-*anonymous function 15996* = (...) => {"key": arguments[0], "value": arguments[1]}
+*anonymous function 15997* = (...) => {"key": arguments[0], "value": arguments[1]}
 
-*anonymous function 16071* = (...) => {"type": "collection_expression", "expression": arguments[0]}
+*anonymous function 16072* = (...) => {"type": "collection_expression", "expression": arguments[0]}
 
-*anonymous function 16200* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
+*anonymous function 16201* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
 - *0* unsupported expression
 
-*anonymous function 16459* = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
+*anonymous function 16460* = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
 
-*anonymous function 16597* = (...) => {"type": "top_specification", "value": arguments[0]}
+*anonymous function 16598* = (...) => {"type": "top_specification", "value": arguments[0]}
 
-*anonymous function 16712* = ???*0*
+*anonymous function 16713* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 16836* = (...) => (???*0* | [])
+*anonymous function 16837* = (...) => (???*0* | [])
 - *0* spread is not supported
 
-*anonymous function 16924* = (...) => arguments[0]
+*anonymous function 16925* = (...) => arguments[0]
 
-*anonymous function 1821* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+*anonymous function 1822* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
 
-*anonymous function 1919* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+*anonymous function 1920* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
 
-*anonymous function 2286* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+*anonymous function 2287* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
 
-*anonymous function 2384* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+*anonymous function 2385* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
 
-*anonymous function 3851* = (...) => {"type": "sql", "body": arguments[0]}
+*anonymous function 3852* = (...) => {"type": "sql", "body": arguments[0]}
 
-*anonymous function 3948* = (...) => arguments[0]
+*anonymous function 3949* = (...) => arguments[0]
 
-*anonymous function 3999* = (...) => arguments[2]
+*anonymous function 4000* = (...) => arguments[2]
 
-*anonymous function 4063* = (...) => arguments[3]
+*anonymous function 4064* = (...) => arguments[3]
 
-*anonymous function 4133* = (...) => arguments[4]
+*anonymous function 4134* = (...) => arguments[4]
 
-*anonymous function 4210* = (...) => {
+*anonymous function 4211* = (...) => {
     "type": "select_query",
     "top": arguments[0],
     "select": arguments[1],
@@ -132,86 +132,86 @@
     "orderBy": arguments[4]
 }
 
-*anonymous function 4473* = (...) => {"type": "select_specification", "*": true}
+*anonymous function 4474* = (...) => {"type": "select_specification", "*": true}
 
-*anonymous function 4588* = (...) => {"type": "select_specification", "properties": arguments[0]}
+*anonymous function 4589* = (...) => {"type": "select_specification", "properties": arguments[0]}
 
-*anonymous function 4715* = (...) => {"type": "select_specification", "value": arguments[0]}
+*anonymous function 4716* = (...) => {"type": "select_specification", "value": arguments[0]}
 
-*anonymous function 4901* = (...) => arguments[1]
+*anonymous function 4902* = (...) => arguments[1]
 
-*anonymous function 4959* = (...) => {"type": "object_property_list", "properties": ???*0*}
+*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 5103* = (...) => arguments[1]
+*anonymous function 5104* = (...) => arguments[1]
 
-*anonymous function 5163* = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
+*anonymous function 5164* = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
 
-*anonymous function 5302* = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
+*anonymous function 5303* = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
 
-*anonymous function 5467* = (...) => arguments[1]
+*anonymous function 5468* = (...) => arguments[1]
 
-*anonymous function 5531* = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
+*anonymous function 5532* = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
 
-*anonymous function 5671* = (...) => {"type": "filter_condition", "condition": arguments[0]}
+*anonymous function 5672* = (...) => {"type": "filter_condition", "condition": arguments[0]}
 
-*anonymous function 5792* = (...) => {"type": "sort_specification", "expressions": ???*0*}
+*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 5935* = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
+*anonymous function 5936* = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
 
-*anonymous function 624* = (...) => ???*0*
+*anonymous function 625* = (...) => ???*0*
 - *0* unsupported expression
 
-*anonymous function 6286* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
+*anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
 
-*anonymous function 6457* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
+*anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
 
-*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
 - *0* spread is not supported
 
-*anonymous function 701* = (...) => `"${...(..., ...)["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...[...](16)["toUpperCase"]()}`)["replace"](
+*anonymous function 702* = (...) => `"${...(..., ...)["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...[...](16)["toUpperCase"]()}`)["replace"](
         /[\x10-\x1F\x7F-\x9F]/g,
         (...) => `\x${...[...](0)["toString"](16)["toUpperCase"]()}`
     )}"`
 
-*anonymous function 7045* = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
+*anonymous function 7046* = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
 
-*anonymous function 7256* = (...) => {"type": "undefined_constant"}
+*anonymous function 7257* = (...) => {"type": "undefined_constant"}
 
-*anonymous function 7336* = (...) => {"type": "null_constant"}
+*anonymous function 7337* = (...) => {"type": "null_constant"}
 
-*anonymous function 7411* = (...) => {"type": "boolean_constant", "value": false}
+*anonymous function 7412* = (...) => {"type": "boolean_constant", "value": false}
 
-*anonymous function 7526* = (...) => {"type": "boolean_constant", "value": true}
+*anonymous function 7527* = (...) => {"type": "boolean_constant", "value": true}
 
-*anonymous function 7868* = ???*0*
+*anonymous function 7869* = ???*0*
 - *0* in progress nodes limit reached
 
-*anonymous function 803* = (...) => `[${???*0*}]`
+*anonymous function 804* = (...) => `[${???*0*}]`
 - *0* unsupported expression
 
-*anonymous function 8138* = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
+*anonymous function 8139* = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
 
-*anonymous function 8335* = (...) => {"type": "array_constant", "elements": ???*0*}
+*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 8471* = (...) => {"type": "object_constant", "properties": ???*0*}
+*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 9681* = (...) => "ASC"
+*anonymous function 9682* = (...) => "ASC"
 
-*anonymous function 9810* = (...) => "DESC"
+*anonymous function 9811* = (...) => "DESC"
 
-*anonymous function 9938* = (...) => "AND"
+*anonymous function 9939* = (...) => "AND"
 
-*arrow function 13693* = (...) => ???*0*
+*arrow function 13694* = (...) => ???*0*
 - *0* unsupported expression
 
-*arrow function 16258* = (...) => ???*0*
+*arrow function 16259* = (...) => ???*0*
 - *0* unsupported expression
 
-*arrow function 169160* = (...) => ???*0*
+*arrow function 169161* = (...) => ???*0*
 - *0* unsupported expression
 
 DESCRIBE_EXPECTATION_FNS = {

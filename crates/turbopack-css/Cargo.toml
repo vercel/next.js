@@ -16,15 +16,15 @@ turbopack-core = { path = "../turbopack-core" }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 
-swc_atoms = "0.2.11"
+swc_atoms = "0.2.13"
 serde = "1.0.136"
 
 [dependencies.swc_common]
-version = "0.17.25"
+version = "0.20.1"
 features = ["concurrent"]
 
 [dependencies.swc_css]
-version = "0.104.2"
+version = "0.108.0"
 features = []
 
 [build-dependencies]

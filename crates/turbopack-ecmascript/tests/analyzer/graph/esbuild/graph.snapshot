@@ -1,6 +1,6 @@
 [
     (
-        "*arrow function 2665*",
+        "*arrow function 2666*",
         Function(
             16,
             Alternatives(
@@ -300,7 +300,7 @@
         "esbuildCommandAndArgs",
         Variable(
             (
-                Atom('*arrow function 2665*' type=dynamic),
+                Atom('*arrow function 2666*' type=dynamic),
                 #0,
             ),
         ),

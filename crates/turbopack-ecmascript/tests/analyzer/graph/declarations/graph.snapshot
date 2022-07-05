@@ -1,6 +1,6 @@
 [
     (
-        "*anonymous function 24*",
+        "*anonymous function 25*",
         Function(
             2,
             FreeVar(
@@ -34,7 +34,7 @@
         "b",
         Variable(
             (
-                Atom('*anonymous function 24*' type=dynamic),
+                Atom('*anonymous function 25*' type=dynamic),
                 #0,
             ),
         ),

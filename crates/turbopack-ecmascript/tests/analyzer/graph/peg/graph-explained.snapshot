@@ -1,107 +1,107 @@
-*anonymous function 10063* = (...) => "OR"
+*anonymous function 10064* = (...) => "OR"
 
-*anonymous function 10191* = (...) => "NOT"
+*anonymous function 10192* = (...) => "NOT"
 
-*anonymous function 10795* = (...) => {"type": "identifier", "name": name}
+*anonymous function 10796* = (...) => {"type": "identifier", "name": name}
 
-*anonymous function 11186* = (...) => (head + tail["join"](""))
+*anonymous function 11187* = (...) => (head + tail["join"](""))
 
-*anonymous function 11338* = (...) => {"type": "parameter_name", "name": text()}
+*anonymous function 11339* = (...) => {"type": "parameter_name", "name": text()}
 
-*anonymous function 11667* = (...) => text()
+*anonymous function 11668* = (...) => text()
 
-*anonymous function 11724* = (...) => seq
+*anonymous function 11725* = (...) => seq
 
-*anonymous function 11889* = (...) => ""
+*anonymous function 11890* = (...) => ""
 
-*anonymous function 12015* = (...) => ""
+*anonymous function 12016* = (...) => ""
 
-*anonymous function 12141* = (...) => "
+*anonymous function 12142* = (...) => "
 "
 
-*anonymous function 12267* = (...) => ""
+*anonymous function 12268* = (...) => ""
 
-*anonymous function 12393* = (...) => "	"
+*anonymous function 12394* = (...) => "	"
 
-*anonymous function 12448* = (...) => text()
+*anonymous function 12449* = (...) => text()
 
-*anonymous function 12576* = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+*anonymous function 12577* = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
 
-*anonymous function 1270* = (...) => "any character"
+*anonymous function 1271* = (...) => "any character"
 
-*anonymous function 12828* = (...) => v
+*anonymous function 12829* = (...) => v
 
-*anonymous function 12891* = (...) => {"property": property, "alias": alias}
+*anonymous function 12892* = (...) => {"property": property, "alias": alias}
 
-*anonymous function 12976* = (...) => expression
+*anonymous function 12977* = (...) => expression
 
-*anonymous function 13047* = (...) => {"type": "array_subquery_expression", "expression": expression}
+*anonymous function 13048* = (...) => {"type": "array_subquery_expression", "expression": expression}
 
-*anonymous function 13180* = (...) => {"type": "exists_subquery_expression", "expression": expression}
+*anonymous function 13181* = (...) => {"type": "exists_subquery_expression", "expression": expression}
 
-*anonymous function 13314* = (...) => {"type": "scalar_subquery_expression", "expression": expression}
+*anonymous function 13315* = (...) => {"type": "scalar_subquery_expression", "expression": expression}
 
-*anonymous function 1342* = (...) => "end of input"
+*anonymous function 1343* = (...) => "end of input"
 
-*anonymous function 13448* = (...) => {"property": property, "computed": false}
+*anonymous function 13449* = (...) => {"property": property, "computed": false}
 
-*anonymous function 13542* = (...) => {"property": property, "computed": true}
+*anonymous function 13543* = (...) => {"property": property, "computed": true}
 
-*anonymous function 13635* = (...) => tail["reduce"](*arrow function 13693*, head)
+*anonymous function 13636* = (...) => tail["reduce"](*arrow function 13694*, head)
 
-*anonymous function 13890* = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+*anonymous function 13891* = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
 
-*anonymous function 1415* = (...) => expectation["description"]
+*anonymous function 1416* = (...) => expectation["description"]
 
-*anonymous function 14187* = (...) => {
+*anonymous function 14188* = (...) => {
     "type": "scalar_conditional_expression",
     "test": test,
     "consequent": consequent,
     "alternate": alternate
 }
 
-*anonymous function 14447* = (...) => buildBinaryExpression(head, tail)
+*anonymous function 14448* = (...) => buildBinaryExpression(head, tail)
 
-*anonymous function 15046* = (...) => {"type": "scalar_in_expression", "value": value, "list": list}
+*anonymous function 15047* = (...) => {"type": "scalar_in_expression", "value": value, "list": list}
 
-*anonymous function 15184* = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+*anonymous function 15185* = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
 
-*anonymous function 15996* = (...) => {"key": key, "value": value}
+*anonymous function 15997* = (...) => {"key": key, "value": value}
 
-*anonymous function 16071* = (...) => {"type": "collection_expression", "expression": expression}
+*anonymous function 16072* = (...) => {"type": "collection_expression", "expression": expression}
 
-*anonymous function 16200* = (...) => tail["reduce"](*arrow function 16258*, head)
+*anonymous function 16201* = (...) => tail["reduce"](*arrow function 16259*, head)
 
-*anonymous function 16459* = (...) => {"type": "collection_subquery_expression", "expression": expression}
+*anonymous function 16460* = (...) => {"type": "collection_subquery_expression", "expression": expression}
 
-*anonymous function 16597* = (...) => {"type": "top_specification", "value": value}
+*anonymous function 16598* = (...) => {"type": "top_specification", "value": value}
 
-*anonymous function 16712* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
+*anonymous function 16713* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-*anonymous function 16836* = (...) => (???*0* | [])
+*anonymous function 16837* = (...) => (???*0* | [])
 - *0* spread is not supported
 
-*anonymous function 16924* = (...) => subquery
+*anonymous function 16925* = (...) => subquery
 
-*anonymous function 1821* = (...) => `\x0${hex(ch)}`
+*anonymous function 1822* = (...) => `\x0${hex(ch)}`
 
-*anonymous function 1919* = (...) => `\x${hex(ch)}`
+*anonymous function 1920* = (...) => `\x${hex(ch)}`
 
-*anonymous function 2286* = (...) => `\x0${hex(ch)}`
+*anonymous function 2287* = (...) => `\x0${hex(ch)}`
 
-*anonymous function 2384* = (...) => `\x${hex(ch)}`
+*anonymous function 2385* = (...) => `\x${hex(ch)}`
 
-*anonymous function 3851* = (...) => {"type": "sql", "body": body}
+*anonymous function 3852* = (...) => {"type": "sql", "body": body}
 
-*anonymous function 3948* = (...) => v
+*anonymous function 3949* = (...) => v
 
-*anonymous function 3999* = (...) => v
+*anonymous function 4000* = (...) => v
 
-*anonymous function 4063* = (...) => v
+*anonymous function 4064* = (...) => v
 
-*anonymous function 4133* = (...) => v
+*anonymous function 4134* = (...) => v
 
-*anonymous function 4210* = (...) => {
+*anonymous function 4211* = (...) => {
     "type": "select_query",
     "top": top,
     "select": select,
@@ -110,93 +110,93 @@
     "orderBy": orderBy
 }
 
-*anonymous function 4473* = (...) => {"type": "select_specification", "*": true}
+*anonymous function 4474* = (...) => {"type": "select_specification", "*": true}
 
-*anonymous function 4588* = (...) => {"type": "select_specification", "properties": properties}
+*anonymous function 4589* = (...) => {"type": "select_specification", "properties": properties}
 
-*anonymous function 4715* = (...) => {"type": "select_specification", "value": value}
+*anonymous function 4716* = (...) => {"type": "select_specification", "value": value}
 
-*anonymous function 4901* = (...) => v
+*anonymous function 4902* = (...) => v
 
-*anonymous function 4959* = (...) => {"type": "object_property_list", "properties": ???*0*}
+*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 5103* = (...) => v
+*anonymous function 5104* = (...) => v
 
-*anonymous function 5163* = (...) => {"type": "from_specification", "source": source, "joins": joins}
+*anonymous function 5164* = (...) => {"type": "from_specification", "source": source, "joins": joins}
 
-*anonymous function 5302* = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+*anonymous function 5303* = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
 
-*anonymous function 5467* = (...) => v
+*anonymous function 5468* = (...) => v
 
-*anonymous function 5531* = (...) => {"type": "from_source", "expression": expression, "alias": alias}
+*anonymous function 5532* = (...) => {"type": "from_source", "expression": expression, "alias": alias}
 
-*anonymous function 5671* = (...) => {"type": "filter_condition", "condition": condition}
+*anonymous function 5672* = (...) => {"type": "filter_condition", "condition": condition}
 
-*anonymous function 5792* = (...) => {"type": "sort_specification", "expressions": ???*0*}
+*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 5935* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
+*anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
-*anonymous function 624* = (...) => ???*0*
+*anonymous function 625* = (...) => ???*0*
 - *0* unsupported expression
 
-*anonymous function 6286* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+*anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
 
-*anonymous function 6457* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
+*anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
 
-*anonymous function 6747* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
 - *0* spread is not supported
 
-*anonymous function 701* = (...) => `"${literalEscape(expectation["text"])}"`
+*anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
 
-*anonymous function 7045* = (...) => {"type": "scalar_array_expression", "elements": elements}
+*anonymous function 7046* = (...) => {"type": "scalar_array_expression", "elements": elements}
 
-*anonymous function 7256* = (...) => {"type": "undefined_constant"}
+*anonymous function 7257* = (...) => {"type": "undefined_constant"}
 
-*anonymous function 7336* = (...) => {"type": "null_constant"}
+*anonymous function 7337* = (...) => {"type": "null_constant"}
 
-*anonymous function 7411* = (...) => {"type": "boolean_constant", "value": false}
+*anonymous function 7412* = (...) => {"type": "boolean_constant", "value": false}
 
-*anonymous function 7526* = (...) => {"type": "boolean_constant", "value": true}
+*anonymous function 7527* = (...) => {"type": "boolean_constant", "value": true}
 
-*anonymous function 7868* = (...) => {
+*anonymous function 7869* = (...) => {
     "type": "number_constant",
     "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
 }
 
-*anonymous function 803* = (...) => `[${???*0*}${escapedParts}]`
+*anonymous function 804* = (...) => `[${???*0*}${escapedParts}]`
 - *0* unsupported expression
 
-*anonymous function 8138* = (...) => {"type": "string_constant", "value": chars["join"]("")}
+*anonymous function 8139* = (...) => {"type": "string_constant", "value": chars["join"]("")}
 
-*anonymous function 8335* = (...) => {"type": "array_constant", "elements": ???*0*}
+*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 8471* = (...) => {"type": "object_constant", "properties": ???*0*}
+*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
 - *0* spread is not supported
 
-*anonymous function 9681* = (...) => "ASC"
+*anonymous function 9682* = (...) => "ASC"
 
-*anonymous function 9810* = (...) => "DESC"
+*anonymous function 9811* = (...) => "DESC"
 
-*anonymous function 9938* = (...) => "AND"
+*anonymous function 9939* = (...) => "AND"
 
-*arrow function 13693* = (...) => ???*0*
+*arrow function 13694* = (...) => ???*0*
 - *0* unsupported expression
 
-*arrow function 16258* = (...) => ???*0*
+*arrow function 16259* = (...) => ???*0*
 - *0* unsupported expression
 
-*arrow function 169160* = (...) => ???*0*
+*arrow function 169161* = (...) => ???*0*
 - *0* unsupported expression
 
 DESCRIBE_EXPECTATION_FNS = {
-    "literal": *anonymous function 701*,
-    "class": *anonymous function 803*,
-    "any": *anonymous function 1270*,
-    "end": *anonymous function 1342*,
-    "other": *anonymous function 1415*
+    "literal": *anonymous function 702*,
+    "class": *anonymous function 804*,
+    "any": *anonymous function 1271*,
+    "end": *anonymous function 1343*,
+    "other": *anonymous function 1416*
 }
 
 alias#34 = arguments[0]
@@ -217,7 +217,7 @@ begin = arguments[1]
 
 body = arguments[0]
 
-buildBinaryExpression = (...) => tail["reduce"](*arrow function 169160*, head)
+buildBinaryExpression = (...) => tail["reduce"](*arrow function 169161*, head)
 
 ch#11 = arguments[0]
 
@@ -233,7 +233,7 @@ chars = arguments[0]
 
 child = arguments[0]
 
-classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\]")["replace"](/\^/g, "\^")["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2286*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2384*)
+classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\]")["replace"](/\^/g, "\^")["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 
 condition = arguments[0]
 
@@ -395,7 +395,7 @@ left = ???*0*
 
 list = arguments[1]
 
-literalEscape = (...) => s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1821*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1919*)
+literalEscape = (...) => s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 
 location#21 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
 
@@ -462,15 +462,15 @@ peg$buildSimpleError = (...) => ???*0*
 peg$buildStructuredError = (...) => ???*0*
 - *0* new expression are not supported
 
-peg$c0 = *anonymous function 3851*
+peg$c0 = *anonymous function 3852*
 
-peg$c1 = *anonymous function 3948*
+peg$c1 = *anonymous function 3949*
 
-peg$c10 = *anonymous function 4715*
+peg$c10 = *anonymous function 4716*
 
 peg$c100 = peg$literalExpectation("NOT", true)
 
-peg$c101 = *anonymous function 10191*
+peg$c101 = *anonymous function 10192*
 
 peg$c102 = "between"
 
@@ -502,7 +502,7 @@ peg$c114 = "udf"
 
 peg$c115 = peg$literalExpectation("udf", false)
 
-peg$c116 = *anonymous function 10795*
+peg$c116 = *anonymous function 10796*
 
 peg$c117 = /^[a-zA-Z_]/
 
@@ -514,13 +514,13 @@ peg$c12 = peg$literalExpectation(",", false)
 
 peg$c120 = peg$classExpectation([["a", "z"], ["A", "Z"], ["0", "9"], "_"], false, false)
 
-peg$c121 = *anonymous function 11186*
+peg$c121 = *anonymous function 11187*
 
 peg$c122 = "@"
 
 peg$c123 = peg$literalExpectation("@", false)
 
-peg$c124 = *anonymous function 11338*
+peg$c124 = *anonymous function 11339*
 
 peg$c125 = "+"
 
@@ -532,13 +532,13 @@ peg$c128 = peg$literalExpectation("~", false)
 
 peg$c129 = "\"
 
-peg$c13 = *anonymous function 4901*
+peg$c13 = *anonymous function 4902*
 
 peg$c130 = peg$literalExpectation("\", false)
 
-peg$c131 = *anonymous function 11667*
+peg$c131 = *anonymous function 11668*
 
-peg$c132 = *anonymous function 11724*
+peg$c132 = *anonymous function 11725*
 
 peg$c133 = peg$anyExpectation()
 
@@ -546,69 +546,69 @@ peg$c134 = "b"
 
 peg$c135 = peg$literalExpectation("b", false)
 
-peg$c136 = *anonymous function 11889*
+peg$c136 = *anonymous function 11890*
 
 peg$c137 = "f"
 
 peg$c138 = peg$literalExpectation("f", false)
 
-peg$c139 = *anonymous function 12015*
+peg$c139 = *anonymous function 12016*
 
-peg$c14 = *anonymous function 4959*
+peg$c14 = *anonymous function 4960*
 
 peg$c140 = "n"
 
 peg$c141 = peg$literalExpectation("n", false)
 
-peg$c142 = *anonymous function 12141*
+peg$c142 = *anonymous function 12142*
 
 peg$c143 = "r"
 
 peg$c144 = peg$literalExpectation("r", false)
 
-peg$c145 = *anonymous function 12267*
+peg$c145 = *anonymous function 12268*
 
 peg$c146 = "t"
 
 peg$c147 = peg$literalExpectation("t", false)
 
-peg$c148 = *anonymous function 12393*
+peg$c148 = *anonymous function 12394*
 
-peg$c149 = *anonymous function 12448*
+peg$c149 = *anonymous function 12449*
 
-peg$c15 = *anonymous function 5103*
+peg$c15 = *anonymous function 5104*
 
 peg$c150 = "u"
 
 peg$c151 = peg$literalExpectation("u", false)
 
-peg$c152 = *anonymous function 12576*
+peg$c152 = *anonymous function 12577*
 
 peg$c153 = /^[0-9a-f]/i
 
 peg$c154 = peg$classExpectation([["0", "9"], ["a", "f"]], false, true)
 
-peg$c155 = *anonymous function 12828*
+peg$c155 = *anonymous function 12829*
 
-peg$c156 = *anonymous function 12891*
+peg$c156 = *anonymous function 12892*
 
-peg$c157 = *anonymous function 12976*
+peg$c157 = *anonymous function 12977*
 
-peg$c158 = *anonymous function 13047*
+peg$c158 = *anonymous function 13048*
 
-peg$c159 = *anonymous function 13180*
+peg$c159 = *anonymous function 13181*
 
-peg$c16 = *anonymous function 5163*
+peg$c16 = *anonymous function 5164*
 
-peg$c160 = *anonymous function 13314*
+peg$c160 = *anonymous function 13315*
 
-peg$c161 = *anonymous function 13448*
+peg$c161 = *anonymous function 13449*
 
-peg$c162 = *anonymous function 13542*
+peg$c162 = *anonymous function 13543*
 
-peg$c163 = *anonymous function 13635*
+peg$c163 = *anonymous function 13636*
 
-peg$c164 = *anonymous function 13890*
+peg$c164 = *anonymous function 13891*
 
 peg$c165 = "?"
 
@@ -618,15 +618,15 @@ peg$c167 = ":"
 
 peg$c168 = peg$literalExpectation(":", false)
 
-peg$c169 = *anonymous function 14187*
+peg$c169 = *anonymous function 14188*
 
-peg$c17 = *anonymous function 5302*
+peg$c17 = *anonymous function 5303*
 
 peg$c170 = "??"
 
 peg$c171 = peg$literalExpectation("??", false)
 
-peg$c172 = *anonymous function 14447*
+peg$c172 = *anonymous function 14448*
 
 peg$c173 = "="
 
@@ -642,7 +642,7 @@ peg$c178 = peg$literalExpectation("<>", false)
 
 peg$c179 = "<="
 
-peg$c18 = *anonymous function 5467*
+peg$c18 = *anonymous function 5468*
 
 peg$c180 = peg$literalExpectation("<=", false)
 
@@ -658,13 +658,13 @@ peg$c185 = ">"
 
 peg$c186 = peg$literalExpectation(">", false)
 
-peg$c187 = *anonymous function 15046*
+peg$c187 = *anonymous function 15047*
 
-peg$c188 = *anonymous function 15184*
+peg$c188 = *anonymous function 15185*
 
 peg$c189 = "|"
 
-peg$c19 = *anonymous function 5531*
+peg$c19 = *anonymous function 5532*
 
 peg$c190 = peg$literalExpectation("|", false)
 
@@ -686,9 +686,9 @@ peg$c198 = peg$literalExpectation(">>>", false)
 
 peg$c199 = ">>"
 
-peg$c2 = *anonymous function 3999*
+peg$c2 = *anonymous function 4000*
 
-peg$c20 = *anonymous function 5671*
+peg$c20 = *anonymous function 5672*
 
 peg$c200 = peg$literalExpectation(">>", false)
 
@@ -704,25 +704,25 @@ peg$c205 = "%"
 
 peg$c206 = peg$literalExpectation("%", false)
 
-peg$c207 = *anonymous function 15996*
+peg$c207 = *anonymous function 15997*
 
-peg$c208 = *anonymous function 16071*
+peg$c208 = *anonymous function 16072*
 
-peg$c209 = *anonymous function 16200*
+peg$c209 = *anonymous function 16201*
 
-peg$c21 = *anonymous function 5792*
+peg$c21 = *anonymous function 5793*
 
-peg$c210 = *anonymous function 16459*
+peg$c210 = *anonymous function 16460*
 
-peg$c211 = *anonymous function 16597*
+peg$c211 = *anonymous function 16598*
 
-peg$c212 = *anonymous function 16712*
+peg$c212 = *anonymous function 16713*
 
-peg$c213 = *anonymous function 16836*
+peg$c213 = *anonymous function 16837*
 
-peg$c214 = *anonymous function 16924*
+peg$c214 = *anonymous function 16925*
 
-peg$c22 = *anonymous function 5935*
+peg$c22 = *anonymous function 5936*
 
 peg$c23 = "."
 
@@ -736,11 +736,11 @@ peg$c27 = ")"
 
 peg$c28 = peg$literalExpectation(")", false)
 
-peg$c29 = *anonymous function 6286*
+peg$c29 = *anonymous function 6287*
 
-peg$c3 = *anonymous function 4063*
+peg$c3 = *anonymous function 4064*
 
-peg$c30 = *anonymous function 6457*
+peg$c30 = *anonymous function 6458*
 
 peg$c31 = "{"
 
@@ -750,7 +750,7 @@ peg$c33 = "}"
 
 peg$c34 = peg$literalExpectation("}", false)
 
-peg$c35 = *anonymous function 6747*
+peg$c35 = *anonymous function 6748*
 
 peg$c36 = "["
 
@@ -760,21 +760,21 @@ peg$c38 = "]"
 
 peg$c39 = peg$literalExpectation("]", false)
 
-peg$c4 = *anonymous function 4133*
+peg$c4 = *anonymous function 4134*
 
-peg$c40 = *anonymous function 7045*
+peg$c40 = *anonymous function 7046*
 
 peg$c41 = "undefined"
 
 peg$c42 = peg$literalExpectation("undefined", false)
 
-peg$c43 = *anonymous function 7256*
+peg$c43 = *anonymous function 7257*
 
-peg$c44 = *anonymous function 7336*
+peg$c44 = *anonymous function 7337*
 
-peg$c45 = *anonymous function 7411*
+peg$c45 = *anonymous function 7412*
 
-peg$c46 = *anonymous function 7526*
+peg$c46 = *anonymous function 7527*
 
 peg$c47 = "-"
 
@@ -782,7 +782,7 @@ peg$c48 = peg$literalExpectation("-", false)
 
 peg$c49 = "0x"
 
-peg$c5 = *anonymous function 4210*
+peg$c5 = *anonymous function 4211*
 
 peg$c50 = peg$literalExpectation("0x", false)
 
@@ -790,23 +790,23 @@ peg$c51 = /^[0-9]/
 
 peg$c52 = peg$classExpectation([["0", "9"]], false, false)
 
-peg$c53 = *anonymous function 7868*
+peg$c53 = *anonymous function 7869*
 
 peg$c54 = """
 
 peg$c55 = peg$literalExpectation(""", false)
 
-peg$c56 = *anonymous function 8138*
+peg$c56 = *anonymous function 8139*
 
 peg$c57 = "'"
 
 peg$c58 = peg$literalExpectation("'", false)
 
-peg$c59 = *anonymous function 8335*
+peg$c59 = *anonymous function 8336*
 
 peg$c6 = "*"
 
-peg$c60 = *anonymous function 8471*
+peg$c60 = *anonymous function 8472*
 
 peg$c61 = /^[ \t\n\r]/
 
@@ -866,7 +866,7 @@ peg$c78 = peg$literalExpectation("BY", true)
 
 peg$c79 = "as"
 
-peg$c8 = *anonymous function 4473*
+peg$c8 = *anonymous function 4474*
 
 peg$c80 = peg$literalExpectation("AS", true)
 
@@ -886,27 +886,27 @@ peg$c87 = "asc"
 
 peg$c88 = peg$literalExpectation("ASC", true)
 
-peg$c89 = *anonymous function 9681*
+peg$c89 = *anonymous function 9682*
 
-peg$c9 = *anonymous function 4588*
+peg$c9 = *anonymous function 4589*
 
 peg$c90 = "desc"
 
 peg$c91 = peg$literalExpectation("DESC", true)
 
-peg$c92 = *anonymous function 9810*
+peg$c92 = *anonymous function 9811*
 
 peg$c93 = "and"
 
 peg$c94 = peg$literalExpectation("AND", true)
 
-peg$c95 = *anonymous function 9938*
+peg$c95 = *anonymous function 9939*
 
 peg$c96 = "or"
 
 peg$c97 = peg$literalExpectation("OR", true)
 
-peg$c98 = *anonymous function 10063*
+peg$c98 = *anonymous function 10064*
 
 peg$c99 = "not"
 

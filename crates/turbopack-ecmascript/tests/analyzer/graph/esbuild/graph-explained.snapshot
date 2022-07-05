@@ -1,4 +1,4 @@
-*arrow function 2665* = (...) => (
+*arrow function 2666* = (...) => (
   | [
         "node",
         [
@@ -30,7 +30,7 @@ e#6 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-esbuildCommandAndArgs = *arrow function 2665*
+esbuildCommandAndArgs = *arrow function 2666*
 
 esbuildLibDir = path["dirname"](FreeVar(Require)["resolve"]("esbuild"))
 

@@ -1,6 +1,6 @@
 [
     (
-        "*anonymous function 65*",
+        "*anonymous function 66*",
         Function(
             2,
             FreeVar(
@@ -11,7 +11,7 @@
         ),
     ),
     (
-        "*arrow function 117*",
+        "*arrow function 118*",
         Function(
             2,
             FreeVar(
@@ -22,7 +22,7 @@
         ),
     ),
     (
-        "*arrow function 228*",
+        "*arrow function 229*",
         Function(
             2,
             FreeVar(
@@ -47,7 +47,7 @@
         "b",
         Variable(
             (
-                Atom('*anonymous function 65*' type=dynamic),
+                Atom('*anonymous function 66*' type=dynamic),
                 #0,
             ),
         ),
@@ -56,7 +56,7 @@
         "c",
         Variable(
             (
-                Atom('*arrow function 117*' type=dynamic),
+                Atom('*arrow function 118*' type=dynamic),
                 #0,
             ),
         ),
