@@ -2,6 +2,7 @@
 /* eslint-env jest */
 
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { remove } from 'fs-extra'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -41,15 +42,13 @@ describe('Edge runtime code with imports', () => {
   beforeEach(async () => {
     context.appPort = await findPort()
     context.logs = { output: '', stdout: '', stderr: '' }
+    await remove(join(__dirname, '../.next'))
   })
 
   afterEach(() => {
     if (context.app) {
       killApp(context.app)
     }
-  })
-
-  afterEach(() => {
     context.api.restore()
     context.middleware.restore()
     context.lib.restore()
@@ -106,7 +105,10 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('throws unsupported module error in production at runtime and prints error on logs', async () => {
-      await nextBuild(context.appDir)
+      const { stderr } = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
@@ -163,7 +165,10 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('throws unsupported module error in production at runtime and prints error on logs', async () => {
-      await nextBuild(context.appDir)
+      const { stderr } = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
@@ -233,7 +238,10 @@ describe('Edge runtime code with imports', () => {
       })
 
       it('throws unsupported module error in production at runtime and prints error on logs', async () => {
-        await nextBuild(context.appDir)
+        const { stderr } = await nextBuild(context.appDir, undefined, {
+          stderr: true,
+        })
+        expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
         context.app = await nextStart(
           context.appDir,
           context.appPort,
@@ -471,7 +479,10 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('does not throw in production at runtime', async () => {
-      await nextBuild(context.appDir)
+      const { stderr } = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
@@ -503,7 +514,10 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('does not throw in production at runtime', async () => {
-      await nextBuild(context.appDir)
+      const { stderr } = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, routeUrl)
       expect(res.status).toBe(200)
@@ -538,7 +552,10 @@ describe('Edge runtime code with imports', () => {
     })
 
     it('does not throw in production at runtime', async () => {
-      await nextBuild(context.appDir)
+      const { stderr } = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+      })
+      expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, middlewareUrl)
       expect(res.status).toBe(200)
@@ -554,6 +571,10 @@ function getModuleNotFound(name) {
 
 function getUnsupportedModule(name) {
   return `The edge runtime does not support Node.js '${name}' module`
+}
+
+function getUnsupportedModuleWarning(name) {
+  return `A Node.js module is loaded ('${name}'`
 }
 
 function escapeLF(s) {

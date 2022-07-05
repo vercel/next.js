@@ -103,10 +103,7 @@ export async function handleWebpackExtenalForEdgeRuntime({
   request: string
   contextInfo: any
 }) {
-  if (
-    contextInfo.issuerLayer === 'middleware' &&
-    require('module').builtinModules.includes(request)
-  ) {
+  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
     return `root  __import_unsupported('${request}')`
   }
 }
@@ -271,12 +268,13 @@ function getCodeAnalizer(params: {
         !isNullLiteral(firstParameter) &&
         !isUndefinedIdentifier(firstParameter)
       ) {
-        const error = new wp.WebpackError(
-          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
-        )
-        error.name = NAME
-        error.module = parser.state.current
-        error.loc = node.loc
+        const error = buildWebpackError({
+          message: `Middleware is returning a response body (line: ${node.loc.start.line}), which is not supported.
+Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
+          compilation,
+          parser,
+          ...node,
+        })
         if (dev) {
           compilation.warnings.push(error)
         } else {
@@ -304,6 +302,18 @@ function getCodeAnalizer(params: {
           },
           sourceContent: source.toString(),
         })
+
+        if (!dev && isNodeJsModule(importedModule)) {
+          compilation.warnings.push(
+            buildWebpackError({
+              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
+              compilation,
+              parser,
+              ...node,
+            })
+          )
+        }
       }
     }
 
@@ -427,18 +437,19 @@ function getExtractMetadata(params: {
             continue
           }
 
-          const error = new wp.WebpackError(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
-              typeof buildInfo.usingIndirectEval !== 'boolean'
-                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                    ', '
-                  )}`
-                : ''
-            }`
+          compilation.errors.push(
+            buildWebpackError({
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
+                typeof buildInfo.usingIndirectEval !== 'boolean'
+                  ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                      ', '
+                    )}`
+                  : ''
+              }`,
+              entryModule,
+              compilation,
+            })
           )
-
-          error.module = entryModule
-          compilation.errors.push(error)
         }
 
         /**
@@ -603,14 +614,18 @@ function registerUnsupportedApiHooks(
   parser: webpack5.javascript.JavascriptParser,
   compilation: webpack5.Compilation
 ) {
-  const { WebpackError } = compilation.compiler.webpack
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
     const warnForUnsupportedApi = (node: any) => {
       if (!isInMiddlewareLayer(parser)) {
         return
       }
       compilation.warnings.push(
-        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
+        buildUnsupportedApiError({
+          compilation,
+          parser,
+          apiName: expression,
+          ...node,
+        })
       )
       return true
     }
@@ -629,12 +644,12 @@ function registerUnsupportedApiHooks(
       return
     }
     compilation.warnings.push(
-      makeUnsupportedApiError(
-        WebpackError,
+      buildUnsupportedApiError({
+        compilation,
         parser,
-        `process.${callee}`,
-        node.loc
-      )
+        apiName: `process.${callee}`,
+        ...node,
+      })
     )
     return true
   }
@@ -647,18 +662,43 @@ function registerUnsupportedApiHooks(
     .tap(NAME, warnForUnsupportedProcessApi)
 }
 
-function makeUnsupportedApiError(
-  WebpackError: typeof webpack5.WebpackError,
-  parser: webpack5.javascript.JavascriptParser,
-  name: string,
+function buildUnsupportedApiError({
+  apiName,
+  loc,
+  ...rest
+}: {
+  apiName: string
   loc: any
-) {
-  const error = new WebpackError(
-    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
-  )
+  compilation: webpack5.Compilation
+  parser: webpack5.javascript.JavascriptParser
+}) {
+  return buildWebpackError({
+    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
+    loc,
+    ...rest,
+  })
+}
+
+function buildWebpackError({
+  message,
+  loc,
+  compilation,
+  entryModule,
+  parser,
+}: {
+  message: string
+  loc?: any
+  compilation: webpack5.Compilation
+  entryModule?: webpack5.Module
+  parser?: webpack5.javascript.JavascriptParser
+}) {
+  const error = new compilation.compiler.webpack.WebpackError(message)
   error.name = NAME
-  error.module = parser.state.current
+  const module = entryModule ?? parser?.state.current
+  if (module) {
+    error.module = module
+  }
   error.loc = loc
   return error
 }
@@ -691,4 +731,8 @@ function isProcessEnvMemberExpression(memberExpression: any): boolean {
       (memberExpression.property?.type === 'Identifier' &&
         memberExpression.property.name === 'env'))
   )
+}
+
+function isNodeJsModule(moduleName: string) {
+  return require('module').builtinModules.includes(moduleName)
 }

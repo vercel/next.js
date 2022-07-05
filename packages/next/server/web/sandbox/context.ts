@@ -337,7 +337,7 @@ function emitWarning(
 ) {
   if (!warnedAlready.has(name)) {
     const warning =
-      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
     contextOptions.onWarning(warning)
