@@ -382,6 +382,7 @@ export async function renderToHTML(
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
     // Only server components can have getServerSideProps / getStaticProps
+    // TODO: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
     if (isClientComponentModule) {
       if (layoutOrPageMod.getServerSideProps) {
         throw new Error(
