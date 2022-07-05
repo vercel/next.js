@@ -37,6 +37,10 @@ features = ["concurrent"]
 version = "0.175.0"
 features = ["parser", "utils", "visit"]
 
+[dependencies.swc_ecma_visit]
+version = "0.67.1"
+features = ["path"]
+
 [dependencies.num-bigint]
 version = "0.4"
 
