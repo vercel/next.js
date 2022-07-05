@@ -4,21 +4,17 @@ const Header = () => (
   <header>
     <ul>
       <li>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </li>
       <li>
-        <Link href="/about">
-          <a>About</a>
-        </Link>
+        <Link href="/about">About</Link>
       </li>
       <li>
         <Link
           href="/post/[...slug]"
           as="/post/2020/first-post/with/catch/all/routes"
         >
-          <a>First Post</a>
+          First Post
         </Link>
       </li>
       <li>
@@ -26,7 +22,7 @@ const Header = () => (
           href="/post/[...slug]"
           as="/post/2020/second-post/with/catch/all/routes"
         >
-          <a>Second Post</a>
+          Second Post
         </Link>
       </li>
     </ul>
