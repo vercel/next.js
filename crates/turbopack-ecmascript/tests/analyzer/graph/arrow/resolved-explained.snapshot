@@ -1,22 +1,22 @@
-*anonymous function 115* = (...) => 3
+*anonymous function 116* = (...) => 3
 
-*anonymous function 338* = (...) => 3
+*anonymous function 339* = (...) => 3
 
-*arrow function 10* = (...) => 1
+*arrow function 11* = (...) => 1
 
-*arrow function 213* = (...) => 1
+*arrow function 214* = (...) => 1
 
-*arrow function 235* = (...) => 2
+*arrow function 236* = (...) => 2
 
-*arrow function 258* = (...) => 1
+*arrow function 259* = (...) => 1
 
-*arrow function 29* = (...) => 2
+*arrow function 299* = (...) => 2
 
-*arrow function 298* = (...) => 2
+*arrow function 30* = (...) => 2
 
-*arrow function 49* = (...) => 1
+*arrow function 50* = (...) => 1
 
-*arrow function 82* = (...) => 2
+*arrow function 83* = (...) => 2
 
 a = (...) => 1
 

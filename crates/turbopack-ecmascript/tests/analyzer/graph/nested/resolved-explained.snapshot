@@ -1,12 +1,12 @@
-*anonymous function 65* = (...) => ???*0*
+*anonymous function 66* = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-*arrow function 117* = (...) => ???*0*
+*arrow function 118* = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
-*arrow function 228* = (...) => ???*0*
+*arrow function 229* = (...) => ???*0*
 - *0* FreeVar(undefined)
   ⚠️  unknown global
 
