@@ -1,8 +1,12 @@
+const url = 'https://nextjs.org/docs/messages/no-title-in-document-head'
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow using <title> with Head from next/document',
-      url: 'https://nextjs.org/docs/messages/no-title-in-document-head',
+      description:
+        'Prevent usage of `<title>` with `Head` component from `next/document`.',
+      recommended: true,
+      url,
     },
   },
   create: function (context) {
@@ -39,8 +43,7 @@ module.exports = {
         if (titleTag) {
           context.report({
             node: titleTag,
-            message:
-              'Titles should be defined at the page-level using next/head. See: https://nextjs.org/docs/messages/no-title-in-document-head',
+            message: `Do not use \`<title>\` element with \`<Head />\` component from \`next/document\`. Titles should defined at the page-level using \`<Head />\` from \`next/head\` instead. See: ${url}`,
           })
         }
       },

@@ -63,9 +63,7 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          outputStandalone: true,
-        },
+        output: 'standalone',
         async rewrites() {
           return [
             {
@@ -294,11 +292,16 @@ describe('should set-up next', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -306,11 +309,16 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -366,11 +374,11 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/en/dynamic/first.json`,
+      `/_next/data/${next.buildId}/en/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': '/dynamic/[slug]',
         },
       }
     )
@@ -438,7 +446,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(
       appPort,
-      '/catch-all/[[..rest]]',
+      '/catch-all/[[...rest]]',
       undefined,
       {
         headers: {
@@ -722,7 +730,7 @@ describe('should set-up next', () => {
   })
 
   it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },

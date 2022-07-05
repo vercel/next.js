@@ -6,7 +6,7 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
 
@@ -82,15 +82,15 @@ export class FlightManifestPlugin {
         }
 
         const moduleExports: any = manifest[resource] || {}
-        const moduleIdMapping: any = manifest.__ssr_module_id__ || {}
+        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
+        moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        const ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
-        moduleIdMapping[id] = ssrNamedModuleId.startsWith('.')
-          ? ssrNamedModuleId
-          : `./${ssrNamedModuleId}`
+        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        if (!ssrNamedModuleId.startsWith('.'))
+          ssrNamedModuleId = `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
@@ -137,16 +137,25 @@ export class FlightManifestPlugin {
               chunks: appDir
                 ? chunk.ids.map((chunkId: string) => {
                     return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
+                      chunkId +
+                      ':' +
+                      (chunk.name || chunkId) +
+                      (dev ? '' : '-' + chunk.hash)
                     )
                   })
                 : [],
             }
           }
+          if (!moduleIdMapping[id][name]) {
+            moduleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: ssrNamedModuleId,
+            }
+          }
         })
 
         manifest[resource] = moduleExports
-        manifest.__ssr_module_id__ = moduleIdMapping
+        manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {
@@ -167,7 +176,7 @@ export class FlightManifestPlugin {
       })
     })
 
-    const file = 'server/' + MIDDLEWARE_FLIGHT_MANIFEST
+    const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)

@@ -1,8 +1,10 @@
 # No Title in Document Head
 
+> Prevent usage of `<title>` with `Head` component from `next/document`.
+
 ### Why This Error Occurred
 
-A `<title>` element was defined within the `Head` component imported from `next/document`, which should only be used for any `<head>` code that is common for all pages. Title tags should be defined at the page-level using `next/head`.
+A `<title>` element was defined within the `Head` component imported from `next/document`, which should only be used for any `<head>` code that is common for all pages. Title tags should be defined at the page-level using `next/head` instead.
 
 ### Possible Ways to Fix It
 

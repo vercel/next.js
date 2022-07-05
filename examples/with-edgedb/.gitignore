@@ -36,3 +36,6 @@ yarn-error.log*
 
 # query builder
 dbschema/edgeql-js
+
+# typescript
+*.tsbuildinfo

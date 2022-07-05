@@ -1,7 +1,10 @@
+import { ClientComponent } from './test.client.js'
+
 export default function DashboardIndexPage() {
   return (
     <>
-      <p>hello from root/dashboard/index</p>
+      <p>hello from app/dashboard/index</p>
+      <ClientComponent />
     </>
   )
 }

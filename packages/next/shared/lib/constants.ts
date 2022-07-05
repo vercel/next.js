@@ -36,8 +36,8 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/middleware-flight-manifest.js
-export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/flight-manifest.js
+export const FLIGHT_MANIFEST = 'flight-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -83,7 +83,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'CountQueuingStrategy',
   'DecompressionStream',
   'DomException',
-  'EventTarget',
   'MessageChannel',
   'MessageEvent',
   'MessagePort',

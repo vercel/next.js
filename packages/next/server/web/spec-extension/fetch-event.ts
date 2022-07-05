@@ -1,4 +1,4 @@
-import { DeprecationError } from '../error'
+import { PageSignatureError } from '../error'
 import { NextRequest } from './request'
 
 const responseSymbol = Symbol('response')
@@ -42,7 +42,7 @@ export class NextFetchEvent extends FetchEvent {
    * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   get request() {
-    throw new DeprecationError({
+    throw new PageSignatureError({
       page: this.sourcePage,
     })
   }
@@ -53,7 +53,7 @@ export class NextFetchEvent extends FetchEvent {
    * Read more: https://nextjs.org/docs/messages/middleware-new-signature
    */
   respondWith() {
-    throw new DeprecationError({
+    throw new PageSignatureError({
       page: this.sourcePage,
     })
   }

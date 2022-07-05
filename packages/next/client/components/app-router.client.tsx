@@ -1,74 +1,61 @@
 import React from 'react'
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import { AppRouterContext } from '../../shared/lib/app-router-context'
+import useRouter from './userouter.js'
 
 function createResponseCache() {
   return new Map<string, any>()
 }
 const rscCache = createResponseCache()
 
-const getCacheKey = () => {
-  const { pathname, search } = location
-  return pathname + search
-}
-
-function fetchFlight(href: string) {
-  const url = new URL(href, location.origin)
-  const searchParams = url.searchParams
+function fetchFlight(href: string, layoutPath?: string) {
+  const flightUrl = new URL(href, location.origin.toString())
+  const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
+  if (layoutPath) {
+    searchParams.append('__flight_router_path__', layoutPath)
+  }
 
-  return fetch(url.toString())
+  return fetch(flightUrl.toString())
 }
 
-function fetchServerResponse(cacheKey: string) {
+export function fetchServerResponse(href: string, layoutPath?: string) {
+  const cacheKey = href + layoutPath
   let response = rscCache.get(cacheKey)
   if (response) return response
 
-  response = createFromFetch(fetchFlight(getCacheKey()))
+  response = createFromFetch(fetchFlight(href, layoutPath))
 
   rscCache.set(cacheKey, response)
   return response
 }
 
-// TODO: move to client component when handling is implemented
-export default function AppRouter({ initialUrl, children }: any) {
-  const initialState = {
-    url: initialUrl,
-  }
-  const previousUrlRef = React.useRef(initialState)
-  const [current, setCurrent] = React.useState(initialState)
-  const appRouter = React.useMemo(() => {
-    return {
-      prefetch: () => {},
-      replace: (url: string) => {
-        previousUrlRef.current = current
-        setCurrent({ ...current, url })
-        // TODO: update url eagerly or not?
-        window.history.replaceState(current, '', url)
-      },
-      push: (url: string) => {
-        previousUrlRef.current = current
-        setCurrent({ ...current, url })
-        // TODO: update url eagerly or not?
-        window.history.pushState(current, '', url)
-      },
-      url: current.url,
+export default function AppRouter({ initialUrl, layoutPath, children }: any) {
+  const [appRouter, previousUrlRef, current] = useRouter(initialUrl)
+
+  const onPopState = React.useCallback(
+    ({ state }: PopStateEvent) => {
+      if (!state) {
+        return
+      }
+      // @ts-ignore useTransition exists
+      // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+      React.startTransition(() => appRouter.replace(state.url))
+    },
+    [appRouter]
+  )
+  React.useEffect(() => {
+    window.addEventListener('popstate', onPopState)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
     }
-  }, [current])
-  if (typeof window !== 'undefined') {
-    // @ts-ignore TODO: for testing
-    window.appRouter = appRouter
-    console.log({
-      appRouter,
-      previous: previousUrlRef.current,
-      current,
-    })
-  }
+  })
 
   let root
+  // TODO: Check the RSC cache first for the page you want to navigate to
   if (current.url !== previousUrlRef.current?.url) {
     // eslint-disable-next-line
-    const data = fetchServerResponse(current.url)
+    const data = fetchServerResponse(current.url, layoutPath)
     root = data.readRoot()
   }
   return (

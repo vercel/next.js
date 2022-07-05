@@ -276,6 +276,13 @@ module.exports = {
         locale: false,
         permanent: false,
       },
+      // it's possible to match all locales even when locale: false is set
+      {
+        source: '/:locale/page',
+        destination: '/en/newpage',
+        permanent: false,
+        locale: false,
+      }
       {
         // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
         // `/` or `/fr` routes like /:path* would
