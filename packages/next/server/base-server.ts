@@ -489,7 +489,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (
             !isDynamicRoute(srcPathname) &&
-            !(await this.hasPage(srcPathname))
+            !(await this.hasPage(removeTrailingSlash(srcPathname)))
           ) {
             for (const dynamicRoute of this.dynamicRoutes || []) {
               if (dynamicRoute.match(srcPathname)) {
@@ -768,6 +768,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
           pathname = getRouteFromAssetPath(pathname, '.json')
+
+          // ensure trailing slash is normalized per config
+          if (this.router.catchAllMiddleware[0]) {
+            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+              pathname += '/'
+            }
+            if (
+              !this.nextConfig.trailingSlash &&
+              pathname.length > 1 &&
+              pathname.endsWith('/')
+            ) {
+              pathname = pathname.substring(0, pathname.length - 1)
+            }
+          }
 
           if (this.nextConfig.i18n) {
             const { host } = req?.headers || {}
