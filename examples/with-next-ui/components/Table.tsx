@@ -1,13 +1,12 @@
-import { Table } from "@nextui-org/react"
+import { Table } from '@nextui-org/react'
 
-
-const CustomTable = () => { 
+const CustomTable = () => {
   return (
     <Table
       aria-label="Example table with static content"
       css={{
         height: 'auto',
-        minWidth: '100%'
+        minWidth: '100%',
       }}
     >
       <Table.Header>

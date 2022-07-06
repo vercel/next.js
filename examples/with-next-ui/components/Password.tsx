@@ -1,6 +1,6 @@
-import { SvgProp } from "../common/interface"
+import { SvgProp } from '../common/interface'
 
-export const Password = ({ fill, size, height, width, ...props }:SvgProp) => {
+export const Password = ({ fill, size, height, width, ...props }: SvgProp) => {
   return (
     <svg
       width={size || width || 24}

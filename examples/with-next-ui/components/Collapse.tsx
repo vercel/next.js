@@ -31,5 +31,4 @@ const CustomCollapse = () => {
   )
 }
 
-
 export default CustomCollapse

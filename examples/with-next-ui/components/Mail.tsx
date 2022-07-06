@@ -1,5 +1,4 @@
-import { SvgProp } from "../common/interface"
-
+import { SvgProp } from '../common/interface'
 
 export const Mail = ({ fill, size, height, width, ...props }: SvgProp) => {
   return (

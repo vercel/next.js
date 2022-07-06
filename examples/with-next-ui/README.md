@@ -2,8 +2,6 @@
 
 This example shows how to use Next.js along with [NextUI](https://nextui.org/) of React. This is intended to show the integration of this UI toolkit with the Framework.
 
-
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

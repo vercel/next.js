@@ -11,7 +11,6 @@ const CustomTable = dynamic(() => import('../components/Table'))
 const CustomCollapse = dynamic(() => import('../components/Collapse'))
 
 const Home: NextPage = () => {
-
   return (
     <div className={styles.container}>
       <Head>
