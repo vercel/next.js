@@ -3,7 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath } from 'path'
+import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -627,6 +627,15 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
+  const reactDir = dirname(require.resolve('react/package.json'))
+  const reactDomDir = dirname(require.resolve('react-dom/package.json'))
+
+  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
+    server: ['main', 'module'],
+    client: ['browser', 'module', 'main'],
+    'edge-server': ['browser', 'module', 'main'],
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -652,6 +661,12 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      react: `${reactDir}`,
+      'react-dom$': `${reactDomDir}`,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -691,11 +706,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: isClient
-      ? ['browser', 'module', 'main']
-      : isEdgeServer
-      ? ['module', 'main']
-      : ['main', 'module'],
+    mainFields: mainFieldsPerCompiler[compilerType],
     plugins: [],
   }
 
@@ -1471,6 +1482,11 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
+        ...(compilerType !== 'edge-server'
+          ? {}
+          : {
+              EdgeRuntime: JSON.stringify('edge-runtime'),
+            }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
