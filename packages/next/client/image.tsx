@@ -876,7 +876,6 @@ const ImageElement = ({
         {...rest}
         {...imgAttributes}
         decoding="async"
-        fetchpriority={isLazy ? "low" : "high"}
         data-nimg={layout}
         className={className}
         style={{ ...imgStyle, ...blurStyle }}

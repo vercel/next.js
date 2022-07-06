@@ -645,7 +645,6 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
-        fetchpriority={isLazy ? "low" : "high"}
         data-nimg="future"
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
