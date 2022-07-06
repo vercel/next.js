@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 
 import styles from './style.module.css'
+import './style.css'
 
 export default function ClientNestedLayout({ children }) {
   const [count, setCount] = useState(0)

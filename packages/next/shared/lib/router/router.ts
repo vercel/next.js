@@ -1751,7 +1751,7 @@ export default class Router implements BaseRouter {
       }
 
       if (route === '/api' || route.startsWith('/api/')) {
-        handleHardNavigation({ url: resolvedAs, router: this })
+        handleHardNavigation({ url: as, router: this })
         return new Promise<never>(() => {})
       }
 
