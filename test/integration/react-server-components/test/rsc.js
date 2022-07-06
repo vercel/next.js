@@ -41,7 +41,6 @@ export default function (context, { runtime, env }) {
       },
     })
 
-    const browser = await webdriver(context.appPort, '/')
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     // TODO: support next/head
