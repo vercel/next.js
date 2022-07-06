@@ -123,7 +123,6 @@ export function InnerLayoutRouter({
 
     // TODO: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-    console.log('FETCHING IN LAYOUT ROUTER', url, refetchTree)
 
     const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
@@ -149,7 +148,6 @@ export function InnerLayoutRouter({
   if (childNode.data) {
     // TODO: error case
     const flightData = childNode.data.readRoot()
-    console.log('LAYOUT ROOT', flightData)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {

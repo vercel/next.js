@@ -272,7 +272,6 @@ export function reducer(
         }
       }
 ): AppRouterState {
-  console.log(action.type, action.payload)
   if (action.type === 'restore') {
     const { url, historyState } = action.payload
     const href = url.pathname + url.search + url.hash
@@ -366,7 +365,6 @@ export function reducer(
         cache.data = fetchServerResponse(url, state.tree)
       }
       const flightData = cache.data.readRoot()
-      console.log('ROOT FROM PUSH', flightData)
 
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -396,11 +394,6 @@ export function reducer(
       mutable.patchedTree = newTree
 
       fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-      console.log('CACHE', {
-        flightDataPath,
-        cache,
-        previousCache: state.cache,
-      })
 
       return {
         canonicalUrl: href,
@@ -446,11 +439,6 @@ export function reducer(
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-    console.log('CACHE', {
-      flightDataPath,
-      cache,
-      previousCache: state.cache,
-    })
 
     return {
       canonicalUrl: state.canonicalUrl,
