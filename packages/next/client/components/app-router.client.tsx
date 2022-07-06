@@ -10,10 +10,9 @@ import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 import {
   QueryContext,
-  ParamsContext,
+  // ParamsContext,
   PathnameContext,
-  LayoutSegmentsContext,
-  SelectedLayoutSegmentContext,
+  // LayoutSegmentsContext,
 } from './hooks-client-context'
 
 function fetchFlight(
