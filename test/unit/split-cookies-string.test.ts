@@ -131,7 +131,7 @@ describe('splitCookiesString', () => {
         {
           name: 'x',
           value: 'y',
-          maxAge: '/path',
+          path: '/path',
         }
       )
       const result = splitCookiesString(joined)
