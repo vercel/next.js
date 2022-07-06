@@ -13,8 +13,7 @@ export default function Root({ children, custom, world }) {
         <title>{`hello ${world}`}</title>
       </head>
       <body className="this-is-the-document-body" style={{ color: '#eee' }}>
-        <div style={{ backgroundColor: '#C14242' }}>{children}</div>
-        <div style={{ backgroundColor: '#3F7FBF' }}>{custom}</div>
+        {children}
       </body>
     </html>
   )
