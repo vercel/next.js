@@ -1,7 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "codegen": "graphql-codegen -r ts-node/register",
     "dev": "next",
     "build": "next build",
     "start": "next start"
