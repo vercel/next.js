@@ -10,7 +10,7 @@
     "prettier": "^2.7.1",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "supertokens-auth-react": "github:supertokens/supertokens-auth-react#next-breaking-change",
-    "supertokens-node": "^9.1.1"
+    "supertokens-auth-react": "^0.24.0",
+    "supertokens-node": "^11.0.0"
   }
 }
