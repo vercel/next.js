@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "analyze": "cross-env ANALYZE=true next build"
   },
   "dependencies": {
     "@nextui-org/react": "1.0.0-beta.9",
@@ -13,10 +14,11 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^12.2.0",
-    "@types/node": "18.0.0",
-    "@types/react": "18.0.14",
-    "@types/react-dom": "18.0.5",
+    "@types/node": "18.0.3",
+    "@types/react": "18.0.15",
+    "@types/react-dom": "18.0.6",
     "add": "^2.0.6",
+    "cross-env": "^7.0.3",
     "install": "^0.13.0",
     "next-compose-plugins": "^2.2.1",
     "typescript": "4.7.4"
