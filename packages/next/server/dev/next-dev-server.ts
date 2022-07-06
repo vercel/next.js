@@ -843,12 +843,9 @@ export default class DevServer extends Server {
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
             if (src === 'edge-server') {
-              console[type === 'warning' ? 'warn' : 'error'](
-                `${(type === 'warning' ? chalk.yellow : chalk.red)(
-                  err.name
-                )}: ${err.message}`
-              )
-            } else if (type === 'warning') {
+              err = err.message
+            }
+            if (type === 'warning') {
               Log.warn(err)
             } else if (type) {
               Log.error(`${type}:`, err)

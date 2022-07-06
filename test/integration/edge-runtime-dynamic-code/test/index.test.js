@@ -101,7 +101,6 @@ describe.each([
         expect(await extractValue(res)).toEqual(100)
         await waitFor(500)
         expect(output).toContain(EVAL_ERROR)
-        expect(output).toContain('DynamicCodeEvaluationWarning')
         // TODO check why that has a backslash on windows
         expect(output).toMatch(/lib[\\/]utils\.js/)
         expect(output).toContain('usingEval')
@@ -126,7 +125,6 @@ describe.each([
         expect(await extractValue(res)).toEqual(81)
         await waitFor(500)
         expect(output).toContain(WASM_COMPILE_ERROR)
-        expect(output).toContain('DynamicWasmCodeGenerationWarning')
         expect(output).toMatch(/lib[\\/]wasm\.js/)
         expect(output).toContain('usingWebAssemblyCompile')
         expect(stripAnsi(output)).toContain(
@@ -142,7 +140,6 @@ describe.each([
         expect(await extractValue(res)).toEqual(81)
         await waitFor(500)
         expect(output).toContain(WASM_INSTANTIATE_ERROR)
-        expect(output).toContain('DynamicWasmCodeGenerationWarning')
         expect(output).toMatch(/lib[\\/]wasm\.js/)
         expect(output).toContain('usingWebAssemblyInstantiateWithBuffer')
         expect(stripAnsi(output)).toContain(
