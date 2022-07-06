@@ -27,6 +27,10 @@ describe('views dir', () => {
           path.join(__dirname, 'app/next.config.js')
         ),
       },
+      dependencies: {
+        react: 'experimental',
+        'react-dom': 'experimental',
+      },
     })
   })
   afterAll(() => next.destroy())
