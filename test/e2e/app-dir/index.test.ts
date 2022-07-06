@@ -323,7 +323,7 @@ describe('views dir', () => {
     it('should support global css inside client pages', async () => {
       const browser = await webdriver(next.url, '/client-component-route')
 
-      // Should render button in red
+      // Should render `b` in blue
       expect(
         await browser.eval(
           `window.getComputedStyle(document.querySelector('b')).color`
