@@ -169,18 +169,6 @@ export function runNextCommand(argv, options = {}) {
       }
     )
 
-    console.log(
-      'cmd',
-      [
-        ...(options.nodeArgs || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ].join(' ')
-    )
-
     if (typeof options.instance === 'function') {
       options.instance(instance)
     }

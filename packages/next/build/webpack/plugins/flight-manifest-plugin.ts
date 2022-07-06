@@ -134,13 +134,11 @@ export class FlightManifestPlugin {
 
         // Get all CSS files imported in that chunk.
         const cssChunks: string[] = []
-        for (const entrypoint of (chunk as any)._groups) {
-          if (entrypoint.getFiles) {
-            const files = getEntrypointFiles(entrypoint)
-            for (const file of files) {
-              if (file.endsWith('.css')) {
-                cssChunks.push(file)
-              }
+        for (const entrypoint of chunk.groupsIterable) {
+          const files = getEntrypointFiles(entrypoint)
+          for (const file of files) {
+            if (file.endsWith('.css')) {
+              cssChunks.push(file)
             }
           }
         }
