@@ -8,6 +8,13 @@ import {
 import type { AppRouterInstance } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
+import {
+  QueryContext,
+  ParamsContext,
+  PathnameContext,
+  LayoutSegmentsContext,
+  SelectedLayoutSegmentContext,
+} from './hooks-client-context'
 
 function fetchFlight(
   url: URL,
@@ -50,6 +57,18 @@ export default function AppRouter({
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
+
+  const { query, pathname } = React.useMemo(() => {
+    const url = new URL(
+      canonicalUrl,
+      typeof window === 'undefined' ? 'http://n' : window.location.href
+    )
+    const queryObj: { [key: string]: string } = {}
+    url.searchParams.forEach((value, key) => {
+      queryObj[key] = value
+    })
+    return { query: queryObj, pathname: url.pathname }
+  }, [canonicalUrl])
 
   // Server response only patches the tree
   const changeByServerResponse = React.useCallback(
@@ -182,24 +201,29 @@ export default function AppRouter({
   }, [initialTree])
 
   return (
-    <FullAppTreeContext.Provider
-      value={{
-        changeByServerResponse,
-        tree,
-      }}
-    >
-      <AppRouterContext.Provider value={appRouter}>
-        <AppTreeContext.Provider
+    <PathnameContext.Provider value={pathname}>
+      <QueryContext.Provider value={query}>
+        <FullAppTreeContext.Provider
           value={{
-            childNodes: cache.parallelRoutes,
-            tree: tree,
-            // Root node always has `url`
-            url: canonicalUrl,
+            changeByServerResponse,
+            tree,
           }}
         >
-          {children}
-        </AppTreeContext.Provider>
-      </AppRouterContext.Provider>
-    </FullAppTreeContext.Provider>
+          <AppRouterContext.Provider value={appRouter}>
+            <AppTreeContext.Provider
+              value={{
+                childNodes: cache.parallelRoutes,
+                tree: tree,
+                // Root node always has `url`
+                // TODO: Move to FullAppTreeContext
+                url: canonicalUrl,
+              }}
+            >
+              {children}
+            </AppTreeContext.Provider>
+          </AppRouterContext.Provider>
+        </FullAppTreeContext.Provider>
+      </QueryContext.Provider>
+    </PathnameContext.Provider>
   )
 }
