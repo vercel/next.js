@@ -118,9 +118,9 @@ You can use `process.env` to access [Environment Variables](/docs/basic-features
 Running `console.log` on `process.env` **will not** show all your Environment Variables. You have to access the variables directly as shown below:
 
 ```javascript
-console.log(process.env);
+console.log(process.env)
 // { NEXT_RUNTIME: 'edge' }
-console.log(process.env.TEST_VARIABLE);
+console.log(process.env.TEST_VARIABLE)
 // { NEXT_RUNTIME: 'edge', TEST_VARIABLE: 'value' }
 ```
 
