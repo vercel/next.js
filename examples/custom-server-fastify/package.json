@@ -6,12 +6,10 @@
     "start": "cross-env NODE_ENV=production node ./server.js"
   },
   "dependencies": {
+    "cross-env": "^7.0.3",
     "fastify": "^4.2.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "cross-env": "^7.0.3"
   }
 }
