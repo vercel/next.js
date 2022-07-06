@@ -16,6 +16,6 @@
     "core-js": "3.23.3",
     "microbundle": "0.13.0",
     "object-assign": "4.1.1",
-    "whatwg-fetch": "3.0.0"
+    "whatwg-fetch": "3.6.2"
   }
 }
