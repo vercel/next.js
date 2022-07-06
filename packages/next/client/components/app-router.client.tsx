@@ -3,6 +3,7 @@ import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   AppTreeContext,
+  CacheNode,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context'
@@ -36,7 +37,7 @@ export function fetchServerResponse(
 }
 
 // TODO: move this back into AppRouter
-const initialCache = {
+let initialCache: CacheNode = {
   data: null,
   subTreeData: null,
   parallelRoutes: new Map(),
@@ -59,6 +60,10 @@ export default function AppRouter({
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
+
+  useEffect(() => {
+    initialCache = null!
+  }, [])
 
   const { query, pathname } = React.useMemo(() => {
     const url = new URL(
