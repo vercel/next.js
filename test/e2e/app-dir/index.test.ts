@@ -5,7 +5,7 @@ import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-describe('views dir', () => {
+describe('app dir', () => {
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
