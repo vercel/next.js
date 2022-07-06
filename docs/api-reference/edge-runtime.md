@@ -115,6 +115,15 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 
 You can use `process.env` to access [Environment Variables](/docs/basic-features/environment-variables.md) for both `next dev` and `next build`.
 
+Running `console.log` on `process.env` **will not** show all your Environment Variables. You have to access the variables directly as shown below:
+
+```javascript
+console.log(process.env)
+// { NEXT_RUNTIME: 'edge' }
+console.log(process.env.TEST_VARIABLE)
+// { NEXT_RUNTIME: 'edge', TEST_VARIABLE: 'value' }
+```
+
 ## Unsupported APIs
 
 The Edge Runtime has some restrictions including:
