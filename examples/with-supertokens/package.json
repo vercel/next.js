@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "next": "latest",
-    "prettier": "^2.7.1",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "supertokens-auth-react": "^0.24.0",
