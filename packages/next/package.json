@@ -72,11 +72,11 @@
   },
   "dependencies": {
     "@next/env": "12.2.1-canary.3",
-    "@swc/helpers": "0.4.2",
+    "@swc/helpers": "0.4.3",
     "caniuse-lite": "^1.0.30001332",
-    "postcss": "8.4.5",
+    "postcss": "8.4.14",
     "styled-jsx": "5.0.2",
-    "use-sync-external-store": "1.1.0"
+    "use-sync-external-store": "1.2.0"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
