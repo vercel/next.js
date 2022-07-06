@@ -302,7 +302,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Ignoring `.next` from test resolving
 - Loading `next.config.js` for flags that enable SWC transforms
 
-> **Note**: If you are looking to test environment variables directly, you will need to load them manually in a setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](https://nextjs.org/docs/basic-features/environment-variables#test-environment-variables).
+> **Note**: If you are looking to test environment variables directly, you will need to load them manually in a separate setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](https://nextjs.org/docs/basic-features/environment-variables#test-environment-variables).
 
 ### Setting up Jest (with Babel)
 
