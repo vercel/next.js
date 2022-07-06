@@ -119,7 +119,6 @@ export interface ExperimentalConfig {
     unoptimized?: boolean
     allowFutureImage?: boolean
   }
-  middlewareSourceMaps?: boolean
   modularizeImports?: Record<
     string,
     {
@@ -549,7 +548,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    middlewareSourceMaps: undefined,
     modularizeImports: undefined,
   },
 }
