@@ -1,23 +1,13 @@
-# Next.js and TRPC
+# Next.js + TRPC
 
-This example shows how you can make a typed query using a minimal implementation of TRPC following [`this as a reference`](https://trpc.io/docs/nextjs). You can get a more complete implementation with Prisma, E2E testing, & ESLint [`here`](https://github.com/trpc/examples-next-prisma-starter).
+## Next.js prisma starter
 
-## Deploy your own
+- https://github.com/trpc/examples-next-prisma-starter
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+## Next.js prisma starter websockets
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-trpc&project-name=with-trpc&repository-name=with-trpc)
+- https://github.com/trpc/examples-next-prisma-starter-websockets
 
-## How to use
+## Next.js and TRPC minimal implementation
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
-
-```bash
-npx create-next-app --example with-trpc with-trpc-app
-# or
-yarn create next-app --example with-trpc with-trpc-app
-# or
-pnpm create next-app --example with-trpc with-trpc-app
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+- https://github.com/trpc/examples-next-minimal-starter
