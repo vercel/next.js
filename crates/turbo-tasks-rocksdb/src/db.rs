@@ -2,8 +2,8 @@ use std::ops::Add;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    backend::{PersistentTaskType, CellMappings},
-    persisted_graph::{TaskData, TaskCell},
+    backend::{CellMappings, PersistentTaskType},
+    persisted_graph::{TaskCell, TaskData},
     without_task_id_mapping, RawVc,
 };
 

@@ -12,7 +12,7 @@ use turbo_tasks::{
     backend::PersistentTaskType,
     persisted_graph::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
-        PersistedGraphApi, ReadTaskState, TaskData, TaskCell,
+        PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{InfiniteVec, SharedError},
     with_task_id_mapping, FunctionId, IdMapping, TaskId,

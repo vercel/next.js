@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend::{PersistentTaskType, CellContent, CellMappings},
+    backend::{CellContent, CellMappings, PersistentTaskType},
     RawVc, TaskId,
 };
 

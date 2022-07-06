@@ -20,7 +20,7 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, task::JoinHandle, task_local};
 
 use crate::{
-    backend::{Backend, PersistentTaskType, CellContent, CellMappings, TransientTaskType},
+    backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,

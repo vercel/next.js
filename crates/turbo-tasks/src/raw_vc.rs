@@ -16,7 +16,7 @@ use thiserror::Error;
 use crate::{
     backend::CellContent,
     manager::{
-        read_task_output, read_task_output_untracked, read_task_cell, read_task_cell_untracked,
+        read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
         TurboTasksApi,
     },
     registry::get_value_type,

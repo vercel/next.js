@@ -18,7 +18,7 @@ use anyhow::Result;
 use event_listener::{Event, EventListener};
 use tokio::task_local;
 use turbo_tasks::{
-    backend::{PersistentTaskType, CellMappings},
+    backend::{CellMappings, PersistentTaskType},
     get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId, TaskInput, TraitTypeId,
     TurboTasksBackendApi,
 };
@@ -196,7 +196,7 @@ impl Default for TaskStateType {
 
 use TaskStateType::*;
 
-use crate::{memory_backend::BackgroundJob, output::Output, cell::Cell, stats, MemoryBackend};
+use crate::{cell::Cell, memory_backend::BackgroundJob, output::Output, stats, MemoryBackend};
 
 impl Task {
     pub(crate) fn new_native(id: TaskId, inputs: Vec<TaskInput>, native_fn: FunctionId) -> Self {

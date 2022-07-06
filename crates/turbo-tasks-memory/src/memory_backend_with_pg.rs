@@ -16,12 +16,12 @@ use concurrent_queue::ConcurrentQueue;
 use event_listener::{Event, EventListener};
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, CellContent, CellMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     persisted_graph::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
-        PersistedGraphApi, ReadTaskState, TaskData, TaskCell,
+        PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
     util::{IdFactory, InfiniteVec, SharedError},
     RawVc, TaskId, TurboTasksBackendApi,

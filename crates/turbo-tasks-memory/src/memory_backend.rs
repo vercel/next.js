@@ -6,7 +6,7 @@ use flurry::HashMap as FHashMap;
 use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, CellContent, CellMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},

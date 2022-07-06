@@ -14,7 +14,7 @@ use crate::{
     backend::CellContent,
     id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
-    manager::{read_task_output, read_task_cell},
+    manager::{read_task_cell, read_task_output},
     registry, turbo_tasks,
     util::try_join_all,
     value::{TransientValue, Value},
