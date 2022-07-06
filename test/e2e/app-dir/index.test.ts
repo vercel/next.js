@@ -387,4 +387,28 @@ describe('views dir', () => {
       })
     })
   })
+
+  describe('css support', () => {
+    it('should support css modules inside client layouts', async () => {
+      const browser = await webdriver(next.url, '/client-nested')
+
+      // Should render h1 in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+
+    it('should support global css inside client layouts', async () => {
+      const browser = await webdriver(next.url, '/client-nested')
+
+      // Should render button in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('button')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+  })
 })
