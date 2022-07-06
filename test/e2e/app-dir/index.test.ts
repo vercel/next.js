@@ -303,10 +303,34 @@ describe('views dir', () => {
 
       // Should render p in red
       expect(
+        (
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('p')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      )
+    })
+
+    it('should support global css inside client layouts', async () => {
+      const browser = await webdriver(next.url, '/client-nested')
+
+      // Should render button in red
+      expect(
         await browser.eval(
-          `window.getComputedStyle(document.querySelector('p')).color`
+          `window.getComputedStyle(document.querySelector('button')).color`
         )
       ).toBe('rgb(255, 0, 0)')
+    })
+
+    it('should support global css inside client pages', async () => {
+      const browser = await webdriver(next.url, '/client-component-route')
+
+      // Should render button in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('b')).color`
+        )
+      ).toBe('rgb(0, 0, 255)')
     })
   })
 })
