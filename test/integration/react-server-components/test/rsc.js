@@ -230,10 +230,13 @@ export default function (context, { runtime, env }) {
       expect(hasFlightRequest).toBe(false)
     }
     await browser.elementByCss(selector).click()
+
     // wait for re-hydration
-    await new Promise((res) => setTimeout(res, 1000))
     if (env === 'dev') {
-      expect(hasFlightRequest).toBe(true)
+      await check(
+        () => (hasFlightRequest ? 'success' : hasFlightRequest),
+        'success'
+      )
     }
     const refreshText = await browser.elementByCss(selector).text()
     expect(refreshText).toBe('next link')
