@@ -9,6 +9,7 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
+import { getEntrypointFiles } from './build-manifest-plugin'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -129,17 +130,35 @@ export class FlightManifestPlugin {
           )
           .filter((name) => name !== null)
 
+        // Get all CSS files imported in that chunk.
+        const cssChunks: string[] = []
+        for (const entrypoint of chunk._groups) {
+          if (entrypoint.getFiles) {
+            const files = getEntrypointFiles(entrypoint)
+            for (const file of files) {
+              if (file.endsWith('.css')) {
+                cssChunks.push(file)
+              }
+            }
+          }
+        }
+
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
               id,
               name,
               chunks: appDir
-                ? chunk.ids.map((chunkId: string) => {
-                    return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
-                    )
-                  })
+                ? chunk.ids
+                    .map((chunkId: string) => {
+                      return (
+                        chunkId +
+                        ':' +
+                        (chunk.name || chunkId) +
+                        (dev ? '' : '-' + chunk.hash)
+                      )
+                    })
+                    .concat(cssChunks)
                 : [],
             }
           }
