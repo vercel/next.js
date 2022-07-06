@@ -2,9 +2,6 @@
   "name": "nextjs-project",
   "version": "0.0.0",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "new-error": "plop error",
     "new-test": "plop test",
