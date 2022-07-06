@@ -44,19 +44,6 @@ use turbopack_core::{
 };
 
 use super::{
-    errors,
-    parse::{parse, Buffer, ParseResult},
-    resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
-    special_cases::special_cases,
-    typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
-    utils::js_value_to_pattern,
-    webpack::{
-        parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
-        WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
-    },
-    ModuleAssetType,
-};
-use crate::{
     analyzer::{
         builtin::replace_builtin,
         graph::{create_graph, Effect},
@@ -65,7 +52,18 @@ use crate::{
         ConstantValue, FreeVarKind, JsValue, ObjectPart, WellKnownFunctionKind,
         WellKnownObjectKind,
     },
+    errors,
+    parse::{parse, Buffer, ParseResult},
+    resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
+    special_cases::special_cases,
     target::CompileTargetVc,
+    typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
+    utils::js_value_to_pattern,
+    webpack::{
+        parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
+        WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
+    },
+    ModuleAssetType,
 };
 
 #[turbo_tasks::function]

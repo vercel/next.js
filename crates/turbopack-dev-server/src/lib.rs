@@ -129,6 +129,7 @@ impl DevServerVc {
             }
         });
         let server = Server::bind(&addr).serve(make_svc);
+        println!("server listening on: {}", addr);
         Ok(DevServerListening::new(async move {
             server.await?;
             Ok(())

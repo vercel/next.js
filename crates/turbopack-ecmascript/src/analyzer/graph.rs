@@ -4,7 +4,6 @@ use swc_atoms::js_word;
 use swc_common::{Mark, Span, Spanned, SyntaxContext};
 use swc_ecmascript::{
     ast::*,
-    utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 
