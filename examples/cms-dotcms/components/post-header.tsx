@@ -1,10 +1,8 @@
 import Avatar from '../components/avatar'
-import DateComponent from '../components/date'
 import CoverImage from '../components/cover-image'
 import PostTitle from '../components/post-title'
-import cn from "classnames";
 
-export default function PostHeader({ title, coverImage, author, slug }) {
+export default function PostHeader({ title, coverImage, author }) {
   return (
     <>
       <PostTitle>{title}</PostTitle>

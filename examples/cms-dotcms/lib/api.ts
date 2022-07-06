@@ -6,7 +6,7 @@
  * @param {Object} param1.preview - Indicate if the query should be previewed
  * @returns {Promise} - A promise that resolves to the result of the query
  */
-async function fetchAPI(query, {variables} = {}) {
+async function fetchAPI(query, {variables} = {variables: null}) {
   const res = await fetch(process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql', {
     method: 'POST',
     headers: {

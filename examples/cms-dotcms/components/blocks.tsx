@@ -73,7 +73,7 @@ export const BulletList = ({ children }) => {
 }
 
 export const Heading = ({ level, children }) => {
-  const Tag = `h${level}`
+  const Tag = `h${level}` as keyof JSX.IntrinsicElements
   return <Tag>{children}</Tag>
 }
 
