@@ -148,7 +148,9 @@ export class FlightManifestPlugin {
           let requiredChunks = []
           if (!moduleExports[name]) {
             const isNonInitialChunk = (c: webpack5.Chunk) =>
-              !c.hasRuntime() && !c.rendered && !c.name?.startsWith('pages/')
+              !c.hasAsyncChunks() &&
+              !c.rendered &&
+              !c.name?.startsWith('pages/')
 
             if (appDir) {
               requiredChunks = dev
