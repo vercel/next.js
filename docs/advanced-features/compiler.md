@@ -386,7 +386,7 @@ module.exports = {
   experimental: {
     swcPlugins: [
       ['plugin', {
-        ..pluginOptions
+        ...pluginOptions
       }]
     ]
   }
