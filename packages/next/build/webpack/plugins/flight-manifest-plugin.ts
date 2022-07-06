@@ -152,25 +152,16 @@ export class FlightManifestPlugin {
               chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
 
             if (appDir) {
-              requiredChunks = dev
-                ? (chunk.ids || []).map((chunkId) => {
-                    return (
-                      chunkId +
-                      ':' +
-                      (chunk.name || chunkId) +
-                      (dev ? '' : '-' + chunk.hash)
-                    )
-                  })
-                : chunkGroup.chunks
-                    .filter(isRelatedChunk)
-                    .map((requiredChunk: webpack5.Chunk) => {
-                      return (
-                        requiredChunk.id +
-                        ':' +
-                        (requiredChunk.name || requiredChunk.id) +
-                        (dev ? '' : '-' + requiredChunk.hash)
-                      )
-                    })
+              requiredChunks = chunkGroup.chunks
+                .filter(isRelatedChunk)
+                .map((requiredChunk: webpack5.Chunk) => {
+                  return (
+                    requiredChunk.id +
+                    ':' +
+                    (requiredChunk.name || requiredChunk.id) +
+                    (dev ? '' : '-' + requiredChunk.hash)
+                  )
+                })
             }
 
             moduleExports[name] = {
