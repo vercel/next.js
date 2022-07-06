@@ -4,7 +4,7 @@ import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 
-describe('views dir rendering', () => {
+describe('app dir rendering', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
     it('should skip for react v17', () => {})
     return
@@ -26,6 +26,10 @@ describe('views dir rendering', () => {
         'next.config.js': new FileRef(
           path.join(__dirname, 'app-rendering/next.config.js')
         ),
+      },
+      dependencies: {
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
     })
   })

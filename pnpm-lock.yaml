@@ -92,7 +92,7 @@ importers:
       eslint-plugin-import: 2.22.1
       eslint-plugin-jest: 24.3.5
       eslint-plugin-react: 7.23.2
-      eslint-plugin-react-hooks: 4.2.0
+      eslint-plugin-react-hooks: 4.5.0
       event-stream: 4.0.1
       execa: 2.0.3
       express: 4.17.0
@@ -246,7 +246,7 @@ importers:
       eslint-plugin-import: 2.22.1_23iivq3ybsthf4qrv3kgatrvhe
       eslint-plugin-jest: 24.3.5_lqson4bxnnkvr5juyhnlzmz4rq
       eslint-plugin-react: 7.23.2_eslint@7.24.0
-      eslint-plugin-react-hooks: 4.2.0_eslint@7.24.0
+      eslint-plugin-react-hooks: 4.5.0_eslint@7.24.0
       event-stream: 4.0.1
       execa: 2.0.3
       express: 4.17.0
@@ -1166,28 +1166,12 @@ packages:
     dependencies:
       '@babel/types': 7.18.0
 
-  /@babel/helper-function-name/7.16.7:
-    resolution: {integrity: sha512-QfDfEnIUyyBSR3HtrtGECuZ6DAyCkYFp7GHl75vFtTnn6pjKeK0T1DB5lLkFvBea8MdaiUABx3osbgLyInoejA==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/helper-get-function-arity': 7.16.7
-      '@babel/template': 7.16.7
-      '@babel/types': 7.18.0
-    dev: true
-
   /@babel/helper-function-name/7.17.9:
     resolution: {integrity: sha512-7cRisGlVtiVqZ0MW0/yFB4atgpGLWEHUVYnb448hZK4x+vih0YO5UoS11XIYtZYqHd0dIPMdUSv8q5K4LdMnIg==}
     engines: {node: '>=6.9.0'}
     dependencies:
       '@babel/template': 7.16.7
       '@babel/types': 7.18.0
-
-  /@babel/helper-get-function-arity/7.16.7:
-    resolution: {integrity: sha512-flc+RLSOBXzNzVhcLu6ujeHUrD6tANAOU5ojrRx/as+tbzf8+stUCj7+IfRRoAbEZqj/ahXEMsjhOhgeZsrnTw==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/types': 7.18.0
-    dev: true
 
   /@babel/helper-hoist-variables/7.16.7:
     resolution: {integrity: sha512-m04d/0Op34H5v7pbZw6pSKP7weA6lsMvfiIAMeIvkY/R4xQtBSMFEigu9QTZ2qB/9l22vsxtM8a+Q8CzD255fg==}
@@ -2048,7 +2032,7 @@ packages:
     dependencies:
       '@babel/core': 7.18.0
       '@babel/helper-annotate-as-pure': 7.16.7
-      '@babel/helper-function-name': 7.16.7
+      '@babel/helper-function-name': 7.17.9
       '@babel/helper-optimise-call-expression': 7.16.7
       '@babel/helper-plugin-utils': 7.16.7
       '@babel/helper-replace-supers': 7.16.7
@@ -2211,7 +2195,7 @@ packages:
       '@babel/core': ^7.0.0-0
     dependencies:
       '@babel/core': 7.18.0
-      '@babel/helper-function-name': 7.16.7
+      '@babel/helper-function-name': 7.17.9
       '@babel/helper-plugin-utils': 7.16.7
     dev: true
 
@@ -2758,9 +2742,9 @@ packages:
     peerDependencies:
       '@babel/core': ^7.0.0-0
     dependencies:
-      '@babel/compat-data': 7.17.0
+      '@babel/compat-data': 7.17.10
       '@babel/core': 7.18.0
-      '@babel/helper-compilation-targets': 7.16.7_@babel+core@7.18.0
+      '@babel/helper-compilation-targets': 7.18.2_@babel+core@7.18.0
       '@babel/helper-plugin-utils': 7.16.7
       '@babel/helper-validator-option': 7.16.7
       '@babel/plugin-bugfix-v8-spread-parameters-in-optional-chaining': 7.14.5_@babel+core@7.18.0
@@ -7745,7 +7729,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1
+      promise-inflight: 1.0.1_bluebird@3.7.2
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -10385,11 +10369,11 @@ packages:
       minimatch: 3.1.2
     dev: false
 
-  /eslint-plugin-react-hooks/4.2.0_eslint@7.24.0:
-    resolution: {integrity: sha512-623WEiZJqxR7VdxFCKLI6d6LLpwJkGPYKODnkH3D7WpOG5KM8yWueBd8TLsNAetEJNF5iJmolaAKO3F8yzyVBQ==}
+  /eslint-plugin-react-hooks/4.5.0_eslint@7.24.0:
+    resolution: {integrity: sha512-8k1gRt7D7h03kd+SAAlzXkQwWK22BnK6GKZG+FJA6BAGy22CFvl8kCIXKpVux0cCxMWDQUPqSok0LKaZ0aOcCw==}
     engines: {node: '>=10'}
     peerDependencies:
-      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.24.0
     dev: true
@@ -14163,7 +14147,7 @@ packages:
     dev: true
 
   /json-schema/0.2.3:
-    resolution: {integrity: sha1-tIDIkuWaLwWVTOcnvT8qTogvnhM=}
+    resolution: {integrity: sha512-a3xHnILGMtk+hDOqNwHzF6e2fNbiMrXZvxKQiEv2MlgQP+pjIOzqAmKYD2mDpXYE/44M7g+n9p2bKkYWDUcXCQ==}
     dev: true
 
   /json-stable-stringify-without-jsonify/1.0.1:
@@ -18153,6 +18137,17 @@ packages:
         optional: true
     dev: true
 
+  /promise-inflight/1.0.1_bluebird@3.7.2:
+    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
+    peerDependencies:
+      bluebird: '*'
+    peerDependenciesMeta:
+      bluebird:
+        optional: true
+    dependencies:
+      bluebird: 3.7.2
+    dev: true
+
   /promise-polyfill/6.1.0:
     resolution: {integrity: sha512-g0LWaH0gFsxovsU7R5LrrhHhWAWiHRnh1GPrhXnPgYsDkIqjRYUYSZEsej/wtleDrz5xVSIDbeKfidztp2XHFQ==}
     dev: true
@@ -21744,7 +21739,7 @@ packages:
     dev: true
 
   /unset-value/1.0.0:
-    resolution: {integrity: sha512-PcA2tsuGSF9cnySLHTLSh2qrQiJ70mn+r+Glzxv2TWZblxsxCC52BDlZoPCsz7STd9pN7EZetkWZBAvk4cgZdQ==}
+    resolution: {integrity: sha1-g3aHP30jNRef+x5vw6jtDfyKtVk=}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:
@@ -21824,7 +21819,7 @@ packages:
       punycode: 2.1.1
 
   /urix/0.1.0:
-    resolution: {integrity: sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg==}
+    resolution: {integrity: sha1-2pN/emLiH+wf0Y1Js1wpNQZ6bHI=}
     deprecated: Please see https://github.com/lydell/urix#deprecated
     requiresBuild: true
 
@@ -21870,7 +21865,7 @@ packages:
     requiresBuild: true
 
   /util-deprecate/1.0.2:
-    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+    resolution: {integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=}
     dev: true
 
   /util-promisify/2.1.0:
@@ -22414,7 +22409,7 @@ packages:
     dev: true
 
   /wrappy/1.0.2:
-    resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+    resolution: {integrity: sha1-tSQ9jz7BqjXxNkYFvA0QNuMKtp8=}
 
   /write-file-atomic/2.4.3:
     resolution: {integrity: sha512-GaETH5wwsX+GcnzhPgKcKjJ6M2Cq3/iZp1WyY/X1CSqrW+jVNM9Y7D8EC2sM4ZG/V8wZlSniJnCKWPmBYAucRQ==}
