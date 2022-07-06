@@ -35,6 +35,13 @@ export function fetchServerResponse(
   return createFromFetch(fetchFlight(url, flightRouterStateData))
 }
 
+// TODO: move this back into AppRouter
+const initialCache = {
+  data: null,
+  subTreeData: null,
+  parallelRoutes: new Map(),
+}
+
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
@@ -48,11 +55,7 @@ export default function AppRouter({
     typeof reducer
   >(reducer, {
     tree: initialTree,
-    cache: {
-      data: null,
-      subTreeData: null,
-      parallelRoutes: new Map(),
-    },
+    cache: initialCache,
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })

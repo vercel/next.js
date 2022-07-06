@@ -27,6 +27,19 @@ function pathMatches(
   return equalArray(layoutSegmentPath, pathToLayout)
 }
 
+function createInfinitePromise() {
+  if (!infinitePromise) {
+    infinitePromise = new Promise((resolve) => {
+      setTimeout(() => {
+        infinitePromise = new Error('Infinite promise')
+        resolve()
+      }, 20000)
+    })
+  }
+
+  return infinitePromise
+}
+
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -174,21 +187,13 @@ export function InnerLayoutRouter({
         })
       })
       // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      if (!infinitePromise)
-        infinitePromise = new Promise((resolve) => {
-          setTimeout(() => {
-            infinitePromise = new Error('Infinite promise')
-            resolve()
-          }, 5000)
-        })
-      throw infinitePromise
+      throw createInfinitePromise()
     }
   }
 
   // TODO: double check users can't return null in a component that will kick in here
   if (!childNode.subTreeData) {
-    if (!infinitePromise) infinitePromise = new Promise(() => {})
-    throw infinitePromise
+    throw createInfinitePromise()
   }
 
   return (
