@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 
 export const config = {
-  matcher: ['/with-middleware/:path*', '/another-middleware/:path*'],
+  matcher: [
+    '/',
+    '/with-middleware/:path*',
+    '/another-middleware/:path*',
+    // the below is testing special characters don't break the build
+    '/_sites/:path((?![^/]*\\.json$)[^/]+$)',
+  ],
 }
 
 export default (req) => {

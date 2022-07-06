@@ -3,11 +3,11 @@ import cn from 'classnames'
 import { EXAMPLE_PATH } from '@/lib/constants'
 
 type AlertProps = {
-  preview: boolean;
-};
+  preview: boolean
+}
 
 const Alert = (props: AlertProps) => {
-  const { preview } = props;
+  const { preview } = props
   return (
     <div
       className={cn('border-b', {
@@ -46,4 +46,4 @@ const Alert = (props: AlertProps) => {
   )
 }
 
-export default Alert;
+export default Alert

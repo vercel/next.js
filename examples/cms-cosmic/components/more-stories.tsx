@@ -1,12 +1,12 @@
-import { Post } from 'interfaces';
+import { PostType } from 'interfaces'
 import PostPreview from './post-preview'
 
 type MoreStoriesProps = {
-  posts: Post[],
-};
+  posts: PostType[]
+}
 
 const MoreStories = (props: MoreStoriesProps) => {
-  const { posts } = props;
+  const { posts } = props
   return (
     <section>
       <h2 className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">
@@ -29,4 +29,4 @@ const MoreStories = (props: MoreStoriesProps) => {
   )
 }
 
-export default MoreStories;
+export default MoreStories

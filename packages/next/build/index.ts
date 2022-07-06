@@ -18,6 +18,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -45,7 +46,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -94,7 +95,6 @@ import {
   copyTracedFiles,
   isReservedPage,
   isServerComponentPage,
-  isMiddlewareFile,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -106,7 +106,11 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import {
+  lockfilePatchPromise,
+  teardownTraceSubscriber,
+  teardownCrashReporter,
+} from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -431,12 +435,6 @@ export default async function build(
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
-      if (Object.keys(mappedRootPaths || {}).some(isMiddlewareFile)) {
-        Log.warn(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
-      }
-
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = await fileExists(
           path.join(publicDir, '_next')
@@ -681,14 +679,8 @@ export default async function build(
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             ...(hasServerComponents
               ? [
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-                  ),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
@@ -1130,7 +1122,7 @@ export default async function build(
               if (
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
-                pageRuntime !== 'edge'
+                pageRuntime !== SERVER_RUNTIME.edge
               ) {
                 try {
                   let isPageStaticSpan =
@@ -1647,7 +1639,7 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         await nextBuildSpan
           .traceChild('copy-traced-files')
           .traceAsyncFn(async () => {
@@ -2242,7 +2234,7 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         for (const file of [
           ...requiredServerFiles.files,
           path.join(config.distDir, SERVER_FILES_MANIFEST),
@@ -2338,6 +2330,7 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
+    teardownCrashReporter()
   }
 }
 

@@ -34,3 +34,6 @@ yarn-error.log*
 .vercel
 
 pnpm-lock.yaml
+
+# typescript
+*.tsbuildinfo

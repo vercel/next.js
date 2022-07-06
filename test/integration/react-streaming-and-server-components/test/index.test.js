@@ -24,11 +24,17 @@ import streaming from './streaming'
 import basic from './basic'
 import { getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage } from 'next/dist/build/utils'
 
-const appWithGlobalCss = `
+const appWithGlobalCssAndHead = `
 import '../styles.css'
+import Head from 'next/head'
 
 function App({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <>
+    <Head>
+      <title>hi</title>
+    </Head>
+    <Component {...pageProps} />
+  </>
 }
 
 export default App
@@ -53,7 +59,7 @@ describe('Edge runtime - errors', () => {
 
 const edgeRuntimeBasicSuite = {
   runTests: (context, env) => {
-    const options = { runtime: 'edge', env }
+    const options = { runtime: 'experimental-edge', env }
     const distDir = join(appDir, '.next')
     basic(context, options)
     streaming(context, options)
@@ -76,14 +82,14 @@ const edgeRuntimeBasicSuite = {
         expect(context.stderr).toContain(rscWarning)
       })
 
-      it('should generate middleware SSR manifests for edge runtime', async () => {
+      it('should generate edge SSR manifests for edge runtime', async () => {
         const distServerDir = join(distDir, 'server')
         const files = [
           'edge-runtime-webpack.js',
           'middleware-build-manifest.js',
-          'middleware-flight-manifest.js',
-          'middleware-flight-manifest.json',
           'middleware-manifest.json',
+          'flight-manifest.js',
+          'flight-manifest.json',
         ]
 
         const requiredServerFiles = (
@@ -119,7 +125,7 @@ const nodejsRuntimeBasicSuite = {
     rsc(context, options)
 
     if (env === 'prod') {
-      it('should generate middleware SSR manifests for Node.js', async () => {
+      it('should generate edge SSR manifests for Node.js', async () => {
         const distServerDir = join(distDir, 'server')
 
         const requiredServerFiles = (
@@ -128,8 +134,8 @@ const nodejsRuntimeBasicSuite = {
 
         const files = [
           'middleware-build-manifest.js',
-          'middleware-flight-manifest.json',
           'middleware-manifest.json',
+          'flight-manifest.json',
         ]
 
         files.forEach((file) => {
@@ -146,7 +152,7 @@ const nodejsRuntimeBasicSuite = {
   },
   beforeAll: () => {
     error500Page.write(page500)
-    nextConfig.replace("runtime: 'edge'", "runtime: 'nodejs'")
+    nextConfig.replace("runtime: 'experimental-edge'", "runtime: 'nodejs'")
   },
   afterAll: () => {
     error500Page.delete()
@@ -156,7 +162,7 @@ const nodejsRuntimeBasicSuite = {
 
 const cssSuite = {
   runTests: css,
-  beforeAll: () => appPage.write(appWithGlobalCss),
+  beforeAll: () => appPage.write(appWithGlobalCssAndHead),
   afterAll: () => appPage.delete(),
 }
 

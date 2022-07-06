@@ -6,15 +6,11 @@ import 'lazysizes/plugins/parent-fit/ls.parent-fit'
 import { ReactNode } from 'react'
 
 type LayoutProps = {
-  preview: boolean;
-  children: ReactNode;
-};
+  preview: boolean
+  children: ReactNode
+}
 
-const Layout = ({
-  preview,
-  children
-}: LayoutProps) => {
-
+const Layout = ({ preview, children }: LayoutProps) => {
   return (
     <>
       <Meta />
@@ -27,4 +23,4 @@ const Layout = ({
   )
 }
 
-export default Layout;
+export default Layout
