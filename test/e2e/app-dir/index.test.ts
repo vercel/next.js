@@ -62,6 +62,11 @@ describe('views dir', () => {
     expect(html).toContain('hello from app/dashboard/index')
   })
 
+  it('should load chunks generated via async import correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/dashboard/index')
+    expect(html).toContain('hello from lazy')
+  })
+
   it('should include layouts when no direct parent layout', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/integrations')
     const $ = cheerio.load(html)
@@ -278,6 +283,30 @@ describe('views dir', () => {
           'hello from app/client-nested'
         )
       })
+    })
+  })
+
+  describe('css support', () => {
+    it('should support css modules inside client layouts', async () => {
+      const browser = await webdriver(next.url, '/client-nested')
+
+      // Should render h1 in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('h1')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+
+    it('should support global css inside client layouts', async () => {
+      const browser = await webdriver(next.url, '/client-nested')
+
+      // Should render button in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('button')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
     })
   })
 })

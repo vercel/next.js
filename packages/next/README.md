@@ -50,9 +50,9 @@ We have a list of [good first issues](https://github.com/vercel/next.js/labels/g
 
 ## Authors
 
-- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [Vercel](https://vercel.com/about/timneutkens)
-- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [Vercel](https://vercel.com/about/nkzawa)
-- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [Vercel](https://vercel.com/about/rauchg)
+- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens))
+- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa))
+- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg))
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda))
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen))
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable))

@@ -111,6 +111,7 @@ import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
+import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -223,6 +224,10 @@ export default async function build(
       )
 
       eventNextPlugins(path.resolve(dir)).then((events) =>
+        telemetry.record(events)
+      )
+
+      eventSwcPlugins(path.resolve(dir), config).then((events) =>
         telemetry.record(events)
       )
 
@@ -1074,7 +1079,7 @@ export default async function build(
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
+          pageKeys.map((page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
               page,
             })

@@ -1,4 +1,7 @@
 export default async function handler(req, res) {
+  if (req.query.deprecated) {
+    await res.unstable_revalidate(req.query.pathname)
+  }
   // WARNING: don't use user input in production
   // make sure to use trusted value for revalidating
   let revalidated = false

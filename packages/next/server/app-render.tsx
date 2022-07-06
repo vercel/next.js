@@ -120,6 +120,7 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
+    let remainingFlightResponse = ''
     const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
@@ -138,11 +139,41 @@ function useFlightResponse(
           rscCache.delete(id)
           writer.close()
         } else {
+          const responsePartial = decodeText(value)
+          const css = responsePartial
+            .split('\n')
+            .map((partialLine) => {
+              const line = remainingFlightResponse + partialLine
+              remainingFlightResponse = ''
+
+              try {
+                const match = line.match(/^M\d+:(.+)/)
+                if (match) {
+                  return JSON.parse(match[1])
+                    .chunks.filter((chunkId: string) =>
+                      chunkId.endsWith('.css')
+                    )
+                    .map(
+                      (file: string) =>
+                        `<link rel="stylesheet" href="/_next/${file}">`
+                    )
+                    .join('')
+                }
+                return ''
+              } catch (err) {
+                // The JSON is partial
+                remainingFlightResponse = line
+                return ''
+              }
+            })
+            .join('')
+
           writer.write(
             encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, decodeText(value)])
-              )})</script>`
+              css +
+                `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                  JSON.stringify([1, id, responsePartial])
+                )})</script>`
             )
           )
           process()
@@ -180,13 +211,20 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const writable = transformStream.writable
-  const ServerComponentWrapper = (props: any) => {
-    const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
-      <ComponentToRender {...props} />,
-      serverComponentManifest
-    )
+  let RSCStream: ReadableStream<Uint8Array>
+  const createRSCStream = () => {
+    if (!RSCStream) {
+      RSCStream = renderToReadableStream(
+        <ComponentToRender />,
+        serverComponentManifest
+      )
+    }
+    return RSCStream
+  }
 
+  const writable = transformStream.writable
+  const ServerComponentWrapper = () => {
+    const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
       cachePrefix,
