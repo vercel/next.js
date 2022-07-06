@@ -385,11 +385,14 @@ You can configure swc's transform to use SWC's experimental plugin support writt
 module.exports = {
   experimental: {
     swcPlugins: [
-      ['plugin', {
-        ..pluginOptions
-      }]
-    ]
-  }
+      [
+        'plugin',
+        {
+          ...pluginOptions,
+        },
+      ],
+    ],
+  },
 }
 ```
 
