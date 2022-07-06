@@ -11,7 +11,7 @@ version = "0.10.0"
 
 [dependencies]
 handlebars = "4.2.1"
-once_cell = "1.8.0"
+once_cell = "1.13.0"
 regex = "1.5"
 serde = "1"
 swc_cached = "0.1.1"

@@ -33,8 +33,9 @@ use fxhash::FxHashMap;
 use napi::{CallContext, JsObject, Task};
 use serde::Deserialize;
 use std::sync::Arc;
-use swc::{try_with_handler, TransformOutput};
+use swc::{config::JsMinifyOptions, try_with_handler, TransformOutput};
 use swc_common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap};
+use swc_ecmascript::minifier::option::terser::{TerserCompressorOptions, TerserInlineOption};
 
 struct MinifyTask {
     c: Arc<swc::Compiler>,
@@ -85,7 +86,13 @@ impl Task for MinifyTask {
             |handler| {
                 let fm = self.code.to_file(self.c.cm.clone());
 
-                self.c.minify(fm, handler, &self.opts)
+                self.c.minify(
+                    fm,
+                    handler,
+                    &JsMinifyOptions {
+                        ..self.opts.clone()
+                    },
+                )
             },
         )
         .convert_err()
