@@ -1,6 +1,7 @@
 use std::{collections::HashMap, env, fs, process};
 
 use clap::{arg, Command};
+use semver::Version;
 use serde_json::json;
 
 const PLATFORM_LINUX_X64: NpmSupportedPlatform = NpmSupportedPlatform {
@@ -61,12 +62,20 @@ fn main() {
             let name = sub_matches.get_one::<String>("NAME").expect("required");
             if let Some(pkg) = NPM_PACKAGES.iter().find(|p| p.crate_name == name) {
                 let mut optional_dependencies = Vec::with_capacity(pkg.platform.len());
+                let mut is_alpha = false;
+                let mut is_beta = false;
+                let mut is_canary = false;
                 let version = if let Ok(release_version) = env::var("RELEASE_VERSION") {
-                    // node-file-trace@1.0.0
-                    release_version
+                    // node-file-trace@1.0.0-alpha.1
+                    let release_tag_version = release_version
                         .trim()
-                        .trim_start_matches("node-file-trace@")
-                        .to_owned()
+                        .trim_start_matches("node-file-trace@");
+                    if let Ok(semver_version) = Version::parse(release_tag_version) {
+                        is_alpha = semver_version.pre.contains("alpha");
+                        is_beta = semver_version.pre.contains("beta");
+                        is_canary = semver_version.pre.contains("canary");
+                    };
+                    release_tag_version.to_owned()
                 } else {
                     format!(
                         "0.0.0-{}",
@@ -89,6 +98,15 @@ fn main() {
                                 panic!("Unable to get git commit sha");
                             })
                     )
+                };
+                let tag = if is_alpha {
+                    "alpha"
+                } else if is_beta {
+                    "beta"
+                } else if is_canary {
+                    "canary"
+                } else {
+                    "latest"
                 };
                 let current_dir = env::current_dir().expect("Get current dir failed");
                 let temp_dir = current_dir.join("npm");
@@ -136,9 +154,8 @@ fn main() {
                         .arg("publish")
                         .arg("--access")
                         .arg("restricted")
-                        .arg("--dry-run")
                         .arg("--tag")
-                        .arg("alpha")
+                        .arg(tag)
                         .current_dir(&target_dir)
                         .stdout(process::Stdio::inherit())
                         .stderr(process::Stdio::inherit())
@@ -173,8 +190,7 @@ fn main() {
                     .arg("--access")
                     .arg("restricted")
                     .arg("--tag")
-                    .arg("alpha")
-                    .arg("--dry-run")
+                    .arg(tag)
                     .current_dir(&target_pkg_dir)
                     .stdout(process::Stdio::inherit())
                     .stderr(process::Stdio::inherit())
