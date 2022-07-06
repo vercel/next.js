@@ -37,11 +37,14 @@ export function fetchServerResponse(
 }
 
 // TODO: move this back into AppRouter
-let initialCache: CacheNode = {
-  data: null,
-  subTreeData: null,
-  parallelRoutes: new Map(),
-}
+let initialCache: CacheNode =
+  typeof window === 'undefined'
+    ? null!
+    : {
+        data: null,
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      }
 
 export default function AppRouter({
   initialTree,
@@ -56,7 +59,14 @@ export default function AppRouter({
     typeof reducer
   >(reducer, {
     tree: initialTree,
-    cache: initialCache,
+    cache:
+      typeof window === 'undefined'
+        ? {
+            data: null,
+            subTreeData: null,
+            parallelRoutes: new Map(),
+          }
+        : initialCache,
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
