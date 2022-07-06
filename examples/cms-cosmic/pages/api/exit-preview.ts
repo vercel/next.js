@@ -1,4 +1,4 @@
-const exit = async (_, res) => {
+export default function exit (_, res) {
   // Exit the current user from "Preview Mode". This function accepts no args.
   res.clearPreviewData()
 
@@ -6,5 +6,3 @@ const exit = async (_, res) => {
   res.writeHead(307, { Location: '/' })
   res.end()
 }
-
-export default exit;

@@ -96,7 +96,7 @@ export const getStaticProps = async (props: staticProps) => {
   }
 }
 
-export const getStaticPaths = async () => {
+export async function getStaticPaths() {
   const allPosts = (await getAllPostsWithSlug()) || []
   return {
     paths: allPosts.map((post) => `/posts/${post.slug}`),
