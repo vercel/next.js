@@ -214,7 +214,7 @@ export default function AppRouter({
                 childNodes: cache.parallelRoutes,
                 tree: tree,
                 // Root node always has `url`
-                // TODO: Move to FullAppTreeContext
+                // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
               }}
             >
