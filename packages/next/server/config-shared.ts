@@ -561,3 +561,9 @@ export async function normalizeConfig(phase: string, config: any) {
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
 }
+
+export function isServerRuntime(value?: string): value is ServerRuntime {
+  return (
+    value === undefined || value === 'nodejs' || value === 'experimental-edge'
+  )
+}
