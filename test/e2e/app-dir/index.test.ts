@@ -303,12 +303,10 @@ describe('views dir', () => {
 
       // Should render p in red
       expect(
-        (
-          await browser.eval(
-            `window.getComputedStyle(document.querySelector('p')).color`
-          )
-        ).toBe('rgb(255, 0, 0)')
-      )
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('p')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
     })
 
     it('should support global css inside client layouts', async () => {
