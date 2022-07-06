@@ -1,11 +1,11 @@
-import { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrlQuery } from 'querystring'
 import { getPathMatch } from './path-match'
 import { matchHas, prepareDestination } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
-import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
+import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
+import { removeBasePath } from '../../../../client/remove-base-path'
 import { parseRelativeUrl } from './parse-relative-url'
-import { delBasePath } from '../router'
 
 export default function resolveRewrites(
   asPath: string,
@@ -28,16 +28,19 @@ export default function resolveRewrites(
   let matchedPage = false
   let externalDest = false
   let parsedAs = parseRelativeUrl(asPath)
-  let fsPathname = removePathTrailingSlash(
-    normalizeLocalePath(delBasePath(parsedAs.pathname), locales).pathname
+  let fsPathname = removeTrailingSlash(
+    normalizeLocalePath(removeBasePath(parsedAs.pathname), locales).pathname
   )
   let resolvedHref
 
   const handleRewrite = (rewrite: Rewrite) => {
-    const matcher = getPathMatch(rewrite.source, {
-      removeUnnamedParams: true,
-      strict: true,
-    })
+    const matcher = getPathMatch(
+      rewrite.source + (process.env.__NEXT_TRAILING_SLASH ? '(/)?' : ''),
+      {
+        removeUnnamedParams: true,
+        strict: true,
+      }
+    )
 
     let params = matcher(parsedAs.pathname)
 
@@ -82,8 +85,8 @@ export default function resolveRewrites(
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)
 
-      fsPathname = removePathTrailingSlash(
-        normalizeLocalePath(delBasePath(asPath), locales).pathname
+      fsPathname = removeTrailingSlash(
+        normalizeLocalePath(removeBasePath(asPath), locales).pathname
       )
 
       if (pages.includes(fsPathname)) {

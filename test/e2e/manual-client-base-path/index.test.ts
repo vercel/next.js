@@ -5,9 +5,14 @@ import { join } from 'path'
 import http from 'http'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
-import { check, waitFor } from 'next-test-utils'
+import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
+  if ((global as any).isNextDeploy) {
+    it('should skip deploy', () => {})
+    return
+  }
+
   let next: NextInstance
   let server: http.Server
   let appPort: string
@@ -91,6 +96,11 @@ describe('manual-client-base-path', () => {
     } catch (err) {
       console.error(err)
     }
+  })
+
+  it('should not warn for flag in output', async () => {
+    await renderViaHTTP(next.url, '/')
+    expect(next.cliOutput).not.toContain('exist in this version of Next.js')
   })
 
   for (const [asPath, pathname, query] of [

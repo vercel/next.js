@@ -1,12 +1,15 @@
 const path = require('path')
 
+const url =
+  'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
+
 module.exports = {
   meta: {
     docs: {
       description:
-        'Disallow using next/script beforeInteractive strategy outside the next/_document component',
+        "Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js`.",
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
+      url,
     },
   },
   create: function (context) {
@@ -31,7 +34,11 @@ module.exports = {
           (child) => child.name && child.name.name === 'strategy'
         )
 
-        if (!strategy || strategy?.value?.value !== 'beforeInteractive') {
+        if (
+          !strategy ||
+          !strategy.value ||
+          strategy.value.value !== 'beforeInteractive'
+        ) {
           return
         }
 
@@ -42,8 +49,7 @@ module.exports = {
 
         context.report({
           node,
-          message:
-            'next/script beforeInteractive strategy should only be used inside next/_document. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document',
+          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`pages/_document.js\`. See: ${url}`,
         })
       },
     }

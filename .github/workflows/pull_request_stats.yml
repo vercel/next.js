@@ -4,6 +4,12 @@ on:
 
 name: Generate Pull Request Stats
 
+env:
+  NAPI_CLI_VERSION: 2.7.0
+  TURBO_VERSION: 1.3.1
+  RUST_TOOLCHAIN: nightly-2022-02-23
+  PNPM_VERSION: 7.2.1
+
 jobs:
   build-native-dev:
     name: Build dev binary for tests
@@ -78,7 +84,7 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@2.7.0
-      - run: npm i -g turbo@1.2.6
+      - run: npm i -g turbo@${TURBO_VERSION} pnpm@${PNPM_VERSION}
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}

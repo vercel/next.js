@@ -30,6 +30,9 @@ describe('should set-up next', () => {
       files: {
         pages: new FileRef(join(__dirname, 'required-server-files/pages')),
         lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'middleware.js': new FileRef(
+          join(__dirname, 'required-server-files/middleware.js')
+        ),
         'data.txt': new FileRef(
           join(__dirname, 'required-server-files/data.txt')
         ),
@@ -45,9 +48,7 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          outputStandalone: true,
-        },
+        output: 'standalone',
         async rewrites() {
           return {
             beforeFiles: [],
@@ -137,6 +138,151 @@ describe('should set-up next', () => {
     if (server) await killApp(server)
   })
 
+  it('should resolve correctly when a redirect is returned', async () => {
+    const toRename = `standalone/.next/server/pages/route-resolving/[slug]/[project].html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+    try {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/route-resolving/import/first',
+        undefined,
+        {
+          redirect: 'manual',
+          headers: {
+            'x-matched-path': '/route-resolving/import/[slug]',
+          },
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+
+      await waitFor(3000)
+      expect(stderr).not.toContain('ENOENT')
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
+  it('should show invariant when an automatic static page is requested', async () => {
+    const toRename = `standalone/.next/server/pages/auto-static.html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+
+    try {
+      const res = await fetchViaHTTP(appPort, '/auto-static', undefined, {
+        headers: {
+          'x-matched-path': '/auto-static',
+        },
+      })
+
+      expect(res.status).toBe(500)
+      await check(() => stderr, /Invariant: failed to load static page/)
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
+  it.each([
+    {
+      case: 'redirect no revalidate',
+      path: '/optional-ssg/redirect-1',
+      dest: '/somewhere',
+      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+    },
+    {
+      case: 'redirect with revalidate',
+      path: '/optional-ssg/redirect-2',
+      dest: '/somewhere-else',
+      cacheControl: 's-maxage=5, stale-while-revalidate',
+    },
+  ])(
+    `should have correct cache-control for $case`,
+    async ({ path, dest, cacheControl }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        dest
+      )
+      expect(res.headers.get('cache-control')).toBe(cacheControl)
+
+      const dataRes = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${next.buildId}${path}.json`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+      expect((await dataRes.json()).pageProps).toEqual({
+        __N_REDIRECT: dest,
+        __N_REDIRECT_STATUS: 307,
+      })
+    }
+  )
+
+  it.each([
+    {
+      case: 'notFound no revalidate',
+      path: '/optional-ssg/not-found-1',
+      dest: '/somewhere',
+      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+    },
+    {
+      case: 'notFound with revalidate',
+      path: '/optional-ssg/not-found-2',
+      dest: '/somewhere-else',
+      cacheControl: 's-maxage=5, stale-while-revalidate',
+    },
+  ])(
+    `should have correct cache-control for $case`,
+    async ({ path, dest, cacheControl }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      expect(res.headers.get('cache-control')).toBe(cacheControl)
+
+      const dataRes = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${next.buildId}${path}.json`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+    }
+  )
+
+  it('should have the correct cache-control for props with no revalidate', async () => {
+    const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#props').text()).params).toEqual({
+      rest: ['props-no-revalidate'],
+    })
+
+    const dataRes = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/optional-ssg/props-no-revalidate.json`,
+      undefined
+    )
+    expect(dataRes.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+    expect((await dataRes.json()).pageProps.params).toEqual({
+      rest: ['props-no-revalidate'],
+    })
+  })
+
   it('should warn when "next" is imported directly', async () => {
     await renderViaHTTP(appPort, '/gssp')
     await check(
@@ -159,15 +305,7 @@ describe('should set-up next', () => {
     ).toBe(true)
     expect(
       await fs.pathExists(
-        join(
-          next.testDir,
-          'standalone/.next/server/pages/middleware/_middleware.js'
-        )
-      )
-    ).toBe(true)
-    expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/pages/_middleware.js')
+        join(next.testDir, 'standalone/.next/server/middleware.js')
       )
     ).toBe(true)
   })
@@ -420,11 +558,16 @@ describe('should set-up next', () => {
   })
 
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=first',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=first',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -432,11 +575,16 @@ describe('should set-up next', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=second',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?slug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -447,7 +595,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-matched-path': '/dynamic/[slug]',
         'x-now-route-matches': '1=second&slug=second',
       },
     })
@@ -489,14 +637,67 @@ describe('should set-up next', () => {
     expect(data2.random).not.toBe(data.random)
   })
 
+  it('should favor valid route params over routes-matches', async () => {
+    const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
+      headers: {
+        'x-matched-path': '/fallback/first',
+        'x-now-route-matches': '1=fallback%2ffirst',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#fallback').text()).toBe('fallback page')
+    expect($('#slug').text()).toBe('first')
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(appPort, `/fallback/second`, undefined, {
+      headers: {
+        'x-matched-path': '/fallback/[slug]',
+        'x-now-route-matches': '1=fallback%2fsecond',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#fallback').text()).toBe('fallback page')
+    expect($2('#slug').text()).toBe('second')
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should favor valid route params over routes-matches optional', async () => {
+    const html = await renderViaHTTP(appPort, '/optional-ssg', undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg',
+        'x-now-route-matches': '1=optional-ssg',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+    expect(data.params).toEqual({})
+
+    const html2 = await renderViaHTTP(appPort, `/optional-ssg`, undefined, {
+      headers: {
+        'x-matched-path': '/optional-ssg',
+        'x-now-route-matches': '1=optional-ssg%2fanother',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.params).toEqual({})
+  })
+
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json`,
+      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
       undefined,
       {
         headers: {
-          'x-matched-path': '/dynamic/[slug]?slug=first',
+          'x-matched-path': `/dynamic/[slug]`,
         },
       }
     )
@@ -564,7 +765,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(
       appPort,
-      '/catch-all/[[..rest]]',
+      '/catch-all/[[...rest]]',
       undefined,
       {
         headers: {
@@ -586,6 +787,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       `/_next/data/${next.buildId}/catch-all.json`,
+
       undefined,
       {
         headers: {
@@ -960,7 +1162,7 @@ describe('should set-up next', () => {
   })
 
   it('should match the root dynamic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },
@@ -970,6 +1172,23 @@ describe('should set-up next', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text()).query).toEqual({
+      slug: 'slug-1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+    expect($2('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($2('#router').text()).query).toEqual({
+      slug: '[slug]',
+    })
   })
 
   it('should have correct asPath on dynamic SSG page correctly', async () => {

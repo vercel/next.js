@@ -72,34 +72,36 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
 - [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
 
-You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
-
 This will take precedence over the configuration from `next.config.js`.
 
 ## ESLint Plugin
 
 Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application. The full set of rules is as follows:
 
-|     | Rule                                                                            | Description                                                                                                            |
-| :-: | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| ✔️  | [next/google-font-display](/docs/messages/google-font-display.md)               | Enforce optional or swap font-display behavior with Google Fonts                                                       |
-| ✔️  | [next/google-font-preconnect](/docs/messages/google-font-preconnect.md)         | Enforce preconnect usage with Google Fonts                                                                             |
-| ✔️  | [next/link-passhref](/docs/messages/link-passhref.md)                           | Enforce passHref prop usage with custom Link components                                                                |
-| ✔️  | [next/no-css-tags](/docs/messages/no-css-tags.md)                               | Prevent manual stylesheet tags                                                                                         |
-| ✔️  | [next/no-document-import-in-page](/docs/messages/no-document-import-in-page.md) | Disallow importing next/document outside of pages/document.js                                                          |
-| ✔️  | [next/no-head-import-in-document](/docs/messages/no-head-import-in-document.md) | Disallow importing next/head in pages/document.js                                                                      |
-| ✔️  | [next/no-html-link-for-pages](/docs/messages/no-html-link-for-pages.md)         | Prohibit HTML anchor links to pages without a Link component                                                           |
-| ✔️  | [next/no-img-element](/docs/messages/no-img-element.md)                         | Prohibit usage of HTML &lt;img&gt; element                                                                             |
-| ✔️  | [next/no-head-element](/docs/messages/no-head-element.md)                       | Prohibit usage of HTML &lt;head&gt; element                                                                            |
-| ✔️  | [next/no-page-custom-font](/docs/messages/no-page-custom-font.md)               | Prevent page-only custom fonts                                                                                         |
-| ✔️  | [next/no-sync-scripts](/docs/messages/no-sync-scripts.md)                       | Forbid synchronous scripts                                                                                             |
-| ✔️  | [next/no-title-in-document-head](/docs/messages/no-title-in-document-head.md)   | Disallow using &lt;title&gt; with Head from next/document                                                              |
-| ✔️  | [next/no-unwanted-polyfillio](/docs/messages/no-unwanted-polyfillio.md)         | Prevent duplicate polyfills from Polyfill.io                                                                           |
-| ✔️  | [next/inline-script-id](/docs/messages/inline-script-id.md)                     | Enforce id attribute on next/script components with inline content                                                     |
-| ✔️  | next/no-typos                                                                   | Ensure no typos were made declaring [Next.js's data fetching function](/docs/basic-features/data-fetching/overview.md) |
-| ✔️  | [next/next-script-for-ga](/docs/messages/next-script-for-ga.md)                 | Use the Script component to defer loading of the script until necessary.                                               |
-
 - ✔: Enabled in the recommended configuration
+
+|     | Rule                                                                                                                        | Description                                                                                        |
+| :-: | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| ✔️  | [@next/next/google-font-display](/docs/messages/google-font-display.md)                                                     | Enforce font-display behavior with Google Fonts.                                                   |
+| ✔️  | [@next/next/google-font-preconnect](/docs/messages/google-font-preconnect.md)                                               | Ensure `preconnect` is used with Google Fonts.                                                     |
+| ✔️  | [@next/next/inline-script-id](/docs/messages/inline-script-id.md)                                                           | Enforce `id` attribute on `next/script` components with inline content.                            |
+| ✔️  | [@next/next/next-script-for-ga](/docs/messages/next-script-for-ga.md)                                                       | Prefer `next/script` component when using the inline script for Google Analytics.                  |
+| ✔️  | [@next/next/no-assign-module-variable](/docs/messages/no-assign-module-variable.md)                                         | Prevent assignment to the `module` variable.                                                       |
+| ✔️  | [@next/next/no-before-interactive-script-outside-document](/docs/messages/no-before-interactive-script-outside-document.md) | Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js`.     |
+| ✔️  | [@next/next/no-css-tags](/docs/messages/no-css-tags.md)                                                                     | Prevent manual stylesheet tags.                                                                    |
+| ✔️  | [@next/next/no-document-import-in-page](/docs/messages/no-document-import-in-page.md)                                       | Prevent importing `next/document` outside of `pages/_document.js`.                                 |
+| ✔️  | [@next/next/no-duplicate-head](/docs/messages/no-duplicate-head.md)                                                         | Prevent duplicate usage of `<Head>` in `pages/_document.js`.                                       |
+| ✔️  | [@next/next/no-head-element](/docs/messages/no-head-element.md)                                                             | Prevent usage of `<head>` element.                                                                 |
+| ✔️  | [@next/next/no-head-import-in-document](/docs/messages/no-head-import-in-document.md)                                       | Prevent usage of `next/head` in `pages/_document.js`.                                              |
+| ✔️  | [@next/next/no-html-link-for-pages](/docs/messages/no-html-link-for-pages.md)                                               | Prevent usage of `<a>` elements to navigate to internal Next.js pages.                             |
+| ✔️  | [@next/next/no-img-element](/docs/messages/no-img-element.md)                                                               | Prevent usage of `<img>` element to prevent layout shift.                                          |
+| ✔️  | [@next/next/no-page-custom-font](/docs/messages/no-page-custom-font.md)                                                     | Prevent page-only custom fonts.                                                                    |
+| ✔️  | [@next/next/no-script-component-in-head](/docs/messages/no-script-component-in-head.md)                                     | Prevent usage of `next/script` in `next/head` component.                                           |
+| ✔️  | [@next/next/no-styled-jsx-in-document](/docs/messages/no-styled-jsx-in-document.md)                                         | Prevent usage of `styled-jsx` in `pages/_document.js`.                                             |
+| ✔️  | [@next/next/no-sync-scripts](/docs/messages/no-sync-scripts.md)                                                             | Prevent synchronous scripts.                                                                       |
+| ✔️  | [@next/next/no-title-in-document-head](/docs/messages/no-title-in-document-head.md)                                         | Prevent usage of `<title>` with `Head` component from `next/document`.                             |
+| ✔️  | @next/next/no-typos                                                                                                         | Prevent common typos in [Next.js's data fetching functions](/docs/basic-features/data-fetching.md) |
+| ✔️  | [@next/next/no-unwanted-polyfillio](/docs/messages/no-unwanted-polyfillio.md)                                               | Prevent duplicate polyfills from Polyfill.io.                                                      |
 
 If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](/docs/basic-features/eslint.md#recommended-plugin-ruleset) to learn more.
 

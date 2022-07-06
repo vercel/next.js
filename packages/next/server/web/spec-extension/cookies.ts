@@ -1,6 +1,11 @@
 import cookie from 'next/dist/compiled/cookie'
 import { CookieSerializeOptions } from '../types'
 
+type GetWithOptionsOutput = {
+  value: string | undefined
+  options: { [key: string]: string }
+}
+
 const normalizeCookieOptions = (options: CookieSerializeOptions) => {
   options = Object.assign({}, options)
 
@@ -59,10 +64,22 @@ export class NextCookies extends Cookies {
     super(response.headers.get('cookie'))
     this.response = response
   }
+  get = (...args: Parameters<Cookies['get']>) => {
+    return this.getWithOptions(...args).value
+  }
+  getWithOptions = (
+    ...args: Parameters<Cookies['get']>
+  ): GetWithOptionsOutput => {
+    const raw = super.get(...args)
+    if (typeof raw !== 'string') return { value: raw, options: {} }
+    const { [args[0]]: value, ...options } = cookie.parse(raw)
+    return { value, options }
+  }
   set = (...args: Parameters<Cookies['set']>) => {
     const isAlreadyAdded = super.has(args[0])
-    const store = super.set(...args)
-    const currentCookie = store.get(args[0])
+
+    super.set(...args)
+    const currentCookie = super.get(args[0])
 
     if (typeof currentCookie !== 'string') {
       throw new Error(
@@ -89,9 +106,9 @@ export class NextCookies extends Cookies {
       this.response.headers.append('set-cookie', currentCookie)
     }
 
-    return store
+    return this
   }
-  delete = (key: any, options: CookieSerializeOptions = {}) => {
+  delete = (key: string, options: CookieSerializeOptions = {}) => {
     const isDeleted = super.delete(key)
 
     if (isDeleted) {

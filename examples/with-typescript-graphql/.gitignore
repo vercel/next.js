@@ -38,3 +38,9 @@ yarn-error.log*
 *.graphql.d.ts
 *.graphqls.d.ts
 .cache
+
+lib/resolvers-types.ts
+lib/graphql-operations.ts
+
+# typescript
+*.tsbuildinfo

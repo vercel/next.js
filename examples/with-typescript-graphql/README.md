@@ -2,20 +2,21 @@
 
 One of the strengths of GraphQL is [enforcing data types on runtime](https://graphql.github.io/graphql-spec/June2018/#sec-Value-Completion). Further, TypeScript and [GraphQL Code Generator](https://graphql-code-generator.com/) (graphql-codegen) make it safer by typing data statically, so you can write truly type-protected code with rich IDE assists.
 
-This template extends [Apollo Server and Client Example](https://github.com/vercel/next.js/tree/canary/examples/api-routes-apollo-server-and-client#readme) by rewriting in TypeScript and integrating [graphql-let](https://github.com/piglovesyou/graphql-let#readme), which runs [TypeScript React Apollo](https://graphql-code-generator.com/docs/plugins/typescript-react-apollo) in [graphql-codegen](https://github.com/dotansimha/graphql-code-generator#readme) under the hood. It enhances the typed GraphQL use as below:
+This template gives you the best start to use GraphQL with fully typed queries (client-side) and resolvers (server-side), all this with minimum bundle size 📦
 
 ```tsx
-import { useNewsQuery } from './news.graphql'
+import { useQuery } from '@apollo/client'
+import { ViewerDocument } from 'lib/graphql-operations'
 
 const News = () => {
-	// Typed already️⚡️
-	const { data: { news } } = useNewsQuery()
+  // Typed already️⚡️
+  const {
+    data: { viewer },
+  } = useQuery(ViewerDocument)
 
-	return <div>{news.map(...)}</div>
+  return <div>{viewer.name}</div>
 }
 ```
-
-By default `**/*.graphqls` is recognized as GraphQL schema and `**/*.graphql` as GraphQL documents. If you prefer the other extensions, make sure the settings of the webpack loader in `next.config.js` and `.graphql-let.yml` are consistent.
 
 ## Deploy your own
 
@@ -25,14 +26,14 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-typescript-graphql with-typescript-graphql-app
 # or
 yarn create next-app --example with-typescript-graphql with-typescript-graphql-app
 # or
-pnpm create next-app -- --example with-typescript-graphql with-typescript-graphql-app
+pnpm create next-app --example with-typescript-graphql with-typescript-graphql-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -16,7 +16,7 @@ ruleTester.run('no-assign-module-variable', rule, {
   valid: [
     `
       let myModule = {};
-      
+
       export default function MyComponent() {
         return <></>
       }
@@ -26,7 +26,7 @@ ruleTester.run('no-assign-module-variable', rule, {
     {
       code: `
       let module = {};
-      
+
       export default function MyComponent() {
         return <></>
       }
@@ -34,7 +34,7 @@ ruleTester.run('no-assign-module-variable', rule, {
       errors: [
         {
           message:
-            "Do not assign to the variable 'module'. See: https://nextjs.org/docs/messages/no-assign-module-variable",
+            'Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable',
         },
       ],
     },

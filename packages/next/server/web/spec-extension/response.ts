@@ -20,10 +20,8 @@ export class NextResponse extends Response {
       cookies: new NextCookies(this),
       url: init.url
         ? new NextURL(init.url, {
-            basePath: init.nextConfig?.basePath,
-            i18n: init.nextConfig?.i18n,
-            trailingSlash: init.nextConfig?.trailingSlash,
             headers: toNodeHeaders(this.headers),
+            nextConfig: init.nextConfig,
           })
         : undefined,
     }
@@ -33,45 +31,40 @@ export class NextResponse extends Response {
     return this[INTERNALS].cookies
   }
 
-  static json(body: any, init?: ResponseInit) {
-    const { headers, ...responseInit } = init || {}
-    return new NextResponse(JSON.stringify(body), {
-      ...responseInit,
-      headers: {
-        ...headers,
-        'content-type': 'application/json',
-      },
-    })
+  static json(body: any, init?: ResponseInit): NextResponse {
+    // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
+    const response: Response = Response.json(body, init)
+    return new NextResponse(response.body, response)
   }
 
-  static redirect(url: string | NextURL | URL, status = 307) {
+  static redirect(url: string | NextURL | URL, init?: number | ResponseInit) {
+    const status = typeof init === 'number' ? init : init?.status ?? 307
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
       )
     }
+    const initObj = typeof init === 'object' ? init : {}
+    const headers = new Headers(initObj?.headers)
+    headers.set('Location', validateURL(url))
 
-    const destination = validateURL(url)
-    return new NextResponse(destination, {
-      headers: { Location: destination },
+    return new NextResponse(null, {
+      ...initObj,
+      headers,
       status,
     })
   }
 
-  static rewrite(destination: string | NextURL | URL) {
-    return new NextResponse(null, {
-      headers: {
-        'x-middleware-rewrite': validateURL(destination),
-      },
-    })
+  static rewrite(destination: string | NextURL | URL, init?: ResponseInit) {
+    const headers = new Headers(init?.headers)
+    headers.set('x-middleware-rewrite', validateURL(destination))
+    return new NextResponse(null, { ...init, headers })
   }
 
-  static next() {
-    return new NextResponse(null, {
-      headers: {
-        'x-middleware-next': '1',
-      },
-    })
+  static next(init?: ResponseInit) {
+    const headers = new Headers(init?.headers)
+    headers.set('x-middleware-next', '1')
+    return new NextResponse(null, { ...init, headers })
   }
 }
 

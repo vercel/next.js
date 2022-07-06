@@ -5,20 +5,11 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { stringify } from 'querystring'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import {
-  MIDDLEWARE_FLIGHT_MANIFEST,
-  EDGE_RUNTIME_WEBPACK,
-} from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
-import {
-  getInvalidator,
-  entries,
-} from '../../../server/dev/on-demand-entry-handler'
-import { getPageStaticInfo } from '../../entries'
+import { relative } from 'path'
+import { getEntrypointFiles } from './build-manifest-plugin'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -29,33 +20,26 @@ import { getPageStaticInfo } from '../../entries'
 
 type Options = {
   dev: boolean
+  appDir: boolean
   pageExtensions: string[]
-  isEdgeServer: boolean
 }
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
-let edgeFlightManifest = {}
-let nodeFlightManifest = {}
-
-export const injectedClientEntries = new Map()
-
 export class FlightManifestPlugin {
   dev: boolean = false
   pageExtensions: string[]
-  isEdgeServer: boolean
+  appDir: boolean = false
 
   constructor(options: Options) {
     if (typeof options.dev === 'boolean') {
       this.dev = options.dev
     }
+    this.appDir = options.appDir
     this.pageExtensions = options.pageExtensions
-    this.isEdgeServer = options.isEdgeServer
   }
 
   apply(compiler: any) {
-    const context = (this as any).context
-
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
@@ -70,145 +54,6 @@ export class FlightManifestPlugin {
       }
     )
 
-    // Only for webpack 5
-    compiler.hooks.finishMake.tapAsync(
-      PLUGIN_NAME,
-      async (compilation: any, callback: any) => {
-        const promises: any = []
-
-        // For each SC server compilation entry, we need to create its corresponding
-        // client component entry.
-        for (const [name, entry] of compilation.entries.entries()) {
-          if (name === 'pages/_app.server') continue
-
-          // Check if the page entry is a server component or not.
-          const entryDependency = entry.dependencies?.[0]
-          const request = entryDependency?.request
-
-          if (request && entry.options?.layer === 'sc_server') {
-            const visited = new Set()
-            const clientComponentImports: string[] = []
-
-            function filterClientComponents(dependency: any) {
-              const module =
-                compilation.moduleGraph.getResolvedModule(dependency)
-              if (!module) return
-
-              if (visited.has(module.userRequest)) return
-              visited.add(module.userRequest)
-
-              if (clientComponentRegex.test(module.userRequest)) {
-                clientComponentImports.push(module.userRequest)
-              }
-
-              compilation.moduleGraph
-                .getOutgoingConnections(module)
-                .forEach((connection: any) => {
-                  filterClientComponents(connection.dependency)
-                })
-            }
-
-            // Traverse the module graph to find all client components.
-            filterClientComponents(entryDependency)
-
-            const entryModule =
-              compilation.moduleGraph.getResolvedModule(entryDependency)
-            const routeInfo = entryModule.buildInfo.route || {
-              page: denormalizePagePath(name.replace(/^pages/, '')),
-              absolutePagePath: entryModule.resource,
-            }
-
-            // Parse gSSP and gSP exports from the page source.
-            const pageStaticInfo = this.isEdgeServer
-              ? {}
-              : await getPageStaticInfo(
-                  routeInfo.absolutePagePath,
-                  {},
-                  this.dev
-                )
-
-            const clientLoader = `next-flight-client-entry-loader?${stringify({
-              modules: clientComponentImports,
-              runtime: this.isEdgeServer ? 'edge' : 'nodejs',
-              ssr: pageStaticInfo.ssr,
-              // Adding name here to make the entry key unique.
-              name,
-            })}!`
-
-            const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
-
-            // Inject the entry to the client compiler.
-            if (this.dev) {
-              const pageKey = 'client' + routeInfo.page
-              if (!entries[pageKey]) {
-                entries[pageKey] = {
-                  bundlePath,
-                  absolutePagePath: routeInfo.absolutePagePath,
-                  clientLoader,
-                  dispose: false,
-                  lastActiveTime: Date.now(),
-                } as any
-                const invalidator = getInvalidator()
-                if (invalidator) {
-                  invalidator.invalidate()
-                }
-              }
-            } else {
-              injectedClientEntries.set(
-                bundlePath,
-                `next-client-pages-loader?${stringify({
-                  isServerComponent: true,
-                  page: denormalizePagePath(bundlePath.replace(/^pages/, '')),
-                  absolutePagePath: clientLoader,
-                })}!` + clientLoader
-              )
-            }
-
-            // Inject the entry to the server compiler.
-            const clientComponentEntryDep = (
-              webpack as any
-            ).EntryPlugin.createDependency(
-              clientLoader,
-              name + '.__sc_client__'
-            )
-            promises.push(
-              new Promise<void>((res, rej) => {
-                compilation.addEntry(
-                  context,
-                  clientComponentEntryDep,
-                  this.isEdgeServer
-                    ? {
-                        name: name + '.__sc_client__',
-                        library: {
-                          name: ['self._CLIENT_ENTRY'],
-                          type: 'assign',
-                        },
-                        runtime: EDGE_RUNTIME_WEBPACK,
-                        asyncChunks: false,
-                      }
-                    : {
-                        name: name + '.__sc_client__',
-                        runtime: 'webpack-runtime',
-                      },
-                  (err: any) => {
-                    if (err) {
-                      rej(err)
-                    } else {
-                      res()
-                    }
-                  }
-                )
-              })
-            )
-          }
-        }
-
-        Promise.all(promises)
-          .then(() => callback())
-          .catch(callback)
-      }
-    )
-
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
@@ -216,93 +61,139 @@ export class FlightManifestPlugin {
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        (assets: any) => this.createAsset(assets, compilation, compiler.context)
       )
     })
   }
 
-  createAsset(assets: any, compilation: any) {
+  createAsset(assets: any, compilation: any, context: string) {
     const manifest: any = {}
+    const appDir = this.appDir
+    const dev = this.dev
+
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(id: string, _chunk: any, mod: any) {
-        const resource = mod.resource
+      function recordModule(chunk: any, id: string | number, mod: any) {
+        const resource: string = mod.resource
 
         // TODO: Hook into deps instead of the target module.
         // That way we know by the type of dep whether to include.
         // It also resolves conflicts when the same module is in multiple chunks.
-        if (
-          !resource ||
-          !clientComponentRegex.test(resource) ||
-          !clientComponentRegex.test(id)
-        ) {
+        if (!resource || !clientComponentRegex.test(resource)) {
           return
         }
 
         const moduleExports: any = manifest[resource] || {}
+        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
+        moduleIdMapping[id] = moduleIdMapping[id] || {}
+
+        // Note that this isn't that reliable as webpack is still possible to assign
+        // additional queries to make sure there's no conflict even using the `named`
+        // module ID strategy.
+        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        if (!ssrNamedModuleId.startsWith('.'))
+          ssrNamedModuleId = `./${ssrNamedModuleId}`
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const moduleExportedKeys = ['', '*'].concat(
-          [...exportsInfo.exports]
-            .map((exportInfo) => {
+        const cjsExports = [
+          ...new Set(
+            [].concat(
+              mod.dependencies.map((dep: any) => {
+                // Match CommonJsSelfReferenceDependency
+                if (dep.type === 'cjs self exports reference') {
+                  // `module.exports = ...`
+                  if (dep.base === 'module.exports') {
+                    return 'default'
+                  }
+
+                  // `exports.foo = ...`, `exports.default = ...`
+                  if (dep.base === 'exports') {
+                    return dep.names.filter(
+                      (name: any) => name !== '__esModule'
+                    )
+                  }
+                }
+                return null
+              })
+            )
+          ),
+        ]
+
+        const moduleExportedKeys = ['', '*']
+          .concat(
+            [...exportsInfo.exports].map((exportInfo) => {
               if (exportInfo.provided) {
                 return exportInfo.name
               }
               return null
-            })
-            .filter(Boolean)
-        )
+            }),
+            ...cjsExports
+          )
+          .filter((name) => name !== null)
+
+        // Get all CSS files imported in that chunk.
+        const cssChunks: string[] = []
+        for (const entrypoint of chunk._groups) {
+          if (entrypoint.getFiles) {
+            const files = getEntrypointFiles(entrypoint)
+            for (const file of files) {
+              if (file.endsWith('.css')) {
+                cssChunks.push(file)
+              }
+            }
+          }
+        }
 
         moduleExportedKeys.forEach((name) => {
           if (!moduleExports[name]) {
             moduleExports[name] = {
-              id: id.replace(/^\(sc_server\)\//, ''),
+              id,
               name,
-              chunks: [],
+              chunks: appDir
+                ? chunk.ids
+                    .map((chunkId: string) => {
+                      return (
+                        chunkId +
+                        ':' +
+                        (chunk.name || chunkId) +
+                        (dev ? '' : '-' + chunk.hash)
+                      )
+                    })
+                    .concat(cssChunks)
+                : [],
+            }
+          }
+          if (!moduleIdMapping[id][name]) {
+            moduleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: ssrNamedModuleId,
             }
           }
         })
+
         manifest[resource] = moduleExports
+        manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: any) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId = compilation.chunkGraph.getModuleId(mod)
+          const modId = compilation.chunkGraph.getModuleId(mod)
 
-          if (typeof modId !== 'string') continue
+          recordModule(chunk, modId, mod)
 
-          // Remove resource queries.
-          modId = modId.split('?')[0]
-          // Remove the loader prefix.
-          modId = modId.split('next-flight-client-loader.js!')[1] || modId
-
-          recordModule(modId, chunk, mod)
           // If this is a concatenation, register each child to the parent ID.
           if (mod.modules) {
             mod.modules.forEach((concatenatedMod: any) => {
-              recordModule(modId, chunk, concatenatedMod)
+              recordModule(chunk, modId, concatenatedMod)
             })
           }
         }
       })
     })
 
-    // With switchable runtime, we need to emit the manifest files for both
-    // runtimes.
-    if (this.isEdgeServer) {
-      edgeFlightManifest = manifest
-    } else {
-      nodeFlightManifest = manifest
-    }
-    const mergedManifest = {
-      ...nodeFlightManifest,
-      ...edgeFlightManifest,
-    }
-    const file =
-      (!this.dev && !this.isEdgeServer ? '../' : '') +
-      MIDDLEWARE_FLIGHT_MANIFEST
-    const json = JSON.stringify(mergedManifest)
+    const file = 'server/' + FLIGHT_MANIFEST
+    const json = JSON.stringify(manifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)
     assets[file + '.json'] = new sources.RawSource(json)

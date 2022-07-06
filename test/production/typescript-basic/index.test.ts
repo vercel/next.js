@@ -8,21 +8,7 @@ describe('TypeScript basic', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        pages: new FileRef(path.join(__dirname, 'app/pages')),
-        'server.ts': `
-          import next from 'next';
-          const app = next({
-            dir: '.',
-            dev: process.env.NODE_ENV !== 'production',
-            conf: {
-              compress: false,
-            },
-            quiet: false,
-          });
-          const requestHandler = app.getRequestHandler();
-        `,
-      },
+      files: new FileRef(path.join(__dirname, 'app')),
       dependencies: {
         typescript: 'latest',
         '@types/node': 'latest',
@@ -34,6 +20,18 @@ describe('TypeScript basic', () => {
   afterAll(() => next.destroy())
 
   it('have built and started correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/')
+    expect(html).toContain('hello world')
+  })
+
+  it('should work with babel', async () => {
+    await next.stop()
+    await next.patchFile(
+      '.babelrc',
+      JSON.stringify({ presets: ['next/babel'] })
+    )
+    await next.start()
+
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('hello world')
   })

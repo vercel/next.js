@@ -394,6 +394,54 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
+
+    test('--keepAliveTimeout string arg', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'string'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+      )
+    })
+
+    test('--keepAliveTimeout negative number', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout=-100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+      )
+    })
+
+    test('--keepAliveTimeout Infinity', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'Infinity'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+      )
+    })
+
+    test('--keepAliveTimeout happy path', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', '100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).not.toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
+      )
+    })
   })
 
   describe('export', () => {
@@ -491,12 +539,8 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
 
-      // when a stable release is done the non-latest canary
-      // warning will show so skip this check for the stable release
-      if (pkg.version.includes('-canary')) {
-        expect(info.stderr || '').toBe('')
-      }
       expect(info.stdout).toMatch(
         new RegExp(`
     Operating System:
@@ -510,6 +554,7 @@ describe('CLI Usage', () => {
       pnpm: .*
     Relevant packages:
       next: .*
+      eslint-config-next: .*
       react: .*
       react-dom: .*
 `)

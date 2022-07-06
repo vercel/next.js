@@ -14,6 +14,8 @@ export async function getStaticProps(context) {
 }
 ```
 
+> Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://reactjs.org/docs/react-dom.html#hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
+
 ## When should I use getStaticProps?
 
 You should use `getStaticProps` if:
@@ -29,7 +31,7 @@ You should use `getStaticProps` if:
 
 - `getStaticProps` always runs during `next build`
 - `getStaticProps` runs in the background when using `revalidate`
-- `getStaticProps` runs on-demand in the background when using [`unstable_revalidate`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation-beta)
+- `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation)
 
 When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticProps` will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 

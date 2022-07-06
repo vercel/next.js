@@ -302,6 +302,8 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Ignoring `.next` from test resolving
 - Loading `next.config.js` for flags that enable SWC transforms
 
+> **Note**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](https://nextjs.org/docs/basic-features/environment-variables#test-environment-variables).
+
 ### Setting up Jest (with Babel)
 
 If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
@@ -311,10 +313,17 @@ Here are the recommended options to configure Jest for Next.js:
 ```jsx
 // jest.config.js
 module.exports = {
+  collectCoverage: true,
+  // on node 14.x coverage provider v8 offers good speed and more or less good report
+  coverageProvider: 'v8',
   collectCoverageFrom: [
     '**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
+    '!<rootDir>/out/**',
+    '!<rootDir>/.next/**',
+    '!<rootDir>/*.config.js',
+    '!<rootDir>/coverage/**',
   ],
   moduleNameMapper: {
     // Handle CSS imports (with CSS modules)
