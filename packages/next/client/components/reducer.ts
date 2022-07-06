@@ -426,6 +426,16 @@ export function reducer(
       }
     }
 
+    // Handle case when navigating to page in `pages` from `app`
+    if (typeof flightData === 'string') {
+      return {
+        canonicalUrl: flightData,
+        pushRef: { pendingPush: true, mpaNavigation: true },
+        cache: state.cache,
+        tree: state.tree,
+      }
+    }
+
     // TODO: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
@@ -435,7 +445,6 @@ export function reducer(
 
     const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
 
-    // TODO: update flightDataPath to not have "" as first item
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
     console.log('CACHE', {
       flightDataPath,

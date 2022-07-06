@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from './config-shared'
 
@@ -21,7 +21,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
 import { stripInternalQueries } from './utils'
-import { NextCookies } from './web/spec-extension/cookies'
+import { NextApiRequestCookies } from './api-utils'
 
 const ReactDOMServer = process.env.__NEXT_REACT_ROOT
   ? require('react-dom/server.browser')
@@ -199,9 +199,7 @@ function createServerComponentRenderer(
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-    serverContexts: Array<
-      [ServerContextName: string, JSONValue: { [key: string]: any }]
-    >
+    serverContexts: Array<[ServerContextName: string, JSONValue: any]>
   }
 ) {
   // We need to expose the `__webpack_require__` API globally for
@@ -345,6 +343,7 @@ export async function renderToHTML(
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
 
   const headers = req.headers
+  // @ts-expect-error TODO: fix type of req
   const cookies = req.cookies
 
   const tree: LoaderTree = ComponentMod.tree
@@ -358,7 +357,7 @@ export async function renderToHTML(
     (renderOpts as any).previewProps
   )
   const isPreview = previewData !== false
-  const serverContexts = [
+  const serverContexts: Array<[string, any]> = [
     ['WORKAROUND', null], // TODO: First value has a bug currently where the value is not set on the second request
     ['HeadersContext', headers],
     ['CookiesContext', cookies],
@@ -514,8 +513,8 @@ export async function renderToHTML(
 
     type GetServerSidePropsContext = {
       // TODO: has to be serializable
-      headers: Headers
-      cookies: NextCookies
+      headers: IncomingHttpHeaders
+      cookies: NextApiRequestCookies
       layoutSegments: FlightSegmentPath
       params?: { [key: string]: string | string[] }
       preview?: boolean
