@@ -404,6 +404,17 @@ describe('app dir', () => {
       ).toBe('rgb(255, 0, 0)')
     })
 
+    it('should support css modules inside client pages', async () => {
+      const browser = await webdriver(next.url, '/client-component-route')
+
+      // Should render p in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('p')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+    })
+
     it('should support global css inside client layouts', async () => {
       const browser = await webdriver(next.url, '/client-nested')
 
@@ -413,6 +424,17 @@ describe('app dir', () => {
           `window.getComputedStyle(document.querySelector('button')).color`
         )
       ).toBe('rgb(255, 0, 0)')
+    })
+
+    it('should support global css inside client pages', async () => {
+      const browser = await webdriver(next.url, '/client-component-route')
+
+      // Should render `b` in blue
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('b')).color`
+        )
+      ).toBe('rgb(0, 0, 255)')
     })
   })
 })

@@ -1,6 +1,7 @@
 import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
 import SessionReact from 'supertokens-auth-react/recipe/session'
 import { appInfo } from './appInfo'
+import Router from 'next/router'
 
 export let frontendConfig = () => {
   return {
@@ -20,5 +21,17 @@ export let frontendConfig = () => {
       }),
       SessionReact.init(),
     ],
+    // this is so that the SDK uses the next router for navigation
+    windowHandler: (oI) => {
+      return {
+        ...oI,
+        location: {
+          ...oI.location,
+          setHref: (href) => {
+            Router.push(href)
+          },
+        },
+      }
+    },
   }
 }

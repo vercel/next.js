@@ -2,11 +2,14 @@
 /* eslint-disable jest/no-commented-out-tests */
 import { join } from 'path'
 import fs from 'fs-extra'
-import { File, runDevSuite, runProdSuite } from 'next-test-utils'
+import { runDevSuite, runProdSuite } from 'next-test-utils'
 import rsc from './rsc'
 
 const appDir = join(__dirname, '../basic')
-const nextConfig = new File(join(appDir, 'next.config.js'))
+const nodeArgs = [
+  '-r',
+  join(appDir, '../../../lib/react-channel-require-hook.js'),
+]
 
 /* TODO: support edge runtime in the future
 const edgeRuntimeBasicSuite = {
@@ -96,10 +99,10 @@ const nodejsRuntimeBasicSuite = {
       })
     }
   },
-  beforeAll: () => {},
-  afterAll: () => {
-    nextConfig.restore()
-  },
+}
+
+const options = {
+  nodeArgs,
   env: {
     __NEXT_REACT_CHANNEL: 'exp',
   },
@@ -107,6 +110,6 @@ const nodejsRuntimeBasicSuite = {
 
 // TODO: move these to test/e2e and use new test utils.
 describe.skip('React Server Components', () => {
-  runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-  runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+  runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite, options)
+  runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite, options)
 })
