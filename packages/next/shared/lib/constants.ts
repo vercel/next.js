@@ -46,7 +46,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
-export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-root`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js
