@@ -150,7 +150,7 @@ fn main() {
                         "Copy file from [{:?}] to [{:?}] failed",
                         artifact_path, dist_path
                     ));
-                    process::Command::new("npm")
+                    let status = process::Command::new("npm")
                         .arg("publish")
                         .arg("--access")
                         .arg("restricted")
@@ -161,6 +161,7 @@ fn main() {
                         .stderr(process::Stdio::inherit())
                         .status()
                         .expect("Publish npm package failed");
+                    assert!(status.success());
                 }
                 let target_pkg_dir = temp_dir.join(pkg.name);
                 fs::create_dir_all(&target_pkg_dir).expect(&format!(
@@ -185,7 +186,7 @@ fn main() {
                     "Write [{:?}] failed",
                     target_pkg_dir.join("package.json")
                 ));
-                process::Command::new("npm")
+                let status = process::Command::new("npm")
                     .arg("publish")
                     .arg("--access")
                     .arg("restricted")
@@ -196,6 +197,7 @@ fn main() {
                     .stderr(process::Stdio::inherit())
                     .status()
                     .expect("Publish npm package failed");
+                assert!(status.success());
             }
         }
         _ => {
