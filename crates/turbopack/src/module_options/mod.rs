@@ -12,7 +12,7 @@ pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
 
 #[turbo_tasks::function]
 pub async fn the_module_options() -> ModuleOptionsVc {
-    ModuleOptionsVc::slot(ModuleOptions {
+    ModuleOptionsVc::cell(ModuleOptions {
         rules: vec![
             ModuleRule::new(
                 vec![ModuleRuleCondition::ResourcePathEndsWith(
@@ -62,7 +62,7 @@ pub async fn the_module_options() -> ModuleOptionsVc {
     })
 }
 
-#[turbo_tasks::value(slot: new, eq: manual)]
+#[turbo_tasks::value(cell: new, eq: manual)]
 pub struct ModuleOptions {
     pub rules: Vec<ModuleRule>,
 }

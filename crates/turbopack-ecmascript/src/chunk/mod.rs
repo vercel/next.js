@@ -27,13 +27,13 @@ pub struct EcmascriptChunk {
 impl EcmascriptChunkVc {
     #[turbo_tasks::function]
     pub fn new(context: ChunkingContextVc, entry: AssetVc) -> Self {
-        Self::slot(EcmascriptChunk { context, entry })
+        Self::cell(EcmascriptChunk { context, entry })
     }
 }
 
 #[turbo_tasks::function]
 fn chunk_context(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
-    EcmascriptChunkContextVc::slot(EcmascriptChunkContext {})
+    EcmascriptChunkContextVc::cell(EcmascriptChunkContext {})
 }
 
 #[turbo_tasks::value]
@@ -136,7 +136,7 @@ async fn chunk_content(context: ChunkingContextVc, entry: AssetVc) -> Result<Chu
     }
     // TODO if there are too many chunk_items
     // split the chunk by a deterministic min/max size algorithm
-    Ok(ChunkContentResultVc::slot(ChunkContentResult {
+    Ok(ChunkContentResultVc::cell(ChunkContentResult {
         chunk_items,
         chunks,
         async_chunk_groups,
@@ -151,7 +151,7 @@ impl Chunk for EcmascriptChunk {}
 impl ValueToString for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "chunk {}",
             self.entry.path().to_string().await?
         )))
@@ -191,7 +191,7 @@ impl Asset for EcmascriptChunk {
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
-        Ok(AssetReferencesVc::slot(references))
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 

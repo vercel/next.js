@@ -53,7 +53,7 @@ impl GraphOptionsVc {
         node_native_bindings: bool,
         compile_target: CompileTargetVc,
     ) -> Self {
-        Self::slot(GraphOptions {
+        Self::cell(GraphOptions {
             typescript,
             node_native_bindings,
             compile_target,
@@ -67,7 +67,7 @@ impl GraphOptionsVc {
 
     #[turbo_tasks::function]
     pub async fn node_native_bindings(self) -> Result<BoolVc> {
-        Ok(BoolVc::slot(self.await?.node_native_bindings))
+        Ok(BoolVc::cell(self.await?.node_native_bindings))
     }
 
     #[turbo_tasks::function]
@@ -172,7 +172,7 @@ pub struct ModuleAssetContext {
 impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub fn new(context: FileSystemPathVc, options: GraphOptionsVc) -> Self {
-        Self::slot(ModuleAssetContext { context, options })
+        Self::cell(ModuleAssetContext { context, options })
     }
 }
 
@@ -295,7 +295,7 @@ impl CycleDetection {
 impl CycleDetectionVc {
     #[turbo_tasks::function]
     fn new() -> Self {
-        Self::slot(CycleDetection {
+        Self::cell(CycleDetection {
             visited: HashSet::new(),
         })
     }

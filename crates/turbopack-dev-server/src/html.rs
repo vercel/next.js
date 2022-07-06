@@ -39,6 +39,6 @@ impl Asset for DevHtmlAsset {
         for chunk in chunks.iter() {
             references.push(ChunkReferenceVc::new(*chunk).into());
         }
-        Ok(AssetReferencesVc::slot(references))
+        Ok(AssetReferencesVc::cell(references))
     }
 }

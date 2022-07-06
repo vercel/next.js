@@ -526,7 +526,7 @@ impl PatternVc {
 impl PatternVc {
     #[turbo_tasks::function]
     fn new_internal(pattern: Value<Pattern>) -> Self {
-        Self::slot(pattern.into_value())
+        Self::cell(pattern.into_value())
     }
 }
 
@@ -622,7 +622,7 @@ impl Display for Pattern {
 impl ValueToString for Pattern {
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
-        StringVc::slot(self.to_string())
+        StringVc::cell(self.to_string())
     }
 }
 
@@ -843,7 +843,7 @@ pub async fn read_matches(
         for nested in nested.into_iter() {
             results.extend(nested.await?.iter().cloned());
         }
-        Ok(PatternMatchesVc::slot(results))
+        Ok(PatternMatchesVc::cell(results))
     }
 }
 

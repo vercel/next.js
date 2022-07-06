@@ -5,7 +5,7 @@
 mod memory_backend;
 mod memory_backend_with_pg;
 mod output;
-mod slot;
+mod cell;
 pub mod stats;
 mod task;
 pub mod viz;

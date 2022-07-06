@@ -961,7 +961,7 @@ pub(crate) async fn module_references(
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
-    Ok(AssetReferencesVc::slot(references))
+    Ok(AssetReferencesVc::cell(references))
 }
 
 async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
@@ -1327,7 +1327,7 @@ pub struct PackageJsonReference {
 impl PackageJsonReferenceVc {
     #[turbo_tasks::function]
     pub fn new(package_json: FileSystemPathVc) -> Self {
-        Self::slot(PackageJsonReference { package_json })
+        Self::cell(PackageJsonReference { package_json })
     }
 }
 
@@ -1340,7 +1340,7 @@ impl AssetReference for PackageJsonReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "package.json {}",
             self.package_json.to_string().await?,
         )))
@@ -1358,7 +1358,7 @@ pub struct TsConfigReference {
 impl TsConfigReferenceVc {
     #[turbo_tasks::function]
     pub fn new(tsconfig: FileSystemPathVc, context: AssetContextVc) -> Self {
-        Self::slot(TsConfigReference { tsconfig, context })
+        Self::cell(TsConfigReference { tsconfig, context })
     }
 }
 
@@ -1376,7 +1376,7 @@ impl AssetReference for TsConfigReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "tsconfig {}",
             self.tsconfig.to_string().await?,
         )))
@@ -1394,7 +1394,7 @@ pub struct EsmAssetReference {
 impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(EsmAssetReference { context, request })
+        Self::cell(EsmAssetReference { context, request })
     }
 }
 
@@ -1407,7 +1407,7 @@ impl AssetReference for EsmAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "import {}",
             self.request.to_string().await?,
         )))
@@ -1418,7 +1418,7 @@ impl AssetReference for EsmAssetReference {
 impl ChunkableAssetReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn is_chunkable(&self) -> BoolVc {
-        BoolVc::slot(true)
+        BoolVc::cell(true)
     }
 }
 
@@ -1433,7 +1433,7 @@ pub struct EsmAsyncAssetReference {
 impl EsmAsyncAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(EsmAsyncAssetReference { context, request })
+        Self::cell(EsmAsyncAssetReference { context, request })
     }
 }
 
@@ -1446,7 +1446,7 @@ impl AssetReference for EsmAsyncAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "dynamic import {}",
             self.request.to_string().await?,
         )))
@@ -1457,7 +1457,7 @@ impl AssetReference for EsmAsyncAssetReference {
 impl ChunkableAssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn is_chunkable(&self) -> BoolVc {
-        BoolVc::slot(true)
+        BoolVc::cell(true)
     }
 }
 
@@ -1465,7 +1465,7 @@ impl ChunkableAssetReference for EsmAsyncAssetReference {
 impl AsyncLoadableReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn is_loaded_async(&self) -> BoolVc {
-        BoolVc::slot(true)
+        BoolVc::cell(true)
     }
 }
 
@@ -1480,7 +1480,7 @@ pub struct CjsAssetReference {
 impl CjsAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(CjsAssetReference { context, request })
+        Self::cell(CjsAssetReference { context, request })
     }
 }
 
@@ -1493,7 +1493,7 @@ impl AssetReference for CjsAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "require {}",
             self.request.to_string().await?,
         )))
@@ -1511,7 +1511,7 @@ pub struct TsReferencePathAssetReference {
 impl TsReferencePathAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, path: String) -> Self {
-        Self::slot(TsReferencePathAssetReference { context, path })
+        Self::cell(TsReferencePathAssetReference { context, path })
     }
 }
 
@@ -1534,7 +1534,7 @@ impl AssetReference for TsReferencePathAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "typescript reference path comment {}",
             self.path,
         )))
@@ -1552,7 +1552,7 @@ pub struct TsReferenceTypeAssetReference {
 impl TsReferenceTypeAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, module: String) -> Self {
-        Self::slot(TsReferenceTypeAssetReference { context, module })
+        Self::cell(TsReferenceTypeAssetReference { context, module })
     }
 }
 
@@ -1568,7 +1568,7 @@ impl AssetReference for TsReferenceTypeAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "typescript reference type comment {}",
             self.module,
         )))
@@ -1586,7 +1586,7 @@ pub struct SourceAssetReference {
 impl SourceAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::slot(SourceAssetReference { source, path })
+        Self::cell(SourceAssetReference { source, path })
     }
 }
 
@@ -1601,7 +1601,7 @@ impl AssetReference for SourceAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "raw asset {}",
             self.path.to_string().await?,
         )))
@@ -1619,7 +1619,7 @@ pub struct DirAssetReference {
 impl DirAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::slot(DirAssetReference { source, path })
+        Self::cell(DirAssetReference { source, path })
     }
 }
 
@@ -1681,7 +1681,7 @@ impl AssetReference for DirAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "directory assets {}",
             self.path.to_string().await?,
         )))

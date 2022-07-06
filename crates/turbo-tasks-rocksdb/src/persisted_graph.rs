@@ -12,7 +12,7 @@ use turbo_tasks::{
     backend::PersistentTaskType,
     persisted_graph::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
-        PersistedGraphApi, ReadTaskState, TaskData, TaskSlot,
+        PersistedGraphApi, ReadTaskState, TaskData, TaskCell,
     },
     util::{InfiniteVec, SharedError},
     with_task_id_mapping, FunctionId, IdMapping, TaskId,
@@ -385,12 +385,12 @@ impl PersistedGraph for RocksDbPersistedGraph {
                 &TaskStateChange::Persist(state.externally_active),
             )?;
             ac.store(AC_ACTIVE, Ordering::Release);
-            for slot in data.slots.iter_mut() {
-                if let TaskSlot::Content(ref c) = slot {
+            for cell in data.cells.iter_mut() {
+                if let TaskCell::Content(ref c) = cell {
                     // TODO we can avoid double serialization
-                    // by having a custom Serialize impl on TaskSlot
+                    // by having a custom Serialize impl on TaskCell
                     if bincode::DefaultOptions::new().serialize(c).is_err() {
-                        *slot = TaskSlot::NeedComputation;
+                        *cell = TaskCell::NeedComputation;
                     }
                 }
             }

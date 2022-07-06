@@ -341,7 +341,7 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
 
     println!("File: {}\n{}", f.display(), output,);
 
-    Ok(CommandOutputVc::slot(output))
+    Ok(CommandOutputVc::cell(output))
 }
 
 fn clean_stderr(str: &str) -> String {
@@ -422,7 +422,7 @@ async fn assert_output(
 ) -> Result<CommandOutputVc> {
     let expected = expected.await?;
     let actual = actual.await?;
-    Ok(CommandOutputVc::slot(CommandOutput {
+    Ok(CommandOutputVc::cell(CommandOutput {
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: diff(&expected.stderr, &actual.stderr),
     }))

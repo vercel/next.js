@@ -96,13 +96,13 @@ impl PersistentTaskType {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct SlotMappings {
+pub struct CellMappings {
     // TODO use [SerializableMagicAny]
     pub by_key: HashMap<(ValueTypeId, SharedValue), usize>,
     pub by_type: HashMap<ValueTypeId, (usize, Vec<usize>)>,
 }
 
-impl SlotMappings {
+impl CellMappings {
     pub fn reset(&mut self) {
         for list in self.by_type.values_mut() {
             list.0 = 0;
@@ -111,14 +111,14 @@ impl SlotMappings {
 }
 
 pub struct TaskExecutionSpec {
-    pub slot_mappings: Option<SlotMappings>,
+    pub cell_mappings: Option<CellMappings>,
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct SlotContent(pub Option<SharedReference>);
+pub struct CellContent(pub Option<SharedReference>);
 
-impl Display for SlotContent {
+impl Display for CellContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
             None => write!(f, "empty"),
@@ -127,13 +127,13 @@ impl Display for SlotContent {
     }
 }
 
-impl SlotContent {
+impl CellContent {
     pub fn cast<T: Any + Send + Sync>(self) -> Result<RawVcReadResult<T>> {
         match self.0 {
-            None => Err(anyhow!("Slot it empty")),
+            None => Err(anyhow!("Cell it empty")),
             Some(data) => match data.downcast() {
                 Some(data) => Ok(RawVcReadResult::new(data)),
-                None => Err(anyhow!("Unexpected type in slot")),
+                None => Err(anyhow!("Unexpected type in cell")),
             },
         }
     }
@@ -173,7 +173,7 @@ pub trait Backend: Sync + Send {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
@@ -202,36 +202,36 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>>;
+    ) -> Result<Result<CellContent, EventListener>>;
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>>;
+    ) -> Result<Result<CellContent, EventListener>>;
 
-    unsafe fn try_read_own_task_slot(
+    unsafe fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<SlotContent> {
+    ) -> Result<CellContent> {
         unsafe {
-            match self.try_read_task_slot_untracked(current_task, index, turbo_tasks)? {
+            match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
                 Ok(content) => Ok(content),
-                Err(_) => Ok(SlotContent(None)),
+                Err(_) => Ok(CellContent(None)),
             }
         }
     }
 
-    fn track_read_task_slot(
+    fn track_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
@@ -239,13 +239,13 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
 
-    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
+    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize;
 
-    fn update_task_slot(
+    fn update_task_cell(
         &self,
         task: TaskId,
         index: usize,
-        content: SlotContent,
+        content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
 

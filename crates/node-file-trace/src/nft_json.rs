@@ -15,7 +15,7 @@ pub struct NftJsonAsset {
 impl NftJsonAssetVc {
     #[turbo_tasks::function]
     pub fn new(entry: AssetVc) -> Self {
-        Self::slot(NftJsonAsset { entry })
+        Self::cell(NftJsonAsset { entry })
     }
 }
 

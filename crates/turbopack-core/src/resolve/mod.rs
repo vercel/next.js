@@ -229,22 +229,22 @@ impl ResolveResultVc {
             for result in iter {
                 current.merge_alternatives(&*result.await?);
             }
-            Ok(Self::slot(current))
+            Ok(Self::cell(current))
         } else {
-            Ok(Self::slot(ResolveResult::Unresolveable(Vec::new())))
+            Ok(Self::cell(ResolveResult::Unresolveable(Vec::new())))
         }
     }
 
     #[turbo_tasks::function]
     pub async fn is_unresolveable(self) -> Result<BoolVc> {
         let this = self.await?;
-        Ok(BoolVc::slot(this.is_unresolveable()))
+        Ok(BoolVc::cell(this.is_unresolveable()))
     }
 
     #[turbo_tasks::function]
     pub async fn primary_assets(self) -> Result<AssetsVc> {
         let this = self.await?;
-        Ok(AssetsVc::slot(match &*this {
+        Ok(AssetsVc::cell(match &*this {
             ResolveResult::Nested(nested) => {
                 let mut assets = HashSet::new();
                 for r in nested.iter() {
@@ -789,7 +789,7 @@ pub struct AffectingResolvingAssetReference {
 impl AffectingResolvingAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(file: FileSystemPathVc) -> Self {
-        Self::slot(AffectingResolvingAssetReference { file })
+        Self::cell(AffectingResolvingAssetReference { file })
     }
 }
 
@@ -802,7 +802,7 @@ impl AssetReference for AffectingResolvingAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "resolving is affected by {}",
             self.file.to_string().await?
         )))

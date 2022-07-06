@@ -84,7 +84,7 @@ mod watcher_ser {
     }
 }
 
-#[turbo_tasks::value(slot: new, FileSystem, eq: manual)]
+#[turbo_tasks::value(cell: new, FileSystem, eq: manual)]
 pub struct DiskFileSystem {
     pub name: String,
     pub root: String,
@@ -278,7 +278,7 @@ impl DiskFileSystemVc {
             watcher: Mutex::new(None),
         };
 
-        Ok(Self::slot(instance))
+        Ok(Self::cell(instance))
     }
 }
 
@@ -483,7 +483,7 @@ impl FileSystem for DiskFileSystem {
     }
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
-        StringVc::slot(self.name.clone())
+        StringVc::cell(self.name.clone())
     }
 }
 
@@ -579,7 +579,7 @@ impl FileSystemPathVc {
 
     #[turbo_tasks::function]
     pub fn new_normalized(fs: FileSystemVc, path: String) -> Self {
-        Self::slot(FileSystemPath { fs, path })
+        Self::cell(FileSystemPath { fs, path })
     }
 
     #[turbo_tasks::function]
@@ -600,11 +600,11 @@ impl FileSystemPathVc {
     pub async fn try_join(self, path: &str) -> Result<FileSystemPathOptionVc> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
-            Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+            Ok(FileSystemPathOptionVc::cell(Some(Self::new_normalized(
                 this.fs, path,
             ))))
         } else {
-            Ok(FileSystemPathOptionVc::slot(None))
+            Ok(FileSystemPathOptionVc::cell(None))
         }
     }
 
@@ -613,12 +613,12 @@ impl FileSystemPathVc {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, path) {
             if path.starts_with(&this.path) {
-                return Ok(FileSystemPathOptionVc::slot(Some(Self::new_normalized(
+                return Ok(FileSystemPathOptionVc::cell(Some(Self::new_normalized(
                     this.fs, path,
                 ))));
             }
         }
-        Ok(FileSystemPathOptionVc::slot(None))
+        Ok(FileSystemPathOptionVc::cell(None))
     }
 
     #[turbo_tasks::function]
@@ -715,12 +715,12 @@ impl FileSystemPathVc {
     pub async fn get_type(self) -> Result<FileSystemEntryTypeVc> {
         let this = self.await?;
         if this.is_root() {
-            return Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::Directory));
+            return Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::Directory));
         }
         let dir_content = this.fs.read_dir(self.parent()).await?;
         match &*dir_content {
             DirectoryContent::NotFound => {
-                Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
+                Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
             }
             DirectoryContent::Entries(entries) => {
                 let basename = if let Some(i) = this.path.rfind('/') {
@@ -729,9 +729,9 @@ impl FileSystemPathVc {
                     &this.path
                 };
                 if let Some(entry) = entries.get(basename) {
-                    Ok(FileSystemEntryTypeVc::slot(entry.into()))
+                    Ok(FileSystemEntryTypeVc::cell(entry.into()))
                 } else {
-                    Ok(FileSystemEntryTypeVc::slot(FileSystemEntryType::NotFound))
+                    Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))
                 }
             }
         }
@@ -752,7 +752,7 @@ impl FileSystemPathVc {
 impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "[{}]/{}",
             self.fs.to_string().await?,
             self.path
@@ -1067,11 +1067,11 @@ pub enum DirectoryContent {
 
 impl DirectoryContentVc {
     pub fn new(entries: HashMap<String, DirectoryEntry>) -> Self {
-        Self::slot(DirectoryContent::Entries(entries))
+        Self::cell(DirectoryContent::Entries(entries))
     }
 
     pub fn not_found() -> Self {
-        Self::slot(DirectoryContent::NotFound)
+        Self::cell(DirectoryContent::NotFound)
     }
 }
 
@@ -1102,7 +1102,7 @@ impl FileSystem for NullFileSystem {
 
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
-        StringVc::slot(String::from("null"))
+        StringVc::cell(String::from("null"))
     }
 }
 

@@ -64,8 +64,8 @@ impl Output {
                         old_task == new_task
                     }
                     (
-                        RawVc::TaskSlot(old_task, old_index),
-                        RawVc::TaskSlot(new_task, new_index),
+                        RawVc::TaskCell(old_task, old_index),
+                        RawVc::TaskCell(new_task, new_index),
                     ) => old_task == new_task && *old_index == *new_index,
                     _ => false,
                 } {

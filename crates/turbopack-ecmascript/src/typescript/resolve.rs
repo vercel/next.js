@@ -206,7 +206,7 @@ impl AssetReference for TypescriptTypesAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "typescript types {}",
             self.request.to_string().await?,
         )))
@@ -215,7 +215,7 @@ impl AssetReference for TypescriptTypesAssetReference {
 
 impl TypescriptTypesAssetReferenceVc {
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(TypescriptTypesAssetReference { context, request })
+        Self::cell(TypescriptTypesAssetReference { context, request })
     }
 }
 

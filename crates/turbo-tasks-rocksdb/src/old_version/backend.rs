@@ -17,7 +17,7 @@ use flurry::{HashMap, HashMapRef};
 use serde::Serialize;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, PersistentTaskType, CellContent, CellMappings, TaskExecutionSpec,
         TransientTaskType,
     },
     with_task_id_mapping, IdMapping, RawVc, SharedReference, TaskId, TaskIdProvider,
@@ -89,12 +89,12 @@ pub struct RocksDbBackend {
     task_events: HashMap<TaskId, Event>,
     // protects access to "session_task_active", "session_task_children"
     mutex_task_children: HashMap<TaskId, Mutex<()>>,
-    // protects access to "task_slot", "task_state", "task_dependencies"
+    // protects access to "task_cell", "task_state", "task_dependencies"
     mutex_task_dependencies: HashMap<TaskId, Mutex<()>>,
-    transient_slots: HashMap<(TaskId, usize), Option<SharedReference>>,
-    transient_tasks: HashMap<TaskId, Mutex<(TransientTaskType, SlotMappings)>>,
+    transient_cells: HashMap<(TaskId, usize), Option<SharedReference>>,
+    transient_tasks: HashMap<TaskId, Mutex<(TransientTaskType, CellMappings)>>,
     transient_task_children: flurry::HashSet<TaskId>,
-    task_transient_slot_request: flurry::HashSet<TaskId>,
+    task_transient_cell_request: flurry::HashSet<TaskId>,
     task_id_forward_mapping: HashMap<TaskId, TaskId>,
     task_id_backward_mapping: HashMap<TaskId, TaskId>,
 }
@@ -114,10 +114,10 @@ impl RocksDbBackend {
             task_events: HashMap::new(),
             mutex_task_children: HashMap::new(),
             mutex_task_dependencies: HashMap::new(),
-            transient_slots: HashMap::new(),
+            transient_cells: HashMap::new(),
             transient_tasks: HashMap::new(),
             transient_task_children: flurry::HashSet::new(),
-            task_transient_slot_request: flurry::HashSet::new(),
+            task_transient_cell_request: flurry::HashSet::new(),
             task_id_forward_mapping: HashMap::new(),
             task_id_backward_mapping: HashMap::new(),
         })
@@ -469,14 +469,14 @@ impl RocksDbBackend {
         Ok(())
     }
 
-    fn try_get_fresh_slot(&self, task: TaskId) -> Result<usize> {
+    fn try_get_fresh_cell(&self, task: TaskId) -> Result<usize> {
         let db = self.database.as_ref().unwrap();
-        // Get and increment task_next_slot
-        let next_slot = db.task_next_slot.get(&task)?.unwrap_or_default();
+        // Get and increment task_next_cell
+        let next_cell = db.task_next_cell.get(&task)?.unwrap_or_default();
         let b = &mut db.batch();
-        db.task_next_slot.write(b, &task, &(next_slot + 1))?;
+        db.task_next_cell.write(b, &task, &(next_cell + 1))?;
         b.write()?;
-        Ok(next_slot)
+        Ok(next_cell)
     }
 
     fn try_make_dirty(&self, b: &mut WriteBatch, task: TaskId) -> Result<()> {
@@ -561,40 +561,40 @@ impl RocksDbBackend {
         Ok(())
     }
 
-    fn try_update_task_slot(
+    fn try_update_task_cell(
         &self,
         task: TaskId,
         index: usize,
-        content: SlotContent,
+        content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<()> {
         let db = self.database.as_ref().unwrap();
-        // Update task_slot
+        // Update task_cell
         let mut batch = db.batch();
         let b = &mut batch;
         match content {
-            SlotContent(None) => {
-                db.task_slot.delete(b, (&task, &index))?;
-                self.transient_slots.pin().remove(&(task, index));
+            CellContent(None) => {
+                db.task_cell.delete(b, (&task, &index))?;
+                self.transient_cells.pin().remove(&(task, index));
             }
-            SlotContent(content) => {
-                if db.task_slot.write(b, (&task, &index), &content).is_err() {
-                    db.task_slot.write(b, (&task, &index), &None)?;
-                    self.transient_slots.pin().insert((task, index), content);
+            CellContent(content) => {
+                if db.task_cell.write(b, (&task, &index), &content).is_err() {
+                    db.task_cell.write(b, (&task, &index), &None)?;
+                    self.transient_cells.pin().insert((task, index), content);
                 } else {
-                    self.transient_slots.pin().remove(&(task, index));
+                    self.transient_cells.pin().remove(&(task, index));
                 }
             }
         }
 
         // invalidate all task_dependencies
-        self.try_invalidate_dependencies(batch, RawVc::TaskSlot(task, index), turbo_tasks)
+        self.try_invalidate_dependencies(batch, RawVc::TaskCell(task, index), turbo_tasks)
     }
 
     fn try_task_execution_completed(
         &self,
         task: TaskId,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<bool> {
@@ -617,9 +617,9 @@ impl RocksDbBackend {
             // (there didn't exist one yet)
             false
         };
-        // Write new slot mappings
-        if let Some(slot_mappings) = slot_mappings {
-            db.task_slot_mappings.write(b, &task, &slot_mappings)?;
+        // Write new cell mappings
+        if let Some(cell_mappings) = cell_mappings {
+            db.task_cell_mappings.write(b, &task, &cell_mappings)?;
         }
         if change {
             // When result differs from old result:
@@ -696,9 +696,9 @@ impl Backend for RocksDbBackend {
             let db = self.database.as_ref().unwrap();
             // Grap task_type
             if let Some(task_type) = db.task_cache.get_key(&task).ok()? {
-                let task_transient_slot_request =
-                    self.task_transient_slot_request.pin().remove(&task);
-                if !task_transient_slot_request {
+                let task_transient_cell_request =
+                    self.task_transient_cell_request.pin().remove(&task);
+                if !task_transient_cell_request {
                     // Cancel when the task is already clean
                     let clean = db.task_state.get(&task).ok()?.unwrap_or_default().0
                         == TaskFreshness::Clean;
@@ -711,20 +711,20 @@ impl Backend for RocksDbBackend {
                         return None;
                     }
                 }
-                // Grab SlotMappingsx
-                let slot_mappings = db
-                    .task_slot_mappings
+                // Grab CellMappingsx
+                let cell_mappings = db
+                    .task_cell_mappings
                     .get(&task)
                     .unwrap_or_default()
                     .unwrap_or_default();
                 self.in_progress_valid.pin().insert(task);
                 Some(TaskExecutionSpec {
-                    slot_mappings: Some(slot_mappings),
+                    cell_mappings: Some(cell_mappings),
                     future: Box::pin(task_type.run(turbo_tasks.pin())),
                 })
             } else {
                 if let Some(mutex) = self.transient_tasks.pin().get(&task) {
-                    let (task_type, slot_mappings) = &mut *mutex.lock().unwrap();
+                    let (task_type, cell_mappings) = &mut *mutex.lock().unwrap();
                     let future = match task_type {
                         TransientTaskType::Root(func) => (func)(),
                         TransientTaskType::Once(future) => std::mem::replace(
@@ -734,11 +734,11 @@ impl Backend for RocksDbBackend {
                             }),
                         ),
                     };
-                    // Grab SlotMappingsx
-                    let slot_mappings = take(slot_mappings);
+                    // Grab CellMappingsx
+                    let cell_mappings = take(cell_mappings);
                     self.in_progress_valid.pin().insert(task);
                     Some(TaskExecutionSpec {
-                        slot_mappings: Some(slot_mappings),
+                        cell_mappings: Some(cell_mappings),
                         future,
                     })
                 } else {
@@ -751,14 +751,14 @@ impl Backend for RocksDbBackend {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_backend")]
         println!("RB task_execution_completed({})", task);
         self.with_task_id_mapping(turbo_tasks, || {
-            self.try_task_execution_completed(task, slot_mappings, result, turbo_tasks)
+            self.try_task_execution_completed(task, cell_mappings, result, turbo_tasks)
                 .unwrap()
         })
     }
@@ -856,89 +856,89 @@ impl Backend for RocksDbBackend {
         });
     }
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
-            "RB try_read_task_slot(task: {}, index: {}, reader: {})",
+            "RB try_read_task_cell(task: {}, index: {}, reader: {})",
             task, index, reader
         );
         sequential(&self.mutex_task_dependencies, task, || {
             // SAFETY: We track the dependency below
-            let result = unsafe { self.try_read_task_slot_untracked(task, index, turbo_tasks) };
+            let result = unsafe { self.try_read_task_cell_untracked(task, index, turbo_tasks) };
 
             if !matches!(result, Ok(Err(EventListener { .. }))) {
-                self.track_read_task_slot(task, index, reader, turbo_tasks);
+                self.track_read_task_cell(task, index, reader, turbo_tasks);
             }
 
             result
         })
     }
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         #[cfg(feature = "log_backend")]
         println!(
-            "RB try_read_task_slot_untracked(task: {}, index: {})",
+            "RB try_read_task_cell_untracked(task: {}, index: {})",
             task, index
         );
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
-            // Read task_slot
-            let content = db.task_slot.get((&task, &index))?;
+            // Read task_cell
+            let content = db.task_cell.get((&task, &index))?;
             match content {
                 None => {
-                    // empty slot
-                    Ok(Ok(SlotContent(None)))
+                    // empty cell
+                    Ok(Ok(CellContent(None)))
                 }
                 Some(None) => {
-                    // non serializable slot content
-                    let slot_ref = (task, index);
-                    // check if it's already a transient slot and if we already have content
-                    match self.transient_slots.pin().try_insert(slot_ref, None) {
+                    // non serializable cell content
+                    let cell_ref = (task, index);
+                    // check if it's already a transient cell and if we already have content
+                    match self.transient_cells.pin().try_insert(cell_ref, None) {
                         Err(e) => {
                             if let Some(content) = e.current {
-                                return Ok(Ok(SlotContent(Some(content.clone()))));
+                                return Ok(Ok(CellContent(Some(content.clone()))));
                             }
                             let listener = self.listen_to_task(task);
                             // Lookup again, in case of race conditions
-                            if let Some(Some(content)) = self.transient_slots.pin().get(&slot_ref) {
-                                return Ok(Ok(SlotContent(Some(content.clone()))));
+                            if let Some(Some(content)) = self.transient_cells.pin().get(&cell_ref) {
+                                return Ok(Ok(CellContent(Some(content.clone()))));
                             }
                             Ok(Err(listener))
                         }
                         Ok(_) => {
-                            // we inserted the transient slot
+                            // we inserted the transient cell
                             let listener = self.listen_to_task(task);
                             // Lookup again, in case of race conditions
-                            if let Some(Some(content)) = self.transient_slots.pin().get(&slot_ref) {
-                                return Ok(Ok(SlotContent(Some(content.clone()))));
+                            if let Some(Some(content)) = self.transient_cells.pin().get(&cell_ref) {
+                                return Ok(Ok(CellContent(Some(content.clone()))));
                             }
-                            // Since we inserted the transient slot entry, we are responsible for
+                            // Since we inserted the transient cell entry, we are responsible for
                             // scheduling the task. No need to persist that, since it's a transient
-                            // slot request
-                            if self.task_transient_slot_request.pin().insert(task) {
+                            // cell request
+                            if self.task_transient_cell_request.pin().insert(task) {
                                 turbo_tasks.schedule(task);
                             }
                             Ok(Err(listener))
                         }
                     }
                 }
-                Some(Some(content)) => Ok(Ok(SlotContent(Some(content)))),
+                Some(Some(content)) => Ok(Ok(CellContent(Some(content)))),
             }
         })
     }
 
-    fn track_read_task_slot(
+    fn track_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
@@ -947,34 +947,34 @@ impl Backend for RocksDbBackend {
     ) {
         #[cfg(feature = "log_backend")]
         println!(
-            "RB track_read_task_slot(task: {}, index: {}, reader: {})",
+            "RB track_read_task_cell(task: {}, index: {}, reader: {})",
             task, index, reader
         );
         self.with_task_id_mapping(turbo_tasks, || {
             let db = self.database.as_ref().unwrap();
             // Add dependency (task_dependencies)
             let b = &mut db.batch();
-            let vc = RawVc::TaskSlot(task, index);
+            let vc = RawVc::TaskCell(task, index);
             db.task_dependencies.insert(b, &reader, &vc).unwrap();
             b.write().unwrap();
         });
     }
 
-    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        self.with_task_id_mapping(turbo_tasks, || self.try_get_fresh_slot(task).unwrap())
+    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
+        self.with_task_id_mapping(turbo_tasks, || self.try_get_fresh_cell(task).unwrap())
     }
 
-    fn update_task_slot(
+    fn update_task_cell(
         &self,
         task: TaskId,
         index: usize,
-        content: SlotContent,
+        content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         #[cfg(feature = "log_backend")]
-        println!("RB update_task_slot(task: {}, index: {})", task, index);
+        println!("RB update_task_cell(task: {}, index: {})", task, index);
         self.with_task_id_mapping(turbo_tasks, || {
-            self.try_update_task_slot(task, index, content, turbo_tasks)
+            self.try_update_task_cell(task, index, content, turbo_tasks)
                 .unwrap();
         })
     }
@@ -1004,7 +1004,7 @@ impl Backend for RocksDbBackend {
         let id = turbo_tasks.get_fresh_task_id();
         self.transient_tasks
             .pin()
-            .insert(id, Mutex::new((task_type, SlotMappings::default())));
+            .insert(id, Mutex::new((task_type, CellMappings::default())));
         id
     }
 }
@@ -1144,7 +1144,7 @@ mod tests {
         turbo_tasks::register();
         let b = RocksDbBackend::new(db, "hello").unwrap();
         b.startup(&*turbo_tasks);
-        let content = SlotContent(Some(SharedReference(
+        let content = CellContent(Some(SharedReference(
             Some(Completion::get_value_type_id()),
             Arc::new(Completion),
         )));
@@ -1174,9 +1174,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![task1, task2]
         );
-        let slot = b.get_fresh_slot(task1, &*turbo_tasks);
-        b.update_task_slot(task1, slot, content.clone(), &*turbo_tasks);
-        let read = b.try_read_task_slot(task1, slot, task2, &*turbo_tasks);
+        let cell = b.get_fresh_cell(task1, &*turbo_tasks);
+        b.update_task_cell(task1, cell, content.clone(), &*turbo_tasks);
+        let read = b.try_read_task_cell(task1, cell, task2, &*turbo_tasks);
         read.unwrap().unwrap().cast::<Completion>().unwrap();
         assert_eq!(
             turbo_tasks
@@ -1188,8 +1188,8 @@ mod tests {
             vec![]
         );
 
-        // updating a slot should notify
-        b.update_task_slot(task1, slot, content, &*turbo_tasks);
+        // updating a cell should notify
+        b.update_task_cell(task1, cell, content, &*turbo_tasks);
         assert_eq!(
             turbo_tasks
                 .notified_tasks

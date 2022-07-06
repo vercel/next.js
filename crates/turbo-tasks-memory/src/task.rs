@@ -18,7 +18,7 @@ use anyhow::Result;
 use event_listener::{Event, EventListener};
 use tokio::task_local;
 use turbo_tasks::{
-    backend::{PersistentTaskType, SlotMappings},
+    backend::{PersistentTaskType, CellMappings},
     get_invalidator, registry, FunctionId, Invalidator, RawVc, TaskId, TaskInput, TraitTypeId,
     TurboTasksBackendApi,
 };
@@ -111,16 +111,16 @@ pub struct Task {
 /// Task data that is only modified during task execution.
 #[derive(Default)]
 struct TaskExecutionData {
-    /// Slots that the task has read during execution.
+    /// Cells that the task has read during execution.
     /// The Task will keep these tasks alive as invalidations that happen there
     /// might affect this task.
     ///
-    /// This back-edge is [Slot] `dependent_tasks`, which is a weak edge.
+    /// This back-edge is [Cell] `dependent_tasks`, which is a weak edge.
     dependencies: HashSet<RawVc>,
 
-    /// Mappings from key or data type to slot index, to store the data in the
-    /// same slot again.
-    slot_mappings: SlotMappings,
+    /// Mappings from key or data type to cell index, to store the data in the
+    /// same cell again.
+    cell_mappings: CellMappings,
 }
 
 impl Debug for Task {
@@ -152,7 +152,7 @@ struct TaskState {
     children: HashSet<TaskId>,
 
     output: Output,
-    created_slots: Vec<Slot>,
+    created_cells: Vec<Cell>,
     event: Event,
     executions: u32,
 }
@@ -196,7 +196,7 @@ impl Default for TaskStateType {
 
 use TaskStateType::*;
 
-use crate::{memory_backend::BackgroundJob, output::Output, slot::Slot, stats, MemoryBackend};
+use crate::{memory_backend::BackgroundJob, output::Output, cell::Cell, stats, MemoryBackend};
 
 impl Task {
     pub(crate) fn new_native(id: TaskId, inputs: Vec<TaskInput>, native_fn: FunctionId) -> Self {
@@ -360,10 +360,10 @@ impl Task {
                     });
                 });
             }
-            RawVc::TaskSlot(task, index) => {
+            RawVc::TaskCell(task, index) => {
                 backend.with_task(task, |task| {
-                    task.with_slot_mut(index, |slot| {
-                        slot.dependent_tasks.remove(&reader);
+                    task.with_cell_mut(index, |cell| {
+                        cell.dependent_tasks.remove(&reader);
                     });
                 });
             }
@@ -460,7 +460,7 @@ impl Task {
                 Err(err) => state.output.error(err, turbo_tasks),
             },
             InProgressDirty => {
-                // We don't want to assign the output slot here
+                // We don't want to assign the output cell here
                 // as we want to avoid unnecessary updates
                 // TODO maybe this should be controlled by a heuristic
             }
@@ -476,14 +476,14 @@ impl Task {
     #[must_use]
     pub(crate) fn execution_completed(
         &self,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         DEPENDENCIES_TO_TRACK.with(|deps| {
             let mut execution_data = self.execution_data.lock().unwrap();
-            if let Some(slot_mappings) = slot_mappings {
-                execution_data.slot_mappings = slot_mappings;
+            if let Some(cell_mappings) = cell_mappings {
+                execution_data.cell_mappings = cell_mappings;
             }
             execution_data.dependencies = deps.take();
         });
@@ -644,13 +644,13 @@ impl Task {
         }
     }
 
-    pub(crate) fn take_slot_mappings(&self) -> SlotMappings {
+    pub(crate) fn take_cell_mappings(&self) -> CellMappings {
         let mut execution_data = self.execution_data.lock().unwrap();
-        let mut slot_mappings = take(&mut execution_data.slot_mappings);
-        for list in slot_mappings.by_type.values_mut() {
+        let mut cell_mappings = take(&mut execution_data.cell_mappings);
+        for list in cell_mappings.by_type.values_mut() {
             list.0 = 0;
         }
-        slot_mappings
+        cell_mappings
     }
 
     pub(crate) fn add_dependency_to_current(dep: RawVc) {
@@ -709,22 +709,22 @@ impl Task {
         self.make_dirty(backend, turbo_tasks)
     }
 
-    /// Access to the output slot.
+    /// Access to the output cell.
     pub(crate) fn with_output_mut<T>(&self, func: impl FnOnce(&mut Output) -> T) -> T {
         let mut state = self.state.write().unwrap();
         func(&mut state.output)
     }
 
-    /// Access to a slot.
-    pub(crate) fn with_slot_mut<T>(&self, index: usize, func: impl FnOnce(&mut Slot) -> T) -> T {
+    /// Access to a cell.
+    pub(crate) fn with_cell_mut<T>(&self, index: usize, func: impl FnOnce(&mut Cell) -> T) -> T {
         let mut state = self.state.write().unwrap();
-        func(&mut state.created_slots[index])
+        func(&mut state.created_cells[index])
     }
 
-    /// Access to a slot.
-    pub(crate) fn with_slot<T>(&self, index: usize, func: impl FnOnce(&Slot) -> T) -> T {
+    /// Access to a cell.
+    pub(crate) fn with_cell<T>(&self, index: usize, func: impl FnOnce(&Cell) -> T) -> T {
         let state = self.state.read().unwrap();
-        func(&state.created_slots[index])
+        func(&state.created_cells[index])
     }
 
     /// For testing purposes
@@ -848,10 +848,10 @@ impl Task {
         }
     }
 
-    pub(crate) fn get_fresh_slot(&self) -> usize {
+    pub(crate) fn get_fresh_cell(&self) -> usize {
         let mut state = self.state.write().unwrap();
-        let index = state.created_slots.len();
-        state.created_slots.push(Slot::new());
+        let index = state.created_cells.len();
+        state.created_cells.push(Cell::new());
         index
     }
 }

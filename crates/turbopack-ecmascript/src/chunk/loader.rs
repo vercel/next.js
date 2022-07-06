@@ -16,7 +16,7 @@ pub struct ChunkGroupLoaderChunkItem {
 impl ChunkGroupLoaderChunkItemVc {
     #[turbo_tasks::function]
     pub fn new(asset: ChunkableAssetVc) -> Self {
-        Self::slot(ChunkGroupLoaderChunkItem { asset })
+        Self::cell(ChunkGroupLoaderChunkItem { asset })
     }
 }
 
@@ -24,7 +24,7 @@ impl ChunkGroupLoaderChunkItemVc {
 impl ValueToString for ChunkGroupLoaderChunkItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "chunk loader for {}",
             self.asset.path().await?
         )))
@@ -47,6 +47,6 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
             let path = asset.path().await?;
             code += &format!("\n/{}", path.path);
         }
-        Ok(StringVc::slot(code))
+        Ok(StringVc::cell(code))
     }
 }

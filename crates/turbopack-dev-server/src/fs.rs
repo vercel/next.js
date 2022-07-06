@@ -11,7 +11,7 @@ pub struct DevServerFileSystem {}
 impl DevServerFileSystemVc {
     #[turbo_tasks::function]
     pub fn new() -> Self {
-        Self::slot(DevServerFileSystem {})
+        Self::cell(DevServerFileSystem {})
     }
 }
 
@@ -54,6 +54,6 @@ impl FileSystem for DevServerFileSystem {
 
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
-        StringVc::slot("root of the dev server".to_string())
+        StringVc::cell("root of the dev server".to_string())
     }
 }

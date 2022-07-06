@@ -23,11 +23,11 @@ impl TraceRawVcsContext {
 
 /// Trait that allows to walk data to find all [RawVc]s contained.
 ///
-/// This is important for Garbagge Collection to mark all Slots and
+/// This is important for Garbagge Collection to mark all Cells and
 /// therefore Tasks that are still in use.
 ///
 /// It can also be used to optimize transferring of Tasks, where knowning
-/// the referenced Slots/Tasks allows pushing them earlier.
+/// the referenced Cells/Tasks allows pushing them earlier.
 ///
 /// `#[derive(TraceRawVcs)]` is available.
 /// `#[trace_ignore]` can be used on fields to skip tracing for them.

@@ -34,7 +34,7 @@ impl AssetReferencesVc {
     /// An empty list of [AssetReference]s
     #[turbo_tasks::function]
     pub fn empty() -> Self {
-        AssetReferencesVc::slot(Vec::new())
+        AssetReferencesVc::cell(Vec::new())
     }
 }
 
@@ -82,7 +82,7 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
             }
         }
     }
-    Ok(AssetsVc::slot(assets))
+    Ok(AssetsVc::cell(assets))
 }
 
 /// Aggregates all [Asset]s referenced by an [Asset] including transitively
@@ -101,5 +101,5 @@ pub async fn all_assets(asset: AssetVc) -> Result<AssetsVc> {
             }
         }
     }
-    Ok(AssetsVc::slot(assets.into_iter().collect()))
+    Ok(AssetsVc::cell(assets.into_iter().collect()))
 }

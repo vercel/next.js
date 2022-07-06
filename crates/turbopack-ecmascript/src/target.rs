@@ -14,7 +14,7 @@ pub enum CompileTarget {
 impl CompileTargetVc {
     #[turbo_tasks::function]
     pub fn current() -> Self {
-        Self::slot(CompileTarget::Current)
+        Self::cell(CompileTarget::Current)
     }
 }
 

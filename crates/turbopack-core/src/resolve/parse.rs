@@ -183,17 +183,17 @@ impl Request {
 impl RequestVc {
     #[turbo_tasks::function]
     pub fn parse(request: Value<Pattern>) -> Self {
-        Self::slot(Request::parse(request.into_value()))
+        Self::cell(Request::parse(request.into_value()))
     }
 
     #[turbo_tasks::function]
     pub fn parse_string(request: String) -> Self {
-        Self::slot(Request::parse(request.into()))
+        Self::cell(Request::parse(request.into()))
     }
 
     #[turbo_tasks::function]
     pub fn raw(request: Value<Pattern>, force_in_context: bool) -> Self {
-        Self::slot(Request::Raw {
+        Self::cell(Request::Raw {
             path: request.into_value(),
             force_in_context,
         })
@@ -201,7 +201,7 @@ impl RequestVc {
 
     #[turbo_tasks::function]
     pub fn relative(request: Value<Pattern>, force_in_context: bool) -> Self {
-        Self::slot(Request::Relative {
+        Self::cell(Request::Relative {
             path: request.into_value(),
             force_in_context,
         })
@@ -209,7 +209,7 @@ impl RequestVc {
 
     #[turbo_tasks::function]
     pub fn module(module: String, path: Value<Pattern>) -> Self {
-        Self::slot(Request::Module {
+        Self::cell(Request::Module {
             module,
             path: path.into_value(),
         })
@@ -220,7 +220,7 @@ impl RequestVc {
 impl ValueToString for Request {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(match self {
+        Ok(StringVc::cell(match self {
             Request::Raw {
                 path,
                 force_in_context,

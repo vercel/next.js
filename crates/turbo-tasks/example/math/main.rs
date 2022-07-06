@@ -80,7 +80,7 @@ fn main() {
 
             // prettify graph
             graph_viz.merge_edges();
-            graph_viz.drop_unchanged_slots();
+            graph_viz.drop_unchanged_cells();
             graph_viz.skip_loney_resolve();
             // graph_viz.drop_inactive_tasks();
 

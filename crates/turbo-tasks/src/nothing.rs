@@ -10,6 +10,6 @@ pub struct Nothing;
 impl NothingVc {
     #[turbo_tasks::function]
     pub fn new() -> Self {
-        NothingVc::slot(Nothing)
+        NothingVc::cell(Nothing)
     }
 }

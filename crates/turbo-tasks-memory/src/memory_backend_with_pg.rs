@@ -16,12 +16,12 @@ use concurrent_queue::ConcurrentQueue;
 use event_listener::{Event, EventListener};
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, PersistentTaskType, CellContent, CellMappings, TaskExecutionSpec,
         TransientTaskType,
     },
     persisted_graph::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
-        PersistedGraphApi, ReadTaskState, TaskData, TaskSlot,
+        PersistedGraphApi, ReadTaskState, TaskData, TaskCell,
     },
     util::{IdFactory, InfiniteVec, SharedError},
     RawVc, TaskId, TurboTasksBackendApi,
@@ -63,14 +63,14 @@ struct MemoryTaskState {
     need_persist: bool,
     has_changes: bool,
     freshness: TaskFreshness,
-    slots: Vec<(TaskSlot, HashSet<TaskId>)>,
-    slot_mappings: Option<SlotMappings>,
+    cells: Vec<(TaskCell, HashSet<TaskId>)>,
+    cell_mappings: Option<CellMappings>,
     output: Option<Result<RawVc, SharedError>>,
     output_dependent: HashSet<TaskId>,
     dependencies: HashSet<RawVc>,
     children: HashSet<TaskId>,
     event: Event,
-    event_slots: Event,
+    event_cells: Event,
     start: Option<Instant>,
 }
 
@@ -246,12 +246,12 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                     } else {
                         TaskFreshness::Dirty
                     },
-                    slots: data
-                        .slots
+                    cells: data
+                        .cells
                         .into_iter()
                         .map(|s| (s, HashSet::new()))
                         .collect(),
-                    slot_mappings: data.slot_mappings,
+                    cell_mappings: data.cell_mappings,
                     output: Some(Ok(data.output)),
                     output_dependent: HashSet::new(),
                     dependencies: data.dependencies.into_iter().collect(),
@@ -734,8 +734,8 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                                 ref mut has_changes,
                                 ref children,
                                 ref dependencies,
-                                ref slots,
-                                ref slot_mappings,
+                                ref cells,
+                                ref cell_mappings,
                                 ..
                             }),
                         ..
@@ -770,8 +770,8 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                                         let data = TaskData {
                                             children: children.iter().cloned().collect(),
                                             dependencies: dependencies.iter().cloned().collect(),
-                                            slots: slots.iter().map(|(s, _)| s.clone()).collect(),
-                                            slot_mappings: slot_mappings.clone(),
+                                            cells: cells.iter().map(|(s, _)| s.clone()).collect(),
+                                            cell_mappings: cell_mappings.clone(),
                                             output: *output,
                                         };
                                         let externally_active =
@@ -1022,8 +1022,8 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         mem_state.freshness = TaskFreshness::NeverExecuted;
         let deps = take(&mut mem_state.dependencies);
         let children = take(&mut mem_state.children);
-        let mut slot_mappings = mem_state.slot_mappings.take().unwrap_or_default();
-        slot_mappings.reset();
+        let mut cell_mappings = mem_state.cell_mappings.take().unwrap_or_default();
+        cell_mappings.reset();
         mem_state.start = Some(Instant::now());
         drop(state);
         for dep in deps {
@@ -1033,8 +1033,8 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 RawVc::TaskOutput(_) => {
                     mem_state.output_dependent.remove(&task);
                 }
-                RawVc::TaskSlot(_, i) => {
-                    if let Some((_, dependent)) = mem_state.slots.get_mut(i) {
+                RawVc::TaskCell(_, i) => {
+                    if let Some((_, dependent)) = mem_state.cells.get_mut(i) {
                         dependent.remove(&task);
                     }
                 }
@@ -1056,14 +1056,14 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         };
         Some(TaskExecutionSpec {
             future,
-            slot_mappings: Some(slot_mappings),
+            cell_mappings: Some(cell_mappings),
         })
     }
 
     fn task_execution_completed(
         &self,
         task: TaskId,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
@@ -1082,14 +1082,14 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             ..
         } = *state;
         let mem_state = memory.as_mut().unwrap();
-        mem_state.slot_mappings = slot_mappings;
+        mem_state.cell_mappings = cell_mappings;
         if mem_state.freshness == TaskFreshness::Dirty {
             return true;
         }
         mem_state.freshness = TaskFreshness::Done;
         *scheduled = false;
         mem_state.event.notify(usize::MAX);
-        mem_state.event_slots.notify(usize::MAX);
+        mem_state.event_cells.notify(usize::MAX);
         let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
             old != new
         } else {
@@ -1267,13 +1267,13 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
             ref mut scheduled,
@@ -1285,33 +1285,33 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             if !*scheduled {
                 *scheduled = true;
                 #[cfg(feature = "log_scheduled_tasks")]
-                println!("schedule({task}) in try_read_task_slot[NeverExecuted]");
+                println!("schedule({task}) in try_read_task_cell[NeverExecuted]");
                 turbo_tasks.schedule(task);
             }
             #[cfg(feature = "log_running_tasks")]
             println!("waiting (fresh task) {} waits on {}", reader, task);
-            return Ok(Err(mem_state.event_slots.listen()));
+            return Ok(Err(mem_state.event_cells.listen()));
         }
-        if let Some((slot, dependent)) = mem_state.slots.get_mut(index) {
-            match slot {
-                TaskSlot::Content(content) => {
+        if let Some((cell, dependent)) = mem_state.cells.get_mut(index) {
+            match cell {
+                TaskCell::Content(content) => {
                     let content = content.clone();
                     let need_dependency = dependent.insert(reader);
                     drop(state);
                     if need_dependency {
                         let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
                         let mem_state = state.memory.as_mut().unwrap();
-                        mem_state.dependencies.insert(RawVc::TaskSlot(task, index));
+                        mem_state.dependencies.insert(RawVc::TaskCell(task, index));
                     }
                     Ok(Ok(content))
                 }
-                TaskSlot::NeedComputation => {
+                TaskCell::NeedComputation => {
                     if mem_state.freshness != TaskFreshness::Dirty {
                         mem_state.freshness = TaskFreshness::Dirty;
                         if !*scheduled {
                             *scheduled = true;
                             #[cfg(feature = "log_scheduled_tasks")]
-                            println!("schedule({task}) in try_read_task_slot[NeedComputation]");
+                            println!("schedule({task}) in try_read_task_cell[NeedComputation]");
                             turbo_tasks.schedule(task);
                         }
                     }
@@ -1324,21 +1324,21 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             if !*scheduled {
                 *scheduled = true;
                 #[cfg(feature = "log_scheduled_tasks")]
-                println!("schedule({task}) in try_read_task_slot[Slot missing]");
+                println!("schedule({task}) in try_read_task_cell[Cell missing]");
                 turbo_tasks.schedule(task);
             }
             #[cfg(feature = "log_running_tasks")]
             println!("waiting (incomplete task) {} waits on {}", reader, task);
-            return Ok(Err(mem_state.event_slots.listen()));
+            return Ok(Err(mem_state.event_cells.listen()));
         }
     }
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
             ref mut scheduled,
@@ -1346,23 +1346,23 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             ..
         } = *state;
         let mem_state = memory.as_mut().unwrap();
-        let (slot, _) = mem_state.slots.get(index).ok_or_else(|| {
+        let (cell, _) = mem_state.cells.get(index).ok_or_else(|| {
             ();
-            anyhow!("Cannot read non-existing slot")
+            anyhow!("Cannot read non-existing cell")
         })?;
-        match slot {
-            TaskSlot::Content(content) => {
+        match cell {
+            TaskCell::Content(content) => {
                 let content = content.clone();
                 drop(state);
                 Ok(Ok(content))
             }
-            TaskSlot::NeedComputation => {
+            TaskCell::NeedComputation => {
                 if mem_state.freshness != TaskFreshness::Dirty {
                     mem_state.freshness = TaskFreshness::Dirty;
                     if !*scheduled {
                         *scheduled = true;
                         #[cfg(feature = "log_scheduled_tasks")]
-                        println!("schedule({task}) in try_read_task_slot_untracked");
+                        println!("schedule({task}) in try_read_task_cell_untracked");
                         turbo_tasks.schedule(task);
                     }
                 }
@@ -1371,25 +1371,25 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    unsafe fn try_read_own_task_slot(
+    unsafe fn try_read_own_task_cell(
         &self,
         task: TaskId,
         index: usize,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<SlotContent> {
+    ) -> Result<CellContent> {
         let (state, _) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_ref().unwrap();
-        if let Some((slot, _)) = mem_state.slots.get(index) {
-            match slot {
-                TaskSlot::Content(content) => Ok(content.clone()),
-                TaskSlot::NeedComputation => Ok(SlotContent(None)),
+        if let Some((cell, _)) = mem_state.cells.get(index) {
+            match cell {
+                TaskCell::Content(content) => Ok(content.clone()),
+                TaskCell::NeedComputation => Ok(CellContent(None)),
             }
         } else {
-            Ok(SlotContent(None))
+            Ok(CellContent(None))
         }
     }
 
-    fn track_read_task_slot(
+    fn track_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
@@ -1398,36 +1398,36 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     ) {
         let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_mut().unwrap();
-        if let Some((_, dependent)) = mem_state.slots.get_mut(index) {
+        if let Some((_, dependent)) = mem_state.cells.get_mut(index) {
             let need_dependency = dependent.insert(reader);
             drop(state);
             if need_dependency {
                 let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
                 let mem_state = state.memory.as_mut().unwrap();
-                mem_state.dependencies.insert(RawVc::TaskSlot(task, index));
+                mem_state.dependencies.insert(RawVc::TaskCell(task, index));
             }
         }
     }
 
-    fn get_fresh_slot(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
+    fn get_fresh_cell(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
         if let TaskType::Persistent(_) = task_info.task_type {
             let mem_state = state.memory.as_mut().unwrap();
-            let index = mem_state.slots.len();
+            let index = mem_state.cells.len();
             mem_state
-                .slots
-                .push((TaskSlot::Content(SlotContent(None)), HashSet::new()));
+                .cells
+                .push((TaskCell::Content(CellContent(None)), HashSet::new()));
             index
         } else {
             panic!("Only Persistent Tasks can store data")
         }
     }
 
-    fn update_task_slot(
+    fn update_task_cell(
         &self,
         task: TaskId,
         index: usize,
-        content: SlotContent,
+        content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
@@ -1438,13 +1438,13 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         } = *state;
         let mem_state = memory.as_mut().unwrap();
         mem_state.has_changes = true;
-        let (slot, dependent) = mem_state
-            .slots
+        let (cell, dependent) = mem_state
+            .cells
             .get_mut(index)
-            .ok_or_else(|| anyhow!("Cannot update non-existing slot"))
+            .ok_or_else(|| anyhow!("Cannot update non-existing cell"))
             .unwrap();
-        *slot = TaskSlot::Content(content);
-        mem_state.event_slots.notify(usize::MAX);
+        *cell = TaskCell::Content(content);
+        mem_state.event_cells.notify(usize::MAX);
         let is_persisted = persisted.is_some();
         if !dependent.is_empty() {
             let dependent = take(dependent);
@@ -1455,13 +1455,13 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
         if let TaskType::Persistent(_) = task_info.task_type {
             if is_persisted || !self.only_known_to_memory_tasks.pin().contains(&task) {
-                for task in self.pg_make_dependent_dirty(RawVc::TaskSlot(task, index), turbo_tasks)
+                for task in self.pg_make_dependent_dirty(RawVc::TaskCell(task, index), turbo_tasks)
                 {
                     let (mut state, _) = self.state_mut(task, turbo_tasks);
                     if !state.scheduled {
                         state.scheduled = true;
                         #[cfg(feature = "log_scheduled_tasks")]
-                        println!("schedule({task}) in update_task_slot");
+                        println!("schedule({task}) in update_task_cell");
                         turbo_tasks.schedule(task);
                     }
                 }

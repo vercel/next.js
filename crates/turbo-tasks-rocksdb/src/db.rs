@@ -2,8 +2,8 @@ use std::ops::Add;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    backend::{PersistentTaskType, SlotMappings},
-    persisted_graph::{TaskData, TaskSlot},
+    backend::{PersistentTaskType, CellMappings},
+    persisted_graph::{TaskData, TaskCell},
     without_task_id_mapping, RawVc,
 };
 
@@ -207,8 +207,8 @@ impl Add for TaskStateChange {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PartialTaskData {
-    pub slots: Vec<TaskSlot>,
-    pub slot_mappings: Option<SlotMappings>,
+    pub cells: Vec<TaskCell>,
+    pub cell_mappings: Option<CellMappings>,
     pub output: RawVc,
 }
 

@@ -43,9 +43,9 @@ pub async fn module_references(
                 // TODO report them in a stream
                 println!("{}", buf);
             }
-            Ok(AssetReferencesVc::slot(references))
+            Ok(AssetReferencesVc::cell(references))
         }
-        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesVc::slot(Vec::new())),
+        ParseResult::Unparseable | ParseResult::NotFound => Ok(AssetReferencesVc::cell(Vec::new())),
     }
 }
 

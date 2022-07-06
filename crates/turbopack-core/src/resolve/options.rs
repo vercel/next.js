@@ -255,7 +255,7 @@ impl ResolveOptionsVc {
 
     #[turbo_tasks::function]
     pub async fn resolve_typescript_types(self) -> Result<BoolVc> {
-        Ok(BoolVc::slot(self.await?.resolve_typescript_types))
+        Ok(BoolVc::cell(self.await?.resolve_typescript_types))
     }
 }
 

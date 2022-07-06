@@ -64,7 +64,7 @@ pub async fn module_references_(
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
-    Ok(AssetReferencesVc::slot(references))
+    Ok(AssetReferencesVc::cell(references))
 }
 
 struct AssetReferencesVisitor<'a> {
@@ -167,7 +167,7 @@ pub struct UrlAssetReference {
 impl UrlAssetReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(UrlAssetReference { context, request })
+        Self::cell(UrlAssetReference { context, request })
     }
 }
 
@@ -180,7 +180,7 @@ impl AssetReference for UrlAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "url {}",
             self.request.to_string().await?,
         )))
@@ -191,6 +191,6 @@ impl AssetReference for UrlAssetReference {
 impl ChunkableAssetReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn is_chunkable(&self) -> BoolVc {
-        BoolVc::slot(true)
+        BoolVc::cell(true)
     }
 }

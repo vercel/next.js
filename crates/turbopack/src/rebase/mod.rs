@@ -21,7 +21,7 @@ pub struct RebasedAsset {
 impl RebasedAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, input_dir: FileSystemPathVc, output_dir: FileSystemPathVc) -> Self {
-        Self::slot(RebasedAsset {
+        Self::cell(RebasedAsset {
             source: source,
             input_dir: input_dir,
             output_dir: output_dir,
@@ -55,7 +55,7 @@ impl Asset for RebasedAsset {
                 .into(),
             );
         }
-        Ok(AssetReferencesVc::slot(references))
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 
@@ -93,7 +93,7 @@ impl AssetReference for RebasedAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "rebased {}",
             self.reference.description().await?
         )))
