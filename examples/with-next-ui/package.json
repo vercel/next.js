@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@nextui-org/react": "1.0.0-beta.9",
-    "next": "12.2.0",
+    "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
