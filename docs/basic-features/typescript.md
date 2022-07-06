@@ -5,15 +5,36 @@ description: Next.js supports TypeScript by default and has built-in types for p
 # TypeScript
 
 <details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-typescript">TypeScript</a></li>
-  </ul>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `v12.0.0` | [SWC](https://nextjs.org/docs/advanced-features/compiler) is now used by default to compile TypeScript and TSX for faster builds.    |
+| `v10.2.1` | [Incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) support added when enabled in your `tsconfig.json`. |
+
 </details>
 
-Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience out of the box, similar to an IDE.
+Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience, including zero-configuration set up and built-in types for Pages, APIs, and more.
 
-To get started, create an empty `tsconfig.json` file in the root of your project:
+- [Clone and deploy the TypeScript starter](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-typescript&project-name=with-typescript&repository-name=with-typescript)
+- [View an example application](https://github.com/vercel/next.js/tree/canary/examples/with-typescript)
+
+## `create-next-app` support
+
+You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
+
+```
+npx create-next-app@latest --ts
+# or
+yarn create next-app --typescript
+# or
+pnpm create next-app --ts
+```
+
+## Existing projects
+
+To get started in an existing project, create an empty `tsconfig.json` file in
+the root folder:
 
 ```bash
 touch tsconfig.json
@@ -21,7 +42,11 @@ touch tsconfig.json
 
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
 
-> Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
+You can also provide a relative path to a tsconfig.json file by setting `typescript.tsconfigPath` prop inside your `next.config.js` file.
+
+Starting in `v12.0.0`, Next.js uses [SWC](https://nextjs.org/docs/advanced-features/compiler) by default to compile TypeScript and TSX for faster builds.
+
+> Next.js will use Babel to handle TypeScript if `.babelrc` is present. This has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats) and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
 Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
@@ -30,18 +55,20 @@ npm run dev
 
 # You'll see instructions like these:
 #
-# Please install typescript, @types/react, and @types/node by running:
+# Please install TypeScript, @types/react, and @types/node by running:
 #
 #         yarn add --dev typescript @types/react @types/node
 #
 # ...
 ```
 
-You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!.
+You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!
 
-> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
+> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it or edit it** as it can change at any time. As such this file should not be committed and should be ignored by version control.
 
 > TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+
+> Instead of editing `next-env.d.ts`, you can include additional types by adding a new file e.g. `additional.d.ts` and then referencing it in the [`include`](https://www.typescriptlang.org/tsconfig#include) array in your `tsconfig.json`.
 
 By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
 
@@ -67,7 +94,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 }
 ```
 
-> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/getInitialProps.md#typescript).
+> If you're using `getInitialProps`, you can [follow the directions on this page](/docs/api-reference/data-fetching/get-initial-props.md#typescript).
 
 ## API Routes
 
@@ -100,26 +127,11 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 If you have a [custom `App`](/docs/advanced-features/custom-app.md), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
-// import App from "next/app";
-import type { AppProps /*, AppContext */ } from 'next/app'
+import type { AppProps } from 'next/app'
 
-function MyApp({ Component, pageProps }: AppProps) {
+export default function MyApp({ Component, pageProps }: AppProps) {
   return <Component {...pageProps} />
 }
-
-// Only uncomment this method if you have blocking data requirements for
-// every single page in your application. This disables the ability to
-// perform automatic static optimization, causing every page in your app to
-// be server-side rendered.
-//
-// MyApp.getInitialProps = async (appContext: AppContext) => {
-//   // calls page's `getInitialProps` and fills `appProps.pageProps`
-//   const appProps = await App.getInitialProps(appContext);
-
-//   return { ...appProps }
-// }
-
-export default MyApp
 ```
 
 ## Path aliases and baseUrl
@@ -127,3 +139,48 @@ export default MyApp
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
 
 You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).
+
+## Type checking next.config.js
+
+The `next.config.js` file must be a JavaScript file as it does not get parsed by Babel or TypeScript, however you can add some type checking in your IDE using JSDoc as below:
+
+```js
+// @ts-check
+
+/**
+ * @type {import('next').NextConfig}
+ **/
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+## Incremental type checking
+
+Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
+
+It is highly recommended to be on at least `v4.3.2` of TypeScript to experience the [best performance](https://devblogs.microsoft.com/typescript/announcing-typescript-4-3/#lazier-incremental) when leveraging this feature.
+
+## Ignoring TypeScript Errors
+
+Next.js fails your **production build** (`next build`) when TypeScript errors are present in your project.
+
+If you'd like Next.js to dangerously produce production code even when your application has errors, you can disable the built-in type checking step.
+
+If disabled, be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
+
+Open `next.config.js` and enable the `ignoreBuildErrors` option in the `typescript` config:
+
+```js
+module.exports = {
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
+    ignoreBuildErrors: true,
+  },
+}
+```

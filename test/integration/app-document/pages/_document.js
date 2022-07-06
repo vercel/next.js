@@ -11,18 +11,20 @@ export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     let options
 
-    const enhanceComponent = (Component) => (props) => (
-      <div>
-        <span id="render-page-enhance-component">RENDERED</span>
-        <Component {...props} />
-      </div>
-    )
-    const enhanceApp = (Component) => (props) => (
-      <div>
-        <span id="render-page-enhance-app">RENDERED</span>
-        <Component {...props} />
-      </div>
-    )
+    const enhanceComponent = (Component) => (props) =>
+      (
+        <div>
+          <span id="render-page-enhance-component">RENDERED</span>
+          <Component {...props} />
+        </div>
+      )
+    const enhanceApp = (Component) => (props) =>
+      (
+        <div>
+          <span id="render-page-enhance-app">RENDERED</span>
+          <Component {...props} />
+        </div>
+      )
 
     if (ctx.query.withEnhancer) {
       options = enhanceComponent
@@ -36,10 +38,11 @@ export default class MyDocument extends Document {
       }
     }
 
-    const result = ctx.renderPage(options)
+    const result = await ctx.renderPage(options)
 
     return {
       ...result,
+      cssInJsCount: (result.html.match(/css-in-js-class/g) || []).length,
       customProperty: 'Hello Document',
       withCSP: ctx.query.withCSP,
     }
@@ -72,6 +75,7 @@ export default class MyDocument extends Document {
           <p id="document-hmr">Hello Document HMR</p>
           <Main />
           <NextScript nonce="test-nonce" />
+          <div id="css-in-cjs-count">{this.props.cssInJsCount}</div>
         </body>
       </Html>
     )

@@ -20,7 +20,7 @@ const Store = types
       timer = setInterval(() => {
         // mobx-state-tree doesn't allow anonymous callbacks changing data.
         // Pass off to another action instead (need to cast self as any
-        // because typescript doesn't yet know about the actions we're
+        // because TypeScript doesn't yet know about the actions we're
         // adding to self here)
         ;(self as any).update()
       }, 1000)

@@ -2,7 +2,7 @@ import useInterval from '../lib/useInterval'
 import Clock from './clock'
 import Counter from './counter'
 import Nav from './nav'
-import { useStore } from '../lib/zustandProvider'
+import { useStore } from '../lib/store'
 
 export default function Page() {
   const { tick } = useStore()

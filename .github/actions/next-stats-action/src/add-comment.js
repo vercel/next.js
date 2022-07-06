@@ -20,7 +20,7 @@ const round = (num, places) => {
 
 const shortenLabel = (itemKey) =>
   itemKey.length > 24
-    ? `${itemKey.substr(0, 12)}..${itemKey.substr(itemKey.length - 12, 12)}`
+    ? `${itemKey.slice(0, 12)}..${itemKey.slice(-12)}`
     : itemKey
 
 const twoMB = 2 * 1024 * 1024
@@ -83,7 +83,7 @@ module.exports = async function addComment(
         else if (!isGzipItem && !groupKey.match(gzipIgnoreRegex)) return
 
         if (
-          itemKey !== 'buildDuration' ||
+          !itemKey.startsWith('buildDuration') ||
           (isBenchmark && itemKey.match(/req\/sec/))
         ) {
           if (typeof mainItemVal === 'number') mainRepoTotal += mainItemVal

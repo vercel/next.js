@@ -8,15 +8,15 @@ type StyledJsxPlugin = [string, any] | string
 type StyledJsxBabelOptions =
   | {
       plugins?: StyledJsxPlugin[]
+      styleModule?: string
       'babel-test'?: boolean
     }
   | undefined
 
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
-  if (!options) {
-    return {}
-  }
+  options = options || {}
+  options.styleModule = 'next/dist/shared/lib/styled-jsx'
 
   if (!Array.isArray(options.plugins)) {
     return options
@@ -41,7 +41,6 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
-  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
   'preset-typescript'?: any
 }
@@ -58,7 +57,7 @@ function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
-module.exports = (
+export default (
   api: any,
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
@@ -78,7 +77,10 @@ module.exports = (
   const isProduction = !(isTest || isDevelopment)
 
   const isBabelLoader = api.caller(
-    (caller: any) => !!caller && caller.name === 'babel-loader'
+    (caller: any) =>
+      !!caller &&
+      (caller.name === 'babel-loader' ||
+        caller.name === 'next-babel-turbo-loader')
   )
 
   const useJsxRuntime =
@@ -86,19 +88,11 @@ module.exports = (
     (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
       options['preset-react']?.runtime !== 'classic')
 
-  const isLaxModern =
-    options['preset-env']?.targets &&
-    options['preset-env'].targets.esmodules === true
-
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
-    include: [
-      '@babel/plugin-proposal-optional-chaining',
-      '@babel/plugin-proposal-nullish-coalescing-operator',
-    ],
     ...options['preset-env'],
   }
 
@@ -115,21 +109,15 @@ module.exports = (
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be
       // built and deployed on the same version of Node.
-      node: 'current',
+      // This is the same as using "current" but explicit
+      node: process.versions.node,
     }
   }
-
-  // specify a preset to use instead of @babel/preset-env
-  const customModernPreset =
-    isLaxModern && options['experimental-modern-preset']
 
   return {
     sourceType: 'unambiguous',
     presets: [
-      customModernPreset || [
-        require('next/dist/compiled/babel/preset-env'),
-        presetEnvConfig,
-      ],
+      [require('next/dist/compiled/babel/preset-env'), presetEnvConfig],
       [
         require('next/dist/compiled/babel/preset-react'),
         {
@@ -166,6 +154,7 @@ module.exports = (
         },
       ],
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-import-assertions'),
       require('./plugins/react-loadable-plugin'),
       [
         require('next/dist/compiled/babel/plugin-proposal-class-properties'),
@@ -185,7 +174,11 @@ module.exports = (
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
           absoluteRuntime: isBabelLoader
-            ? dirname(require.resolve('@babel/runtime/package.json'))
+            ? dirname(
+                require.resolve(
+                  'next/dist/compiled/@babel/runtime/package.json'
+                )
+              )
             : undefined,
           ...options['transform-runtime'],
         },

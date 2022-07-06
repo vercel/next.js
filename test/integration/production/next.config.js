@@ -1,3 +1,6 @@
+// intervals/open connections shouldn't block build from exiting
+setInterval(() => {}, 250)
+
 module.exports = {
   onDemandEntries: {
     // Make sure entries are not getting disposed.
@@ -35,5 +38,9 @@ module.exports = {
         permanent: false,
       },
     ]
+  },
+  images: {
+    // Make sure we have sane default CSP, even when SVG is enabled
+    dangerouslyAllowSVG: true,
   },
 }

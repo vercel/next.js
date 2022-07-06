@@ -204,18 +204,19 @@ module.exports = function () {
 		var outdatedSelfAcceptedModules = [];
 		for (var j = 0; j < outdatedModules.length; j++) {
 			var outdatedModuleId = outdatedModules[j];
+			var module = $moduleCache$[outdatedModuleId];
 			if (
-				$moduleCache$[outdatedModuleId] &&
-				$moduleCache$[outdatedModuleId].hot._selfAccepted &&
+				module &&
+				(module.hot._selfAccepted || module.hot._main) &&
 				// removed self-accepted modules should not be required
 				appliedUpdate[outdatedModuleId] !== warnUnexpectedRequire &&
 				// when called invalidate self-accepting is not possible
-				!$moduleCache$[outdatedModuleId].hot._selfInvalidated
+				!module.hot._selfInvalidated
 			) {
 				outdatedSelfAcceptedModules.push({
 					module: outdatedModuleId,
-					require: $moduleCache$[outdatedModuleId].hot._requireSelf,
-					errorHandler: $moduleCache$[outdatedModuleId].hot._selfAccepted
+					require: module.hot._requireSelf,
+					errorHandler: module.hot._selfAccepted
 				});
 			}
 		}
@@ -303,14 +304,18 @@ module.exports = function () {
 							moduleOutdatedDependencies =
 								outdatedDependencies[outdatedModuleId];
 							var callbacks = [];
+							var errorHandlers = [];
 							var dependenciesForCallbacks = [];
 							for (var j = 0; j < moduleOutdatedDependencies.length; j++) {
 								var dependency = moduleOutdatedDependencies[j];
 								var acceptCallback =
 									module.hot._acceptedDependencies[dependency];
+								var errorHandler =
+									module.hot._acceptedErrorHandlers[dependency];
 								if (acceptCallback) {
 									if (callbacks.indexOf(acceptCallback) !== -1) continue;
 									callbacks.push(acceptCallback);
+									errorHandlers.push(errorHandler);
 									dependenciesForCallbacks.push(dependency);
 								}
 							}
@@ -318,16 +323,39 @@ module.exports = function () {
 								try {
 									callbacks[k].call(null, moduleOutdatedDependencies);
 								} catch (err) {
-									if (options.onErrored) {
-										options.onErrored({
-											type: "accept-errored",
-											moduleId: outdatedModuleId,
-											dependencyId: dependenciesForCallbacks[k],
-											error: err
-										});
-									}
-									if (!options.ignoreErrored) {
-										reportError(err);
+									if (typeof errorHandlers[k] === "function") {
+										try {
+											errorHandlers[k](err, {
+												moduleId: outdatedModuleId,
+												dependencyId: dependenciesForCallbacks[k]
+											});
+										} catch (err2) {
+											if (options.onErrored) {
+												options.onErrored({
+													type: "accept-error-handler-errored",
+													moduleId: outdatedModuleId,
+													dependencyId: dependenciesForCallbacks[k],
+													error: err2,
+													originalError: err
+												});
+											}
+											if (!options.ignoreErrored) {
+												reportError(err2);
+												reportError(err);
+											}
+										}
+									} else {
+										if (options.onErrored) {
+											options.onErrored({
+												type: "accept-errored",
+												moduleId: outdatedModuleId,
+												dependencyId: dependenciesForCallbacks[k],
+												error: err
+											});
+										}
+										if (!options.ignoreErrored) {
+											reportError(err);
+										}
 									}
 								}
 							}
@@ -344,7 +372,10 @@ module.exports = function () {
 					} catch (err) {
 						if (typeof item.errorHandler === "function") {
 							try {
-								item.errorHandler(err);
+								item.errorHandler(err, {
+									moduleId: moduleId,
+									module: $moduleCache$[moduleId]
+								});
 							} catch (err2) {
 								if (options.onErrored) {
 									options.onErrored({
@@ -356,8 +387,8 @@ module.exports = function () {
 								}
 								if (!options.ignoreErrored) {
 									reportError(err2);
+									reportError(err);
 								}
-								reportError(err);
 							}
 						} else {
 							if (options.onErrored) {
@@ -412,15 +443,16 @@ module.exports = function () {
 			) {
 				promises.push($loadUpdateChunk$(chunkId, updatedModulesList));
 				currentUpdateChunks[chunkId] = true;
+			} else {
+				currentUpdateChunks[chunkId] = false;
 			}
 		});
 		if ($ensureChunkHandlers$) {
 			$ensureChunkHandlers$.$key$Hmr = function (chunkId, promises) {
 				if (
 					currentUpdateChunks &&
-					!$hasOwnProperty$(currentUpdateChunks, chunkId) &&
-					$hasOwnProperty$($installedChunks$, chunkId) &&
-					$installedChunks$[chunkId] !== undefined
+					$hasOwnProperty$(currentUpdateChunks, chunkId) &&
+					!currentUpdateChunks[chunkId]
 				) {
 					promises.push($loadUpdateChunk$(chunkId));
 					currentUpdateChunks[chunkId] = true;

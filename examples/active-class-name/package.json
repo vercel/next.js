@@ -1,16 +1,18 @@
 {
-  "name": "active-class-name",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "Remy Sharp <remy@leftlogic.com>",
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.14",
+    "typescript": "^4.7.4"
+  }
 }

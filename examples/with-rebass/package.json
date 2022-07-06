@@ -1,19 +1,20 @@
 {
-  "name": "with-rebass",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-styled-components": "^1.1.7",
-    "babel-plugin-transform-object-assign": "^6.22.0",
-    "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "rebass": "1.0.0-1",
-    "styled-components": "^2.1.1"
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "rebass": "^4.0.7",
+    "styled-components": "^5.3.0"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "babel-plugin-styled-components": "^2.0.7",
+    "babel-plugin-transform-object-assign": "^6.22.0",
+    "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0"
+  }
 }

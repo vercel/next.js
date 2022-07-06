@@ -1,6 +1,6 @@
-import { Machine } from 'xstate'
+import { createMachine } from 'xstate'
 
-export const toggleMachine = Machine({
+export const toggleMachine = createMachine({
   id: 'toggle',
   initial: 'inactive',
   states: {

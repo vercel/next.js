@@ -38,13 +38,16 @@ export default MyApp
 
 The `Component` prop is the active `page`, so whenever you navigate between routes, `Component` will change to the new `page`. Therefore, any props you send to `Component` will be received by the `page`.
 
-`pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/basic-features/data-fetching.md), otherwise it's an empty object.
+`pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/basic-features/data-fetching/overview.md), otherwise it's an empty object.
+
+The `App.getInitialProps` receives a single argument called `context.ctx`. It's an object with the same set of properties as the [`context` object](/docs/api-reference/data-fetching/get-initial-props#context-object) in `getInitialProps`.
 
 ### Caveats
 
-- If your app is running and you just added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
-- Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
-- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching.md) like [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering).
+- If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
+- Adding a custom [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md) in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching/get-static-props.md).
+- When you add `getInitialProps` in your custom app, you must `import App from "next/app"`, call `App.getInitialProps(appContext)` inside `getInitialProps` and merge the returned object into the return value.
+- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching/overview.md) like [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) or [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md).
 
 ### TypeScript
 

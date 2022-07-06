@@ -1,1 +1,1 @@
-module.exports = require('./dist/next-server/lib/dynamic')
+module.exports = require('./dist/shared/lib/dynamic')

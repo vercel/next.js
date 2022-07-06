@@ -13,9 +13,15 @@ const useClickAway = (ref, onClickAway) => {
       el && !el.contains(event.target) && onClickAway(event)
     }
 
-    document.addEventListener('click', handler)
+    let timeoutID = setTimeout(() => {
+      timeoutID = null
+      document.addEventListener('click', handler)
+    }, 0)
 
     return () => {
+      if (timeoutID != null) {
+        clearTimeout(timeoutID)
+      }
       document.removeEventListener('click', handler)
     }
   }, [onClickAway, ref])

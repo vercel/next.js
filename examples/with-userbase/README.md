@@ -2,7 +2,7 @@
 
 This is an example of using [Userbase](https://userbase.com) in a Next.js project.
 
-Deployed Demo: [https://next-userbase.now.sh](https://next-userbase.now.sh)
+Deployed Demo: [https://next-userbase.vercel.app](https://next-userbase.vercel.app)
 
 ## Deploy your own
 
@@ -12,12 +12,14 @@ Once you have access to [the environment variables you'll need](#step-2-setting-
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-userbase next-userbase-app
 # or
 yarn create next-app --example with-userbase next-userbase-app
+# or
+pnpm create next-app --example with-userbase next-userbase-app
 ```
 
 ## Configuration

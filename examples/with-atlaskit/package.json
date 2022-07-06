@@ -1,6 +1,4 @@
 {
-  "name": "with-atlaskit",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,12 +12,11 @@
     "@atlaskit/dropdown-menu": "^9.0.2",
     "@atlaskit/field-base": "^14.0.2",
     "next": "^9.3.1",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "styled-components": "^5.0.1"
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.10.7"
-  },
-  "license": "MIT"
+  }
 }

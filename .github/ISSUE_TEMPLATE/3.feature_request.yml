@@ -1,8 +1,6 @@
 name: Feature Request
-about: Create a feature request for the Next.js core
-title: ''
+description: Create a feature request for the Next.js core
 labels: 'template: story'
-issue_body: true
 body:
   - type: markdown
     attributes:

@@ -2,7 +2,7 @@
 
 This example shows how to use [Magic](https://magic.link) with Next.js. The example features cookie-based, passwordless authentication with email-based magic links.
 
-The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.now.sh).
+The example shows how to do a login and logout; and to get the user info using a hook with [SWR](https://swr.vercel.app).
 
 A DB is not included. But you can add any DB you like!.
 
@@ -16,12 +16,14 @@ Once you have access to [the environment variables you'll need](#configuration),
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-magic with-magic-app
 # or
 yarn create next-app --example with-magic with-magic-app
+# or
+pnpm create next-app --example with-magic with-magic-app
 ```
 
 ## Configuration

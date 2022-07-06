@@ -14,18 +14,20 @@ View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.c
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-env-from-next-config-js)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-env-from-next-config-js&project-name=with-env-from-next-config-js&repository-name=with-env-from-next-config-js)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
 # or
 yarn create next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
+# or
+pnpm create next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
@@ -33,7 +35,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 > ## Special note
 >
 > `next build` does a hard coded variable substitution into your JavaScript before the final bundle is created. This means
-> that if you change your environmental variables outside of your running app, such as in windows with `set` or lunix with `setenv`
+> that if you change your environmental variables outside of your running app, such as in windows with `set` or linux with `setenv`
 > those changes will not be reflected in your running application until a build happens again (with `next build`).
 
 ## Discussion regarding this example

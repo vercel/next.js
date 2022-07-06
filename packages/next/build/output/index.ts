@@ -1,23 +1,21 @@
-import chalk from 'chalk'
+import chalk from 'next/dist/compiled/chalk'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
-let previousClient: import('webpack').Compiler | null = null
-let previousServer: import('webpack').Compiler | null = null
-
-type CompilerDiagnosticsWithFile = {
-  errors: { file: string | undefined; message: string }[] | null
-  warnings: { file: string | undefined; message: string }[] | null
-}
+let previousClient: webpack5.Compiler | null = null
+let previousServer: webpack5.Compiler | null = null
+let previousEdgeServer: webpack5.Compiler | null = null
 
 type CompilerDiagnostics = {
+  modules: number
   errors: string[] | null
   warnings: string[] | null
 }
@@ -41,27 +39,9 @@ export type AmpPageStatus = {
 type BuildStatusStore = {
   client: WebpackStatus
   server: WebpackStatus
+  edgeServer: WebpackStatus
+  trigger: string | undefined
   amp: AmpPageStatus
-}
-
-enum WebpackStatusPhase {
-  COMPILING = 1,
-  COMPILED_WITH_ERRORS = 2,
-  COMPILED_WITH_WARNINGS = 4,
-  COMPILED = 5,
-}
-
-function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
-  if (status.loading) {
-    return WebpackStatusPhase.COMPILING
-  }
-  if (status.errors) {
-    return WebpackStatusPhase.COMPILED_WITH_ERRORS
-  }
-  if (status.warnings) {
-    return WebpackStatusPhase.COMPILED_WITH_WARNINGS
-  }
-  return WebpackStatusPhase.COMPILED
 }
 
 export function formatAmpMessages(amp: AmpPageStatus) {
@@ -119,47 +99,92 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 }
 
 const buildStore = createStore<BuildStatusStore>()
+let buildWasDone = false
+let clientWasLoading = true
+let serverWasLoading = true
+let edgeServerWasLoading = false
 
 buildStore.subscribe((state) => {
-  const { amp, client, server } = state
+  const { amp, client, server, edgeServer, trigger } = state
 
-  const [{ status }] = [
-    { status: client, phase: getWebpackStatusPhase(client) },
-    { status: server, phase: getWebpackStatusPhase(server) },
-  ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
+  const { appUrl } = consoleStore.getState()
 
-  const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
-  if (bootstrapping && status.loading) {
+  if (client.loading || server.loading || edgeServer?.loading) {
+    consoleStore.setState(
+      {
+        bootstrap: false,
+        appUrl: appUrl!,
+        loading: true,
+        trigger,
+      } as OutputState,
+      true
+    )
+    clientWasLoading = (!buildWasDone && clientWasLoading) || client.loading
+    serverWasLoading = (!buildWasDone && serverWasLoading) || server.loading
+    edgeServerWasLoading =
+      (!buildWasDone && edgeServerWasLoading) || edgeServer.loading
+    buildWasDone = false
     return
   }
+
+  buildWasDone = true
 
   let partialState: Partial<OutputState> = {
     bootstrap: false,
     appUrl: appUrl!,
+    loading: false,
+    typeChecking: false,
+    partial:
+      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
+        ? 'client and server'
+        : undefined,
+    modules:
+      (clientWasLoading ? client.modules : 0) +
+      (serverWasLoading ? server.modules : 0) +
+      (edgeServerWasLoading ? edgeServer?.modules || 0 : 0),
+    hasEdgeServer: !!edgeServer,
   }
-
-  if (status.loading) {
+  if (client.errors && clientWasLoading) {
+    // Show only client errors
     consoleStore.setState(
-      { ...partialState, loading: true } as OutputState,
+      {
+        ...partialState,
+        errors: client.errors,
+        warnings: null,
+      } as OutputState,
+      true
+    )
+  } else if (server.errors && serverWasLoading) {
+    consoleStore.setState(
+      {
+        ...partialState,
+        errors: server.errors,
+        warnings: null,
+      } as OutputState,
+      true
+    )
+  } else if (edgeServer.errors && edgeServerWasLoading) {
+    consoleStore.setState(
+      {
+        ...partialState,
+        errors: edgeServer.errors,
+        warnings: null,
+      } as OutputState,
       true
     )
   } else {
-    let { errors, warnings } = status
-
-    if (errors == null) {
-      if (Object.keys(amp).length > 0) {
-        warnings = (warnings || []).concat(formatAmpMessages(amp) || [])
-        if (!warnings.length) warnings = null
-      }
-    }
+    // Show warnings from all of them
+    const warnings = [
+      ...(client.warnings || []),
+      ...(server.warnings || []),
+      ...(edgeServer.warnings || []),
+    ].concat(formatAmpMessages(amp) || [])
 
     consoleStore.setState(
       {
         ...partialState,
-        loading: false,
-        typeChecking: false,
-        errors,
-        warnings,
+        errors: null,
+        warnings: warnings.length === 0 ? null : warnings,
       } as OutputState,
       true
     )
@@ -193,55 +218,112 @@ export function ampValidation(
 }
 
 export function watchCompilers(
-  client: import('webpack').Compiler,
-  server: import('webpack').Compiler
+  client: webpack5.Compiler,
+  server: webpack5.Compiler,
+  edgeServer: webpack5.Compiler
 ) {
-  if (previousClient === client && previousServer === server) {
+  if (
+    previousClient === client &&
+    previousServer === server &&
+    previousEdgeServer === edgeServer
+  ) {
     return
   }
 
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
+    edgeServer: { loading: true },
+    trigger: 'initial',
   })
 
   function tapCompiler(
-    key: string,
-    compiler: any,
+    key: 'client' | 'server' | 'edgeServer',
+    compiler: webpack5.Compiler,
     onEvent: (status: WebpackStatus) => void
   ) {
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
       onEvent({ loading: true })
     })
 
-    compiler.hooks.done.tap(
-      `NextJsDone-${key}`,
-      (stats: import('webpack').Stats) => {
-        buildStore.setState({ amp: {} })
+    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack5.Stats) => {
+      buildStore.setState({ amp: {} })
 
-        const { errors, warnings } = formatWebpackMessages(
-          stats.toJson({ all: false, warnings: true, errors: true })
-        )
-
-        const hasErrors = !!errors?.length
-        const hasWarnings = !!warnings?.length
-
-        onEvent({
-          loading: false,
-          errors: hasErrors ? errors : null,
-          warnings: hasWarnings ? warnings : null,
+      const { errors, warnings } = formatWebpackMessages(
+        stats.toJson({
+          preset: 'errors-warnings',
+          moduleTrace: true,
         })
-      }
-    )
+      )
+
+      const hasErrors = !!errors?.length
+      const hasWarnings = !!warnings?.length
+
+      onEvent({
+        loading: false,
+        modules: stats.compilation.modules.size,
+        errors: hasErrors ? errors : null,
+        warnings: hasWarnings ? warnings : null,
+      })
+    })
   }
 
-  tapCompiler('client', client, (status) =>
-    buildStore.setState({ client: status })
-  )
-  tapCompiler('server', server, (status) =>
-    buildStore.setState({ server: status })
-  )
+  tapCompiler('client', client, (status) => {
+    if (
+      !status.loading &&
+      !buildStore.getState().server.loading &&
+      !buildStore.getState().edgeServer.loading
+    ) {
+      buildStore.setState({
+        client: status,
+        trigger: undefined,
+      })
+    } else {
+      buildStore.setState({
+        client: status,
+      })
+    }
+  })
+  tapCompiler('server', server, (status) => {
+    if (
+      !status.loading &&
+      !buildStore.getState().client.loading &&
+      !buildStore.getState().edgeServer.loading
+    ) {
+      buildStore.setState({
+        server: status,
+        trigger: undefined,
+      })
+    } else {
+      buildStore.setState({
+        server: status,
+      })
+    }
+  })
+  tapCompiler('edgeServer', edgeServer, (status) => {
+    if (
+      !status.loading &&
+      !buildStore.getState().client.loading &&
+      !buildStore.getState().server.loading
+    ) {
+      buildStore.setState({
+        edgeServer: status,
+        trigger: undefined,
+      })
+    } else {
+      buildStore.setState({
+        edgeServer: status,
+      })
+    }
+  })
 
   previousClient = client
   previousServer = server
+  previousEdgeServer = edgeServer
+}
+
+export function reportTrigger(trigger: string) {
+  buildStore.setState({
+    trigger,
+  })
 }

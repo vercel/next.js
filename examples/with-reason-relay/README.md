@@ -1,6 +1,6 @@
 # Reason Relay Example
 
-[Reason Relay](https://reason-relay-documentation.zth.now.sh/)
+[Reason Relay](https://reason-relay-documentation.zth.vercel.app/)
 
 This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 
@@ -12,12 +12,14 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-reason-relay with-reason-relay-app
 # or
 yarn create next-app --example with-reason-relay with-reason-relay-app
+# or
+pnpm create next-app --example with-reason-relay with-reason-relay-app
 ```
 
 Download schema introspection data from configured Relay endpoint:

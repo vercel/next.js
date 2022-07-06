@@ -1,15 +1,19 @@
 {
-  "name": "catch-all-routes",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
+    "typescript": "^4.7.4"
   }
 }

@@ -4,7 +4,7 @@ description: Customize the pages that will be exported as HTML files when using 
 
 # exportPathMap
 
-> This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
+> This feature is exclusive to `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
 
 <details>
   <summary><b>Examples</b></summary>
@@ -39,6 +39,8 @@ module.exports = {
   },
 }
 ```
+
+Note: the `query` field in `exportPathMap` cannot be used with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization) or [`getStaticProps` pages](/docs/basic-features/data-fetching/get-static-props.md) as they are rendered to HTML files at build-time and additional query information cannot be provided during `next export`.
 
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 

@@ -5,7 +5,7 @@
 Your project is using an old version of `react` or `react-dom` that does not
 meet the suggested minimum version requirement.
 
-Next.js suggests using, at a minimum, `react@17.0.1` and `react-dom@17.0.1`.
+Next.js suggests using, at a minimum, `react@17.0.2` and `react-dom@17.0.2`.
 Older versions of `react` and `react-dom` do work with Next.js, however, they do
 not enable all of Next.js' features.
 
@@ -39,8 +39,8 @@ yarn add react@latest react-dom@latest
 ```json
 {
   "dependencies": {
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }
 ```

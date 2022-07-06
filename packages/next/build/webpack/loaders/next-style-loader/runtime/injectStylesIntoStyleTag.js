@@ -67,7 +67,7 @@ function modulesToDom(list, options) {
     const item = list[i]
     const id = options.base ? item[0] + options.base : item[0]
     const count = idCountMap[id] || 0
-    const identifier = `${id} ${count}`
+    const identifier = id + ' ' + count.toString()
 
     idCountMap[id] = count + 1
 
@@ -83,7 +83,7 @@ function modulesToDom(list, options) {
       stylesInDom[index].updater(obj)
     } else {
       stylesInDom.push({
-        identifier,
+        identifier: identifier,
         updater: addStyle(obj, options),
         references: 1,
       })
@@ -109,7 +109,7 @@ function insertStyleElement(options) {
     }
   }
 
-  Object.keys(attributes).forEach((key) => {
+  Object.keys(attributes).forEach(function (key) {
     style.setAttribute(key, attributes[key])
   })
 
@@ -154,7 +154,7 @@ function applyToSingletonTag(style, index, remove, obj) {
   const css = remove
     ? ''
     : obj.media
-    ? `@media ${obj.media} {${obj.css}}`
+    ? '@media ' + obj.media + ' {' + obj.css + '}'
     : obj.css
 
   // For old IE
@@ -189,9 +189,10 @@ function applyToTag(style, options, obj) {
   }
 
   if (sourceMap && typeof btoa !== 'undefined') {
-    css += `\n/*# sourceMappingURL=data:application/json;base64,${btoa(
-      unescape(encodeURIComponent(JSON.stringify(sourceMap)))
-    )} */`
+    css +=
+      '\n/*# sourceMappingURL=data:application/json;base64,' +
+      btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) +
+      ' */'
   }
 
   // For old IE
@@ -226,7 +227,7 @@ function addStyle(obj, options) {
     style = insertStyleElement(options)
 
     update = applyToTag.bind(null, style, options)
-    remove = () => {
+    remove = function () {
       removeStyleElement(style)
     }
   }
@@ -250,7 +251,7 @@ function addStyle(obj, options) {
   }
 }
 
-module.exports = (list, options) => {
+module.exports = function (list, options) {
   options = options || {}
 
   // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>

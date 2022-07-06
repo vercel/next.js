@@ -1,34 +1,41 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
-import { tracer, traceFn } from '../../tracer'
+import { stringifyRequest } from '../stringify-request'
 
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
   page: string
+  isServerComponent?: boolean
 }
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
 function nextClientPagesLoader(this: any) {
-  return tracer.withSpan(this.currentTraceSpan, () => {
-    const span = tracer.startSpan('next-client-pages-loader')
-    return traceFn(span, () => {
-      const { absolutePagePath, page } = loaderUtils.getOptions(
-        this
-      ) as ClientPagesLoaderOptions
+  const pagesLoaderSpan = this.currentTraceSpan.traceChild(
+    'next-client-pages-loader'
+  )
 
-      span.setAttribute('absolutePagePath', absolutePagePath)
+  return pagesLoaderSpan.traceFn(() => {
+    const { absolutePagePath, page, isServerComponent } =
+      this.getOptions() as ClientPagesLoaderOptions
 
-      const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
-      const stringifiedPage = JSON.stringify(page)
+    pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
 
-      return `
-      (window.__NEXT_P = window.__NEXT_P || []).push([
-        ${stringifiedPage},
-        function () {
-          return require(${stringifiedAbsolutePagePath});
-        }
-      ]);
-    `
-    })
+    const stringifiedPageRequest = isServerComponent
+      ? JSON.stringify(absolutePagePath + '!')
+      : stringifyRequest(this, absolutePagePath)
+    const stringifiedPage = JSON.stringify(page)
+
+    return `
+    (window.__NEXT_P = window.__NEXT_P || []).push([
+      ${stringifiedPage},
+      function () {
+        return require(${stringifiedPageRequest});
+      }
+    ]);
+    if(module.hot) {
+      module.hot.dispose(function () {
+        window.__NEXT_P.push([${stringifiedPage}])
+      });
+    }
+  `
   })
 }
 

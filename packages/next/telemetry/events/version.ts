@@ -1,12 +1,5 @@
-import findUp from 'next/dist/compiled/find-up'
 import path from 'path'
-import {
-  CONFIG_FILE,
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_EXPORT,
-  PHASE_PRODUCTION_BUILD,
-} from '../../next-server/lib/constants'
-import { normalizeConfig } from '../../next-server/server/config'
+import { NextConfigComplete } from '../../server/config-shared'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
@@ -24,14 +17,18 @@ type EventCliSessionStarted = {
   basePathEnabled: boolean
   i18nEnabled: boolean
   imageEnabled: boolean
+  imageFutureEnabled: boolean
   locales: string | null
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
+  imageRemotePatternsCount: number | null
   imageSizes: string | null
   imageLoader: string | null
+  imageFormats: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
+  webpackVersion: number | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -52,40 +49,9 @@ function hasBabelConfig(dir: string): boolean {
   }
 }
 
-type NextConfigurationPhase =
-  | typeof PHASE_DEVELOPMENT_SERVER
-  | typeof PHASE_PRODUCTION_BUILD
-  | typeof PHASE_EXPORT
-
-function getNextConfig(
-  phase: NextConfigurationPhase,
-  dir: string
-): { [key: string]: any } | null {
-  try {
-    const configurationPath = findUp.sync(CONFIG_FILE, {
-      cwd: dir,
-    })
-
-    if (configurationPath) {
-      // This should've already been loaded, and thus should be cached / won't
-      // be re-evaluated.
-      const configurationModule = require(configurationPath)
-
-      // Re-normalize the configuration.
-      return normalizeConfig(
-        phase,
-        configurationModule.default || configurationModule
-      )
-    }
-  } catch {
-    // ignored
-  }
-  return null
-}
-
 export function eventCliSession(
-  phase: NextConfigurationPhase,
   dir: string,
+  nextConfig: NextConfigComplete,
   event: Omit<
     EventCliSessionStarted,
     | 'nextVersion'
@@ -97,12 +63,15 @@ export function eventCliSession(
     | 'basePathEnabled'
     | 'i18nEnabled'
     | 'imageEnabled'
+    | 'imageFutureEnabled'
     | 'locales'
     | 'localeDomainsCount'
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
+    | 'imageRemotePatternsCount'
     | 'imageSizes'
     | 'imageLoader'
+    | 'imageFormats'
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
   >
@@ -112,9 +81,7 @@ export function eventCliSession(
     return []
   }
 
-  const userConfiguration = getNextConfig(phase, dir)
-
-  const { images, i18n } = userConfiguration || {}
+  const { images, i18n, experimental } = nextConfig || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -123,21 +90,27 @@ export function eventCliSession(
     isSrcDir: event.isSrcDir,
     hasNowJson: event.hasNowJson,
     isCustomServer: event.isCustomServer,
-    hasNextConfig: !!userConfiguration,
-    buildTarget: userConfiguration?.target ?? 'default',
-    hasWebpackConfig: typeof userConfiguration?.webpack === 'function',
+    hasNextConfig: nextConfig.configOrigin !== 'default',
+    buildTarget: nextConfig.target === 'server' ? 'default' : nextConfig.target,
+    hasWebpackConfig: typeof nextConfig?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
     imageEnabled: !!images,
-    basePathEnabled: !!userConfiguration?.basePath,
+    imageFutureEnabled: !!experimental.images?.allowFutureImage,
+    basePathEnabled: !!nextConfig?.basePath,
     i18nEnabled: !!i18n,
     locales: i18n?.locales ? i18n.locales.join(',') : null,
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageSizes: images?.sizes ? images.sizes.join(',') : null,
+    imageRemotePatternsCount: experimental?.images?.remotePatterns
+      ? experimental.images.remotePatterns.length
+      : null,
+    imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
-    trailingSlashEnabled: !!userConfiguration?.trailingSlash,
-    reactStrictMode: !!userConfiguration?.reactStrictMode,
+    imageFormats: images?.formats ? images.formats.join(',') : null,
+    trailingSlashEnabled: !!nextConfig?.trailingSlash,
+    reactStrictMode: !!nextConfig?.reactStrictMode,
+    webpackVersion: event.webpackVersion || null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

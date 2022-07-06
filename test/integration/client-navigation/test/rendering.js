@@ -192,6 +192,18 @@ export default function (render, fetch, ctx) {
       expect(html).toContain('<script src="/test-defer.js" defer="">')
     })
 
+    it('should place charset element at the top of <head>', async () => {
+      const html = await render('/head-priority')
+      const nextHeadElement =
+        '<meta charSet="iso-8859-5"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="title" content="head title"/>'
+      const nextHeadCountElement = '<meta name="next-head-count" content="3"/>'
+      const documentHeadElement =
+        '<meta name="keywords" content="document head test"/>'
+      expect(html).toContain(
+        `${nextHeadElement}${nextHeadCountElement}${documentHeadElement}`
+      )
+    })
+
     it('should render the page with custom extension', async () => {
       const html = await render('/custom-extension')
       expect(html).toContain('<div>Hello</div>')
@@ -209,7 +221,7 @@ export default function (render, fetch, ctx) {
     })
 
     it('should render the page without `nextExport` property', async () => {
-      const html = await render('/url-prop')
+      const html = await render('/async-props')
       expect(html).not.toContain('"nextExport"')
     })
 
@@ -257,7 +269,7 @@ export default function (render, fetch, ctx) {
       )
 
       const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
+        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
 
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)
@@ -337,10 +349,14 @@ export default function (render, fetch, ctx) {
       ))
       const resources = []
 
+      const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
+        return item
+          .replace(/\\/g, '/')
+          .endsWith('ssr.js -> ../../components/hello1')
+      })
+
       // test dynamic chunk
-      resources.push(
-        '/_next/' + reactLoadableManifest['../../components/hello1'][0].file
-      )
+      resources.push('/_next/' + reactLoadableManifest[manifestKey].files[0])
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/dynamic/ssr']) {
@@ -370,22 +386,6 @@ export default function (render, fetch, ctx) {
     test('asPath', async () => {
       const $ = await get$('/nav/as-path', { aa: 10 })
       expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
-    })
-
-    describe('Url prop', () => {
-      it('should provide pathname, query and asPath', async () => {
-        const $ = await get$('/url-prop')
-        expect($('#pathname').text()).toBe('/url-prop')
-        expect($('#query').text()).toBe('0')
-        expect($('#aspath').text()).toBe('/url-prop')
-      })
-
-      it('should override props.url, even when getInitialProps returns url as property', async () => {
-        const $ = await get$('/url-prop-override')
-        expect($('#pathname').text()).toBe('/url-prop-override')
-        expect($('#query').text()).toBe('0')
-        expect($('#aspath').text()).toBe('/url-prop-override')
-      })
     })
 
     describe('404', () => {
@@ -437,7 +437,7 @@ export default function (render, fetch, ctx) {
       const text = await getRedboxHeader(browser)
 
       expect(text).toContain(
-        'An undefined error was thrown sometime during render...'
+        'An undefined error was thrown, see here for more info:'
       )
     })
   })

@@ -8,11 +8,11 @@ The reason we want to support a `public` directory instead is to not require the
 
 #### Possible Ways to Fix It
 
-You can move your `static` directory inside of the `public` directory and all URLs will remain the same as they were before.
+You can move your `static` directory inside of the `public` directory and all URLs will stay the same as they were before.
 
 **Before**
 
-```sh
+```
 static/
   my-image.jpg
 pages/
@@ -23,7 +23,7 @@ components/
 
 **After**
 
-```sh
+```
 public/
   static/
     my-image.jpg

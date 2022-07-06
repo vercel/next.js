@@ -1,17 +1,17 @@
 import devalue from 'next/dist/compiled/devalue'
-import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
-import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { escapeStringRegexp } from '../../../../shared/lib/escape-regexp'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
 import {
   BUILD_MANIFEST,
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-} from '../../../../next-server/lib/constants'
-import { tracer, traceFn } from '../../../tracer'
+} from '../../../../shared/lib/constants'
+import { stringifyRequest } from '../../stringify-request'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -34,63 +34,61 @@ export type ServerlessLoaderQuery = {
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
-  const span = tracer.startSpan('next-serverless-loader')
-  return traceFn(span, () => {
-    const {
-      distDir,
-      absolutePagePath,
-      page,
-      buildId,
-      canonicalBase,
-      assetPrefix,
-      absoluteAppPath,
-      absoluteDocumentPath,
-      absoluteErrorPath,
-      absolute404Path,
-      generateEtags,
-      poweredByHeader,
-      basePath,
-      runtimeConfig,
-      previewProps,
-      loadedEnvFiles,
-      i18n,
-    }: ServerlessLoaderQuery =
-      typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+  const {
+    distDir,
+    absolutePagePath,
+    page,
+    buildId,
+    canonicalBase,
+    assetPrefix,
+    absoluteAppPath,
+    absoluteDocumentPath,
+    absoluteErrorPath,
+    absolute404Path,
+    generateEtags,
+    poweredByHeader,
+    basePath,
+    runtimeConfig,
+    previewProps,
+    loadedEnvFiles,
+    i18n,
+  }: ServerlessLoaderQuery =
+    typeof this.query === 'string' ? parse(this.query.slice(1)) : this.query
 
-    const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
-    const reactLoadableManifest = join(
-      distDir,
-      REACT_LOADABLE_MANIFEST
-    ).replace(/\\/g, '/')
-    const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
+  const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
+  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(
+    /\\/g,
+    '/'
+  )
+  const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
 
-    const escapedBuildId = escapeRegexp(buildId)
-    const pageIsDynamicRoute = isDynamicRoute(page)
+  const escapedBuildId = escapeStringRegexp(buildId)
+  const pageIsDynamicRoute = isDynamicRoute(page)
 
-    const encodedPreviewProps = devalue(
-      JSON.parse(previewProps) as __ApiPreviewProps
-    )
+  const encodedPreviewProps = devalue(
+    JSON.parse(previewProps) as __ApiPreviewProps
+  )
 
-    const envLoading = `
+  const envLoading = `
       const { processEnv } = require('@next/env')
       processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
     `
 
-    const runtimeConfigImports = runtimeConfig
-      ? `
+  const runtimeConfigImports = runtimeConfig
+    ? `
         const { setConfig } = require('next/config')
       `
-      : ''
+    : ''
 
-    const runtimeConfigSetter = runtimeConfig
-      ? `
+  const runtimeConfigSetter = runtimeConfig
+    ? `
         const runtimeConfig = ${runtimeConfig}
         setConfig(runtimeConfig)
       `
-      : 'const runtimeConfig = {}'
+    : 'const runtimeConfig = {}'
 
-    if (page.match(API_ROUTE)) {
-      return `
+  if (page.match(API_ROUTE)) {
+    return `
         ${envLoading}
         ${runtimeConfigImports}
         ${
@@ -99,33 +97,31 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
           */
           runtimeConfigSetter
         }
-        import initServer from 'next-plugin-loader?middleware=on-init-server!'
-        import onError from 'next-plugin-loader?middleware=on-error-server!'
-        import 'next/dist/next-server/server/node-polyfill-fetch'
+        import 'next/dist/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
+        const rewrites = Array.isArray(routesManifest.rewrites)
+          ? {
+            afterFiles: routesManifest.rewrites
+          }
+          : routesManifest.rewrites
+
         const apiHandler = getApiHandler({
-          pageModule: require("${absolutePagePath}"),
-          rewrites: routesManifest.rewrites,
+          pageModule: require(${stringifyRequest(this, absolutePagePath)}),
+          rewrites: rewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
           pageIsDynamic: ${pageIsDynamicRoute},
-          encodedPreviewProps: ${encodedPreviewProps},
-          experimental: {
-            onError,
-            initServer,
-          }
+          encodedPreviewProps: ${encodedPreviewProps}
         })
         export default apiHandler
       `
-    } else {
-      return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
-      import 'next/dist/next-server/server/node-polyfill-fetch'
+  } else {
+    return `
+      import 'next/dist/server/node-polyfill-fetch'
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
       import reactLoadableManifest from '${reactLoadableManifest}'
@@ -138,10 +134,15 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
 
-      const appMod = require('${absoluteAppPath}')
+      const documentModule = require(${stringifyRequest(
+        this,
+        absoluteDocumentPath
+      )})
+
+      const appMod = require(${stringifyRequest(this, absoluteAppPath)})
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
-      const compMod = require('${absolutePagePath}')
+      const compMod = require(${stringifyRequest(this, absolutePagePath)})
 
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       export default Component
@@ -158,15 +159,23 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
+      const rewrites = Array.isArray(routesManifest.rewrites)
+        ? {
+          afterFiles: routesManifest.rewrites
+        }
+        : routesManifest.rewrites
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
         pageConfig: config,
         appModule: App,
-        documentModule: require("${absoluteDocumentPath}"),
-        errorModule: require("${absoluteErrorPath}"),
+        documentModule: documentModule,
+        errorModule: require(${stringifyRequest(this, absoluteErrorPath)}),
         notFoundModule: ${
-          absolute404Path ? `require("${absolute404Path}")` : undefined
+          absolute404Path
+            ? `require(${stringifyRequest(this, absolute404Path)})`
+            : undefined
         },
         pageGetStaticProps: getStaticProps,
         pageGetStaticPaths: getStaticPaths,
@@ -181,23 +190,18 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: routesManifest.rewrites,
+        rewrites: rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",
         escapedBuildId: "${escapedBuildId}",
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
-        encodedPreviewProps: ${encodedPreviewProps},
-        experimental: {
-          onError,
-          initServer,
-        }
+        encodedPreviewProps: ${encodedPreviewProps}
       })
       export { renderReqToHTML, render }
     `
-    }
-  })
+  }
 }
 
 export default nextServerlessLoader

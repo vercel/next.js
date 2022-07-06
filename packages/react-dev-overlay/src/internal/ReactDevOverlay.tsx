@@ -1,8 +1,9 @@
 import * as React from 'react'
+
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'
-import { Errors, SupportedErrorEvent } from './container/Errors'
 import { BuildError } from './container/BuildError'
+import { Errors, SupportedErrorEvent } from './container/Errors'
 import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
@@ -22,7 +23,7 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
     case Bus.TYPE_BUILD_ERROR: {
       return { ...state, buildError: ev.message }
     }
-    case Bus.TYPE_REFFRESH: {
+    case Bus.TYPE_REFRESH: {
       return { ...state, buildError: null, errors: [] }
     }
     case Bus.TYPE_UNHANDLED_ERROR:
@@ -41,12 +42,22 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   }
 }
 
+type ErrorType = 'runtime' | 'build'
+
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
+  preventDisplay,
+}: {
+  children?: React.ReactNode
+  preventDisplay?: ErrorType[]
 }) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
-  >(reducer, { nextId: 1, buildError: null, errors: [] })
+  >(reducer, {
+    nextId: 1,
+    buildError: null,
+    errors: [],
+  })
 
   React.useEffect(() => {
     Bus.on(dispatch)
@@ -66,6 +77,7 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   const hasRuntimeErrors = Boolean(state.errors.length)
 
   const isMounted = hasBuildError || hasRuntimeErrors
+
   return (
     <React.Fragment>
       <ErrorBoundary onError={onComponentError}>
@@ -77,7 +89,10 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
           <Base />
           <ComponentStyles />
 
-          {hasBuildError ? (
+          {shouldPreventDisplay(
+            hasBuildError ? 'build' : hasRuntimeErrors ? 'runtime' : null,
+            preventDisplay
+          ) ? null : hasBuildError ? (
             <BuildError message={state.buildError!} />
           ) : hasRuntimeErrors ? (
             <Errors errors={state.errors} />
@@ -86,6 +101,16 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
       ) : undefined}
     </React.Fragment>
   )
+}
+
+const shouldPreventDisplay = (
+  errorType?: ErrorType | null,
+  preventType?: ErrorType[] | null
+) => {
+  if (!preventType || !errorType) {
+    return false
+  }
+  return preventType.includes(errorType)
 }
 
 export default ReactDevOverlay

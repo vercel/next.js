@@ -6,7 +6,7 @@ const $comment = ({ gipQuery }) => {
 
   return (
     <>
-      <p>
+      <p id={query.comment}>
         I am {query.comment} on {query.name}
       </p>
       <span>gip {gipQuery && gipQuery.name}</span>

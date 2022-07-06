@@ -8,11 +8,26 @@ Global CSS cannot be used in files other than your [Custom `<App>`](https://next
 
 #### Possible Ways to Fix It
 
-Relocate all Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
+To avoid conflicts, relocate all first-party Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
 
 Or, [update your component to use local CSS (Component-Level CSS) via CSS Modules](https://nextjs.org/docs/basic-features/built-in-css-support#adding-component-level-css). This is the preferred approach.
 
 #### Example
+
+Consider the stylesheet named [`styles.css`](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet)
+
+```jsx
+//styles.css
+body {
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
 
 ```jsx
 // pages/_app.js

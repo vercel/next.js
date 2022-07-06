@@ -1,1 +1,3 @@
-export default () => <div>API - conflict</div>
+export default function Page() {
+  return <div>API - conflict</div>
+}

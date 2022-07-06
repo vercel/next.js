@@ -1,16 +1,18 @@
+/* global location */
 import {
-  getCLS,
-  getFCP,
-  getFID,
-  getLCP,
-  getTTFB,
+  onCLS,
+  onFCP,
+  onFID,
+  onINP,
+  onLCP,
+  onTTFB,
   Metric,
-  ReportHandler,
+  ReportCallback,
 } from 'next/dist/compiled/web-vitals'
 
 const initialHref = location.href
 let isRegistered = false
-let userReportHandler: ReportHandler | undefined
+let userReportHandler: ReportCallback | undefined
 
 function onReport(metric: Metric): void {
   if (userReportHandler) {
@@ -36,9 +38,9 @@ function onReport(metric: Metric): void {
       value: metric.value.toString(),
       speed:
         'connection' in navigator &&
-        navigator['connection'] &&
-        'effectiveType' in navigator['connection']
-          ? (navigator['connection']['effectiveType'] as string)
+        (navigator as any)['connection'] &&
+        'effectiveType' in (navigator as any)['connection']
+          ? ((navigator as any)['connection']['effectiveType'] as string)
           : '',
     }
 
@@ -47,17 +49,30 @@ function onReport(metric: Metric): void {
       type: 'application/x-www-form-urlencoded',
     })
     const vitalsUrl = 'https://vitals.vercel-insights.com/v1/vitals'
-    ;(navigator.sendBeacon && navigator.sendBeacon(vitalsUrl, blob)) ||
+    // Navigator has to be bound to ensure it does not error in some browsers
+    // https://xgwang.me/posts/you-may-not-know-beacon/#it-may-throw-error%2C-be-sure-to-catch
+    const send = navigator.sendBeacon && navigator.sendBeacon.bind(navigator)
+
+    function fallbackSend() {
       fetch(vitalsUrl, {
         body: blob,
         method: 'POST',
         credentials: 'omit',
         keepalive: true,
-      })
+        // console.error is used here as when the fetch fails it does not affect functioning of the app
+      }).catch(console.error)
+    }
+
+    try {
+      // If send is undefined it'll throw as well. This reduces output code size.
+      send!(vitalsUrl, blob) || fallbackSend()
+    } catch (err) {
+      fallbackSend()
+    }
   }
 }
 
-export default (onPerfEntry?: ReportHandler): void => {
+export default (onPerfEntry?: ReportCallback): void => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
@@ -67,9 +82,10 @@ export default (onPerfEntry?: ReportHandler): void => {
   }
   isRegistered = true
 
-  getCLS(onReport)
-  getFID(onReport)
-  getFCP(onReport)
-  getLCP(onReport)
-  getTTFB(onReport)
+  onCLS(onReport)
+  onFID(onReport)
+  onFCP(onReport)
+  onLCP(onReport)
+  onTTFB(onReport)
+  onINP(onReport)
 }

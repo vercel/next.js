@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-wordpress.now.sh](https://next-blog-wordpress.now.sh)
+### [https://next-blog-wordpress.vercel.app](https://next-blog-wordpress.vercel.app)
 
 ## Deploy your own
 
@@ -28,15 +28,18 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-wordpress cms-wordpress-app
 # or
 yarn create next-app --example cms-wordpress cms-wordpress-app
+# or
+pnpm create next-app --example cms-wordpress cms-wordpress-app
 ```
 
 ## Configuration
@@ -60,11 +63,9 @@ Once the site is ready, you'll need to install the [WPGraphQL](https://www.wpgra
 
 ![WPGraphQL installed](./docs/plugin-installed.png)
 
-#### Optional: Add WPGraphiQL
+#### GraphiQL
 
-The [WPGraphiQL](https://github.com/wp-graphql/wp-graphiql) plugin gives you access to a GraphQL IDE directly from your WordPress Admin, allowing you to inspect and play around with the GraphQL API.
-
-The process to add WPGraphiQL is the same as the one for WPGraphQL: Go to the [WPGraphiQL repo](https://github.com/wp-graphql/wp-graphiql), download the ZIP archive, and install it as a plugin in your WordPress site. Once that's done you should be able to access the GraphiQL page in the admin:
+The [WPGraphQL](https://www.wpgraphql.com/) plugin also gives you access to a GraphQL IDE directly from your WordPress Admin, allowing you to inspect and play around with the GraphQL API.
 
 ![WPGraphiQL page](./docs/wp-graphiql.png)
 

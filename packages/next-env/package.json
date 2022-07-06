@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "10.0.8-canary.11",
+  "version": "12.2.1-canary.3",
   "keywords": [
     "react",
     "next",
@@ -26,12 +26,13 @@
     "prerelease": "rimraf ./dist/",
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "prepublish": "yarn release && yarn types"
+    "build": "pnpm release && pnpm types",
+    "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "0.20.4",
-    "dotenv": "8.2.0",
-    "dotenv-expand": "5.1.0"
+    "@vercel/ncc": "0.33.4",
+    "dotenv": "10.0.0",
+    "dotenv-expand": "8.0.1",
+    "rimraf": "3.0.2"
   }
 }

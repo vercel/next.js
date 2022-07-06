@@ -6,8 +6,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [https://next-blog-agilitycms.now.sh/](https://next-blog-agilitycms.now.sh/)
-- **Preview Mode**: [https://next-blog-agilitycms.now.sh/?agilitypreviewkey=...](https://next-blog-agilitycms.now.sh/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
+- **Live**: [https://next-blog-agilitycms.vercel.app/](https://next-blog-agilitycms.vercel.app/)
+- **Preview Mode**: [https://next-blog-agilitycms.vercel.app/?agilitypreviewkey=...](https://next-blog-agilitycms.vercel.app/?agilitypreviewkey=GzL%2fio1pLkfKc9BR1%2fC1cDQeKjL0AkwrTAJ22q3UEjAcOhyrqZejDkDv4kMlBKqrEuQxsuRyiP%2bUaykDYlJ%2fJg%3d%3d)
 
 ## Deploy your own
 
@@ -30,16 +30,20 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-agilitycms cms-agilitycms-app
 # or
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
+# or
+pnpm create next-app --example cms-agilitycms cms-agilitycms-app
 ```
 
 ## Configuration
@@ -315,7 +319,7 @@ To enable the Preview Mode, you'll need to add your site to **Domain Configurati
 - Click on the existing channel in the list called `Website`
 - Click on the **+ (New)** button to add a new domain:
   - Set **Name** to `Production`
-  - Set **Domain URL** to the URL of your production deployment, it should look like `https://<your-vercel-domain>.now.sh`
+  - Set **Domain URL** to the URL of your production deployment, it should look like `https://<your-vercel-domain>.vercel.app`
   - Enable **Preview Domain**
   - Click **Save** to save your settings
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-const Index = () => {
+export default function IndexPage() {
   return (
     <div className="main">
       <Link href="/birds">
@@ -12,5 +12,3 @@ const Index = () => {
     </div>
   )
 }
-
-export default Index

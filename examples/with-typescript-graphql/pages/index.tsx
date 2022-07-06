@@ -1,44 +1,45 @@
+import { useMutation, useQuery } from '@apollo/client'
+import { UpdateNameDocument, ViewerDocument } from 'lib/graphql-operations'
 import Link from 'next/link'
 import { useState } from 'react'
-import {
-  useViewerQuery,
-  useUpdateNameMutation,
-  ViewerDocument,
-} from '../lib/viewer.graphql'
 import { initializeApollo } from '../lib/apollo'
 
 const Index = () => {
-  const { viewer } = useViewerQuery().data!
+  const { data } = useQuery(ViewerDocument)
   const [newName, setNewName] = useState('')
-  const [updateNameMutation] = useUpdateNameMutation()
+  const [updateNameMutation] = useMutation(UpdateNameDocument)
 
   const onChangeName = () => {
     updateNameMutation({
       variables: {
         name: newName,
       },
-      //Follow apollo suggestion to update cache
-      //https://www.apollographql.com/docs/angular/features/cache-updates/#update
-      update: (
-        store,
-        {
-          data: {
-            updateName: { name },
-          },
-        }
-      ) => {
+      // Follow apollo suggestion to update cache
+      //  https://www.apollographql.com/docs/angular/features/cache-updates/#update
+      update: (cache, mutationResult) => {
+        const { data } = mutationResult
+        if (!data) return // Cancel updating name in cache if no data is returned from mutation.
         // Read the data from our cache for this query.
-        const { viewer } = store.readQuery({ query: ViewerDocument })
-        const newViewer = { ...viewer }
+        const result = cache.readQuery({
+          query: ViewerDocument,
+        })
+        const newViewer = result ? { ...result.viewer } : null
         // Add our comment from the mutation to the end.
-        newViewer.name = name
         // Write our data back to the cache.
-        store.writeQuery({ query: ViewerDocument, data: { viewer: newViewer } })
+        if (newViewer) {
+          newViewer.name = data.updateName.name
+          cache.writeQuery({
+            query: ViewerDocument,
+            data: { viewer: newViewer },
+          })
+        }
       },
     })
   }
 
-  return (
+  const viewer = data?.viewer
+
+  return viewer ? (
     <div>
       You're signed in as {viewer.name} and you're {viewer.status}. Go to the{' '}
       <Link href="/about">
@@ -54,7 +55,7 @@ const Index = () => {
         <input type="button" value="change" onClick={onChangeName} />
       </div>
     </div>
-  )
+  ) : null
 }
 
 export async function getStaticProps() {

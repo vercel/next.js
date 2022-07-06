@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = join(__dirname, '../')
 const pagesDir = join(appDir, 'pages')
 
@@ -70,9 +68,11 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
-    expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
+    expect(output).toContain(
+      'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+    )
     expect(output).toContain(
       `path: "/blog/conflicting" from page: "/[...catchAll]"`
     )
@@ -121,9 +121,11 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
-    expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
+    expect(output).toContain(
+      'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+    )
     expect(output).toContain(
       `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
     )
@@ -173,9 +175,11 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
-    expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
+    expect(output).toContain(
+      'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+    )
     expect(output).toContain(
       `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
     )

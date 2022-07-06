@@ -1,6 +1,6 @@
 {
   "root": true,
-  "parser": "babel-eslint",
+  "parser": "@babel/eslint-parser",
   "plugins": ["react", "react-hooks", "jest", "import"],
   "env": {
     "browser": true,
@@ -9,10 +9,17 @@
     "node": true
   },
   "parserOptions": {
-    "ecmaVersion": 2018,
+    "requireConfigFile": false,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
+    },
+    "babelOptions": {
+      "presets": ["next/babel"],
+      "caller": {
+        // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
+        "supportsTopLevelAwait": true
+      }
     }
   },
   "settings": {
@@ -23,11 +30,15 @@
   },
   "overrides": [
     {
-      "files": ["test/**/*.test.js"],
+      "files": ["test/**/*.js", "test/**/*.ts", "**/*.test.ts"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
-        "jest/no-disabled-tests": "off"
+        "jest/no-disabled-tests": "off",
+        "jest/no-conditional-expect": "off",
+        "jest/valid-title": "off",
+        "jest/no-interpolation-in-snapshots": "off",
+        "jest/no-export": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
@@ -192,7 +203,14 @@
     "no-octal-escape": "warn",
     "no-redeclare": ["warn", { "builtinGlobals": false }],
     "no-regex-spaces": "warn",
-    "no-restricted-syntax": ["warn", "WithStatement"],
+    "no-restricted-syntax": [
+      "warn",
+      "WithStatement",
+      {
+        "message": "substr() is deprecated, use slice() or substring() instead",
+        "selector": "MemberExpression > Identifier[name='substr']"
+      }
+    ],
     "no-script-url": "warn",
     "no-self-assign": "warn",
     "no-self-compare": "warn",

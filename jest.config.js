@@ -1,12 +1,16 @@
-module.exports = {
-  // this will become default in jest 27:
-  testRunner: 'jest-circus/runner',
-  testMatch: ['**/*.test.js'],
+const nextJest = require('next/jest')
+
+const createJestConfig = nextJest()
+
+// Any custom config you want to pass to Jest
+const customJestConfig = {
+  testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
+  setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
-  globalSetup: '<rootDir>/jest-global-setup.js',
-  globalTeardown: '<rootDir>/jest-global-teardown.js',
-  setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.js'],
-  testEnvironment: '<rootDir>/jest-environment.js',
+  transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
 }
+
+// createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
+module.exports = createJestConfig(customJestConfig)

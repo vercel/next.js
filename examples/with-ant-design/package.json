@@ -1,10 +1,10 @@
 {
-  "name": "with-ant-design",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "analyze": "cross-env ANALYZE=true next build"
   },
   "dependencies": {
     "@ant-design/icons": "4.2.1",
@@ -15,12 +15,14 @@
     "esm": "^3.2.25",
     "next": "latest",
     "postcss-preset-env": "^6.7.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "browser": {
     "fs": false,
     "path": false
   },
-  "license": "MIT"
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
 }

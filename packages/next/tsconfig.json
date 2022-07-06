@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
     "strict": true,
     "module": "esnext",
@@ -7,5 +8,5 @@
     "moduleResolution": "node",
     "jsx": "react"
   },
-  "exclude": ["dist", "./*.d.ts"]
+  "exclude": ["dist", "./*.d.ts", "future/*.d.ts", "image-types/global.d.ts"]
 }

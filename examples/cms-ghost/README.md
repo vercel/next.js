@@ -2,7 +2,7 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Ghost](https://ghost.org/) as the data source.
 
-> This boilerplate demonstrates simple usage and best practices. If you are looking for a more feature richt Next.js generator for Ghost including the Casper theme,
+> This boilerplate demonstrates simple usage and best practices. If you are looking for a more feature rich Next.js generator for Ghost including the Casper theme,
 > check out [next-cms-ghost](https://github.com/styxlab/next-cms-ghost).
 
 ## Deploy your own
@@ -25,16 +25,20 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-ghost cms-ghost-app
 # or
 yarn create next-app --example cms-ghost cms-ghost-app
+# or
+pnpm create next-app --example cms-ghost cms-ghost-app
 ```
 
 ### Setp 1. Run Next.js in development mode

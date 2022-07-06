@@ -2,24 +2,24 @@ import next from 'next'
 import { join } from 'path'
 const dir = join(__dirname, '../')
 const warningMessage =
-  "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://err.sh/next.js/invalid-server-options"
+  "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
 
 describe('Invalid server options', () => {
   test('next() called with no parameters should throw error', () => {
     expect(() => next()).toThrowError(
-      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+      'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
 
   test('next() called with undefined parameter should throw error', () => {
     expect(() => next(undefined)).toThrowError(
-      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+      'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
 
   test('next() called with null parameter should throw error', () => {
     expect(() => next(null)).toThrowError(
-      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+      'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   })
 

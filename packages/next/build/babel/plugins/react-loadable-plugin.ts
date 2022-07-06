@@ -29,6 +29,8 @@ import {
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
 
+import { relative as relativePath } from 'path'
+
 export default function ({
   types: t,
 }: {
@@ -36,7 +38,10 @@ export default function ({
 }): PluginObj {
   return {
     visitor: {
-      ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>) {
+      ImportDeclaration(
+        path: NodePath<BabelTypes.ImportDeclaration>,
+        state: any
+      ) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
@@ -71,9 +76,8 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          const callExpression_ = callExpression as NodePath<
-            BabelTypes.CallExpression
-          >
+          const callExpression_ =
+            callExpression as NodePath<BabelTypes.CallExpression>
 
           let args = callExpression_.get('arguments')
           if (args.length > 2) {
@@ -133,7 +137,8 @@ export default function ({
           if (!loader || Array.isArray(loader)) {
             return
           }
-          const dynamicImports: BabelTypes.StringLiteral[] = []
+          const dynamicImports: BabelTypes.Expression[] = []
+          const dynamicKeys: BabelTypes.Expression[] = []
 
           loader.traverse({
             Import(importPath) {
@@ -141,6 +146,20 @@ export default function ({
               if (!Array.isArray(importArguments)) return
               const node: any = importArguments[0].node
               dynamicImports.push(node)
+              dynamicKeys.push(
+                t.binaryExpression(
+                  '+',
+                  t.stringLiteral(
+                    (state.file.opts.caller?.pagesDir
+                      ? relativePath(
+                          state.file.opts.caller.pagesDir,
+                          state.file.opts.filename
+                        )
+                      : state.file.opts.filename) + ' -> '
+                  ),
+                  node
+                )
+              )
             },
           })
 
@@ -149,29 +168,35 @@ export default function ({
           options.node.properties.push(
             t.objectProperty(
               t.identifier('loadableGenerated'),
-              t.objectExpression([
-                t.objectProperty(
-                  t.identifier('webpack'),
-                  t.arrowFunctionExpression(
-                    [],
-                    t.arrayExpression(
-                      dynamicImports.map((dynamicImport) => {
-                        return t.callExpression(
-                          t.memberExpression(
-                            t.identifier('require'),
-                            t.identifier('resolveWeak')
-                          ),
-                          [dynamicImport]
+              t.objectExpression(
+                state.file.opts.caller?.isDev ||
+                  state.file.opts.caller?.isServer
+                  ? [
+                      t.objectProperty(
+                        t.identifier('modules'),
+                        t.arrayExpression(dynamicKeys)
+                      ),
+                    ]
+                  : [
+                      t.objectProperty(
+                        t.identifier('webpack'),
+                        t.arrowFunctionExpression(
+                          [],
+                          t.arrayExpression(
+                            dynamicImports.map((dynamicImport) => {
+                              return t.callExpression(
+                                t.memberExpression(
+                                  t.identifier('require'),
+                                  t.identifier('resolveWeak')
+                                ),
+                                [dynamicImport]
+                              )
+                            })
+                          )
                         )
-                      })
-                    )
-                  )
-                ),
-                t.objectProperty(
-                  t.identifier('modules'),
-                  t.arrayExpression(dynamicImports)
-                ),
-              ])
+                      ),
+                    ]
+              )
             )
           )
 

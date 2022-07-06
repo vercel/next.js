@@ -8,6 +8,13 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <Image
+        id="image-with-sizes"
+        src="/test-sizes.jpg"
+        width={2000}
+        height={100}
+        sizes="100vw"
+      />
+      <Image
         id="basic-image"
         src="foo.jpg"
         loading="eager"
@@ -84,6 +91,27 @@ const Page = () => {
         loading="eager"
         width={16}
         height={16}
+      />
+      <Image
+        id="image-with-param-auto"
+        src="foo.png?auto=compress"
+        loading="eager"
+        width={300}
+        height={400}
+      />
+      <Image
+        id="image-with-param-width"
+        src="foo.png?auto=format&w=500"
+        loading="eager"
+        width={500}
+        height={500}
+      />
+      <Image
+        id="image-with-param-fit"
+        src="foo.png?auto=format&fit=crop&w=300&h=300"
+        loading="eager"
+        width={300}
+        height={300}
       />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>

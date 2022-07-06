@@ -1,8 +1,18 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useEffect } from 'react'
+import { useState } from 'react'
 
 export default function Page(props) {
   const router = useRouter()
+  const parsedAs = new URL(router.asPath, 'http://n')
+  const [asPath, setAsPath] = useState(parsedAs.pathname)
+
+  useEffect(() => {
+    if (router.isReady && router.asPath && asPath !== router.asPath) {
+      setAsPath(router.asPath)
+    }
+  }, [router.asPath, router.isReady, asPath])
 
   return (
     <>
@@ -11,9 +21,10 @@ export default function Page(props) {
       <p id="router-locale">{router.locale}</p>
       <p id="router-default-locale">{router.defaultLocale}</p>
       <p id="router-locales">{JSON.stringify(router.locales)}</p>
+      <p id="router-domain-locales">{JSON.stringify(router.domainLocales)}</p>
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
-      <p id="router-as-path">{router.asPath}</p>
+      <p id="router-as-path">{asPath}</p>
       <Link href="/another">
         <a id="to-another">to /another</a>
       </Link>
@@ -44,6 +55,10 @@ export default function Page(props) {
       <br />
       <Link href="/gssp/first">
         <a id="to-gssp-slug">to /gssp/first</a>
+      </Link>
+      <br />
+      <Link href="/api/post/asdf">
+        <a id="to-api-post">to /api/post/[slug]</a>
       </Link>
       <br />
     </>
