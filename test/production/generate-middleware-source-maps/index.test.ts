@@ -6,13 +6,17 @@ import path from 'path'
 describe('Middleware source maps', () => {
   let next: NextInstance
 
-  afterEach(() => next.destroy())
-
-  it('generates a source map', async () => {
+  beforeAll(async () => {
     next = await createNext({
       files: {
         'pages/index.js': `
           export default function () { return <div>Hello, world!</div> }
+        `,
+        'pages/api/edge.js': `
+          export const config = { runtime: 'experimental-edge' };
+          export default function (req) {
+            return new Response("Hello from " + req.url);
+          }
         `,
         'middleware.js': `
           import { NextResponse } from "next/server";
@@ -22,12 +26,24 @@ describe('Middleware source maps', () => {
         `,
       },
     })
+  })
+  afterAll(() => next.destroy())
 
+  it('generates a source map for Middleware', async () => {
     const middlewarePath = path.resolve(
       next.testDir,
       '.next/server/middleware.js'
     )
     expect(await fs.pathExists(middlewarePath)).toEqual(true)
     expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
+  })
+
+  it('generates a source map for Edge API', async () => {
+    const edgePath = path.resolve(
+      next.testDir,
+      '.next/server/pages/api/edge.js'
+    )
+    expect(await fs.pathExists(edgePath)).toEqual(true)
+    expect(await fs.pathExists(`${edgePath}.map`)).toEqual(true)
   })
 })
