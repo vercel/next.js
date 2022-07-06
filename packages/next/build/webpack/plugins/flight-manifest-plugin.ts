@@ -73,7 +73,11 @@ export class FlightManifestPlugin {
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(chunk: any, id: string | number, mod: any) {
+      function recordModule(
+        chunk: webpack5.Chunk,
+        id: string | number,
+        mod: any
+      ) {
         const resource: string = mod.resource
 
         // TODO: Hook into deps instead of the target module.
@@ -121,19 +125,16 @@ export class FlightManifestPlugin {
 
         const moduleExportedKeys = ['', '*']
           .concat(
-            [...exportsInfo.exports].map((exportInfo) => {
-              if (exportInfo.provided) {
-                return exportInfo.name
-              }
-              return null
-            }) as string[],
+            [...exportsInfo.exports]
+              .filter((exportInfo) => exportInfo.provided)
+              .map((exportInfo) => exportInfo.name),
             ...cjsExports
           )
           .filter((name) => name !== null)
 
         // Get all CSS files imported in that chunk.
         const cssChunks: string[] = []
-        for (const entrypoint of chunk._groups) {
+        for (const entrypoint of (chunk as any)._groups) {
           if (entrypoint.getFiles) {
             const files = getEntrypointFiles(entrypoint)
             for (const file of files) {
@@ -147,14 +148,14 @@ export class FlightManifestPlugin {
         moduleExportedKeys.forEach((name) => {
           let requiredChunks = []
           if (!moduleExports[name]) {
-            const isNonInitialChunk = (c: webpack5.Chunk) =>
-              !c.hasAsyncChunks() &&
-              !c.rendered &&
-              !c.name?.startsWith('pages/')
+            const isRelatedChunk = (c: webpack5.Chunk) =>
+              // If current chunk is a page, it should require the related page chunk;
+              // If current chunk is a component, it should filter out the related page chunk;
+              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
 
             if (appDir) {
               requiredChunks = dev
-                ? chunk.ids.map((chunkId: number) => {
+                ? (chunk.ids || []).map((chunkId) => {
                     return (
                       chunkId +
                       ':' +
@@ -163,7 +164,7 @@ export class FlightManifestPlugin {
                     )
                   })
                 : chunkGroup.chunks
-                    .filter(isNonInitialChunk)
+                    .filter(isRelatedChunk)
                     .map((requiredChunk: webpack5.Chunk) => {
                       return (
                         requiredChunk.id +
@@ -192,7 +193,7 @@ export class FlightManifestPlugin {
         manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: any) => {
+      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
