@@ -17,8 +17,6 @@
     "@types/react": "18.0.14",
     "@types/react-dom": "18.0.5",
     "add": "^2.0.6",
-    "eslint": "8.18.0",
-    "eslint-config-next": "12.2.0",
     "install": "^0.13.0",
     "next-compose-plugins": "^2.2.1",
     "typescript": "4.7.4"
