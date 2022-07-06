@@ -105,5 +105,8 @@ const nodejsRuntimeBasicSuite = {
   },
 }
 
-runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
-runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+// TODO: move these to test/e2e and use new test utils.
+describe.skip('React Server Components', () => {
+  runDevSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+  runProdSuite('Node.js runtime', appDir, nodejsRuntimeBasicSuite)
+})
