@@ -105,6 +105,7 @@ importers:
       glob: 7.1.6
       gzip-size: 5.1.1
       html-validator: 5.1.18
+      husky: 8.0.0
       image-size: 0.9.3
       is-animated: 2.0.2
       isomorphic-unfetch: 3.0.0
@@ -131,7 +132,6 @@ importers:
       postcss-pseudoelements: 5.0.0
       postcss-short-size: 4.0.0
       postcss-trolling: 0.1.7
-      pre-commit: 1.2.2
       prettier: 2.5.1
       pretty-bytes: 5.3.0
       pretty-ms: 7.0.0
@@ -259,6 +259,7 @@ importers:
       glob: 7.1.6
       gzip-size: 5.1.1
       html-validator: 5.1.18
+      husky: 8.0.0
       image-size: 0.9.3
       is-animated: 2.0.2
       isomorphic-unfetch: 3.0.0
@@ -285,7 +286,6 @@ importers:
       postcss-pseudoelements: 5.0.0
       postcss-short-size: 4.0.0
       postcss-trolling: 0.1.7
-      pre-commit: 1.2.2
       prettier: 2.5.1
       pretty-bytes: 5.3.0
       pretty-ms: 7.0.0
@@ -8962,14 +8962,6 @@ packages:
       which: 1.3.1
     dev: true
 
-  /cross-spawn/5.1.0:
-    resolution: {integrity: sha512-pTgQJ5KC0d2hcY8eyL1IzlBPYjTkyH72XRZPnLyKus2mBfNjQs3klqbJU2VILqZryAZUt9JOb3h/mWMy23/f5A==}
-    dependencies:
-      lru-cache: 4.1.5
-      shebang-command: 1.2.0
-      which: 1.3.1
-    dev: true
-
   /cross-spawn/6.0.5:
     resolution: {integrity: sha512-eTVLrBSt7fjbDygz805pMnstIs2VTBNkRm0qxZd+M7A5XDdxVRWO5MxGBXZhjY4cqLYLdtrGqRf8mBPmzwSpWQ==}
     engines: {node: '>=4.8'}
@@ -12472,6 +12464,12 @@ packages:
     resolution: {integrity: sha1-xG4xWaKT9riW2ikxbYtv6Lt5u+0=}
     dependencies:
       ms: 2.1.2
+    dev: true
+
+  /husky/8.0.0:
+    resolution: {integrity: sha512-4qbE/5dzNDNxFEkX9MNRPKl5+omTXQzdILCUWiqG/lWIAioiM5vln265/l6I2Zx8gpW8l1ukZwGQeCFbBZ6+6w==}
+    engines: {node: '>=14'}
+    hasBin: true
     dev: true
 
   /iconv-lite/0.4.24:
@@ -16573,11 +16571,6 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /os-shim/0.1.3:
-    resolution: {integrity: sha1-a2LDeRz3kJ6jXtRuF2WLtBfLORc=}
-    engines: {node: '>= 0.4.0'}
-    dev: true
-
   /os-tmpdir/1.0.2:
     resolution: {integrity: sha512-D2FR03Vir7FIu45XBY20mTb+/ZSWB00sjU9jdQXt83gDrI4Ztz5Fs7/yy74g2N5SVQY4xY1qDr4rNddwYRVX0g==}
     engines: {node: '>=0.10.0'}
@@ -18029,15 +18022,6 @@ packages:
       picocolors: 1.0.0
       source-map-js: 1.0.1
 
-  /pre-commit/1.2.2:
-    resolution: {integrity: sha1-287g7p3nI15X95xW186UZBpp7sY=}
-    requiresBuild: true
-    dependencies:
-      cross-spawn: 5.1.0
-      spawn-sync: 1.0.15
-      which: 1.2.14
-    dev: true
-
   /prelude-ls/1.1.2:
     resolution: {integrity: sha1-IZMqVJ9eUv/ZqCf1cOBL5iqX2lQ=}
     engines: {node: '>= 0.8.0'}
@@ -18400,7 +18384,7 @@ packages:
     dev: true
 
   /querystring/0.2.0:
-    resolution: {integrity: sha1-sgmEkgO7Jd+CDadW50cAWHhSFiA=}
+    resolution: {integrity: sha512-X/xY82scca2tau62i9mDyU9K+I+djTMUsvwf7xnUX5GLvVzgJybOJf4Y6o9Zx3oJK/LSXg5tTZBjwzqVPaPO2g==}
     engines: {node: '>=0.4.x'}
     deprecated: The querystring API is considered Legacy. new code should use the URLSearchParams API instead.
     dev: true
@@ -20059,14 +20043,6 @@ packages:
 
   /space-separated-tokens/1.1.5:
     resolution: {integrity: sha512-q/JSVd1Lptzhf5bkYm4ob4iWPjx0KiRe3sRFBNrVqbJkFaBm5vbbowy1mymoPNLRa52+oadOhJ+K49wsSeSjTA==}
-    dev: true
-
-  /spawn-sync/1.0.15:
-    resolution: {integrity: sha1-sAeZVX63+wyDdsKdROih6mfldHY=}
-    requiresBuild: true
-    dependencies:
-      concat-stream: 1.6.2
-      os-shim: 0.1.3
     dev: true
 
   /spawn-to-readstream/0.1.3:
@@ -22358,13 +22334,6 @@ packages:
       function-bind: 1.1.1
       has-symbols: 1.0.2
       is-typed-array: 1.1.5
-    dev: true
-
-  /which/1.2.14:
-    resolution: {integrity: sha1-mofEN48D6CfOyvGs31bHNsAcFOU=}
-    hasBin: true
-    dependencies:
-      isexe: 2.0.0
     dev: true
 
   /which/1.3.1:
