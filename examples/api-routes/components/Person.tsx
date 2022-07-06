@@ -5,7 +5,7 @@ type PersonProps = {
   person: Person
 }
 
-const PersonComponent = ({ person }: PersonProps) => {
+export default function PersonComponent({ person }: PersonProps) {
   return (
     <li>
       <Link href="/person/[id]" as={`/person/${person.id}`}>
@@ -14,5 +14,3 @@ const PersonComponent = ({ person }: PersonProps) => {
     </li>
   )
 }
-
-export default PersonComponent
