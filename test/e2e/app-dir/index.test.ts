@@ -206,6 +206,175 @@ describe('app dir', () => {
     expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
   })
 
+  describe('<Link />', () => {
+    it('should hard push', async () => {
+      const browser = await webdriver(next.url, '/link-hard-push')
+
+      try {
+        // Click the link on the page, and verify that the history entry was
+        // added.
+        await browser.elementById('link').click()
+        // TODO: verify that a history entry was added
+
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+
+        // Get the date again, and compare, they should not be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).not.toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should hard replace', async () => {
+      const browser = await webdriver(next.url, '/link-hard-replace')
+
+      try {
+        // Click the link on the page, and verify that the history entry was NOT
+        // added.
+        await browser.elementById('link').click()
+        // TODO: verify that a history entry was NOT added
+
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+
+        // Get the date again, and compare, they should not be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).not.toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should soft push', async () => {
+      const browser = await webdriver(next.url, '/link-soft-push')
+
+      try {
+        // Click the link on the page, and verify that the history entry was
+        // added.
+        await browser.elementById('link').click()
+        // TODO: verify that a history entry was added
+
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+
+        // Get the date again, and compare, they should be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should soft replace', async () => {
+      const browser = await webdriver(next.url, '/link-soft-replace')
+
+      try {
+        // Click the link on the page, and verify that the history entry was NOT
+        // added.
+        await browser.elementById('link').click()
+        // TODO: verify that a history entry was NOT added
+
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+
+        // Get the date again, and compare, they should be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should be soft for back navigation', async () => {
+      const browser = await webdriver(next.url, '/with-date')
+
+      try {
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Click the link, and go back.
+        await browser.elementById('link').click()
+        await browser.back()
+
+        // Get the date again, and compare, they should be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should be soft for forward navigation', async () => {
+      const browser = await webdriver(next.url, '/with-date')
+
+      try {
+        // Click the link.
+        await browser.elementById('link').click()
+
+        // Get the date on the rendered page.
+        let element = await browser.elementById('date')
+        const firstDate = await element.text()
+
+        // Wait one second,
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Go back, then forward.
+        await browser.back()
+        await browser.forward()
+
+        // Get the date again, and compare, they should be the same.
+        element = await browser.elementById('date')
+        const secondDate = await element.text()
+        expect(firstDate).toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+
   describe('server components', () => {
     // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
     // should be? Seems like they both either should be servable or not
