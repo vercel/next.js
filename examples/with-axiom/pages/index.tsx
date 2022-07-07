@@ -1,20 +1,21 @@
+import { GetStaticPropsContext } from 'next'
 import { log } from 'next-axiom'
 import useSWR from 'swr'
 
-export async function getStaticProps(context) {
-  log.info('Hello from SSR', { context })
+export const getStaticProps = async (ctx: GetStaticPropsContext) => {
+  log.info('Hello from SSR', { ctx })
   return {
     props: {},
   }
 }
 
-const fetcher = async (...args) => {
+const fetcher = async (...args: any[]) => {
   log.info('Hello from SWR', { args });
-  const res = await fetch(...args);
+  const res = await fetch.apply(null, [...args]);
   return await res.json();
 }
 
-export default function Home() {
+const Home = () => {
   const { data, error } = useSWR('/api/hello', fetcher)
 
   if (error) return <div>Failed to load</div>
@@ -26,3 +27,5 @@ export default function Home() {
     </div>
   )
 }
+
+export default Home
