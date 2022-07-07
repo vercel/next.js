@@ -86,7 +86,7 @@ describe('Switchable runtime', () => {
         expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
       })
 
-      it('should support client side navigation to ssg rsc pages', async () => {
+      it.skip('should support client side navigation to ssg rsc pages', async () => {
         const browser = await webdriver(context.appPort, '/node')
 
         await browser
