@@ -984,6 +984,7 @@ export default class Router implements BaseRouter {
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     // or a navigation has occurred
+    const readyStateChange = this.isReady !== true
     this.isReady = true
     const isSsr = this.isSsr
 
@@ -1121,7 +1122,7 @@ export default class Router implements BaseRouter {
     )
     this._inFlightRoute = as
 
-    let localeChange = prevLocale !== nextState.locale
+    const localeChange = prevLocale !== nextState.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -1496,7 +1497,9 @@ export default class Router implements BaseRouter {
       const canSkipUpdating =
         (options as any)._h &&
         !upcomingScrollState &&
-        compareRouterStates(upcomingRouterState, this.state)
+        compareRouterStates(upcomingRouterState, this.state) &&
+        !readyStateChange &&
+        !localeChange
 
       if (!canSkipUpdating) {
         await this.set(
