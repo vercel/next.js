@@ -1,5 +1,5 @@
 use swc_common::Span;
-use swc_ecmascript::visit::VisitMut;
+use swc_ecma_visit::VisitMutAstPath;
 
 /// impl of code generation inferred from a AssetReference.
 /// This is rust only and can't be implemented by non-rust plugins.
