@@ -795,7 +795,10 @@ export default class DevServer extends Server {
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
-        const frame = frames.find(({ file }) => !file?.startsWith('eval'))!
+        const frame = frames.find(
+          ({ file }) =>
+            !file?.startsWith('eval') && !file?.includes('sandbox/context')
+        )!
 
         if (frame.lineNumber && frame?.file) {
           const moduleId = frame.file!.replace(
@@ -803,14 +806,12 @@ export default class DevServer extends Server {
             ''
           )
 
-          let compilation: any
-
-          const src = getErrorSource(err)
-          if (src === 'edge-server') {
-            compilation = this.hotReloader?.edgeServerStats?.compilation
-          } else {
-            compilation = this.hotReloader?.serverStats?.compilation
-          }
+          const src = getErrorSource(err as Error)
+          const compilation = (
+            src === 'edge-server'
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : this.hotReloader?.serverStats?.compilation
+          )!
 
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
@@ -825,6 +826,8 @@ export default class DevServer extends Server {
             frame,
             modulePath: moduleId,
             rootDirectory: this.dir,
+            errorMessage: err.message,
+            compilation,
           })
 
           if (originalFrame) {
