@@ -36,8 +36,8 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/middleware-flight-manifest.js
-export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/flight-manifest.js
+export const FLIGHT_MANIFEST = 'flight-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -46,7 +46,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
-export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-root`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

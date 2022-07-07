@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "middleware-upgrade-guide",
+          "path": "/errors/middleware-upgrade-guide.md"
+        },
+        {
           "title": "react-hydration-error",
           "path": "/errors/react-hydration-error.md"
         },
@@ -565,7 +569,7 @@
         {
           "path": "/errors/no-script-in-document-page.md",
           "redirect": {
-            "destination": "/errors/no-script-in-document"
+            "destination": "/docs/messages/no-script-in-document"
           }
         },
         {
@@ -699,6 +703,14 @@
         {
           "title": "get-initial-props-export",
           "path": "/errors/get-initial-props-export.md"
+        },
+        {
+          "title": "middleware-dynamic-wasm-compilation",
+          "path": "/errors/middleware-dynamic-wasm-compilation.md"
+        },
+        {
+          "title": "node-module-in-edge-runtime",
+          "path": "/errors/node-module-in-edge-runtime.md"
         }
       ]
     }

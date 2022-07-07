@@ -1,4 +1,5 @@
 import type { NextParsedUrlQuery } from './request-meta'
+import React from 'react'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
@@ -38,7 +39,10 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
   delete query.__flight__
   delete query.__props__
   // routing
-  delete query.__flight_router_path__
+  delete query.__flight_router_state_tree__
 
   return query
 }
+
+// When react version is >= 18 opt-in using reactRoot
+export const shouldUseReactRoot = parseInt(React.version) >= 18

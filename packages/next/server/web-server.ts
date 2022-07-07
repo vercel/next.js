@@ -84,7 +84,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return []
   }
   protected generateCatchAllMiddlewareRoute() {
-    return undefined
+    return []
   }
   protected getFontManifest() {
     return undefined
@@ -138,7 +138,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       {
         ...renderOpts,
         disableOptimizedLoading: true,
-        runtime: 'edge',
+        runtime: 'experimental-edge',
       }
     )
   }

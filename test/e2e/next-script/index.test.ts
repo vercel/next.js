@@ -4,7 +4,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { BrowserInterface } from 'test/lib/browsers/base'
 import { check } from 'next-test-utils'
 
-describe('beforeInteractive', () => {
+describe('beforeInteractive in document Head', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -31,9 +31,7 @@ describe('beforeInteractive', () => {
             )
           }
         `,
-        'pages/index.js': `
-          import Script from 'next/script'
-        
+        'pages/index.js': `        
           export default function Home() {
             return (
               <>
@@ -60,6 +58,67 @@ describe('beforeInteractive', () => {
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="beforeInteractive"]')`
       )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
+describe('beforeInteractive in document body', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+          
+          export default function Document() {
+            return (
+              <Html>
+                <Head />
+                <body>
+                  <Main />
+                  <NextScript />
+                  <Script
+                    src="https://www.google-analytics.com/analytics.js"
+                    strategy="beforeInteractive"
+                  />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `        
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+      dependencies: {
+        react: '17.0.2',
+        'react-dom': '17.0.2',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: BrowserInterface
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="beforeInteractive"]')`
+      )
+
       expect(script).not.toBeNull()
     } finally {
       if (browser) await browser.close()
@@ -182,13 +241,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-
-      expect(predefinedWorkerScripts).toBeGreaterThan(0)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
           `document.querySelectorAll('script[type="text/partytown-x"]').length`
@@ -243,12 +296,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-      expect(predefinedWorkerScripts).toEqual(1)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
           `document.querySelectorAll('script[type="text/partytown-x"]').length`
@@ -275,12 +323,7 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     try {
       browser = await webdriver(next.url, '/')
 
-      const predefinedWorkerScripts = await browser.eval(
-        `document.querySelectorAll('script[type="text/partytown"]').length`
-      )
-      expect(predefinedWorkerScripts).toEqual(1)
-
-      // Partytown modifes type to "text/partytown-x" after it has been executed in the web worker
+      // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
       await check(async () => {
         const processedWorkerScripts = await browser.eval(
           `document.querySelectorAll('script[type="text/partytown-x"]').length`

@@ -48,9 +48,7 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          outputStandalone: true,
-        },
+        output: 'standalone',
         async rewrites() {
           return {
             beforeFiles: [],
@@ -138,6 +136,151 @@ describe('should set-up next', () => {
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should resolve correctly when a redirect is returned', async () => {
+    const toRename = `standalone/.next/server/pages/route-resolving/[slug]/[project].html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+    try {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/route-resolving/import/first',
+        undefined,
+        {
+          redirect: 'manual',
+          headers: {
+            'x-matched-path': '/route-resolving/import/[slug]',
+          },
+        }
+      )
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        '/somewhere'
+      )
+
+      await waitFor(3000)
+      expect(stderr).not.toContain('ENOENT')
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
+  it('should show invariant when an automatic static page is requested', async () => {
+    const toRename = `standalone/.next/server/pages/auto-static.html`
+    await next.renameFile(toRename, `${toRename}.bak`)
+
+    try {
+      const res = await fetchViaHTTP(appPort, '/auto-static', undefined, {
+        headers: {
+          'x-matched-path': '/auto-static',
+        },
+      })
+
+      expect(res.status).toBe(500)
+      await check(() => stderr, /Invariant: failed to load static page/)
+    } finally {
+      await next.renameFile(`${toRename}.bak`, toRename)
+    }
+  })
+
+  it.each([
+    {
+      case: 'redirect no revalidate',
+      path: '/optional-ssg/redirect-1',
+      dest: '/somewhere',
+      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+    },
+    {
+      case: 'redirect with revalidate',
+      path: '/optional-ssg/redirect-2',
+      dest: '/somewhere-else',
+      cacheControl: 's-maxage=5, stale-while-revalidate',
+    },
+  ])(
+    `should have correct cache-control for $case`,
+    async ({ path, dest, cacheControl }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        dest
+      )
+      expect(res.headers.get('cache-control')).toBe(cacheControl)
+
+      const dataRes = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${next.buildId}${path}.json`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+      expect((await dataRes.json()).pageProps).toEqual({
+        __N_REDIRECT: dest,
+        __N_REDIRECT_STATUS: 307,
+      })
+    }
+  )
+
+  it.each([
+    {
+      case: 'notFound no revalidate',
+      path: '/optional-ssg/not-found-1',
+      dest: '/somewhere',
+      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+    },
+    {
+      case: 'notFound with revalidate',
+      path: '/optional-ssg/not-found-2',
+      dest: '/somewhere-else',
+      cacheControl: 's-maxage=5, stale-while-revalidate',
+    },
+  ])(
+    `should have correct cache-control for $case`,
+    async ({ path, dest, cacheControl }) => {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      expect(res.headers.get('cache-control')).toBe(cacheControl)
+
+      const dataRes = await fetchViaHTTP(
+        appPort,
+        `/_next/data/${next.buildId}${path}.json`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(dataRes.headers.get('cache-control')).toBe(cacheControl)
+    }
+  )
+
+  it('should have the correct cache-control for props with no revalidate', async () => {
+    const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#props').text()).params).toEqual({
+      rest: ['props-no-revalidate'],
+    })
+
+    const dataRes = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/optional-ssg/props-no-revalidate.json`,
+      undefined
+    )
+    expect(dataRes.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+    expect((await dataRes.json()).pageProps.params).toEqual({
+      rest: ['props-no-revalidate'],
+    })
   })
 
   it('should warn when "next" is imported directly', async () => {

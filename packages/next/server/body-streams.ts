@@ -7,7 +7,7 @@ type BodyStream = ReadableStream<Uint8Array>
 /**
  * Creates a ReadableStream from a Node.js HTTP request
  */
-function requestToBodyStream(request: IncomingMessage): BodyStream {
+export function requestToBodyStream(request: IncomingMessage): BodyStream {
   const transform = new Primitives.TransformStream<Uint8Array, Uint8Array>({
     start(controller) {
       request.on('data', (chunk) => controller.enqueue(chunk))
@@ -41,7 +41,7 @@ function replaceRequestBody<T extends IncomingMessage>(
   for (const key in stream) {
     let v = stream[key as keyof Readable] as any
     if (typeof v === 'function') {
-      v = v.bind(stream)
+      v = v.bind(base)
     }
     base[key as keyof T] = v
   }

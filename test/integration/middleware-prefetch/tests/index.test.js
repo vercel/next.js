@@ -72,9 +72,9 @@ describe('Middleware Production Prefetch', () => {
         new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
       )
       assert.deepEqual(mapped, [
+        '/index.json',
         '/made-up.json',
         '/ssg-page-2.json',
-        '/ssg-page.json',
       ])
       return 'yes'
     }, 'yes')

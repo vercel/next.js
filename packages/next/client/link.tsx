@@ -275,7 +275,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     children = childrenProp
 
-    if (legacyBehavior && typeof children === 'string') {
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
       children = <a>{children}</a>
     }
 
@@ -289,7 +292,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       : []
     let router = React.useContext(RouterContext)
 
-    const appRouter = React.useContext(AppRouterContext)
+    // TODO: type error. Remove `as any`
+    const appRouter = React.useContext(AppRouterContext) as any
     if (appRouter) {
       router = appRouter
     }

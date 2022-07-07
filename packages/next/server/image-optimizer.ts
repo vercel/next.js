@@ -125,7 +125,7 @@ export class ImageOptimizerCache {
 
     const width = parseInt(w, 10)
 
-    if (!width || isNaN(width)) {
+    if (width <= 0 || isNaN(width)) {
       return {
         errorMessage: '"w" parameter (width) must be a number greater than 0',
       }
@@ -423,10 +423,7 @@ export async function imageOptimizer(
       optimizedBuffer = await transformer.toBuffer()
       // End sharp transformation logic
     } else {
-      if (
-        showSharpMissingWarning &&
-        nextConfig.experimental?.outputStandalone
-      ) {
+      if (showSharpMissingWarning && nextConfig.output === 'standalone') {
         // TODO: should we ensure squoosh also works even though we don't
         // recommend it be used in production and this is a production feature
         console.error(
