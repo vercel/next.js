@@ -161,13 +161,6 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
-    console.log(
-      'UPDATE URL',
-      pushRef.pendingPush ? 'push' : 'replace',
-      pushRef.mpaNavigation ? 'MPA' : '',
-      tree
-    )
-
     if (pushRef.mpaNavigation) {
       window.location.href = canonicalUrl
       return

@@ -126,7 +126,6 @@ export function InnerLayoutRouter({
     // TODO: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
-    console.log('FETCHING IN RENDER', { childNode, segmentPath, path })
     const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
       data,
@@ -175,12 +174,6 @@ export function InnerLayoutRouter({
     }
 
     if (!fastPath) {
-      console.log('NOT FAST PATH', {
-        childNode,
-        segmentPath,
-        path,
-        flightData,
-      })
       // For push we can set data in the cache
 
       // segmentPath from the server does not match the layout's segmentPath
@@ -200,7 +193,6 @@ export function InnerLayoutRouter({
 
   // TODO: double check users can't return null in a component that will kick in here
   if (!childNode.subTreeData) {
-    console.log('No subtree data', { childNode, segmentPath, path })
     throw createInfinitePromise()
   }
 

@@ -275,7 +275,6 @@ export function reducer(
         }
       }
 ): AppRouterState {
-  console.log('ACTION', action)
   if (action.type === 'restore') {
     const { url, historyState } = action.payload
     const href = url.pathname + url.search + url.hash
@@ -353,7 +352,6 @@ export function reducer(
           state.cache,
           segments.slice(1),
           () => {
-            console.log('FETCHING IN CACHE DATA FILL')
             return fetchServerResponse(url, optimisticTree)
           }
         )
@@ -371,7 +369,6 @@ export function reducer(
       }
 
       if (!cache.data) {
-        console.log('FETCHING IN NOT OPTIMISTIC')
         cache.data = fetchServerResponse(url, state.tree)
       }
       const flightData = cache.data.readRoot()
