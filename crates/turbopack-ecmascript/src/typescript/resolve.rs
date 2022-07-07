@@ -81,7 +81,7 @@ pub async fn read_tsconfigs(
 }
 
 pub async fn read_from_tsconfigs<T>(
-    configs: &Vec<(FileJsonContentVc, AssetVc)>,
+    configs: &[(FileJsonContentVc, AssetVc)],
     accessor: impl Fn(&JsonValue, AssetVc) -> Option<T>,
 ) -> Result<Option<T>> {
     for (config, source) in configs.iter() {
@@ -166,8 +166,8 @@ pub async fn type_resolve(request: RequestVc, context: AssetContextVc) -> Result
     let options = context.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module { module: m, path: p } = &*request.await? {
-        let m = if m.starts_with("@") {
-            m[1..].replace('/', "__")
+        let m = if let Some(stripped) = m.strip_prefix('@') {
+            stripped.replace('/', "__")
         } else {
             m.clone()
         };

@@ -8,6 +8,12 @@ use crate::{self as turbo_tasks};
 #[turbo_tasks::value(cell: new)]
 pub struct Completion;
 
+impl Default for CompletionVc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // no #[turbo_tasks::value_impl] to inline new into the caller task
 // this ensures it's re-created on each execution
 impl CompletionVc {

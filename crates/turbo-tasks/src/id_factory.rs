@@ -11,6 +11,12 @@ pub struct IdFactory<T> {
     phantom_data: PhantomData<T>,
 }
 
+impl<T: From<usize> + Deref<Target = usize>> Default for IdFactory<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: From<usize> + Deref<Target = usize>> IdFactory<T> {
     pub fn new() -> Self {
         Self {

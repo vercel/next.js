@@ -6,6 +6,7 @@ use std::{
     marker::PhantomData,
     pin::Pin,
     sync::Arc,
+    task::Poll,
 };
 
 use anyhow::Result;
@@ -157,11 +158,9 @@ impl RawVc {
                     .await?
                 }
                 RawVc::TaskCell(task, index) => {
-                    return Ok(
-                        unsafe { read_task_cell_untracked(turbo_tasks, task, index) }
-                            .await?
-                            .cast::<T>()?,
-                    );
+                    return unsafe { read_task_cell_untracked(turbo_tasks, task, index) }
+                        .await?
+                        .cast::<T>();
                 }
             }
         }
@@ -328,17 +327,14 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
 impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
     type Output = Result<RawVcReadResult<T>>;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
         let this = self.get_mut();
         'outer: loop {
             if let Some(listener) = &mut this.listener {
                 let listener = unsafe { Pin::new_unchecked(listener) };
-                if let std::task::Poll::Pending = listener.poll(cx) {
-                    return std::task::Poll::Pending;
+                if listener.poll(cx).is_pending() {
+                    return Poll::Pending;
                 }
                 this.listener = None;
             }
@@ -353,23 +349,23 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                         continue 'outer;
                     }
                     Ok(Err(listener)) => listener,
-                    Err(err) => return std::task::Poll::Ready(Err(err)),
+                    Err(err) => return Poll::Ready(Err(err)),
                 },
                 RawVc::TaskCell(task, index) => {
                     match this.turbo_tasks.try_read_task_cell(task, index) {
                         Ok(Ok(content)) => {
-                            return std::task::Poll::Ready(content.cast::<T>());
+                            return Poll::Ready(content.cast::<T>());
                         }
                         Ok(Err(listener)) => listener,
-                        Err(err) => return std::task::Poll::Ready(Err(err)),
+                        Err(err) => return Poll::Ready(Err(err)),
                     }
                 }
             };
             match Pin::new(&mut listener).poll(cx) {
-                std::task::Poll::Ready(_) => continue,
-                std::task::Poll::Pending => {
+                Poll::Ready(_) => continue,
+                Poll::Pending => {
                     this.listener = Some(listener);
-                    return std::task::Poll::Pending;
+                    return Poll::Pending;
                 }
             };
         }
@@ -384,18 +380,15 @@ pub struct ReadAndMapRawVcFuture<T: Any + Send + Sync, O, F: Fn(&T) -> &O> {
 impl<T: Any + Send + Sync, O, F: Fn(&T) -> &O> Future for ReadAndMapRawVcFuture<T, O, F> {
     type Output = Result<RawVcReadAndMapResult<T, O, F>>;
 
-    fn poll(
-        self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = unsafe { self.get_unchecked_mut() };
         let inner_pin = Pin::new(&mut this.inner);
         match inner_pin.poll(cx) {
-            std::task::Poll::Ready(r) => std::task::Poll::Ready(match r {
+            Poll::Ready(r) => Poll::Ready(match r {
                 Ok(r) => Ok(r.map_read_result(this.func.take().unwrap())),
                 Err(e) => Err(e),
             }),
-            std::task::Poll::Pending => std::task::Poll::Pending,
+            Poll::Pending => Poll::Pending,
         }
     }
 }

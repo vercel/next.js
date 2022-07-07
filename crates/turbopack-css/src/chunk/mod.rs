@@ -92,7 +92,7 @@ impl Asset for CssChunk {
         let mut code = String::new();
         for chunk_item in content.chunk_items.iter() {
             let content = &chunk_item.content(c_context, self.context).await?;
-            code += &content;
+            code += content;
             code += "\n\n";
         }
         Ok(FileContent::Content(File::from_source(code)).into())

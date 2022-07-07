@@ -88,7 +88,7 @@ fn parse_content(string: String, fs_path: String) -> Result<ParseResultVc> {
 
     Ok(ParseResult::Ok {
         stylesheet: parsed_stylesheet,
-        source_map: cm.clone(),
+        source_map: cm,
     }
     .into())
 }
@@ -127,10 +127,10 @@ impl Display for Buffer {
                 let (first, rem) = lines.split_at(250);
                 let (_, last) = rem.split_at(rem.len() - 250);
                 lines = first
-                    .into_iter()
+                    .iter()
                     .chain(&["...".to_string()])
-                    .chain(last.into_iter())
-                    .map(|s| s.clone())
+                    .chain(last.iter())
+                    .cloned()
                     .collect();
             }
             let str = lines.concat();

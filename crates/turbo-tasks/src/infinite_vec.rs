@@ -66,7 +66,7 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
             .0
             .load(Ordering::Acquire);
         if bucket_ptr.is_null() {
-            return &default;
+            return default;
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
         unsafe { &*bucket_ptr.add(index) }
@@ -122,8 +122,7 @@ impl<T: Default, const INITIAL_CAPACITY_BITS: u32> InfiniteVec<T, INITIAL_CAPACI
             }
         }
         let index = get_index_in_bucket::<INITIAL_CAPACITY_BITS>(idx, bucket_idx);
-        let item = unsafe { &mut *bucket_ptr.add(index) };
-        item
+        unsafe { &mut *bucket_ptr.add(index) }
     }
 
     /// SAFETY: There must not be a concurrent operation to this idx

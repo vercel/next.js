@@ -389,9 +389,9 @@ async fn top_references(list: ReferencesListVc) -> Result<ReferencesListVc> {
     let mut top = Vec::<(&AssetVc, &HashSet<AssetVc>)>::new();
     for tuple in list.referenced_by.iter() {
         let mut current = tuple;
-        for i in 0..top.len() {
-            if top[i].1.len() < tuple.1.len() {
-                swap(&mut top[i], &mut current);
+        for item in &mut top {
+            if item.1.len() < tuple.1.len() {
+                swap(item, &mut current);
             }
         }
         if top.len() < N {

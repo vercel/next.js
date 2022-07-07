@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{
         mpsc::{channel, RecvError, TryRecvError},
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex,
     },
     thread::sleep,
     time::Duration,
@@ -156,17 +156,17 @@ impl DiskFileSystem {
                             batched_invalidate_path_and_children.insert(path_to_key(&path));
                             batched_invalidate_path_and_children_dir.insert(path_to_key(&path));
                             if let Some(parent) = path.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(&parent));
+                                batched_invalidate_path_dir.insert(path_to_key(parent));
                             }
                         }
                         Ok(DebouncedEvent::Rename(source, destination)) => {
                             batched_invalidate_path_and_children.insert(path_to_key(&source));
                             if let Some(parent) = source.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(&parent));
+                                batched_invalidate_path_dir.insert(path_to_key(parent));
                             }
                             batched_invalidate_path_and_children.insert(path_to_key(&destination));
                             if let Some(parent) = destination.parent() {
-                                batched_invalidate_path_dir.insert(path_to_key(&parent));
+                                batched_invalidate_path_dir.insert(path_to_key(parent));
                             }
                         }
                         Ok(DebouncedEvent::Rescan) => {
@@ -209,7 +209,7 @@ impl DiskFileSystem {
                     event = rx.try_recv();
                 }
                 fn invalidate_path(
-                    invalidators: &mut MutexGuard<HashMap<String, Invalidator>>,
+                    invalidators: &mut HashMap<String, Invalidator>,
                     paths: impl Iterator<Item = String>,
                 ) {
                     for path in paths {
@@ -219,7 +219,7 @@ impl DiskFileSystem {
                     }
                 }
                 fn invalidate_path_and_children_execute(
-                    invalidators: &mut MutexGuard<HashMap<String, Invalidator>>,
+                    invalidators: &mut HashMap<String, Invalidator>,
                     paths: &mut HashSet<String>,
                 ) {
                     for (_, invalidator) in invalidators.drain_filter(|key, _| {
@@ -328,7 +328,7 @@ impl FileSystem for DiskFileSystem {
             &fs_path
                 .await?
                 .path
-                .replace("/", &MAIN_SEPARATOR.to_string()),
+                .replace('/', &MAIN_SEPARATOR.to_string()),
         );
         {
             let invalidator = turbo_tasks::get_invalidator();
@@ -348,7 +348,7 @@ impl FileSystem for DiskFileSystem {
     async fn read_dir(&self, fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
         let fs_path = fs_path.await?;
         let full_path =
-            Path::new(&self.root).join(&fs_path.path.replace("/", &MAIN_SEPARATOR.to_string()));
+            Path::new(&self.root).join(&fs_path.path.replace('/', &MAIN_SEPARATOR.to_string()));
         {
             let invalidator = turbo_tasks::get_invalidator();
             self.dir_invalidators
@@ -382,15 +382,15 @@ impl FileSystem for DiskFileSystem {
                                     Ok(t) => t,
                                 };
                                 if file_type.is_file() {
-                                    DirectoryEntry::File(fs_path).into()
+                                    DirectoryEntry::File(fs_path)
                                 } else if file_type.is_dir() {
-                                    DirectoryEntry::Directory(fs_path).into()
+                                    DirectoryEntry::Directory(fs_path)
                                 // TODO
                                 // follow the symlink?
                                 } else if file_type.is_symlink() {
-                                    DirectoryEntry::File(fs_path).into()
+                                    DirectoryEntry::File(fs_path)
                                 } else {
-                                    DirectoryEntry::Other(fs_path).into()
+                                    DirectoryEntry::Other(fs_path)
                                 }
                             })))
                         }
@@ -416,7 +416,7 @@ impl FileSystem for DiskFileSystem {
             &fs_path
                 .await?
                 .path
-                .replace("/", &MAIN_SEPARATOR.to_string()),
+                .replace('/', &MAIN_SEPARATOR.to_string()),
         );
         let content = content.await?;
         let old_content = fs_path.read().await?;
@@ -437,18 +437,11 @@ impl FileSystem for DiskFileSystem {
                     }
                     // println!("write {} bytes to {}", buffer.len(), full_path.display());
                     with_retry(|| {
-                        fs::File::create(&full_path)
-                            .and_then(|mut f| f.write_all(&file.content))
-                            .and_then(|_| {
-                                #[cfg(target_family = "unix")]
-                                {
-                                    return fs::set_permissions(
-                                        &full_path,
-                                        file.meta.permissions.into(),
-                                    );
-                                }
-                                return Ok(());
-                            })
+                        let mut f = fs::File::create(&full_path)?;
+                        f.write_all(&file.content)?;
+                        #[cfg(target_family = "unix")]
+                        fs::set_permissions(&full_path, file.meta.permissions.into())?;
+                        Ok(())
                     })
                     .with_context(|| format!("failed to write to {}", full_path.display()))
                 }
@@ -517,8 +510,8 @@ impl FileSystemPath {
         let path = inner.path.strip_prefix(&self.path)?;
         if self.path.is_empty() {
             Some(path)
-        } else if path.starts_with('/') {
-            Some(&path[1..])
+        } else if let Some(stripped) = path.strip_prefix('/') {
+            Some(stripped)
         } else {
             None
         }
@@ -552,7 +545,7 @@ impl FileSystemPath {
                 result.push("..");
             }
         }
-        while let Some(segment) = other_segments.next() {
+        for segment in other_segments {
             result.push(segment);
         }
         Some(result.join("/"))

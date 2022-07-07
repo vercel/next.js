@@ -115,13 +115,13 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
 }
 
 pub fn path_join(args: Vec<JsValue>) -> JsValue {
-    if args.len() == 0 {
+    if args.is_empty() {
         return ".".into();
     }
     let mut parts = Vec::new();
     for item in args {
         if let Some(str) = item.as_str() {
-            let splitted = str.split("/");
+            let splitted = str.split('/');
             parts.extend(splitted.map(|s| s.into()));
         } else {
             parts.push(item);
@@ -145,11 +145,11 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
                 _ => results.push(item),
             }
         } else {
-            results_final.extend(results.drain(..));
+            results_final.append(&mut results);
             results_final.push(item);
         }
     }
-    results_final.extend(results.drain(..));
+    results_final.append(&mut results);
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
     let mut last_is_str = first.as_str().is_some();
@@ -181,7 +181,7 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     for (idx, arg) in args.iter().enumerate().rev() {
         if idx != 0 {
             if let Some(str) = arg.as_str() {
-                if str.starts_with("/") {
+                if str.starts_with('/') {
                     return path_resolve(cwd, args.drain(idx..).collect());
                 }
             }
@@ -208,24 +208,24 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
                 }
             }
         } else {
-            results_final.extend(results.drain(..));
+            results_final.append(&mut results);
             results_final.push(item);
         }
     }
-    results_final.extend(results.drain(..));
+    results_final.append(&mut results);
     let mut iter = results_final.into_iter();
     let first = iter.next().unwrap();
 
     let is_already_absolute = first.as_str().map_or(false, |s| s.is_empty())
         || match &first {
-            JsValue::Constant(ConstantValue::Str(s)) => s.starts_with("/"),
+            JsValue::Constant(ConstantValue::Str(s)) => s.starts_with('/'),
             _ => false,
         };
 
     let mut last_was_str = first.as_str().is_some();
 
     if !is_already_absolute {
-        results.push(cwd.into());
+        results.push(cwd);
     }
 
     results.push(first);
@@ -246,7 +246,7 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     if let Some(arg) = args.iter_mut().next() {
         if let Some(str) = arg.as_str() {
-            if let Some(i) = str.rfind("/") {
+            if let Some(i) = str.rfind('/') {
                 return JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
             } else {
                 return JsValue::Constant(ConstantValue::Str("".into()));
@@ -254,7 +254,7 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
         } else if let JsValue::Concat(_, items) = arg {
             if let Some(last) = items.last_mut() {
                 if let Some(str) = last.as_str() {
-                    if let Some(i) = str.rfind("/") {
+                    if let Some(i) = str.rfind('/') {
                         *last = JsValue::Constant(ConstantValue::Str(str[..i].to_string().into()));
                         return take(arg);
                     }
@@ -492,15 +492,13 @@ async fn node_process_member(prop: JsValue, target: CompileTargetVc) -> Result<J
 fn node_pre_gyp(prop: JsValue) -> JsValue {
     match prop.as_str() {
         Some("find") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind),
-        _ => {
-            return JsValue::Unknown(
-                Some(Arc::new(JsValue::member(
-                    box JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                    box prop,
-                ))),
-                "unsupported property on @mapbox/node-pre-gyp module",
-            )
-        }
+        _ => JsValue::Unknown(
+            Some(Arc::new(JsValue::member(
+                box JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
+                box prop,
+            ))),
+            "unsupported property on @mapbox/node-pre-gyp module",
+        ),
     }
 }
 

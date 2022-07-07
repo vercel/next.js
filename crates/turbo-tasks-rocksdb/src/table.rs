@@ -37,7 +37,7 @@ macro_rules! table_base_internal_merge {
                     let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
                     current = merge_add_value(current, op);
                 }
-                Some(DefaultOptions::new().serialize(&current).ok()?)
+                DefaultOptions::new().serialize(&current).ok()
             })
         }
         fn partial_merge(_: &[u8], _: Option<&[u8]>, ops: &rocksdb::MergeOperands) -> Option<Vec<u8>> {
@@ -52,7 +52,7 @@ macro_rules! table_base_internal_merge {
                     let op: ($($merge),+) = DefaultOptions::new().deserialize(op).ok()?;
                     current = merge_add_merge(current, op);
                 }
-                Some(DefaultOptions::new().serialize(&current).ok()?)
+                DefaultOptions::new().serialize(&current).ok()
             })
         }
         $opt.set_merge_operator(stringify!(($($merge),+)), full_merge, partial_merge);
@@ -286,7 +286,7 @@ macro_rules! table_base_internal_prefix_helper {
                 Ok(l) => l,
                 Err(_) => u8::MAX,
             };
-            let mut buf = Vec::new();
+            let mut buf = Vec::with_capacity(v.len() as usize + 1);
             buf.push(len);
             buf.extend(v.iter());
             buf
@@ -1274,10 +1274,9 @@ macro_rules! database {
                 }
 
                 pub fn get_stats(&self) -> Result<Vec<$crate::table::CFStats>> {
-                    let mut results = Vec::new();
-                    $(
-                        results.push(self.$table.get_stats()?);
-                    )*
+                    let results = vec![$(
+                        self.$table.get_stats()?,
+                    )*];
                     Ok(results)
                 }
             }

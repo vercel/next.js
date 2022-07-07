@@ -1,16 +1,16 @@
 pub mod failed_to_analyse {
     pub mod ecmascript {
-        pub const DYNAMIC_IMPORT: &'static str = "TP1001";
-        pub const REQUIRE: &'static str = "TP1002";
-        pub const REQUIRE_RESOLVE: &'static str = "TP1003";
-        pub const FS_METHOD: &'static str = "TP1004";
-        pub const CHILD_PROCESS_SPAWN: &'static str = "TP1005";
-        pub const PATH_METHOD: &'static str = "TP1006";
-        pub const NODE_PRE_GYP_FIND: &'static str = "TP1100";
-        pub const NODE_GYP_BUILD: &'static str = "TP1101";
-        pub const NODE_BINDINGS: &'static str = "TP1102";
-        pub const NODE_EXPRESS: &'static str = "TP1103";
-        pub const NODE_RESOLVE_FROM: &'static str = "TP1104";
-        pub const NODE_PROTOBUF_LOADER: &'static str = "TP1105";
+        pub const DYNAMIC_IMPORT: &str = "TP1001";
+        pub const REQUIRE: &str = "TP1002";
+        pub const REQUIRE_RESOLVE: &str = "TP1003";
+        pub const FS_METHOD: &str = "TP1004";
+        pub const CHILD_PROCESS_SPAWN: &str = "TP1005";
+        pub const PATH_METHOD: &str = "TP1006";
+        pub const NODE_PRE_GYP_FIND: &str = "TP1100";
+        pub const NODE_GYP_BUILD: &str = "TP1101";
+        pub const NODE_BINDINGS: &str = "TP1102";
+        pub const NODE_EXPRESS: &str = "TP1103";
+        pub const NODE_RESOLVE_FROM: &str = "TP1104";
+        pub const NODE_PROTOBUF_LOADER: &str = "TP1105";
     }
 }

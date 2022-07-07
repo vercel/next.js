@@ -22,9 +22,9 @@ impl RebasedAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, input_dir: FileSystemPathVc, output_dir: FileSystemPathVc) -> Self {
         Self::cell(RebasedAsset {
-            source: source,
-            input_dir: input_dir,
-            output_dir: output_dir,
+            source,
+            input_dir,
+            output_dir,
         })
     }
 }
@@ -79,7 +79,7 @@ impl AssetReference for RebasedAssetReference {
                 },
                 |reference| {
                     let reference: AssetReferenceVc = RebasedAssetReference {
-                        reference: reference,
+                        reference,
                         input_dir: self.input_dir,
                         output_dir: self.output_dir,
                     }

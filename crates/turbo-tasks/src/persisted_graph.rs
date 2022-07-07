@@ -133,7 +133,6 @@ pub trait PersistedGraph: Sync + Send {
 
     /// Activate a task in the persisted graph when active_parents > 0 or it's
     /// externally kept alive.
-    #[must_use]
     fn activate_when_needed(
         &self,
         task: TaskId,
@@ -142,7 +141,6 @@ pub trait PersistedGraph: Sync + Send {
 
     /// Deactivate a task in the persisted graph when active_parents == 0 and
     /// it's not externally kept alive.
-    #[must_use]
     fn deactivate_when_needed(
         &self,
         task: TaskId,
@@ -152,50 +150,41 @@ pub trait PersistedGraph: Sync + Send {
     /// Marks a task as kept alive by the consumer graph
     /// (usually from memory to persisted graph)
     /// Returns true when activate_when_needed should be called soonish
-    #[must_use]
     fn set_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
 
     /// No longer marks a task as kept alive by the consumer graph
     /// (usually from memory to persisted graph)
     /// Returns true when deactivate_when_needed should be called soonish
-    #[must_use]
     fn unset_externally_active(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
 
     /// Removes all external keep alives that were not renewed this round.
     /// This is usually called after the initial build has finished and all
     /// external keep alives has been renewed.
-    #[must_use]
     fn remove_outdated_externally_active(&self, api: &dyn PersistedGraphApi)
         -> Result<Vec<TaskId>>;
 
     /// update the dirty flag for a stored task
     /// Returns true, when the task is active and should be scheduled
-    #[must_use]
     fn make_dirty(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
 
     /// update the dirty flag for a stored task
-    #[must_use]
     fn make_clean(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<()>;
 
     /// make all tasks that depend on that vc dirty and
     /// return a list of active tasks that should be scheduled
-    #[must_use]
     fn make_dependent_dirty(&self, vc: RawVc, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
 
     /// Get all tasks that are active, but not persisted.
     /// This is usually called at beginning to create and schedule
     /// tasks that are missing in the persisted graph
-    #[must_use]
     fn get_active_external_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
 
     /// Get all tasks that are dirty and active.
     /// This is usually called at the beginning to schedule these tasks.
-    #[must_use]
     fn get_dirty_active_tasks(&self, api: &dyn PersistedGraphApi) -> Result<Vec<TaskId>>;
 
     /// Get tasks that have active update pending that need to be continued
     /// returns (tasks_to_activate, tasks_to_deactivate)
-    #[must_use]
     fn get_pending_active_update(
         &self,
         api: &dyn PersistedGraphApi,

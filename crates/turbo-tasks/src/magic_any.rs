@@ -119,7 +119,7 @@ impl dyn MagicAny {
         &self,
     ) -> &dyn erased_serde::Serialize {
         if let Some(r) = self.downcast_ref::<T>() {
-            return r;
+            r
         } else {
             #[cfg(debug_assertions)]
             panic!(
@@ -167,7 +167,7 @@ impl<'de> DeserializeSeed<'de> for MagicAnyDeserializeSeed {
         D: serde::Deserializer<'de>,
     {
         let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-        (self.functor)(&mut deserializer).map_err(|e| serde::de::Error::custom(e))
+        (self.functor)(&mut deserializer).map_err(serde::de::Error::custom)
     }
 }
 
@@ -203,6 +203,6 @@ impl<'de> DeserializeSeed<'de> for AnyDeserializeSeed {
         D: serde::Deserializer<'de>,
     {
         let mut deserializer = <dyn erased_serde::Deserializer>::erase(deserializer);
-        (self.functor)(&mut deserializer).map_err(|e| serde::de::Error::custom(e))
+        (self.functor)(&mut deserializer).map_err(serde::de::Error::custom)
     }
 }

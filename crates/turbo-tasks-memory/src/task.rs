@@ -1252,7 +1252,7 @@ impl Hash for Task {
 
 impl PartialEq for Task {
     fn eq(&self, other: &Self) -> bool {
-        self as *const Task == other as *const Task
+        std::ptr::eq(self, other)
     }
 }
 

@@ -14,9 +14,7 @@ pub fn normalize_path(str: &str) -> Option<String> {
         match seqment {
             "." | "" => {}
             ".." => {
-                if seqments.pop().is_none() {
-                    return None;
-                }
+                seqments.pop()?;
             }
             seqment => {
                 seqments.push(seqment);
@@ -25,7 +23,7 @@ pub fn normalize_path(str: &str) -> Option<String> {
     }
     let mut str = String::new();
     for seq in seqments.into_iter() {
-        if !str.is_empty() && !str.ends_with("/") {
+        if !str.is_empty() && !str.ends_with('/') {
             str += "/";
         }
         str += seq;
@@ -51,7 +49,7 @@ pub fn normalize_request(str: &str) -> String {
     }
     let mut str = String::new();
     for seq in parent_seqments.into_iter() {
-        if !str.is_empty() && !str.ends_with("/") {
+        if !str.is_empty() && !str.ends_with('/') {
             str += "/";
         }
         str += seq;
@@ -60,7 +58,7 @@ pub fn normalize_request(str: &str) -> String {
         str += ".";
     }
     for seq in seqments.into_iter() {
-        if !str.is_empty() && !str.ends_with("/") {
+        if !str.is_empty() && !str.ends_with('/') {
             str += "/";
         }
         str += seq;

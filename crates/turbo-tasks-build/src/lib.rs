@@ -12,19 +12,12 @@ pub fn generate_register() {
     println!("cargo:rerun-if-changed=build.rs");
 
     let crate_dir = current_dir().unwrap();
-    let workspace_dir = env::var_os("CARGO_WORKSPACE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| crate_dir.clone());
     let crate_name = env::var("CARGO_PKG_NAME").unwrap();
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let src_dir = crate_dir.join("src");
     let examples_dir = crate_dir.join("examples");
     let tests_dir = crate_dir.join("tests");
-    let cargo_lock_path = workspace_dir.join("Cargo.lock");
-
-    let _lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
-
     let mut entries = Vec::new();
 
     let lib_entry = src_dir.join("lib.rs");
@@ -75,8 +68,7 @@ pub fn generate_register() {
 
         let out_file = out_dir.join(filename);
 
-        let mut queue = Vec::new();
-        queue.push(("".to_string(), entry));
+        let mut queue = vec![("".to_string(), entry)];
 
         while let Some((mod_path, file_path)) = queue.pop() {
             println!("cargo:rerun-if-changed={}", file_path.to_string_lossy());
@@ -93,7 +85,7 @@ pub fn generate_register() {
                                 values_code,
                                 "crate{mod_path}::{}_VALUE_TYPE.register({});",
                                 name.to_uppercase(),
-                                format!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                             )
                             .unwrap();
                         }
@@ -105,7 +97,7 @@ pub fn generate_register() {
                                 functions_code,
                                 "crate{mod_path}::{}_FUNCTION.register({});",
                                 name.to_uppercase(),
-                                format!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                             )
                             .unwrap();
                         }
@@ -129,26 +121,23 @@ pub fn generate_register() {
                                     {
                                         let struct_name = ident.to_string();
                                         for item in impl_item.items {
-                                            match item {
-                                                syn::ImplItem::Method(method_item) => {
-                                                    // TODO: if method_item.attrs.iter().any(|a|
-                                                    // is_attribute(a,
-                                                    // "function")) {
-                                                    let name = method_item.sig.ident.to_string();
-                                                    writeln!(
-                                                        functions_code,
-                                                        "crate{mod_path}::{}_IMPL_{}_FUNCTION.\
-                                                         register({});",
-                                                        struct_name.to_uppercase(),
-                                                        name.to_uppercase(),
-                                                        format!(
-                                                            "r##\"{prefix}{mod_path}::\
-                                                             {struct_name}::{name}\"##"
-                                                        ),
-                                                    )
-                                                    .unwrap();
-                                                }
-                                                _ => {}
+                                            if let syn::ImplItem::Method(method_item) = item {
+                                                // TODO: if method_item.attrs.iter().any(|a|
+                                                // is_attribute(a,
+                                                // "function")) {
+                                                let name = method_item.sig.ident.to_string();
+                                                writeln!(
+                                                    functions_code,
+                                                    "crate{mod_path}::{}_IMPL_{}_FUNCTION.\
+                                                     register({});",
+                                                    struct_name.to_uppercase(),
+                                                    name.to_uppercase(),
+                                                    format_args!(
+                                                        "r##\"{prefix}{mod_path}::{struct_name}::\
+                                                         {name}\"##"
+                                                    ),
+                                                )
+                                                .unwrap();
                                             }
                                         }
                                     }
@@ -178,7 +167,7 @@ pub fn generate_register() {
                                 values_code,
                                 "crate{mod_path}::{}_VALUE_TYPE.register({});",
                                 name.to_uppercase(),
-                                format!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                             )
                             .unwrap();
                         }
@@ -194,7 +183,7 @@ pub fn generate_register() {
                                 traits_code,
                                 "crate{mod_path}::{}_TRAIT_TYPE.register({});",
                                 name.to_uppercase(),
-                                format!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
                             )
                             .unwrap();
                         }
@@ -221,14 +210,10 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
     }
     let mut iter = path.segments.iter();
     match iter.next() {
-        Some(seg) if seg.arguments.is_empty() && seg.ident.to_string() == "turbo_tasks" => {
-            match iter.next() {
-                Some(seg) if seg.arguments.is_empty() && seg.ident.to_string() == name => {
-                    iter.next().is_none()
-                }
-                _ => false,
-            }
-        }
+        Some(seg) if seg.arguments.is_empty() && seg.ident == "turbo_tasks" => match iter.next() {
+            Some(seg) if seg.arguments.is_empty() && seg.ident == name => iter.next().is_none(),
+            _ => false,
+        },
         _ => false,
     }
 }

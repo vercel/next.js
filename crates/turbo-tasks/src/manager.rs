@@ -112,7 +112,7 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>);
+    fn schedule_notify_tasks(&self, tasks: &[TaskId]);
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
@@ -627,7 +627,7 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
-        unsafe { Ok(self.try_read_own_task_cell(current_task("reading Vcs"), index)?) }
+        unsafe { self.try_read_own_task_cell(current_task("reading Vcs"), index) }
     }
 
     fn update_current_task_cell(&self, index: usize, content: CellContent) {
@@ -668,7 +668,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>) {
+    fn schedule_notify_tasks(&self, tasks: &[TaskId]) {
         TASKS_TO_NOTIFY.with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
             list.extend(tasks.iter());
@@ -834,8 +834,8 @@ pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send +
     r
 }
 
-pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
-    let handle = tokio::runtime::Handle::current();
+pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
+    let handle = Handle::current();
     thread::spawn(move || {
         let guard = handle.enter();
         func();
@@ -914,7 +914,7 @@ impl CurrentCellRef {
             .read_current_task_cell(self.index)
             .ok()
             .and_then(|v| v.try_cast::<T>());
-        let update = functor(content.as_ref().map(|read| &**read));
+        let update = functor(content.as_deref());
         if let Some(update) = update {
             tt.update_current_task_cell(
                 self.index,

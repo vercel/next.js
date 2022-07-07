@@ -295,19 +295,14 @@ where
     // we reached the node limit and want to store
     // each open variable as "reached node limit"
     while let Some((enter, val)) = queue.pop() {
-        match (enter, val) {
-            (false, JsValue::Variable(var)) => {
-                cache.store(var.clone(), true, &final_value, &replaced_references);
-                swap_extend(
-                    &mut replaced_references,
-                    replaced_references_stack.pop().unwrap(),
-                );
-                replaced_references.0.remove(&var);
-                replaced_references.1.insert(var.clone());
-            }
-            _ => {
-                // Skip
-            }
+        if let (false, JsValue::Variable(var)) = (enter, val) {
+            cache.store(var.clone(), true, &final_value, &replaced_references);
+            swap_extend(
+                &mut replaced_references,
+                replaced_references_stack.pop().unwrap(),
+            );
+            replaced_references.0.remove(&var);
+            replaced_references.1.insert(var.clone());
         }
     }
 

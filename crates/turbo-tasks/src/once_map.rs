@@ -9,6 +9,14 @@ pub struct OnceConcurrentlyMap<
     inner: HashMap<&'static K, Mutex<Option<V>>>,
 }
 
+impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
+    for OnceConcurrentlyMap<K, V>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K: ?Sized + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> OnceConcurrentlyMap<K, V> {
     pub fn new() -> Self {
         Self {
@@ -72,6 +80,14 @@ pub struct SafeOnceConcurrentlyMap<
     V: Clone + Send + Sync,
 > {
     inner: HashMap<K, Mutex<Option<V>>>,
+}
+
+impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync> Default
+    for SafeOnceConcurrentlyMap<K, V>
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<K: Clone + Hash + Eq + Ord + Send + Sync, V: Clone + Send + Sync>

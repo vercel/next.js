@@ -10,7 +10,7 @@ use std::{
     env::current_dir,
     fs,
     future::Future,
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
     time::{Duration, Instant},
@@ -127,12 +127,9 @@ async fn add_glob_results(
 ) -> Result<()> {
     let result = result.await?;
     for entry in result.results.values() {
-        match entry {
-            DirectoryEntry::File(path) => {
-                let source = SourceAssetVc::new(*path).into();
-                list.push(context.process(source));
-            }
-            _ => {}
+        if let DirectoryEntry::File(path) = entry {
+            let source = SourceAssetVc::new(*path).into();
+            list.push(context.process(source));
         }
     }
     for result in result.inner.values() {
@@ -165,7 +162,7 @@ async fn input_to_modules<'a>(fs: FileSystemVc, input: Vec<String>) -> Result<As
     Ok(AssetsVc::cell(list))
 }
 
-fn process_context(dir: &PathBuf, context_directory: Option<&String>) -> Result<String> {
+fn process_context(dir: &Path, context_directory: Option<&String>) -> Result<String> {
     let mut context = PathBuf::from(context_directory.map_or(".", |s| s));
     if !context.is_absolute() {
         context = dir.join(context);
@@ -178,7 +175,7 @@ fn process_context(dir: &PathBuf, context_directory: Option<&String>) -> Result<
         .to_string())
 }
 
-fn make_relative_path(dir: &PathBuf, context: &str, input: &str) -> Result<String> {
+fn make_relative_path(dir: &Path, context: &str, input: &str) -> Result<String> {
     let mut input = PathBuf::from(input);
     if !input.is_absolute() {
         input = dir.join(input);
@@ -194,13 +191,13 @@ fn make_relative_path(dir: &PathBuf, context: &str, input: &str) -> Result<Strin
     Ok(input
         .to_str()
         .ok_or_else(|| anyhow!("input contains invalid characters"))?
-        .replace("\\", "/"))
+        .replace('\\', "/"))
 }
 
-fn process_input(dir: &PathBuf, context: &String, input: &Vec<String>) -> Result<Vec<String>> {
+fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<String>> {
     input
         .iter()
-        .map(|input| make_relative_path(dir, context, &input))
+        .map(|input| make_relative_path(dir, context, input))
         .collect()
 }
 

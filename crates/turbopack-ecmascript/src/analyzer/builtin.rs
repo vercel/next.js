@@ -169,7 +169,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             true
                         }
                         JsValue::Constant(_) => {
-                            for part in parts.into_iter().rev() {
+                            for part in parts.iter_mut().rev() {
                                 match part {
                                     ObjectPart::KeyValue(key, val) => {
                                         if key == &**prop {
@@ -213,7 +213,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         }
                         JsValue::Concat(..) | JsValue::Add(..) => {
                             if prop.has_placeholder() {
-                                // keep the member infact since it might be handled later
+                                // keep the member intact since it might be handled later
                                 false
                             } else {
                                 *value = parts_to_alternatives(parts, prop);
@@ -229,7 +229,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         | JsValue::Argument(_)
                         | JsValue::WellKnownFunction(_)
                         | JsValue::Module(_) => {
-                            // keep the member infact since it might be handled later
+                            // keep the member intact since it might be handled later
                             debug_assert!(prop.has_placeholder());
                             false
                         }
@@ -244,7 +244,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 | JsValue::Argument(_)
                 | JsValue::WellKnownFunction(_)
                 | JsValue::Module(_) => {
-                    // keep the member infact since it might be handled later
+                    // keep the member intact since it might be handled later
                     debug_assert!(obj.has_placeholder());
                     false
                 }
@@ -252,59 +252,63 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         }
         JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
-                JsValue::Array(_, items) => match prop {
-                    JsValue::Constant(ConstantValue::Str(str)) => match &**str {
-                        "concat" => {
-                            if args.iter().all(|arg| {
-                                matches!(
-                                    arg,
-                                    JsValue::Array(..)
-                                        | JsValue::Constant(_)
-                                        | JsValue::Url(_)
-                                        | JsValue::Concat(..)
-                                        | JsValue::Add(..)
-                                        | JsValue::WellKnownObject(_)
-                                        | JsValue::WellKnownFunction(_)
-                                        | JsValue::Function(..)
-                                )
-                            }) {
-                                for arg in args {
-                                    match arg {
-                                        JsValue::Array(_, inner) => {
-                                            items.extend(take(inner));
-                                        }
-                                        JsValue::Constant(_)
-                                        | JsValue::Url(_)
-                                        | JsValue::Concat(..)
-                                        | JsValue::Add(..)
-                                        | JsValue::WellKnownObject(_)
-                                        | JsValue::WellKnownFunction(_)
-                                        | JsValue::Function(..) => {
-                                            items.push(take(arg));
-                                        }
-                                        _ => {
-                                            unreachable!();
+                JsValue::Array(_, items) => {
+                    if let JsValue::Constant(ConstantValue::Str(str)) = prop {
+                        match &**str {
+                            "concat" => {
+                                if args.iter().all(|arg| {
+                                    matches!(
+                                        arg,
+                                        JsValue::Array(..)
+                                            | JsValue::Constant(_)
+                                            | JsValue::Url(_)
+                                            | JsValue::Concat(..)
+                                            | JsValue::Add(..)
+                                            | JsValue::WellKnownObject(_)
+                                            | JsValue::WellKnownFunction(_)
+                                            | JsValue::Function(..)
+                                    )
+                                }) {
+                                    for arg in args {
+                                        match arg {
+                                            JsValue::Array(_, inner) => {
+                                                items.extend(take(inner));
+                                            }
+                                            JsValue::Constant(_)
+                                            | JsValue::Url(_)
+                                            | JsValue::Concat(..)
+                                            | JsValue::Add(..)
+                                            | JsValue::WellKnownObject(_)
+                                            | JsValue::WellKnownFunction(_)
+                                            | JsValue::Function(..) => {
+                                                items.push(take(arg));
+                                            }
+                                            _ => {
+                                                unreachable!();
+                                            }
                                         }
                                     }
+                                    obj.update_total_nodes();
+                                    *value = take(obj);
+                                    return true;
                                 }
-                                obj.update_total_nodes();
-                                *value = take(obj);
-                                return true;
                             }
-                        }
-                        // TODO This breaks the Function <-> Argument relationship
-                        // We need to refactor that once we expand function calls
-                        "map" => {
-                            if let Some(JsValue::Function(_, box return_value)) = args.get_mut(0) {
-                                match return_value {
-                                    // ['a', 'b', 'c'].map((i) => require.resolve(i)))
-                                    JsValue::Unknown(Some(call), _) => {
-                                        if let JsValue::Call(len, callee, call_args) = &**call {
-                                            *value = JsValue::array(
-                                                items
-                                                    .iter()
-                                                    .map(|item| {
-                                                        let new_args = call_args
+                            // TODO This breaks the Function <-> Argument relationship
+                            // We need to refactor that once we expand function calls
+                            "map" => {
+                                if let Some(JsValue::Function(_, box return_value)) =
+                                    args.get_mut(0)
+                                {
+                                    match return_value {
+                                        // ['a', 'b', 'c'].map((i) => require.resolve(i)))
+                                        JsValue::Unknown(Some(call), _) => {
+                                            if let JsValue::Call(len, callee, call_args) = &**call {
+                                                *value =
+                                                    JsValue::array(
+                                                        items
+                                                            .iter()
+                                                            .map(|item| {
+                                                                let new_args = call_args
                                                             .iter()
                                                             .map(|arg| {
                                                                 if let JsValue::Argument(0) = arg {
@@ -315,7 +319,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                                 ) = arg
                                                                 {
                                                                     if let JsValue::Argument(0) =
-                                                                        &**arg
+                                                                    &**arg
                                                                     {
                                                                         return item.clone();
                                                                     }
@@ -323,31 +327,34 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                                 arg.clone()
                                                             })
                                                             .collect();
-                                                        JsValue::Call(
-                                                            *len,
-                                                            callee.clone(),
-                                                            new_args,
-                                                        )
-                                                    })
+                                                                JsValue::Call(
+                                                                    *len,
+                                                                    callee.clone(),
+                                                                    new_args,
+                                                                )
+                                                            })
+                                                            .collect(),
+                                                    );
+                                            }
+                                        }
+                                        _ => {
+                                            *value = JsValue::array(
+                                                items
+                                                    .iter()
+                                                    .map(|_| return_value.clone())
                                                     .collect(),
                                             );
                                         }
                                     }
-                                    _ => {
-                                        *value = JsValue::array(
-                                            items.iter().map(|_| return_value.clone()).collect(),
-                                        );
-                                    }
+                                    // stop the iteration, let the `handle_call` to continue
+                                    // processing the new mapped array
+                                    return false;
                                 }
-                                // stop the iteration, let the `handle_call` to continue
-                                // processing the new mapped array
-                                return false;
                             }
+                            _ => {}
                         }
-                        _ => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
                 JsValue::Alternatives(_, alts) => {
                     *value = JsValue::alternatives(
                         take(alts)
@@ -400,13 +407,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 JsValue::Function(_, box ref mut return_value) => {
                     let mut return_value = take(return_value);
                     return_value.visit_mut_conditional(
-                        |value| {
-                            if let JsValue::Function(..) = value {
-                                false
-                            } else {
-                                true
-                            }
-                        },
+                        |value| !matches!(value, JsValue::Function(..)),
                         &mut |value| match value {
                             JsValue::Argument(index) => {
                                 if let Some(arg) = args.get(*index).cloned() {

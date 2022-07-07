@@ -214,7 +214,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         {
             let mut program = program.clone();
 
-            GLOBALS.set(&globals, || {
+            GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
                     program.visit_mut_with_path(
                         &mut ApplyVisitors::new(visitors),

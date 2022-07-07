@@ -1,7 +1,7 @@
 use std::{
     cmp::max,
     collections::HashMap,
-    fmt::Debug,
+    fmt::{Debug, Write},
     ops::{Div, Mul},
     time::Duration,
 };
@@ -9,13 +9,13 @@ use std::{
 use crate::stats::{GroupTree, ReferenceStats, ReferenceType, TaskStats, TaskType};
 
 fn escape(s: &str) -> String {
-    s.replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
+    s.replace('\\', "\\\\")
+        .replace('\"', "\\\"")
+        .replace('\n', "\\n")
 }
 
 fn escape_html(s: &str) -> String {
-    s.replace(">", "&gt;").replace("<", "&lt;")
+    s.replace('>', "&gt;").replace('<', "&lt;")
 }
 
 pub fn wrap_html(graph: &str) -> String {
@@ -104,7 +104,7 @@ fn get_max_values(node: &GroupTree) -> MaxValues {
             updates,
             roots,
             scopes,
-        } = get_max_values(&child);
+        } = get_max_values(child);
         max_duration = max(max_duration, total_duration);
         max_avg_duration = max(max_avg_duration, avg_duration);
         max_count = max(max_count, count);
@@ -155,8 +155,8 @@ fn visualize_stats_tree_internal<'a>(
     if let Some((ty, stats)) = primary {
         let id = get_id(ty, ids);
         let label = get_task_label(ty, stats, max_values);
-        output.push_str(&format!("subgraph cluster_{id} {{\ncolor=lightgray;\n"));
-        output.push_str(&format!("task_{id} [shape=plaintext, label={label}]\n"));
+        writeln!(output, "subgraph cluster_{id} {{\ncolor=lightgray;").unwrap();
+        writeln!(output, "task_{id} [shape=plaintext, label={label}]").unwrap();
         visualize_stats_references_internal(
             id,
             stats.count,
@@ -171,7 +171,7 @@ fn visualize_stats_tree_internal<'a>(
     for (ty, stats) in task_types.iter() {
         let id = get_id(ty, ids);
         let label = get_task_label(ty, stats, max_values);
-        output.push_str(&format!("task_{id} [shape=plaintext, label={label}]\n"));
+        writeln!(output, "task_{id} [shape=plaintext, label={label}]").unwrap();
         visualize_stats_references_internal(
             id,
             stats.count,
@@ -186,7 +186,7 @@ fn visualize_stats_tree_internal<'a>(
     for child in children.iter() {
         visualize_stats_tree_internal(child, depth + 1, max_values, ids, depths, output, edges);
     }
-    if let Some(_) = primary {
+    if primary.is_some() {
         output.push_str("}\n");
     }
 }
@@ -211,10 +211,12 @@ fn visualize_stats_references_internal<'a>(
                 if is_far {
                     far_types.push((ty, label));
                 } else {
-                    edges.push_str(&format!(
+                    writeln!(
+                        edges,
                         "task_{source_id} -> task_{target_id} [style=dashed, color=lightgray, \
-                         label=\"{label}\"]\n"
-                    ));
+                         label=\"{label}\"]"
+                    )
+                    .unwrap();
                 }
             }
             ReferenceType::Dependency => {
@@ -232,18 +234,23 @@ fn visualize_stats_references_internal<'a>(
     }
     if !far_types.is_empty() {
         if far_types.len() == 1 {
-            let (ty, label) = far_types.iter().next().unwrap();
+            let (ty, label) = far_types.get(0).unwrap();
             let target_id = get_id(ty, ids);
-            output.push_str(&format!(
-                "far_task_{source_id}_{target_id} [label=\"{ty}\", style=dashed]\n"
-            ));
-            edges.push_str(&format!(
+            writeln!(
+                output,
+                "far_task_{source_id}_{target_id} [label=\"{ty}\", style=dashed]"
+            )
+            .unwrap();
+            writeln!(
+                edges,
                 "task_{source_id} -> far_task_{source_id}_{target_id} [style=dashed, \
-                 color=lightgray, label=\"{label}\"]\n"
-            ));
+                 color=lightgray, label=\"{label}\"]"
+            )
+            .unwrap();
         } else {
-            output.push_str(&format!(
-                "far_tasks_{source_id} [label=\"{}\", style=dashed]\n",
+            writeln!(
+                output,
+                "far_tasks_{source_id} [label=\"{}\", style=dashed]",
                 escape(
                     &far_types
                         .iter()
@@ -251,10 +258,13 @@ fn visualize_stats_references_internal<'a>(
                         .collect::<Vec<_>>()
                         .join("\n")
                 )
-            ));
-            edges.push_str(&format!(
-                "task_{source_id} -> far_tasks_{source_id} [style=dashed, color=lightgray]\n"
-            ));
+            )
+            .unwrap();
+            writeln!(
+                edges,
+                "task_{source_id} -> far_tasks_{source_id} [style=dashed, color=lightgray]"
+            )
+            .unwrap();
         }
     }
 }

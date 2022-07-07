@@ -17,7 +17,7 @@ pub fn benchmark(c: &mut Criterion) {
     register();
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut tests_root = package_root.clone();
+    let mut tests_root = package_root;
     tests_root.push("tests");
     let mut tests_dir = tests_root.clone();
     tests_dir.push("node-file-trace");
@@ -60,7 +60,7 @@ pub fn benchmark(c: &mut Criterion) {
                                     DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
                                 let input = FileSystemPathVc::new(input_fs.into(), &input);
 
-                                let input_dir = input.clone().parent().parent();
+                                let input_dir = input.parent().parent();
                                 let output_fs: NullFileSystemVc = NullFileSystem.into();
                                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
@@ -99,7 +99,7 @@ pub fn benchmark(c: &mut Criterion) {
                                 DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
                             let input = FileSystemPathVc::new(input_fs.into(), &input);
 
-                            let input_dir = input.clone().parent().parent();
+                            let input_dir = input.parent().parent();
                             let output_fs: NullFileSystemVc = NullFileSystem.into();
                             let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 

@@ -36,6 +36,12 @@ pub struct MemoryBackend {
     scope_generation: AtomicUsize,
 }
 
+impl Default for MemoryBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryBackend {
     pub fn new() -> Self {
         Self {
@@ -88,11 +94,11 @@ impl MemoryBackend {
     }
 
     pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        func(&self.memory_tasks.get(*id).unwrap())
+        func(self.memory_tasks.get(*id).unwrap())
     }
 
     pub fn with_scope<T>(&self, id: TaskScopeId, func: impl FnOnce(&TaskScope) -> T) -> T {
-        func(&self.memory_task_scopes.get(*id).unwrap())
+        func(self.memory_task_scopes.get(*id).unwrap())
     }
 
     pub fn create_new_scope(&self) -> TaskScopeId {
@@ -105,6 +111,7 @@ impl MemoryBackend {
 
     pub fn create_new_active_scope(&self) -> TaskScopeId {
         let id = self.scope_id_factory.get();
+        // SAFETY: This is a fresh id
         unsafe {
             self.memory_task_scopes
                 .insert(*id, TaskScope::new_active(id));
@@ -369,7 +376,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let map = self.task_cache.pin();
-        let result = if let Some(task) = map.get(&task_type).map(|guard| *guard) {
+        let result = if let Some(task) = map.get(&task_type).copied() {
             // fast pass without creating a new task
             self.connect_task_child(parent_task, task, turbo_tasks);
 
@@ -425,16 +432,14 @@ impl Backend for MemoryBackend {
         let id = turbo_tasks.get_fresh_task_id();
         let scope = self.create_new_active_scope();
         let task = match task_type {
-            TransientTaskType::Root(f) => Task::new_root(id, scope, move || {
-                let future = f();
-                future
-            }),
+            TransientTaskType::Root(f) => Task::new_root(id, scope, move || f() as _),
             TransientTaskType::Once(f) => Task::new_once(id, scope, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet
         let task = unsafe { self.memory_tasks.insert(*id, task) };
-        #[cfg(feature = "print_scope_updates")]
-        println!("new {scope} for {task}");
+        if cfg!(feature = "print_scope_updates") {
+            println!("new {scope} for {task}");
+        }
         id
     }
 }

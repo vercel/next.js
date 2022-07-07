@@ -14,23 +14,12 @@ pub struct InternalTaskState {
     pub clean: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TaskState {
     pub internal: Option<InternalTaskState>,
     pub active: bool,
     pub active_parents: u32,
     pub externally_active: bool,
-}
-
-impl Default for TaskState {
-    fn default() -> Self {
-        TaskState {
-            internal: None,
-            active: false,
-            active_parents: 0,
-            externally_active: false,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

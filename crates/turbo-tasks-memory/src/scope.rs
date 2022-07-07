@@ -95,7 +95,7 @@ impl Default for TaskScopes {
 }
 
 impl TaskScopes {
-    pub fn iter<'a>(&'a self) -> TaskScopesIterator<'a> {
+    pub fn iter(&self) -> TaskScopesIterator {
         match self {
             TaskScopes::Root(r) => TaskScopesIterator::Root(*r),
             TaskScopes::Inner(list) => TaskScopesIterator::Inner(list.map.keys()),
@@ -180,7 +180,7 @@ impl TaskScopeList {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = TaskScopeId> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = TaskScopeId> + '_ {
         self.map.keys().copied()
     }
 
@@ -203,7 +203,6 @@ pub struct TaskScope {
 }
 
 pub struct TaskScopeState {
-    #[cfg(feature = "print_scope_updates")]
     id: TaskScopeId,
     /// Number of active parents or tasks. Non-zero value means the scope is
     /// active
@@ -224,7 +223,6 @@ impl TaskScope {
             event: Event::new(),
             last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
-                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 0,
                 dirty_tasks: HashSet::new(),
@@ -240,7 +238,6 @@ impl TaskScope {
             event: Event::new(),
             last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
-                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 1,
                 dirty_tasks: HashSet::new(),
@@ -385,7 +382,6 @@ impl TaskScopeState {
     }
     /// decrement the active counter, returns list of child scopes that need to
     /// be decremented after releasing the scope lock
-    #[must_use]
     pub fn decrement_active(&mut self, more_jobs: &mut Vec<TaskScopeId>) {
         self.active -= 1;
         if self.active == 0 {
@@ -403,8 +399,9 @@ impl TaskScopeState {
                 false
             }
             Entry::Vacant(e) => {
-                #[cfg(feature = "print_scope_updates")]
-                println!("add_child {} -> {}", *self.id, *child);
+                if cfg!(feature = "print_scope_updates") {
+                    println!("add_child {} -> {}", *self.id, *child);
+                }
                 e.insert(1);
                 self.active > 0
             }
@@ -421,8 +418,9 @@ impl TaskScopeState {
                 false
             }
             Entry::Vacant(e) => {
-                #[cfg(feature = "print_scope_updates")]
-                println!("add_child {} -> {}", *self.id, *child);
+                if cfg!(feature = "print_scope_updates") {
+                    println!("add_child {} -> {}", *self.id, *child);
+                }
                 e.insert(count);
                 self.active > 0
             }
@@ -439,8 +437,9 @@ impl TaskScopeState {
                 *value -= 1;
                 if *value == 0 {
                     e.remove();
-                    #[cfg(feature = "print_scope_updates")]
-                    println!("remove_child {} -> {}", *self.id, *child);
+                    if cfg!(feature = "print_scope_updates") {
+                        println!("remove_child {} -> {}", *self.id, *child);
+                    }
                     self.active > 0
                 } else {
                     false

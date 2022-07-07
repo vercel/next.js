@@ -4,9 +4,9 @@ extern crate turbo_malloc;
 use std::time::Instant;
 use std::{
     collections::VecDeque,
-    fmt::Display,
+    fmt::{Display, Write as _},
     fs::{self, remove_dir_all},
-    io::{ErrorKind, Write},
+    io::{ErrorKind, Write as _},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time::Duration,
@@ -275,7 +275,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
                 #[cfg(not(bench_against_node_nft))]
-                let original_output = exec_node(tests_root, input.clone());
+                let original_output = exec_node(tests_root, input);
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
@@ -482,7 +482,7 @@ fn diff(expected: &str, actual: &str) -> String {
         return String::new();
     }
     let Changeset { diffs, .. } = Changeset::new(expected.trim(), actual.trim(), "\n");
-    let mut result = Vec::new();
+    let mut result = String::new();
     const CONTEXT_LINES: usize = 3;
     let mut context = VecDeque::new();
     let mut need_context = 0;
@@ -491,7 +491,7 @@ fn diff(expected: &str, actual: &str) -> String {
         match diff {
             Difference::Same(line) => {
                 if need_context > 0 {
-                    result.push(format!("  {line}"));
+                    writeln!(result, "  {line}").unwrap();
                     need_context -= 1;
                 } else {
                     if context.len() == CONTEXT_LINES {
@@ -503,29 +503,29 @@ fn diff(expected: &str, actual: &str) -> String {
             }
             Difference::Add(line) => {
                 if has_spacing {
-                    result.push(format!("..."));
+                    writeln!(result, "...").unwrap();
                     has_spacing = false;
                 }
                 while let Some(line) = context.pop_front() {
-                    result.push(format!("  {line}"));
+                    writeln!(result, "  {line}").unwrap();
                 }
-                result.push(format!("+ {line}"));
+                writeln!(result, "+ {line}").unwrap();
                 need_context = CONTEXT_LINES;
             }
             Difference::Rem(line) => {
                 if has_spacing {
-                    result.push(format!("..."));
+                    writeln!(result, "...").unwrap();
                     has_spacing = false;
                 }
                 while let Some(line) = context.pop_front() {
-                    result.push(format!("  {line}"));
+                    writeln!(result, "  {line}").unwrap();
                 }
-                result.push(format!("- {line}"));
+                writeln!(result, "- {line}").unwrap();
                 need_context = CONTEXT_LINES;
             }
         }
     }
-    result.join("\n")
+    result
 }
 
 #[allow(unused)]
