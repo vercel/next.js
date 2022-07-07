@@ -2,9 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{
-        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc,
-    },
+    chunk::{ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc},
 };
 
 use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};

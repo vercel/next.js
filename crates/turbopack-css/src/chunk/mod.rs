@@ -4,9 +4,9 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        chunk_content, Chunk, ChunkContentResult,
-        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc,  ChunkReferenceVc,
-        ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
+        chunk_content, Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc,
+        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset,
+        ModuleIdVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
 };

@@ -20,10 +20,7 @@ use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{
-        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc,
-    },
+    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::AssetReferencesVc,
 };
@@ -45,12 +42,7 @@ pub enum ModuleAssetType {
     TypescriptDeclaration,
 }
 
-#[turbo_tasks::value(
-    Asset,
-    EcmascriptChunkPlaceable,
-    ChunkableAsset,
-    ValueToString
-)]
+#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,

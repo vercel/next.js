@@ -5,10 +5,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{
-        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc,
-    },
+    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::AssetReferencesVc,
 };
@@ -25,12 +22,7 @@ use crate::{
     references::module_references,
 };
 
-#[turbo_tasks::value(
-    Asset,
-    CssChunkPlaceable,
-    ChunkableAsset,
-    ValueToString
-)]
+#[turbo_tasks::value(Asset, CssChunkPlaceable, ChunkableAsset, ValueToString)]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,

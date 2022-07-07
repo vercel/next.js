@@ -4,15 +4,14 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetVc},
     chunk::{
-        chunk_content, Chunk, ChunkContentResult,
-        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc, ChunkReferenceVc,
-        ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
+        chunk_content, Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc,
+        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset,
+        ModuleIdVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
 };
-use turbopack_core::asset::AssetVc;
 
 use self::loader::ChunkGroupLoaderChunkItemVc;
 
@@ -144,10 +143,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
 
 #[async_trait::async_trait]
 impl FromChunkableAsset for EcmascriptChunkItemVc {
-    async fn from_asset(
-        context: ChunkingContextVc,
-        asset: AssetVc,
-    ) -> Result<Option<Self>> {
+    async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>> {
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
             return Ok(Some(placeable.as_chunk_item(context)));
         }
