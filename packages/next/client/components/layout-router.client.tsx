@@ -253,11 +253,6 @@ export default function OuterLayoutRouter({
 
   // This relates to the segments in the current router
   // tree[1].children[0] refers to tree.children.segment in the data format
-  try {
-    tree[1][parallelRouterKey][0]
-  } catch (err) {
-    debugger
-  }
   const treeSegment = tree[1][parallelRouterKey][0]
   const childPropSegment = Array.isArray(childProp.segment)
     ? childProp.segment[1]

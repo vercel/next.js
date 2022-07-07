@@ -629,7 +629,7 @@ export async function renderToHTML(
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const segmentParam = getDynamicParamFromSegment(segment)
-      const actualSegment = segmentParam
+      const actualSegment: Segment = segmentParam
         ? [segmentParam.param, segmentParam.value]
         : segment
 
