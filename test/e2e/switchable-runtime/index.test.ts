@@ -80,8 +80,9 @@ describe('Switchable runtime', () => {
           .click()
           .waitForElementByCss('.node-rsc-ssr')
 
-        expect(await browser.elementByCss('body').text()).toContain(
-          'This is a SSR RSC page.'
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /This is a SSR RSC page/
         )
         expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
       })
@@ -94,8 +95,9 @@ describe('Switchable runtime', () => {
           .click()
           .waitForElementByCss('.node-rsc-ssg')
 
-        expect(await browser.elementByCss('body').text()).toContain(
-          'This is a SSG RSC page.'
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /This is a SSG RSC page/
         )
       })
 
@@ -107,8 +109,9 @@ describe('Switchable runtime', () => {
           .click()
           .waitForElementByCss('.node-rsc')
 
-        expect(await browser.elementByCss('body').text()).toContain(
-          'This is a static RSC page.'
+        await check(
+          () => browser.eval('document.documentElement.innerHTML'),
+          /This is a static RSC page/
         )
       })
 
