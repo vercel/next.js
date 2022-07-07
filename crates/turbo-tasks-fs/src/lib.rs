@@ -717,7 +717,7 @@ impl FileSystemPathVc {
         if this.is_root() {
             return Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::Directory));
         }
-        let dir_content = this.fs.read_dir(self.parent()).await?;
+        let dir_content = self.parent().resolve().await?.read_dir().await?;
         match &*dir_content {
             DirectoryContent::NotFound => {
                 Ok(FileSystemEntryTypeVc::cell(FileSystemEntryType::NotFound))

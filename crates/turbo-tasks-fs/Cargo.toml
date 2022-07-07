@@ -12,7 +12,6 @@ bench = false
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
 turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 tokio = "1.11.0"
 notify = "4.0.17"
 concurrent-queue = "1.2.2"

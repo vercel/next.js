@@ -1,5 +1,6 @@
 use std::{
     any::{type_name, Any},
+    borrow::Cow,
     fmt::{Debug, Display},
     future::Future,
     hash::Hash,
@@ -160,6 +161,58 @@ impl<'de> Deserialize<'de> for SharedReference {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct TransientSharedValue(pub Arc<dyn Any + Send + Sync>);
+
+impl TransientSharedValue {
+    pub fn downcast<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
+        match Arc::downcast(self.0) {
+            Ok(data) => Some(data),
+            Err(_) => None,
+        }
+    }
+}
+
+impl PartialEq for TransientSharedValue {
+    fn eq(&self, other: &Self) -> bool {
+        PartialEq::eq(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
+    }
+}
+impl Eq for TransientSharedValue {}
+impl PartialOrd for TransientSharedValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        PartialOrd::partial_cmp(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
+    }
+}
+impl Ord for TransientSharedValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Ord::cmp(&Arc::as_ptr(&self.0), &Arc::as_ptr(&other.0))
+    }
+}
+impl Hash for TransientSharedValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Hash::hash(&Arc::as_ptr(&self.0), state)
+    }
+}
+impl Serialize for TransientSharedValue {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        Err(serde::ser::Error::custom(
+            "Transient values can't be serialized",
+        ))
+    }
+}
+impl<'de> Deserialize<'de> for TransientSharedValue {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        unreachable!("Transient values can't be serialized")
+    }
+}
+
 #[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct SharedValue(pub Option<ValueTypeId>, pub Arc<dyn MagicAny>);
 
@@ -288,6 +341,7 @@ pub enum TaskInput {
     U32(u32),
     Nothing,
     SharedValue(SharedValue),
+    TransientSharedValue(TransientSharedValue),
     SharedReference(SharedReference),
 }
 
@@ -340,7 +394,11 @@ impl TaskInput {
         }
     }
 
-    pub fn get_trait_method(&self, trait_type: TraitTypeId, name: String) -> Option<FunctionId> {
+    pub fn get_trait_method(
+        &self,
+        trait_type: TraitTypeId,
+        name: Cow<'static, str>,
+    ) -> Result<FunctionId, Cow<'static, str>> {
         match self {
             TaskInput::TaskOutput(_) | TaskInput::TaskCell(_, _) => {
                 panic!("get_trait_method must be called on a resolved TaskInput")
@@ -348,15 +406,17 @@ impl TaskInput {
             TaskInput::SharedValue(SharedValue(ty, _))
             | TaskInput::SharedReference(SharedReference(ty, _)) => {
                 if let Some(ty) = *ty {
-                    registry::get_value_type(ty)
-                        .trait_methods
-                        .get(&(trait_type, name))
-                        .map(|r| *r)
+                    let key = (trait_type, name.into_owned());
+                    if let Some(func) = registry::get_value_type(ty).trait_methods.get(&key) {
+                        Ok(*func)
+                    } else {
+                        Err(Cow::Owned(key.1))
+                    }
                 } else {
-                    None
+                    Err(name)
                 }
             }
-            _ => None,
+            _ => Err(name),
         }
     }
 
@@ -461,6 +521,7 @@ impl Display for TaskInput {
             TaskInput::U32(v) => write!(f, "u32 {}", v),
             TaskInput::Nothing => write!(f, "nothing"),
             TaskInput::SharedValue(_) => write!(f, "any value"),
+            TaskInput::TransientSharedValue(_) => write!(f, "any transient value"),
             TaskInput::SharedReference(data) => {
                 write!(f, "shared reference with {}", data)
             }
@@ -536,15 +597,10 @@ where
     }
 }
 
-impl<T: Any + Debug + Clone + Hash + Eq + Ord + Send + Sync + 'static> From<TransientValue<T>>
-    for TaskInput
-where
-    T: Serialize,
-    for<'de2> T: Deserialize<'de2>,
-{
+impl<T: Send + Sync + 'static> From<TransientValue<T>> for TaskInput {
     fn from(v: TransientValue<T>) -> Self {
         let raw_value: T = v.into_value();
-        TaskInput::SharedValue(SharedValue(None, Arc::new(raw_value)))
+        TaskInput::TransientSharedValue(TransientSharedValue(Arc::new(raw_value)))
     }
 }
 
@@ -676,22 +732,17 @@ where
     }
 }
 
-impl<T: Any + Debug + Clone + Hash + Eq + Ord + Typed + Send + Sync + 'static> FromTaskInput<'_>
-    for TransientValue<T>
-where
-    T: Serialize,
-    for<'de2> T: Deserialize<'de2>,
-{
+impl<T: Any + Clone + Send + Sync + 'static> FromTaskInput<'_> for TransientValue<T> {
     type Error = anyhow::Error;
 
     fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::SharedValue(value) => {
-                let v = value.1.downcast_ref::<T>().ok_or_else(|| {
+            TaskInput::TransientSharedValue(value) => {
+                let v = value.0.downcast_ref::<T>().ok_or_else(|| {
                     anyhow!(
                         "invalid task input type, expected {} got {:?}",
                         type_name::<T>(),
-                        value.1,
+                        value.0,
                     )
                 })?;
                 Ok(TransientValue::new(v.clone()))

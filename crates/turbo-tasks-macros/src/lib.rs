@@ -457,7 +457,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
              // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, false, #inner_type, fn(&#ident) -> &#inner_type>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
@@ -465,7 +465,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadAndMapResult<#ident, #inner_type, fn(&#ident) -> &#inner_type>>;
-                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, false, #inner_type, fn(&#ident) -> &#inner_type>;
+                type IntoFuture = turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
@@ -476,7 +476,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
              // #[cfg(feature = "into_future")]
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, false>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -484,7 +484,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, false>;
+                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -540,7 +540,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #[must_use]
-            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident, true> {
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
                 self.node.into_strongly_consistent_read::<#ident>()
             }
 
@@ -808,7 +808,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             trait_fns.push(quote! {
                 fn #method_ident(#(#method_args),*) -> #output_type {
                     // TODO use const string
-                    let result = turbo_tasks::trait_call(*#trait_type_id_ident, stringify!(#method_ident).to_string(), vec![self.into(), #(#args),*]);
+                    let result = turbo_tasks::trait_call(*#trait_type_id_ident, std::borrow::Cow::Borrowed(stringify!(#method_ident)), vec![self.into(), #(#args),*]);
                     #convert_result_code
                 }
             });

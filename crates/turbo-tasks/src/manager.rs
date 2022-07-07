@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::HashSet,
     fmt::Debug,
@@ -25,7 +26,7 @@ use crate::{
     id_factory::IdFactory,
     raw_vc::RawVc,
     task_input::{SharedReference, SharedValue, TaskInput},
-    timed_future::TimedFuture,
+    timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
     Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
 };
@@ -36,7 +37,7 @@ pub trait TurboTasksCallApi: Sync + Send {
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc;
 
@@ -247,7 +248,7 @@ impl<B: Backend> TurboTasks<B> {
     pub(crate) fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::Native(func, inputs.clone()),
+            PersistentTaskType::Native(func, inputs),
             current_task("turbo_function calls"),
             self,
         ))
@@ -260,7 +261,7 @@ impl<B: Backend> TurboTasks<B> {
             self.native_call(func, inputs)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                PersistentTaskType::ResolveNative(func, inputs.clone()),
+                PersistentTaskType::ResolveNative(func, inputs),
                 current_task("turbo_function calls"),
                 self,
             ))
@@ -272,11 +273,11 @@ impl<B: Backend> TurboTasks<B> {
     pub fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name.clone(), inputs.clone()),
+            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs),
             current_task("turbo_function calls"),
             self,
         ))
@@ -286,7 +287,7 @@ impl<B: Backend> TurboTasks<B> {
         let this = self.pin();
         self.begin_foreground_task();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "tokio_tracing")]
         let description = this.backend.get_task_description(task_id);
         let future = TURBO_TASKS.scope(
             this.clone(),
@@ -324,7 +325,7 @@ impl<B: Backend> TurboTasks<B> {
                                 if let Err(err) = &result {
                                     println!("{} errored {}", task_id, err);
                                 }
-                                if duration.as_millis() > 10 {
+                                if duration.as_millis() > 1000 {
                                     println!(
                                         "{} took {} ms",
                                         this.backend.get_task_description(task_id),
@@ -351,9 +352,9 @@ impl<B: Backend> TurboTasks<B> {
                 ),
             ),
         );
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "tokio_tracing")]
         return tokio::task::Builder::new().name(&description).spawn(future);
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(feature = "tokio_tracing"))]
         return tokio::task::spawn(future);
     }
 
@@ -503,7 +504,7 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         self.trait_call(trait_type, trait_fn_name, inputs)
@@ -734,7 +735,11 @@ pub fn dynamic_call(func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
 }
 
 /// see [TurboTasks] `trait_call`
-pub fn trait_call(trait_type: TraitTypeId, trait_fn_name: String, inputs: Vec<TaskInput>) -> RawVc {
+pub fn trait_call(
+    trait_type: TraitTypeId,
+    trait_fn_name: Cow<'static, str>,
+    inputs: Vec<TaskInput>,
+) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
 }
 
@@ -773,15 +778,15 @@ pub fn get_invalidator() -> Invalidator {
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
-    tokio::task::spawn_blocking(func).await.unwrap()
-}
-
-pub async fn spawn<T: Send + 'static>(future: T) -> T::Output
-where
-    T: Future + Send + 'static,
-    T::Output: Send + 'static,
-{
-    tokio::task::spawn(future).await.unwrap()
+    let (r, d) = tokio::task::spawn_blocking(|| {
+        let start = Instant::now();
+        let r = func();
+        (r, start.elapsed())
+    })
+    .await
+    .unwrap();
+    timed_future::add_duration(d);
+    r
 }
 
 pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {

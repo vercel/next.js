@@ -203,7 +203,7 @@ fn process_input(dir: &PathBuf, context: &String, input: &Vec<String>) -> Result
 
 #[tokio::main]
 async fn main() {
-    #[cfg(debug_assertions)]
+    #[cfg(feature = "tokio_console")]
     console_subscriber::init();
     register();
 
@@ -277,7 +277,7 @@ async fn main() {
                     stats.add_id(b, task);
                 });
                 stats.add_id(b, root_task);
-                stats.merge_resolve();
+                // stats.merge_resolve();
                 let tree = stats.treeify();
                 let graph = viz::visualize_stats_tree(tree);
                 fs::write("graph.html", viz::wrap_html(&graph)).unwrap();

@@ -405,13 +405,19 @@ impl Backend for MemoryBackend {
         let scope = self.create_new_active_scope();
         let result = task.set_root_scope(scope);
         assert_eq!(result, SetRootResult::New);
+        #[cfg(feature = "print_scope_updates")]
         println!("new {scope} for {task}");
         id
     }
 }
 
 pub(crate) enum Job {
-    RemoveFromScopes(HashSet<TaskId>, Vec<TaskScopeId>),
+    RemoveFromScopes(
+        HashSet<TaskId>,
+        Vec<TaskScopeId>,
+        bool,   /* will_be_optimized */
+        String, /* origin */
+    ),
     RemoveFromScope(Vec<TaskId>, TaskScopeId),
     RemoveRootScope(TaskId),
     MakeRootScoped(TaskId),
@@ -421,18 +427,26 @@ pub(crate) enum Job {
 impl Job {
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
-            Job::RemoveFromScopes(tasks, scopes) => {
+            Job::RemoveFromScopes(tasks, scopes, will_be_optimized, origin) => {
                 let mut count = 0;
                 for task in tasks {
                     backend.with_task(task, |task| {
-                        count +=
-                            task.remove_from_scopes(scopes.iter().cloned(), backend, turbo_tasks)
+                        count += task.remove_from_scopes(
+                            scopes.iter().cloned(),
+                            will_be_optimized,
+                            backend,
+                            turbo_tasks,
+                            &origin,
+                        )
                     });
                 }
-                println!(
-                    "remove from scopes ({:?}) job removed {count} scope references",
-                    scopes
-                )
+                #[cfg(feature = "print_scope_updates")]
+                if count > 0 {
+                    println!(
+                        "remove from scopes ({:?}) job removed {count} scope references",
+                        scopes
+                    )
+                }
             }
             Job::RemoveFromScope(tasks, scope) => {
                 let mut count = 0;
@@ -441,7 +455,10 @@ impl Job {
                         count += task.remove_from_scope(scope, backend, turbo_tasks)
                     });
                 }
-                println!("remove from scope ({scope}) job removed {count} scope references")
+                #[cfg(feature = "print_scope_updates")]
+                if count > 0 {
+                    println!("remove from scope ({scope}) job removed {count} scope references")
+                }
             }
             Job::MakeRootScoped(task) => backend.with_task(task, |task| {
                 task.make_root_scoped(backend, turbo_tasks);

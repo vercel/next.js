@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     fmt::{Debug, Display},
+    hash::{BuildHasher, Hash, Hasher},
     ops::Deref,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -12,8 +13,6 @@ use event_listener::{Event, EventListener};
 use turbo_tasks::TaskId;
 
 use crate::MemoryBackend;
-
-const MAX_SCOPES: u8 = 10;
 
 #[derive(Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TaskScopeId {
@@ -46,11 +45,44 @@ impl From<usize> for TaskScopeId {
     }
 }
 
-#[derive(Clone)]
+struct RawHasher(u64);
+#[derive(Copy, Clone, Default)]
+struct BuildRawHasher;
+
+impl BuildHasher for BuildRawHasher {
+    type Hasher = RawHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        RawHasher(0)
+    }
+}
+
+impl Hasher for RawHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write_u64(&mut self, i: u64) {
+        self.0 ^= i;
+    }
+
+    fn write_u32(&mut self, i: u32) {
+        self.0 ^= i as u64;
+    }
+
+    fn write_usize(&mut self, i: usize) {
+        self.0 ^= i as u64;
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {
+        panic!("RawHasher is only usable with u32 or u64")
+    }
+}
+
+#[derive(Clone, Default)]
 pub struct TaskScopeList {
     pub root: Option<TaskScopeId>,
-    length: u8,
-    list: [(TaskScopeId, usize); MAX_SCOPES as usize],
+    map: HashMap<TaskScopeId, usize, BuildRawHasher>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -59,27 +91,15 @@ pub enum SetRootResult {
     Existing,
     AlreadyOtherRoot,
 }
-pub enum AddResult {
-    Root,
-    Existing,
-    New,
-    Full,
-}
 pub enum RemoveResult {
-    Root,
     NoEntry,
     Decreased,
     Removed,
 }
-pub enum ContainsResult {
-    Root,
-    Entry,
-    NoEntry,
-}
 
 impl TaskScopeList {
-    pub fn len(&self) -> u8 {
-        self.length
+    pub fn len(&self) -> usize {
+        self.map.len()
     }
     pub fn set_root(&mut self, id: TaskScopeId) -> SetRootResult {
         if let Some(existing) = self.root {
@@ -93,105 +113,50 @@ impl TaskScopeList {
             SetRootResult::New
         }
     }
-    pub fn try_add(&mut self, id: TaskScopeId) -> AddResult {
-        if self.root == Some(id) {
-            return AddResult::Root;
-        }
-        for i in 0..self.length {
-            let item = &mut self.list[i as usize];
-            if item.0 == id {
-                item.1 += 1;
-                return AddResult::Existing;
+    pub fn add(&mut self, id: TaskScopeId) -> bool {
+        match self.map.entry(id) {
+            Entry::Occupied(mut e) => {
+                *e.get_mut() += 1;
+                false
+            }
+            Entry::Vacant(e) => {
+                e.insert(1);
+                true
             }
         }
-        if self.length == MAX_SCOPES {
-            return AddResult::Full;
-        }
-        self.list[self.length as usize] = (id, 1);
-        self.length += 1;
-        AddResult::New
     }
     pub fn remove(&mut self, id: TaskScopeId) -> RemoveResult {
-        if self.root == Some(id) {
-            return RemoveResult::Root;
-        }
-        for i in 0..self.length {
-            let (item_id, ref mut count) = self.list[i as usize];
-            if item_id == id {
-                *count -= 1;
-                if *count == 0 {
-                    if i != self.length - 1 {
-                        self.list[i as usize] = self.list[(self.length - 1) as usize];
-                    }
-                    self.length -= 1;
-                    return RemoveResult::Removed;
+        match self.map.entry(id) {
+            Entry::Occupied(mut e) => {
+                let value = e.get_mut();
+                *value -= 1;
+                if *value == 0 {
+                    e.remove();
+                    RemoveResult::Removed
                 } else {
-                    return RemoveResult::Decreased;
+                    RemoveResult::Decreased
                 }
             }
-        }
-        RemoveResult::NoEntry
-    }
-    pub fn contains(&self, id: TaskScopeId) -> ContainsResult {
-        if self.root == Some(id) {
-            return ContainsResult::Root;
-        }
-        for i in 0..self.length {
-            if self.list[i as usize].0 == id {
-                return ContainsResult::Entry;
-            }
-        }
-        ContainsResult::NoEntry
-    }
-    pub fn iter<'a>(&'a self) -> TaskScopeListIterator<'a> {
-        TaskScopeListIterator {
-            root: self.root,
-            i: 0,
-            count: self.length,
-            list: &self.list,
+            Entry::Vacant(_) => RemoveResult::NoEntry,
         }
     }
-    pub fn iter_non_root<'a>(&'a self) -> TaskScopeListIterator<'a> {
-        TaskScopeListIterator {
-            root: None,
-            i: 0,
-            count: self.length,
-            list: &self.list,
-        }
+    pub fn contains(&self, id: TaskScopeId) -> bool {
+        self.map.contains_key(&id)
     }
-}
 
-impl Default for TaskScopeList {
-    fn default() -> Self {
-        Self {
-            root: None,
-            length: 0,
-            list: [(TaskScopeId::from(0), 0); MAX_SCOPES as usize],
-        }
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = TaskScopeId> + 'a {
+        let root_vec = if let Some(root) = self.root {
+            vec![root]
+        } else {
+            Vec::new()
+        };
+        root_vec.into_iter().chain(self.map.keys().copied())
     }
-}
-
-pub struct TaskScopeListIterator<'a> {
-    root: Option<TaskScopeId>,
-    i: u8,
-    count: u8,
-    list: &'a [(TaskScopeId, usize); MAX_SCOPES as usize],
-}
-
-impl<'a> Iterator for TaskScopeListIterator<'a> {
-    type Item = TaskScopeId;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(root) = self.root {
-            self.root = None;
-            return Some(root);
-        }
-        if self.i == self.count {
-            return None;
-        }
-        let item = self.list[self.i as usize].0;
-        self.i += 1;
-        Some(item)
+    pub fn iter_non_root<'a>(&'a self) -> impl Iterator<Item = TaskScopeId> + 'a {
+        self.map.keys().copied()
+    }
+    pub fn take_scopes(&mut self) -> Vec<(TaskScopeId, usize)> {
+        self.map.drain().collect()
     }
 }
 
@@ -207,6 +172,7 @@ pub struct TaskScope {
 }
 
 pub struct TaskScopeState {
+    #[cfg(feature = "print_scope_updates")]
     id: TaskScopeId,
     /// Number of active parents or tasks. Non-zero value means the scope is
     /// active
@@ -226,6 +192,7 @@ impl TaskScope {
             unfinished_tasks: AtomicUsize::new(0),
             event: Event::new(),
             state: Mutex::new(TaskScopeState {
+                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 0,
                 dirty_tasks: HashSet::new(),
@@ -240,6 +207,7 @@ impl TaskScope {
             unfinished_tasks: AtomicUsize::new(0),
             event: Event::new(),
             state: Mutex::new(TaskScopeState {
+                #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 1,
                 dirty_tasks: HashSet::new(),
@@ -373,8 +341,27 @@ impl TaskScopeState {
                 false
             }
             Entry::Vacant(e) => {
+                #[cfg(feature = "print_scope_updates")]
                 println!("add_child {} -> {}", *self.id, *child);
                 e.insert(1);
+                self.active > 0
+            }
+        }
+    }
+
+    /// Add a child scope. Returns true, when the child scope need to have it's
+    /// active counter increased.
+    #[must_use]
+    pub fn add_child_count(&mut self, child: TaskScopeId, count: usize) -> bool {
+        match self.children.entry(child) {
+            Entry::Occupied(mut e) => {
+                *e.get_mut() += count;
+                false
+            }
+            Entry::Vacant(e) => {
+                #[cfg(feature = "print_scope_updates")]
+                println!("add_child {} -> {}", *self.id, *child);
+                e.insert(count);
                 self.active > 0
             }
         }
@@ -389,9 +376,13 @@ impl TaskScopeState {
                 let value = e.get_mut();
                 *value -= 1;
                 if *value == 0 {
+                    e.remove();
+                    #[cfg(feature = "print_scope_updates")]
                     println!("remove_child {} -> {}", *self.id, *child);
+                    self.active > 0
+                } else {
+                    false
                 }
-                *value == 0 && self.active > 0
             }
             Entry::Vacant(_) => {
                 panic!("A child scope was removed that was never added")

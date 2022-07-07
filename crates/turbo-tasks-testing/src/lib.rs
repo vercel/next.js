@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     future::Future,
     sync::{Arc, Mutex},
 };
@@ -35,7 +36,7 @@ impl TurboTasksCallApi for VcStorage {
     fn trait_call(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: String,
+        _trait_fn_name: Cow<'static, str>,
         _inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
         unreachable!()
