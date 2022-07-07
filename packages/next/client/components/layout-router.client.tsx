@@ -68,7 +68,7 @@ export function InnerLayoutRouter({
     childNodes.set(path, {
       data: null,
       subTreeData: childProp.current,
-      parallelRoutes: new Map([[parallelRouterKey, new Map()]]),
+      parallelRoutes: new Map(),
     })
     childProp.current = null
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
@@ -128,7 +128,7 @@ export function InnerLayoutRouter({
     childNodes.set(path, {
       data,
       subTreeData: null,
-      parallelRoutes: new Map([[parallelRouterKey, new Map()]]),
+      parallelRoutes: new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
     childNode = childNodes.get(path)
