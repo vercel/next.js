@@ -14,17 +14,9 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-playwright with-playwright-app
-```
-
-**or**
-
-```bash
+# or
 yarn create next-app --example with-playwright with-playwright-app
-```
-
-**or**
-
-```bash
+# or
 pnpm create next-app --example with-playwright with-playwright-app
 ```
 
