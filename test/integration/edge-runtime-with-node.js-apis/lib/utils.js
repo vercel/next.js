@@ -11,6 +11,8 @@ export function invokeNodeAPI(useCase) {
     console.log(process.cwd())
   } else if (useCase === 'process.getuid') {
     console.log(process.getuid())
+  } else if (useCase === 'process.cpuUsage') {
+    console.log(process.cpuUsage())
   } else if (useCase === 'BroadcastChannel') {
     new BroadcastChannel()
   } else if (useCase === 'ByteLengthQueuingStrategy') {
@@ -43,5 +45,9 @@ export function invokeNodeAPI(useCase) {
     new TransformStreamDefaultController()
   } else if (useCase === 'WritableStreamDefaultController') {
     new WritableStreamDefaultController()
+  } else if (useCase === 'process.version') {
+    console.log(process.version)
+  } else if (useCase === 'process.arch') {
+    console.log(process.arch)
   }
 }

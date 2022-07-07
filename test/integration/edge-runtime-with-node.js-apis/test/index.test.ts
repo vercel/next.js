@@ -19,7 +19,13 @@ const unsupportedFunctions = [
   'clearImmediate',
   // no need to test all of the process methods
   'process.cwd',
+  'process.cpuUsage',
   'process.getuid',
+]
+const undefinedPropertoes = [
+  // no need to test all of the process properties
+  'process.arch',
+  'process.version',
 ]
 const unsupportedClasses = [
   'BroadcastChannel',
@@ -77,6 +83,16 @@ describe.each([
 
     afterAll(() => killApp(app))
 
+    it.each(undefinedPropertoes.map((api) => ({ api })))(
+      'does not throw on using $api',
+      async ({ api }) => {
+        const res = await fetchViaHTTP(appPort, computeRoute(api))
+        expect(res.status).toBe(200)
+        await waitFor(500)
+        expect(output).not.toInclude(`A Node.js API is used (${api})`)
+      }
+    )
+
     it.each([
       ...unsupportedFunctions.map((api) => ({
         api,
@@ -86,7 +102,7 @@ describe.each([
         api,
         errorHighlight: `new ${api}(`,
       })),
-    ])(`shows error when using $api`, async ({ api, errorHighlight }) => {
+    ])(`throws error when using $api`, async ({ api, errorHighlight }) => {
       const res = await fetchViaHTTP(appPort, computeRoute(api))
       expect(res.status).toBe(500)
       await waitFor(500)
@@ -117,5 +133,12 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     )(`warns for $api during build`, ({ api }) => {
       expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
     })
+
+    it.each(undefinedPropertoes.map((api) => ({ api })))(
+      'does not warn on using $api',
+      ({ api }) => {
+        expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
+      }
+    )
   })
 })

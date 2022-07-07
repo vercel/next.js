@@ -294,7 +294,13 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        return overridenValue[key] ?? (() => emitError(`process.${key}`))
+        if (overridenValue[key]) {
+          return overridenValue[key]
+        }
+        if (typeof (process as any)[key] === 'function') {
+          return () => throwUnsupportedAPIError(`process.${key}`)
+        }
+        return undefined
       },
       set(value) {
         overridenValue[key] = value
@@ -308,14 +314,15 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
 function addStub(context: Primitives, name: string) {
   Object.defineProperty(context, name, {
     get() {
-      emitError(name)
-      return undefined
+      return function () {
+        throwUnsupportedAPIError(name)
+      }
     },
     enumerable: false,
   })
 }
 
-function emitError(name: string) {
+function throwUnsupportedAPIError(name: string) {
   const error =
     new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
