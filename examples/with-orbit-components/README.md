@@ -18,9 +18,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-orbit-components with-orbit-components-app
-# or
+```
+
+```bash
 yarn create next-app --example with-orbit-components with-orbit-components-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-orbit-components with-orbit-components-app
 ```
 

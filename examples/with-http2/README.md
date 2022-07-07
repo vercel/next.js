@@ -8,9 +8,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-http2 with-http2-app
-# or
+```
+
+```bash
 yarn create next-app --example with-http2 with-http2-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-http2 with-http2-app
 ```
 

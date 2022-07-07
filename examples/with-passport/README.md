@@ -20,9 +20,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-passport with-passport-app
-# or
+```
+
+```bash
 yarn create next-app --example with-passport with-passport-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-passport with-passport-app
 ```
 

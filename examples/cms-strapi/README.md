@@ -37,9 +37,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example cms-strapi cms-strapi-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-strapi cms-strapi-app
-# or
+```
+
+```bash
 pnpm create next-app --example cms-strapi cms-strapi-app
 ```
 
