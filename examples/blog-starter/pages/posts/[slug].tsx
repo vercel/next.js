@@ -10,7 +10,7 @@ import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
 import markdownToHtml from '../../lib/markdownToHtml'
-import PostType from '../../types/post'
+import type PostType from '../../interfaces/post'
 
 type Props = {
   post: PostType
@@ -18,7 +18,7 @@ type Props = {
   preview?: boolean
 }
 
-const Post = ({ post, morePosts, preview }: Props) => {
+export default function Post ({ post, morePosts, preview }: Props) {
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -52,8 +52,6 @@ const Post = ({ post, morePosts, preview }: Props) => {
     </Layout>
   )
 }
-
-export default Post
 
 type Params = {
   params: {
