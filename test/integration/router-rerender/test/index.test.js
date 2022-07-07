@@ -16,7 +16,7 @@ let appPort
 let app
 
 const runTests = () => {
-  it('should not trigger unncessary rerenders with rewrites', async () => {
+  it('should not trigger unncessary rerenders when rewrites or middleware are used', async () => {
     const browser = await webdriver(appPort, '/')
     await new Promise((resolve) => setTimeout(resolve, 100))
 

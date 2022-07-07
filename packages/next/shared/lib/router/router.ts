@@ -46,6 +46,7 @@ import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
+import { compareRouterStates } from './utils/compare-states'
 
 declare global {
   interface Window {
@@ -80,37 +81,6 @@ function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
     cancelled: true,
   })
-}
-
-function compareRouterStates(a: Router['state'], b: Router['state']) {
-  const stateKeys = Object.keys(a)
-  if (stateKeys.length !== Object.keys(b).length) return false
-
-  for (let i = stateKeys.length; i--; ) {
-    const key = stateKeys[i]
-    if (key === 'query') {
-      const queryKeys = Object.keys(a.query)
-      if (queryKeys.length !== Object.keys(b.query).length) {
-        return false
-      }
-      for (let j = queryKeys.length; j--; ) {
-        const queryKey = queryKeys[j]
-        if (
-          !b.query.hasOwnProperty(queryKey) ||
-          a.query[queryKey] !== b.query[queryKey]
-        ) {
-          return false
-        }
-      }
-    } else if (
-      !b.hasOwnProperty(key) ||
-      a[key as keyof Router['state']] !== b[key as keyof Router['state']]
-    ) {
-      return false
-    }
-  }
-
-  return true
 }
 
 /**
@@ -1505,11 +1475,12 @@ export default class Router implements BaseRouter {
       const isValidShallowRoute =
         options.shallow && nextState.route === (routeInfo.route ?? route)
 
-      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const shouldScroll =
+        options.scroll ?? (!(options as any)._h && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      const nextScroll = forcedScroll ?? resetScroll
-      const mergedNextState = {
+      // the new state that the router gonna set
+      const upcomingRouterState = {
         ...nextState,
         route,
         pathname,
@@ -1517,19 +1488,21 @@ export default class Router implements BaseRouter {
         asPath: cleanedAs,
         isFallback: false,
       }
+      const upcomingScrollState = forcedScroll ?? resetScroll
+
       // for query updates we can skip it if the state is unchanged and we don't
       // need to scroll
       // https://github.com/vercel/next.js/issues/37139
       const canSkipUpdating =
         (options as any)._h &&
-        !nextScroll &&
-        compareRouterStates(mergedNextState, this.state)
+        !upcomingScrollState &&
+        compareRouterStates(upcomingRouterState, this.state)
 
       if (!canSkipUpdating) {
         await this.set(
-          mergedNextState,
+          upcomingRouterState,
           routeInfo,
-          forcedScroll ?? resetScroll
+          upcomingScrollState
         ).catch((e) => {
           if (e.cancelled) error = error || e
           else throw e
