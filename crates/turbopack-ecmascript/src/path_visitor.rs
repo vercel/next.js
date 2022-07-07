@@ -1,14 +1,17 @@
-use std::{any::type_name, collections::HashMap};
+use std::collections::HashMap;
 
 use swc_common::{Span, Spanned};
 use swc_ecmascript::{
     ast::*,
-    visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
+    visit::{
+        noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutAstPath, VisitMutWith,
+        VisitWith,
+    },
 };
 
 pub type AstPath = Vec<Span>;
 
-pub type BoxedVisitor = Box<dyn VisitMut + Send + Sync>;
+pub type BoxedVisitor = Box<dyn VisitMutAstPath + Send + Sync>;
 pub type VisitorFn = Box<dyn Send + Sync + Fn() -> BoxedVisitor>;
 
 pub struct ApplyVisitors<'a> {
@@ -154,9 +157,8 @@ mod tests {
         visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
     };
 
-    use crate::path_visitor::VisitWithPath;
-
     use super::{ApplyVisitors, CreateVisitorFn, VisitorFn};
+    use crate::path_visitor::VisitWithPath;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
