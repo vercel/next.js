@@ -104,7 +104,11 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import {
+  lockfilePatchPromise,
+  teardownTraceSubscriber,
+  teardownCrashReporter,
+} from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -2315,6 +2319,7 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
+    teardownCrashReporter()
   }
 }
 
