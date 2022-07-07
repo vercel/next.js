@@ -6,7 +6,7 @@ use flurry::HashMap as FHashMap;
 use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, PersistentTaskType, SlotContent, SlotMappings, TaskExecutionSpec,
+        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},
@@ -108,9 +108,9 @@ impl Backend for MemoryBackend {
     ) -> Option<TaskExecutionSpec> {
         self.with_task(task, |task| {
             if task.execution_started(self, turbo_tasks) {
-                let slot_mappings = task.take_slot_mappings();
+                let cell_mappings = task.take_cell_mappings();
                 Some(TaskExecutionSpec {
-                    slot_mappings: Some(slot_mappings),
+                    cell_mappings: Some(cell_mappings),
                     future: task.execute(turbo_tasks),
                 })
             } else {
@@ -122,13 +122,13 @@ impl Backend for MemoryBackend {
     fn task_execution_completed(
         &self,
         task: TaskId,
-        slot_mappings: Option<SlotMappings>,
+        cell_mappings: Option<CellMappings>,
         result: anyhow::Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
             task.execution_result(result, turbo_tasks);
-            task.execution_completed(slot_mappings, self, turbo_tasks)
+            task.execution_completed(cell_mappings, self, turbo_tasks)
         })
     }
 
@@ -166,56 +166,56 @@ impl Backend for MemoryBackend {
         })
     }
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
-        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
+    ) -> Result<Result<CellContent, EventListener>> {
+        Task::add_dependency_to_current(RawVc::TaskCell(task, index));
         Ok(Ok(self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.read_content(reader))
+            task.with_cell_mut(index, |cell| cell.read_content(reader))
         })))
     }
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
         _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         Ok(Ok(self.with_task(task, |task| {
-            task.with_slot(index, |slot| unsafe { slot.read_content_untracked() })
+            task.with_cell(index, |cell| unsafe { cell.read_content_untracked() })
         })))
     }
 
-    fn track_read_task_slot(
+    fn track_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
         reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        Task::add_dependency_to_current(RawVc::TaskSlot(task, index));
+        Task::add_dependency_to_current(RawVc::TaskCell(task, index));
         self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.track_read(reader))
+            task.with_cell_mut(index, |cell| cell.track_read(reader))
         });
     }
 
-    fn get_fresh_slot(&self, task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
-        self.with_task(task, |task| task.get_fresh_slot())
+    fn get_fresh_cell(&self, task: TaskId, _turbo_tasks: &dyn TurboTasksBackendApi) -> usize {
+        self.with_task(task, |task| task.get_fresh_cell())
     }
 
-    fn update_task_slot(
+    fn update_task_cell(
         &self,
         task: TaskId,
         index: usize,
-        content: SlotContent,
+        content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |task| {
-            task.with_slot_mut(index, |slot| slot.assign(content, turbo_tasks))
+            task.with_cell_mut(index, |cell| cell.assign(content, turbo_tasks))
         })
     }
 

@@ -1,29 +1,29 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use turbo_tasks::{backend::SlotContent, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{backend::CellContent, TaskId, TurboTasksBackendApi};
 
 #[derive(Default, Debug)]
-pub struct Slot {
-    content: SlotContent,
+pub struct Cell {
+    content: CellContent,
     updates: u32,
     pub(crate) dependent_tasks: HashSet<TaskId>,
 }
 
-impl Slot {
+impl Cell {
     pub fn new() -> Self {
         Self {
-            content: SlotContent(None),
+            content: CellContent(None),
             updates: 0,
             dependent_tasks: HashSet::new(),
         }
     }
 
-    pub fn read_content(&mut self, reader: TaskId) -> SlotContent {
+    pub fn read_content(&mut self, reader: TaskId) -> CellContent {
         self.dependent_tasks.insert(reader);
         unsafe { self.read_content_untracked() }
     }
 
-    pub unsafe fn read_content_untracked(&self) -> SlotContent {
+    pub unsafe fn read_content_untracked(&self) -> CellContent {
         self.content.clone()
     }
 
@@ -31,7 +31,7 @@ impl Slot {
         self.dependent_tasks.insert(reader);
     }
 
-    pub fn assign(&mut self, content: SlotContent, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn assign(&mut self, content: CellContent, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = content;
         self.updates += 1;
         // notify

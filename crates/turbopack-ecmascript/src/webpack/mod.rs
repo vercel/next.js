@@ -29,7 +29,7 @@ pub struct ModuleAsset {
 impl ModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, runtime: WebpackRuntimeVc) -> Self {
-        Self::slot(ModuleAsset { source, runtime })
+        Self::cell(ModuleAsset { source, runtime })
     }
 }
 
@@ -89,7 +89,7 @@ impl AssetReference for WebpackChunkAssetReference {
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Ok(StringVc::slot(format!("webpack chunk {}", chunk_id)))
+        Ok(StringVc::cell(format!("webpack chunk {}", chunk_id)))
     }
 }
 
@@ -112,7 +112,7 @@ impl AssetReference for WebpackEntryAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!("webpack entry")))
+        Ok(StringVc::cell(format!("webpack entry")))
     }
 }
 
@@ -146,7 +146,7 @@ impl AssetReference for WebpackRuntimeAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "webpack {}",
             self.request.to_string().await?,
         )))

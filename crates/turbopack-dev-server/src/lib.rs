@@ -26,7 +26,7 @@ enum FindAssetResult {
     Found(AssetVc),
 }
 
-#[turbo_tasks::value(slot: new, serialization: none)]
+#[turbo_tasks::value(cell: new, serialization: none)]
 pub struct DevServer {
     root_path: FileSystemPathVc,
     root_asset: AssetVc,
@@ -36,7 +36,7 @@ pub struct DevServer {
 impl DevServerVc {
     #[turbo_tasks::function]
     pub fn new(root_path: FileSystemPathVc, root_asset: AssetVc) -> Self {
-        Self::slot(DevServer {
+        Self::cell(DevServer {
             root_path,
             root_asset,
         })

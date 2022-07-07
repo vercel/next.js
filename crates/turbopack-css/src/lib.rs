@@ -25,7 +25,7 @@ pub struct ModuleAsset {
 impl ModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
-        Self::slot(ModuleAsset { source, context })
+        Self::cell(ModuleAsset { source, context })
     }
 }
 
@@ -49,7 +49,7 @@ impl Asset for ModuleAsset {
 impl ValueToString for ModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "css {}",
             self.source.path().to_string().await?
         )))

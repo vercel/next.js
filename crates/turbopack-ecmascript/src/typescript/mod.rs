@@ -25,7 +25,7 @@ pub struct TsConfigModuleAsset {
 impl TsConfigModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
-        Self::slot(TsConfigModuleAsset { source, context })
+        Self::cell(TsConfigModuleAsset { source, context })
     }
 }
 
@@ -118,7 +118,7 @@ impl Asset for TsConfigModuleAsset {
                 );
             }
         }
-        Ok(AssetReferencesVc::slot(references))
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 
@@ -133,7 +133,7 @@ pub struct CompilerReference {
 impl CompilerReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(CompilerReference { context, request })
+        Self::cell(CompilerReference { context, request })
     }
 }
 
@@ -146,7 +146,7 @@ impl AssetReference for CompilerReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "compiler reference {}",
             self.request.to_string().await?
         )))
@@ -163,7 +163,7 @@ pub struct TsExtendsReference {
 impl TsExtendsReferenceVc {
     #[turbo_tasks::function]
     pub fn new(config: AssetVc) -> Self {
-        Self::slot(TsExtendsReference { config })
+        Self::cell(TsExtendsReference { config })
     }
 }
 
@@ -176,7 +176,7 @@ impl AssetReference for TsExtendsReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "tsconfig extends {}",
             self.config.path().to_string().await?,
         )))
@@ -194,7 +194,7 @@ pub struct TsNodeRequireReference {
 impl TsNodeRequireReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(TsNodeRequireReference { context, request })
+        Self::cell(TsNodeRequireReference { context, request })
     }
 }
 
@@ -207,7 +207,7 @@ impl AssetReference for TsNodeRequireReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "tsconfig tsnode require {}",
             self.request.to_string().await?
         )))
@@ -225,7 +225,7 @@ pub struct TsConfigTypesReference {
 impl TsConfigTypesReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::slot(TsConfigTypesReference { context, request })
+        Self::cell(TsConfigTypesReference { context, request })
     }
 }
 
@@ -238,7 +238,7 @@ impl AssetReference for TsConfigTypesReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "tsconfig types {}",
             self.request.to_string().await?,
         )))

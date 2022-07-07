@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    backend::{PersistentTaskType, SlotMappings},
+    backend::{PersistentTaskType, CellMappings},
     without_task_id_mapping, RawVc, SharedReference, TaskId,
 };
 
@@ -85,13 +85,13 @@ table!(task_cache, (PersistentTaskType) <=> (TaskId), prefix(full));
 table!(next_task_id, (usize), merge((usize): |a: usize, b| a + b, |a, b| a + b));
 
 // This stores the data in the graph.
-// It might be None when the slot content was not serializable.
-// It might be unset when the slot is empty.
+// It might be None when the cell content was not serializable.
+// It might be unset when the cell is empty.
 // In this case we need to re-execute the task before we can read the content
 // When changed to dirty, `task_dependencies` need to be processed
-table!(task_slot, (TaskId, usize) => (Option<SharedReference>), prefix(full));
-// This stores the next free slot for a task
-table!(task_next_slot, (TaskId) => (usize), prefix(full));
+table!(task_cell, (TaskId, usize) => (Option<SharedReference>), prefix(full));
+// This stores the next free cell for a task
+table!(task_next_cell, (TaskId) => (usize), prefix(full));
 
 // This stores the return value of a task and it's dirty state.
 // When changed to dirty, `task_dependencies` need to be processed
@@ -105,8 +105,8 @@ table!(task_state, (TaskId) => (TaskFreshness, Option<TaskOutput>), merge(
     without_task_id_mapping
 ), prefix(full));
 
-// This stores the mappings of the slotted data to slot indicies
-table!(task_slot_mappings, (TaskId) => (SlotMappings), prefix(full));
+// This stores the mappings of the cellted data to cell indicies
+table!(task_cell_mappings, (TaskId) => (CellMappings), prefix(full));
 
 // This stores the dependencies of a task.
 // When processing this from a RawVc, flag all listed tasks as dirty.
@@ -173,10 +173,10 @@ table!(generation, (u64));
 database!(
     task_cache,
     next_task_id,
-    task_slot,
+    task_cell,
     task_state,
-    task_next_slot,
-    task_slot_mappings,
+    task_next_cell,
+    task_cell_mappings,
     task_dependencies,
     task_children,
     task_generations,

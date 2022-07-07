@@ -177,7 +177,7 @@ struct ValueArguments {
     traits: Vec<Ident>,
     serialization_mode: SerializationMode,
     into_mode: IntoMode,
-    slot_mode: IntoMode,
+    cell_mode: IntoMode,
     manual_eq: bool,
     transparent: bool,
 }
@@ -188,7 +188,7 @@ impl Parse for ValueArguments {
             traits: Vec::new(),
             serialization_mode: SerializationMode::Auto,
             into_mode: IntoMode::None,
-            slot_mode: IntoMode::Shared,
+            cell_mode: IntoMode::Shared,
             manual_eq: false,
             transparent: false,
         };
@@ -200,7 +200,7 @@ impl Parse for ValueArguments {
             match ident.to_string().as_str() {
                 "shared" => {
                     result.into_mode = IntoMode::Shared;
-                    result.slot_mode = IntoMode::Shared;
+                    result.cell_mode = IntoMode::Shared;
                 }
                 "into" => {
                     input.parse::<Token![:]>()?;
@@ -210,9 +210,9 @@ impl Parse for ValueArguments {
                     input.parse::<Token![:]>()?;
                     result.serialization_mode = input.parse::<SerializationMode>()?;
                 }
-                "slot" => {
+                "cell" => {
                     input.parse::<Token![:]>()?;
-                    result.slot_mode = input.parse::<IntoMode>()?;
+                    result.cell_mode = input.parse::<IntoMode>()?;
                 }
                 "eq" => {
                     input.parse::<Token![:]>()?;
@@ -251,7 +251,7 @@ impl Parse for ValueArguments {
 }
 
 /// Creates a ValueVc struct for a `struct` or `enum` that represent
-/// that type placed into a slot in a Task.
+/// that type placed into a cell in a Task.
 ///
 /// That ValueVc object can be `.await?`ed to get a readonly reference
 /// to the original value.
@@ -259,12 +259,12 @@ impl Parse for ValueArguments {
 /// `into` argument (`#[turbo_tasks::value(into: xxx)]`)
 ///
 /// When provided the ValueVc implement `From<Value>` to allow to convert
-/// a Value to a ValueVc by placing it into a slot in a Task.
+/// a Value to a ValueVc by placing it into a cell in a Task.
 ///
-/// `into: new`: Always overrides the value in the slot. Invalidating all
+/// `into: new`: Always overrides the value in the cell. Invalidating all
 /// dependent tasks.
 ///
-/// `into: shared`: Compares with the existing value in the slot, before
+/// `into: shared`: Compares with the existing value in the cell, before
 /// overriding it. Requires Value to implement [Eq].
 ///
 /// TODO: add more documentation: presets, traits
@@ -276,7 +276,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         traits,
         serialization_mode,
         into_mode,
-        slot_mode,
+        cell_mode,
         manual_eq,
         transparent,
     } = parse_macro_input!(args as ValueArguments);
@@ -320,11 +320,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let into_update_op = match into_mode {
         IntoMode::None => None,
         IntoMode::New => Some(quote! {
-            slot.update_shared(content);
+            cell.update_shared(content);
         }),
         IntoMode::Shared => Some(quote! {
             // TODO we could offer a From<&#ident> when #ident implemented Clone
-            slot.compare_and_update_shared(content);
+            cell.compare_and_update_shared(content);
         }),
     };
 
@@ -332,17 +332,17 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             impl From<#ident> for #ref_ident {
                 fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
                     #update_op
-                    Self { node: slot.into() }
+                    Self { node: cell.into() }
                 }
             }
 
             #(impl From<#ident> for #trait_refs {
                 fn from(content: #ident) -> Self {
-                    let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
+                    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
                     #update_op
-                    std::convert::From::<turbo_tasks::RawVc>::from(slot.into())
+                    std::convert::From::<turbo_tasks::RawVc>::from(cell.into())
                 }
             })*
         }
@@ -350,18 +350,18 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let slot_update_op = match slot_mode {
+    let cell_update_op = match cell_mode {
         IntoMode::None => None,
         IntoMode::New => Some(quote! {
-            slot.update_shared(content);
+            cell.update_shared(content);
         }),
         IntoMode::Shared => Some(quote! {
             // TODO we could offer a From<&#ident> when #ident implemented Clone
-            slot.compare_and_update_shared(content);
+            cell.compare_and_update_shared(content);
         }),
     };
 
-    let (slot_prefix, slot_arg_type, slot_convert_content) = if let Some(inner_type) = inner_type {
+    let (cell_prefix, cell_arg_type, cell_convert_content) = if let Some(inner_type) = inner_type {
         (
             quote! { pub },
             quote! { #inner_type },
@@ -373,28 +373,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         (quote! {}, quote! { #ident }, quote! {})
     };
 
-    let slot = if let Some(update_op) = slot_update_op {
+    let cell = if let Some(update_op) = cell_update_op {
         quote! {
-            /// Places a value in a slot of the current task.
+            /// Places a value in a cell of the current task.
             ///
-            /// Slot is selected based on the value type and call order of `slot`.
-            #slot_prefix fn slot(content: #slot_arg_type) -> #ref_ident {
-                let slot = turbo_tasks::macro_helpers::find_slot_by_type(*#value_type_id_ident);
-                #slot_convert_content
+            /// Cell is selected based on the value type and call order of `cell`.
+            #cell_prefix fn cell(content: #cell_arg_type) -> #ref_ident {
+                let cell = turbo_tasks::macro_helpers::find_cell_by_type(*#value_type_id_ident);
+                #cell_convert_content
                 #update_op
-                #ref_ident { node: slot.into() }
+                #ref_ident { node: cell.into() }
             }
 
-            /// Places a value in a slot of the current task.
+            /// Places a value in a cell of the current task.
             ///
-            /// Slot is selected by the provided `key`. `key` must not be used twice during the current task.
-            #slot_prefix fn keyed_slot<
+            /// Cell is selected by the provided `key`. `key` must not be used twice during the current task.
+            #cell_prefix fn keyed_cell<
                 K: std::fmt::Debug + std::cmp::Eq + std::cmp::Ord + std::hash::Hash + turbo_tasks::Typed + turbo_tasks::TypedForInput + Send + Sync + 'static,
-            >(key: K, content: #slot_arg_type) -> #ref_ident {
-                let slot = turbo_tasks::macro_helpers::find_slot_by_key(*#value_type_id_ident, key);
-                #slot_convert_content
+            >(key: K, content: #cell_arg_type) -> #ref_ident {
+                let cell = turbo_tasks::macro_helpers::find_cell_by_key(*#value_type_id_ident, key);
+                #cell_convert_content
                 #update_op
-                #ref_ident { node: slot.into() }
+                #ref_ident { node: cell.into() }
             }
         }
     } else {
@@ -516,11 +516,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         #for_input_marker
 
         /// A reference to a value created by a turbo-tasks function.
-        /// The type can either point to a slot in a [turbo_tasks::Task] or to the output of
-        /// a [turbo_tasks::Task], which then transitively points to a slot again, or
+        /// The type can either point to a cell in a [turbo_tasks::Task] or to the output of
+        /// a [turbo_tasks::Task], which then transitively points to a cell again, or
         /// to an fatal execution error.
         ///
-        /// `.resolve().await?` can be used to resolve it until it points to a slot.
+        /// `.resolve().await?` can be used to resolve it until it points to a cell.
         /// This is useful when storing the reference somewhere or when comparing it with other references.
         ///
         /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
@@ -530,9 +530,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl #ref_ident {
-            #slot
+            #cell
 
-            /// Resolve the reference until it points to a slot directly.
+            /// Resolve the reference until it points to a cell directly.
             ///
             /// This is async and will rethrow any fatal error that happened during task execution.
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {

@@ -53,7 +53,7 @@ async fn main() {
 
 #[turbo_tasks::function]
 pub fn empty_string() -> StringVc {
-    StringVc::slot("".to_string())
+    StringVc::cell("".to_string())
 }
 
 #[turbo_tasks::function]
@@ -94,7 +94,7 @@ async fn hash_file(file_path: FileSystemPathVc) -> Result<StringVc> {
         FileContent::Content(file) => hash_content(file),
         FileContent::NotFound => {
             // report error
-            StringVc::slot("".to_string())
+            StringVc::cell("".to_string())
         }
     })
 }
@@ -104,5 +104,5 @@ fn hash_content(content: impl AsRef<[u8]>) -> StringVc {
     hasher.update(content);
     let result = format!("{:x}", hasher.finalize());
 
-    StringVc::slot(result)
+    StringVc::cell(result)
 }

@@ -2,19 +2,19 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    backend::{PersistentTaskType, SlotContent, SlotMappings},
+    backend::{CellContent, CellMappings, PersistentTaskType},
     RawVc, TaskId,
 };
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum TaskSlot {
-    Content(SlotContent),
+pub enum TaskCell {
+    Content(CellContent),
     NeedComputation,
 }
 
-impl Default for TaskSlot {
+impl Default for TaskCell {
     fn default() -> Self {
-        TaskSlot::Content(SlotContent(None))
+        TaskCell::Content(CellContent(None))
     }
 }
 
@@ -22,8 +22,8 @@ impl Default for TaskSlot {
 pub struct TaskData {
     pub children: Vec<TaskId>,
     pub dependencies: Vec<RawVc>,
-    pub slots: Vec<TaskSlot>,
-    pub slot_mappings: Option<SlotMappings>,
+    pub cells: Vec<TaskCell>,
+    pub cell_mappings: Option<CellMappings>,
     pub output: RawVc,
 }
 pub struct ReadTaskState {
@@ -121,7 +121,7 @@ pub trait PersistedGraph: Sync + Send {
     fn is_persisted(&self, task: TaskId, api: &dyn PersistedGraphApi) -> Result<bool>;
 
     /// store a completed task into the persisted graph
-    /// together with dependencies, children and slots.
+    /// together with dependencies, children and cells.
     /// Returns false, if the task failed to persist.
     fn persist(
         &self,

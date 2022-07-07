@@ -69,5 +69,5 @@ async fn read_glob_internal(
         }
         DirectoryContent::NotFound => {}
     }
-    Ok(ReadGlobResultVc::slot(result))
+    Ok(ReadGlobResultVc::cell(result))
 }

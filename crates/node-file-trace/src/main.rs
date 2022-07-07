@@ -159,7 +159,7 @@ async fn input_to_modules<'a>(fs: FileSystemVc, input: Vec<String>) -> Result<As
         let glob = GlobVc::new(input);
         add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
     }
-    Ok(AssetsVc::slot(list))
+    Ok(AssetsVc::cell(list))
 }
 
 fn process_context(dir: &PathBuf, context_directory: Option<&String>) -> Result<String> {

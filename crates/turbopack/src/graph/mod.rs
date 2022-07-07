@@ -17,7 +17,7 @@ pub enum AggregatedGraph {
 impl AggregatedGraphVc {
     #[turbo_tasks::function]
     fn leaf(asset: AssetVc) -> Self {
-        Self::slot(AggregatedGraph::Leaf(asset))
+        Self::cell(AggregatedGraph::Leaf(asset))
     }
 }
 

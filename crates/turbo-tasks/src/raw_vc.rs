@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    backend::SlotContent,
+    backend::CellContent,
     manager::{
-        read_task_output, read_task_output_untracked, read_task_slot, read_task_slot_untracked,
+        read_task_cell, read_task_cell_untracked, read_task_output, read_task_output_untracked,
         TurboTasksApi,
     },
     registry::get_value_type,
@@ -26,9 +26,9 @@ use crate::{
 /// The result of reading a ValueVc.
 /// Can be dereferenced to the concrete type.
 ///
-/// This type is needed because the content of the slot can change
+/// This type is needed because the content of the cell can change
 /// concurrently, so we can't return a reference to the data directly.
-/// Instead the data or an [Arc] to the data is cloned out of the slot
+/// Instead the data or an [Arc] to the data is cloned out of the cell
 /// and hold by this type.
 pub struct RawVcReadResult<T: Any + Send + Sync> {
     inner: Arc<T>,
@@ -94,20 +94,20 @@ impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapR
 
 #[derive(Error, Debug)]
 pub enum ResolveTraitError {
-    #[error("no content in the slot")]
+    #[error("no content in the cell")]
     NoContent,
-    #[error("the content in the slot has no type")]
+    #[error("the content in the cell has no type")]
     UntypedContent,
     #[error("content is not available as task execution failed")]
     TaskError { source: anyhow::Error },
-    #[error("reading the slot content failed")]
+    #[error("reading the cell content failed")]
     ReadError { source: anyhow::Error },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
-    TaskSlot(TaskId, usize),
+    TaskCell(TaskId, usize),
 }
 
 impl RawVc {
@@ -128,9 +128,9 @@ impl RawVc {
                 RawVc::TaskOutput(task) => {
                     current = unsafe { read_task_output_untracked(turbo_tasks, task) }.await?
                 }
-                RawVc::TaskSlot(task, index) => {
+                RawVc::TaskCell(task, index) => {
                     return Ok(
-                        unsafe { read_task_slot_untracked(turbo_tasks, task, index) }
+                        unsafe { read_task_cell_untracked(turbo_tasks, task, index) }
                             .await?
                             .cast::<T>()?,
                     );
@@ -153,14 +153,14 @@ impl RawVc {
                         .await
                         .map_err(|source| ResolveTraitError::TaskError { source })?;
                 }
-                RawVc::TaskSlot(task, index) => {
-                    let content = read_task_slot(&*tt, task, index)
+                RawVc::TaskCell(task, index) => {
+                    let content = read_task_cell(&*tt, task, index)
                         .await
                         .map_err(|source| ResolveTraitError::ReadError { source })?;
-                    if let SlotContent(Some(shared_reference)) = content {
+                    if let CellContent(Some(shared_reference)) = content {
                         if let SharedReference(Some(value_type), _) = shared_reference {
                             if get_value_type(value_type).traits.contains(&trait_type) {
-                                return Ok(Some(RawVc::TaskSlot(task, index)));
+                                return Ok(Some(RawVc::TaskCell(task, index)));
                             } else {
                                 return Ok(None);
                             }
@@ -188,7 +188,7 @@ impl RawVc {
                     }
                     current = read_task_output(&*tt, task).await?;
                 }
-                RawVc::TaskSlot(_, _) => return Ok(current),
+                RawVc::TaskCell(_, _) => return Ok(current),
             }
         }
     }
@@ -196,13 +196,13 @@ impl RawVc {
     pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
-            RawVc::TaskSlot(_, _) => true,
+            RawVc::TaskCell(_, _) => true,
         }
     }
 
     pub fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskSlot(t, _) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
         }
     }
 }
@@ -213,7 +213,7 @@ impl Display for RawVc {
             RawVc::TaskOutput(task) => {
                 write!(f, "output of {}", task)
             }
-            RawVc::TaskSlot(task, index) => {
+            RawVc::TaskCell(task, index) => {
                 write!(f, "value {} of {}", index, task)
             }
         }
@@ -273,8 +273,8 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                     Ok(Err(listener)) => listener,
                     Err(err) => return std::task::Poll::Ready(Err(err)),
                 },
-                RawVc::TaskSlot(task, index) => {
-                    match this.turbo_tasks.try_read_task_slot(task, index) {
+                RawVc::TaskCell(task, index) => {
+                    match this.turbo_tasks.try_read_task_cell(task, index) {
                         Ok(Ok(content)) => {
                             return std::task::Poll::Ready(content.cast::<T>());
                         }

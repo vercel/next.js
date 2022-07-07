@@ -54,7 +54,7 @@ pub use value::Value;
 pub use value_type::{TraitMethod, TraitType, Typed, TypedForInput, ValueType};
 
 pub mod macro_helpers {
-    pub use super::manager::{find_slot_by_key, find_slot_by_type};
+    pub use super::manager::{find_cell_by_key, find_cell_by_type};
 }
 
 pub mod test_helpers {

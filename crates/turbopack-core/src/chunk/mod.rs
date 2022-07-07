@@ -47,7 +47,7 @@ impl ChunkGroupVc {
     /// Creates a chunk group from an asset as entrypoint
     #[turbo_tasks::function]
     pub fn from_asset(asset: ChunkableAssetVc, context: ChunkingContextVc) -> Self {
-        Self::slot(ChunkGroup {
+        Self::cell(ChunkGroup {
             entry: asset.as_chunk(context),
         })
     }
@@ -78,7 +78,7 @@ impl ChunkGroupVc {
             }
         }
 
-        Ok(ChunksVc::slot(chunks.into_iter().collect()))
+        Ok(ChunksVc::cell(chunks.into_iter().collect()))
     }
 }
 
@@ -86,7 +86,7 @@ impl ChunkGroupVc {
 impl ValueToString for ChunkGroup {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "group for {}",
             self.entry.to_string().await?
         )))
@@ -139,7 +139,7 @@ pub struct ChunkReference {
 impl ChunkReferenceVc {
     #[turbo_tasks::function]
     pub fn new(chunk: ChunkVc) -> Self {
-        Self::slot(ChunkReference {
+        Self::cell(ChunkReference {
             chunk,
             parallel: false,
         })
@@ -147,7 +147,7 @@ impl ChunkReferenceVc {
 
     #[turbo_tasks::function]
     pub fn new_parallel(chunk: ChunkVc) -> Self {
-        Self::slot(ChunkReference {
+        Self::cell(ChunkReference {
             chunk,
             parallel: true,
         })
@@ -163,7 +163,7 @@ impl AssetReference for ChunkReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "chunk {}",
             self.chunk.to_string().await?
         )))
@@ -174,7 +174,7 @@ impl AssetReference for ChunkReference {
 impl ParallelChunkReference for ChunkReference {
     #[turbo_tasks::function]
     fn is_loaded_in_parallel(&self) -> BoolVc {
-        BoolVc::slot(self.parallel)
+        BoolVc::cell(self.parallel)
     }
 }
 
@@ -188,7 +188,7 @@ pub struct ChunkGroupReference {
 impl ChunkGroupReferenceVc {
     #[turbo_tasks::function]
     pub fn new(chunk_group: ChunkGroupVc) -> Self {
-        Self::slot(ChunkGroupReference { chunk_group })
+        Self::cell(ChunkGroupReference { chunk_group })
     }
 }
 
@@ -208,7 +208,7 @@ impl AssetReference for ChunkGroupReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "chunk group {}",
             self.chunk_group.to_string().await?
         )))

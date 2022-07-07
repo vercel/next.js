@@ -6,13 +6,13 @@ use std::{
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use turbo_tasks::{
-    backend::SlotContent, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
+    backend::CellContent, test_helpers::with_turbo_tasks_for_testing, RawVc, TaskId, TurboTasksApi,
     TurboTasksCallApi,
 };
 
 #[derive(Default)]
 pub struct VcStorage {
-    slots: Mutex<Vec<SlotContent>>,
+    cells: Mutex<Vec<CellContent>>,
 }
 
 impl TurboTasksCallApi for VcStorage {
@@ -69,48 +69,48 @@ impl TurboTasksApi for VcStorage {
         unreachable!()
     }
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         _task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>> {
-        self.read_current_task_slot(index).map(|c| Ok(c))
+    ) -> Result<Result<CellContent, EventListener>> {
+        self.read_current_task_cell(index).map(|c| Ok(c))
     }
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>> {
-        self.try_read_task_slot(task, index)
+    ) -> Result<Result<CellContent, EventListener>> {
+        self.try_read_task_cell(task, index)
     }
 
-    unsafe fn try_read_own_task_slot(
+    unsafe fn try_read_own_task_cell(
         &self,
         _current_task: TaskId,
         index: usize,
-    ) -> Result<SlotContent> {
-        self.read_current_task_slot(index)
+    ) -> Result<CellContent> {
+        self.read_current_task_cell(index)
     }
 
-    fn get_fresh_slot(&self, _task: TaskId) -> usize {
-        let mut slots = self.slots.lock().unwrap();
-        let i = slots.len();
-        slots.push(SlotContent(None));
+    fn get_fresh_cell(&self, _task: TaskId) -> usize {
+        let mut cells = self.cells.lock().unwrap();
+        let i = cells.len();
+        cells.push(CellContent(None));
         i
     }
 
-    fn read_current_task_slot(&self, index: usize) -> Result<SlotContent> {
-        if let Some(slot) = self.slots.lock().unwrap().get(index) {
-            Ok(slot.clone())
+    fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
+        if let Some(cell) = self.cells.lock().unwrap().get(index) {
+            Ok(cell.clone())
         } else {
-            Err(anyhow!("non-existing slot"))
+            Err(anyhow!("non-existing cell"))
         }
     }
 
-    fn update_current_task_slot(&self, index: usize, content: SlotContent) {
-        if let Some(slot) = self.slots.lock().unwrap().get_mut(index) {
-            *slot = content;
+    fn update_current_task_cell(&self, index: usize, content: CellContent) {
+        if let Some(cell) = self.cells.lock().unwrap().get_mut(index) {
+            *cell = content;
         }
     }
 }

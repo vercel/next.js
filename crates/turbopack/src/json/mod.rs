@@ -13,7 +13,7 @@ pub struct ModuleAsset {
 impl ModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc) -> Self {
-        Self::slot(ModuleAsset { source })
+        Self::cell(ModuleAsset { source })
     }
 }
 

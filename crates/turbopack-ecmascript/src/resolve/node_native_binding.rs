@@ -49,7 +49,7 @@ impl NodePreGypConfigReferenceVc {
         config_file_pattern: PatternVc,
         target: CompileTargetVc,
     ) -> Self {
-        Self::slot(NodePreGypConfigReference {
+        Self::cell(NodePreGypConfigReference {
             context,
             config_file_pattern,
             compile_target: target,
@@ -66,7 +66,7 @@ impl AssetReference for NodePreGypConfigReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "node-gyp in {} with {} for {}",
             self.context.to_string().await?,
             self.config_file_pattern.to_string().await?,
@@ -177,7 +177,7 @@ pub struct NodeGypBuildReference {
 impl NodeGypBuildReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: FileSystemPathVc, target: CompileTargetVc) -> Self {
-        Self::slot(NodeGypBuildReference {
+        Self::cell(NodeGypBuildReference {
             context,
             compile_target: target,
         })
@@ -193,7 +193,7 @@ impl AssetReference for NodeGypBuildReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "node-gyp in {} for {}",
             self.context.to_string().await?,
             self.compile_target.await?
@@ -267,7 +267,7 @@ pub struct NodeBindingsReference {
 impl NodeBindingsReferenceVc {
     #[turbo_tasks::function]
     pub fn new(context: FileSystemPathVc, file_name: String) -> Self {
-        Self::slot(NodeBindingsReference { context, file_name })
+        Self::cell(NodeBindingsReference { context, file_name })
     }
 }
 
@@ -280,7 +280,7 @@ impl AssetReference for NodeBindingsReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "bindings in {}",
             self.context.to_string().await?,
         )))

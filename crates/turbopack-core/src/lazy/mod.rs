@@ -44,7 +44,7 @@ impl Eq for LazyAsset {}
 impl LazyAssetVc {
     #[turbo_tasks::function]
     pub fn new(asset: AssetVc) -> Self {
-        Self::slot(LazyAsset {
+        Self::cell(LazyAsset {
             asset,
             state: Mutex::new(LazyAssetState::Idle),
         })
@@ -77,7 +77,7 @@ impl Asset for LazyAsset {
         match &*state {
             LazyAssetState::Idle => {
                 *state = LazyAssetState::Waiting(get_invalidator());
-                AssetReferencesVc::slot(Vec::new())
+                AssetReferencesVc::cell(Vec::new())
             }
             LazyAssetState::Waiting(_) => unreachable!(),
             LazyAssetState::Expanded => self.asset.references(),
@@ -96,7 +96,7 @@ struct LazyAssetReference {
 impl LazyAssetReferenceVc {
     #[turbo_tasks::function]
     fn new(reference: AssetReferenceVc) -> Self {
-        Self::slot(LazyAssetReference { reference })
+        Self::cell(LazyAssetReference { reference })
     }
 }
 

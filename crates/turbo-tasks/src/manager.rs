@@ -20,7 +20,7 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, task::JoinHandle, task_local};
 
 use crate::{
-    backend::{Backend, PersistentTaskType, SlotContent, SlotMappings, TransientTaskType},
+    backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
     id::{BackgroundJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
@@ -58,25 +58,25 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         task: TaskId,
     ) -> Result<Result<RawVc, EventListener>>;
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>>;
-    unsafe fn try_read_task_slot_untracked(
+    ) -> Result<Result<CellContent, EventListener>>;
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>>;
-    unsafe fn try_read_own_task_slot(
+    ) -> Result<Result<CellContent, EventListener>>;
+    unsafe fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: usize,
-    ) -> Result<SlotContent>;
+    ) -> Result<CellContent>;
 
-    fn get_fresh_slot(&self, task: TaskId) -> usize;
-    fn read_current_task_slot(&self, index: usize) -> Result<SlotContent>;
-    fn update_current_task_slot(&self, index: usize, content: SlotContent);
+    fn get_fresh_cell(&self, task: TaskId) -> usize;
+    fn read_current_task_cell(&self, index: usize) -> Result<CellContent>;
+    fn update_current_task_cell(&self, index: usize, content: CellContent);
 }
 
 pub trait TaskIdProvider {
@@ -148,13 +148,13 @@ task_local! {
     /// The current TurboTasks instance
     static TURBO_TASKS: Arc<dyn TurboTasksApi>;
 
-    static PREVIOUS_SLOTS: RefCell<SlotMappings>;
+    static PREVIOUS_CELLS: RefCell<CellMappings>;
 
     static CURRENT_TASK_ID: TaskId;
 
     /// Affected [Task]s, that are tracked during task execution
     /// These tasks will be invalidated when the execution finishes
-    /// or before reading a slot value
+    /// or before reading a cell value
     static TASKS_TO_NOTIFY: RefCell<Vec<TaskId>>;
 }
 
@@ -302,22 +302,22 @@ impl<B: Backend> TurboTasks<B> {
                                     this.backend.try_start_task_execution(task_id, &*this)
                                 {
                                     // Setup thread locals
-                                    let has_slot_mappings = execution.slot_mappings.is_some();
+                                    let has_cell_mappings = execution.cell_mappings.is_some();
 
-                                    let slot_mappings =
-                                        RefCell::new(execution.slot_mappings.unwrap_or_default());
-                                    let (result, slot_mappings) = PREVIOUS_SLOTS
-                                        .scope(slot_mappings, async {
+                                    let cell_mappings =
+                                        RefCell::new(execution.cell_mappings.unwrap_or_default());
+                                    let (result, cell_mappings) = PREVIOUS_CELLS
+                                        .scope(cell_mappings, async {
                                             let result = execution.future.await;
-                                            let slot_mappings = if has_slot_mappings {
+                                            let cell_mappings = if has_cell_mappings {
                                                 Some(
-                                                    PREVIOUS_SLOTS
+                                                    PREVIOUS_CELLS
                                                         .with(|s| take(&mut *s.borrow_mut())),
                                                 )
                                             } else {
                                                 None
                                             };
-                                            (result, slot_mappings)
+                                            (result, cell_mappings)
                                         })
                                         .await;
                                     if let Err(err) = &result {
@@ -325,7 +325,7 @@ impl<B: Backend> TurboTasks<B> {
                                     }
                                     let reexecute = this.backend.task_execution_completed(
                                         task_id,
-                                        slot_mappings,
+                                        cell_mappings,
                                         result,
                                         &*this,
                                     );
@@ -504,45 +504,45 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         unsafe { self.backend.try_read_task_output_untracked(task, self) }
     }
 
-    fn try_read_task_slot(
+    fn try_read_task_cell(
         &self,
         task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>> {
+    ) -> Result<Result<CellContent, EventListener>> {
         self.backend
-            .try_read_task_slot(task, index, current_task("reading Vcs"), self)
+            .try_read_task_cell(task, index, current_task("reading Vcs"), self)
     }
 
-    unsafe fn try_read_task_slot_untracked(
+    unsafe fn try_read_task_cell_untracked(
         &self,
         task: TaskId,
         index: usize,
-    ) -> Result<Result<SlotContent, EventListener>> {
-        unsafe { self.backend.try_read_task_slot_untracked(task, index, self) }
+    ) -> Result<Result<CellContent, EventListener>> {
+        unsafe { self.backend.try_read_task_cell_untracked(task, index, self) }
     }
 
-    unsafe fn try_read_own_task_slot(
+    unsafe fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: usize,
-    ) -> Result<SlotContent> {
+    ) -> Result<CellContent> {
         unsafe {
             self.backend
-                .try_read_own_task_slot(current_task, index, self)
+                .try_read_own_task_cell(current_task, index, self)
         }
     }
 
-    fn get_fresh_slot(&self, task: TaskId) -> usize {
-        self.backend.get_fresh_slot(task, self)
+    fn get_fresh_cell(&self, task: TaskId) -> usize {
+        self.backend.get_fresh_cell(task, self)
     }
 
-    fn read_current_task_slot(&self, index: usize) -> Result<SlotContent> {
-        unsafe { Ok(self.try_read_own_task_slot(current_task("reading Vcs"), index)?) }
+    fn read_current_task_cell(&self, index: usize) -> Result<CellContent> {
+        unsafe { Ok(self.try_read_own_task_cell(current_task("reading Vcs"), index)?) }
     }
 
-    fn update_current_task_slot(&self, index: usize, content: SlotContent) {
-        self.backend.update_task_slot(
-            current_task("slotting turbo_tasks values"),
+    fn update_current_task_cell(&self, index: usize, content: CellContent) {
+        self.backend.update_task_cell(
+            current_task("cellting turbo_tasks values"),
             index,
             content,
             self,
@@ -561,7 +561,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_slot_updated()` on all tasks.
+    /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>) {
         TASKS_TO_NOTIFY.with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
@@ -570,7 +570,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_slot_updated()` on all tasks.
+    /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks_set(&self, tasks: &HashSet<TaskId>) {
         TASKS_TO_NOTIFY.with(|tasks_list| {
             let mut list = tasks_list.borrow_mut();
@@ -697,7 +697,7 @@ pub unsafe fn with_turbo_tasks_for_testing<T>(
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(
         tt,
-        CURRENT_TASK_ID.scope(current_task, PREVIOUS_SLOTS.scope(Default::default(), f)),
+        CURRENT_TASK_ID.scope(current_task, PREVIOUS_CELLS.scope(Default::default(), f)),
     )
 }
 
@@ -754,39 +754,39 @@ pub(crate) async unsafe fn read_task_output_untracked(
     }
 }
 
-pub(crate) async fn read_task_slot(
+pub(crate) async fn read_task_cell(
     this: &dyn TurboTasksApi,
     id: TaskId,
     index: usize,
-) -> Result<SlotContent> {
+) -> Result<CellContent> {
     loop {
-        match this.try_read_task_slot(id, index)? {
+        match this.try_read_task_cell(id, index)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
     }
 }
 
-pub(crate) async unsafe fn read_task_slot_untracked(
+pub(crate) async unsafe fn read_task_cell_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
     index: usize,
-) -> Result<SlotContent> {
+) -> Result<CellContent> {
     loop {
-        match unsafe { this.try_read_task_slot_untracked(id, index) }? {
+        match unsafe { this.try_read_task_cell_untracked(id, index) }? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
     }
 }
 
-pub struct CurrentSlotRef {
+pub struct CurrentCellRef {
     current_task: TaskId,
     index: usize,
     type_id: ValueTypeId,
 }
 
-impl CurrentSlotRef {
+impl CurrentCellRef {
     pub fn conditional_update_shared<
         T: Send + Sync + 'static,
         F: FnOnce(Option<&T>) -> Option<T>,
@@ -796,14 +796,14 @@ impl CurrentSlotRef {
     ) {
         let tt = turbo_tasks();
         let content = tt
-            .read_current_task_slot(self.index)
+            .read_current_task_cell(self.index)
             .ok()
             .and_then(|v| v.try_cast::<T>());
         let update = functor(content.as_ref().map(|read| &**read));
         if let Some(update) = update {
-            tt.update_current_task_slot(
+            tt.update_current_task_cell(
                 self.index,
-                SlotContent(Some(SharedReference(Some(self.type_id), Arc::new(update)))),
+                CellContent(Some(SharedReference(Some(self.type_id), Arc::new(update)))),
             )
         }
     }
@@ -821,9 +821,9 @@ impl CurrentSlotRef {
 
     pub fn update_shared<T: Send + Sync + 'static>(&self, new_content: T) {
         let tt = turbo_tasks();
-        tt.update_current_task_slot(
+        tt.update_current_task_cell(
             self.index,
-            SlotContent(Some(SharedReference(
+            CellContent(Some(SharedReference(
                 Some(self.type_id),
                 Arc::new(new_content),
             ))),
@@ -831,20 +831,20 @@ impl CurrentSlotRef {
     }
 }
 
-impl From<CurrentSlotRef> for RawVc {
-    fn from(slot: CurrentSlotRef) -> Self {
-        RawVc::TaskSlot(slot.current_task, slot.index)
+impl From<CurrentCellRef> for RawVc {
+    fn from(cell: CurrentCellRef) -> Self {
+        RawVc::TaskCell(cell.current_task, cell.index)
     }
 }
 
-pub fn find_slot_by_key<
+pub fn find_cell_by_key<
     K: Debug + Eq + Ord + Hash + Typed + TypedForInput + Send + Sync + 'static,
 >(
     type_id: ValueTypeId,
     key: K,
-) -> CurrentSlotRef {
-    PREVIOUS_SLOTS.with(|c| {
-        let current_task = current_task("slotting turbo_tasks values");
+) -> CurrentCellRef {
+    PREVIOUS_CELLS.with(|c| {
+        let current_task = current_task("cellting turbo_tasks values");
         let mut map = c.borrow_mut();
         let index = *map
             .by_key
@@ -852,8 +852,8 @@ pub fn find_slot_by_key<
                 type_id,
                 SharedValue(Some(K::get_value_type_id()), Arc::new(key)),
             ))
-            .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_slot(current_task)));
-        CurrentSlotRef {
+            .or_insert_with(|| with_turbo_tasks(|tt| tt.get_fresh_cell(current_task)));
+        CurrentCellRef {
             current_task,
             index,
             type_id,
@@ -861,20 +861,20 @@ pub fn find_slot_by_key<
     })
 }
 
-pub fn find_slot_by_type(type_id: ValueTypeId) -> CurrentSlotRef {
-    PREVIOUS_SLOTS.with(|cell| {
-        let current_task = current_task("slotting turbo_tasks values");
+pub fn find_cell_by_type(type_id: ValueTypeId) -> CurrentCellRef {
+    PREVIOUS_CELLS.with(|cell| {
+        let current_task = current_task("cellting turbo_tasks values");
         let mut map = cell.borrow_mut();
         let (ref mut current_index, ref mut list) = map.by_type.entry(type_id).or_default();
         let index = if let Some(i) = list.get(*current_index) {
             *i
         } else {
-            let index = turbo_tasks().get_fresh_slot(current_task);
+            let index = turbo_tasks().get_fresh_cell(current_task);
             list.push(index);
             index
         };
         *current_index += 1;
-        CurrentSlotRef {
+        CurrentCellRef {
             current_task,
             index,
             type_id,

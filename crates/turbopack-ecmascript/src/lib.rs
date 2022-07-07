@@ -60,7 +60,7 @@ impl ModuleAssetVc {
         target: CompileTargetVc,
         node_native_bindings: bool,
     ) -> Self {
-        Self::slot(ModuleAsset {
+        Self::cell(ModuleAsset {
             source,
             context,
             ty: ty.into_value(),
@@ -104,7 +104,7 @@ impl ChunkableAsset for ModuleAsset {
 impl EcmascriptChunkPlaceable for ModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
-        ModuleChunkItemVc::slot(ModuleChunkItem {
+        ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
         })
@@ -116,7 +116,7 @@ impl EcmascriptChunkPlaceable for ModuleAsset {
 impl ValueToString for ModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "ecmascript {}",
             self.source.path().to_string().await?
         )))
@@ -144,7 +144,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         // generate:
         // __turbopack_require__({id}) => exports / esm namespace object
         // __turbopack_xxx__
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "todo {};",
             self.module.path().to_string().await?
         )))
