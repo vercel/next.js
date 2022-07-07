@@ -1,5 +1,9 @@
 import { hydrate, version } from './app-index'
 
+// Include app-router and layout-router in the main chunk
+import 'next/dist/client/components/app-router.client.js'
+import 'next/dist/client/components/layout-router.client.js'
+
 window.next = {
   version,
   root: true,
@@ -14,7 +18,7 @@ const chunkFilenameMap = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId) => {
-  return getChunkScriptFilename(chunkId) || chunkFilenameMap[chunkId]
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
 }
 
 // Ignore the module ID transform in client.
@@ -23,6 +27,14 @@ self.__next_require__ = __webpack_require__
 
 // eslint-disable-next-line no-undef
 self.__next_chunk_load__ = (chunk) => {
+  if (chunk.endsWith('.css')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = '/_next/' + chunk
+    document.head.appendChild(link)
+    return Promise.resolve()
+  }
+
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 

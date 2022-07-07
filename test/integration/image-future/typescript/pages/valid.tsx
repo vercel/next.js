@@ -12,26 +12,26 @@ const Page = () => {
       <p>Valid TS</p>
       <Image
         id="width-and-height-num"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={500}
         height={500}
       />
       <Image
         id="width-and-height-str"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width="500"
         height="500"
       />
       <Image
         id="quality-num"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         quality={80}
         width={500}
         height={500}
       />
       <Image
         id="quality-str"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         quality="80"
         width={500}
         height={500}
@@ -44,7 +44,7 @@ const Page = () => {
       />
       <Image
         id="placeholder-and-blur-data-url"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={500}
         height={500}
         placeholder="blur"
@@ -58,10 +58,13 @@ const Page = () => {
       />
       <Image id="object-src-with-svg" src={svg} />
       <Image id="object-src-with-avif" src={avif} />
-      <ImageCard id="image-card" src="https://via.placeholder.com/300" />
+      <ImageCard
+        id="image-card"
+        src="https://image-optimization-test.vercel.app/test.jpg"
+      />
       <DynamicSrcImage
         id="dynamic-src"
-        src="https://via.placeholder.com/400"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={400}
         height={400}
       />

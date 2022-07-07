@@ -1,6 +1,6 @@
 module.exports = {
   images: {
-    domains: ['via.placeholder.com'],
+    domains: ['image-optimization-test.vercel.app'],
     // disableStaticImages: true,
   },
 }

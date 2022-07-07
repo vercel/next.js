@@ -9,6 +9,8 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
+import { getEntrypointFiles } from './build-manifest-plugin'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -65,13 +67,17 @@ export class FlightManifestPlugin {
     })
   }
 
-  createAsset(assets: any, compilation: any, context: string) {
+  createAsset(assets: any, compilation: webpack5.Compilation, context: string) {
     const manifest: any = {}
     const appDir = this.appDir
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(chunk: any, id: string | number, mod: any) {
+      function recordModule(
+        chunk: webpack5.Chunk,
+        id: string | number,
+        mod: any
+      ) {
         const resource: string = mod.resource
 
         // TODO: Hook into deps instead of the target module.
@@ -119,28 +125,49 @@ export class FlightManifestPlugin {
 
         const moduleExportedKeys = ['', '*']
           .concat(
-            [...exportsInfo.exports].map((exportInfo) => {
-              if (exportInfo.provided) {
-                return exportInfo.name
-              }
-              return null
-            }),
+            [...exportsInfo.exports]
+              .filter((exportInfo) => exportInfo.provided)
+              .map((exportInfo) => exportInfo.name),
             ...cjsExports
           )
           .filter((name) => name !== null)
 
+        // Get all CSS files imported in that chunk.
+        const cssChunks: string[] = []
+        for (const entrypoint of chunk.groupsIterable) {
+          const files = getEntrypointFiles(entrypoint)
+          for (const file of files) {
+            if (file.endsWith('.css')) {
+              cssChunks.push(file)
+            }
+          }
+        }
+
         moduleExportedKeys.forEach((name) => {
+          let requiredChunks = []
           if (!moduleExports[name]) {
+            const isRelatedChunk = (c: webpack5.Chunk) =>
+              // If current chunk is a page, it should require the related page chunk;
+              // If current chunk is a component, it should filter out the related page chunk;
+              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
+
+            if (appDir) {
+              requiredChunks = chunkGroup.chunks
+                .filter(isRelatedChunk)
+                .map((requiredChunk: webpack5.Chunk) => {
+                  return (
+                    requiredChunk.id +
+                    ':' +
+                    (requiredChunk.name || requiredChunk.id) +
+                    (dev ? '' : '-' + requiredChunk.hash)
+                  )
+                })
+            }
+
             moduleExports[name] = {
               id,
               name,
-              chunks: appDir
-                ? chunk.ids.map((chunkId: string) => {
-                    return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
-                    )
-                  })
-                : [],
+              chunks: requiredChunks.concat(cssChunks),
             }
           }
           if (!moduleIdMapping[id][name]) {
@@ -155,7 +182,7 @@ export class FlightManifestPlugin {
         manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: any) => {
+      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
@@ -164,8 +191,9 @@ export class FlightManifestPlugin {
           recordModule(chunk, modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
-          if (mod.modules) {
-            mod.modules.forEach((concatenatedMod: any) => {
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            anyModule.modules.forEach((concatenatedMod: any) => {
               recordModule(chunk, modId, concatenatedMod)
             })
           }

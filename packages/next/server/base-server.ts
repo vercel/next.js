@@ -489,7 +489,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (
             !isDynamicRoute(srcPathname) &&
-            !(await this.hasPage(srcPathname))
+            !(await this.hasPage(removeTrailingSlash(srcPathname)))
           ) {
             for (const dynamicRoute of this.dynamicRoutes || []) {
               if (dynamicRoute.match(srcPathname)) {
@@ -769,6 +769,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let pathname = `/${params.path.join('/')}`
           pathname = getRouteFromAssetPath(pathname, '.json')
 
+          // ensure trailing slash is normalized per config
+          if (this.router.catchAllMiddleware[0]) {
+            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+              pathname += '/'
+            }
+            if (
+              !this.nextConfig.trailingSlash &&
+              pathname.length > 1 &&
+              pathname.endsWith('/')
+            ) {
+              pathname = pathname.substring(0, pathname.length - 1)
+            }
+          }
+
           if (this.nextConfig.i18n) {
             const { host } = req?.headers || {}
             // remove port from host and remove port if present
@@ -1012,7 +1026,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      appPathRoutes[normalizeAppPath(entry)] = entry
+      appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes
   }

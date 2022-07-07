@@ -90,8 +90,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
-  getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
   isServerComponentPage,
@@ -106,15 +104,12 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import {
-  lockfilePatchPromise,
-  teardownTraceSubscriber,
-  teardownCrashReporter,
-} from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
+import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -227,6 +222,10 @@ export default async function build(
       )
 
       eventNextPlugins(path.resolve(dir)).then((events) =>
+        telemetry.record(events)
+      )
+
+      eventSwcPlugins(path.resolve(dir), config).then((events) =>
         telemetry.record(events)
       )
 
@@ -873,20 +872,6 @@ export default async function build(
         console.error(error)
         console.error()
 
-        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
-
-        for (const err of edgeRuntimeErrors) {
-          // When using the web runtime, common Node.js native APIs are not available.
-          const moduleName = getUnresolvedModuleFromError(err.message)
-          if (!moduleName) continue
-
-          const e = new Error(
-            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
-          ) as NextError
-          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw e
-        }
-
         if (
           error.indexOf('private-next-pages') > -1 ||
           error.indexOf('__next_polyfill__') > -1
@@ -1078,7 +1063,7 @@ export default async function build(
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
+          pageKeys.map((page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
               page,
             })
@@ -2330,7 +2315,6 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
-    teardownCrashReporter()
   }
 }
 

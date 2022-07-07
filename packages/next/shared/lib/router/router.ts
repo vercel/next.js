@@ -1191,13 +1191,15 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch =
-      !options.shallow &&
-      (await matchesMiddleware({
-        asPath: as,
-        locale: nextState.locale,
-        router: this,
-      }))
+    const isMiddlewareMatch = await matchesMiddleware({
+      asPath: as,
+      locale: nextState.locale,
+      router: this,
+    })
+
+    if (options.shallow && isMiddlewareMatch) {
+      pathname = this.pathname
+    }
 
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
@@ -1672,16 +1674,12 @@ export default class Router implements BaseRouter {
      * for shallow routing purposes.
      */
     let route = requestedRoute
+
     try {
       const handleCancelled = getCancelledHandler({ route, router: this })
 
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
-      if (
-        !hasMiddleware &&
-        routeProps.shallow &&
-        existingInfo &&
-        this.route === route
-      ) {
+      if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
 
@@ -1753,7 +1751,7 @@ export default class Router implements BaseRouter {
       }
 
       if (route === '/api' || route.startsWith('/api/')) {
-        handleHardNavigation({ url: resolvedAs, router: this })
+        handleHardNavigation({ url: as, router: this })
         return new Promise<never>(() => {})
       }
 
@@ -1857,8 +1855,9 @@ export default class Router implements BaseRouter {
         ).catch(() => {})
       }
 
+      let flightInfo
       if (routeInfo.__N_RSC) {
-        props.pageProps = Object.assign(props.pageProps, {
+        flightInfo = {
           __flight__: useStreamedFlightData
             ? (
                 await this._getData(() =>
@@ -1877,9 +1876,10 @@ export default class Router implements BaseRouter {
                 )
               ).data
             : props.__flight__,
-        })
+        }
       }
 
+      props.pageProps = Object.assign({}, props.pageProps, flightInfo)
       routeInfo.props = props
       routeInfo.route = route
       routeInfo.query = query
