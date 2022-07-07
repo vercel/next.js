@@ -22,6 +22,7 @@ type Options = {
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+const regexCssGlobal = /(?<!\.module)\.css$/
 
 export class ClientEntryPlugin {
   dev: boolean = false
@@ -77,11 +78,12 @@ export class ClientEntryPlugin {
           const module = compilation.moduleGraph.getResolvedModule(dependency)
           if (!module) return
 
-          if (visited.has(module.userRequest)) return
-          visited.add(module.userRequest)
+          const request = module.userRequest
+          if (visited.has(request)) return
+          visited.add(request)
 
-          if (clientComponentRegex.test(module.userRequest)) {
-            clientComponentImports.push(module.userRequest)
+          if (clientComponentRegex.test(request) || regexCssGlobal.test(request)) {
+            clientComponentImports.push(request)
           }
 
           compilation.moduleGraph
@@ -154,7 +156,9 @@ export class ClientEntryPlugin {
           webpack as any
         ).EntryPlugin.createDependency(
           clientLoader,
-          name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
+          {
+            name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
+          }
         )
         promises.push(
           new Promise<void>((res, rej) => {

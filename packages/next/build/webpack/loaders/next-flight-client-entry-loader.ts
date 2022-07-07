@@ -6,12 +6,12 @@ export default async function transformSource(this: any): Promise<string> {
     modules = modules ? [modules] : []
   }
 
-  return (
+  const code = (
     modules
       .map(
-        (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
+        (request: string) =>  `import(/* webpackMode: "eager" */ '${request}')`
       )
-      .join(';') +
+      .join(';\n') +
     `
     export const __next_rsc__ = {
       server: false,
@@ -26,4 +26,6 @@ export default async function transformSource(this: any): Promise<string> {
       ? `export const __N_SSP = true;`
       : `export const __N_SSG = true;`)
   )
+
+  return code
 }

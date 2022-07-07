@@ -360,7 +360,11 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: {
-                and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/],
+                or: [
+                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
+                  // Also match the virtual client entry which doesn't have file path
+                  (filePath) => !filePath
+                ],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
             }),
