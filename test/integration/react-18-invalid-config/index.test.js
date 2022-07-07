@@ -2,10 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import {
-  File,
-  nextBuild,
-} from 'next-test-utils'
+import { File, nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
 const nodeArgs = ['-r', join(appDir, '../../lib/react-channel-require-hook.js')]

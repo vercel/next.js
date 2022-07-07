@@ -61,7 +61,7 @@ describe('Switchable runtime', () => {
 
   if ((global as any).isNextDev) {
     describe('Switchable runtime (dev)', () => {
-      it('should support client side navigation to ssr rsc pages', async () => {
+      it.skip('should support client side navigation to ssr rsc pages', async () => {
         let flightRequest = null
 
         const browser = await webdriver(context.appPort, '/node', {
