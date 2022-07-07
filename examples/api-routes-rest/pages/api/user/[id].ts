@@ -1,4 +1,6 @@
-export default function userHandler(req, res) {
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default function userHandler(req: NextApiRequest, res: NextApiResponse) {
   const {
     query: { id, name },
     method,
