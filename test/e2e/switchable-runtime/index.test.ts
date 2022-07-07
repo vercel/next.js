@@ -43,12 +43,12 @@ describe('Switchable runtime', () => {
         app: new FileRef(join(__dirname, './app')),
         pages: new FileRef(join(__dirname, './pages')),
         utils: new FileRef(join(__dirname, './utils')),
+        'next.config.js': new FileRef(join(__dirname, './next.config.js')),
       },
       dependencies: {
         react: 'experimental',
         'react-dom': 'experimental',
       },
-      nextConfig: new FileRef(join(__dirname, './next.config.js')),
     })
     context = {
       appPort: next.url,
@@ -120,24 +120,26 @@ describe('Switchable runtime', () => {
         const text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
 
-        const manifest = await readJson(
-          join(context.appDir, '.next/server/middleware-manifest.json')
-        )
-        expect(manifest).toMatchObject({
-          functions: {
-            '/api/hello': {
-              env: [],
-              files: [
-                'server/edge-runtime-webpack.js',
-                'server/pages/api/hello.js',
-              ],
-              name: 'pages/api/hello',
-              page: '/api/hello',
-              regexp: '^/api/hello$',
-              wasm: [],
+        if (!(global as any).isNextDeploy) {
+          const manifest = await readJson(
+            join(context.appDir, '.next/server/middleware-manifest.json')
+          )
+          expect(manifest).toMatchObject({
+            functions: {
+              '/api/hello': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/hello.js',
+                ],
+                name: 'pages/api/hello',
+                page: '/api/hello',
+                regexp: '^/api/hello$',
+                wasm: [],
+              },
             },
-          },
-        })
+          })
+        }
       })
     })
   } else {
@@ -238,24 +240,26 @@ describe('Switchable runtime', () => {
         const text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
 
-        const manifest = await readJson(
-          join(context.appDir, '.next/server/middleware-manifest.json')
-        )
-        expect(manifest).toMatchObject({
-          functions: {
-            '/api/hello': {
-              env: [],
-              files: [
-                'server/edge-runtime-webpack.js',
-                'server/pages/api/hello.js',
-              ],
-              name: 'pages/api/hello',
-              page: '/api/hello',
-              regexp: '^/api/hello$',
-              wasm: [],
+        if (!(global as any).isNextDeploy) {
+          const manifest = await readJson(
+            join(context.appDir, '.next/server/middleware-manifest.json')
+          )
+          expect(manifest).toMatchObject({
+            functions: {
+              '/api/hello': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/hello.js',
+                ],
+                name: 'pages/api/hello',
+                page: '/api/hello',
+                regexp: '^/api/hello$',
+                wasm: [],
+              },
             },
-          },
-        })
+          })
+        }
       })
 
       it.skip('should display correct tree view with page types in terminal', async () => {
