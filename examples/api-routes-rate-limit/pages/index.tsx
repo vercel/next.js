@@ -29,11 +29,6 @@ export default function Index() {
           <pre>{JSON.stringify(response, null, 2)}</pre>
         </code>
       )}
-      <div className={styles.links}>
-        <a href="#">View Source</a>
-        {' | '}
-        <a href="#">Deploy Your Own ▲</a>
-      </div>
     </main>
   )
 }
