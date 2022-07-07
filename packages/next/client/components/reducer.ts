@@ -4,6 +4,7 @@ import type {
   FlightData,
   FlightDataPath,
 } from '../../server/app-render'
+import { matchSegment } from './match-segments'
 import { fetchServerResponse } from './app-router.client'
 
 const fillCacheWithNewSubTreeData = (
@@ -14,6 +15,8 @@ const fillCacheWithNewSubTreeData = (
   // TODO: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
+
+  const segmentForCache = Array.isArray(segment) ? segment[1] : segment
 
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
@@ -30,8 +33,8 @@ const fillCacheWithNewSubTreeData = (
     newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
   }
 
-  const existingChildCacheNode = existingChildSegmentMap.get(segment)
-  let childCacheNode = childSegmentMap.get(segment)
+  const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
+  let childCacheNode = childSegmentMap.get(segmentForCache)
 
   // In case of last segment start off the fetch at this level and don't copy further down.
   if (isLastEntry) {
@@ -40,7 +43,7 @@ const fillCacheWithNewSubTreeData = (
       !childCacheNode.data ||
       childCacheNode === existingChildCacheNode
     ) {
-      childSegmentMap.set(segment, {
+      childSegmentMap.set(segmentForCache, {
         data: null,
         subTreeData: flightDataPath[3],
         parallelRoutes: new Map(),
@@ -61,7 +64,7 @@ const fillCacheWithNewSubTreeData = (
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     }
-    childSegmentMap.set(segment, childCacheNode)
+    childSegmentMap.set(segmentForCache, childCacheNode)
   }
 
   fillCacheWithNewSubTreeData(
@@ -164,7 +167,7 @@ const createOptimisticTree = (
     !flightRouterState || segment !== flightRouterState[0]
 
   let parallelRoutes: FlightRouterState[1] = {}
-  if (existingSegment === segment) {
+  if (existingSegment !== null && matchSegment(existingSegment, segment)) {
     parallelRoutes = existingParallelRoutes
   }
 
@@ -210,7 +213,7 @@ const walkTreeWithFlightDataPath = (
 
   // Tree path returned from the server should always match up with the current tree in the browser
   // TODO: verify
-  if (segment !== currentSegment) {
+  if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
 
@@ -272,6 +275,7 @@ export function reducer(
         }
       }
 ): AppRouterState {
+  console.log('ACTION', action)
   if (action.type === 'restore') {
     const { url, historyState } = action.payload
     const href = url.pathname + url.search + url.hash
@@ -316,6 +320,18 @@ export function reducer(
     // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
     // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
     if (cacheType === 'hard') {
+      if (
+        mutable.patchedTree &&
+        JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
+      ) {
+        return {
+          canonicalUrl: href,
+          pushRef: { pendingPush, mpaNavigation: false },
+          cache: cache,
+          tree: mutable.patchedTree,
+        }
+      }
+
       // TODO: flag on the tree of which part of the tree for if there is a loading boundary
       const isOptimistic = false
 
@@ -336,10 +352,15 @@ export function reducer(
           cache,
           state.cache,
           segments.slice(1),
-          () => fetchServerResponse(url, optimisticTree)
+          () => {
+            console.log('FETCHING IN CACHE DATA FILL')
+            return fetchServerResponse(url, optimisticTree)
+          }
         )
 
         if (!res?.bailOptimistic) {
+          mutable.previousTree = state.tree
+          mutable.patchedTree = optimisticTree
           return {
             canonicalUrl: href,
             pushRef: { pendingPush, mpaNavigation: false },
@@ -349,19 +370,8 @@ export function reducer(
         }
       }
 
-      if (
-        mutable.patchedTree &&
-        JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-      ) {
-        return {
-          canonicalUrl: href,
-          pushRef: { pendingPush, mpaNavigation: false },
-          cache: cache,
-          tree: mutable.patchedTree,
-        }
-      }
-
       if (!cache.data) {
+        console.log('FETCHING IN NOT OPTIMISTIC')
         cache.data = fetchServerResponse(url, state.tree)
       }
       const flightData = cache.data.readRoot()
@@ -436,7 +446,12 @@ export function reducer(
     const treePath = flightDataPath.slice(0, -3)
     const [treePatch] = flightDataPath.slice(-2)
 
-    const newTree = walkTreeWithFlightDataPath(treePath, state.tree, treePatch)
+    const newTree = walkTreeWithFlightDataPath(
+      // TODO: remove ''
+      ['', ...treePath],
+      state.tree,
+      treePatch
+    )
 
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 

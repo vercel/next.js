@@ -11,11 +11,12 @@ import {
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
 import { fetchServerResponse } from './app-router.client'
+import { matchSegment } from './match-segments'
 
 let infinitePromise: Promise<void> | Error
 
 function equalArray(a: any[], b: any[]) {
-  return a.length === b.length && a.every((val, i) => val === b[i])
+  return a.length === b.length && a.every((val, i) => matchSegment(val, b[i]))
 }
 
 function pathMatches(
@@ -29,11 +30,12 @@ function pathMatches(
 
 function createInfinitePromise() {
   if (!infinitePromise) {
-    infinitePromise = new Promise((resolve) => {
-      setTimeout(() => {
-        infinitePromise = new Error('Infinite promise')
-        resolve()
-      }, 20000)
+    infinitePromise = new Promise((/* resolve */) => {
+      // Note: this is used to debug when the rendering is never updated.
+      // setTimeout(() => {
+      //   infinitePromise = new Error('Infinite promise')
+      //   resolve()
+      // }, 5000)
     })
   }
 
@@ -124,6 +126,7 @@ export function InnerLayoutRouter({
     // TODO: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
+    console.log('FETCHING IN RENDER', { childNode, segmentPath, path })
     const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
     childNodes.set(path, {
       data,
@@ -172,6 +175,12 @@ export function InnerLayoutRouter({
     }
 
     if (!fastPath) {
+      console.log('NOT FAST PATH', {
+        childNode,
+        segmentPath,
+        path,
+        flightData,
+      })
       // For push we can set data in the cache
 
       // segmentPath from the server does not match the layout's segmentPath
@@ -191,6 +200,7 @@ export function InnerLayoutRouter({
 
   // TODO: double check users can't return null in a component that will kick in here
   if (!childNode.subTreeData) {
+    console.log('No subtree data', { childNode, segmentPath, path })
     throw createInfinitePromise()
   }
 
@@ -243,7 +253,18 @@ export default function OuterLayoutRouter({
 
   // This relates to the segments in the current router
   // tree[1].children[0] refers to tree.children.segment in the data format
-  const currentChildSegment = tree[1][parallelRouterKey][0] ?? childProp.segment
+  try {
+    tree[1][parallelRouterKey][0]
+  } catch (err) {
+    debugger
+  }
+  const treeSegment = tree[1][parallelRouterKey][0]
+  const childPropSegment = Array.isArray(childProp.segment)
+    ? childProp.segment[1]
+    : childProp.segment
+  const currentChildSegment =
+    (Array.isArray(treeSegment) ? treeSegment[1] : treeSegment) ??
+    childPropSegment
   const preservedSegments: string[] = [currentChildSegment]
 
   return (
@@ -257,7 +278,7 @@ export default function OuterLayoutRouter({
               tree={tree}
               childNodes={childNodesForParallelRouter!}
               childProp={
-                childProp.segment === preservedSegment ? childProp : null
+                childPropSegment === preservedSegment ? childProp : null
               }
               segmentPath={segmentPath}
               path={preservedSegment}
