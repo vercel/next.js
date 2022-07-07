@@ -37,10 +37,10 @@ First, run the development server:
 docker network create my_network
 
 # Build dev using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.dev.yml build --parallel
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose.dev.yml build --parallel
 
 # Up dev
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -59,10 +59,10 @@ First, run the production server (Final image approximately 110 MB).
 docker network create my_network
 
 # Build prod using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod.yml build --parallel
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose.prod.yml build --parallel
 
 # Up prod in detached mode
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 Alternatively, run the production server without without multistage builds (Final image approximately 1 GB).
@@ -73,10 +73,10 @@ Alternatively, run the production server without without multistage builds (Fina
 docker network create my_network
 
 # Build prod without multistage using new BuildKit engine
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod-without-multistage.yml build --parallel
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose.prod-without-multistage.yml build --parallel
 
 # Up prod without multistage in detached mode
-docker-compose -f docker-compose.prod-without-multistage.yml up -d
+docker compose -f docker-compose.prod-without-multistage.yml up -d
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
