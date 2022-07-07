@@ -1,18 +1,13 @@
 import React from 'react'
 import Head from 'next/head'
 import styles from '../styles/Home.module.css'
-import ThirdPartyEmailPassword from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
-import dynamic from 'next/dynamic'
+import ThirdPartyEmailPassword, {
+  ThirdPartyEmailPasswordAuth,
+} from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
 import supertokensNode from 'supertokens-node'
 import { backendConfig } from '../config/backendConfig'
 import Session from 'supertokens-node/recipe/session'
-
-const ThirdPartyEmailPasswordAuthNoSSR = dynamic(
-  new Promise((res) =>
-    res(ThirdPartyEmailPassword.ThirdPartyEmailPasswordAuth)
-  ),
-  { ssr: false }
-)
+import { useSessionContext } from 'supertokens-auth-react/recipe/session'
 
 export async function getServerSideProps(context) {
   // this runs on the backend, so we must call init on supertokens-node SDK
@@ -37,13 +32,15 @@ export async function getServerSideProps(context) {
 
 export default function Home(props) {
   return (
-    <ThirdPartyEmailPasswordAuthNoSSR>
+    <ThirdPartyEmailPasswordAuth>
       <ProtectedPage userId={props.userId} />
-    </ThirdPartyEmailPasswordAuthNoSSR>
+    </ThirdPartyEmailPasswordAuth>
   )
 }
 
 function ProtectedPage({ userId }) {
+  const session = useSessionContext()
+
   async function logoutClicked() {
     await ThirdPartyEmailPassword.signOut()
     ThirdPartyEmailPassword.redirectToAuth()
@@ -57,21 +54,30 @@ function ProtectedPage({ userId }) {
     }
   }
 
+  if (session.loading === true) {
+    return null
+  }
+
   return (
     <div className={styles.container}>
       <Head>
         <title>SuperTokens 💫</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
       <main className={styles.main}>
         <h1 className={styles.title}>
           Welcome to <a href="https://nextjs.org">Next.js!</a>
         </h1>
         <p className={styles.description}>
-          You are authenticated with SuperTokens! (UserID: {userId})
+          You are authenticated with SuperTokens!
         </p>
 
+        <p className={styles.description}>
+          UserId: {session.userId} <br /> (from SSR: {userId})
+        </p>
+        <p className={styles.description}>
+          Access token payload: {JSON.stringify(session.accessTokenPayload)}
+        </p>
         <div
           style={{
             display: 'flex',

@@ -521,7 +521,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         },
       }
       return Promise.resolve(
-        renderErrorProps.props
+        renderErrorProps.props?.err
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>

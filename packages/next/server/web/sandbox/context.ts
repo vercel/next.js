@@ -129,15 +129,36 @@ async function createModuleContext(options: ModuleContextOptions) {
         return fn()
       }
 
+      context.__import_unsupported = function __import_unsupported(
+        moduleName: string
+      ) {
+        const proxy: any = new Proxy(function () {}, {
+          get(_obj, prop) {
+            if (prop === 'then') {
+              return {}
+            }
+            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+          },
+          construct() {
+            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+          },
+          apply(_target, _this, args) {
+            if (args[0] instanceof Function) {
+              return args[0](proxy)
+            }
+            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
+          },
+        })
+        return new Proxy({}, { get: () => proxy })
+      }
+
       context.__next_webassembly_compile__ =
         function __next_webassembly_compile__(fn: Function) {
           const key = fn.toString()
           if (!warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -163,10 +184,8 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -321,7 +340,7 @@ function emitWarning(
 ) {
   if (!warnedAlready.has(name)) {
     const warning =
-      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+      new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
     contextOptions.onWarning(warning)
@@ -334,4 +353,10 @@ function decorateUnhandledError(error: any) {
   if (error instanceof Error) {
     decorateServerError(error, 'edge-server')
   }
+}
+
+function getUnsupportedModuleErrorMessage(module: string) {
+  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
+  return `The edge runtime does not support Node.js '${module}' module.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
 }

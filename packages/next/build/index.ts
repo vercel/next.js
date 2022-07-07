@@ -90,8 +90,6 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
-  getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
   isServerComponentPage,
@@ -877,20 +875,6 @@ export default async function build(
 
         console.error(error)
         console.error()
-
-        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
-
-        for (const err of edgeRuntimeErrors) {
-          // When using the web runtime, common Node.js native APIs are not available.
-          const moduleName = getUnresolvedModuleFromError(err.message)
-          if (!moduleName) continue
-
-          const e = new Error(
-            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
-          ) as NextError
-          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw e
-        }
 
         if (
           error.indexOf('private-next-pages') > -1 ||
