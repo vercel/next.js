@@ -384,10 +384,10 @@ export default async function build(
           })
         )
 
-      let mappedappPaths: { [page: string]: string } | undefined
+      let mappedAppPaths: { [page: string]: string } | undefined
 
       if (appPaths && appDir) {
-        mappedappPaths = nextBuildSpan
+        mappedAppPaths = nextBuildSpan
           .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
@@ -426,7 +426,7 @@ export default async function build(
             rootDir: dir,
             rootPaths: mappedRootPaths,
             appDir,
-            appPaths: mappedappPaths,
+            appPaths: mappedAppPaths,
             pageExtensions: config.pageExtensions,
           })
         )
@@ -573,21 +573,36 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-        version: 3,
-        pages404: true,
-        basePath: config.basePath,
-        redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-        headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-        dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(isDynamicRoute)
-          .map(pageToRoute),
-        staticRoutes: getSortedRoutes(pageKeys)
-          .filter((page) => !isDynamicRoute(page) && !isReservedPage(page))
-          .map(pageToRoute),
-        dataRoutes: [],
-        i18n: config.i18n || undefined,
-      }))
+      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
+        const sortedRoutes = getSortedRoutes([
+          ...pageKeys,
+          ...Object.keys(mappedAppPaths || {}).map((key) =>
+            normalizeAppPath(key)
+          ),
+        ])
+        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+        const staticRoutes: typeof dynamicRoutes = []
+
+        for (const route of sortedRoutes) {
+          if (isDynamicRoute(route)) {
+            dynamicRoutes.push(pageToRoute(route))
+          } else if (!isReservedPage(route)) {
+            staticRoutes.push(pageToRoute(route))
+          }
+        }
+
+        return {
+          version: 3,
+          pages404: true,
+          basePath: config.basePath,
+          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
+          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+          dynamicRoutes,
+          staticRoutes,
+          dataRoutes: [],
+          i18n: config.i18n || undefined,
+        }
+      })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
