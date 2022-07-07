@@ -79,7 +79,7 @@ impl VisitMutAstPath for ApplyVisitors<'_> {
     method!(visit_mut_module_decl, ModuleDecl);
 }
 
-pub struct VisitWithPath<V>
+pub struct VisitorCreator<V>
 where
     V: CreateVisitorFn,
 {
@@ -100,7 +100,7 @@ macro_rules! visit_rule {
     };
 }
 
-impl<V> VisitWithPath<V>
+impl<V> VisitorCreator<V>
 where
     V: CreateVisitorFn,
 {
@@ -130,7 +130,7 @@ where
     }
 }
 
-impl<V> Visit for VisitWithPath<V>
+impl<V> Visit for VisitorCreator<V>
 where
     V: CreateVisitorFn,
 {
@@ -156,7 +156,7 @@ mod tests {
     };
 
     use super::{ApplyVisitors, CreateVisitorFn, VisitorFn};
-    use crate::path_visitor::VisitWithPath;
+    use crate::path_visitor::VisitorCreator;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -305,7 +305,7 @@ mod tests {
             dbg!(arr_span);
             dbg!(baz_span);
 
-            let mut v = VisitWithPath::new(creator);
+            let mut v = VisitorCreator::new(creator);
 
             Ok(())
         })
