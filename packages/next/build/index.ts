@@ -54,6 +54,8 @@ import {
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
+  APP_PATHS_MANIFEST,
+  APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -110,6 +112,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -685,6 +688,7 @@ export default async function build(
             REACT_LOADABLE_MANIFEST,
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
+            appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -1613,6 +1617,24 @@ export default async function build(
         JSON.stringify(requiredServerFiles),
         'utf8'
       )
+
+      if (appDir) {
+        const appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+        const appPathRoutes: Record<string, string> = {}
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
 
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(

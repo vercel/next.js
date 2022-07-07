@@ -24,10 +24,6 @@ import { stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
-  ? require('react-dom/server.browser')
-  : require('react-dom/server')
-
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
@@ -305,6 +301,12 @@ export async function renderToHTML(
   renderOpts: RenderOpts,
   isPagesDir: boolean
 ): Promise<RenderResult | null> {
+  // this needs to be required lazily so that `next-server` can set
+  // the env before we require
+  const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+    ? require('react-dom/server.browser')
+    : require('react-dom/server')
+
   // don't modify original query object
   query = Object.assign({}, query)
 
