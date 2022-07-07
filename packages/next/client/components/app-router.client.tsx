@@ -213,10 +213,6 @@ export default function AppRouter({
     }
   }, [onPopState])
 
-  React.useEffect(() => {
-    window.history.replaceState({ tree: initialTree }, '')
-  }, [initialTree])
-
   return (
     <PathnameContext.Provider value={pathname}>
       <QueryContext.Provider value={query}>
