@@ -3,12 +3,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import {
-  check,
-  fetchViaHTTP,
-  renderViaHTTP,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 import { readJson } from 'fs-extra'
 
@@ -18,7 +13,6 @@ function splitLines(text) {
     .map((str) => str.trim())
     .filter(Boolean)
 }
-
 
 async function testRoute(appPort, url, { isStatic, isEdge }) {
   const html1 = await renderViaHTTP(appPort, url)
@@ -56,7 +50,12 @@ describe('Switchable runtime', () => {
       },
       nextConfig: new FileRef(join(__dirname, './next.config.js')),
     })
-    context = { appPort: next.url, appDir: next.testDir, stdout: '', stderr: '' }
+    context = {
+      appPort: next.url,
+      appDir: next.testDir,
+      stdout: '',
+      stderr: '',
+    }
   })
   afterAll(() => next.destroy())
 
@@ -138,8 +137,6 @@ describe('Switchable runtime', () => {
         })
       })
     })
-
-
   } else {
     describe('Switchable runtime (prod)', () => {
       it('should build /static as a static page with the nodejs runtime', async () => {
@@ -369,4 +366,3 @@ describe('Switchable runtime', () => {
     })
   }
 })
-
