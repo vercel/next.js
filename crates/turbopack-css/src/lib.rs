@@ -6,7 +6,7 @@ use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        ChunkItem, ChunkItemVc, ChunkPlaceable, ChunkPlaceableVc, ChunkVc, ChunkableAsset,
+        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
         ChunkableAssetVc, ChunkingContextVc,
     },
     context::AssetContextVc,
@@ -27,7 +27,6 @@ use crate::{
 
 #[turbo_tasks::value(
     Asset,
-    ChunkPlaceable,
     CssChunkPlaceable,
     ChunkableAsset,
     ValueToString
@@ -69,9 +68,6 @@ impl ChunkableAsset for ModuleAsset {
         CssChunkVc::new(context, self_vc.into()).into()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkPlaceable for ModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl CssChunkPlaceable for ModuleAsset {

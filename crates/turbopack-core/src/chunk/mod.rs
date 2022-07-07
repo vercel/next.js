@@ -322,22 +322,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
 }
 
 #[turbo_tasks::value_trait]
-pub trait ChunkContext {}
-
-#[turbo_tasks::value_impl]
-impl ChunkContextVc {
-    #[turbo_tasks::function]
-    fn id(self, _placeable: ChunkPlaceableVc) -> ModuleIdVc {
-        todo!()
-    }
-}
-
-#[turbo_tasks::value_trait]
-pub trait ChunkPlaceable: ValueToString {
-    fn as_chunk_item(&self, context: ChunkingContextVc) -> ChunkItemVc;
-}
-
-#[turbo_tasks::value_trait]
 pub trait ChunkItem {}
 
 #[turbo_tasks::value(transparent)]

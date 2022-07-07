@@ -6,8 +6,8 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        chunk_content, Chunk, ChunkContentResult, ChunkContext, ChunkContextVc,
-        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc, ChunkPlaceableVc, ChunkReferenceVc,
+        chunk_content, Chunk, ChunkContentResult,
+        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc, ChunkReferenceVc,
         ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
@@ -116,11 +116,8 @@ impl Asset for EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::value(ChunkContext)]
+#[turbo_tasks::value]
 pub struct EcmascriptChunkContext {}
-
-#[turbo_tasks::value_impl]
-impl ChunkContext for EcmascriptChunkContext {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContextVc {
@@ -131,7 +128,7 @@ impl EcmascriptChunkContextVc {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ChunkPlaceable + ValueToString {
+pub trait EcmascriptChunkPlaceable: ValueToString {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc;
 }
 

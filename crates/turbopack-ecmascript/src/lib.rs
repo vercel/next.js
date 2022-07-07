@@ -21,7 +21,7 @@ use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        ChunkItem, ChunkItemVc, ChunkPlaceable, ChunkPlaceableVc, ChunkVc, ChunkableAsset,
+        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
         ChunkableAssetVc, ChunkingContextVc,
     },
     context::AssetContextVc,
@@ -47,7 +47,6 @@ pub enum ModuleAssetType {
 
 #[turbo_tasks::value(
     Asset,
-    ChunkPlaceable,
     EcmascriptChunkPlaceable,
     ChunkableAsset,
     ValueToString
@@ -110,9 +109,6 @@ impl ChunkableAsset for ModuleAsset {
         EcmascriptChunkVc::new(context, self_vc.into()).into()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkPlaceable for ModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleAsset {
