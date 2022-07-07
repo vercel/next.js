@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use swc_common::{Span, Spanned};
 use swc_ecmascript::{
     ast::*,
-    visit::{
-        noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutAstPath, VisitMutWith,
-        VisitWith,
-    },
+    visit::{noop_visit_type, AstKindPath, Visit, VisitMutAstPath, VisitMutWithPath, VisitWith},
 };
 
 pub type AstPath = Vec<Span>;
@@ -27,11 +24,11 @@ impl<'a> ApplyVisitors<'a> {
         Self { visitors, index: 0 }
     }
 
-    fn visit_if_required<N>(&mut self, n: &mut N)
+    fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath)
     where
         N: Spanned
-            + VisitMutWith<Box<dyn VisitMut + Send + Sync>>
-            + for<'aa> VisitMutWith<ApplyVisitors<'aa>>,
+            + VisitMutWithPath<Box<dyn VisitMutAstPath + Send + Sync>>
+            + for<'aa> VisitMutWithPath<ApplyVisitors<'aa>>,
     {
         let span = n.span();
 
@@ -39,7 +36,7 @@ impl<'a> ApplyVisitors<'a> {
             for child in children.iter() {
                 if self.index == child.0.len() - 1 {
                     if child.0.last() == Some(&span) {
-                        n.visit_mut_with(&mut child.1());
+                        n.visit_mut_with_path(&mut child.1(), ast_path);
                     }
                 } else {
                     debug_assert!(self.index < child.0.len());
@@ -53,10 +50,13 @@ impl<'a> ApplyVisitors<'a> {
                     }
 
                     // Instead of resetting, we create a new instance of this struct
-                    n.visit_mut_children_with(&mut ApplyVisitors {
-                        visitors: children_map,
-                        index: self.index + 1,
-                    });
+                    n.visit_mut_children_with_path(
+                        &mut ApplyVisitors {
+                            visitors: children_map,
+                            index: self.index + 1,
+                        },
+                        ast_path,
+                    );
                 }
             }
         }
@@ -65,15 +65,13 @@ impl<'a> ApplyVisitors<'a> {
 
 macro_rules! method {
     ($name:ident,$T:ty) => {
-        fn $name(&mut self, n: &mut $T) {
-            self.visit_if_required(n);
+        fn $name(&mut self, n: &mut $T, ast_path: &mut AstKindPath) {
+            self.visit_if_required(n, ast_path);
         }
     };
 }
 
-impl VisitMut for ApplyVisitors<'_> {
-    noop_visit_mut_type!();
-
+impl VisitMutAstPath for ApplyVisitors<'_> {
     method!(visit_mut_prop, Prop);
     method!(visit_mut_expr, Expr);
     method!(visit_mut_pat, Pat);
@@ -149,12 +147,12 @@ where
 mod tests {
     use std::collections::HashMap;
 
-    use swc_common::{errors::HANDLER, BytePos, FileName, Mark, SourceFile, SourceMap, Span};
+    use swc_common::{errors::HANDLER, BytePos, FileName, Mark, SourceFile, Span};
     use swc_ecma_transforms_base::resolver;
     use swc_ecmascript::{
         ast::*,
         parser::parse_file_as_module,
-        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
+        visit::{AstKindPath, VisitMutAstPath, VisitMutWith, VisitMutWithPath},
     };
 
     use super::{ApplyVisitors, CreateVisitorFn, VisitorFn};
@@ -190,10 +188,8 @@ mod tests {
         to: &'a str,
     }
 
-    impl VisitMut for StrReplacer<'_> {
-        noop_visit_mut_type!();
-
-        fn visit_mut_str(&mut self, s: &mut Str) {
+    impl VisitMutAstPath for StrReplacer<'_> {
+        fn visit_mut_str(&mut self, s: &mut Str, ast_path: &mut AstKindPath) {
             s.value = s.value.replace(self.from, self.to).into();
             s.raw = None;
         }
@@ -238,7 +234,7 @@ mod tests {
                 }
 
                 let mut m = m.clone();
-                m.visit_mut_with(&mut ApplyVisitors::new(map));
+                m.visit_mut_with_path(&mut ApplyVisitors::new(map), &mut Default::default());
 
                 let s = format!("{:?}", m);
                 assert!(s.contains("bar-success"), "Should be replaced: {:#?}", m);
@@ -256,7 +252,7 @@ mod tests {
                 }
 
                 let mut m = m.clone();
-                m.visit_mut_with(&mut ApplyVisitors::new(map));
+                m.visit_mut_with_path(&mut ApplyVisitors::new(map), &mut Default::default());
 
                 let s = format!("{:?}", m);
                 assert!(

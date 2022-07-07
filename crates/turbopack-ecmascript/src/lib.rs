@@ -27,7 +27,7 @@ use chunk::{
 use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
-use swc_ecmascript::visit::VisitMutWith;
+use swc_ecmascript::visit::VisitMutWithPath;
 use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
@@ -196,7 +196,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                     .push((ast_path, visitor));
             }
 
-            program.visit_mut_with(&mut ApplyVisitors::new(map));
+            program.visit_mut_with_path(&mut ApplyVisitors::new(map), &mut Default::default());
 
             // TODO SWC magic to apply all visitors from the interval tree
             // to the "program" and generate code for that.
