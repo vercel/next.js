@@ -206,6 +206,11 @@ describe('app dir', () => {
     expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
   })
 
+  it('should support rewrites', async () => {
+    const html = await renderViaHTTP(next.url, '/rewritten-to-dashboard')
+    expect(html).toContain('hello from app/dashboard')
+  })
+
   describe('<Link />', () => {
     it('should hard push', async () => {
       const browser = await webdriver(next.url, '/link-hard-push')
@@ -213,8 +218,9 @@ describe('app dir', () => {
       try {
         // Click the link on the page, and verify that the history entry was
         // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
-        // TODO: verify that a history entry was added
+        expect(await browser.eval('window.history.length')).toBe(3)
 
         // Get the date on the rendered page.
         let element = await browser.elementById('date')
@@ -242,8 +248,9 @@ describe('app dir', () => {
       try {
         // Click the link on the page, and verify that the history entry was NOT
         // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
-        // TODO: verify that a history entry was NOT added
+        expect(await browser.eval('window.history.length')).toBe(2)
 
         // Get the date on the rendered page.
         let element = await browser.elementById('date')
@@ -271,8 +278,9 @@ describe('app dir', () => {
       try {
         // Click the link on the page, and verify that the history entry was
         // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
-        // TODO: verify that a history entry was added
+        expect(await browser.eval('window.history.length')).toBe(3)
 
         // Get the date on the rendered page.
         let element = await browser.elementById('date')
@@ -300,8 +308,9 @@ describe('app dir', () => {
       try {
         // Click the link on the page, and verify that the history entry was NOT
         // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
-        // TODO: verify that a history entry was NOT added
+        expect(await browser.eval('window.history.length')).toBe(2)
 
         // Get the date on the rendered page.
         let element = await browser.elementById('date')
@@ -369,6 +378,25 @@ describe('app dir', () => {
         element = await browser.elementById('date')
         const secondDate = await element.text()
         expect(firstDate).toBe(secondDate)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should respect rewrites', async () => {
+      const browser = await webdriver(next.url, '/rewrites')
+
+      try {
+        // Click the link.
+        await browser.elementById('link').click()
+
+        // Check to see that we were rewritten and not redirected.
+        const pathname = await browser.eval('window.location.pathname')
+        expect(pathname).toBe('/rewritten-to-dashboard')
+
+        // Check to see that the page we navigated to is in fact the dashboard.
+        const html = await browser.text()
+        expect(html).toContain('hello from app/dashboard')
       } finally {
         await browser.close()
       }
