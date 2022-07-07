@@ -273,9 +273,9 @@ describe('Switchable runtime (prod)', () => {
     })
 
     await browser.waitForElementByCss('#link-node-rsc-ssr').click()
-
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This is a SSR RSC page.'
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /This is a SSR RSC page/
     )
     expect(flightRequest).toContain('/node-rsc-ssr?__flight__=1')
   })
@@ -284,8 +284,9 @@ describe('Switchable runtime (prod)', () => {
     const browser = await webdriver(context.appPort, '/node')
 
     await browser.waitForElementByCss('#link-node-rsc-ssg').click()
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This is a SSG RSC page.'
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /This is a SSG RSC page/
     )
   })
 
@@ -293,8 +294,9 @@ describe('Switchable runtime (prod)', () => {
     const browser = await webdriver(context.appPort, '/node')
 
     await browser.waitForElementByCss('#link-node-rsc').click()
-    expect(await browser.elementByCss('body').text()).toContain(
-      'This is a static RSC page.'
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /This is a static RSC page/
     )
   })
 
