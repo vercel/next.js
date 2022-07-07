@@ -1,7 +1,9 @@
 use anyhow::Result;
+use turbo_tasks::primitives::BoolVc;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{ChunkingContext, ChunkingContextVc};
+use crate::asset::AssetVc;
 
 /// A chunking context for development mode.
 /// It uses readable filenames and module ids to improve development.
@@ -29,5 +31,19 @@ impl ChunkingContext for DevChunkingContext {
             clean(&*path.to_string().await?)
         };
         Ok(self.root_path.join(&name))
+    }
+
+    #[turbo_tasks::function]
+    async fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> Result<BoolVc> {
+        let parent_dir = asset_a.path().parent().await?;
+
+        let path = asset_b.path().await?;
+        if let Some(rel_path) = parent_dir.get_path_to(&path) {
+            if !rel_path.starts_with("node_modules/") && !rel_path.contains("/node_modules/") {
+                return Ok(BoolVc::cell(true));
+            }
+        }
+
+        Ok(BoolVc::cell(false))
     }
 }

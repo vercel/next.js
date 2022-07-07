@@ -1,15 +1,20 @@
+pub mod loader;
+
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::Asset,
     chunk::{
-        chunk_content, Chunk, ChunkContentResultVc, ChunkContext, ChunkContextVc,
-        ChunkGroupReferenceVc, ChunkPlaceableVc, ChunkReferenceVc, ChunkVc, ChunkingContextVc,
-        ModuleIdVc,
+        chunk_content, Chunk, ChunkContentResult, ChunkContext, ChunkContextVc,
+        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc, ChunkPlaceableVc, ChunkReferenceVc,
+        ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
     },
-    reference::AssetReferencesVc,
+    reference::{AssetReferenceVc, AssetReferencesVc},
 };
+use turbopack_core::asset::AssetVc;
+
+use self::loader::ChunkGroupLoaderChunkItemVc;
 
 #[turbo_tasks::value(Chunk, Asset, ValueToString)]
 pub struct EcmascriptChunk {
@@ -27,16 +32,37 @@ impl EcmascriptChunkVc {
 }
 
 #[turbo_tasks::function]
-fn chunk_context(_context: ChunkingContextVc) -> ChunkContextVc {
-    EcmascriptChunkContextVc::cell(EcmascriptChunkContext {}).into()
+fn chunk_context(_context: ChunkingContextVc) -> EcmascriptChunkContextVc {
+    EcmascriptChunkContextVc::cell(EcmascriptChunkContext {})
+}
+
+#[turbo_tasks::value]
+pub struct EcmascriptChunkContentResult {
+    pub chunk_items: Vec<EcmascriptChunkItemVc>,
+    pub chunks: Vec<ChunkVc>,
+    pub async_chunk_groups: Vec<ChunkGroupVc>,
+    pub external_asset_references: Vec<AssetReferenceVc>,
+}
+
+impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContentResult {
+    fn from(from: ChunkContentResult<EcmascriptChunkItemVc>) -> Self {
+        EcmascriptChunkContentResult {
+            chunk_items: from.chunk_items,
+            chunks: from.chunks,
+            async_chunk_groups: from.async_chunk_groups,
+            external_asset_references: from.external_asset_references,
+        }
+    }
 }
 
 #[turbo_tasks::function]
 async fn ecmascript_chunk_content(
     context: ChunkingContextVc,
     entry: AssetVc,
-) -> Result<ChunkContentResultVc> {
-    chunk_content(context, entry, EcmascriptChunkPlaceableVc::resolve_from).await
+) -> Result<EcmascriptChunkContentResultVc> {
+    let res = chunk_content::<EcmascriptChunkItemVc>(context, entry).await?;
+
+    Ok(EcmascriptChunkContentResultVc::cell(res.into()))
 }
 
 #[turbo_tasks::value_impl]
@@ -105,4 +131,36 @@ impl EcmascriptChunkContextVc {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ValueToString + ChunkPlaceable {}
+pub trait EcmascriptChunkPlaceable: ChunkPlaceable + ValueToString {
+    fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc;
+}
+
+#[turbo_tasks::value_trait]
+pub trait EcmascriptChunkItem: ChunkItem {
+    // TODO handle Source Maps, maybe via separate method "content_with_map"
+    fn content(
+        &self,
+        chunk_content: EcmascriptChunkContextVc,
+        context: ChunkingContextVc,
+    ) -> StringVc;
+}
+
+#[async_trait::async_trait]
+impl FromChunkableAsset for EcmascriptChunkItemVc {
+    async fn from_asset(
+        context: ChunkingContextVc,
+        asset: AssetVc,
+    ) -> Result<Option<Self>> {
+        if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+            return Ok(Some(placeable.as_chunk_item(context)));
+        }
+        Ok(None)
+    }
+
+    async fn from_async_asset(
+        _context: ChunkingContextVc,
+        asset: ChunkableAssetVc,
+    ) -> Result<Option<Self>> {
+        Ok(Some(ChunkGroupLoaderChunkItemVc::new(asset).into()))
+    }
+}

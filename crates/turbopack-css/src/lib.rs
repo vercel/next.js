@@ -2,12 +2,12 @@
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        ChunkContextVc, ChunkItem, ChunkItemVc, ChunkPlaceable, ChunkPlaceableVc, ChunkVc,
-        ChunkableAsset, ChunkableAssetVc, ChunkingContextVc,
+        ChunkItem, ChunkItemVc, ChunkPlaceable, ChunkPlaceableVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetVc, ChunkingContextVc,
     },
     context::AssetContextVc,
     reference::AssetReferencesVc,
@@ -18,7 +18,10 @@ pub(crate) mod parse;
 pub(crate) mod references;
 
 use crate::{
-    chunk::{CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc},
+    chunk::{
+        CssChunkContextVc, CssChunkItem, CssChunkItemVc, CssChunkPlaceable, CssChunkPlaceableVc,
+        CssChunkVc,
+    },
     references::module_references,
 };
 
@@ -68,19 +71,19 @@ impl ChunkableAsset for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkPlaceable for ModuleAsset {
+impl ChunkPlaceable for ModuleAsset {}
+
+#[turbo_tasks::value_impl]
+impl CssChunkPlaceable for ModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkItemVc {
-        ModuleChunkItemVc::slot(ModuleChunkItem {
+    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
+        ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
         })
         .into()
     }
 }
-
-#[turbo_tasks::value_impl]
-impl CssChunkPlaceable for ModuleAsset {}
 
 #[turbo_tasks::value_impl]
 impl ValueToString for ModuleAsset {
@@ -93,30 +96,31 @@ impl ValueToString for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(ChunkItem)]
+#[turbo_tasks::value(ChunkItem, CssChunkItem)]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {
+impl ChunkItem for ModuleChunkItem {}
+
+#[turbo_tasks::value_impl]
+impl CssChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        _chunk_content: ChunkContextVc,
+        _chunk_content: CssChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<StringVc> {
-        // TODO: code generation
-        // Some(placeable) =
-        //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
-        // let id = context.id(placeable)
-        // generate:
-        // __turbopack_require__({id}) => exports / esm namespace object
-        // __turbopack_xxx__
-        Ok(StringVc::slot(format!(
-            "todo {};",
-            self.module.path().to_string().await?
+        // TODO: code generation & remove imports
+        Ok(StringVc::cell(format!(
+            "/* {} */\n{}",
+            self.module.path().to_string().await?,
+            match &*self.module.content().await? {
+                FileContent::NotFound => "/* File not Found? */".to_string(),
+                FileContent::Content(file) => String::from_utf8(file.content().to_vec())?,
+            }
         )))
     }
 }

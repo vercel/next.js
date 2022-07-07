@@ -78,8 +78,8 @@ impl ResolveResult {
 
     pub fn add_reference(&mut self, reference: AssetReferenceVc) {
         match self {
-            ResolveResult::Nested(list) => list.push(reference),
-            ResolveResult::Single(_, list)
+            ResolveResult::Nested(list)
+            | ResolveResult::Single(_, list)
             | ResolveResult::Keyed(_, list)
             | ResolveResult::Alternatives(_, list)
             | ResolveResult::Special(_, list)

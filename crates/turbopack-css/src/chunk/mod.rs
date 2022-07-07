@@ -4,11 +4,11 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        chunk_content, Chunk, ChunkContentResultVc, ChunkContext, ChunkContextVc,
-        ChunkGroupReferenceVc, ChunkItemVc, ChunkPlaceableVc, ChunkReferenceVc, ChunkVc,
-        ChunkingContextVc, ModuleIdVc,
+        chunk_content, Chunk, ChunkContentResult, ChunkContext, ChunkContextVc,
+        ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc, ChunkPlaceableVc, ChunkReferenceVc,
+        ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
     },
-    reference::AssetReferencesVc,
+    reference::{AssetReferenceVc, AssetReferencesVc},
 };
 
 #[turbo_tasks::value(Chunk, Asset, ValueToString)]
@@ -22,21 +22,42 @@ pub struct CssChunk {
 impl CssChunkVc {
     #[turbo_tasks::function]
     pub fn new(context: ChunkingContextVc, entry: AssetVc) -> Self {
-        Self::slot(CssChunk { context, entry })
+        Self::cell(CssChunk { context, entry })
     }
 }
 
 #[turbo_tasks::function]
-fn chunk_context(_context: ChunkingContextVc) -> ChunkContextVc {
-    CssChunkContextVc::slot(CssChunkContext {}).into()
+fn chunk_context(_context: ChunkingContextVc) -> CssChunkContextVc {
+    CssChunkContextVc::cell(CssChunkContext {})
+}
+
+#[turbo_tasks::value]
+pub struct CssChunkContentResult {
+    pub chunk_items: Vec<CssChunkItemVc>,
+    pub chunks: Vec<ChunkVc>,
+    pub async_chunk_groups: Vec<ChunkGroupVc>,
+    pub external_asset_references: Vec<AssetReferenceVc>,
+}
+
+impl From<ChunkContentResult<CssChunkItemVc>> for CssChunkContentResult {
+    fn from(from: ChunkContentResult<CssChunkItemVc>) -> Self {
+        CssChunkContentResult {
+            chunk_items: from.chunk_items,
+            chunks: from.chunks,
+            async_chunk_groups: from.async_chunk_groups,
+            external_asset_references: from.external_asset_references,
+        }
+    }
 }
 
 #[turbo_tasks::function]
 async fn css_chunk_content(
     context: ChunkingContextVc,
     entry: AssetVc,
-) -> Result<ChunkContentResultVc> {
-    chunk_content(context, entry, CssChunkPlaceableVc::resolve_from).await
+) -> Result<CssChunkContentResultVc> {
+    let res = chunk_content::<CssChunkItemVc>(context, entry).await?;
+
+    Ok(CssChunkContentResultVc::cell(res.into()))
 }
 
 #[turbo_tasks::value_impl]
@@ -46,7 +67,7 @@ impl Chunk for CssChunk {}
 impl ValueToString for CssChunk {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::slot(format!(
+        Ok(StringVc::cell(format!(
             "chunk {}",
             self.entry.path().to_string().await?
         )))
@@ -86,7 +107,7 @@ impl Asset for CssChunk {
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
-        Ok(AssetReferencesVc::slot(references))
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 
@@ -105,6 +126,29 @@ impl CssChunkContextVc {
 }
 
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ValueToString + ChunkPlaceable {
-    fn as_chunk_item(&self, context: ChunkingContextVc) -> ChunkItemVc;
+pub trait CssChunkPlaceable: ChunkPlaceable + ValueToString {
+    fn as_chunk_item(&self, context: ChunkingContextVc) -> CssChunkItemVc;
+}
+
+#[turbo_tasks::value_trait]
+pub trait CssChunkItem: ChunkItem {
+    // TODO handle Source Maps, maybe via separate method "content_with_map"
+    fn content(&self, chunk_content: CssChunkContextVc, context: ChunkingContextVc) -> StringVc;
+}
+
+#[async_trait::async_trait]
+impl FromChunkableAsset for CssChunkItemVc {
+    async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>> {
+        if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
+            return Ok(Some(placeable.as_chunk_item(context)));
+        }
+        Ok(None)
+    }
+
+    async fn from_async_asset(
+        _context: ChunkingContextVc,
+        _asset: ChunkableAssetVc,
+    ) -> Result<Option<Self>> {
+        Ok(None)
+    }
 }
