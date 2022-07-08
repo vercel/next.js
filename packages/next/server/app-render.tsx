@@ -20,11 +20,13 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -297,6 +299,34 @@ export type ChildProp = {
   segment: Segment
 }
 
+function getSegmentParam(segment: string): {
+  param: string
+  type: 'catchall' | 'optional-catchall' | 'dynamic'
+} | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return {
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: 'catchall',
+      param: segment.slice(4, -1),
+    }
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -381,17 +411,36 @@ export async function renderToHTML(
     segment: string
   ): { param: string; value: string } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
-    const segmentParam =
-      segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(1, -1)
-        : null
-
-    if (!segmentParam || !pathParams[segmentParam]) {
+    const segmentParam = getSegmentParam(segment)
+    if (!segmentParam) {
       return null
     }
 
-    // @ts-expect-error TODO:  handle case where value is an array
-    return { param: segmentParam, value: pathParams[segmentParam] }
+    const key = segmentParam.param
+
+    if (!pathParams[key] && !query[key]) {
+      if (segmentParam.type === 'optional-catchall') {
+        return {
+          param: key,
+          value: '',
+        }
+      }
+      return null
+    }
+
+    return {
+      param: key,
+      value:
+        // TODO: this should only read from `pathParams`. There's an inconsistency where `query` holds params currently which has to be fixed.
+        (Array.isArray(pathParams[key])
+          ? // @ts-expect-error TODO:  handle case where value is an array
+            pathParams[key].join('/')
+          : pathParams[key]) ??
+        (Array.isArray(query[key])
+          ? // @ts-expect-error TODO:  handle case where value is an array
+            query[key].join('/')
+          : query[key]),
+    }
   }
 
   const createFlightRouterStateFromLoaderTree = ([
@@ -544,10 +593,9 @@ export async function renderToHTML(
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
         headers,
-        // TODO: convert to NextCookies
         cookies,
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
+        // TODO: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
         ...(isPage ? { query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
