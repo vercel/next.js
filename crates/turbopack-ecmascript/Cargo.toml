@@ -21,7 +21,8 @@ regex = "1.5.4"
 rand = "0.8.5"
 json = "0.12.4"
 swc_atoms = "0.2.13"
-swc_ecma_transforms_base = "0.94.1"
+swc_ecma_transforms_base = "0.96.0"
+swc_ecma_codegen = "0.114.0"
 swc_ecma_loader = { version = "0.32.0", features = ["node"] }
 url = "2.2.2"
 indexmap = "1.8.0"
@@ -30,15 +31,15 @@ serde_regex = "1.1.0"
 serde_json = "1.0.81"
 
 [dependencies.swc_common]
-version = "0.20.1"
+version = "0.22.0"
 features = ["concurrent"]
 
 [dependencies.swc_ecmascript]
-version = "0.175.0"
+version = "0.178.0"
 features = ["parser", "utils", "visit"]
 
 [dependencies.swc_ecma_visit]
-version = "0.67.1"
+version = "0.69.0"
 features = ["path"]
 
 [dependencies.num-bigint]

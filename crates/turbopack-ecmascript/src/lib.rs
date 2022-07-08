@@ -27,6 +27,7 @@ use chunk::{
 use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
+use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecmascript::visit::VisitMutWithPath;
 use target::CompileTargetVc;
 use turbo_tasks::{
@@ -198,19 +199,30 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
             program.visit_mut_with_path(&mut ApplyVisitors::new(map), &mut Default::default());
 
+            let mut bytes =
+                format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
+
+            let mut emitter = Emitter {
+                cfg: swc_ecma_codegen::Config {
+                    ..Default::default()
+                },
+                cm: source_map.clone(),
+                comments: None,
+                wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, None),
+            };
+
+            emitter.emit_program(&program)?;
+
             // TODO SWC magic to apply all visitors from the interval tree
             // to the "program" and generate code for that.
             Ok(EcmascriptChunkItemContent {
-                inner_code: format!(
-                    "console.log(\"todo {}\");",
-                    self.module.path().to_string().await?
-                ),
+                inner_code: String::from_utf8(bytes)?,
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
             }
             .into())
         } else {
             Ok(EcmascriptChunkItemContent {
-                inner_code: format!("// unparsable {}", self.module.path().to_string().await?),
+                inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
             }
             .into())
