@@ -417,10 +417,9 @@ export async function renderToHTML(
     }
 
     const key = segmentParam.param
-    const type = segmentParam.type
 
-    if (!segmentParam || (!pathParams[key] && !query[key])) {
-      if (type === 'optional-catchall') {
+    if (!pathParams[key] && !query[key]) {
+      if (segmentParam.type === 'optional-catchall') {
         return {
           param: key,
           value: '',
