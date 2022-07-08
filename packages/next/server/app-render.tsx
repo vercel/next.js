@@ -421,8 +421,9 @@ export async function renderToHTML(
     }
 
     const key = segmentParam.param
+    const value = pathParams[key]
 
-    if (!pathParams[key] && !query[key]) {
+    if (!value) {
       if (segmentParam.type === 'optional-catchall') {
         return {
           param: key,
@@ -432,9 +433,6 @@ export async function renderToHTML(
       }
       return null
     }
-
-    // TODO: this should only read from `pathParams`. There's an inconsistency where `query` holds params currently which has to be fixed.
-    const value = pathParams[key] ?? query[key]
 
     return {
       param: key,
