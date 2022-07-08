@@ -394,10 +394,11 @@ export async function renderToHTML(
       param: segmentParam,
       value:
         // TODO: this should only read from `pathParams`. There's an inconsistency where `query` holds params currently which has to be fixed.
-        pathParams[segmentParam] ?? Array.isArray(query[segmentParam])
+        pathParams[segmentParam] ??
+        (Array.isArray(query[segmentParam])
           ? // @ts-expect-error TODO:  handle case where value is an array
             query[segmentParam].join('/')
-          : query[segmentParam],
+          : query[segmentParam]),
     }
   }
 
