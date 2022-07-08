@@ -732,7 +732,8 @@ export default class NextNodeServer extends BaseServer {
                   __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
-            ...(params || {}),
+            // For appDir params is excluded.
+            ...((this.nextConfig.experimental.appDir ? {} : params) || {}),
           },
         }
       } catch (err) {
