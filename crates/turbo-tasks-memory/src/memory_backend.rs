@@ -22,7 +22,7 @@ use turbo_tasks::{
 
 use crate::{
     output::Output,
-    scope::{SetRootResult, TaskScope, TaskScopeId},
+    scope::{TaskScope, TaskScopeId},
     task::{run_add_to_scope_queue, run_remove_from_scope_queue, Task, DEPENDENCIES_TO_TRACK},
 };
 

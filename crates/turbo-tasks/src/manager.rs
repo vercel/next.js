@@ -291,7 +291,7 @@ impl<B: Backend> TurboTasks<B> {
 
     pub(crate) fn schedule(&self, task_id: TaskId) -> JoinHandle<()> {
         let this = self.pin();
-        self.begin_foreground_task();
+        self.begin_primary_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
         #[cfg(feature = "tokio_tracing")]
         let description = this.backend.get_task_description(task_id);
@@ -353,7 +353,7 @@ impl<B: Backend> TurboTasks<B> {
                                 break;
                             }
                         }
-                        this.finish_foreground_task();
+                        this.finish_primary_job();
                     }),
                 ),
             ),
@@ -364,7 +364,7 @@ impl<B: Backend> TurboTasks<B> {
         return tokio::task::spawn(future);
     }
 
-    fn begin_foreground_task(&self) {
+    fn begin_primary_job(&self) {
         if self
             .currently_scheduled_tasks
             .fetch_add(1, Ordering::AcqRel)
@@ -375,12 +375,12 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     fn begin_foreground_job(&self) {
-        self.begin_foreground_task();
+        self.begin_primary_job();
         self.currently_scheduled_foreground_jobs
             .fetch_add(1, Ordering::AcqRel);
     }
 
-    fn finish_foreground_task(&self) {
+    fn finish_primary_job(&self) {
         if self
             .currently_scheduled_tasks
             .fetch_sub(1, Ordering::AcqRel)
@@ -405,7 +405,7 @@ impl<B: Backend> TurboTasks<B> {
         {
             self.event_foreground.notify(usize::MAX);
         }
-        self.finish_foreground_task();
+        self.finish_primary_job();
     }
 
     pub async fn wait_foreground_done(&self) {
@@ -504,12 +504,12 @@ impl<B: Backend> TurboTasks<B> {
         func: T,
     ) {
         let this = self.pin();
-        this.begin_foreground_task();
+        this.begin_foreground_job();
         tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
             if !this.stopped.load(Ordering::Acquire) {
                 func(this.clone()).await;
             }
-            this.finish_foreground_task();
+            this.finish_foreground_job();
         }));
     }
 

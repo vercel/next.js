@@ -139,12 +139,6 @@ impl Debug for TaskScopeList {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum SetRootResult {
-    New,
-    Existing,
-    AlreadyOtherRoot,
-}
 pub enum RemoveResult {
     NoEntry,
     Decreased,

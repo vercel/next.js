@@ -393,7 +393,7 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 }
                 let chunk_items_count = chunk_items.len();
                 if prev_chunk_items != chunk_items_count
-                    && chunk_items_count > 1000
+                    && chunk_items_count > 5000
                     && prev_chunk_items > 1
                 {
                     // Chunk is too large, cancel this algorithm and
