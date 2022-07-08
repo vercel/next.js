@@ -2,7 +2,7 @@ import { useState } from 'react'
 import styles from '../styles.module.css'
 
 export default function Index() {
-  const [response, setResponse] = useState()
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null)
 
   const makeRequest = async () => {
     const res = await fetch('/api/user')
@@ -24,29 +24,11 @@ export default function Index() {
         Functions).
       </p>
       <button onClick={() => makeRequest()}>Make Request</button>
-      <code className={styles.code}>
-        <div>
-          <b>Status Code: </b>
-          {response?.status || 'None'}
-        </div>
-        <div>
-          <b>Request Limit: </b>
-          {response?.limit || 'None'}
-        </div>
-        <div>
-          <b>Remaining Requests: </b>
-          {response?.remaining || 'None'}
-        </div>
-        <div>
-          <b>Body: </b>
-          {JSON.stringify(response?.body) || 'None'}
-        </div>
-      </code>
-      <div className={styles.links}>
-        <a href="#">View Source</a>
-        {' | '}
-        <a href="#">Deploy You Own ▲</a>
-      </div>
+      {response && (
+        <code className={styles.code}>
+          <pre>{JSON.stringify(response, null, 2)}</pre>
+        </code>
+      )}
     </main>
   )
 }
