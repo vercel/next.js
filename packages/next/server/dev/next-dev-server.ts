@@ -11,6 +11,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { RoutingItem } from '../base-server'
 
+import { createProxy } from 'next/dist/compiled/http-proxy'
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'next/dist/compiled/chalk'
@@ -642,6 +643,22 @@ export default class DevServer extends Server {
             )
           ) {
             this.hotReloader?.onHMR(req, socket, head)
+          } else if (req.url?.endsWith('/_next/webpack-hmr')) {
+            // Probably entering multi-zone
+
+            const zonesRewrites = this.customRoutes.rewrites.afterFiles.filter(
+              (r) => req.url?.endsWith(r.source + '/_next/webpack-hmr')
+            )
+
+            zonesRewrites.forEach((rewrite) => {
+              const destinationUrl = new URL(rewrite.destination)
+
+              const targetUrl = new URL(destinationUrl.origin)
+
+              targetUrl.pathname = rewrite.source + '/_next/webpack-hmr'
+
+              createProxy({ target: targetUrl }).ws(req, socket, head)
+            })
           }
         })
       }
