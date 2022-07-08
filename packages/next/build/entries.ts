@@ -303,7 +303,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)

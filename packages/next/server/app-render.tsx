@@ -20,10 +20,13 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
+import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -245,6 +248,8 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
+export type Segment = string | [param: string, value: string]
+
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
@@ -256,7 +261,7 @@ type LoaderTree = [
 ]
 
 export type FlightRouterState = [
-  segment: string,
+  segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
   refresh?: 'refetch'
@@ -266,11 +271,11 @@ export type FlightSegmentPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string
     ]
 
@@ -278,18 +283,49 @@ export type FlightDataPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
       tree: FlightRouterState,
       subTreeData: React.ReactNode
     ]
 
 export type FlightData = Array<FlightDataPath> | string
-export type ChildProp = { current: React.ReactNode; segment: string }
+export type ChildProp = {
+  current: React.ReactNode
+  segment: Segment
+}
+
+function getSegmentParam(segment: string): {
+  param: string
+  type: 'catchall' | 'optional-catchall' | 'dynamic'
+} | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return {
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: 'catchall',
+      param: segment.slice(4, -1),
+    }
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
+}
 
 export async function renderToHTML(
   req: IncomingMessage,
@@ -375,17 +411,36 @@ export async function renderToHTML(
     segment: string
   ): { param: string; value: string } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
-    const segmentParam =
-      segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(1, -1)
-        : null
-
-    if (!segmentParam || !pathParams[segmentParam]) {
+    const segmentParam = getSegmentParam(segment)
+    if (!segmentParam) {
       return null
     }
 
-    // @ts-expect-error TODO:  handle case where value is an array
-    return { param: segmentParam, value: pathParams[segmentParam] }
+    const key = segmentParam.param
+
+    if (!pathParams[key] && !query[key]) {
+      if (segmentParam.type === 'optional-catchall') {
+        return {
+          param: key,
+          value: '',
+        }
+      }
+      return null
+    }
+
+    return {
+      param: key,
+      value:
+        // TODO: this should only read from `pathParams`. There's an inconsistency where `query` holds params currently which has to be fixed.
+        (Array.isArray(pathParams[key])
+          ? // @ts-expect-error TODO:  handle case where value is an array
+            pathParams[key].join('/')
+          : pathParams[key]) ??
+        (Array.isArray(query[key])
+          ? // @ts-expect-error TODO:  handle case where value is an array
+            query[key].join('/')
+          : query[key]),
+    }
   }
 
   const createFlightRouterStateFromLoaderTree = ([
@@ -395,7 +450,7 @@ export async function renderToHTML(
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? dynamicParam.value : segment,
+      dynamicParam ? [dynamicParam.param, dynamicParam.value] : segment,
       {},
     ]
 
@@ -459,7 +514,9 @@ export async function renderToHTML(
         }
       : parentParams
 
-    const actualSegment = segmentParam ? segmentParam.value : segment
+    const actualSegment = segmentParam
+      ? [segmentParam.param, segmentParam.value]
+      : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
@@ -482,7 +539,7 @@ export async function renderToHTML(
         const childProp: ChildProp = {
           current: <ChildComponent />,
           segment: childSegmentParam
-            ? childSegmentParam.value
+            ? [childSegmentParam.param, childSegmentParam.value]
             : parallelRoutes[currentValue][0],
         }
 
@@ -536,10 +593,9 @@ export async function renderToHTML(
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
         headers,
-        // TODO: convert to NextCookies
         cookies,
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
+        // TODO: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
         ...(isPage ? { query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -621,7 +677,9 @@ export async function renderToHTML(
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const segmentParam = getDynamicParamFromSegment(segment)
-      const actualSegment = segmentParam ? segmentParam.value : segment
+      const actualSegment: Segment = segmentParam
+        ? [segmentParam.param, segmentParam.value]
+        : segment
 
       const currentParams = segmentParam
         ? {
@@ -632,7 +690,7 @@ export async function renderToHTML(
 
       const renderComponentsOnThisLevel =
         !flightRouterState ||
-        actualSegment !== flightRouterState[0] ||
+        !matchSegment(actualSegment, flightRouterState[0]) ||
         // Last item in the tree
         parallelRoutesKeys.length === 0 ||
         // Explicit refresh

@@ -120,7 +120,7 @@ export class ClientEntryPlugin {
           name,
         })}!`
 
-        const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
+        const bundlePath = 'app' + normalizePagePath(routeInfo.page)
 
         // Inject the entry to the client compiler.
         if (this.dev) {
