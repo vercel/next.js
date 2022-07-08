@@ -674,6 +674,54 @@ describe('app dir', () => {
         )
       })
     })
+
+    describe('hooks', () => {
+      describe('useCookies', () => {
+        it('should retrive cookies in a server component', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-cookies')
+
+          try {
+            await browser.waitForElementByCss('#does-not-have-cookie')
+            browser.addCookie({ name: 'use-cookies', value: 'value' })
+            browser.refresh()
+
+            await browser.waitForElementByCss('#has-cookie')
+            browser.deleteCookies()
+            browser.refresh()
+
+            await browser.waitForElementByCss('#does-not-have-cookie')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+
+      describe('useHeaders', () => {
+        it('should have access to incoming headers in a server component', async () => {
+          // Check to see that we can't see the header when it's not present.
+          let html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-headers',
+            {},
+            { headers: {} }
+          )
+          let $ = cheerio.load(html)
+          expect($('#does-not-have-header').length).toBe(1)
+          expect($('#has-header').length).toBe(0)
+
+          // Check to see that we can see the header when it's present.
+          html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-headers',
+            {},
+            { headers: { 'x-use-headers': 'value' } }
+          )
+          $ = cheerio.load(html)
+          expect($('#has-header').length).toBe(1)
+          expect($('#does-not-have-header').length).toBe(0)
+        })
+      })
+    })
   })
 
   describe('css support', () => {
