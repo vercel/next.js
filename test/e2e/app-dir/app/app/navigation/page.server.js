@@ -1,3 +1,5 @@
+import { nanoid } from 'nanoid'
+
 export default function Page() {
-  return <h1 id="date">{new Date().toString()}</h1>
+  return <h1 id="render-id">{nanoid()}</h1>
 }

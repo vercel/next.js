@@ -211,6 +211,31 @@ describe('app dir', () => {
     expect(html).toContain('hello from app/dashboard')
   })
 
+  it('should not rerender layout when navigating between routes in the same layout', async () => {
+    const browser = await webdriver(next.url, '/same-layout/first')
+
+    try {
+      // Get the render id from the dom and click the first link.
+      const firstRenderID = await browser.elementById('render-id').text()
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#second-page')
+
+      // Get the render id from the dom again, it should be the same!
+      const secondRenderID = await browser.elementById('render-id').text()
+      expect(secondRenderID).toBe(firstRenderID)
+
+      // Navigate back to the first page again by clicking the link.
+      await browser.elementById('link').click()
+      await browser.waitForElementByCss('#first-page')
+
+      // Get the render id from the dom again, it should be the same!
+      const thirdRenderID = await browser.elementById('render-id').text()
+      expect(thirdRenderID).toBe(firstRenderID)
+    } finally {
+      await browser.close()
+    }
+  })
+
   describe('<Link />', () => {
     it('should hard push', async () => {
       const browser = await webdriver(next.url, '/link-hard-push')
@@ -220,23 +245,20 @@ describe('app dir', () => {
         // added.
         expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(3)
 
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
-
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
 
         // Go back, and redo the navigation by clicking the link.
         await browser.back()
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
 
-        // Get the date again, and compare, they should not be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).not.toBe(secondDate)
+        // Get the id again, and compare, they should not be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).not.toBe(firstID)
       } finally {
         await browser.close()
       }
@@ -246,27 +268,33 @@ describe('app dir', () => {
       const browser = await webdriver(next.url, '/link-hard-replace')
 
       try {
+        // Get the render ID so we can compare it.
+        const firstID = await browser.elementById('render-id').text()
+
         // Click the link on the page, and verify that the history entry was NOT
         // added.
         expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('link').click()
+        await browser.elementById('self-link').click()
+        await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
+        // Get the date again, and compare, they should not be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).not.toBe(firstID)
 
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Navigate to the subpage, verify that the history entry was NOT added.
+        await browser.elementById('subpage-link').click()
+        await browser.waitForElementByCss('#back-link')
+        expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Go back, and redo the navigation by clicking the link.
-        await browser.back()
-        await browser.elementById('link').click()
+        // Navigate back again, verify that the history entry was NOT added.
+        await browser.elementById('back-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
 
         // Get the date again, and compare, they should not be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).not.toBe(secondDate)
+        const thirdID = await browser.elementById('render-id').text()
+        expect(thirdID).not.toBe(secondID)
       } finally {
         await browser.close()
       }
@@ -280,28 +308,25 @@ describe('app dir', () => {
         // added.
         expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(3)
 
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
-
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
 
         // Go back, and redo the navigation by clicking the link.
         await browser.back()
         await browser.elementById('link').click()
 
         // Get the date again, and compare, they should be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).toBe(secondDate)
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
       } finally {
         await browser.close()
       }
     })
 
+    // FIXME: update
     it('should soft replace', async () => {
       const browser = await webdriver(next.url, '/link-soft-replace')
 
@@ -312,77 +337,65 @@ describe('app dir', () => {
         await browser.elementById('link').click()
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
-
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
 
         // Go back, and redo the navigation by clicking the link.
         await browser.back()
         await browser.elementById('link').click()
 
         // Get the date again, and compare, they should be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).toBe(secondDate)
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
       } finally {
         await browser.close()
       }
     })
 
+    // FIXME: update
     it('should be soft for back navigation', async () => {
-      const browser = await webdriver(next.url, '/with-date')
+      const browser = await webdriver(next.url, '/with-id')
 
       try {
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
-
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
 
         // Click the link, and go back.
         await browser.elementById('link').click()
         await browser.back()
 
         // Get the date again, and compare, they should be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).toBe(secondDate)
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
       } finally {
         await browser.close()
       }
     })
 
+    // FIXME: update
     it('should be soft for forward navigation', async () => {
-      const browser = await webdriver(next.url, '/with-date')
+      const browser = await webdriver(next.url, '/with-id')
 
       try {
         // Click the link.
         await browser.elementById('link').click()
 
-        // Get the date on the rendered page.
-        let element = await browser.elementById('date')
-        const firstDate = await element.text()
-
-        // Wait one second,
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
 
         // Go back, then forward.
         await browser.back()
         await browser.forward()
 
         // Get the date again, and compare, they should be the same.
-        element = await browser.elementById('date')
-        const secondDate = await element.text()
-        expect(firstDate).toBe(secondDate)
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
       } finally {
         await browser.close()
       }
     })
 
+    // FIXME: update
     it('should respect rewrites', async () => {
       const browser = await webdriver(next.url, '/rewrites')
 
@@ -395,7 +408,9 @@ describe('app dir', () => {
         expect(pathname).toBe('/rewritten-to-dashboard')
 
         // Check to see that the page we navigated to is in fact the dashboard.
-        const html = await browser.text()
+        const html = await browser.eval(
+          'window.document.documentElement.innerText'
+        )
         expect(html).toContain('hello from app/dashboard')
       } finally {
         await browser.close()
