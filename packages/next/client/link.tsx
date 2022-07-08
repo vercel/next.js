@@ -1,16 +1,20 @@
 import React from 'react'
 import { UrlObject } from 'url'
 import {
-  addBasePath,
-  addLocale,
-  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
   resolveHref,
 } from '../shared/lib/router/router'
-import { useRouter } from './router'
+import { addLocale } from './add-locale'
+import { RouterContext } from '../shared/lib/router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context'
 import { useIntersection } from './use-intersection'
+import { getDomainLocale } from './get-domain-locale'
+import { addBasePath } from './add-base-path'
+
+// @ts-ignore useTransition exist
+const hasUseTransition = typeof React.useTransition !== 'undefined'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -97,7 +101,8 @@ function linkClicked(
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string | false
+  locale?: string | false,
+  startTransition?: (cb: any) => void
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -111,12 +116,20 @@ function linkClicked(
 
   e.preventDefault()
 
-  // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, {
-    shallow,
-    locale,
-    scroll,
-  })
+  const navigate = () => {
+    // replace state instead of push if prop is present
+    router[replace ? 'replace' : 'push'](href, as, {
+      shallow,
+      locale,
+      scroll,
+    })
+  }
+
+  if (startTransition) {
+    startTransition(navigate)
+  } else {
+    navigate()
+  }
 }
 
 type LinkPropsReal = React.PropsWithChildren<
@@ -125,10 +138,7 @@ type LinkPropsReal = React.PropsWithChildren<
 >
 
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
-  (props, forwardedRef) => {
-    const {
-      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
-    } = props
+  function LinkComponent(props, forwardedRef) {
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -259,17 +269,33 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       locale,
       onClick,
       onMouseEnter,
+      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
       ...restProps
     } = props
 
     children = childrenProp
 
-    if (legacyBehavior && typeof children === 'string') {
+    if (
+      legacyBehavior &&
+      (typeof children === 'string' || typeof children === 'number')
+    ) {
       children = <a>{children}</a>
     }
 
     const p = prefetchProp !== false
-    const router = useRouter()
+    const [, /* isPending */ startTransition] = hasUseTransition
+      ? // Rules of hooks is disabled here because the useTransition will always exist with React 18.
+        // There is no difference between renders in this case, only between using React 18 vs 17.
+        // @ts-ignore useTransition exists
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        React.useTransition()
+      : []
+    let router = React.useContext(RouterContext)
+
+    const appRouter = React.useContext(AppRouterContext)
+    if (appRouter) {
+      router = appRouter
+    }
 
     const { href, as } = React.useMemo(() => {
       const [resolvedHref, resolvedAs] = resolveHref(router, hrefProp, true)
@@ -383,7 +409,17 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onClick(e)
         }
         if (!e.defaultPrevented) {
-          linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+          linkClicked(
+            e,
+            router,
+            href,
+            as,
+            replace,
+            shallow,
+            scroll,
+            locale,
+            appRouter ? startTransition : undefined
+          )
         }
       },
       onMouseEnter: (e: React.MouseEvent) => {
@@ -418,12 +454,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const localeDomain =
         router &&
         router.isLocaleDomain &&
-        getDomainLocale(
-          as,
-          curLocale,
-          router && router.locales,
-          router && router.domainLocales
-        )
+        getDomainLocale(as, curLocale, router.locales, router.domainLocales)
 
       childProps.href =
         localeDomain ||

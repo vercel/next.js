@@ -17,7 +17,7 @@ export function getParserOptions({ filename, jsConfig, ...rest }) {
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
+    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -31,6 +31,7 @@ function getBaseSWCOptions({
   nextConfig,
   resolvedBaseUrl,
   jsConfig,
+  swcCacheDir,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -43,6 +44,10 @@ function getBaseSWCOptions({
   const useDefineForClassFields = Boolean(
     jsConfig?.compilerOptions?.useDefineForClassFields
   )
+  const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
+    .filter(Array.isArray)
+    .map(([name, options]) => [require.resolve(name), options])
+
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -51,9 +56,12 @@ function getBaseSWCOptions({
             paths,
           }
         : {}),
+      externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
         keepImportAssertions: true,
+        plugins,
+        cacheRoot: swcCacheDir,
       },
       transform: {
         // Enables https://github.com/swc-project/swc/blob/0359deb4841be743d73db4536d4a22ac797d7f65/crates/swc_ecma_ext_transforms/src/jest.rs
@@ -70,7 +78,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (nextConfig?.experimental?.emotion ? '@emotion/react' : 'react'),
+            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -99,25 +107,37 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    styledComponents: nextConfig?.compiler?.styledComponents
-      ? {
-          displayName: Boolean(development),
-        }
-      : null,
+    styledComponents: getStyledComponentsOptions(nextConfig, development),
     removeConsole: nextConfig?.compiler?.removeConsole,
-    reactRemoveProperties: nextConfig?.compiler?.reactRemoveProperties,
+    // disable "reactRemoveProperties" when "jest" is true
+    // otherwise the setting from next.config.js will be used
+    reactRemoveProperties: jest
+      ? false
+      : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     emotion: getEmotionOptions(nextConfig, development),
   }
 }
 
+function getStyledComponentsOptions(nextConfig, development) {
+  let styledComponentsOptions = nextConfig?.compiler?.styledComponents
+  if (!styledComponentsOptions) {
+    return null
+  }
+
+  return {
+    ...styledComponentsOptions,
+    displayName: styledComponentsOptions.displayName ?? Boolean(development),
+  }
+}
+
 function getEmotionOptions(nextConfig, development) {
-  if (!nextConfig?.experimental?.emotion) {
+  if (!nextConfig?.compiler?.emotion) {
     return null
   }
   let autoLabel = false
-  switch (nextConfig?.experimental?.emotion?.autoLabel) {
+  switch (nextConfig?.compiler?.emotion?.autoLabel) {
     case 'never':
       autoLabel = false
       break
@@ -188,6 +208,8 @@ export function getLoaderSWCOptions({
   hasReactRefresh,
   nextConfig,
   jsConfig,
+  supportedBrowsers,
+  swcCacheDir,
   // This is not passed yet as "paths" resolving is handled by webpack currently.
   // resolvedBaseUrl,
 }) {
@@ -199,6 +221,7 @@ export function getLoaderSWCOptions({
     nextConfig,
     jsConfig,
     // resolvedBaseUrl,
+    swcCacheDir,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -238,6 +261,13 @@ export function getLoaderSWCOptions({
       isServer,
       pagesDir,
       isPageFile,
+      ...(supportedBrowsers && supportedBrowsers.length > 0
+        ? {
+            env: {
+              targets: supportedBrowsers,
+            },
+          }
+        : {}),
     }
   }
 }

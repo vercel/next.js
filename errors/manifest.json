@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "middleware-upgrade-guide",
+          "path": "/errors/middleware-upgrade-guide.md"
+        },
+        {
           "title": "react-hydration-error",
           "path": "/errors/react-hydration-error.md"
         },
@@ -399,6 +403,10 @@
           "path": "/errors/no-server-import-in-page.md"
         },
         {
+          "title": "no-styled-jsx-in-document",
+          "path": "/errors/no-styled-jsx-in-document.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
@@ -559,16 +567,34 @@
           "path": "/errors/sharp-version-avif.md"
         },
         {
-          "title": "script-in-document-page",
-          "path": "/errors/no-script-in-document-page.md"
+          "path": "/errors/no-script-in-document-page.md",
+          "redirect": {
+            "destination": "/docs/messages/no-script-in-document"
+          }
+        },
+        {
+          "title": "no-script-in-document",
+          "path": "/errors/no-script-in-document.md"
         },
         {
           "title": "before-interactive-script-outside-document",
           "path": "/errors/no-before-interactive-script-outside-document.md"
         },
         {
-          "title": "script-component-in-head-component",
-          "path": "/errors/no-script-component-in-head-component.md"
+          "path": "/errors/no-script-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head"
+          }
+        },
+        {
+          "path": "/errors/no-script-component-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head"
+          }
+        },
+        {
+          "title": "no-script-component-in-head",
+          "path": "/errors/no-script-component-in-head.md"
         },
         {
           "title": "script-tags-in-head-component",
@@ -627,6 +653,10 @@
           "path": "/errors/middleware-relative-urls.md"
         },
         {
+          "title": "nested-middleware",
+          "path": "/errors/nested-middleware.md"
+        },
+        {
           "title": "deleting-query-params-in-middlewares",
           "path": "/errors/deleting-query-params-in-middlewares.md"
         },
@@ -637,14 +667,6 @@
         {
           "title": "opening-an-issue",
           "path": "/errors/opening-an-issue.md"
-        },
-        {
-          "title": "multiple-flush-effects",
-          "path": "/errors/multiple-flush-effects.md"
-        },
-        {
-          "title": "client-flush-effects",
-          "path": "/errors/client-flush-effects.md"
         },
         {
           "title": "import-next",
@@ -661,6 +683,30 @@
         {
           "title": "invalid-script",
           "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
+        },
+        {
+          "title": "returning-response-body-in-middleware",
+          "path": "/errors/returning-response-body-in-middleware.md"
+        },
+        {
+          "title": "middleware-request-page.md",
+          "path": "/errors/middleware-request-page.md"
+        },
+        {
+          "title": "middleware-user-agent.md",
+          "path": "/errors/middleware-user-agent.md"
+        },
+        {
+          "title": "get-initial-props-export",
+          "path": "/errors/get-initial-props-export.md"
+        },
+        {
+          "title": "middleware-dynamic-wasm-compilation",
+          "path": "/errors/middleware-dynamic-wasm-compilation.md"
         }
       ]
     }

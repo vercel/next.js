@@ -75,7 +75,7 @@ export function tryGetPreviewData(
     return false
   }
 
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
+  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   let encryptedPreviewData: {
     data: string
@@ -236,12 +236,19 @@ export async function apiResolver(
     apiRes.setPreviewData = (data, options = {}) =>
       setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
     apiRes.clearPreviewData = () => clearPreviewData(apiRes)
-    apiRes.unstable_revalidate = (
+    apiRes.revalidate = (
       urlPath: string,
       opts?: {
         unstable_onlyGenerated?: boolean
       }
-    ) => unstable_revalidate(urlPath, opts || {}, req, apiContext)
+    ) => revalidate(urlPath, opts || {}, req, apiContext)
+
+    // TODO: remove in next minor (current v12.2)
+    apiRes.unstable_revalidate = () => {
+      throw new Error(
+        `"unstable_revalidate" has been renamed to "revalidate" see more info here: https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation`
+      )
+    }
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false
@@ -284,7 +291,7 @@ export async function apiResolver(
   }
 }
 
-async function unstable_revalidate(
+async function revalidate(
   urlPath: string,
   opts: {
     unstable_onlyGenerated?: boolean

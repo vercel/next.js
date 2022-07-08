@@ -1,6 +1,7 @@
 use easy_error::{bail, Error};
 use std::panic;
 use std::sync::Arc;
+use swc_common::errors::HANDLER;
 use swc_common::util::take::Take;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_common::{SourceMap, Spanned};
@@ -9,13 +10,11 @@ use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
     CodeGenerator, CodegenConfig, Emit,
 };
-use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_css_prefixer::prefixer;
 use swc_ecmascript::ast::{Expr, Tpl, TplElement};
 use swc_ecmascript::parser::StringInput;
-use swc_ecmascript::utils::HANDLER;
 use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
@@ -502,21 +501,15 @@ where
     }
 
     let span = node.span();
-    let mut lexer = swc_css::parser::lexer::Lexer::new(
+    let lexer = swc_css::parser::lexer::Lexer::new(
         StringInput::new(&s, span.lo, span.hi),
         ParserConfig {
             allow_wrong_line_comments: true,
         },
     );
 
-    let mut tokens = vec![];
-
-    while let Ok(t) = lexer.next() {
-        tokens.push(t);
-    }
-
     Tokens {
         span: Span::new(span.lo, span.hi, Default::default()),
-        tokens,
+        tokens: lexer.collect(),
     }
 }

@@ -6,7 +6,7 @@ include = ["Cargo.toml", "src/**/*.rs"]
 license = "Apache-2.0"
 name = "styled_components"
 repository = "https://github.com/vercel/next.js.git"
-version = "0.28.0"
+version = "0.34.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,13 +15,13 @@ Inflector = "0.11.4"
 once_cell = "1.10.0"
 regex = {version = "1.5.4", features = ["std", "perf"], default-features = false}
 serde = {version = "1.0.130", features = ["derive"]}
-swc_atoms = "0.2.11"
-swc_common = {version = "0.17.25", features = ["concurrent"]}
-swc_ecmascript = {version = "0.150.0", features = ["utils", "visit"]}
+swc_atoms = "0.2.12"
+swc_common = { version = "0.18.9", features = ["concurrent"] }
+swc_ecmascript = { version = "0.164.0", features = ["utils", "visit"] }
 tracing = "0.1.32"
 
 [dev-dependencies]
 serde_json = "1"
-swc_ecma_transforms_testing = "0.82.0"
-swc_ecmascript = {version = "0.150.0", features = ["parser", "transforms"]}
-testing = "0.19.1"
+swc_ecma_transforms_testing = "0.91.0"
+swc_ecmascript = { version = "0.164.0", features = ["parser", "transforms"] }
+testing = "0.20.1"

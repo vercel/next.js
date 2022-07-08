@@ -1,7 +1,10 @@
 //! Port of https://github.com/styled-components/babel-plugin-styled-components/blob/a20c3033508677695953e7a434de4746168eeb4e/src/visitors/transpileCssProp.js
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{borrow::Cow, collections::HashMap};
 
+use crate::State;
 use inflector::Inflector;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -13,7 +16,7 @@ use swc_common::{
 };
 use swc_ecmascript::{
     ast::*,
-    utils::{ident::IdentLike, prepend, private_ident, quote_ident, ExprExt, ExprFactory, Id},
+    utils::{prepend_stmt, private_ident, quote_ident, ExprFactory},
     visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
@@ -24,12 +27,17 @@ use super::top_level_binding_collector::collect_top_level_decls;
 static TAG_NAME_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new("^[a-z][a-z\\d]*(\\-[a-z][a-z\\d]*)?$").unwrap());
 
-pub fn transpile_css_prop() -> impl Fold + VisitMut {
-    as_folder(TranspileCssProp::default())
+pub fn transpile_css_prop(state: Rc<RefCell<State>>) -> impl Fold + VisitMut {
+    as_folder(TranspileCssProp {
+        state,
+        ..Default::default()
+    })
 }
 
 #[derive(Default)]
 struct TranspileCssProp {
+    state: Rc<RefCell<State>>,
+
     import_name: Option<Ident>,
     injected_nodes: Vec<Stmt>,
     interleaved_injections: AHashMap<Id, Vec<Stmt>>,
@@ -69,10 +77,18 @@ impl VisitMut for TranspileCssProp {
                         continue;
                     }
 
-                    let import_name = self
-                        .import_name
-                        .get_or_insert_with(|| private_ident!("_styled"))
-                        .clone();
+                    let import_name = if let Some(ident) = self
+                        .state
+                        .borrow()
+                        .import_local_name("default", None)
+                        .map(Ident::from)
+                    {
+                        ident
+                    } else {
+                        self.import_name
+                            .get_or_insert_with(|| private_ident!("_styled"))
+                            .clone()
+                    };
 
                     let name = get_name_ident(&elem.opening.name);
                     let id_sym = name.sym.to_class_case();
@@ -140,7 +156,12 @@ impl VisitMut for TranspileCssProp {
                                     ..
                                 }) => match &mut **v {
                                     Expr::Tpl(..) => *v.take(),
-                                    Expr::TaggedTpl(v) if v.tag.is_ident_ref_to("css".into()) => {
+                                    Expr::TaggedTpl(v)
+                                        if match &*v.tag {
+                                            Expr::Ident(i) => &*i.sym == "css",
+                                            _ => false,
+                                        } =>
+                                    {
                                         Expr::Tpl(v.tpl.take())
                                     }
                                     Expr::Object(..) => *v.take(),
@@ -344,11 +365,12 @@ impl VisitMut for TranspileCssProp {
         self.top_level_decls = None;
 
         if let Some(import_name) = self.import_name.take() {
+            self.state.borrow_mut().set_import_name(import_name.to_id());
             let specifier = ImportSpecifier::Default(ImportDefaultSpecifier {
                 span: DUMMY_SP,
                 local: import_name,
             });
-            prepend(
+            prepend_stmt(
                 &mut n.body,
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,

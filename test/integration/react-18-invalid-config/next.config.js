@@ -1,1 +1,1 @@
-module.exports = { experimental: { reactRoot: true } }
+module.exports = {}

@@ -37,7 +37,7 @@ async function createNextInstall(
     }
   }
 
-  for (const item of ['package.json', 'yarn.lock', 'packages']) {
+  for (const item of ['package.json', 'packages']) {
     await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
       filter: (item) => {
         return (
@@ -55,12 +55,12 @@ async function createNextInstall(
   if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
     const pkgPaths = await linkPackages(tmpRepoDir)
     combinedDependencies = {
+      next: pkgPaths.get('next'),
       ...Object.keys(dependencies).reduce((prev, pkg) => {
         const pkgPath = pkgPaths.get(pkg)
         prev[pkg] = pkgPath || dependencies[pkg]
         return prev
       }, {}),
-      next: pkgPaths.get('next'),
     }
   }
 
@@ -98,13 +98,10 @@ async function createNextInstall(
       stdio: ['ignore', 'inherit', 'inherit'],
     })
   } else {
-    await execa('yarn', ['install'], {
+    await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
       cwd: installDir,
       stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        YARN_CACHE_FOLDER: path.join(installDir, '.yarn-cache'),
-      },
+      env: process.env,
     })
   }
 
