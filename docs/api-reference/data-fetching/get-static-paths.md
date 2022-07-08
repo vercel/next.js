@@ -59,6 +59,8 @@ The value for each `params` object must match the parameters used in the page na
 - If the page name uses [catch-all routes](/docs/routing/dynamic-routes.md#catch-all-routes) like `pages/[...slug]`, then `params` should contain `slug` (which is an array). If this array is `['hello', 'world']`, then Next.js will statically generate the page at `/hello/world`.
 - If the page uses an [optional catch-all route](/docs/routing/dynamic-routes.md#optional-catch-all-routes), use `null`, `[]`, `undefined` or `false` to render the root-most route. For example, if you supply `slug: false` for `pages/[[...slug]]`, Next.js will statically generate the page `/`.
 
+The `params` strings are **case-sensitive** and ideally should be normalized to ensure the paths are generated correctly. For example, if `WoRLD` is returned for a param it will only match if `WoRLD` is the actual path visited, not `world` or `World`.
+
 Separate of the `params` object a `locale` field can be returned when [i18n is configured](/docs/advanced-features/i18n-routing.md), which configures the locale for the path being generated.
 
 ### `fallback: false`
