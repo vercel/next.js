@@ -20,10 +20,13 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
+import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -245,6 +248,8 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
+export type Segment = string | [param: string, value: string]
+
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
@@ -256,7 +261,7 @@ type LoaderTree = [
 ]
 
 export type FlightRouterState = [
-  segment: string,
+  segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
   refresh?: 'refetch'
@@ -266,11 +271,11 @@ export type FlightSegmentPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string
     ]
 
@@ -278,18 +283,21 @@ export type FlightDataPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
       tree: FlightRouterState,
       subTreeData: React.ReactNode
     ]
 
 export type FlightData = Array<FlightDataPath> | string
-export type ChildProp = { current: React.ReactNode; segment: string }
+export type ChildProp = {
+  current: React.ReactNode
+  segment: Segment
+}
 
 export async function renderToHTML(
   req: IncomingMessage,
@@ -395,7 +403,7 @@ export async function renderToHTML(
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? dynamicParam.value : segment,
+      dynamicParam ? [dynamicParam.param, dynamicParam.value] : segment,
       {},
     ]
 
@@ -459,7 +467,9 @@ export async function renderToHTML(
         }
       : parentParams
 
-    const actualSegment = segmentParam ? segmentParam.value : segment
+    const actualSegment = segmentParam
+      ? [segmentParam.param, segmentParam.value]
+      : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
     const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
@@ -482,7 +492,7 @@ export async function renderToHTML(
         const childProp: ChildProp = {
           current: <ChildComponent />,
           segment: childSegmentParam
-            ? childSegmentParam.value
+            ? [childSegmentParam.param, childSegmentParam.value]
             : parallelRoutes[currentValue][0],
         }
 
@@ -621,7 +631,9 @@ export async function renderToHTML(
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const segmentParam = getDynamicParamFromSegment(segment)
-      const actualSegment = segmentParam ? segmentParam.value : segment
+      const actualSegment: Segment = segmentParam
+        ? [segmentParam.param, segmentParam.value]
+        : segment
 
       const currentParams = segmentParam
         ? {
@@ -632,7 +644,7 @@ export async function renderToHTML(
 
       const renderComponentsOnThisLevel =
         !flightRouterState ||
-        actualSegment !== flightRouterState[0] ||
+        !matchSegment(actualSegment, flightRouterState[0]) ||
         // Last item in the tree
         parallelRoutesKeys.length === 0 ||
         // Explicit refresh
