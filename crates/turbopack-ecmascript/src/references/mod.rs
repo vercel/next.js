@@ -1,7 +1,11 @@
+pub mod cjs;
 pub mod esm;
+pub mod node;
+pub mod raw;
+pub mod typescript;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -22,23 +26,27 @@ use swc_ecmascript::{
     },
     visit::{self, Visit, VisitWith},
 };
-use turbo_tasks::{primitives::StringVc, util::try_join_all, Value};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    reference::{AssetReferenceVc, AssetReferencesVc},
     resolve::{
-        find_context_file,
-        parse::RequestVc,
-        pattern::{Pattern, PatternVc},
-        resolve, resolve_raw, AffectingResolvingAssetReferenceVc, FindContextFileResult,
-        ResolveResult, ResolveResultVc,
+        find_context_file, parse::RequestVc, pattern::Pattern, resolve,
+        AffectingResolvingAssetReferenceVc, FindContextFileResult, ResolveResult,
     },
-    source_asset::SourceAssetVc,
 };
 
-use self::esm::EsmAssetReferenceVc;
+use self::{
+    cjs::CjsAssetReferenceVc,
+    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc},
+    node::{DirAssetReferenceVc, PackageJsonReferenceVc},
+    raw::SourceAssetReferenceVc,
+    typescript::{
+        TsConfigReferenceVc, TsReferencePathAssetReferenceVc, TsReferenceTypeAssetReferenceVc,
+    },
+};
 use super::{
     analyzer::{
         builtin::replace_builtin,
@@ -53,7 +61,6 @@ use super::{
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     target::CompileTargetVc,
-    typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
     utils::js_value_to_pattern,
     webpack::{
         parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
@@ -61,7 +68,6 @@ use super::{
     },
     ModuleAssetType,
 };
-use crate::references::esm::EsmAsyncAssetReferenceVc;
 
 #[turbo_tasks::function]
 pub(crate) async fn module_references(
@@ -1348,314 +1354,3 @@ async fn resolve_as_webpack_runtime(
 
 #[turbo_tasks::value(transparent)]
 pub struct SwcSpan(#[trace_ignore] Span);
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug)]
-pub struct PackageJsonReference {
-    pub package_json: FileSystemPathVc,
-}
-
-#[turbo_tasks::value_impl]
-impl PackageJsonReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(package_json: FileSystemPathVc) -> Self {
-        Self::cell(PackageJsonReference { package_json })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for PackageJsonReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "package.json {}",
-            self.package_json.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug)]
-pub struct TsConfigReference {
-    pub tsconfig: FileSystemPathVc,
-    pub context: AssetContextVc,
-}
-
-#[turbo_tasks::value_impl]
-impl TsConfigReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(tsconfig: FileSystemPathVc, context: AssetContextVc) -> Self {
-        Self::cell(TsConfigReference { tsconfig, context })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsConfigReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        let context = self.context.with_context_path(self.tsconfig.parent());
-        ResolveResult::Single(
-            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig).into(), context).into(),
-            Vec::new(),
-        )
-        .into()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "tsconfig {}",
-            self.tsconfig.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct CjsAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl CjsAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(CjsAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for CjsAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "require {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct TsReferencePathAssetReference {
-    pub context: AssetContextVc,
-    pub path: String,
-}
-
-#[turbo_tasks::value_impl]
-impl TsReferencePathAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, path: String) -> Self {
-        Self::cell(TsReferencePathAssetReference { context, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsReferencePathAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        Ok(
-            if let Some(path) = &*self.context.context_path().try_join(&self.path).await? {
-                ResolveResult::Single(
-                    self.context.process(SourceAssetVc::new(*path).into()),
-                    Vec::new(),
-                )
-                .into()
-            } else {
-                ResolveResult::unresolveable().into()
-            },
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "typescript reference path comment {}",
-            self.path,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct TsReferenceTypeAssetReference {
-    pub context: AssetContextVc,
-    pub module: String,
-}
-
-#[turbo_tasks::value_impl]
-impl TsReferenceTypeAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, module: String) -> Self {
-        Self::cell(TsReferenceTypeAssetReference { context, module })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsReferenceTypeAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        type_resolve(
-            RequestVc::module(self.module.clone(), Value::new("".to_string().into())),
-            self.context,
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "typescript reference type comment {}",
-            self.module,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct SourceAssetReference {
-    pub source: AssetVc,
-    pub path: PatternVc,
-}
-
-#[turbo_tasks::value_impl]
-impl SourceAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::cell(SourceAssetReference { source, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for SourceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context = self.source.path().parent();
-
-        Ok(resolve_raw(context, self.path, false))
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "raw asset {}",
-            self.path.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct DirAssetReference {
-    pub source: AssetVc,
-    pub path: PatternVc,
-}
-
-#[turbo_tasks::value_impl]
-impl DirAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::cell(DirAssetReference { source, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context_path = self.source.path().await?;
-        // ignore path.join in `node-gyp`, it will includes too many files
-        if context_path.path.contains("node_modules/node-gyp") {
-            return Ok(ResolveResult::Alternatives(HashSet::default(), vec![]).into());
-        }
-        let context = self.source.path().parent();
-        let pat = self.path.await?;
-        let mut result = HashSet::default();
-        let fs = context.fs();
-        match &*pat {
-            Pattern::Constant(p) => {
-                let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                // ignore error
-                if let Ok(entry_type) = dest_file_path.get_type().await {
-                    match &*entry_type {
-                        FileSystemEntryType::Directory => {
-                            result = read_dir(dest_file_path).await?;
-                        }
-                        FileSystemEntryType::File => {
-                            result.insert(SourceAssetVc::new(dest_file_path).into());
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            Pattern::Alternatives(alternatives) => {
-                for alternative_pattern in alternatives {
-                    let mut pat = alternative_pattern.clone();
-                    pat.normalize();
-                    if let Pattern::Constant(p) = pat {
-                        let dest_file_path =
-                            FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                        // ignore error
-                        if let Ok(entry_type) = dest_file_path.get_type().await {
-                            match &*entry_type {
-                                FileSystemEntryType::Directory => {
-                                    result.extend(read_dir(dest_file_path).await?);
-                                }
-                                FileSystemEntryType::File => {
-                                    result.insert(SourceAssetVc::new(dest_file_path).into());
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-        Ok(ResolveResult::Alternatives(result, vec![]).into())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "directory assets {}",
-            self.path.to_string().await?,
-        )))
-    }
-}
-
-async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
-    let mut result = HashSet::default();
-    let dir_entries = p.read_dir().await?;
-    if let DirectoryContent::Entries(entries) = &*dir_entries {
-        for (_, entry) in entries.iter() {
-            match entry {
-                DirectoryEntry::File(file) => {
-                    result.insert(SourceAssetVc::new(*file).into());
-                }
-                DirectoryEntry::Directory(dir) => {
-                    let sub = read_dir_boxed(*dir).await?;
-                    result.extend(sub);
-                }
-                _ => {}
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn read_dir_boxed(
-    p: FileSystemPathVc,
-) -> Pin<Box<dyn Future<Output = Result<HashSet<AssetVc>>> + Send>> {
-    Box::pin(read_dir(p))
-}

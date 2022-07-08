@@ -17,7 +17,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    references::SourceAssetReferenceVc,
+    references::raw::SourceAssetReferenceVc,
     target::{CompileTargetVc, Platform},
 };
 
