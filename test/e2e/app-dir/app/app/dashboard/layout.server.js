@@ -1,8 +1,8 @@
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout(props) {
   return (
     <>
       <h1>Dashboard</h1>
-      {children}
+      {props.children}
     </>
   )
 }
