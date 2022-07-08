@@ -100,6 +100,7 @@ export default class DevServer extends Server {
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
+  private rewriteHmrProxy?: Record<string, ReturnType<typeof createProxy>>
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
   private addedUpgradeListener = false
@@ -644,21 +645,26 @@ export default class DevServer extends Server {
           ) {
             this.hotReloader?.onHMR(req, socket, head)
           } else if (req.url?.endsWith('/_next/webpack-hmr')) {
-            // Probably entering multi-zone
-
-            const zonesRewrites = this.customRoutes.rewrites.afterFiles.filter(
-              (r) => req.url?.endsWith(r.source + '/_next/webpack-hmr')
+            const rewrite = this.customRoutes.rewrites.afterFiles.find((r) =>
+              req.url?.endsWith(r.source + '/_next/webpack-hmr')
             )
 
-            zonesRewrites.forEach((rewrite) => {
-              const destinationUrl = new URL(rewrite.destination)
+            if (rewrite) {
+              let proxy =
+                this.rewriteHmrProxy?.[rewrite.source + '/_next/webpack-hmr']
 
-              const targetUrl = new URL(destinationUrl.origin)
+              if (!proxy) {
+                const destinationUrl = new URL(rewrite.destination)
 
-              targetUrl.pathname = rewrite.source + '/_next/webpack-hmr'
+                const targetUrl = new URL(destinationUrl.origin)
 
-              createProxy({ target: targetUrl }).ws(req, socket, head)
-            })
+                targetUrl.pathname = rewrite.source + '/_next/webpack-hmr'
+
+                proxy = createProxy({ target: targetUrl })
+              }
+
+              proxy?.ws(req, socket, head)
+            }
           }
         })
       }
