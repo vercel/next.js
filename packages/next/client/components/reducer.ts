@@ -247,8 +247,6 @@ type AppRouterState = {
   canonicalUrl: string
 }
 
-type HistoryState = { tree: FlightRouterState }
-
 export function reducer(
   state: AppRouterState,
   action:
@@ -265,7 +263,7 @@ export function reducer(
           }
         }
       }
-    | { type: 'restore'; payload: { url: URL; historyState: HistoryState } }
+    | { type: 'restore'; payload: { url: URL; tree: FlightRouterState } }
     | {
         type: 'server-patch'
         payload: {
@@ -276,14 +274,14 @@ export function reducer(
       }
 ): AppRouterState {
   if (action.type === 'restore') {
-    const { url, historyState } = action.payload
+    const { url, tree } = action.payload
     const href = url.pathname + url.search + url.hash
 
     return {
       canonicalUrl: href,
       pushRef: state.pushRef,
       cache: state.cache,
-      tree: historyState.tree,
+      tree: tree,
     }
   }
 
