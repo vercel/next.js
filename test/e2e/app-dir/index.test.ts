@@ -362,7 +362,6 @@ describe('app dir', () => {
       }
     })
 
-    // FIXME: update
     it('should be soft for back navigation', async () => {
       const browser = await webdriver(next.url, '/with-id')
 
@@ -423,6 +422,22 @@ describe('app dir', () => {
           'window.document.documentElement.innerText'
         )
         expect(html).toContain('hello from app/dashboard')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should allow linking from app page to pages page', async () => {
+      const browser = await webdriver(next.url, '/pages-linking')
+
+      try {
+        // Click the link.
+        await browser.elementById('app-link').click()
+        await browser.waitForElementByCss('#pages-link')
+
+        // Click the other link.
+        await browser.elementById('pages-link').click()
+        await browser.waitForElementByCss('#app-link')
       } finally {
         await browser.close()
       }
