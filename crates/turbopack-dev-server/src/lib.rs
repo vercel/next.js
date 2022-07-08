@@ -58,7 +58,7 @@ impl DevServerVc {
 impl DevServerVc {
     #[turbo_tasks::function]
     async fn find_asset(self, root_asset: AssetVc, path: &str) -> Result<FindAssetResultVc> {
-        let assets = all_assets(root_asset);
+        let assets = all_assets(root_asset).strongly_consistent();
         let root_path = &*self.await?.root_path.await?;
         for (p, asset) in assets
             .await?

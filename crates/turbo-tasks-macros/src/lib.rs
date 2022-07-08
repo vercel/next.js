@@ -492,6 +492,22 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
+    let strongly_consistent = if let Some(inner_type) = inner_type {
+        quote! {
+            #[must_use]
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type> {
+                self.node.into_strongly_consistent_read::<#ident>().map(|r| &r.0)
+            }
+        }
+    } else {
+        quote! {
+            #[must_use]
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
+                self.node.into_strongly_consistent_read::<#ident>()
+            }
+        }
+    };
+
     let expanded = quote! {
         #derive
         #eq_derive
@@ -539,10 +555,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(Self { node: self.node.resolve().await? })
             }
 
-            #[must_use]
-            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
-                self.node.into_strongly_consistent_read::<#ident>()
-            }
+            #strongly_consistent
 
             #(
                 pub fn #as_trait_methods(self) -> #trait_refs {

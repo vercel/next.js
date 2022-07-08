@@ -1,5 +1,8 @@
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{
+        hash_map::{Entry, Keys},
+        HashMap, HashSet,
+    },
     fmt::{Debug, Display},
     hash::{BuildHasher, Hash, Hasher},
     ops::Deref,
@@ -79,10 +82,61 @@ impl Hasher for RawHasher {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum TaskScopes {
+    Root(TaskScopeId),
+    Inner(TaskScopeList),
+}
+
+impl Default for TaskScopes {
+    fn default() -> Self {
+        TaskScopes::Inner(TaskScopeList::default())
+    }
+}
+
+impl TaskScopes {
+    pub fn iter<'a>(&'a self) -> TaskScopesIterator<'a> {
+        match self {
+            TaskScopes::Root(r) => TaskScopesIterator::Root(*r),
+            TaskScopes::Inner(list) => TaskScopesIterator::Inner(list.map.keys()),
+        }
+    }
+
+    pub fn is_root(&self) -> bool {
+        matches!(self, TaskScopes::Root(_))
+    }
+}
+
+pub enum TaskScopesIterator<'a> {
+    Done,
+    Root(TaskScopeId),
+    Inner(Keys<'a, TaskScopeId, usize>),
+}
+
+impl<'a> Iterator for TaskScopesIterator<'a> {
+    type Item = TaskScopeId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TaskScopesIterator::Done => None,
+            &mut TaskScopesIterator::Root(id) => {
+                *self = TaskScopesIterator::Done;
+                Some(id)
+            }
+            TaskScopesIterator::Inner(it) => it.next().copied(),
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct TaskScopeList {
-    pub root: Option<TaskScopeId>,
     map: HashMap<TaskScopeId, usize, BuildRawHasher>,
+}
+
+impl Debug for TaskScopeList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.map.keys()).finish()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -101,17 +155,8 @@ impl TaskScopeList {
     pub fn len(&self) -> usize {
         self.map.len()
     }
-    pub fn set_root(&mut self, id: TaskScopeId) -> SetRootResult {
-        if let Some(existing) = self.root {
-            if existing == id {
-                SetRootResult::Existing
-            } else {
-                SetRootResult::AlreadyOtherRoot
-            }
-        } else {
-            self.root = Some(id);
-            SetRootResult::New
-        }
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
     }
     pub fn add(&mut self, id: TaskScopeId) -> bool {
         match self.map.entry(id) {
@@ -140,23 +185,13 @@ impl TaskScopeList {
             Entry::Vacant(_) => RemoveResult::NoEntry,
         }
     }
-    pub fn contains(&self, id: TaskScopeId) -> bool {
-        self.map.contains_key(&id)
-    }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = TaskScopeId> + 'a {
-        let root_vec = if let Some(root) = self.root {
-            vec![root]
-        } else {
-            Vec::new()
-        };
-        root_vec.into_iter().chain(self.map.keys().copied())
-    }
-    pub fn iter_non_root<'a>(&'a self) -> impl Iterator<Item = TaskScopeId> + 'a {
         self.map.keys().copied()
     }
-    pub fn take_scopes(&mut self) -> Vec<(TaskScopeId, usize)> {
-        self.map.drain().collect()
+
+    pub fn into_scopes(self) -> impl Iterator<Item = (TaskScopeId, usize)> {
+        self.map.into_iter()
     }
 }
 
@@ -167,6 +202,8 @@ pub struct TaskScope {
     unfinished_tasks: AtomicUsize,
     /// Event that will be notified when all unfinished tasks are done
     event: Event,
+    /// last (max) generation when an update to unfinished_tasks happened
+    last_task_finish_generation: AtomicUsize,
     /// State that requires locking
     pub state: Mutex<TaskScopeState>,
 }
@@ -179,10 +216,10 @@ pub struct TaskScopeState {
     active: usize,
     /// When not active, this list contains all dirty tasks.
     /// When the scope becomes active, these need to be scheduled.
-    pub dirty_tasks: HashSet<TaskId>,
+    dirty_tasks: HashSet<TaskId>,
     /// All child scopes, when the scope becomes active, child scopes need to
     /// become active too
-    pub children: HashMap<TaskScopeId, usize>,
+    children: HashMap<TaskScopeId, usize>,
 }
 
 impl TaskScope {
@@ -191,6 +228,7 @@ impl TaskScope {
             tasks: AtomicUsize::new(0),
             unfinished_tasks: AtomicUsize::new(0),
             event: Event::new(),
+            last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
                 #[cfg(feature = "print_scope_updates")]
                 id,
@@ -206,6 +244,7 @@ impl TaskScope {
             tasks: AtomicUsize::new(0),
             unfinished_tasks: AtomicUsize::new(0),
             event: Event::new(),
+            last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
                 #[cfg(feature = "print_scope_updates")]
                 id,
@@ -228,8 +267,20 @@ impl TaskScope {
         self.unfinished_tasks.fetch_add(1, Ordering::Relaxed);
     }
 
-    pub fn decrement_unfinished_tasks(&self) {
-        if self.unfinished_tasks.fetch_sub(1, Ordering::Relaxed) == 1 {
+    pub fn decrement_unfinished_tasks(&self, backend: &MemoryBackend) {
+        let value = backend.flag_scope_change();
+        let _ = self.last_task_finish_generation.fetch_update(
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+            |v| {
+                if v < value {
+                    Some(value)
+                } else {
+                    None
+                }
+            },
+        );
+        if self.unfinished_tasks.fetch_sub(1, Ordering::Release) == 1 {
             self.event.notify(usize::MAX);
         }
     }
@@ -239,56 +290,73 @@ impl TaskScope {
         self_id: TaskScopeId,
         backend: &MemoryBackend,
     ) -> Option<EventListener> {
-        // TODO currently this has a race condition since we check scopes in a certain
-        // order. e. g. we check A before B, without locking both at the same
-        // time. but it can happen that a change propagates from B to A in the
-        // meantime, which means we would miss the unfinished work. In this case
-        // we would not get the strongly consistent guarantee. To counter that
-        // we introduce a global generation counter, which is incremented before
-        // checking. Any change to unfinished_tasks must also update the local
-        // generation counter to the global one. This means we can detect if any
-        // scope has changed during our checking process and we can reset the process.
-        // Note that a change can propagate into any direction: from parent to child,
-        // from child to parent and from siblings. Also through multiple layers.
-        let mut checked_scopes = HashSet::new();
-        if self.unfinished_tasks.load(Ordering::Relaxed) != 0 {
-            let listener = self.event.listen();
+        'restart: loop {
+            // There would be a race condition when we check scopes in a certain
+            // order. e. g. we check A before B, without locking both at the same
+            // time. But it can happen that a change propagates from B to A in the
+            // meantime, which means we would miss the unfinished work. In this case
+            // we would not get the strongly consistent guarantee. To counter that
+            // we introduce a global generation counter, which is incremented before
+            // checking. When a task finishes (resp. unfinished_tasks is decreased) we must
+            // also update the local generation counter to the global one. When
+            // all tasks are finished the scope can no longer influence the unfinished work
+            // of other scopes. By ensuring that all work has been finished before the start
+            // of checking the whole tree, we ensure that all scopes are either done, or
+            // contain unfinished work.
+            // Note that a change can propagate into any direction: from parent to child,
+            // from child to parent and from siblings. Also through multiple
+            // layers.
+            let start_generation = backend.acquire_scope_generation();
+            let mut checked_scopes = HashSet::new();
             if self.unfinished_tasks.load(Ordering::Acquire) != 0 {
-                return Some(listener);
-            }
-        }
-        checked_scopes.insert(self_id);
-        let mut queue = self
-            .state
-            .lock()
-            .unwrap()
-            .children
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        while let Some(id) = queue.pop() {
-            if let Some(listener) = backend.with_scope(id, |scope| {
+                let listener = self.event.listen();
                 if self.unfinished_tasks.load(Ordering::Relaxed) != 0 {
-                    let listener = scope.event.listen();
+                    return Some(listener);
+                }
+            }
+            if self.last_task_finish_generation.load(Ordering::Relaxed) > start_generation {
+                continue 'restart;
+            }
+            checked_scopes.insert(self_id);
+            let mut queue = self
+                .state
+                .lock()
+                .unwrap()
+                .children
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
+            while let Some(id) = queue.pop() {
+                match backend.with_scope(id, |scope| {
                     if self.unfinished_tasks.load(Ordering::Acquire) != 0 {
+                        let listener = scope.event.listen();
+                        if self.unfinished_tasks.load(Ordering::Relaxed) != 0 {
+                            return Ok(Some(listener));
+                        }
+                    }
+                    if self.last_task_finish_generation.load(Ordering::Relaxed) > start_generation {
+                        return Err(());
+                    }
+                    checked_scopes.insert(id);
+                    let scope = scope.state.lock().unwrap();
+                    queue.extend(
+                        scope
+                            .children
+                            .keys()
+                            .cloned()
+                            .filter(|i| !checked_scopes.contains(i)),
+                    );
+                    Ok(None)
+                }) {
+                    Ok(Some(listener)) => {
                         return Some(listener);
                     }
+                    Ok(None) => {}
+                    Err(()) => continue 'restart,
                 }
-                checked_scopes.insert(id);
-                let scope = scope.state.lock().unwrap();
-                queue.extend(
-                    scope
-                        .children
-                        .keys()
-                        .cloned()
-                        .filter(|i| !checked_scopes.contains(i)),
-                );
-                None
-            }) {
-                return Some(listener);
             }
+            return None;
         }
-        None
     }
 }
 
@@ -388,5 +456,13 @@ impl TaskScopeState {
                 panic!("A child scope was removed that was never added")
             }
         }
+    }
+
+    pub fn add_dirty_task(&mut self, id: TaskId) {
+        self.dirty_tasks.insert(id);
+    }
+
+    pub fn remove_dirty_task(&mut self, id: TaskId) {
+        self.dirty_tasks.remove(&id);
     }
 }

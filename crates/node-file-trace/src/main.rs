@@ -283,6 +283,8 @@ async fn main() {
                 fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
                 println!("graph.html written");
             }
+            // Dropping is slow, so just forget it...
+            std::mem::forget(tt)
         },
     )
     .await;

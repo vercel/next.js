@@ -21,6 +21,7 @@ serde = { version = "1.0.136", features = ["rc"] }
 [dev-dependencies]
 sha2 = "0.10.2"
 rstest = "0.12.0"
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

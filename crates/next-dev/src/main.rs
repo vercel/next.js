@@ -1,4 +1,7 @@
-use std::{env::current_dir, sync::Arc};
+#![feature(future_join)]
+#![feature(future_poll_fn)]
+
+use std::{env::current_dir, future::join, sync::Arc, time::Instant};
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -29,6 +32,8 @@ async fn main() {
 
     let Args {} = Args::parse();
 
+    let start = Instant::now();
+
     let dir = current_dir()
         .unwrap()
         .to_str()
@@ -37,6 +42,7 @@ async fn main() {
         .to_string();
 
     let tt = TurboTasks::new(MemoryBackend::new());
+    let tt_clone = tt.clone();
     let server = tt
         .clone()
         .run_once(async move {
@@ -90,7 +96,16 @@ async fn main() {
         })
         .await
         .unwrap();
-    server.future.await.unwrap();
+    join! {
+        async move {
+            tt_clone.wait_done().await;
+            println!("initial request prepared in {} ms", start.elapsed().as_millis());
+        },
+        async {
+            server.future.await.unwrap()
+        }
+    }
+    .await;
 }
 
 fn register() {

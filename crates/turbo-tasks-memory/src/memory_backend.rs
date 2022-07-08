@@ -1,4 +1,11 @@
-use std::{cell::RefCell, collections::HashSet, future::Future, pin::Pin, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    future::Future,
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 
 use anyhow::Result;
 use event_listener::EventListener;
@@ -16,7 +23,7 @@ use turbo_tasks::{
 use crate::{
     output::Output,
     scope::{SetRootResult, TaskScope, TaskScopeId},
-    task::{Task, DEPENDENCIES_TO_TRACK},
+    task::{run_add_to_scope_queue, run_remove_from_scope_queue, Task, DEPENDENCIES_TO_TRACK},
 };
 
 pub struct MemoryBackend {
@@ -26,6 +33,7 @@ pub struct MemoryBackend {
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
     task_cache: FHashMap<PersistentTaskType, TaskId>,
+    scope_generation: AtomicUsize,
 }
 
 impl MemoryBackend {
@@ -37,6 +45,7 @@ impl MemoryBackend {
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactory::new(),
             task_cache: FHashMap::new(),
+            scope_generation: AtomicUsize::new(0),
         }
     }
 
@@ -159,6 +168,27 @@ impl MemoryBackend {
                 scope.state.lock().unwrap().decrement_active(&mut queue)
             });
         }
+    }
+
+    pub(crate) fn acquire_scope_generation(&self) -> usize {
+        let mut generation = self.scope_generation.load(Ordering::Acquire);
+        while generation & 1 == 1 {
+            match self.scope_generation.compare_exchange_weak(
+                generation,
+                generation + 1,
+                Ordering::Release,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return generation + 1,
+                Err(result) => generation = result,
+            }
+        }
+        generation
+    }
+
+    pub(crate) fn flag_scope_change(&self) -> usize {
+        let prev = self.scope_generation.fetch_or(1, Ordering::AcqRel);
+        prev | 1
     }
 }
 
@@ -393,18 +423,16 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
+        let scope = self.create_new_active_scope();
         let task = match task_type {
-            TransientTaskType::Root(f) => Task::new_root(id, move || {
+            TransientTaskType::Root(f) => Task::new_root(id, scope, move || {
                 let future = f();
                 future
             }),
-            TransientTaskType::Once(f) => Task::new_once(id, f),
+            TransientTaskType::Once(f) => Task::new_once(id, scope, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet
         let task = unsafe { self.memory_tasks.insert(*id, task) };
-        let scope = self.create_new_active_scope();
-        let result = task.set_root_scope(scope);
-        assert_eq!(result, SetRootResult::New);
         #[cfg(feature = "print_scope_updates")]
         println!("new {scope} for {task}");
         id
@@ -415,49 +443,36 @@ pub(crate) enum Job {
     RemoveFromScopes(
         HashSet<TaskId>,
         Vec<TaskScopeId>,
-        bool,   /* will_be_optimized */
-        String, /* origin */
+        bool, /* will_be_optimized */
     ),
-    RemoveFromScope(Vec<TaskId>, TaskScopeId),
+    RemoveFromScope(HashSet<TaskId>, TaskScopeId),
     RemoveRootScope(TaskId),
     MakeRootScoped(TaskId),
     ScheduleWhenDirty(Vec<TaskId>),
+    AddToScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
+    RemoveFromScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
 }
 
 impl Job {
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
-            Job::RemoveFromScopes(tasks, scopes, will_be_optimized, origin) => {
-                let mut count = 0;
+            Job::RemoveFromScopes(tasks, scopes, will_be_optimized) => {
                 for task in tasks {
                     backend.with_task(task, |task| {
-                        count += task.remove_from_scopes(
+                        task.remove_from_scopes(
                             scopes.iter().cloned(),
                             will_be_optimized,
                             backend,
                             turbo_tasks,
-                            &origin,
                         )
                     });
                 }
-                #[cfg(feature = "print_scope_updates")]
-                if count > 0 {
-                    println!(
-                        "remove from scopes ({:?}) job removed {count} scope references",
-                        scopes
-                    )
-                }
             }
             Job::RemoveFromScope(tasks, scope) => {
-                let mut count = 0;
                 for task in tasks {
                     backend.with_task(task, |task| {
-                        count += task.remove_from_scope(scope, backend, turbo_tasks)
+                        task.remove_from_scope(scope, backend, turbo_tasks)
                     });
-                }
-                #[cfg(feature = "print_scope_updates")]
-                if count > 0 {
-                    println!("remove from scope ({scope}) job removed {count} scope references")
                 }
             }
             Job::MakeRootScoped(task) => backend.with_task(task, |task| {
@@ -472,6 +487,12 @@ impl Job {
                         task.schedule_when_dirty(turbo_tasks);
                     })
                 }
+            }
+            Job::AddToScopeQueue(queue, queue_size, id) => {
+                run_add_to_scope_queue(queue, queue_size, id, backend, turbo_tasks);
+            }
+            Job::RemoveFromScopeQueue(queue, queue_size, id) => {
+                run_remove_from_scope_queue(queue, queue_size, id, backend, turbo_tasks);
             }
         }
     }

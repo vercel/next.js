@@ -72,7 +72,11 @@ impl Asset for LazyAsset {
                 invalidator.invalidate();
             }
         }
-        self.asset.content()
+        let result = self.asset.content();
+        // prefetch
+        self.asset.references();
+        // return
+        result
     }
 
     #[turbo_tasks::function]

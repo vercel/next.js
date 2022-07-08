@@ -108,6 +108,8 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
     fn schedule_backend_background_job(&self, id: BackendJobId);
     fn schedule_backend_foreground_job(&self, id: BackendJobId);
 
+    fn try_foreground_done(&self) -> Result<(), EventListener>;
+
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
     fn schedule_notify_tasks(&self, tasks: &Vec<TaskId>);
@@ -143,11 +145,13 @@ pub struct TurboTasks<B: Backend + 'static> {
     task_id_factory: IdFactory<TaskId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
+    currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
     last_update: Mutex<Option<(Duration, usize)>>,
     event: Event,
+    event_foreground: Event,
     event_background: Event,
 }
 
@@ -182,10 +186,12 @@ impl<B: Backend> TurboTasks<B> {
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
+            currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             last_update: Default::default(),
             event: Event::new(),
+            event_foreground: Event::new(),
             event_background: Event::new(),
         });
         this.backend.startup(&*this);
@@ -368,6 +374,12 @@ impl<B: Backend> TurboTasks<B> {
         }
     }
 
+    fn begin_foreground_job(&self) {
+        self.begin_foreground_task();
+        self.currently_scheduled_foreground_jobs
+            .fetch_add(1, Ordering::AcqRel);
+    }
+
     fn finish_foreground_task(&self) {
         if self
             .currently_scheduled_tasks
@@ -383,6 +395,28 @@ impl<B: Backend> TurboTasks<B> {
             }
             self.event.notify(usize::MAX);
         }
+    }
+
+    fn finish_foreground_job(&self) {
+        if self
+            .currently_scheduled_foreground_jobs
+            .fetch_sub(1, Ordering::AcqRel)
+            == 1
+        {
+            self.event_foreground.notify(usize::MAX);
+        }
+        self.finish_foreground_task();
+    }
+
+    pub async fn wait_foreground_done(&self) {
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+            return;
+        }
+        let listener = self.event.listen();
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            return;
+        }
+        listener.await;
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {
@@ -619,6 +653,17 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
         self.schedule_foreground_job(move |this| async move {
             this.backend.run_backend_job(id, &*this).await;
         })
+    }
+
+    fn try_foreground_done(&self) -> Result<(), EventListener> {
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+            return Ok(());
+        }
+        let listener = self.event.listen();
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            return Ok(());
+        }
+        Err(listener)
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will

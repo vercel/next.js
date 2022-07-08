@@ -260,7 +260,15 @@ fn visualize_stats_references_internal<'a>(
 }
 
 fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> String {
-    fn as_frac<T: From<u8> + TryInto<u8> + Mul<T, Output = T> + Div<T, Output = T> + Ord + Copy>(
+    fn as_frac<
+        T: From<u8>
+            + TryInto<u8>
+            + Mul<T, Output = T>
+            + Div<T, Output = T>
+            + PartialEq<T>
+            + Ord
+            + Copy,
+    >(
         current: T,
         total: T,
     ) -> u8
@@ -269,7 +277,11 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
     {
         let min: T = u8::MIN.into();
         let max: T = u8::MAX.into();
-        let result = max * current / total;
+        let result = if total == min {
+            min
+        } else {
+            max * current / total
+        };
         result.clamp(min, max).try_into().unwrap()
     }
     let total = as_frac(
@@ -296,10 +308,22 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
     format!(
         "<
 <table border=\"0\" cellborder=\"1\" cellspacing=\"0\">
-    <tr><td bgcolor=\"{}\" colspan=\"2\">{}</td></tr>
-    <tr><td bgcolor=\"{}\">{}</td><td bgcolor=\"{}\">+ {}</td></tr>
-    <tr><td bgcolor=\"{}\">{} ms</td><td bgcolor=\"{}\">avg {} ms</td></tr>
-    <tr><td bgcolor=\"{}\">{} roots</td><td bgcolor=\"{}\">avg {} scopes</td></tr>
+    <tr><td bgcolor=\"{}\" colspan=\"3\">{}</td></tr>
+    <tr>
+        <td>count</td>
+        <td bgcolor=\"{}\">{}</td>
+        <td bgcolor=\"{}\">+ {}</td>
+    </tr>
+    <tr>
+        <td>exec</td>
+        <td bgcolor=\"{}\">{} ms</td>
+        <td bgcolor=\"{}\">avg {} ms</td>
+    </tr>
+    <tr>
+        <td>scopes</td>
+        <td bgcolor=\"{}\">{} roots</td>
+        <td bgcolor=\"{}\">avg {}</td>
+    </tr>
 </table>>",
         as_color(total),
         escape_html(&ty.to_string()),
@@ -317,36 +341,6 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
         (100 * stats.scopes / stats.count) as f32 / 100.0
     )
 }
-
-// fn get_task_label(ty: &TaskType, stats: &TaskStats) -> String {
-//     format!(
-//         "{}\n{} + {}\n{} ms (avg {} ms)",
-//         escape(&ty.to_string()),
-//         stats.count,
-//         stats.executions - stats.count,
-//         stats.total_duration.as_millis(),
-//         (stats.total_duration.as_micros() as usize / stats.executions) as f32
-// / 1000.0     )
-// }
-
-// fn get_task_format(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues)
-// -> String {     let total = (u8::MAX as u128 *
-// stats.total_duration.as_millis()         / max_values.total_duration.
-// as_millis())     .clamp(0, u8::MAX as u128) as u8;
-//     let avg = (u8::MAX as u128 * stats.total_duration.as_micros()
-//         / (stats.executions as u128)
-//         / max_values.avg_duration.as_micros())
-//     .clamp(0, u8::MAX as u128) as u8;
-//     let executions = (u8::MAX as usize * stats.executions /
-// max_values.executions)         .clamp(0, u8::MAX as usize) as u8;
-
-//     format!(
-//         ", style=striped, fillcolor=\"{}:{}:{}\"",
-//         as_color(total),
-//         as_color(executions),
-//         as_color(avg)
-//     )
-// }
 
 fn as_color(n: u8) -> String {
     // interpolate #fff -> #ff0 -> #f00
