@@ -16,42 +16,33 @@ export type LoadableGeneratedOptions = {
   modules?(): LoaderMap
 }
 
-export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
-  loading?: ({
-    error,
-    isLoading,
-    pastDelay,
-  }: {
-    error?: Error | null
-    isLoading?: boolean
-    pastDelay?: boolean
-    retry?: () => void
-    timedOut?: boolean
-  }) => JSX.Element | null
+export type DynamicOptionsLoadingProps = {
+  error?: Error | null
+  isLoading?: boolean
+  pastDelay?: boolean
+  retry?: () => void
+  timedOut?: boolean
+}
+
+export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
+  loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
-}
-
-export type LoadableSuspenseOptions = {
   suspense?: boolean
 }
 
-export type LoadableOptions<P = {}> = LoadableBaseOptions<P>
-
-export type DynamicOptions<P = {}> =
-  | LoadableBaseOptions<P>
-  | LoadableSuspenseOptions
+export type LoadableOptions<P = {}> = DynamicOptions<P>
 
 export type LoadableFn<P = {}> = (
-  opts: LoadableOptions<P> | LoadableSuspenseOptions
+  opts: LoadableOptions<P>
 ) => React.ComponentType<P>
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 export function noSSR<P = {}>(
   LoadableInitializer: LoadableFn<P>,
-  loadableOptions: LoadableBaseOptions<P>
+  loadableOptions: DynamicOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
@@ -114,17 +105,11 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  const suspenseOptions = loadableOptions as LoadableSuspenseOptions & {
-    loader: Loader<P>
-  }
   // Error if Fizz rendering is not enabled and `suspense` option is set to true
-  if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
+  if (!process.env.__NEXT_REACT_ROOT && loadableOptions.suspense) {
     throw new Error(
       `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
     )
-  }
-  if (suspenseOptions.suspense) {
-    return loadableFn(suspenseOptions)
   }
 
   // coming from build/babel/plugins/react-loadable-plugin.js
@@ -136,8 +121,9 @@ export default function dynamic<P = {}>(
     delete loadableOptions.loadableGenerated
   }
 
-  // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false})
-  if (typeof loadableOptions.ssr === 'boolean') {
+  // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false}).
+  // skip `ssr` for suspense mode and opt-in React.lazy directly
+  if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.suspense) {
     if (!loadableOptions.ssr) {
       delete loadableOptions.ssr
       return noSSR(loadableFn, loadableOptions)

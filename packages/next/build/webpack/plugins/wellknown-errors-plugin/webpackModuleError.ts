@@ -1,13 +1,13 @@
 import { readFileSync } from 'fs'
 import * as path from 'path'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
 import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
-import { NextConfig } from '../../../../server/config-shared'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -43,8 +43,7 @@ function getFileData(
 
 export async function getModuleBuildError(
   compilation: webpack.Compilation,
-  input: any,
-  config: NextConfig
+  input: any
 ): Promise<SimpleWebpackError | false> {
   if (
     !(
@@ -64,8 +63,7 @@ export async function getModuleBuildError(
   const notFoundError = await getNotFoundError(
     compilation,
     input,
-    sourceFilename,
-    config
+    sourceFilename
   )
   if (notFoundError !== false) {
     return notFoundError

@@ -85,22 +85,11 @@ function onBuildError(message: string) {
   Bus.emit({ type: Bus.TYPE_BUILD_ERROR, message })
 }
 
-function onFullRefreshNeeded(reason?: string) {
-  Bus.emit({ type: Bus.TYPE_FULL_REFRESH_NEEDED, reason: reason ?? null })
-}
-
 function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFRESH })
 }
 
 export { getErrorByType } from './internal/helpers/getErrorByType'
-export { getNodeError } from './internal/helpers/nodeStackFrames'
+export { getServerError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export {
-  onBuildOk,
-  onBuildError,
-  onFullRefreshNeeded,
-  register,
-  unregister,
-  onRefresh,
-}
+export { onBuildOk, onBuildError, register, unregister, onRefresh }

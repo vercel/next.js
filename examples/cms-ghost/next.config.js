@@ -1,5 +1,5 @@
 module.exports = {
   images: {
-    domains: ['static.gotsby.org'],
+    domains: ['static.ghost.org'],
   },
 }

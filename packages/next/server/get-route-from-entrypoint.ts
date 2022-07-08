@@ -2,8 +2,8 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 
 // matches pages/:page*.js
 const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
-// matches root/:path*.js
-const ROOT_ROUTE_NAME_REGEX = /^views[/\\](.*)$/
+// matches app/:path*.js
+const APP_ROUTE_NAME_REGEX = /^app[/\\](.*)$/
 // matches static/pages/:page*.js
 const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 
@@ -19,7 +19,7 @@ function matchBundle(regex: RegExp, input: string): string | null {
 
 export default function getRouteFromEntrypoint(
   entryFile: string,
-  root?: boolean
+  app?: boolean
 ): string | null {
   let pagePath = matchBundle(SERVER_ROUTE_NAME_REGEX, entryFile)
 
@@ -27,8 +27,9 @@ export default function getRouteFromEntrypoint(
     return pagePath
   }
 
-  if (root) {
-    pagePath = matchBundle(ROOT_ROUTE_NAME_REGEX, entryFile)
+  if (app) {
+    pagePath = matchBundle(APP_ROUTE_NAME_REGEX, entryFile)
+    if (typeof pagePath === 'string' && !pagePath) pagePath = '/'
     if (pagePath) return pagePath
   }
 

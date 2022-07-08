@@ -35,3 +35,6 @@ yarn-error.log*
 
 # compiled files
 temporal/lib
+
+# typescript
+*.tsbuildinfo

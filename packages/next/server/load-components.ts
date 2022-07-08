@@ -12,7 +12,7 @@ import type {
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../shared/lib/constants'
 import { join } from 'path'
@@ -40,7 +40,7 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
-  isViewPath?: boolean
+  isAppPath?: boolean
 }
 
 export async function loadDefaultErrorComponents(distDir: string) {
@@ -66,7 +66,7 @@ export async function loadComponents(
   pathname: string,
   serverless: boolean,
   hasServerComponents?: boolean,
-  rootEnabled?: boolean
+  appDirEnabled?: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const ComponentMod = await requirePage(pathname, distDir, serverless)
@@ -103,13 +103,13 @@ export async function loadComponents(
 
   const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
     Promise.resolve().then(() =>
-      requirePage('/_document', distDir, serverless, rootEnabled)
+      requirePage('/_document', distDir, serverless, appDirEnabled)
     ),
     Promise.resolve().then(() =>
-      requirePage('/_app', distDir, serverless, rootEnabled)
+      requirePage('/_app', distDir, serverless, appDirEnabled)
     ),
     Promise.resolve().then(() =>
-      requirePage(pathname, distDir, serverless, rootEnabled)
+      requirePage(pathname, distDir, serverless, appDirEnabled)
     ),
   ])
 
@@ -118,7 +118,7 @@ export async function loadComponents(
       require(join(distDir, BUILD_MANIFEST)),
       require(join(distDir, REACT_LOADABLE_MANIFEST)),
       hasServerComponents
-        ? require(join(distDir, 'server', MIDDLEWARE_FLIGHT_MANIFEST + '.json'))
+        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
         : null,
     ])
 
@@ -129,7 +129,7 @@ export async function loadComponents(
         normalizePagePath(pathname) + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
         distDir,
         serverless,
-        rootEnabled
+        appDirEnabled
       )
     } catch (_) {
       // This page might not be a server component page, so there is no
@@ -143,18 +143,18 @@ export async function loadComponents(
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
-  let isViewPath = false
+  let isAppPath = false
 
-  if (rootEnabled) {
+  if (appDirEnabled) {
     const pagePath = getPagePath(
       pathname,
       distDir,
       serverless,
       false,
       undefined,
-      rootEnabled
+      appDirEnabled
     )
-    isViewPath = !!pagePath?.match(/server[/\\]views[/\\]/)
+    isAppPath = !!pagePath?.match(/server[/\\]app[/\\]/)
   }
 
   return {
@@ -169,6 +169,6 @@ export async function loadComponents(
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
-    isViewPath,
+    isAppPath,
   }
 }
