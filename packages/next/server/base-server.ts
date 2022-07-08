@@ -913,7 +913,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
-      this.appPathRoutes = this.getappPathRoutes()
+      this.appPathRoutes = this.getAppPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
     }
 
@@ -1022,7 +1022,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getappPathRoutes(): Record<string, string> {
+  protected getAppPathRoutes(): Record<string, string> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
@@ -1031,7 +1031,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return appPathRoutes
   }
 
-  protected getappPathLayouts(pathname: string): string[] {
+  protected getAppPathLayouts(pathname: string): string[] {
     const layoutPaths: string[] = []
 
     if (this.appPathRoutes) {
