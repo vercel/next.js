@@ -2,7 +2,6 @@ use swc_atoms::JsWord;
 use swc_common::collections::AHashMap;
 use swc_ecmascript::{
     ast::*,
-    utils::ident::IdentLike,
     visit::{Visit, VisitWith},
 };
 

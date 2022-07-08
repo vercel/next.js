@@ -36,6 +36,7 @@ pub mod module_options;
 pub mod rebase;
 mod resolve;
 
+pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 
 #[turbo_tasks::value]

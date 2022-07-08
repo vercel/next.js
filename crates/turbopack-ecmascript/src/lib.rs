@@ -16,21 +16,23 @@ pub mod utils;
 pub mod webpack;
 
 use anyhow::Result;
-use chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
-};
-use target::CompileTargetVc;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::AssetReferencesVc,
 };
 
-use self::references::module_references;
-use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc};
+use crate::{
+    chunk::{
+        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    },
+    references::module_references,
+    target::CompileTargetVc,
+};
 
 #[turbo_tasks::value(serialization: auto_for_input)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -123,11 +125,14 @@ impl ValueToString for ModuleAsset {
     }
 }
 
-#[turbo_tasks::value(EcmascriptChunkItem)]
+#[turbo_tasks::value(ChunkItem, EcmascriptChunkItem)]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,
 }
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for ModuleChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {

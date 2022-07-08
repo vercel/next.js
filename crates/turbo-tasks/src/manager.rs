@@ -625,7 +625,7 @@ impl Invalidator {
 }
 
 impl TraceRawVcs for Invalidator {
-    fn trace_raw_vcs(&self, context: &mut crate::trace::TraceRawVcsContext) {
+    fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
         // nothing here
     }
 }

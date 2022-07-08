@@ -2,12 +2,12 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkGroupVc, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc},
 };
 
 use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};
 
-#[turbo_tasks::value(EcmascriptChunkItem, ValueToString)]
+#[turbo_tasks::value(ChunkItem, ValueToString, EcmascriptChunkItem)]
 pub struct ChunkGroupLoaderChunkItem {
     asset: ChunkableAssetVc,
 }
@@ -30,6 +30,9 @@ impl ValueToString for ChunkGroupLoaderChunkItem {
         )))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for ChunkGroupLoaderChunkItem {}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
