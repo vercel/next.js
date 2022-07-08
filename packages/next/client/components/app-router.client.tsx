@@ -161,13 +161,6 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
-    console.log(
-      'UPDATE URL',
-      pushRef.pendingPush ? 'push' : 'replace',
-      pushRef.mpaNavigation ? 'MPA' : '',
-      tree
-    )
-
     if (pushRef.mpaNavigation) {
       window.location.href = canonicalUrl
       return
@@ -212,10 +205,6 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
-
-  React.useEffect(() => {
-    window.history.replaceState({ tree: initialTree }, '')
-  }, [initialTree])
 
   return (
     <PathnameContext.Provider value={pathname}>
