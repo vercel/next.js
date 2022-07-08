@@ -21,7 +21,7 @@ npx create-next-app --example with-apivideo-upload with-apivideo-upload-app
 # or
 yarn create next-app --example with-apivideo-upload with-apivideo-upload-app
 # or
-pnpm create next-app -- --example with-apivideo-upload with-apivideo-upload-app
+pnpm create next-app --example with-apivideo-upload with-apivideo-upload-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
@@ -36,8 +36,9 @@ You can choose to stay in sandbox and have watermark over your videos, or enter 
 ### 2. Get you API key
 
 Once in the dashboard, find your API keys directly in the `/overview` or navigate to `/apikeys` with the "API Keys" button in the side navigation.
-Copy your API key and paste it in `.env.development` as value for `API_KEY`.
-You can now try the application locally by running `npm run dev` from the root directory.
+Copy your API key, and paste it in `.env.local.example` as value for `API_KEY`.
+Rename `.env.local.example` to `.env.local`.
+You can now try the application locally by running `npm run dev`, `yarn dev` or `pnpm dev` from the root directory.
 
 ### 3. Deployment
 
