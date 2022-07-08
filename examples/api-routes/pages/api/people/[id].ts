@@ -2,13 +2,13 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { people } from '../../../data'
 import { Person } from '../../../interfaces'
 
-type Error = {
+type ResponseError = {
   message: string
 }
 
 export default function personHandler(
   req: NextApiRequest,
-  res: NextApiResponse<Person | Error>
+  res: NextApiResponse<Person | ResponseError>
 ) {
   const { query } = req
   const { id } = query
