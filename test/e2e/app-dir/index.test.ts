@@ -498,6 +498,39 @@ describe('app dir', () => {
       })
     })
 
+    describe('catch-all routes', () => {
+      it('should handle optional segments', async () => {
+        const params = ['this', 'is', 'a', 'test']
+        const route = params.join('/')
+        const html = await renderViaHTTP(
+          next.url,
+          `/optional-catch-all/${route}`
+        )
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe(route)
+      })
+
+      it('should handle optional segments root', async () => {
+        const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe('')
+      })
+
+      it('should handle required segments', async () => {
+        const params = ['this', 'is', 'a', 'test']
+        const route = params.join('/')
+        const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe(route)
+      })
+
+      it('should handle required segments root as not found', async () => {
+        const res = await fetchViaHTTP(next.url, `/catch-all`)
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+      })
+    })
+
     describe('should serve client component', () => {
       it('should serve server-side', async () => {
         const html = await renderViaHTTP(next.url, '/client-component-route')
