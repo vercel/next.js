@@ -299,6 +299,22 @@ export type ChildProp = {
   segment: Segment
 }
 
+function getSegmentParam(segment: string): string | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return segment.slice(5, -2)
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return segment.slice(4, -1)
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return segment.slice(1, -1)
+  }
+
+  return null
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -383,11 +399,7 @@ export async function renderToHTML(
     segment: string
   ): { param: string; value: string } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
-    const segmentParam =
-      segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(segment.startsWith('[...') ? 4 : 1, -1)
-        : null
-
+    const segmentParam = getSegmentParam(segment)
     if (!segmentParam || (!pathParams[segmentParam] && !query[segmentParam])) {
       return null
     }
