@@ -1,11 +1,12 @@
+import type { User } from '../../interfaces'
 import { useRouter } from 'next/router'
 import useSwr from 'swr'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-export default function User() {
+export default function UserPage() {
   const router = useRouter()
-  const { data, error } = useSwr(
+  const { data, error } = useSwr<User>(
     router.query.id ? `/api/user/${router.query.id}` : null,
     fetcher
   )
