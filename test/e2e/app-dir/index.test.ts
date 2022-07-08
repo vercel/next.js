@@ -326,27 +326,37 @@ describe('app dir', () => {
       }
     })
 
-    // FIXME: update
     it('should soft replace', async () => {
       const browser = await webdriver(next.url, '/link-soft-replace')
 
       try {
+        // Get the render ID so we can compare it.
+        const firstID = await browser.elementById('render-id').text()
+
         // Click the link on the page, and verify that the history entry was NOT
         // added.
         expect(await browser.eval('window.history.length')).toBe(2)
-        await browser.elementById('link').click()
+        await browser.elementById('self-link').click()
+        await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
         // Get the id on the rendered page.
-        const firstID = await browser.elementById('render-id').text()
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).toBe(firstID)
 
-        // Go back, and redo the navigation by clicking the link.
-        await browser.back()
-        await browser.elementById('link').click()
+        // Navigate to the subpage, verify that the history entry was NOT added.
+        await browser.elementById('subpage-link').click()
+        await browser.waitForElementByCss('#back-link')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Navigate back again, verify that the history entry was NOT added.
+        await browser.elementById('back-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
 
         // Get the date again, and compare, they should be the same.
-        const secondID = await browser.elementById('render-id').text()
-        expect(firstID).toBe(secondID)
+        const thirdID = await browser.elementById('render-id').text()
+        expect(thirdID).toBe(firstID)
       } finally {
         await browser.close()
       }
@@ -362,6 +372,7 @@ describe('app dir', () => {
 
         // Click the link, and go back.
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-navigation')
         await browser.back()
 
         // Get the date again, and compare, they should be the same.
@@ -372,13 +383,13 @@ describe('app dir', () => {
       }
     })
 
-    // FIXME: update
     it('should be soft for forward navigation', async () => {
       const browser = await webdriver(next.url, '/with-id')
 
       try {
         // Click the link.
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-navigation')
 
         // Get the id on the rendered page.
         const firstID = await browser.elementById('render-id').text()
@@ -395,13 +406,13 @@ describe('app dir', () => {
       }
     })
 
-    // FIXME: update
     it('should respect rewrites', async () => {
       const browser = await webdriver(next.url, '/rewrites')
 
       try {
         // Click the link.
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-dashboard')
 
         // Check to see that we were rewritten and not redirected.
         const pathname = await browser.eval('window.location.pathname')
