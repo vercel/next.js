@@ -8,7 +8,7 @@ import {
   RemotePattern,
 } from '../shared/lib/image-config'
 
-export type PageRuntime = 'nodejs' | 'edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -90,41 +90,35 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  plugins?: boolean
   profiling?: boolean
   isrFlushToDisk?: boolean
-  reactMode?: 'legacy' | 'concurrent' | 'blocking'
   workerThreads?: boolean
   pageEnv?: boolean
   optimizeCss?: boolean
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  conformance?: boolean
   appDir?: boolean
   amp?: {
     optimizer?: any
     validator?: string
     skipValidation?: boolean
   }
-  reactRoot?: boolean
   disableOptimizedLoading?: boolean
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<PageRuntime, undefined>
+  runtime?: Exclude<ServerRuntime, undefined>
   serverComponents?: boolean
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
-  outputStandalone?: boolean
   images?: {
-    layoutRaw: boolean
-    remotePatterns: RemotePattern[]
+    remotePatterns?: RemotePattern[]
     unoptimized?: boolean
+    allowFutureImage?: boolean
   }
-  middlewareSourceMaps?: boolean
   modularizeImports?: Record<
     string,
     {
@@ -422,7 +416,24 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?: boolean
+    styledComponents?:
+      | boolean
+      | {
+          /**
+           * Enabled by default in development, disabled in production to reduce file size,
+           * setting this will override the default for all environments.
+           */
+          displayName?: boolean
+          topLevelImportPaths?: string[]
+          ssr?: boolean
+          fileName?: boolean
+          meaninglessFileNames?: string[]
+          minify?: boolean
+          transpileTemplateLiterals?: boolean
+          namespace?: string
+          pure?: boolean
+          cssProp?: boolean
+        }
     emotion?:
       | boolean
       | {
@@ -431,6 +442,8 @@ export interface NextConfig extends Record<string, any> {
           labelFormat?: string
         }
   }
+
+  output?: 'standalone'
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -490,7 +503,10 @@ export const defaultConfig: NextConfig = {
   outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
+  output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    runtime: undefined,
+    manualClientBasePath: false,
     // TODO: change default in next major release (current v12.1.5)
     legacyBrowsers: true,
     browsersListForSwc: false,
@@ -502,7 +518,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    plugins: false,
     profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
@@ -511,7 +526,6 @@ export const defaultConfig: NextConfig = {
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
-    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     swcFileReading: true,
@@ -523,13 +537,18 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
-    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
     images: {
-      layoutRaw: false,
       remotePatterns: [],
     },
+    swcTraceProfiling: false,
     forceSwcTransforms: false,
+    swcPlugins: undefined,
+    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    disablePostcssPresetEnv: undefined,
+    amp: undefined,
+    urlImports: undefined,
+    modularizeImports: undefined,
   },
 }
 
@@ -539,4 +558,10 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
+}
+
+export function isServerRuntime(value?: string): value is ServerRuntime {
+  return (
+    value === undefined || value === 'nodejs' || value === 'experimental-edge'
+  )
 }

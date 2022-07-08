@@ -36,6 +36,12 @@ export default function Home() {
         <a id="link-to-api-with-locale">Redirect me to api with locale</a>
       </Link>
       <div />
+      <Link href="/to?pathname=/old-home">
+        <a id="link-to-to-old-home">
+          Redirect me to a redirecting page of new version of page
+        </a>
+      </Link>
+      <div />
     </div>
   )
 }

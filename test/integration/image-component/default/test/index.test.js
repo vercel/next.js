@@ -135,11 +135,6 @@ function runTests(mode) {
           imagesrcset:
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         },
-        {
-          imagesizes: '',
-          imagesrcset:
-            '/_next/image?url=%2Ftest.webp&w=1200&q=75 1x, /_next/image?url=%2Ftest.webp&w=3840&q=75 2x',
-        },
       ])
 
       // When priority={true}, we should _not_ set loading="lazy"
@@ -155,9 +150,6 @@ function runTests(mode) {
       expect(
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
-      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
-        null
-      )
 
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
@@ -294,10 +286,6 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("img8").currentSrc`),
         /test-rect.jpg/
-      )
-      await check(
-        () => browser.eval(`document.getElementById("msg9").textContent`),
-        'loaded 1 img9 with dimensions 400x400'
       )
     } finally {
       if (browser) {
@@ -706,151 +694,6 @@ function runTests(mode) {
     }
   })
 
-  it('should render no wrappers or sizers and minimal styling with layout-raw', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/layout-raw')
-
-      const numberOfChildren = await browser.eval(
-        `document.getElementById('image-container1').children.length`
-      )
-      expect(numberOfChildren).toBe(1)
-      const childElementType = await browser.eval(
-        `document.getElementById('image-container1').children[0].nodeName`
-      )
-      expect(childElementType).toBe('IMG')
-
-      expect(await browser.elementById('raw1').getAttribute('style')).toBeNull()
-      expect(await browser.elementById('raw1').getAttribute('height')).toBe(
-        '700'
-      )
-      expect(await browser.elementById('raw1').getAttribute('width')).toBe(
-        '1200'
-      )
-      expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
-        `/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x`
-      )
-      expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
-        'eager'
-      )
-
-      expect(await browser.elementById('raw2').getAttribute('style')).toBe(
-        'padding-left:4rem;width:100%;object-position:30% 30%'
-      )
-      expect(await browser.elementById('raw2').getAttribute('height')).toBe(
-        '700'
-      )
-      expect(await browser.elementById('raw2').getAttribute('width')).toBe(
-        '1200'
-      )
-      expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
-        `/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w`
-      )
-      expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
-        'lazy'
-      )
-
-      expect(await browser.elementById('raw3').getAttribute('style')).toBeNull()
-      expect(await browser.elementById('raw3').getAttribute('srcset')).toBe(
-        `/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x`
-      )
-      if (mode === 'dev') {
-        await waitFor(1000)
-        const warnings = (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
-        expect(warnings).toMatch(
-          /Image with src "\/wide.png" has either width or height modified, but not the other./gm
-        )
-        expect(warnings).not.toMatch(
-          /Image with src "\/test.png" has either width or height modified, but not the other./gm
-        )
-      }
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should lazy load layout=raw and placeholder=blur', async () => {
-    const browser = await webdriver(appPort, '/layout-raw-placeholder-blur')
-
-    // raw1
-    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
-    )
-    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
-    )
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
-      'lazy'
-    )
-    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('style')).toMatch(
-      'background-size:cover;background-position:0% 0%;'
-    )
-    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
-    await browser.eval(
-      `document.getElementById("raw1").scrollIntoView({behavior: "smooth"})`
-    )
-    await check(
-      () => browser.eval(`document.getElementById("raw1").currentSrc`),
-      /test(.*)jpg/
-    )
-    expect(await browser.elementById('raw1').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
-    )
-    expect(await browser.elementById('raw1').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
-    )
-    expect(await browser.elementById('raw1').getAttribute('loading')).toBe(
-      'lazy'
-    )
-    expect(await browser.elementById('raw1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('raw1').getAttribute('style')).toMatch('')
-    expect(await browser.elementById('raw1').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw1').getAttribute('width')).toBe('400')
-
-    // raw2
-    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
-    )
-    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
-    )
-    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
-      'lazy'
-    )
-    expect(await browser.elementById('raw2').getAttribute('style')).toMatch(
-      'background-size:cover;background-position:0% 0%;'
-    )
-    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
-    await browser.eval(
-      `document.getElementById("raw2").scrollIntoView({behavior: "smooth"})`
-    )
-    await check(
-      () => browser.eval(`document.getElementById("raw2").currentSrc`),
-      /test(.*)png/
-    )
-    expect(await browser.elementById('raw2').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
-    )
-    expect(await browser.elementById('raw2').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
-    )
-    expect(await browser.elementById('raw2').getAttribute('sizes')).toBe('50vw')
-    expect(await browser.elementById('raw2').getAttribute('loading')).toBe(
-      'lazy'
-    )
-    expect(await browser.elementById('raw2').getAttribute('style')).toBe('')
-    expect(await browser.elementById('raw2').getAttribute('height')).toBe('400')
-    expect(await browser.elementById('raw2').getAttribute('width')).toBe('400')
-  })
-
   it('should handle the styles prop appropriately', async () => {
     let browser
     try {
@@ -868,11 +711,7 @@ function runTests(mode) {
       ).toBe(
         'width:0;border-radius:10px;margin:auto;position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;display:block;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
       )
-      expect(
-        await browser
-          .elementById('with-overlapping-styles-raw')
-          .getAttribute('style')
-      ).toBe('width:10px;border-radius:10px;margin:15px')
+
       expect(
         await browser
           .elementById('without-styles-responsive')
@@ -880,9 +719,6 @@ function runTests(mode) {
       ).toBe(
         'position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%'
       )
-      expect(
-        await browser.elementById('without-styles-raw').getAttribute('style')
-      ).toBeNull()
 
       if (mode === 'dev') {
         await waitFor(1000)
@@ -961,15 +797,6 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
-      )
-    })
-
-    it('should show error when layout=raw and lazyBoundary assigned', async () => {
-      const browser = await webdriver(appPort, '/invalid-raw-lazy-boundary')
-
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        `Image with src "/test.jpg" has "layout='raw'" and "lazyBoundary='500px'". For raw images, native lazy loading is used so "lazyBoundary" cannot be used.`
       )
     })
 
@@ -1321,10 +1148,6 @@ function runTests(mode) {
       `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
     )
 
-    expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
-      `background-size:cover;background-position:0% 0%;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' xmlns%3Axlink='http%3A//www.w3.org/1999/xlink' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'%3E%3C/feGaussianBlur%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E'%3E%3C/image%3E%3C/svg%3E")`
-    )
-
     expect($html('#blurry-placeholder')[0].attribs.style).toContain(
       `background-position:0% 0%`
     )
@@ -1363,15 +1186,7 @@ function runTests(mode) {
           ),
         'none'
       )
-      await check(
-        async () =>
-          await getComputedStyle(
-            browser,
-            'blurry-placeholder-raw',
-            'background-image'
-          ),
-        'none'
-      )
+
       expect(
         await getComputedStyle(
           browser,

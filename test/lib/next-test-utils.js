@@ -607,42 +607,6 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
-export async function ignoreFullRefreshWarnings(browser) {
-  await browser.eval(() => {
-    sessionStorage.setItem('_has_warned_about_full_refresh', 'ignore')
-  })
-}
-
-export async function clickReloadOnFullRefreshWarning(browser) {
-  await retry(async () => {
-    const hasFullRefreshWarning = await evaluate(browser, () =>
-      Boolean(
-        Array.from(document.querySelectorAll('nextjs-portal')).find(
-          (p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_refresh_warning_label'
-            )?.textContent === 'About to perform a full refresh'
-        )
-      )
-    )
-    if (!hasFullRefreshWarning) throw new Error('No full refresh warning')
-    return evaluate(browser, () => {
-      const buttons = Array.from(document.querySelectorAll('nextjs-portal'))
-        .find(
-          (p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_refresh_warning_label'
-            )?.textContent === 'About to perform a full refresh'
-        )
-        .shadowRoot.querySelectorAll('button')
-
-      Array.from(buttons)
-        .find((b) => b.textContent === 'Reload')
-        .click()
-    })
-  })
-}
-
 export async function getRedboxHeader(browser) {
   return retry(
     () =>
@@ -803,6 +767,8 @@ function runSuite(suiteName, context, options) {
         const { stdout, stderr, code } = await nextBuild(appDir, [], {
           stderr: true,
           stdout: true,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
         context.stdout = stdout
         context.stderr = stderr
@@ -810,12 +776,16 @@ function runSuite(suiteName, context, options) {
         context.server = await nextStart(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       } else if (env === 'dev') {
         context.appPort = await findPort()
         context.server = await launchApp(context.appDir, context.appPort, {
           onStderr,
           onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
         })
       }
     })
@@ -833,7 +803,7 @@ function runSuite(suiteName, context, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runDevSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'dev' }, options)
@@ -843,7 +813,7 @@ export function runDevSuite(suiteName, appDir, options) {
  *
  * @param {string} suiteName
  * @param {string} appDir
- * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
  */
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)

@@ -48,7 +48,7 @@ import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-components'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import {
   createOriginalStackFrame,
   getErrorSource,
@@ -112,6 +112,7 @@ export default class DevServer extends Server {
    * routing items to be returned in `getMiddleware()`
    */
   private middleware?: RoutingItem[]
+  private edgeFunctions?: RoutingItem[]
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -336,9 +337,8 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            // TODO: should only routes ending in /index.js be route-able?
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName) || '/'
             appPaths[pageName] = originalPageName
 
             if (routedPages.includes(pageName)) {
@@ -382,18 +382,25 @@ export default class DevServer extends Server {
         }
 
         this.appPathRoutes = appPaths
-        this.middleware = getSortedRoutes(routedMiddleware).map((page) => {
-          const middlewareRegex =
-            page === '/' && middlewareMatcher
-              ? { re: middlewareMatcher, groups: {} }
-              : getMiddlewareRegex(page, {
-                  catchAll: !ssrMiddleware.has(page),
-                })
-          return {
+        this.middleware = []
+        this.edgeFunctions = []
+        getSortedRoutes(routedMiddleware).forEach((page) => {
+          const isRootMiddleware = page === '/' && !!middlewareMatcher
+          const middlewareRegex = isRootMiddleware
+            ? { re: middlewareMatcher!, groups: {} }
+            : getMiddlewareRegex(page, {
+                catchAll: !ssrMiddleware.has(page),
+              })
+          const routeItem = {
             match: getRouteMatcher(middlewareRegex),
             page,
             re: middlewareRegex.re,
-            ssr: ssrMiddleware.has(page),
+            ssr: !isRootMiddleware,
+          }
+
+          this.middleware!.push(routeItem)
+          if (!isRootMiddleware) {
+            this.edgeFunctions!.push(routeItem)
           }
         })
 
@@ -667,7 +674,16 @@ export default class DevServer extends Server {
       if (error instanceof DecodeError) {
         throw error
       }
-      this.logErrorWithOriginalStack(error)
+
+      /**
+       * We only log the error when it is not a MiddlewareNotFound error as
+       * in that case we should be already displaying a compilation error
+       * which is what makes the module not found.
+       */
+      if (!(error instanceof MiddlewareNotFoundError)) {
+        this.logErrorWithOriginalStack(error)
+      }
+
       const err = getProperError(error)
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params
@@ -687,6 +703,28 @@ export default class DevServer extends Server {
       response.statusCode = 500
       this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
+    }
+  }
+
+  async runEdgeFunction(params: {
+    req: BaseNextRequest
+    res: BaseNextResponse
+    query: ParsedUrlQuery
+    params: Params | undefined
+    page: string
+  }) {
+    try {
+      return super.runEdgeFunction(params)
+    } catch (error) {
+      if (error instanceof DecodeError) {
+        throw error
+      }
+      this.logErrorWithOriginalStack(error, 'warning')
+      const err = getProperError(error)
+      const { req, res, page } = params
+      res.statusCode = 500
+      this.renderError(err, req, res, page)
+      return null
     }
   }
 
@@ -757,7 +795,10 @@ export default class DevServer extends Server {
     if (isError(err) && err.stack) {
       try {
         const frames = parseStack(err.stack!)
-        const frame = frames.find(({ file }) => !file?.startsWith('eval'))!
+        const frame = frames.find(
+          ({ file }) =>
+            !file?.startsWith('eval') && !file?.includes('sandbox/context')
+        )!
 
         if (frame.lineNumber && frame?.file) {
           const moduleId = frame.file!.replace(
@@ -765,14 +806,12 @@ export default class DevServer extends Server {
             ''
           )
 
-          let compilation: any
-
-          const src = getErrorSource(err)
-          if (src === 'edge-server') {
-            compilation = this.hotReloader?.edgeServerStats?.compilation
-          } else {
-            compilation = this.hotReloader?.serverStats?.compilation
-          }
+          const src = getErrorSource(err as Error)
+          const compilation = (
+            src === 'edge-server'
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : this.hotReloader?.serverStats?.compilation
+          )!
 
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
@@ -787,23 +826,31 @@ export default class DevServer extends Server {
             frame,
             modulePath: moduleId,
             rootDirectory: this.dir,
+            errorMessage: err.message,
+            compilation,
           })
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
             const { file, lineNumber, column, methodName } = originalStackFrame
 
-            console.error(
-              (type === 'warning' ? chalk.yellow('warn') : chalk.red('error')) +
-                ' - ' +
-                `${file} (${lineNumber}:${column}) @ ${methodName}`
+            Log[type === 'warning' ? 'warn' : 'error'](
+              `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            console.error(
-              `${(type === 'warning' ? chalk.yellow : chalk.red)(err.name)}: ${
-                err.message
-              }`
-            )
-            console.error(originalCodeFrame)
+            if (src === 'edge-server') {
+              console[type === 'warning' ? 'warn' : 'error'](
+                `${(type === 'warning' ? chalk.yellow : chalk.red)(
+                  err.name
+                )}: ${err.message}`
+              )
+            } else if (type === 'warning') {
+              Log.warn(err)
+            } else if (type) {
+              Log.error(`${type}:`, err)
+            } else {
+              Log.error(err)
+            }
+            console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
         }
@@ -857,6 +904,10 @@ export default class DevServer extends Server {
 
   protected getMiddleware() {
     return this.middleware ?? []
+  }
+
+  protected getEdgeFunctions() {
+    return this.edgeFunctions ?? []
   }
 
   protected getServerComponentManifest() {
@@ -929,7 +980,7 @@ export default class DevServer extends Server {
           .body(
             JSON.stringify(
               this.getMiddleware().map((middleware) => [
-                (middleware as any).re.source,
+                middleware.re!.source,
                 !!middleware.ssr,
               ])
             )

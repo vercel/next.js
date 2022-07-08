@@ -1,4 +1,4 @@
-import type { PageRuntime } from '../../server/config-shared'
+import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
@@ -6,13 +6,14 @@ import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
+import { SERVER_RUNTIME } from '../../lib/constants'
 
 interface MiddlewareConfig {
   pathMatcher: RegExp
 }
 
 export interface PageStaticInfo {
-  runtime?: PageRuntime
+  runtime?: ServerRuntime
   ssg?: boolean
   ssr?: boolean
   middleware?: Partial<MiddlewareConfig>
@@ -39,15 +40,33 @@ export async function getPageStaticInfo(params: {
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
 
-    let runtime = ['experimental-edge', 'edge'].includes(config?.runtime)
-      ? 'edge'
-      : ssr || ssg
-      ? config?.runtime || nextConfig.experimental?.runtime
-      : undefined
+    if (
+      typeof config.runtime !== 'string' &&
+      typeof config.runtime !== 'undefined'
+    ) {
+      throw new Error(`Provided runtime `)
+    } else if (!isServerRuntime(config.runtime)) {
+      const options = Object.values(SERVER_RUNTIME).join(', ')
+      if (typeof config.runtime !== 'string') {
+        throw new Error(
+          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+        )
+      } else {
+        throw new Error(
+          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+        )
+      }
+    }
 
-    if (runtime === 'experimental-edge' || runtime === 'edge') {
+    let runtime =
+      SERVER_RUNTIME.edge === config?.runtime
+        ? SERVER_RUNTIME.edge
+        : ssr || ssg
+        ? config?.runtime || nextConfig.experimental?.runtime
+        : undefined
+
+    if (runtime === SERVER_RUNTIME.edge) {
       warnAboutExperimentalEdgeApiFunctions()
-      runtime = 'edge'
     }
 
     const middlewareConfig = getMiddlewareConfig(config, nextConfig)
