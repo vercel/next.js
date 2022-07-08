@@ -16,7 +16,6 @@ use crate::{
         CodeGeneration, CodeGenerationReference, CodeGenerationReferenceVc, CodeGenerationVc,
     },
     resolve::esm_resolve,
-    CodeGenerationReferenceVc,
 };
 
 #[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
