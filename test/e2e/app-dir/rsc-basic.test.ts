@@ -248,7 +248,7 @@ describe('app dir - react server components', () => {
     expect(manipulated).toBe(undefined)
   })
 
-  it('should suspense next/image in server components', async () => {
+  it.skip('should suspense next/image in server components', async () => {
     const imageHTML = await renderViaHTTP(next.url, '/next-api/image')
     const imageTag = getNodeBySelector(imageHTML, 'body > span > span > img')
 
