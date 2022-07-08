@@ -41,7 +41,7 @@ describe('Page using eval in dev mode', () => {
   beforeEach(() => (output = ''))
   afterAll(() => killApp(context.app))
 
-  it('does issue Dynamic code evaluation warnings', async () => {
+  it('does issue dynamic code evaluation warnings', async () => {
     const html = await renderViaHTTP(context.appPort, '/')
     expect(html).toMatch(/>.*?100.*?and.*?100.*?<\//)
     await waitFor(500)
