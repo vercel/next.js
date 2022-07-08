@@ -193,7 +193,7 @@ use crate::{
     cell::Cell,
     memory_backend::Job,
     output::Output,
-    scope::{RemoveResult, SetRootResult, TaskScopeId, TaskScopeList, TaskScopes},
+    scope::{RemoveResult, TaskScopeId, TaskScopes},
     stats, MemoryBackend,
 };
 
@@ -554,15 +554,6 @@ impl Task {
         }
     }
 
-    pub(crate) fn add_to_scope(
-        &self,
-        id: TaskScopeId,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        self.add_to_scope_internal(id, false, backend, turbo_tasks);
-    }
-
     pub(crate) fn add_to_scope_internal_shallow(
         &self,
         id: TaskScopeId,
@@ -590,7 +581,13 @@ impl Task {
                     }
                     let children = state.children.iter().copied().collect::<Vec<_>>();
 
-                    drop(self.add_self_to_new_scope(state, id, backend, turbo_tasks));
+                    // add to dirty list of the scope (potentially schedule)
+                    let schedule_self = self.add_self_to_new_scope(&mut state, id, backend);
+                    drop(state);
+
+                    if schedule_self {
+                        turbo_tasks.schedule(self.id);
+                    }
 
                     if !children.is_empty() {
                         return Some((children, will_be_optimized));
@@ -618,37 +615,29 @@ impl Task {
         }
     }
 
-    fn add_self_to_new_scope<'a>(
+    fn add_self_to_new_scope(
         &self,
-        mut state: RwLockWriteGuard<'a, TaskState>,
+        state: &mut RwLockWriteGuard<TaskState>,
         id: TaskScopeId,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Option<RwLockWriteGuard<'a, TaskState>> {
-        // add to dirty list of the scope (potentially schedule)
-        backend.with_scope(id, move |scope| {
+    ) -> bool {
+        let mut schedule_self = false;
+        backend.with_scope(id, |scope| {
             scope.increment_tasks();
             if !matches!(state.state_type, TaskStateType::Done) {
                 scope.increment_unfinished_tasks();
                 if state.state_type == TaskStateType::Dirty {
                     let mut scope = scope.state.lock().unwrap();
                     if scope.is_active() {
-                        drop(scope);
                         state.state_type = Scheduled;
-                        drop(state);
-                        turbo_tasks.schedule(self.id);
-                        None
+                        schedule_self = true;
                     } else {
                         scope.add_dirty_task(self.id);
-                        Some(state)
                     }
-                } else {
-                    Some(state)
                 }
-            } else {
-                Some(state)
             }
-        })
+        });
+        schedule_self
     }
 
     fn remove_from_scope_internal_shallow(
@@ -824,22 +813,7 @@ impl Task {
             }
 
             // add self to new root scope
-            let mut schedule_self = false;
-            backend.with_scope(root_scope, |scope| {
-                scope.increment_tasks();
-                if !matches!(state.state_type, Done) {
-                    scope.increment_unfinished_tasks();
-                    if state.state_type == TaskStateType::Dirty {
-                        let mut scope = scope.state.lock().unwrap();
-                        if scope.is_active() {
-                            state.state_type = Scheduled;
-                            schedule_self = true;
-                        } else {
-                            scope.add_dirty_task(self.id);
-                        }
-                    }
-                }
-            });
+            let schedule_self = self.add_self_to_new_scope(&mut state, root_scope, backend);
 
             // remove self from old scopes
             for (scope, _) in scopes.iter() {
@@ -1074,13 +1048,13 @@ impl Task {
                 for scope in scopes.iter() {
                     #[cfg(not(feature = "report_expensive"))]
                     {
-                        child.add_to_scope_internal(scope, true, backend, turbo_tasks);
+                        child.add_to_scope_internal(scope, false, backend, turbo_tasks);
                     }
                     #[cfg(feature = "report_expensive")]
                     {
                         use std::time::Instant;
                         let start = Instant::now();
-                        child.add_to_scope_internal(scope, true, backend, turbo_tasks);
+                        child.add_to_scope_internal(scope, false, backend, turbo_tasks);
                         let elapsed = start.elapsed();
                         if elapsed.as_millis() >= 100 {
                             println!(
@@ -1152,13 +1126,6 @@ impl Task {
             if let TaskScopes::Root(root) = state.scopes {
                 if let Some(listener) = backend.with_scope(root, |scope| {
                     if let Some(listener) = scope.has_unfinished_tasks(root, backend) {
-                        return Some(listener);
-                    }
-                    if let Some(listener) = scope.has_unfinished_tasks(root, backend) {
-                        println!(
-                            "First has_unfinished_tasks call lied to us (race condition?): {:?}",
-                            self.ty
-                        );
                         return Some(listener);
                     }
                     None

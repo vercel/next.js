@@ -4,7 +4,7 @@ pub mod fs;
 pub mod html;
 
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     future::Future,
     net::SocketAddr,
     pin::Pin,
@@ -54,23 +54,36 @@ impl DevServerVc {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+struct AssetsMap(HashMap<String, AssetVc>);
+
+#[turbo_tasks::function]
+async fn all_assets_map(root_path: FileSystemPathVc, root_asset: AssetVc) -> Result<AssetsMapVc> {
+    let mut map = HashMap::new();
+    let root_path = root_path.await?;
+    let assets = all_assets(root_asset).strongly_consistent();
+    for (p, asset) in assets
+        .await?
+        .iter()
+        .map(|asset| (asset.path(), *asset))
+        .collect::<Vec<_>>()
+    {
+        if let Some(sub_path) = root_path.get_path_to(&*p.await?) {
+            map.insert(sub_path.to_string(), asset);
+        }
+    }
+    Ok(AssetsMapVc::cell(map))
+}
+
 #[turbo_tasks::value_impl]
 impl DevServerVc {
     #[turbo_tasks::function]
     async fn find_asset(self, root_asset: AssetVc, path: &str) -> Result<FindAssetResultVc> {
-        let assets = all_assets(root_asset).strongly_consistent();
-        let root_path = &*self.await?.root_path.await?;
-        for (p, asset) in assets
-            .await?
-            .iter()
-            .map(|asset| (asset.path(), *asset))
-            .collect::<Vec<_>>()
-        {
-            if let Some(sub_path) = root_path.get_path_to(&*p.await?) {
-                if sub_path == path {
-                    return Ok(FindAssetResult::Found(asset).into());
-                }
-            }
+        let assets = all_assets_map(self.await?.root_path, root_asset)
+            .strongly_consistent()
+            .await?;
+        if let Some(asset) = assets.get(path) {
+            return Ok(FindAssetResult::Found(*asset).into());
         }
         Ok(FindAssetResult::NotFound.into())
     }

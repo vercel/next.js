@@ -233,6 +233,52 @@ pub trait FromChunkableAsset: Sized {
     ) -> Result<Option<Self>>;
 }
 
+pub async fn chunk_content_splitted<I: FromChunkableAsset>(
+    context: ChunkingContextVc,
+    entry: AssetVc,
+) -> Result<ChunkContentResult<I>> {
+    let chunk_items = vec![I::from_asset(context, entry).await?.unwrap()];
+    let mut processed_assets = HashSet::new();
+    let mut external_asset_references = Vec::new();
+    let mut chunks = Vec::new();
+    let mut pieces = Vec::new();
+    for r in entry.references().await?.iter() {
+        if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
+            if *pc.is_chunkable().await? {
+                pieces.push((r.resolve_reference().primary_assets(), *r));
+                continue;
+            }
+        }
+        external_asset_references.push(*r);
+    }
+    processed_assets.insert(entry);
+    'outer: for (assets, r) in pieces {
+        let mut inner_chunks = Vec::new();
+        for asset in assets
+            .await?
+            .iter()
+            .filter(|asset| processed_assets.insert(**asset))
+        {
+            // always make a separate chunk
+            if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
+                let chunk = chunkable_asset.as_chunk(context);
+                inner_chunks.push(chunk);
+            } else {
+                external_asset_references.push(r);
+                continue 'outer;
+            }
+        }
+        for chunk in inner_chunks {
+            chunks.push(chunk);
+        }
+    }
+    Ok(ChunkContentResult {
+        chunk_items,
+        chunks,
+        async_chunk_groups: Vec::new(),
+        external_asset_references,
+    })
+}
 enum ChunkContentWorkItem {
     AssetReferences(AssetReferencesVc),
     Assets(AssetsVc, AssetReferenceVc),
@@ -241,7 +287,7 @@ enum ChunkContentWorkItem {
 pub async fn chunk_content<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
-) -> Result<ChunkContentResult<I>> {
+) -> Result<Option<ChunkContentResult<I>>> {
     let mut chunk_items = Vec::new();
     let mut processed_assets = HashSet::new();
     let mut chunks = Vec::new();
@@ -332,6 +378,7 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         continue 'outer;
                     }
                 }
+                let prev_chunk_items = chunk_items.len();
                 for chunk_item in inner_chunk_items {
                     chunk_items.push(chunk_item);
                 }
@@ -344,18 +391,25 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 for chunk_group in inner_chunk_groups {
                     async_chunk_groups.push(chunk_group);
                 }
+                let chunk_items_count = chunk_items.len();
+                if prev_chunk_items != chunk_items_count
+                    && chunk_items_count > 1000
+                    && prev_chunk_items > 1
+                {
+                    // Chunk is too large, cancel this algorithm and
+                    // restart with splitting from the start
+                    return Ok(None);
+                }
             }
         }
     }
 
-    // TODO if there are too many chunk_items
-    // split the chunk by a deterministic min/max size algorithm
-    Ok(ChunkContentResult {
+    Ok(Some(ChunkContentResult {
         chunk_items,
         chunks,
         async_chunk_groups,
         external_asset_references,
-    })
+    }))
 }
 
 #[turbo_tasks::value_trait]
