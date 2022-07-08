@@ -613,13 +613,18 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
-    if (renderOpts.isAppPath) {
+    if (
+      this.nextConfig.experimental.appDir &&
+      (renderOpts.isAppPath || query.__flight__)
+    ) {
+      const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts
+        renderOpts,
+        isPagesDir
       )
     }
 
