@@ -4,7 +4,7 @@ import useSwr from 'swr'
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-export default function UserComponent() {
+export default function UserPage() {
   const router = useRouter()
   const { data, error } = useSwr<User>(
     router.query.id ? `/api/user/${router.query.id}` : null,
