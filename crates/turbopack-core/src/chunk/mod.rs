@@ -10,8 +10,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
-    asset::{Asset, AssetVc},
-    reference::{AssetReference, AssetReferenceVc},
+    asset::{Asset, AssetVc, AssetsVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
 
@@ -233,92 +233,183 @@ pub trait FromChunkableAsset: Sized {
     ) -> Result<Option<Self>>;
 }
 
-pub async fn chunk_content<I: FromChunkableAsset>(
+pub async fn chunk_content_splitted<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
 ) -> Result<ChunkContentResult<I>> {
+    let chunk_items = vec![I::from_asset(context, entry).await?.unwrap()];
+    let mut processed_assets = HashSet::new();
+    let mut external_asset_references = Vec::new();
+    let mut chunks = Vec::new();
+    let mut pieces = Vec::new();
+    for r in entry.references().await?.iter() {
+        if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
+            if *pc.is_chunkable().await? {
+                pieces.push((r.resolve_reference().primary_assets(), *r));
+                continue;
+            }
+        }
+        external_asset_references.push(*r);
+    }
+    processed_assets.insert(entry);
+    'outer: for (assets, r) in pieces {
+        let mut inner_chunks = Vec::new();
+        for asset in assets
+            .await?
+            .iter()
+            .filter(|asset| processed_assets.insert(**asset))
+        {
+            // always make a separate chunk
+            if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
+                let chunk = chunkable_asset.as_chunk(context);
+                inner_chunks.push(chunk);
+            } else {
+                external_asset_references.push(r);
+                continue 'outer;
+            }
+        }
+        for chunk in inner_chunks {
+            chunks.push(chunk);
+        }
+    }
+    Ok(ChunkContentResult {
+        chunk_items,
+        chunks,
+        async_chunk_groups: Vec::new(),
+        external_asset_references,
+    })
+}
+enum ChunkContentWorkItem {
+    AssetReferences(AssetReferencesVc),
+    Assets(AssetsVc, AssetReferenceVc),
+}
+
+pub async fn chunk_content<I: FromChunkableAsset>(
+    context: ChunkingContextVc,
+    entry: AssetVc,
+) -> Result<Option<ChunkContentResult<I>>> {
     let mut chunk_items = Vec::new();
     let mut processed_assets = HashSet::new();
     let mut chunks = Vec::new();
     let mut async_chunk_groups = Vec::new();
     let mut external_asset_references = Vec::new();
-    let mut references_queue = VecDeque::new();
+    let mut queue = VecDeque::new();
 
     chunk_items.push(I::from_asset(context, entry).await?.unwrap());
     processed_assets.insert(entry);
-    references_queue.push_back(entry.references());
+    queue.push_back(ChunkContentWorkItem::AssetReferences(entry.references()));
 
-    while let Some(item) = references_queue.pop_front() {
-        'outer: for r in item.await?.iter() {
-            let r: &AssetReferenceVc = r;
-            let is_async = if let Some(al) = AsyncLoadableReferenceVc::resolve_from(r).await? {
-                *al.is_loaded_async().await?
-            } else {
-                false
-            };
-
-            if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
-                if *pc.is_chunkable().await? {
-                    for asset in r
-                        .resolve_reference()
-                        .primary_assets()
-                        .await?
-                        .iter()
-                        .filter(|asset| processed_assets.insert(**asset))
-                    {
-                        let asset: &AssetVc = asset;
-
-                        let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
-                            Some(chunkabe_asset) => chunkabe_asset,
-                            _ => {
-                                external_asset_references.push(*r);
-                                continue 'outer;
-                            }
-                        };
-
-                        if is_async {
-                            if let Some(chunk_item) =
-                                I::from_async_asset(context, chunkable_asset).await?
-                            {
-                                chunk_items.push(chunk_item);
-                                async_chunk_groups
-                                    .push(ChunkGroupVc::from_asset(chunkable_asset, context));
-                                continue;
-                            } else {
-                                external_asset_references.push(*r);
-                                continue 'outer;
-                            }
+    'outer: while let Some(item) = queue.pop_front() {
+        match item {
+            ChunkContentWorkItem::AssetReferences(item) => {
+                for r in item.await?.iter() {
+                    if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
+                        if *pc.is_chunkable().await? {
+                            queue.push_back(ChunkContentWorkItem::Assets(
+                                r.resolve_reference().primary_assets(),
+                                *r,
+                            ));
+                            continue;
                         }
-
-                        // heuristic for being in the same chunk
-                        if *context.can_be_in_same_chunk(entry, *asset).await? {
-                            // chunk item, chunk or other asset?
-                            if let Some(chunk_item) = I::from_asset(context, *asset).await? {
-                                chunk_items.push(chunk_item);
-                                references_queue.push_back(asset.references());
-                                continue;
-                            }
-                        }
-
-                        // fallback to chunk
-                        let chunk = chunkable_asset.as_chunk(context);
-                        chunks.push(chunk);
                     }
-                    continue;
+                    external_asset_references.push(*r);
                 }
             }
-            external_asset_references.push(*r);
+            ChunkContentWorkItem::Assets(item, r) => {
+                // It's important to temporary store these results in these variables
+                // so that we can cancel to complete list of assets by that references together
+                // and fallback to an external reference completely
+                // The cancellation is at these "continue 'outer;" lines
+                let mut inner_chunk_items = Vec::new();
+                let mut inner_assets = Vec::new();
+                let mut inner_chunks = Vec::new();
+                let mut inner_chunk_groups = Vec::new();
+                for asset in item
+                    .await?
+                    .iter()
+                    .filter(|asset| processed_assets.insert(**asset))
+                {
+                    let asset: &AssetVc = asset;
+
+                    let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
+                        Some(chunkabe_asset) => chunkabe_asset,
+                        _ => {
+                            external_asset_references.push(r);
+                            continue 'outer;
+                        }
+                    };
+
+                    let is_async =
+                        if let Some(al) = AsyncLoadableReferenceVc::resolve_from(r).await? {
+                            *al.is_loaded_async().await?
+                        } else {
+                            false
+                        };
+                    if is_async {
+                        if let Some(chunk_item) =
+                            I::from_async_asset(context, chunkable_asset).await?
+                        {
+                            inner_chunk_items.push(chunk_item);
+                            inner_chunk_groups
+                                .push(ChunkGroupVc::from_asset(chunkable_asset, context));
+                            continue;
+                        } else {
+                            external_asset_references.push(r);
+                            continue 'outer;
+                        }
+                    }
+
+                    // heuristic for being in the same chunk
+                    if *context.can_be_in_same_chunk(entry, *asset).await? {
+                        // chunk item, chunk or other asset?
+                        if let Some(chunk_item) = I::from_asset(context, *asset).await? {
+                            inner_chunk_items.push(chunk_item);
+                            inner_assets.push(*asset);
+                            continue;
+                        }
+                    }
+
+                    // fallback to chunk if possible
+                    if let Some(chunkable_asset) = ChunkableAssetVc::resolve_from(asset).await? {
+                        let chunk = chunkable_asset.as_chunk(context);
+                        inner_chunks.push(chunk);
+                    } else {
+                        external_asset_references.push(r);
+                        continue 'outer;
+                    }
+                }
+                let prev_chunk_items = chunk_items.len();
+                for chunk_item in inner_chunk_items {
+                    chunk_items.push(chunk_item);
+                }
+                for asset in inner_assets {
+                    queue.push_back(ChunkContentWorkItem::AssetReferences(asset.references()));
+                }
+                for chunk in inner_chunks {
+                    chunks.push(chunk);
+                }
+                for chunk_group in inner_chunk_groups {
+                    async_chunk_groups.push(chunk_group);
+                }
+                let chunk_items_count = chunk_items.len();
+                if prev_chunk_items != chunk_items_count
+                    && chunk_items_count > 5000
+                    && prev_chunk_items > 1
+                {
+                    // Chunk is too large, cancel this algorithm and
+                    // restart with splitting from the start
+                    return Ok(None);
+                }
+            }
         }
     }
 
-    // TODO if there are too many chunk_items
-    // split the chunk by a deterministic min/max size algorithm
-    Ok(ChunkContentResult {
+    Ok(Some(ChunkContentResult {
         chunk_items,
         chunks,
         async_chunk_groups,
         external_asset_references,
-    })
+    }))
 }
 
 #[turbo_tasks::value_trait]

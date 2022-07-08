@@ -492,6 +492,22 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
+    let strongly_consistent = if let Some(inner_type) = inner_type {
+        quote! {
+            #[must_use]
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type> {
+                self.node.into_strongly_consistent_read::<#ident>().map(|r| &r.0)
+            }
+        }
+    } else {
+        quote! {
+            #[must_use]
+            pub fn strongly_consistent(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
+                self.node.into_strongly_consistent_read::<#ident>()
+            }
+        }
+    };
+
     let expanded = quote! {
         #derive
         #eq_derive
@@ -538,6 +554,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
             }
+
+            #strongly_consistent
 
             #(
                 pub fn #as_trait_methods(self) -> #trait_refs {
@@ -803,7 +821,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             trait_fns.push(quote! {
                 fn #method_ident(#(#method_args),*) -> #output_type {
                     // TODO use const string
-                    let result = turbo_tasks::trait_call(*#trait_type_id_ident, stringify!(#method_ident).to_string(), vec![self.into(), #(#args),*]);
+                    let result = turbo_tasks::trait_call(*#trait_type_id_ident, std::borrow::Cow::Borrowed(stringify!(#method_ident)), vec![self.into(), #(#args),*]);
                     #convert_result_code
                 }
             });

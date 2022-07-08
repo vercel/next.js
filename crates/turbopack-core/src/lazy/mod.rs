@@ -44,6 +44,10 @@ impl Eq for LazyAsset {}
 impl LazyAssetVc {
     #[turbo_tasks::function]
     pub fn new(asset: AssetVc) -> Self {
+        // prefetch
+        asset.path();
+        asset.content();
+        // create vc
         Self::cell(LazyAsset {
             asset,
             state: Mutex::new(LazyAssetState::Idle),
@@ -68,20 +72,32 @@ impl Asset for LazyAsset {
                 invalidator.invalidate();
             }
         }
-        self.asset.content()
+        let result = self.asset.content();
+        // prefetch
+        self.asset.references();
+        // return
+        result
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        let mut state = self.state.lock().unwrap();
-        match &*state {
-            LazyAssetState::Idle => {
-                *state = LazyAssetState::Waiting(get_invalidator());
-                AssetReferencesVc::cell(Vec::new())
+    async fn references(&self) -> Result<AssetReferencesVc> {
+        {
+            let mut state = self.state.lock().unwrap();
+            match &*state {
+                LazyAssetState::Idle => {
+                    *state = LazyAssetState::Waiting(get_invalidator());
+                    return Ok(AssetReferencesVc::cell(Vec::new()));
+                }
+                LazyAssetState::Waiting(_) => unreachable!(),
+                LazyAssetState::Expanded => {}
             }
-            LazyAssetState::Waiting(_) => unreachable!(),
-            LazyAssetState::Expanded => self.asset.references(),
         }
+        let refs = self.asset.references().await?;
+        Ok(AssetReferencesVc::cell(
+            refs.iter()
+                .map(|r| LazyAssetReferenceVc::new(*r).into())
+                .collect(),
+        ))
     }
 }
 

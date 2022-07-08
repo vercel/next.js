@@ -8,10 +8,14 @@ bench = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+assert_task_state = []
+tokio_tracing = ["tokio/tracing"]
+
 [dependencies]
 any_key = "0.1.1"
 anyhow = "1.0.47"
-tokio = { version = "1.11.0", features = ["full", "tracing"] }
+tokio = { version = "1.11.0", features = ["full"] }
 bitflags = "1.3.2"
 flurry = "0.4.0"
 event-listener = "2.5.2"
@@ -25,7 +29,3 @@ thiserror = "1.0.31"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
-
-[features]
-assert_task_state = []
-report_expensive = []

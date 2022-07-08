@@ -1092,7 +1092,7 @@ mod tests {
             fn trait_call(
                 &self,
                 trait_type: turbo_tasks::TraitTypeId,
-                trait_fn_name: String,
+                trait_fn_name: Cow<'static, str>,
                 inputs: Vec<turbo_tasks::TaskInput>,
             ) -> RawVc {
                 todo!()

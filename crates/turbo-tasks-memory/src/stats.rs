@@ -3,6 +3,7 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     fmt::Display,
     mem::take,
+    time::Duration,
 };
 
 use turbo_tasks::{registry, FunctionId, TaskId, TraitTypeId};
@@ -46,10 +47,27 @@ pub enum ReferenceType {
     Input,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct TaskStats {
     pub count: usize,
+    pub executions: usize,
+    pub roots: usize,
+    pub scopes: usize,
+    pub total_duration: Duration,
     pub references: HashMap<(ReferenceType, TaskType), ReferenceStats>,
+}
+
+impl Default for TaskStats {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            executions: 0,
+            roots: 0,
+            scopes: 0,
+            total_duration: Duration::ZERO,
+            references: Default::default(),
+        }
+    }
 }
 
 pub struct Stats {
@@ -67,6 +85,13 @@ impl Stats {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
+        let (duration, executions, root, scopes) = task.get_stats_info();
+        stats.total_duration += duration;
+        stats.executions += executions as usize;
+        if root {
+            stats.roots += 1;
+        }
+        stats.scopes += scopes;
 
         let references = task.get_stats_references();
         let set: HashSet<_> = references.into_iter().collect();

@@ -12,6 +12,7 @@ bench = false
 
 [features]
 persistent_cache = ["dep:turbo-tasks-rocksdb"]
+tokio_console = ["dep:console-subscriber", "tokio/tracing", "turbo-tasks/tokio_tracing"]
 
 [dependencies]
 clap = { version = "3.1.3", features = ["derive"] }
@@ -23,10 +24,10 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
 anyhow = "1.0.47"
-tokio = { version = "1.11.0", features = ["full", "tracing"] }
+tokio = { version = "1.11.0", features = ["full"] }
 json = "0.12.4"
 serde = "1.0.136"
-console-subscriber = "0.1.6"
+console-subscriber = { version = "0.1.6", optional = true }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

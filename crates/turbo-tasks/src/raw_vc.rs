@@ -117,8 +117,29 @@ impl RawVc {
         ReadRawVcFuture::new(self)
     }
 
+    pub fn into_strongly_consistent_read<T: Any + Send + Sync>(self) -> ReadRawVcFuture<T> {
+        // returns a custom future to have something concrete and sized
+        // this avoids boxing in IntoFuture
+        ReadRawVcFuture::new_strongly_consistent(self)
+    }
+
     pub async unsafe fn into_read_untracked<T: Any + Send + Sync>(
         self,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> Result<RawVcReadResult<T>> {
+        unsafe { self.into_read_untracked_internal(false, turbo_tasks).await }
+    }
+
+    pub async unsafe fn into_strongly_consistent_read_untracked<T: Any + Send + Sync>(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> Result<RawVcReadResult<T>> {
+        unsafe { self.into_read_untracked_internal(true, turbo_tasks).await }
+    }
+
+    async unsafe fn into_read_untracked_internal<T: Any + Send + Sync>(
+        self,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksApi,
     ) -> Result<RawVcReadResult<T>> {
         turbo_tasks.notify_scheduled_tasks();
@@ -126,7 +147,10 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = unsafe { read_task_output_untracked(turbo_tasks, task) }.await?
+                    current = unsafe {
+                        read_task_output_untracked(turbo_tasks, task, strongly_consistent)
+                    }
+                    .await?
                 }
                 RawVc::TaskCell(task, index) => {
                     return Ok(
@@ -149,7 +173,7 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task)
+                    current = read_task_output(&*tt, task, false)
                         .await
                         .map_err(|source| ResolveTraitError::TaskError { source })?;
                 }
@@ -186,7 +210,7 @@ impl RawVc {
                         tt.notify_scheduled_tasks();
                         notified = true;
                     }
-                    current = read_task_output(&*tt, task).await?;
+                    current = read_task_output(&*tt, task, false).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
             }
@@ -222,6 +246,7 @@ impl Display for RawVc {
 
 pub struct ReadRawVcFuture<T: Any + Send + Sync> {
     turbo_tasks: Arc<dyn TurboTasksApi>,
+    strongly_consistent: bool,
     current: RawVc,
     listener: Option<EventListener>,
     phantom_data: PhantomData<Pin<Box<T>>>,
@@ -233,6 +258,19 @@ impl<T: Any + Send + Sync> ReadRawVcFuture<T> {
         tt.notify_scheduled_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
+            strongly_consistent: false,
+            current: vc,
+            listener: None,
+            phantom_data: PhantomData,
+        }
+    }
+
+    fn new_strongly_consistent(vc: RawVc) -> Self {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        ReadRawVcFuture {
+            turbo_tasks: tt,
+            strongly_consistent: true,
             current: vc,
             listener: None,
             phantom_data: PhantomData,
@@ -265,8 +303,12 @@ impl<T: Any + Send + Sync> Future for ReadRawVcFuture<T> {
                 this.listener = None;
             }
             let mut listener = match this.current {
-                RawVc::TaskOutput(task) => match this.turbo_tasks.try_read_task_output(task) {
+                RawVc::TaskOutput(task) => match this
+                    .turbo_tasks
+                    .try_read_task_output(task, this.strongly_consistent)
+                {
                     Ok(Ok(vc)) => {
+                        this.strongly_consistent = false;
                         this.current = vc;
                         continue 'outer;
                     }

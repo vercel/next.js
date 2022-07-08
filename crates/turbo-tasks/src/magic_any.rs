@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{
-    any::{type_name, Any, TypeId},
+    any::{Any, TypeId},
     cmp::Ordering,
     fmt::Debug,
     hash::{Hash, Hasher},
@@ -37,7 +37,7 @@ impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
         d.field(&TypeId::of::<Self>());
 
         #[cfg(debug_assertions)]
-        d.field(&type_name::<Self>());
+        d.field(&std::any::type_name::<Self>());
 
         d.field(&(self as &Self));
         d.finish()
@@ -63,7 +63,7 @@ impl<T: Debug + Eq + Ord + Hash + Send + Sync + 'static> MagicAny for T {
 
     #[cfg(debug_assertions)]
     fn magic_type_name(&self) -> &'static str {
-        type_name::<T>()
+        std::any::type_name::<T>()
     }
 }
 
@@ -125,7 +125,7 @@ impl dyn MagicAny {
             panic!(
                 "MagicAny::as_serializable broken: got {} but expected {}",
                 self.magic_type_name(),
-                type_name::<T>()
+                std::any::type_name::<T>()
             );
             #[cfg(not(debug_assertions))]
             panic!("MagicAny::as_serializable bug");

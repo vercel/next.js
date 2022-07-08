@@ -47,7 +47,7 @@ define_id!(TaskId);
 define_id!(FunctionId);
 define_id!(ValueTypeId);
 define_id!(TraitTypeId);
-define_id!(BackgroundJobId);
+define_id!(BackendJobId);
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

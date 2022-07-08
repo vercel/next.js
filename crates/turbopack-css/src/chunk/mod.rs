@@ -4,9 +4,9 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        chunk_content, Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItemVc,
-        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset,
-        ModuleIdVc,
+        chunk_content, chunk_content_splitted, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
+        ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
+        FromChunkableAsset, ModuleIdVc,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
 };
@@ -55,7 +55,11 @@ async fn css_chunk_content(
     context: ChunkingContextVc,
     entry: AssetVc,
 ) -> Result<CssChunkContentResultVc> {
-    let res = chunk_content::<CssChunkItemVc>(context, entry).await?;
+    let res = if let Some(res) = chunk_content::<CssChunkItemVc>(context, entry).await? {
+        res
+    } else {
+        chunk_content_splitted::<CssChunkItemVc>(context, entry).await?
+    };
 
     Ok(CssChunkContentResultVc::cell(res.into()))
 }

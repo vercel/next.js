@@ -12,7 +12,6 @@ bench = false
 lazy_static = "1.4.0"
 anyhow = "1.0.47"
 turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 tokio = "1.11.0"
 notify = "4.0.17"
 concurrent-queue = "1.2.2"
@@ -22,6 +21,7 @@ serde = { version = "1.0.136", features = ["rc"] }
 [dev-dependencies]
 sha2 = "0.10.2"
 rstest = "0.12.0"
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

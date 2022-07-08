@@ -1,4 +1,11 @@
-use std::{cell::RefCell, collections::HashSet, future::Future, pin::Pin};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    future::Future,
+    pin::Pin,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 
 use anyhow::Result;
 use event_listener::EventListener;
@@ -6,7 +13,7 @@ use flurry::HashMap as FHashMap;
 use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
     backend::{
-        Backend, BackgroundJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
+        Backend, BackendJobId, CellContent, CellMappings, PersistentTaskType, TaskExecutionSpec,
         TransientTaskType,
     },
     util::{IdFactory, NoMoveVec},
@@ -15,23 +22,30 @@ use turbo_tasks::{
 
 use crate::{
     output::Output,
-    task::{Task, DEPENDENCIES_TO_TRACK},
+    scope::{TaskScope, TaskScopeId},
+    task::{run_add_to_scope_queue, run_remove_from_scope_queue, Task, DEPENDENCIES_TO_TRACK},
 };
 
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
-    background_jobs: NoMoveVec<BackgroundJob>,
-    background_job_id_factory: IdFactory<BackgroundJobId>,
+    memory_task_scopes: NoMoveVec<TaskScope>,
+    scope_id_factory: IdFactory<TaskScopeId>,
+    backend_jobs: NoMoveVec<Job>,
+    backend_job_id_factory: IdFactory<BackendJobId>,
     task_cache: FHashMap<PersistentTaskType, TaskId>,
+    scope_generation: AtomicUsize,
 }
 
 impl MemoryBackend {
     pub fn new() -> Self {
         Self {
             memory_tasks: NoMoveVec::new(),
-            background_jobs: NoMoveVec::new(),
-            background_job_id_factory: IdFactory::new(),
+            memory_task_scopes: NoMoveVec::new(),
+            scope_id_factory: IdFactory::new(),
+            backend_jobs: NoMoveVec::new(),
+            backend_job_id_factory: IdFactory::new(),
             task_cache: FHashMap::new(),
+            scope_generation: AtomicUsize::new(0),
         }
     }
 
@@ -46,11 +60,11 @@ impl MemoryBackend {
         });
     }
 
-    pub(crate) fn create_background_job(&self, job: BackgroundJob) -> BackgroundJobId {
-        let id = self.background_job_id_factory.get();
+    pub(crate) fn create_backend_job(&self, job: Job) -> BackendJobId {
+        let id = self.backend_job_id_factory.get();
         // SAFETY: This is a fresh id
         unsafe {
-            self.background_jobs.insert(*id, job);
+            self.backend_jobs.insert(*id, job);
         }
         id
     }
@@ -58,9 +72,13 @@ impl MemoryBackend {
     fn try_get_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         id: TaskId,
+        strongly_consistent: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi,
         func: F,
     ) -> Result<Result<T, EventListener>> {
-        self.with_task(id, |task| task.get_or_wait_output(func))
+        self.with_task(id, |task| {
+            task.get_or_wait_output(strongly_consistent, func, self, turbo_tasks)
+        })
     }
 
     pub fn with_all_cached_tasks(&self, mut func: impl FnMut(TaskId)) {
@@ -71,6 +89,106 @@ impl MemoryBackend {
 
     pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
         func(&self.memory_tasks.get(*id).unwrap())
+    }
+
+    pub fn with_scope<T>(&self, id: TaskScopeId, func: impl FnOnce(&TaskScope) -> T) -> T {
+        func(&self.memory_task_scopes.get(*id).unwrap())
+    }
+
+    pub fn create_new_scope(&self) -> TaskScopeId {
+        let id = self.scope_id_factory.get();
+        unsafe {
+            self.memory_task_scopes.insert(*id, TaskScope::new(id));
+        }
+        id
+    }
+
+    pub fn create_new_active_scope(&self) -> TaskScopeId {
+        let id = self.scope_id_factory.get();
+        unsafe {
+            self.memory_task_scopes
+                .insert(*id, TaskScope::new_active(id));
+        }
+        id
+    }
+
+    fn increase_scope_active_queue(
+        &self,
+        mut queue: Vec<TaskScopeId>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        while let Some(scope) = queue.pop() {
+            if let Some(tasks) = self.with_scope(scope, |scope| {
+                scope.state.lock().unwrap().increment_active(&mut queue)
+            }) {
+                turbo_tasks.schedule_backend_foreground_job(
+                    self.create_backend_job(Job::ScheduleWhenDirty(tasks)),
+                );
+            }
+        }
+    }
+
+    pub(crate) fn increase_scope_active(
+        &self,
+        scope: TaskScopeId,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.increase_scope_active_queue(vec![scope], turbo_tasks);
+    }
+
+    pub(crate) fn increase_scope_active_by(
+        &self,
+        scope: TaskScopeId,
+        count: usize,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut queue = Vec::new();
+        if let Some(tasks) = self.with_scope(scope, |scope| {
+            scope
+                .state
+                .lock()
+                .unwrap()
+                .increment_active_by(count, &mut queue)
+        }) {
+            for task in tasks.into_iter() {
+                turbo_tasks.schedule(task);
+            }
+        }
+        self.increase_scope_active_queue(queue, turbo_tasks);
+    }
+
+    pub(crate) fn decrease_scope_active(
+        &self,
+        scope: TaskScopeId,
+        _turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let mut queue = vec![scope];
+        while let Some(scope) = queue.pop() {
+            self.with_scope(scope, |scope| {
+                scope.state.lock().unwrap().decrement_active(&mut queue)
+            });
+        }
+    }
+
+    pub(crate) fn acquire_scope_generation(&self) -> usize {
+        let mut generation = self.scope_generation.load(Ordering::Acquire);
+        while generation & 1 == 1 {
+            match self.scope_generation.compare_exchange_weak(
+                generation,
+                generation + 1,
+                Ordering::Release,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return generation + 1,
+                Err(result) => generation = result,
+            }
+        }
+        generation
+    }
+
+    pub(crate) fn flag_scope_change(&self) -> usize {
+        let prev = self.scope_generation.fetch_or(1, Ordering::AcqRel);
+        prev | 1
     }
 }
 
@@ -123,12 +241,13 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
+        duration: Duration,
         result: anyhow::Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
             task.execution_result(result, turbo_tasks);
-            task.execution_completed(cell_mappings, self, turbo_tasks)
+            task.execution_completed(cell_mappings, duration, self, turbo_tasks)
         })
     }
 
@@ -136,9 +255,10 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         reader: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        strongly_consistent: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_get_output(task, |output| {
+        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| {
             Task::add_dependency_to_current(RawVc::TaskOutput(task));
             output.read(reader)
         })
@@ -147,9 +267,12 @@ impl Backend for MemoryBackend {
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        strongly_consistent: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_get_output(task, |output| unsafe { output.read_untracked() })
+        self.try_get_output(task, strongly_consistent, turbo_tasks, |output| unsafe {
+            output.read_untracked()
+        })
     }
 
     fn track_read_task_output(
@@ -220,18 +343,18 @@ impl Backend for MemoryBackend {
     }
 
     /// SAFETY: Must only called once with the same id
-    fn run_background_job<'a>(
+    fn run_backend_job<'a>(
         &'a self,
-        id: BackgroundJobId,
+        id: BackendJobId,
         turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         // SAFETY: id will not be reused until with job is done
-        if let Some(job) = unsafe { self.background_jobs.take(*id) } {
+        if let Some(job) = unsafe { self.backend_jobs.take(*id) } {
             Box::pin(async move {
                 job.run(self, turbo_tasks).await;
                 // SAFETY: This id will no longer be used
                 unsafe {
-                    self.background_job_id_factory.reuse(id);
+                    self.backend_job_id_factory.reuse(id);
                 }
             })
         } else {
@@ -300,44 +423,76 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
+        let scope = self.create_new_active_scope();
         let task = match task_type {
-            TransientTaskType::Root(f) => Task::new_root(id, move || {
+            TransientTaskType::Root(f) => Task::new_root(id, scope, move || {
                 let future = f();
                 future
             }),
-            TransientTaskType::Once(f) => Task::new_once(id, f),
+            TransientTaskType::Once(f) => Task::new_once(id, scope, f),
         };
         // SAFETY: We have a fresh task id where nobody knows about yet
-        unsafe {
-            self.memory_tasks.insert(*id, task);
-        }
+        let task = unsafe { self.memory_tasks.insert(*id, task) };
+        #[cfg(feature = "print_scope_updates")]
+        println!("new {scope} for {task}");
         id
     }
 }
 
-pub(crate) enum BackgroundJob {
-    RemoveTasks(HashSet<TaskId>),
-    RemoveTask(TaskId),
-    DeactivateTasks(Vec<TaskId>),
+pub(crate) enum Job {
+    RemoveFromScopes(
+        HashSet<TaskId>,
+        Vec<TaskScopeId>,
+        bool, /* will_be_optimized */
+    ),
+    RemoveFromScope(HashSet<TaskId>, TaskScopeId),
+    RemoveRootScope(TaskId),
+    MakeRootScoped(TaskId),
+    ScheduleWhenDirty(Vec<TaskId>),
+    AddToScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
+    RemoveFromScopeQueue(Vec<(Vec<TaskId>, bool)>, usize, TaskScopeId),
 }
 
-impl BackgroundJob {
+impl Job {
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
-            BackgroundJob::RemoveTasks(tasks) => {
-                for id in tasks {
-                    backend.with_task(id, |task| {
-                        task.remove(backend, turbo_tasks);
+            Job::RemoveFromScopes(tasks, scopes, will_be_optimized) => {
+                for task in tasks {
+                    backend.with_task(task, |task| {
+                        task.remove_from_scopes(
+                            scopes.iter().cloned(),
+                            will_be_optimized,
+                            backend,
+                            turbo_tasks,
+                        )
                     });
                 }
             }
-            BackgroundJob::RemoveTask(id) => {
-                backend.with_task(id, |task| {
-                    task.remove(backend, turbo_tasks);
-                });
+            Job::RemoveFromScope(tasks, scope) => {
+                for task in tasks {
+                    backend.with_task(task, |task| {
+                        task.remove_from_scope(scope, backend, turbo_tasks)
+                    });
+                }
             }
-            BackgroundJob::DeactivateTasks(tasks) => {
-                Task::deactivate_tasks(tasks, backend, turbo_tasks);
+            Job::MakeRootScoped(task) => backend.with_task(task, |task| {
+                task.make_root_scoped(backend, turbo_tasks);
+            }),
+            Job::RemoveRootScope(task) => backend.with_task(task, |task| {
+                task.remove_root_scope(backend, turbo_tasks);
+            }),
+            Job::ScheduleWhenDirty(tasks) => {
+                for task in tasks.into_iter() {
+                    backend.with_task(task, |task| {
+                        task.schedule_when_dirty(turbo_tasks);
+                    })
+                }
+            }
+            Job::AddToScopeQueue(queue, queue_size, id) => {
+                run_add_to_scope_queue(queue, queue_size, id, backend, turbo_tasks);
+            }
+            Job::RemoveFromScopeQueue(queue, queue_size, id) => {
+                run_remove_from_scope_queue(queue, queue_size, id, backend, turbo_tasks);
             }
         }
     }

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     future::Future,
     sync::{Arc, Mutex},
 };
@@ -35,7 +36,7 @@ impl TurboTasksCallApi for VcStorage {
     fn trait_call(
         &self,
         _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: String,
+        _trait_fn_name: Cow<'static, str>,
         _inputs: Vec<turbo_tasks::TaskInput>,
     ) -> RawVc {
         unreachable!()
@@ -58,13 +59,18 @@ impl TurboTasksApi for VcStorage {
         // ignore
     }
 
-    fn try_read_task_output(&self, _task: TaskId) -> Result<Result<RawVc, EventListener>> {
+    fn try_read_task_output(
+        &self,
+        _task: TaskId,
+        _strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         _task: TaskId,
+        _strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
         unreachable!()
     }

@@ -1,17 +1,19 @@
 use std::{
     any::Any,
+    borrow::Cow,
     collections::HashMap,
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Result};
 use event_listener::EventListener;
 use serde::{Deserialize, Serialize};
 
-pub use crate::id::BackgroundJobId;
+pub use crate::id::BackendJobId;
 use crate::{
     manager::TurboTasksBackendApi,
     registry,
@@ -70,7 +72,7 @@ pub enum PersistentTaskType {
     /// looks up the trait method on that value. Then it calls that method.
     /// The method call will do a cache lookup and might resolve arguments
     /// before.
-    ResolveTrait(TraitTypeId, String, Vec<TaskInput>),
+    ResolveTrait(TraitTypeId, Cow<'static, str>, Vec<TaskInput>),
 }
 
 impl PersistentTaskType {
@@ -174,12 +176,13 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
+        duration: Duration,
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
-    fn run_background_job<'a>(
+    fn run_backend_job<'a>(
         &'a self,
-        id: BackgroundJobId,
+        id: BackendJobId,
         turbo_tasks: &'a dyn TurboTasksBackendApi,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
@@ -187,11 +190,13 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         reader: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<RawVc, EventListener>>;
 
@@ -277,7 +282,7 @@ impl PersistentTaskType {
 
     pub async fn run_resolve_trait(
         trait_type: TraitTypeId,
-        name: String,
+        name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
         turbo_tasks: Arc<dyn TurboTasksBackendApi>,
     ) -> Result<RawVc> {
@@ -286,15 +291,15 @@ impl PersistentTaskType {
         if let Some(this) = iter.next() {
             let this = this.resolve().await?;
             let this_value = this.clone().resolve_to_value().await?;
-            match this_value.get_trait_method(trait_type, name.clone()) {
-                Some(native_fn) => {
+            match this_value.get_trait_method(trait_type, name) {
+                Ok(native_fn) => {
                     resolved_inputs.push(this);
                     for input in iter {
                         resolved_inputs.push(input)
                     }
                     Ok(turbo_tasks.dynamic_call(native_fn, resolved_inputs))
                 }
-                None => {
+                Err(name) => {
                     if !this_value.has_trait(trait_type) {
                         let traits = this_value
                             .traits()

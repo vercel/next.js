@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::HashSet,
     fmt::Debug,
@@ -21,10 +22,11 @@ use tokio::{runtime::Handle, task::JoinHandle, task_local};
 
 use crate::{
     backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
-    id::{BackgroundJobId, FunctionId, TraitTypeId},
+    id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::RawVc,
     task_input::{SharedReference, SharedValue, TaskInput},
+    timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
     Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
 };
@@ -35,7 +37,7 @@ pub trait TurboTasksCallApi: Sync + Send {
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc;
 
@@ -52,10 +54,15 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>>;
+    fn try_read_task_output(
+        &self,
+        task: TaskId,
+        strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>>;
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
@@ -98,7 +105,10 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi>;
 
     fn schedule(&self, task: TaskId);
-    fn schedule_backend_background_job(&self, id: BackgroundJobId);
+    fn schedule_backend_background_job(&self, id: BackendJobId);
+    fn schedule_backend_foreground_job(&self, id: BackendJobId);
+
+    fn try_foreground_done(&self) -> Result<(), EventListener>;
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
@@ -135,11 +145,13 @@ pub struct TurboTasks<B: Backend + 'static> {
     task_id_factory: IdFactory<TaskId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
+    currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
     last_update: Mutex<Option<(Duration, usize)>>,
     event: Event,
+    event_foreground: Event,
     event_background: Event,
 }
 
@@ -174,10 +186,12 @@ impl<B: Backend> TurboTasks<B> {
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
+            currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             last_update: Default::default(),
             event: Event::new(),
+            event_foreground: Event::new(),
             event_background: Event::new(),
         });
         this.backend.startup(&*this);
@@ -230,7 +244,7 @@ impl<B: Backend> TurboTasks<B> {
         });
         // SAFETY: A Once task will never invalidate, therefore we don't need to track a
         // dependency
-        let raw_result = unsafe { read_task_output_untracked(self, task_id) }.await?;
+        let raw_result = unsafe { read_task_output_untracked(self, task_id, false) }.await?;
         unsafe { raw_result.into_read_untracked::<Nothing>(self) }.await?;
         Ok(rx.await?)
     }
@@ -240,7 +254,7 @@ impl<B: Backend> TurboTasks<B> {
     pub(crate) fn native_call(&self, func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
         debug_assert!(inputs.iter().all(|i| i.is_resolved() && !i.is_nothing()));
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::Native(func, inputs.clone()),
+            PersistentTaskType::Native(func, inputs),
             current_task("turbo_function calls"),
             self,
         ))
@@ -253,7 +267,7 @@ impl<B: Backend> TurboTasks<B> {
             self.native_call(func, inputs)
         } else {
             RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                PersistentTaskType::ResolveNative(func, inputs.clone()),
+                PersistentTaskType::ResolveNative(func, inputs),
                 current_task("turbo_function calls"),
                 self,
             ))
@@ -265,11 +279,11 @@ impl<B: Backend> TurboTasks<B> {
     pub fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name.clone(), inputs.clone()),
+            PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs),
             current_task("turbo_function calls"),
             self,
         ))
@@ -277,6 +291,80 @@ impl<B: Backend> TurboTasks<B> {
 
     pub(crate) fn schedule(&self, task_id: TaskId) -> JoinHandle<()> {
         let this = self.pin();
+        self.begin_primary_job();
+        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
+        #[cfg(feature = "tokio_tracing")]
+        let description = this.backend.get_task_description(task_id);
+        let future = TURBO_TASKS.scope(
+            this.clone(),
+            CURRENT_TASK_ID.scope(
+                task_id,
+                TASKS_TO_NOTIFY.scope(
+                    Default::default(),
+                    self.backend.execution_scope(task_id, async move {
+                        loop {
+                            if this.stopped.load(Ordering::Acquire) {
+                                break;
+                            }
+                            if let Some(execution) =
+                                this.backend.try_start_task_execution(task_id, &*this)
+                            {
+                                // Setup thread locals
+                                let has_cell_mappings = execution.cell_mappings.is_some();
+
+                                let cell_mappings =
+                                    RefCell::new(execution.cell_mappings.unwrap_or_default());
+                                let (result, duration, cell_mappings) = PREVIOUS_CELLS
+                                    .scope(cell_mappings, async {
+                                        let (result, duration) =
+                                            TimedFuture::new(execution.future).await;
+                                        let cell_mappings = if has_cell_mappings {
+                                            Some(
+                                                PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())),
+                                            )
+                                        } else {
+                                            None
+                                        };
+                                        (result, duration, cell_mappings)
+                                    })
+                                    .await;
+                                if let Err(err) = &result {
+                                    println!("{} errored {}", task_id, err);
+                                }
+                                if duration.as_millis() > 1000 {
+                                    println!(
+                                        "{} took {} ms",
+                                        this.backend.get_task_description(task_id),
+                                        duration.as_millis()
+                                    )
+                                }
+                                let reexecute = this.backend.task_execution_completed(
+                                    task_id,
+                                    cell_mappings,
+                                    duration,
+                                    result,
+                                    &*this,
+                                );
+                                this.notify_scheduled_tasks_internal();
+                                if !reexecute {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                        this.finish_primary_job();
+                    }),
+                ),
+            ),
+        );
+        #[cfg(feature = "tokio_tracing")]
+        return tokio::task::Builder::new().name(&description).spawn(future);
+        #[cfg(not(feature = "tokio_tracing"))]
+        return tokio::task::spawn(future);
+    }
+
+    fn begin_primary_job(&self) {
         if self
             .currently_scheduled_tasks
             .fetch_add(1, Ordering::AcqRel)
@@ -284,78 +372,51 @@ impl<B: Backend> TurboTasks<B> {
         {
             *self.start.lock().unwrap() = Some(Instant::now());
         }
-        self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
-        tokio::task::Builder::new()
-            .name(&this.backend.get_task_description(task_id))
-            .spawn(TURBO_TASKS.scope(
-                this.clone(),
-                CURRENT_TASK_ID.scope(
-                    task_id,
-                    TASKS_TO_NOTIFY.scope(
-                        Default::default(),
-                        self.backend.execution_scope(task_id, async move {
-                            loop {
-                                if this.stopped.load(Ordering::Acquire) {
-                                    break;
-                                }
-                                if let Some(execution) =
-                                    this.backend.try_start_task_execution(task_id, &*this)
-                                {
-                                    // Setup thread locals
-                                    let has_cell_mappings = execution.cell_mappings.is_some();
+    }
 
-                                    let cell_mappings =
-                                        RefCell::new(execution.cell_mappings.unwrap_or_default());
-                                    let (result, cell_mappings) = PREVIOUS_CELLS
-                                        .scope(cell_mappings, async {
-                                            let result = execution.future.await;
-                                            let cell_mappings = if has_cell_mappings {
-                                                Some(
-                                                    PREVIOUS_CELLS
-                                                        .with(|s| take(&mut *s.borrow_mut())),
-                                                )
-                                            } else {
-                                                None
-                                            };
-                                            (result, cell_mappings)
-                                        })
-                                        .await;
-                                    if let Err(err) = &result {
-                                        println!("{} errored {}", task_id, err);
-                                    }
-                                    let reexecute = this.backend.task_execution_completed(
-                                        task_id,
-                                        cell_mappings,
-                                        result,
-                                        &*this,
-                                    );
-                                    this.notify_scheduled_tasks_internal();
-                                    if !reexecute {
-                                        break;
-                                    }
-                                } else {
-                                    break;
-                                }
-                            }
-                            if this
-                                .currently_scheduled_tasks
-                                .fetch_sub(1, Ordering::AcqRel)
-                                == 1
-                            {
-                                // That's not super race-condition-safe, but it's only for
-                                // statistical reasons
-                                let total = this.scheduled_tasks.load(Ordering::Acquire);
-                                this.scheduled_tasks.store(0, Ordering::Release);
-                                if let Some(start) = *this.start.lock().unwrap() {
-                                    *this.last_update.lock().unwrap() =
-                                        Some((start.elapsed(), total));
-                                }
-                                this.event.notify(usize::MAX);
-                            }
-                        }),
-                    ),
-                ),
-            ))
+    fn begin_foreground_job(&self) {
+        self.begin_primary_job();
+        self.currently_scheduled_foreground_jobs
+            .fetch_add(1, Ordering::AcqRel);
+    }
+
+    fn finish_primary_job(&self) {
+        if self
+            .currently_scheduled_tasks
+            .fetch_sub(1, Ordering::AcqRel)
+            == 1
+        {
+            // That's not super race-condition-safe, but it's only for
+            // statistical reasons
+            let total = self.scheduled_tasks.load(Ordering::Acquire);
+            self.scheduled_tasks.store(0, Ordering::Release);
+            if let Some(start) = *self.start.lock().unwrap() {
+                *self.last_update.lock().unwrap() = Some((start.elapsed(), total));
+            }
+            self.event.notify(usize::MAX);
+        }
+    }
+
+    fn finish_foreground_job(&self) {
+        if self
+            .currently_scheduled_foreground_jobs
+            .fetch_sub(1, Ordering::AcqRel)
+            == 1
+        {
+            self.event_foreground.notify(usize::MAX);
+        }
+        self.finish_primary_job();
+    }
+
+    pub async fn wait_foreground_done(&self) {
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+            return;
+        }
+        let listener = self.event.listen();
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            return;
+        }
+        listener.await;
     }
 
     pub async fn wait_done(&self) -> (Duration, usize) {
@@ -435,6 +496,23 @@ impl<B: Backend> TurboTasks<B> {
         }));
     }
 
+    pub(crate) fn schedule_foreground_job<
+        T: FnOnce(Arc<TurboTasks<B>>) -> F + Send + 'static,
+        F: Future<Output = ()> + Send + 'static,
+    >(
+        &self,
+        func: T,
+    ) {
+        let this = self.pin();
+        this.begin_foreground_job();
+        tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
+            if !this.stopped.load(Ordering::Acquire) {
+                func(this.clone()).await;
+            }
+            this.finish_foreground_job();
+        }));
+    }
+
     fn notify_scheduled_tasks_internal(&self) {
         TASKS_TO_NOTIFY.with(|tasks| {
             let tasks = tasks.take();
@@ -460,7 +538,7 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
     fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: String,
+        trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
         self.trait_call(trait_type, trait_fn_name, inputs)
@@ -492,16 +570,28 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
         });
     }
 
-    fn try_read_task_output(&self, task: TaskId) -> Result<Result<RawVc, EventListener>> {
-        self.backend
-            .try_read_task_output(task, current_task("reading Vcs"), self)
+    fn try_read_task_output(
+        &self,
+        task: TaskId,
+        strongly_consistent: bool,
+    ) -> Result<Result<RawVc, EventListener>> {
+        self.backend.try_read_task_output(
+            task,
+            current_task("reading Vcs"),
+            strongly_consistent,
+            self,
+        )
     }
 
     unsafe fn try_read_task_output_untracked(
         &self,
         task: TaskId,
+        strongly_consistent: bool,
     ) -> Result<Result<RawVc, EventListener>> {
-        unsafe { self.backend.try_read_task_output_untracked(task, self) }
+        unsafe {
+            self.backend
+                .try_read_task_output_untracked(task, strongly_consistent, self)
+        }
     }
 
     fn try_read_task_cell(
@@ -554,10 +644,26 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     fn pin(&self) -> Arc<dyn TurboTasksBackendApi> {
         self.pin()
     }
-    fn schedule_backend_background_job(&self, id: BackgroundJobId) {
+    fn schedule_backend_background_job(&self, id: BackendJobId) {
         self.schedule_background_job(move |this| async move {
-            this.backend.run_background_job(id, &*this).await;
+            this.backend.run_backend_job(id, &*this).await;
         })
+    }
+    fn schedule_backend_foreground_job(&self, id: BackendJobId) {
+        self.schedule_foreground_job(move |this| async move {
+            this.backend.run_backend_job(id, &*this).await;
+        })
+    }
+
+    fn try_foreground_done(&self) -> Result<(), EventListener> {
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+            return Ok(());
+        }
+        let listener = self.event.listen();
+        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+            return Ok(());
+        }
+        Err(listener)
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
@@ -674,7 +780,11 @@ pub fn dynamic_call(func: FunctionId, inputs: Vec<TaskInput>) -> RawVc {
 }
 
 /// see [TurboTasks] `trait_call`
-pub fn trait_call(trait_type: TraitTypeId, trait_fn_name: String, inputs: Vec<TaskInput>) -> RawVc {
+pub fn trait_call(
+    trait_type: TraitTypeId,
+    trait_fn_name: Cow<'static, str>,
+    inputs: Vec<TaskInput>,
+) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_type, trait_fn_name, inputs))
 }
 
@@ -713,15 +823,15 @@ pub fn get_invalidator() -> Invalidator {
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
-    tokio::task::spawn_blocking(func).await.unwrap()
-}
-
-pub async fn spawn<T: Send + 'static>(future: T) -> T::Output
-where
-    T: Future + Send + 'static,
-    T::Output: Send + 'static,
-{
-    tokio::task::spawn(future).await.unwrap()
+    let (r, d) = tokio::task::spawn_blocking(|| {
+        let start = Instant::now();
+        let r = func();
+        (r, start.elapsed())
+    })
+    .await
+    .unwrap();
+    timed_future::add_duration(d);
+    r
 }
 
 pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
@@ -733,9 +843,13 @@ pub fn spawn_thread(func: impl FnOnce() -> () + Send + 'static) {
     });
 }
 
-pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Result<RawVc> {
+pub(crate) async fn read_task_output(
+    this: &dyn TurboTasksApi,
+    id: TaskId,
+    strongly_consistent: bool,
+) -> Result<RawVc> {
     loop {
-        match this.try_read_task_output(id)? {
+        match this.try_read_task_output(id, strongly_consistent)? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
@@ -745,9 +859,10 @@ pub(crate) async fn read_task_output(this: &dyn TurboTasksApi, id: TaskId) -> Re
 pub(crate) async unsafe fn read_task_output_untracked(
     this: &dyn TurboTasksApi,
     id: TaskId,
+    strongly_consistent: bool,
 ) -> Result<RawVc> {
     loop {
-        match unsafe { this.try_read_task_output_untracked(id) }? {
+        match unsafe { this.try_read_task_output_untracked(id, strongly_consistent) }? {
             Ok(result) => return Ok(result),
             Err(listener) => listener.await,
         }
