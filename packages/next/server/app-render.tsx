@@ -20,11 +20,13 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
 import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -383,15 +385,24 @@ export async function renderToHTML(
     // TODO: use correct matching for dynamic routes to get segment param
     const segmentParam =
       segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(1, -1)
+        ? segment.slice(segment.startsWith('[...') ? 4 : 1, -1)
         : null
 
-    if (!segmentParam || !pathParams[segmentParam]) {
+    if (!segmentParam || (!pathParams[segmentParam] && !query[segmentParam])) {
       return null
     }
 
-    // @ts-expect-error TODO:  handle case where value is an array
-    return { param: segmentParam, value: pathParams[segmentParam] }
+    return {
+      param: segmentParam,
+      // @ts-expect-error TODO:  handle case where value is an array
+      value:
+        // TODO: this should only read from `pathParams`. There's an inconsistency where `query` holds params currently which has to be fixed.
+        pathParams[segmentParam] ??
+        (Array.isArray(query[segmentParam])
+          ? // @ts-expect-error TODO:  handle case where value is an array
+            query[segmentParam].join('/')
+          : query[segmentParam]),
+    }
   }
 
   const createFlightRouterStateFromLoaderTree = ([
@@ -544,10 +555,9 @@ export async function renderToHTML(
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
         headers,
-        // TODO: convert to NextCookies
         cookies,
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
+        // TODO: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
         ...(isPage ? { query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
