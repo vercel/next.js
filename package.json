@@ -44,9 +44,9 @@
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER node --trace-deprecation --enable-source-maps packages/next/dist/bin/next build test/integration/basic",
     "debug": "node --inspect packages/next/dist/bin/next",
     "postinstall": "git config feature.manyFiles true && node scripts/install-native.mjs",
-    "version": "pnpm install && git add pnpm-lock.yaml"
+    "version": "pnpm install && git add pnpm-lock.yaml",
+    "prepare": "husky install"
   },
-  "pre-commit": "lint-staged",
   "devDependencies": {
     "@babel/core": "7.18.0",
     "@babel/eslint-parser": "7.18.2",
@@ -128,7 +128,7 @@
     "eslint-plugin-import": "2.22.1",
     "eslint-plugin-jest": "24.3.5",
     "eslint-plugin-react": "7.23.2",
-    "eslint-plugin-react-hooks": "4.2.0",
+    "eslint-plugin-react-hooks": "4.5.0",
     "event-stream": "4.0.1",
     "execa": "2.0.3",
     "express": "4.17.0",
@@ -141,6 +141,7 @@
     "glob": "7.1.6",
     "gzip-size": "5.1.1",
     "html-validator": "5.1.18",
+    "husky": "8.0.0",
     "image-size": "0.9.3",
     "is-animated": "2.0.2",
     "isomorphic-unfetch": "3.0.0",
@@ -167,7 +168,6 @@
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
-    "pre-commit": "1.2.2",
     "prettier": "2.5.1",
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
