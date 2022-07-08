@@ -1,13 +1,13 @@
-# Next.js + TRPC
+# Next.js + tRPC
 
-## Next.js prisma starter
+## Next.js + tRPC + Prisma starter
 
 - https://github.com/trpc/examples-next-prisma-starter
 
-## Next.js prisma starter websockets
+## Next.js + tRPC + Prisma starter with websockets
 
 - https://github.com/trpc/examples-next-prisma-starter-websockets
 
-## Next.js and TRPC minimal implementation
+## Next.js + tRPC minimal implementation
 
 - https://github.com/trpc/examples-next-minimal-starter
