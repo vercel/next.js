@@ -89,7 +89,7 @@ async function main() {
   let changedFilesCount = 0
 
   for (let file of changedFilesOutput.split('\n')) {
-    file = file.trim()
+    file = file.trim().replace(/\\/g, '/')
 
     if (file) {
       changedFilesCount += 1
