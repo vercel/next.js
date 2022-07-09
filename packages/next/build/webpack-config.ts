@@ -576,7 +576,10 @@ export default async function getBaseWebpackConfig(
                 path
                   .relative(
                     dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
+                    path.join(
+                      NEXT_PROJECT_ROOT_DIST_CLIENT,
+                      dev ? 'app-next-dev.js' : 'app-next.js'
+                    )
                   )
                   .replace(/\\/g, '/'),
             }

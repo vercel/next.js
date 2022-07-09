@@ -78,6 +78,7 @@ export function onDemandEntryHandler({
   invalidator = new Invalidator(multiCompiler)
   const doneCallbacks: EventEmitter | null = new EventEmitter()
   const lastClientAccessPages = ['']
+  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (_compilation: webpack.Compilation) => {
     invalidator.startBuilding()
@@ -153,10 +154,43 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(lastClientAccessPages, maxInactiveAge)
+    disposeInactiveEntries(
+      lastClientAccessPages,
+      lastServerAccessPagesForAppDir,
+      maxInactiveAge
+    )
   }, pingIntervalTime + 1000).unref()
 
-  function handlePing(pg: string) {
+  function handlePing(pg: string, appDirRoute?: true) {
+    if (appDirRoute) {
+      const page = normalizePathSep(pg)
+      // TODO: fix this
+      const pageKey = `server${page}/page`
+      const entryInfo = entries[pageKey]
+
+      // If there's no entry, it may have been invalidated and needs to be re-built.
+      if (!entryInfo) {
+        // if (page !== lastEntry) client pings, but there's no entry for page
+        return { invalid: true }
+      }
+
+      // We don't need to maintain active state of anything other than BUILT entries
+      if (entryInfo.status !== BUILT) return
+
+      // If there's an entryInfo
+      if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
+        lastServerAccessPagesForAppDir.unshift(pageKey)
+
+        // Maintain the buffer max length
+        if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+          lastServerAccessPagesForAppDir.pop()
+        }
+      }
+      entryInfo.lastActiveTime = Date.now()
+      entryInfo.dispose = false
+      return { success: true }
+    }
+
     const page = normalizePathSep(pg)
     const pageKey = `client${page}`
     const entryInfo = entries[pageKey]
@@ -272,7 +306,7 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = handlePing(parsedData.page)
+            const result = handlePing(parsedData.page, parsedData.appDirRoute)
             client.send(
               JSON.stringify({
                 ...result,
@@ -288,10 +322,17 @@ export function onDemandEntryHandler({
 
 function disposeInactiveEntries(
   lastClientAccessPages: string[],
+  lastServerAccessPagesForAppDir: string[],
   maxInactiveAge: number
 ) {
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status, dispose } = entries[page]
+    const { lastActiveTime, status, dispose, bundlePath } = entries[page]
+
+    const isClientComponentsEntry =
+      bundlePath.startsWith('app/') && page.startsWith('client/')
+
+    // Disposing client component entry is handled when disposing server component entry
+    if (isClientComponentsEntry) return
 
     // Skip pages already scheduled for disposing
     if (dispose) return
@@ -303,9 +344,20 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastClientAccessPages.includes(page)) return
+    if (
+      lastClientAccessPages.includes(page) ||
+      lastServerAccessPagesForAppDir.includes(page)
+    )
+      return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
+      const isServerComponentsEntry =
+        bundlePath.startsWith('app/') && page.startsWith('server/')
+
+      // Dispose client component entrypoint when server component entrypoint is disposed.
+      if (isServerComponentsEntry) {
+        entries[page.replace('server/', 'client/')].dispose = true
+      }
       entries[page].dispose = true
     }
   })

@@ -8,6 +8,46 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 /// <reference types="react-dom/experimental" />
 
+// Override chunk URL mapping in the webpack runtime
+// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
+
+declare global {
+  const __webpack_require__: any
+}
+
+// eslint-disable-next-line no-undef
+const getChunkScriptFilename = __webpack_require__.u
+const chunkFilenameMap: any = {}
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+}
+
+// Ignore the module ID transform in client.
+// eslint-disable-next-line no-undef
+// @ts-expect-error TODO: fix type
+self.__next_require__ = __webpack_require__
+
+// eslint-disable-next-line no-undef
+// @ts-expect-error TODO: fix type
+self.__next_chunk_load__ = (chunk) => {
+  if (chunk.endsWith('.css')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = '/_next/' + chunk
+    document.head.appendChild(link)
+    return Promise.resolve()
+  }
+
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+
+  // @ts-ignore
+  // eslint-disable-next-line no-undef
+  return __webpack_chunk_load__(chunkId)
+}
+
 export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
