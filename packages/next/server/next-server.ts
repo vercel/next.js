@@ -683,7 +683,8 @@ export default class NextNodeServer extends BaseServer {
   protected async findPageComponents(
     pathname: string,
     query: NextParsedUrlQuery = {},
-    params: Params | null = null
+    params: Params | null = null,
+    isAppDir: boolean = false
   ): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
@@ -720,6 +721,8 @@ export default class NextNodeServer extends BaseServer {
           continue
         }
 
+        console.log({ pagePath, isAppDir })
+
         return {
           components,
           query: {
@@ -733,7 +736,7 @@ export default class NextNodeServer extends BaseServer {
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
-            ...((this.nextConfig.experimental.appDir ? {} : params) || {}),
+            ...((isAppDir ? {} : params) || {}),
           },
         }
       } catch (err) {
