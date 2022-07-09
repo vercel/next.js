@@ -480,7 +480,7 @@ export async function renderToHTML(
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
     // TODO: improve detection
-    const isPage = segment === '' && !parallelRoutes.children
+    const isPage = typeof page !== undefined
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
