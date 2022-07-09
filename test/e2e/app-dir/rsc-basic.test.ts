@@ -155,10 +155,10 @@ describe('app dir - react server components', () => {
 
     await browser.waitForElementByCss('#goto-next-link').click()
     await new Promise((res) => setTimeout(res, 1000))
-    expect(await browser.url()).toBe(`${next.url}/next-api/link`)
+    await check(() => browser.url(), `${next.url}/next-api/link`)
     await browser.waitForElementByCss('#goto-home').click()
     await new Promise((res) => setTimeout(res, 1000))
-    expect(await browser.url()).toBe(`${next.url}/root`)
+    await check(() => browser.url(), `${next.url}/root`)
     const content = await browser.elementByCss('body').text()
     expect(content).toContain('component:root.server')
 
@@ -180,7 +180,7 @@ describe('app dir - react server components', () => {
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
-  it.skip('should support next/link in server components', async () => {
+  it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
     const linkText = getNodeBySelector(
       linkHTML,
