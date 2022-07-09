@@ -16,7 +16,9 @@ export default function LinkPage({ queryId }) {
   )
 }
 
-export function getServerSideProps({ query }) {
+export function getServerSideProps(ctx) {
+  // FIXME: query is missing
+  const { query } = ctx
   return {
     props: {
       queryId: query.id || '0',
