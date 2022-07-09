@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import { join } from 'path'
-import loadConfig from 'next/dist/server/config'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
@@ -9,6 +8,8 @@ const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
 // force require usage instead of dynamic import in jest
 // x-ref: https://github.com/nodejs/node/issues/35889
 process.env.__NEXT_TEST_MODE = 'jest'
+
+const loadConfig = require('next/dist/server/config').default
 
 describe('config', () => {
   it('Should get the configuration', async () => {
