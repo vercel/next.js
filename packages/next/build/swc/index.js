@@ -221,7 +221,6 @@ function loadNative() {
     // we can't rely on explicit manual initialization as similar to trace reporter.
     if (!swcCrashReporterFlushGuard) {
       // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
-
       /* TODO: temporarily disable initialization while confirming logistics.
       let telemetry = new Telemetry({ distDir: process.cwd() })
       if (telemetry.isEnabled) {
