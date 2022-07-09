@@ -14,8 +14,8 @@ export default function Index({ header }) {
   )
 }
 
-export function getServerSideProps({ req }) {
-  const { headers } = req
+export function getServerSideProps(ctx) {
+  const { headers } = ctx
   const header = headers[headerKey] || ''
 
   return {
