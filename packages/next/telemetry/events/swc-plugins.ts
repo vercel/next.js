@@ -1,4 +1,6 @@
+import { existsSync } from 'fs'
 import findUp from 'next/dist/compiled/find-up'
+import path from 'path'
 import type { NextConfig } from '../../server/config-shared'
 
 const EVENT_SWC_PLUGIN_PRESENT = 'NEXT_SWC_PLUGIN_DETECTED'
@@ -30,11 +32,15 @@ export async function eventSwcPlugins(
       (events: SwcPluginsEvent[], plugin: string): SwcPluginsEvent[] => {
         // swc plugins can be non-npm pkgs with absolute path doesn't have version
         const version = deps[plugin] ?? undefined
+        let pluginName = plugin
+        if (existsSync(pluginName)) {
+          pluginName = path.basename(plugin, '.wasm')
+        }
 
         events.push({
           eventName: EVENT_SWC_PLUGIN_PRESENT,
           payload: {
-            pluginName: plugin,
+            pluginName: pluginName,
             pluginVersion: version,
           },
         })
