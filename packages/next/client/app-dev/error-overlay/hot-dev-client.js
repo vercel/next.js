@@ -323,7 +323,6 @@ function processMessage(e) {
       return
     }
     case 'pong': {
-      // TODO: implement
       const { invalid } = obj
       if (invalid) {
         // Payload can be invalid even if the page does exist.
