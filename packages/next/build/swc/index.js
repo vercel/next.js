@@ -8,7 +8,6 @@ import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { version as nextVersion } from 'next/package.json'
-import { Telemetry } from '../../telemetry/storage'
 
 const ArchName = arch()
 const PlatformName = platform()
