@@ -721,8 +721,6 @@ export default class NextNodeServer extends BaseServer {
           continue
         }
 
-        console.log({ pagePath, isAppDir })
-
         return {
           components,
           query: {

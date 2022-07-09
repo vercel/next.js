@@ -1803,13 +1803,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ctx.renderOpts.params,
       typeof appPath === 'string'
     )
-    console.log({
-      pathname,
-      appPath,
-      params: ctx.renderOpts.params,
-      query,
-      result,
-    })
     if (result) {
       try {
         return await this.renderToResponseWithComponents(ctx, result)
