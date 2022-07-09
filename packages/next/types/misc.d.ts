@@ -356,6 +356,12 @@ declare module 'next/dist/compiled/watchpack' {
 
   class Watchpack extends EventEmitter {
     constructor(options?: any)
+    watch(params: {
+      files?: string[]
+      directories?: string[]
+      startTime?: number
+      missing?: string[]
+    }): void
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 

@@ -263,7 +263,7 @@ export default class DevServer extends Server {
     )
 
     let resolved = false
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // Watchpack doesn't emit an event for an empty directory
       fs.readdir(this.pagesDir, (_, files) => {
         if (files?.length) {
@@ -276,7 +276,9 @@ export default class DevServer extends Server {
         }
       })
 
-      const wp = (this.webpackWatcher = new Watchpack())
+      const wp = (this.webpackWatcher = new Watchpack({
+        ignored: /(node_modules|\.next)/,
+      }))
       const pages = [this.pagesDir]
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
@@ -294,8 +296,7 @@ export default class DevServer extends Server {
       ].map((file) => pathJoin(this.dir, file))
 
       files.push(...envFiles)
-
-      wp.watch(files, directories, 0)
+      wp.watch({ directories: [this.dir], startTime: 0 })
       const envFileTimes = new Map()
 
       wp.on('aggregated', async () => {
@@ -308,6 +309,13 @@ export default class DevServer extends Server {
         let envChange = false
 
         for (const [fileName, meta] of knownFiles) {
+          if (
+            !files.includes(fileName) &&
+            !directories.some((dir) => fileName.startsWith(dir))
+          ) {
+            continue
+          }
+
           if (envFiles.includes(fileName)) {
             if (
               envFileTimes.get(fileName) &&
