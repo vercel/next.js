@@ -479,7 +479,6 @@ export async function renderToHTML(
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    // TODO: improve detection
     const isPage = typeof page !== undefined
 
     const isClientComponentModule =
