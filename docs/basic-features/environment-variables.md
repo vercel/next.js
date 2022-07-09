@@ -4,7 +4,17 @@ description: Learn to add and access environment variables in your Next.js appli
 
 # Environment Variables
 
-> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                             |
+| --------- | ------------------------------------------------------------------- |
+| `v12.2.3` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
+| `v9.4.0`  | Support `.env` and `NEXT_PUBLIC_` introduced.                       |
+
+This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
+
+</details>
 
 <details open>
   <summary><b>Examples</b></summary>
@@ -73,6 +83,22 @@ export async function getStaticProps() {
 >
 > # becomes "pre$A"
 > CORRECT=pre\$A
+> ```
+
+> **Note**: Next.js also supports multiline variables inside of your `.env*` files:
+>
+> ```bash
+> # .env
+>
+> # you can write with line breaks
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+> ...
+> Kh9NV...
+> ...
+> -----END DSA PRIVATE KEY-----"
+>
+> # or with `\n` inside double quotes
+> PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nKh9NV...\n-----END DSA PRIVATE KEY-----\n"
 > ```
 
 > **Note**: If you are using a `/src` folder, please note that Next.js will load the .env files **only** from the parent folder and **not** from the `/src` folder.
