@@ -802,13 +802,13 @@ importers:
   packages/next-env:
     specifiers:
       '@vercel/ncc': 0.33.4
-      dotenv: 10.0.0
-      dotenv-expand: 8.0.1
+      dotenv: 16.0.1
+      dotenv-expand: 8.0.3
       rimraf: 3.0.2
     devDependencies:
       '@vercel/ncc': 0.33.4
-      dotenv: 10.0.0
-      dotenv-expand: 8.0.1
+      dotenv: 16.0.1
+      dotenv-expand: 8.0.3
       rimraf: 3.0.2
 
   packages/next-mdx:
@@ -9887,14 +9887,14 @@ packages:
       is-obj: 2.0.0
     dev: true
 
-  /dotenv-expand/8.0.1:
-    resolution: {integrity: sha512-j/Ih7bIERDR5PzI89Zu8ayd3tXZ6E3dbY0ljQ9Db0K87qBO8zdLsi2dIvDHMWtjC3Yxb8XixOTHAtia0fDHRpg==}
+  /dotenv-expand/8.0.3:
+    resolution: {integrity: sha512-SErOMvge0ZUyWd5B0NXMQlDkN+8r+HhVUsxgOO7IoPDOdDRD2JjExpN6y3KnFR66jsJMwSn1pqIivhU5rcJiNg==}
     engines: {node: '>=12'}
     dev: true
 
-  /dotenv/10.0.0:
-    resolution: {integrity: sha512-rlBi9d8jpv9Sf1klPjNfFAuWDjKLwTIJJ/VxtoTwIR6hnZxcEOQCZg2oIL3MWBYw5GpUDKOEnND7LXTbIpQ03Q==}
-    engines: {node: '>=10'}
+  /dotenv/16.0.1:
+    resolution: {integrity: sha512-1K6hR6wtk2FviQ4kEiSjFiH5rpzEVi8WW0x96aztHVMhEspNpc4DVOUTEHtEva5VThQ8IaBX1Pe4gSzpVVUsKQ==}
+    engines: {node: '>=12'}
     dev: true
 
   /duplexer/0.1.1:
