@@ -180,7 +180,7 @@ describe('app dir - react server components', () => {
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
 
-  it.skip('should support next/link in server components', async () => {
+  it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
     const linkText = getNodeBySelector(
       linkHTML,
