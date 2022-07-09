@@ -264,7 +264,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse
   ): void
 
-  protected abstract loadEnvConfig(params: { dev: boolean }): void
+  protected abstract loadEnvConfig(params: {
+    dev: boolean
+    forceReload?: boolean
+  }): void
 
   public constructor(options: ServerOptions) {
     const {

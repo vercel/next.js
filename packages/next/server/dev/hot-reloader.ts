@@ -899,6 +899,10 @@ export default class HotReloader {
       )
     })
 
+    for (const key of Object.keys(entries)) {
+      delete entries[key]
+    }
+
     this.onDemandEntries = onDemandEntryHandler({
       multiCompiler,
       pagesDir: this.pagesDir,

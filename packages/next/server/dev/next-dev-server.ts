@@ -286,7 +286,17 @@ export default class DevServer extends Server {
       )
       let nestedMiddleware: string[] = []
 
+      const envFiles = [
+        '.env.development.local',
+        '.env.local',
+        '.env.development',
+        '.env',
+      ].map((file) => pathJoin(this.dir, file))
+
+      files.push(...envFiles)
+
       wp.watch(files, directories, 0)
+      const envFileTimes = new Map()
 
       wp.on('aggregated', async () => {
         const routedMiddleware: string[] = []
@@ -295,8 +305,20 @@ export default class DevServer extends Server {
         const knownFiles = wp.getTimeInfoEntries()
         const appPaths: Record<string, string> = {}
         const ssrMiddleware = new Set<string>()
+        let envChange = false
 
         for (const [fileName, meta] of knownFiles) {
+          if (envFiles.includes(fileName)) {
+            if (
+              envFileTimes.get(fileName) &&
+              envFileTimes.get(fileName) !== meta.timestamp
+            ) {
+              envChange = true
+            }
+            envFileTimes.set(fileName, meta.timestamp)
+            continue
+          }
+
           if (
             meta?.accuracy === undefined ||
             !regexPageExtension.test(fileName)
@@ -371,6 +393,12 @@ export default class DevServer extends Server {
             },
           })
           routedPages.push(pageName)
+        }
+
+        if (envChange) {
+          this.loadEnvConfig({ dev: true, forceReload: true })
+          await this.hotReloader?.stop()
+          await this.hotReloader?.start()
         }
 
         if (nestedMiddleware.length > 0) {

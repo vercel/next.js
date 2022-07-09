@@ -21,6 +21,10 @@ const variables = [
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
   'ENV_FILE_KEY_EXCLAMATION',
+  'NEW_ENV_KEY',
+  'NEW_ENV_LOCAL_KEY',
+  'NEW_ENV_DEV_KEY',
+  'NEXT_PUBLIC_HELLO_WORLD',
 ]
 
 export async function getServerSideProps() {

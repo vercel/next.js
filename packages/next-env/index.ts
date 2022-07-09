@@ -10,6 +10,7 @@ export type LoadedEnvFiles = Array<{
   contents: string
 }>
 
+const initialEnv = Object.assign({}, process.env)
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 
@@ -21,18 +22,21 @@ type Log = {
 export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
-  log: Log = console
+  log: Log = console,
+  forceReload = false
 ) {
-  // don't reload env if we already have since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  if (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0) {
+  // only reload env when forceReload is specified
+  if (
+    !forceReload &&
+    (process.env.__NEXT_PROCESSED_ENV || loadedEnvFiles.length === 0)
+  ) {
     return process.env as Env
   }
   // flag that we processed the environment values in case a serverless
   // function is re-used or we are running in `next start` mode
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
-  const origEnv = Object.assign({}, process.env)
+  const origEnv = Object.assign({}, initialEnv)
   const parsed: dotenv.DotenvParseOutput = {}
 
   for (const envFile of loadedEnvFiles) {
@@ -68,14 +72,18 @@ export function processEnv(
 export function loadEnvConfig(
   dir: string,
   dev?: boolean,
-  log: Log = console
+  log: Log = console,
+  forceReload = false
 ): {
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
-  // don't reload env if we already have since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  if (combinedEnv) return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  // only reload env when forceReload is specified
+  if (combinedEnv && !forceReload) {
+    return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
+  }
+  process.env = Object.assign({}, initialEnv)
+  cachedLoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -112,6 +120,6 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log)
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }
