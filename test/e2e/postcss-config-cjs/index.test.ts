@@ -3,7 +3,7 @@ import { join } from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 
-describe.only('postcss-config-cjs', () => {
+describe('postcss-config-cjs', () => {
   let next: NextInstance
 
   beforeAll(async () => {
