@@ -334,10 +334,7 @@ function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
     ComponentMod.__client__?.__next_rsc_css__ || []
 
   const cssFlight = importedServerCSSFiles
-    .filter((css) => !!serverComponentManifest[css])
-    .map((css) => {
-      return `CSS:${JSON.stringify(serverComponentManifest[css].default)}`
-    })
+    .map((css) => `CSS:${JSON.stringify(serverComponentManifest[css].default)}`)
     .join('\n')
   return cssFlight
 }

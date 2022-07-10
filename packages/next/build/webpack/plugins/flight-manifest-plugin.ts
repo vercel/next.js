@@ -95,30 +95,52 @@ export class FlightManifestPlugin {
         if (
           mod.request &&
           /(?<!\.module)\.css$/.test(mod.request) &&
-          mod.request.includes('webpack/loaders/next-style-loader/index.js')
+          ((dev &&
+            mod.request.includes(
+              'webpack/loaders/next-style-loader/index.js'
+            )) ||
+            (!dev &&
+              mod.request.includes('webpack/loaders/css-loader/src/index.js')))
         ) {
           if (!manifest[resource]) {
-            const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
-              return (
-                chunkId +
-                ':' +
-                (chunk.name || chunk.id) +
-                (dev ? '' : '-' + chunk.hash)
-              )
-            })
-            manifest[resource] = {
-              default: {
-                id,
+            if (dev) {
+              const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
+                return (
+                  chunkId +
+                  ':' +
+                  (chunk.name || chunk.id) +
+                  (dev ? '' : '-' + chunk.hash)
+                )
+              })
+              manifest[resource] = {
+                default: {
+                  id,
+                  name: 'default',
+                  chunks: chunkIdNameMapping,
+                },
+              }
+              moduleIdMapping[id]['default'] = {
+                id: ssrNamedModuleId,
                 name: 'default',
                 chunks: chunkIdNameMapping,
-              },
+              }
+              manifest.__ssr_module_mapping__ = moduleIdMapping
+            } else {
+              const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+              manifest[resource] = {
+                default: {
+                  id,
+                  name: 'default',
+                  chunks,
+                },
+              }
+              moduleIdMapping[id]['default'] = {
+                id: ssrNamedModuleId,
+                name: 'default',
+                chunks,
+              }
+              manifest.__ssr_module_mapping__ = moduleIdMapping
             }
-            moduleIdMapping[id]['default'] = {
-              id: ssrNamedModuleId,
-              name: 'default',
-              chunks: chunkIdNameMapping,
-            }
-            manifest.__ssr_module_mapping__ = moduleIdMapping
           }
           return
         }
@@ -164,16 +186,30 @@ export class FlightManifestPlugin {
           )
           .filter((name) => name !== null)
 
-        // Get all CSS files imported in that chunk.
+        // Get all CSS files imported from the module's dependencies.
+        const visited = new Set()
         const cssChunks: string[] = []
-        for (const entrypoint of chunk.groupsIterable) {
-          const files = getEntrypointFiles(entrypoint)
-          for (const file of files) {
-            if (file.endsWith('.css')) {
-              cssChunks.push(file)
-            }
+        function findCSSDeps(module: any) {
+          if (!module) return
+
+          const modRequest = module.userRequest
+          if (visited.has(modRequest)) return
+          visited.add(modRequest)
+
+          if (/(?<!\.module)\.css$/.test(modRequest)) {
+            cssChunks.push(modRequest)
           }
+
+          compilation.moduleGraph
+            .getOutgoingConnections(module)
+            // @ts-ignore
+            .forEach((connection: any) => {
+              findCSSDeps(
+                compilation.moduleGraph.getResolvedModule(connection.dependency)
+              )
+            })
         }
+        findCSSDeps(mod)
 
         moduleExportedKeys.forEach((name) => {
           let requiredChunks = []
