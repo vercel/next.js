@@ -114,42 +114,45 @@ function useInitialServerResponse(cacheKey: string) {
     },
   })
 
-  let buffer = ''
-  async function loadCSS(modal: string) {
-    const data = JSON.parse(modal)
+  async function loadCss(cssChunkInfoJson: string) {
+    const data = JSON.parse(cssChunkInfoJson)
     await Promise.all(
       data.chunks.map((chunkId: string) => {
+        // load css related chunks
         return (self as any).__next_chunk_load__(chunkId)
       })
     )
+    // import css
     ;(self as any).__next_require__(data.id)
   }
 
+  const loadCssFromStreamData = (data: string) => {
+    const seg = data.split(':')
+    if (seg[0] === 'CSS') {
+      loadCss(seg.slice(1).join(':'))
+    }
+  }
+
+  let buffer = ''
+  const loadCssFromFlight = new TransformStream({
+    transform(chunk, controller) {
+      const data = new TextDecoder().decode(chunk)
+      buffer += data
+      let index
+      while ((index = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, index)
+        buffer = buffer.slice(index + 1)
+        loadCssFromStreamData(line)
+      }
+      controller.enqueue(chunk)
+    },
+    flush() {
+      loadCssFromStreamData(buffer)
+    },
+  })
+
   const newResponse = createFromReadableStream(
-    readable.pipeThrough(
-      new TransformStream({
-        transform(chunk, controller) {
-          const data = new TextDecoder().decode(chunk)
-          buffer += data
-          let index
-          while ((index = buffer.indexOf('\n')) !== -1) {
-            const line = buffer.slice(0, index)
-            buffer = buffer.slice(index + 1)
-            const seg = line.split(':')
-            if (seg[0] === 'CSS') {
-              loadCSS(seg.slice(1).join(':'))
-            }
-          }
-          controller.enqueue(chunk)
-        },
-        flush() {
-          const seg = buffer.split(':')
-          if (seg[0] === 'CSS') {
-            loadCSS(seg.slice(1).join(':'))
-          }
-        },
-      })
-    )
+    readable.pipeThrough(loadCssFromFlight)
   )
 
   rscCache.set(cacheKey, newResponse)

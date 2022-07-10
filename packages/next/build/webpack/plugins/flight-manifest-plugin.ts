@@ -7,7 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex, serverComponentRegex } from '../loaders/utils'
+import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
 import { getEntrypointFiles } from './build-manifest-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -94,35 +94,29 @@ export class FlightManifestPlugin {
 
         if (
           mod.request &&
-          /\.css$/.test(mod.request) &&
+          /(?<!\.module)\.css$/.test(mod.request) &&
           mod.request.includes('webpack/loaders/next-style-loader/index.js')
         ) {
           if (!manifest[resource]) {
+            const chunkIdNameMapping = (chunk.ids || []).map((id) => {
+              return (
+                id +
+                ':' +
+                (chunk.name || chunk.id) +
+                (dev ? '' : '-' + chunk.hash)
+              )
+            })
             manifest[resource] = {
               default: {
                 id,
                 name: 'default',
-                chunks: (chunk.ids || []).map((id) => {
-                  return (
-                    id +
-                    ':' +
-                    (chunk.name || chunk.id) +
-                    (dev ? '' : '-' + chunk.hash)
-                  )
-                }),
+                chunks: chunkIdNameMapping,
               },
             }
             moduleIdMapping[id]['default'] = {
               id: ssrNamedModuleId,
               name: 'default',
-              chunks: (chunk.ids || []).map((id) => {
-                return (
-                  id +
-                  ':' +
-                  (chunk.name || chunk.id) +
-                  (dev ? '' : '-' + chunk.hash)
-                )
-              }),
+              chunks: chunkIdNameMapping,
             }
             manifest.__ssr_module_mapping__ = moduleIdMapping
           }

@@ -16,7 +16,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
-  createPrefixStream,
+  createSuffixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -218,11 +218,9 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
+  const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
 
   let RSCStream: ReadableStream<Uint8Array>
-
   const createRSCStream = () => {
     if (!RSCStream) {
       RSCStream = renderToReadableStream(
@@ -231,17 +229,7 @@ function createServerComponentRenderer(
         {
           context: serverContexts,
         }
-      ).pipeThrough(
-        createPrefixStream(
-          importedServerCSSFiles
-            .map((css) => {
-              return `CSS:${JSON.stringify(
-                serverComponentManifest[css].default
-              )}`
-            })
-            .join('\n')
-        )
-      )
+      ).pipeThrough(createSuffixStream(cssFlight))
     }
     return RSCStream
   }
@@ -339,6 +327,19 @@ function getSegmentParam(segment: string): {
   }
 
   return null
+}
+
+function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  const cssFlight = importedServerCSSFiles
+    .filter((css) => !!serverComponentManifest[css])
+    .map((css) => {
+      return `CSS:${JSON.stringify(serverComponentManifest[css].default)}`
+    })
+    .join('\n')
+  return cssFlight
 }
 
 export async function renderToHTML(
@@ -744,9 +745,7 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
-    const importedServerCSSFiles: string[] =
-      ComponentMod.__client__?.__next_rsc_css__ || []
-
+    const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
     const flightData: FlightData = [
       // TODO: change walk to output without ''
       walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
@@ -756,17 +755,7 @@ export async function renderToHTML(
 
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest)
-        .pipeThrough(
-          createPrefixStream(
-            importedServerCSSFiles
-              .map((css) => {
-                return `CSS:${JSON.stringify(
-                  serverComponentManifest[css].default
-                )}`
-              })
-              .join('\n')
-          )
-        )
+        .pipeThrough(createSuffixStream(cssFlight))
         .pipeThrough(createBufferedTransformStream())
     )
   }

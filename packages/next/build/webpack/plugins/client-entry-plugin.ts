@@ -78,15 +78,15 @@ export class ClientEntryPlugin {
           const module = compilation.moduleGraph.getResolvedModule(dependency)
           if (!module) return
 
-          const request = module.userRequest
-          if (visited.has(request)) return
-          visited.add(request)
+          const modRequest = module.userRequest
+          if (visited.has(modRequest)) return
+          visited.add(modRequest)
 
           if (
-            clientComponentRegex.test(request) ||
-            regexCssGlobal.test(request)
+            clientComponentRegex.test(modRequest) ||
+            regexCssGlobal.test(modRequest)
           ) {
-            clientComponentImports.push(request)
+            clientComponentImports.push(modRequest)
           }
 
           compilation.moduleGraph
