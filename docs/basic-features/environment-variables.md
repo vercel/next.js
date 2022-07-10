@@ -12,9 +12,9 @@ description: Learn to add and access environment variables in your Next.js appli
 | `v12.2.3` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
 | `v9.4.0`  | Support `.env` and `NEXT_PUBLIC_` introduced.                       |
 
-This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
-
 </details>
+
+> This document is for Next.js versions 9.4 and up. If you’re using an older version of Next.js, upgrade or refer to [Environment Variables in next.config.js](/docs/api-reference/next.config.js/environment-variables.md).
 
 <details open>
   <summary><b>Examples</b></summary>
