@@ -98,9 +98,9 @@ export class FlightManifestPlugin {
           mod.request.includes('webpack/loaders/next-style-loader/index.js')
         ) {
           if (!manifest[resource]) {
-            const chunkIdNameMapping = (chunk.ids || []).map((id) => {
+            const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
               return (
-                id +
+                chunkId +
                 ':' +
                 (chunk.name || chunk.id) +
                 (dev ? '' : '-' + chunk.hash)
