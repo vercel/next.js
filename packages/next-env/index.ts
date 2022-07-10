@@ -4,13 +4,13 @@ import * as path from 'path'
 import * as dotenv from 'dotenv'
 import { expand as dotenvExpand } from 'dotenv-expand'
 
-export type Env = { [key: string]: string }
+export type Env = { [key: string]: string | undefined }
 export type LoadedEnvFiles = Array<{
   path: string
   contents: string
 }>
 
-const initialEnv = Object.assign({}, process.env)
+let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 
@@ -25,6 +25,9 @@ export function processEnv(
   log: Log = console,
   forceReload = false
 ) {
+  if (!initialEnv) {
+    initialEnv = Object.assign({}, process.env)
+  }
   // only reload env when forceReload is specified
   if (
     !forceReload &&
@@ -65,7 +68,6 @@ export function processEnv(
       )
     }
   }
-
   return Object.assign(process.env, parsed)
 }
 
@@ -78,6 +80,9 @@ export function loadEnvConfig(
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
+  if (!initialEnv) {
+    initialEnv = Object.assign({}, process.env)
+  }
   // only reload env when forceReload is specified
   if (combinedEnv && !forceReload) {
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
