@@ -6,9 +6,11 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { readFileSync, promises as fs } from 'fs'
+import { readFileSync, createReadStream, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
+import path from 'path'
+import { requestToBodyStream } from '../../body-streams'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -49,6 +51,7 @@ interface ModuleContextOptions {
   useCache: boolean
   env: string[]
   wasm: WasmBinding[]
+  distDir: string
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -104,6 +107,7 @@ async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
   const wasm = await loadWasm(options.wasm)
+  console.log({ cwd: process.cwd(), wasm: options.wasm })
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -197,7 +201,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -206,6 +210,26 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)
+        }
+
+        const inputString = String(input)
+        if (inputString.startsWith('/_next/static/media/')) {
+          const pathname = inputString.replace('/_next/static/media/', '')
+          const fullPathname = path.join(
+            options.distDir,
+            `server/static/media/${pathname}`
+          )
+          if (
+            await fs.access(fullPathname).then(
+              () => true,
+              () => false
+            )
+          ) {
+            const blob = createReadStream(fullPathname)
+            return new context.Response(requestToBodyStream(blob))
+          }
+        } else if (inputString.startsWith('file://')) {
+          return new Response('Not Found', { status: 404 })
         }
 
         if (typeof input === 'object' && 'url' in input) {

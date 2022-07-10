@@ -13,6 +13,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
+import { join } from 'path'
 
 interface EdgeFunctionDefinition {
   env: string[]
@@ -21,6 +22,7 @@ interface EdgeFunctionDefinition {
   page: string
   regexp: string
   wasm?: WasmBinding[]
+  blobs: WasmBinding[]
 }
 
 export interface MiddlewareManifest {
@@ -36,6 +38,7 @@ interface EntryMetadata {
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
+  blobBindings: Set<webpack5.Module>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -411,6 +414,7 @@ function getExtractMetadata(params: {
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
         wasmBindings: new Set<WasmBinding>(),
+        blobBindings: new Set(),
       }
 
       for (const entryModule of entryModules) {
@@ -480,6 +484,10 @@ function getExtractMetadata(params: {
          */
         if (buildInfo?.nextWasmMiddlewareBinding) {
           entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
+        }
+
+        if (entryModule.type === 'asset/resource') {
+          entryMetadata.blobBindings.add(entryModule)
         }
 
         /**
@@ -558,6 +566,12 @@ function getCreateAssets(params: {
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
+        blobs: Array.from(metadata.blobBindings, (mod) => {
+          return {
+            filePath: join('server', mod.buildInfo.filename),
+            name: mod.buildInfo.fullContentHash,
+          }
+        }),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

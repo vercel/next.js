@@ -13,6 +13,7 @@ type RunnerFn = (params: {
   request: RequestData
   useCache: boolean
   wasm: WasmBinding[]
+  distDir: string
 }) => Promise<FetchEventResult>
 
 export const run = withTaggedErrors(async (params) => {
@@ -22,6 +23,7 @@ export const run = withTaggedErrors(async (params) => {
     useCache: params.useCache !== false,
     env: params.env,
     wasm: params.wasm,
+    distDir: params.distDir,
   })
 
   for (const paramPath of params.paths) {

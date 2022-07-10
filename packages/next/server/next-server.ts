@@ -1223,6 +1223,7 @@ export default class NextNodeServer extends BaseServer {
         }
 
         result = await run({
+          distDir: this.distDir,
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
@@ -1552,6 +1553,7 @@ export default class NextNodeServer extends BaseServer {
     const nodeReq = params.req as NodeNextRequest
 
     const result = await run({
+      distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       env: middlewareInfo.env,
