@@ -113,7 +113,44 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
-  const newResponse = createFromReadableStream(readable)
+
+  let buffer = ''
+  async function loadCSS(modal: string) {
+    const data = JSON.parse(modal)
+    await Promise.all(
+      data.chunks.map((chunkId: string) => {
+        return (self as any).__next_chunk_load__(chunkId)
+      })
+    )
+    ;(self as any).__next_require__(data.id)
+  }
+
+  const newResponse = createFromReadableStream(
+    readable.pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          const data = new TextDecoder().decode(chunk)
+          buffer += data
+          let index
+          while ((index = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, index)
+            buffer = buffer.slice(index + 1)
+            const seg = line.split(':')
+            if (seg[0] === 'CSS') {
+              loadCSS(seg.slice(1).join(':'))
+            }
+          }
+          controller.enqueue(chunk)
+        },
+        flush() {
+          const seg = buffer.split(':')
+          if (seg[0] === 'CSS') {
+            loadCSS(seg.slice(1).join(':'))
+          }
+        },
+      })
+    )
+  )
 
   rscCache.set(cacheKey, newResponse)
   return newResponse

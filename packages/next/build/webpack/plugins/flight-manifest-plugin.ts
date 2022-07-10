@@ -7,7 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { clientComponentRegex } from '../loaders/utils'
+import { clientComponentRegex, serverComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
 import { getEntrypointFiles } from './build-manifest-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -79,13 +79,7 @@ export class FlightManifestPlugin {
         mod: any
       ) {
         const resource: string = mod.resource
-
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!resource || !clientComponentRegex.test(resource)) {
-          return
-        }
+        if (!resource) return
 
         const moduleExports: any = manifest[resource] || {}
         const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
@@ -97,6 +91,50 @@ export class FlightManifestPlugin {
         let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId}`
+
+        if (
+          mod.request &&
+          /\.css$/.test(mod.request) &&
+          mod.request.includes('webpack/loaders/next-style-loader/index.js')
+        ) {
+          if (!manifest[resource]) {
+            manifest[resource] = {
+              default: {
+                id,
+                name: 'default',
+                chunks: (chunk.ids || []).map((id) => {
+                  return (
+                    id +
+                    ':' +
+                    (chunk.name || chunk.id) +
+                    (dev ? '' : '-' + chunk.hash)
+                  )
+                }),
+              },
+            }
+            moduleIdMapping[id]['default'] = {
+              id: ssrNamedModuleId,
+              name: 'default',
+              chunks: (chunk.ids || []).map((id) => {
+                return (
+                  id +
+                  ':' +
+                  (chunk.name || chunk.id) +
+                  (dev ? '' : '-' + chunk.hash)
+                )
+              }),
+            }
+            manifest.__ssr_module_mapping__ = moduleIdMapping
+          }
+          return
+        }
+
+        // TODO: Hook into deps instead of the target module.
+        // That way we know by the type of dep whether to include.
+        // It also resolves conflicts when the same module is in multiple chunks.
+        if (!clientComponentRegex.test(resource)) {
+          return
+        }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [

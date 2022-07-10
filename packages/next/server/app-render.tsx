@@ -16,6 +16,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  createPrefixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -217,6 +218,9 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
   let RSCStream: ReadableStream<Uint8Array>
 
   const createRSCStream = () => {
@@ -227,6 +231,16 @@ function createServerComponentRenderer(
         {
           context: serverContexts,
         }
+      ).pipeThrough(
+        createPrefixStream(
+          importedServerCSSFiles
+            .map((css) => {
+              return `CSS:${JSON.stringify(
+                serverComponentManifest[css].default
+              )}`
+            })
+            .join('\n')
+        )
       )
     }
     return RSCStream
@@ -730,6 +744,9 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
+    const importedServerCSSFiles: string[] =
+      ComponentMod.__client__?.__next_rsc_css__ || []
+
     const flightData: FlightData = [
       // TODO: change walk to output without ''
       walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
@@ -738,9 +755,19 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest)
+        .pipeThrough(
+          createPrefixStream(
+            importedServerCSSFiles
+              .map((css) => {
+                return `CSS:${JSON.stringify(
+                  serverComponentManifest[css].default
+                )}`
+              })
+              .join('\n')
+          )
+        )
+        .pipeThrough(createBufferedTransformStream())
     )
   }
 

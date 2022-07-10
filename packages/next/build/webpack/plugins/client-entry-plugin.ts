@@ -82,7 +82,10 @@ export class ClientEntryPlugin {
           if (visited.has(request)) return
           visited.add(request)
 
-          if (clientComponentRegex.test(request) || regexCssGlobal.test(request)) {
+          if (
+            clientComponentRegex.test(request) ||
+            regexCssGlobal.test(request)
+          ) {
             clientComponentImports.push(request)
           }
 
@@ -151,15 +154,12 @@ export class ClientEntryPlugin {
           )
         }
 
-        // Inject the entry to the server compiler.
+        // Inject the entry to the server compiler (__sc_client__).
         const clientComponentEntryDep = (
           webpack as any
-        ).EntryPlugin.createDependency(
-          clientLoader,
-          {
-            name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
-          }
-        )
+        ).EntryPlugin.createDependency(clientLoader, {
+          name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+        })
         promises.push(
           new Promise<void>((res, rej) => {
             compilation.addEntry(
