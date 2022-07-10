@@ -159,13 +159,26 @@ function useInitialServerResponse(cacheKey: string) {
   return newResponse
 }
 
-const ServerRoot = ({ cacheKey }: { cacheKey: string }) => {
+function ServerRoot({ cacheKey }: { cacheKey: string }) {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
   const response = useInitialServerResponse(cacheKey)
   const root = response.readRoot()
   return root
+}
+
+function ErrorOverlay({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
+  if (process.env.NODE_ENV === 'production') {
+    return <>{children}</>
+  } else {
+    const {
+      ReactDevOverlay,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
+  }
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
@@ -183,17 +196,19 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-const RSCComponent = () => {
+function RSCComponent() {
   const cacheKey = getCacheKey()
   return <ServerRoot cacheKey={cacheKey} />
 }
 
 export function hydrate() {
   renderReactElement(appElement!, () => (
-    <React.StrictMode>
-      <Root>
-        <RSCComponent />
-      </Root>
-    </React.StrictMode>
+    <ErrorOverlay>
+      <React.StrictMode>
+        <Root>
+          <RSCComponent />
+        </Root>
+      </React.StrictMode>
+    </ErrorOverlay>
   ))
 }

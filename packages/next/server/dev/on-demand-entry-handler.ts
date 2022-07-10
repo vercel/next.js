@@ -15,6 +15,56 @@ import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
+import { FlightRouterState } from '../app-render'
+
+function treePathToEntrypoint(
+  segmentPath: string[],
+  parentPath?: string
+): string {
+  const [parallelRouteKey, segment] = segmentPath
+
+  const path =
+    (parentPath ? parentPath + '/' : '') +
+    (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +
+    (segment === '' ? 'page' : segment)
+
+  // Last segment
+  if (segmentPath.length === 2) {
+    return path
+  }
+
+  const childSegmentPath = segmentPath.slice(2)
+  return treePathToEntrypoint(childSegmentPath, path)
+}
+
+function getEntrypointsFromTree(
+  tree: FlightRouterState,
+  isFirst: boolean,
+  parentPath: string[] = []
+) {
+  const [segment, parallelRoutes] = tree
+
+  const currentSegment = Array.isArray(segment) ? segment[0] : segment
+
+  const currentPath = [...parentPath, currentSegment]
+
+  if (!isFirst && currentSegment === '') {
+    // TODO get rid of '' at the start of tree
+    return [treePathToEntrypoint(currentPath.slice(1))]
+  }
+
+  return Object.keys(parallelRoutes).reduce(
+    (paths: string[], key: string): string[] => {
+      const childTree = parallelRoutes[key]
+      const childPages = getEntrypointsFromTree(childTree, false, [
+        ...currentPath,
+        key,
+      ])
+      return [...paths, ...childPages]
+    },
+    []
+  )
+}
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -161,11 +211,13 @@ export function onDemandEntryHandler({
     )
   }, pingIntervalTime + 1000).unref()
 
-  function handlePing(pg: string, appDirRoute?: true) {
-    if (appDirRoute) {
-      const page = normalizePathSep(pg)
-      // TODO: fix this
-      const pageKey = `server${page}/page`
+  function handleAppDirPing(
+    tree: FlightRouterState
+  ): { success: true } | { invalid: true } {
+    const pages = getEntrypointsFromTree(tree, true)
+
+    for (const page of pages) {
+      const pageKey = `server/${page}`
       const entryInfo = entries[pageKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -175,22 +227,26 @@ export function onDemandEntryHandler({
       }
 
       // We don't need to maintain active state of anything other than BUILT entries
-      if (entryInfo.status !== BUILT) return
+      if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
       if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
         lastServerAccessPagesForAppDir.unshift(pageKey)
 
         // Maintain the buffer max length
+        // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
         if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
           lastServerAccessPagesForAppDir.pop()
         }
       }
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
-      return { success: true }
     }
 
+    return { success: true }
+  }
+
+  function handlePing(pg: string) {
     const page = normalizePathSep(pg)
     const pageKey = `client${page}`
     const entryInfo = entries[pageKey]
@@ -306,11 +362,13 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = handlePing(parsedData.page, parsedData.appDirRoute)
+            const result = parsedData.appDirRoute
+              ? handleAppDirPing(parsedData.tree)
+              : handlePing(parsedData.page)
             client.send(
               JSON.stringify({
                 ...result,
-                event: 'pong',
+                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
               })
             )
           }
@@ -363,7 +421,7 @@ function disposeInactiveEntries(
   })
 }
 
-// Make sure only one invalidation happens at a time
+// Make sure only one invalidation happens at a time∫
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
   private multiCompiler: webpack.MultiCompiler
