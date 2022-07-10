@@ -50,10 +50,12 @@ export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   children,
+  hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: React.ReactNode
+  hotReloader?: React.ReactNode
 }) {
   const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
     typeof reducer
@@ -238,6 +240,7 @@ export default function AppRouter({
               }}
             >
               {children}
+              {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </FullAppTreeContext.Provider>
