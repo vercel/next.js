@@ -1,4 +1,8 @@
 import next from 'next'
+import bundleAnalyzer from '@next/bundle-analyzer'
+
+const config = bundleAnalyzer({})
+
 const app = next({
   dir: '.',
   dev: process.env.NODE_ENV !== 'production',

@@ -33,7 +33,10 @@ const clientGlobs = [
   },
   {
     name: 'Middleware size',
-    globs: ['.next/server/middleware*', '.next/server/edge-runtime-webpack.js'],
+    globs: [
+      '.next/server/middleware*.js',
+      '.next/server/edge-runtime-webpack.js',
+    ],
   },
 ]
 
