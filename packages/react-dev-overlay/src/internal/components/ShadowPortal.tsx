@@ -28,7 +28,7 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
         portalNode.current.ownerDocument.body.removeChild(portalNode.current)
       }
     }
-  }, [])
+  }, [globalOverlay])
 
   return shadowNode.current ? (
     createPortal(children, shadowNode.current as any)
