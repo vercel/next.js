@@ -1,4 +1,3 @@
-import React from 'react'
 import cn from 'classnames';
 import DotCmsImage from "./dotcms-image";
 import Link from 'next/link';
