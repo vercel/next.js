@@ -161,11 +161,15 @@ Next.js also allows you to prefetch server-rendered pages using HTML `<link rel=
 import Link from 'next/link'
 import Head from 'next/head'
 
+// Prefetch the JSON data that will be loaded on the server
+// for `getServerSideProps`. Note that this is a separate route
+// and replies on Next.js internals (_next/data) and is subject
+// to change in the future. Use this example with caution.
 export default function Home() {
   return (
     <>
       <Head>
-        <link rel="prefetch" href="/about">
+        <link rel="prefetch" href="/_next/data/buildId/about.json">
       </Head>
       <Link href="/about">
         <a>About</a>
