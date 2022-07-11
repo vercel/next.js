@@ -393,6 +393,24 @@ describe('app dir', () => {
   })
 
   describe('css support', () => {
+    it('should support global css inside server component layouts', async () => {
+      const browser = await webdriver(next.url, '/dashboard')
+
+      // Should body text in red
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('.p')).color`
+        )
+      ).toBe('rgb(255, 0, 0)')
+
+      // Should inject global css for .green selectors
+      expect(
+        await browser.eval(
+          `window.getComputedStyle(document.querySelector('.green')).color`
+        )
+      ).toBe('rgb(0, 128, 0)')
+    })
+
     it('should support css modules inside client layouts', async () => {
       const browser = await webdriver(next.url, '/client-nested')
 

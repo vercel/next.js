@@ -16,6 +16,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  createSuffixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -124,7 +125,6 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
-    let remainingFlightResponse = ''
     const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
@@ -144,40 +144,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          const css = responsePartial
-            .split('\n')
-            .map((partialLine) => {
-              const line = remainingFlightResponse + partialLine
-              remainingFlightResponse = ''
-
-              try {
-                const match = line.match(/^M\d+:(.+)/)
-                if (match) {
-                  return JSON.parse(match[1])
-                    .chunks.filter((chunkId: string) =>
-                      chunkId.endsWith('.css')
-                    )
-                    .map(
-                      (file: string) =>
-                        `<link rel="stylesheet" href="/_next/${file}">`
-                    )
-                    .join('')
-                }
-                return ''
-              } catch (err) {
-                // The JSON is partial
-                remainingFlightResponse = line
-                return ''
-              }
-            })
-            .join('')
-
           writer.write(
             encodeText(
-              css +
-                `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([1, id, responsePartial])
-                )})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, responsePartial])
+              )})</script>`
             )
           )
           process()
@@ -217,8 +188,9 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  let RSCStream: ReadableStream<Uint8Array>
+  const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
 
+  let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
     if (!RSCStream) {
       RSCStream = renderToReadableStream(
@@ -227,7 +199,7 @@ function createServerComponentRenderer(
         {
           context: serverContexts,
         }
-      )
+      ).pipeThrough(createSuffixStream(cssFlight))
     }
     return RSCStream
   }
@@ -248,7 +220,30 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
-export type Segment = string | [param: string, value: string]
+type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+// c = catchall
+// oc = optional catchall
+// d = dynamic
+export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+function getShortDynamicParamType(
+  type: DynamicParamTypes
+): DynamicParamTypesShort {
+  switch (type) {
+    case 'catchall':
+      return 'c'
+    case 'optional-catchall':
+      return 'oc'
+    case 'dynamic':
+      return 'd'
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+export type Segment =
+  | string
+  | [param: string, value: string, type: DynamicParamTypesShort]
 
 type LoaderTree = [
   segment: string,
@@ -301,7 +296,7 @@ export type ChildProp = {
 
 function getSegmentParam(segment: string): {
   param: string
-  type: 'catchall' | 'optional-catchall' | 'dynamic'
+  type: DynamicParamTypes
 } | null {
   if (segment.startsWith('[[...') && segment.endsWith(']]')) {
     return {
@@ -325,6 +320,30 @@ function getSegmentParam(segment: string): {
   }
 
   return null
+}
+
+function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  const cssFiles = importedServerCSSFiles.map(
+    (css) => serverComponentManifest[css].default
+  )
+  if (process.env.NODE_ENV === 'development') {
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+  }
+
+  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
+  // we use a set here to dedupe the css chunks in production.
+  const cssSet = cssFiles.reduce((res, css) => {
+    res.add(...css.chunks)
+    return res
+  }, new Set())
+
+  const cssFlight = Array.from(cssSet)
+    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
+    .join('\n')
+  return cssFlight
 }
 
 export async function renderToHTML(
@@ -377,6 +396,9 @@ export async function renderToHTML(
 
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const HotReloader = ComponentMod.HotReloader as
+    | typeof import('../client/components/hot-reloader.client').default
+    | null
 
   const headers = req.headers
   // @ts-expect-error TODO: fix type of req
@@ -413,6 +435,7 @@ export async function renderToHTML(
     param: string
     value: string | string[] | null
     treeValue: string
+    type: DynamicParamTypesShort
   } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
     const segmentParam = getSegmentParam(segment)
@@ -428,6 +451,7 @@ export async function renderToHTML(
         return {
           param: key,
           value: null,
+          type: getShortDynamicParamType(segmentParam.type),
           treeValue: '',
         }
       }
@@ -438,6 +462,7 @@ export async function renderToHTML(
       param: key,
       value: value,
       treeValue: Array.isArray(value) ? value.join('/') : value,
+      type: getShortDynamicParamType(segmentParam.type),
     }
   }
 
@@ -448,7 +473,9 @@ export async function renderToHTML(
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? [dynamicParam.param, dynamicParam.treeValue] : segment,
+      dynamicParam
+        ? [dynamicParam.param, dynamicParam.treeValue, dynamicParam.type]
+        : segment,
       {},
     ]
 
@@ -536,7 +563,11 @@ export async function renderToHTML(
         const childProp: ChildProp = {
           current: <ChildComponent />,
           segment: childSegmentParam
-            ? [childSegmentParam.param, childSegmentParam.treeValue]
+            ? [
+                childSegmentParam.param,
+                childSegmentParam.treeValue,
+                childSegmentParam.type,
+              ]
             : parallelRoutes[currentValue][0],
         }
 
@@ -683,7 +714,7 @@ export async function renderToHTML(
             }
           : parentParams
       const actualSegment: Segment = segmentParam
-        ? [segmentParam.param, segmentParam.treeValue]
+        ? [segmentParam.param, segmentParam.treeValue, segmentParam.type]
         : segment
 
       const renderComponentsOnThisLevel =
@@ -729,6 +760,7 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
+    const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
     const flightData: FlightData = [
       // TODO: change walk to output without ''
       walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
@@ -737,16 +769,16 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest)
+        .pipeThrough(createSuffixStream(cssFlight))
+        .pipeThrough(createBufferedTransformStream())
     )
   }
 
   const search = stringifyQuery(query)
 
   // TODO: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url
+  const initialCanonicalUrl = req.url!
 
   // TODO: change tree to accommodate this
   // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
@@ -760,7 +792,8 @@ export async function renderToHTML(
     firstItem: true,
   })
 
-  const AppRouter = ComponentMod.AppRouter
+  const AppRouter =
+    ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
   const {
     QueryContext,
     PathnameContext,
@@ -774,6 +807,7 @@ export async function renderToHTML(
         <PathnameContext.Provider value={pathname}>
           {/* <ParamsContext.Provider value={pathParams}> */}
           <AppRouter
+            hotReloader={HotReloader && <HotReloader assetPrefix="" />}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
