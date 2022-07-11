@@ -23,6 +23,7 @@ function treePathToEntrypoint(
 ): string {
   const [parallelRouteKey, segment] = segmentPath
 
+  // TODO: modify this path to cover parallelRouteKey convention
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' ? parallelRouteKey + '/' : '') +

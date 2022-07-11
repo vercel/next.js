@@ -8,6 +8,7 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../dev/error-overlay/format-webpack-messages'
+import { useRouter } from './hooks-client'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
@@ -177,7 +178,11 @@ function performFullReload(err: any, sendMessage: any) {
   window.location.reload()
 }
 
-function processMessage(e: any, sendMessage: any) {
+function processMessage(
+  e: any,
+  sendMessage: any,
+  router: ReturnType<typeof useRouter>
+) {
   const obj = JSON.parse(e.data)
 
   switch (obj.action) {
@@ -292,6 +297,16 @@ function processMessage(e: any, sendMessage: any) {
       }
       return
     }
+    // TODO: make server component change more granular
+    case 'serverComponentChanges': {
+      sendMessage(
+        JSON.stringify({
+          event: 'server-component-reload-page',
+          clientId: __nextDevClientId,
+        })
+      )
+      return router.reload()
+    }
     case 'reloadPage': {
       sendMessage(
         JSON.stringify({
@@ -367,6 +382,7 @@ function processMessage(e: any, sendMessage: any) {
 
 export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
   const { tree } = useContext(FullAppTreeContext)
+  const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()
   const sendMessage = useCallback((data) => {
@@ -424,7 +440,7 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
       }
 
       try {
-        processMessage(event, sendMessage)
+        processMessage(event, sendMessage, router)
       } catch (ex) {
         console.warn('Invalid HMR message: ' + event.data + '\n', ex)
       }
@@ -437,7 +453,7 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
     return () =>
       webSocketRef.current &&
       webSocketRef.current.removeEventListener('message', handler)
-  }, [sendMessage])
+  }, [sendMessage, router])
   // useEffect(() => {
   //   const interval = setInterval(function () {
   //     if (

@@ -37,14 +37,8 @@ export function fetchServerResponse(
 }
 
 // TODO: move this back into AppRouter
-let initialCache: CacheNode =
-  typeof window === 'undefined'
-    ? null!
-    : {
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      }
+let initialParallelRoutes: CacheNode['parallelRoutes'] =
+  typeof window === 'undefined' ? null! : new Map()
 
 export default function AppRouter({
   initialTree,
@@ -61,20 +55,18 @@ export default function AppRouter({
     typeof reducer
   >(reducer, {
     tree: initialTree,
-    cache:
-      typeof window === 'undefined'
-        ? {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          }
-        : initialCache,
+    cache: {
+      data: null,
+      subTreeData: children,
+      parallelRoutes:
+        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+    },
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
 
   useEffect(() => {
-    initialCache = null!
+    initialParallelRoutes = null!
   }, [])
 
   const { query, pathname } = React.useMemo(() => {
@@ -157,6 +149,24 @@ export default function AppRouter({
           navigate(href, 'hard', 'push')
         })
       },
+      reload: () => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'reload',
+            payload: {
+              // TODO: revisit if this needs to be passed.
+              url: new URL(window.location.href),
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
+              mutable: {},
+            },
+          })
+        })
+      },
     }
 
     return routerInstance
@@ -219,7 +229,6 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
-
   return (
     <PathnameContext.Provider value={pathname}>
       <QueryContext.Provider value={query}>
@@ -239,7 +248,7 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {children}
+              {cache.subTreeData}
               {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
