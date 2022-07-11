@@ -221,7 +221,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params
+    params?: Params,
+    isAppDir?: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -363,6 +364,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       serverDistDir: this.serverDistDir,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
+      incrementalCacheHandlerPath:
+        this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
         if (dev) {
           return {
@@ -1795,10 +1798,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (typeof appPath === 'string') {
       page = appPath
     }
+
     const result = await this.findPageComponents(
       page,
       query,
-      ctx.renderOpts.params
+      ctx.renderOpts.params,
+      typeof appPath === 'string'
     )
     if (result) {
       try {

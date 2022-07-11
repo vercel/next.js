@@ -571,14 +571,29 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                  )
-                  .replace(/\\/g, '/'),
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+                ? [
+                    require.resolve(
+                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+                    ),
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next-dev.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ]
+                : `./` +
+                  path
+                    .relative(
+                      dir,
+                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
+                    )
+                    .replace(/\\/g, '/'),
             }
           : {}),
       } as ClientEntries)
