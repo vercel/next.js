@@ -15,7 +15,7 @@ import { serverComponentRegex } from '../../build/webpack/loaders/utils'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
-import { FlightRouterState } from '../app-render'
+import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
 
 function treePathToEntrypoint(
   segmentPath: string[],
@@ -38,6 +38,22 @@ function treePathToEntrypoint(
   return treePathToEntrypoint(childSegmentPath, path)
 }
 
+function convertDynamicParamTypeToSyntax(
+  dynamicParamTypeShort: DynamicParamTypesShort,
+  param: string
+) {
+  switch (dynamicParamTypeShort) {
+    case 'c':
+      return `[...${param}]`
+    case 'oc':
+      return `[[...${param}]]`
+    case 'd':
+      return `[${param}]`
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
 function getEntrypointsFromTree(
   tree: FlightRouterState,
   isFirst: boolean,
@@ -45,7 +61,9 @@ function getEntrypointsFromTree(
 ) {
   const [segment, parallelRoutes] = tree
 
-  const currentSegment = Array.isArray(segment) ? segment[0] : segment
+  const currentSegment = Array.isArray(segment)
+    ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
+    : segment
 
   const currentPath = [...parentPath, currentSegment]
 

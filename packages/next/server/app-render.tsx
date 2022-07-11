@@ -248,7 +248,30 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
-export type Segment = string | [param: string, value: string]
+type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+// c = catchall
+// oc = optional catchall
+// d = dynamic
+export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+function getShortDynamicParamType(
+  type: DynamicParamTypes
+): DynamicParamTypesShort {
+  switch (type) {
+    case 'catchall':
+      return 'c'
+    case 'optional-catchall':
+      return 'oc'
+    case 'dynamic':
+      return 'd'
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+export type Segment =
+  | string
+  | [param: string, value: string, type: DynamicParamTypesShort]
 
 type LoaderTree = [
   segment: string,
@@ -301,7 +324,7 @@ export type ChildProp = {
 
 function getSegmentParam(segment: string): {
   param: string
-  type: 'catchall' | 'optional-catchall' | 'dynamic'
+  type: DynamicParamTypes
 } | null {
   if (segment.startsWith('[[...') && segment.endsWith(']]')) {
     return {
@@ -416,6 +439,7 @@ export async function renderToHTML(
     param: string
     value: string | string[] | null
     treeValue: string
+    type: DynamicParamTypesShort
   } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
     const segmentParam = getSegmentParam(segment)
@@ -431,6 +455,7 @@ export async function renderToHTML(
         return {
           param: key,
           value: null,
+          type: getShortDynamicParamType(segmentParam.type),
           treeValue: '',
         }
       }
@@ -441,6 +466,7 @@ export async function renderToHTML(
       param: key,
       value: value,
       treeValue: Array.isArray(value) ? value.join('/') : value,
+      type: getShortDynamicParamType(segmentParam.type),
     }
   }
 
@@ -451,7 +477,9 @@ export async function renderToHTML(
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? [dynamicParam.param, dynamicParam.treeValue] : segment,
+      dynamicParam
+        ? [dynamicParam.param, dynamicParam.treeValue, dynamicParam.type]
+        : segment,
       {},
     ]
 
@@ -539,7 +567,11 @@ export async function renderToHTML(
         const childProp: ChildProp = {
           current: <ChildComponent />,
           segment: childSegmentParam
-            ? [childSegmentParam.param, childSegmentParam.treeValue]
+            ? [
+                childSegmentParam.param,
+                childSegmentParam.treeValue,
+                childSegmentParam.type,
+              ]
             : parallelRoutes[currentValue][0],
         }
 
@@ -686,7 +718,7 @@ export async function renderToHTML(
             }
           : parentParams
       const actualSegment: Segment = segmentParam
-        ? [segmentParam.param, segmentParam.treeValue]
+        ? [segmentParam.param, segmentParam.treeValue, segmentParam.type]
         : segment
 
       const renderComponentsOnThisLevel =
