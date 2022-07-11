@@ -32,8 +32,11 @@ export const base = curry(function base(
       config.devtool = 'eval-source-map'
     }
   } else {
-    // Enable browser sourcemaps:
-    if (ctx.productionBrowserSourceMaps && ctx.isClient) {
+    if (
+      ctx.isEdgeRuntime ||
+      // Enable browser sourcemaps:
+      (ctx.productionBrowserSourceMaps && ctx.isClient)
+    ) {
       config.devtool = 'source-map'
     } else {
       config.devtool = false

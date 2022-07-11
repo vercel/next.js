@@ -73,8 +73,9 @@ interface NextHistoryState {
 
 export type HistoryState =
   | null
-  | { __N: false }
-  | ({ __N: true; key: string } & NextHistoryState)
+  | { __NA: true; __N?: false }
+  | { __N: false; __NA?: false }
+  | ({ __NA?: false; __N: true; key: string } & NextHistoryState)
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
@@ -837,6 +838,12 @@ export default class Router implements BaseRouter {
         formatWithValidation({ pathname: addBasePath(pathname), query }),
         getURL()
       )
+      return
+    }
+
+    // __NA is used to identify if the history entry can be handled by the app-router.
+    if (state.__NA) {
+      window.location.reload()
       return
     }
 

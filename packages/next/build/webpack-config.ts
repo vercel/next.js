@@ -34,7 +34,9 @@ import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
-import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
+import MiddlewarePlugin, {
+  handleWebpackExtenalForEdgeRuntime,
+} from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
@@ -569,14 +571,29 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                  )
-                  .replace(/\\/g, '/'),
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+                ? [
+                    require.resolve(
+                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+                    ),
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next-dev.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ]
+                : `./` +
+                  path
+                    .relative(
+                      dir,
+                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
+                    )
+                    .replace(/\\/g, '/'),
             }
           : {}),
       } as ClientEntries)
@@ -976,6 +993,7 @@ export default async function getBaseWebpackConfig(
                     'next/dist/compiled/chalk': '{}',
                     'react-dom': '{}',
                   },
+                  handleWebpackExtenalForEdgeRuntime,
                 ]
               : []),
           ]
@@ -1449,12 +1467,6 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      ...(!dev &&
-      isEdgeServer &&
-      !!config.experimental.middlewareSourceMaps &&
-      !config.productionBrowserSourceMaps
-        ? require('./webpack/plugins/middleware-source-maps-plugin').getMiddlewareSourceMapPlugins()
-        : []),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -1678,7 +1690,7 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      new WellKnownErrorsPlugin({ config }),
+      new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
           filePath: require.resolve('./polyfills/polyfill-nomodule'),
