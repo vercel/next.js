@@ -711,6 +711,10 @@
         {
           "title": "node-module-in-edge-runtime",
           "path": "/errors/node-module-in-edge-runtime.md"
+        },
+        {
+          "title": "invalid-next.config.js",
+          "path": "/errors/invalid-next.config.js.md"
         }
       ]
     }

@@ -50,6 +50,7 @@
     "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
+    "types/compiled.d.ts",
     "image-types/global.d.ts"
   ],
   "bin": {
@@ -168,6 +169,8 @@
     "@vercel/ncc": "0.33.4",
     "@vercel/nft": "0.20.0",
     "acorn": "8.5.0",
+    "ajv": "8.11.0",
+    "ajv-keywords": "5.1.0",
     "amphtml-validator": "1.0.35",
     "arg": "4.1.0",
     "assert": "2.0.0",

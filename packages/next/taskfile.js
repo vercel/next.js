@@ -177,6 +177,22 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_ajv(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ajv')))
+    .ncc({ packageName: 'ajv', externals })
+    .target('compiled/ajv')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_ajv_keywords(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ajv-keywords')))
+    .ncc({ packageName: 'ajv-keywords', externals })
+    .target('compiled/ajv-keywords')
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -1708,6 +1724,8 @@ export async function ncc(task, opts) {
         'ncc_hapi_accept',
         'ncc_node_fetch',
         'ncc_acorn',
+        'ncc_ajv',
+        'ncc_ajv_keywords',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
