@@ -249,22 +249,24 @@ export const css = curry(async function css(
     })
   )
 
-  // Throw an error for CSS Modules used outside their supported scope
-  fns.push(
-    loader({
-      oneOf: [
-        markRemovable({
-          test: [regexCssModules, regexSassModules],
-          use: {
-            loader: 'error-loader',
-            options: {
-              reason: getLocalModuleImportError(),
+  if (!ctx.experimental.appDir) {
+    // Throw an error for CSS Modules used outside their supported scope
+    fns.push(
+      loader({
+        oneOf: [
+          markRemovable({
+            test: [regexCssModules, regexSassModules],
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getLocalModuleImportError(),
+              },
             },
-          },
-        }),
-      ],
-    })
-  )
+          }),
+        ],
+      })
+    )
+  }
 
   if (ctx.isServer) {
     fns.push(
@@ -367,6 +369,24 @@ export const css = curry(async function css(
                 ],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+            }),
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              sideEffects: false,
+              test: regexCssModules,
+              issuer: {
+                or: [
+                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
+                  // Also match the virtual client entry which doesn't have file path
+                  (filePath) => !filePath,
+                ],
+              },
+              use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
             }),
           ],
         })
