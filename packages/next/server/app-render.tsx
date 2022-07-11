@@ -340,15 +340,15 @@ function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
     return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
   }
 
+  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
+  // we use a set here to dedupe the css chunks in production.
   const cssSet = cssFiles.reduce((res, css) => {
     res.add(...css.chunks)
     return res
   }, new Set())
 
   const cssFlight = Array.from(cssSet)
-    .map(
-      (css) => `CSS:${JSON.stringify({ id: 'css', name: '', chunks: [css] })}`
-    )
+    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
     .join('\n')
   return cssFlight
 }
