@@ -11,7 +11,7 @@ import { CssBaseline } from '@nextui-org/react'
 
 import { Children } from 'react'
 
-class MyDocument extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
@@ -35,5 +35,3 @@ class MyDocument extends Document {
     )
   }
 }
-
-export default MyDocument

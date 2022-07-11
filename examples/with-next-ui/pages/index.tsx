@@ -1,16 +1,14 @@
-import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 import dynamic from 'next/dynamic'
 import { Avatar, Pagination } from '@nextui-org/react'
 
-const CustomModel = dynamic(() => import('../components/Model'))
 const CustomCheckbox = dynamic(() => import('../components/Checkbox'))
 const CustomTable = dynamic(() => import('../components/Table'))
 const CustomCollapse = dynamic(() => import('../components/Collapse'))
 
-const Home: NextPage = () => {
+export default function Home() {
   return (
     <div className={styles.container}>
       <Head>
@@ -25,9 +23,6 @@ const Home: NextPage = () => {
         <h1 className={styles.title}>
           Welcome to use <a href="https://nextui.org/">NextUI!</a>
         </h1>
-        {/* model */}
-        <h2>Modal:</h2>
-        <CustomModel></CustomModel>
         {/* checkout */}
         <h2>Checkbox:</h2>
         <CustomCheckbox></CustomCheckbox>
@@ -56,5 +51,3 @@ const Home: NextPage = () => {
     </div>
   )
 }
-
-export default Home
