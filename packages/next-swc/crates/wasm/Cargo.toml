@@ -20,15 +20,15 @@ plugin = [
 anyhow = "1.0.42"
 console_error_panic_hook = "0.1.6"
 next-swc = {version = "0.0.0", path = "../core"}
-once_cell = "1.3.1"
+once_cell = "1.13.0"
 parking_lot_core = "=0.8.0"
 path-clean = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
-swc = "0.188.0"
-swc_common = { version = "0.18.9", features = ["concurrent", "sourcemap"] }
-swc_ecmascript = { version = "0.164.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_plugin_runner = { version = "0.56.0", default-features = false, optional = true }
+swc = "0.205.0"
+swc_common = { version = "0.23.0", features = ["concurrent", "sourcemap"] }
+swc_ecmascript = { version = "0.180.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_plugin_runner = { version = "0.64.0", default-features = false, optional = true }
 tracing = { version = "0.1.32", features = ["release_max_level_off"] }
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.8"
