@@ -187,15 +187,15 @@ export class FlightManifestPlugin {
           .filter((name) => name !== null)
 
         // Get all CSS files imported from the module's dependencies.
-        const visitedCss = new Set()
+        const visitedModule = new Set()
         const cssChunks: Set<string> = new Set()
 
         function collectClientImportedCss(module: any) {
           if (!module) return
 
           const modRequest = module.userRequest
-          if (visitedCss.has(modRequest)) return
-          visitedCss.add(modRequest)
+          if (visitedModule.has(modRequest)) return
+          visitedModule.add(modRequest)
 
           if (/\.css$/.test(modRequest)) {
             // collect relative imported css chunks

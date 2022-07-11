@@ -186,7 +186,9 @@ function useInitialServerResponse(cacheKey: string) {
         buffer = buffer.slice(index + 1)
         loadCssFromStreamData(line)
       }
-      controller.enqueue(chunk)
+      if (!data.startsWith('CSS:')) {
+        controller.enqueue(chunk)
+      }
     },
     flush() {
       loadCssFromStreamData(buffer)
