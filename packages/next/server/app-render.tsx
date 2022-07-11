@@ -248,7 +248,30 @@ function createServerComponentRenderer(
   return ServerComponentWrapper
 }
 
-export type Segment = string | [param: string, value: string]
+type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+// c = catchall
+// oc = optional catchall
+// d = dynamic
+export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+function getShortDynamicParamType(
+  type: DynamicParamTypes
+): DynamicParamTypesShort {
+  switch (type) {
+    case 'catchall':
+      return 'c'
+    case 'optional-catchall':
+      return 'oc'
+    case 'dynamic':
+      return 'd'
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+export type Segment =
+  | string
+  | [param: string, value: string, type: DynamicParamTypesShort]
 
 type LoaderTree = [
   segment: string,
@@ -297,6 +320,34 @@ export type FlightData = Array<FlightDataPath> | string
 export type ChildProp = {
   current: React.ReactNode
   segment: Segment
+}
+
+function getSegmentParam(segment: string): {
+  param: string
+  type: DynamicParamTypes
+} | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return {
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: 'catchall',
+      param: segment.slice(4, -1),
+    }
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
 }
 
 export async function renderToHTML(
@@ -349,6 +400,9 @@ export async function renderToHTML(
 
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const HotReloader = ComponentMod.HotReloader as
+    | typeof import('../client/components/hot-reloader.client').default
+    | null
 
   const headers = req.headers
   // @ts-expect-error TODO: fix type of req
@@ -381,19 +435,39 @@ export async function renderToHTML(
   const getDynamicParamFromSegment = (
     // [id] or [slug]
     segment: string
-  ): { param: string; value: string } | null => {
+  ): {
+    param: string
+    value: string | string[] | null
+    treeValue: string
+    type: DynamicParamTypesShort
+  } | null => {
     // TODO: use correct matching for dynamic routes to get segment param
-    const segmentParam =
-      segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(1, -1)
-        : null
-
-    if (!segmentParam || !pathParams[segmentParam]) {
+    const segmentParam = getSegmentParam(segment)
+    if (!segmentParam) {
       return null
     }
 
-    // @ts-expect-error TODO:  handle case where value is an array
-    return { param: segmentParam, value: pathParams[segmentParam] }
+    const key = segmentParam.param
+    const value = pathParams[key]
+
+    if (!value) {
+      if (segmentParam.type === 'optional-catchall') {
+        return {
+          param: key,
+          value: null,
+          type: getShortDynamicParamType(segmentParam.type),
+          treeValue: '',
+        }
+      }
+      return null
+    }
+
+    return {
+      param: key,
+      value: value,
+      treeValue: Array.isArray(value) ? value.join('/') : value,
+      type: getShortDynamicParamType(segmentParam.type),
+    }
   }
 
   const createFlightRouterStateFromLoaderTree = ([
@@ -403,7 +477,9 @@ export async function renderToHTML(
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? [dynamicParam.param, dynamicParam.value] : segment,
+      dynamicParam
+        ? [dynamicParam.param, dynamicParam.treeValue, dynamicParam.type]
+        : segment,
       {},
     ]
 
@@ -434,8 +510,7 @@ export async function renderToHTML(
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    // TODO: improve detection
-    const isPage = !firstItem && segment === ''
+    const isPage = typeof page !== undefined
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
@@ -459,16 +534,16 @@ export async function renderToHTML(
       : undefined
 
     const segmentParam = getDynamicParamFromSegment(segment)
-
-    const currentParams = segmentParam
-      ? {
-          ...parentParams,
-          [segmentParam.param]: segmentParam.value,
-        }
-      : parentParams
-
+    const currentParams =
+      // Handle null case where dynamic param is optional
+      segmentParam && segmentParam.value !== null
+        ? {
+            ...parentParams,
+            [segmentParam.param]: segmentParam.value,
+          }
+        : parentParams
     const actualSegment = segmentParam
-      ? [segmentParam.param, segmentParam.value]
+      ? [segmentParam.param, segmentParam.treeValue]
       : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
@@ -492,7 +567,11 @@ export async function renderToHTML(
         const childProp: ChildProp = {
           current: <ChildComponent />,
           segment: childSegmentParam
-            ? [childSegmentParam.param, childSegmentParam.value]
+            ? [
+                childSegmentParam.param,
+                childSegmentParam.treeValue,
+                childSegmentParam.type,
+              ]
             : parallelRoutes[currentValue][0],
         }
 
@@ -546,10 +625,9 @@ export async function renderToHTML(
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
         headers,
-        // TODO: convert to NextCookies
         cookies,
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
+        // TODO: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
         ...(isPage ? { query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -623,7 +701,7 @@ export async function renderToHTML(
     // TODO: throw on invalid flightRouterState
     const walkTreeWithFlightRouterState = (
       treeToFilter: LoaderTree,
-      parentParams: { [key: string]: any },
+      parentParams: { [key: string]: string | string[] },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
     ): FlightDataPath => {
@@ -631,16 +709,17 @@ export async function renderToHTML(
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const segmentParam = getDynamicParamFromSegment(segment)
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : parentParams
       const actualSegment: Segment = segmentParam
-        ? [segmentParam.param, segmentParam.value]
+        ? [segmentParam.param, segmentParam.treeValue, segmentParam.type]
         : segment
-
-      const currentParams = segmentParam
-        ? {
-            ...parentParams,
-            [segmentParam.param]: segmentParam.value,
-          }
-        : parentParams
 
       const renderComponentsOnThisLevel =
         !flightRouterState ||
@@ -702,7 +781,7 @@ export async function renderToHTML(
   const search = stringifyQuery(query)
 
   // TODO: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url
+  const initialCanonicalUrl = req.url!
 
   // TODO: change tree to accommodate this
   // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
@@ -716,7 +795,8 @@ export async function renderToHTML(
     firstItem: true,
   })
 
-  const AppRouter = ComponentMod.AppRouter
+  const AppRouter =
+    ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
   const {
     QueryContext,
     PathnameContext,
@@ -730,6 +810,7 @@ export async function renderToHTML(
         <PathnameContext.Provider value={pathname}>
           {/* <ParamsContext.Provider value={pathParams}> */}
           <AppRouter
+            hotReloader={HotReloader && <HotReloader assetPrefix="" />}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >

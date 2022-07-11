@@ -36,6 +36,7 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
   NEXT_BUILTIN_DOCUMENT,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -220,7 +221,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params
+    params?: Params,
+    isAppDir?: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -1026,31 +1028,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
+      if (entry.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) {
+        return
+      }
       appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes
-  }
-
-  protected getAppPathLayouts(pathname: string): string[] {
-    const layoutPaths: string[] = []
-
-    if (this.appPathRoutes) {
-      const paths = Object.values(this.appPathRoutes)
-      const parts = pathname.split('/').filter(Boolean)
-
-      for (let i = 1; i < parts.length; i++) {
-        const layoutPath = `/${parts.slice(0, i).join('/')}/layout`
-
-        if (paths.includes(layoutPath)) {
-          layoutPaths.push(layoutPath)
-        }
-      }
-
-      if (this.appPathRoutes['/layout']) {
-        layoutPaths.unshift('/layout')
-      }
-    }
-    return layoutPaths
   }
 
   protected async run(
@@ -1813,10 +1796,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (typeof appPath === 'string') {
       page = appPath
     }
+
     const result = await this.findPageComponents(
       page,
       query,
-      ctx.renderOpts.params
+      ctx.renderOpts.params,
+      typeof appPath === 'string'
     )
     if (result) {
       try {
