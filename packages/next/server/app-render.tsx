@@ -403,6 +403,9 @@ export async function renderToHTML(
 
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const HotReloader = ComponentMod.HotReloader as
+    | typeof import('../client/components/hot-reloader.client').default
+    | null
 
   const headers = req.headers
   // @ts-expect-error TODO: fix type of req
@@ -505,8 +508,7 @@ export async function renderToHTML(
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
     const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    // TODO: improve detection
-    const isPage = !firstItem && segment === ''
+    const isPage = typeof page !== undefined
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
@@ -774,7 +776,7 @@ export async function renderToHTML(
   const search = stringifyQuery(query)
 
   // TODO: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url
+  const initialCanonicalUrl = req.url!
 
   // TODO: change tree to accommodate this
   // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
@@ -788,7 +790,8 @@ export async function renderToHTML(
     firstItem: true,
   })
 
-  const AppRouter = ComponentMod.AppRouter
+  const AppRouter =
+    ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
   const {
     QueryContext,
     PathnameContext,
@@ -802,6 +805,7 @@ export async function renderToHTML(
         <PathnameContext.Provider value={pathname}>
           {/* <ParamsContext.Provider value={pathParams}> */}
           <AppRouter
+            hotReloader={HotReloader && <HotReloader assetPrefix="" />}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
           >
