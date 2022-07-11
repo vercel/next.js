@@ -61,7 +61,7 @@ describe('Middleware Runtime trailing slash', () => {
             page: '/',
             regexp: '^/.*$',
             wasm: [],
-            assets: [],
+            blobs: [],
           },
         })
       })

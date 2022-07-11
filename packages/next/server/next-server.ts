@@ -1121,7 +1121,7 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
-      assets: (pageInfo.assets ?? []).map((binding) => {
+      blobs: (pageInfo.blobs ?? []).map((binding) => {
         return {
           ...binding,
           filePath: join(this.distDir, binding.filePath),

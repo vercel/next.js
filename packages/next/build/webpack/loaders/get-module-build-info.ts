@@ -10,8 +10,8 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     nextEdgeApiFunction?: EdgeMiddlewareMeta
     nextEdgeSSR?: EdgeSSRMeta
     nextUsedEnvVars?: Set<string>
-    nextWasmMiddlewareBinding?: WasmBinding
-    nextAssetMiddlewareBinding?: AssetBinding
+    nextWasmMiddlewareBinding?: AssetBinding
+    nextBlobMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
@@ -31,11 +31,6 @@ export interface EdgeMiddlewareMeta {
 export interface EdgeSSRMeta {
   isServerComponent: boolean
   page: string
-}
-
-export interface WasmBinding {
-  filePath: string
-  name: string
 }
 
 export interface AssetBinding {

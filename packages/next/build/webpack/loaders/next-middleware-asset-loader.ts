@@ -5,7 +5,7 @@ export default function MiddlewareAssetLoader(this: any, source: Buffer) {
   const name = sha1(source)
   const filePath = `edge-chunks/asset_${name}`
   const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextAssetMiddlewareBinding = {
+  buildInfo.nextBlobMiddlewareBinding = {
     filePath: `server/${filePath}`,
     name,
   }

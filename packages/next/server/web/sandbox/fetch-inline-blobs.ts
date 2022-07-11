@@ -11,7 +11,7 @@ import { requestToBodyStream } from '../../body-streams'
 export async function fetchInlineBlob(options: {
   input: RequestInfo
   distDir: string
-  assets: EdgeFunctionDefinition['assets']
+  assets: EdgeFunctionDefinition['blobs']
   context: { Response: any }
 }): Promise<Response | undefined> {
   const inputString = String(options.input)

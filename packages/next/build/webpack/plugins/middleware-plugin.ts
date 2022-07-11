@@ -1,8 +1,8 @@
-import {
+import type {
   AssetBinding,
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
-import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
+import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -23,8 +23,8 @@ export interface EdgeFunctionDefinition {
   name: string
   page: string
   regexp: string
-  wasm?: WasmBinding[]
-  assets?: AssetBinding[]
+  wasm?: AssetBinding[]
+  blobs?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
@@ -39,8 +39,8 @@ interface EntryMetadata {
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
-  wasmBindings: Set<WasmBinding>
-  assetBindings: Set<AssetBinding>
+  wasmBindings: Set<AssetBinding>
+  blobBindings: Set<AssetBinding>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -415,8 +415,8 @@ function getExtractMetadata(params: {
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
-        wasmBindings: new Set<WasmBinding>(),
-        assetBindings: new Set<AssetBinding>(),
+        wasmBindings: new Set(),
+        blobBindings: new Set(),
       }
 
       for (const entryModule of entryModules) {
@@ -488,8 +488,8 @@ function getExtractMetadata(params: {
           entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
         }
 
-        if (buildInfo?.nextAssetMiddlewareBinding) {
-          entryMetadata.assetBindings.add(buildInfo.nextAssetMiddlewareBinding)
+        if (buildInfo?.nextBlobMiddlewareBinding) {
+          entryMetadata.blobBindings.add(buildInfo.nextBlobMiddlewareBinding)
         }
 
         /**
@@ -568,7 +568,7 @@ function getCreateAssets(params: {
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
-        assets: Array.from(metadata.assetBindings),
+        blobs: Array.from(metadata.blobBindings),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

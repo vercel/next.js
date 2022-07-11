@@ -1,5 +1,5 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
   getServerError,
@@ -51,7 +51,7 @@ interface ModuleContextOptions {
   useCache: boolean
   env: string[]
   distDir: string
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'blobs' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -203,7 +203,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
       context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
         const blobResponse = await fetchInlineBlob({
           input,
-          assets: options.edgeFunctionEntry.assets,
+          assets: options.edgeFunctionEntry.blobs,
           distDir: options.distDir,
           context,
         })
@@ -283,7 +283,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 }
 
 async function loadWasm(
-  wasm: WasmBinding[]
+  wasm: AssetBinding[]
 ): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
