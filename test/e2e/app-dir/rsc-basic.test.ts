@@ -51,6 +51,7 @@ describe('app dir - react server components', () => {
 
   const { isNextDeploy, isNextDev } = global as any
   if (isNextDeploy) {
+    it('should skip tests for next-deploy', () => {})
     return
   }
 

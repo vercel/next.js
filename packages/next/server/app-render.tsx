@@ -16,6 +16,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
+  createSuffixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -124,7 +125,6 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
-    let remainingFlightResponse = ''
     const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
@@ -144,40 +144,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          const css = responsePartial
-            .split('\n')
-            .map((partialLine) => {
-              const line = remainingFlightResponse + partialLine
-              remainingFlightResponse = ''
-
-              try {
-                const match = line.match(/^M\d+:(.+)/)
-                if (match) {
-                  return JSON.parse(match[1])
-                    .chunks.filter((chunkId: string) =>
-                      chunkId.endsWith('.css')
-                    )
-                    .map(
-                      (file: string) =>
-                        `<link rel="stylesheet" href="/_next/${file}">`
-                    )
-                    .join('')
-                }
-                return ''
-              } catch (err) {
-                // The JSON is partial
-                remainingFlightResponse = line
-                return ''
-              }
-            })
-            .join('')
-
           writer.write(
             encodeText(
-              css +
-                `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([1, id, responsePartial])
-                )})</script>`
+              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+                JSON.stringify([1, id, responsePartial])
+              )})</script>`
             )
           )
           process()
@@ -217,8 +188,9 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  let RSCStream: ReadableStream<Uint8Array>
+  const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
 
+  let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
     if (!RSCStream) {
       RSCStream = renderToReadableStream(
@@ -227,7 +199,7 @@ function createServerComponentRenderer(
         {
           context: serverContexts,
         }
-      )
+      ).pipeThrough(createSuffixStream(cssFlight))
     }
     return RSCStream
   }
@@ -348,6 +320,30 @@ function getSegmentParam(segment: string): {
   }
 
   return null
+}
+
+function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  const cssFiles = importedServerCSSFiles.map(
+    (css) => serverComponentManifest[css].default
+  )
+  if (process.env.NODE_ENV === 'development') {
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+  }
+
+  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
+  // we use a set here to dedupe the css chunks in production.
+  const cssSet = cssFiles.reduce((res, css) => {
+    res.add(...css.chunks)
+    return res
+  }, new Set())
+
+  const cssFlight = Array.from(cssSet)
+    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
+    .join('\n')
+  return cssFlight
 }
 
 export async function renderToHTML(
@@ -764,6 +760,7 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
+    const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
     const flightData: FlightData = [
       // TODO: change walk to output without ''
       walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
@@ -772,9 +769,9 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest)
+        .pipeThrough(createSuffixStream(cssFlight))
+        .pipeThrough(createBufferedTransformStream())
     )
   }
 

@@ -30,8 +30,7 @@ __webpack_require__.u = (chunkId: any) => {
 self.__next_require__ = __webpack_require__
 
 // eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_chunk_load__ = (chunk) => {
+;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (chunk.endsWith('.css')) {
     const link = document.createElement('link')
     link.rel = 'stylesheet'
@@ -153,7 +152,52 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
-  const newResponse = createFromReadableStream(readable)
+
+  async function loadCss(cssChunkInfoJson: string) {
+    const data = JSON.parse(cssChunkInfoJson)
+    await Promise.all(
+      data.chunks.map((chunkId: string) => {
+        // load css related chunks
+        return (self as any).__next_chunk_load__(chunkId)
+      })
+    )
+    // In development mode, import css in dev when it's wrapped by style loader.
+    // In production mode, css are standalone chunk that doesn't need to be imported.
+    if (data.id) {
+      ;(self as any).__next_require__(data.id)
+    }
+  }
+
+  const loadCssFromStreamData = (data: string) => {
+    const seg = data.split(':')
+    if (seg[0] === 'CSS') {
+      loadCss(seg.slice(1).join(':'))
+    }
+  }
+
+  let buffer = ''
+  const loadCssFromFlight = new TransformStream({
+    transform(chunk, controller) {
+      const data = new TextDecoder().decode(chunk)
+      buffer += data
+      let index
+      while ((index = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, index)
+        buffer = buffer.slice(index + 1)
+        loadCssFromStreamData(line)
+      }
+      if (!data.startsWith('CSS:')) {
+        controller.enqueue(chunk)
+      }
+    },
+    flush() {
+      loadCssFromStreamData(buffer)
+    },
+  })
+
+  const newResponse = createFromReadableStream(
+    readable.pipeThrough(loadCssFromFlight)
+  )
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
