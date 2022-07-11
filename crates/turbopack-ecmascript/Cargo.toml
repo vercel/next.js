@@ -28,6 +28,7 @@ indexmap = "1.8.0"
 serde = "1.0.136"
 serde_regex = "1.1.0"
 serde_json = "1.0.81"
+swc_ecma_ast = "0.83.0"
 
 [dependencies.swc_common]
 version = "0.22.0"

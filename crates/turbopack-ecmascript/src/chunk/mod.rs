@@ -278,7 +278,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     // TODO handle Source Maps, maybe via separate method "content_with_map"
     fn content(
         &self,
-        chunk_content: EcmascriptChunkContextVc,
+        chunk_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> EcmascriptChunkItemContentVc;
 }

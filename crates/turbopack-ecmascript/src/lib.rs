@@ -18,7 +18,7 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
-use std::{collections::HashMap, future::IntoFuture};
+use std::future::IntoFuture;
 
 use anyhow::Result;
 use chunk::{
@@ -28,7 +28,7 @@ use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
-use swc_ecmascript::visit::VisitMutWithPath;
+use swc_ecma_visit::VisitMutWith;
 use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
@@ -158,23 +158,27 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content(
         &self,
         chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
         let references = self.module.references();
         let mut code_generation = Vec::new();
         for r in references.await?.iter() {
             if let Some(code_gen) = CodeGenerationReferenceVc::resolve_from(r).await? {
-                code_generation.push(code_gen.code_generation().into_future());
+                code_generation.push(
+                    code_gen
+                        .code_generation(chunk_context, context)
+                        .into_future(),
+                );
             }
         }
         // need to keep that around to allow references into that
         let code_generation = try_join_all(code_generation.into_iter()).await?;
         let code_generation = code_generation.iter().map(|cg| &**cg).collect::<Vec<_>>();
         // TOOD use interval tree with references into "code_generation"
-        let mut interval_tree = Vec::new();
+        let mut visitors = Vec::new();
         for code_gen in code_generation {
-            for (span, visitor) in code_gen.visitors.iter() {
-                interval_tree.push((span, visitor));
+            for (path, visitor) in code_gen.visitors.iter() {
+                visitors.push((path, visitor));
             }
         }
 
@@ -189,15 +193,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         {
             let mut program = program.clone();
 
-            let mut map = HashMap::<_, Vec<_>>::new();
-
-            for (ast_path, visitor) in interval_tree.into_iter() {
-                map.entry(ast_path[0])
-                    .or_default()
-                    .push((ast_path, visitor));
-            }
-
-            program.visit_mut_with_path(&mut ApplyVisitors::new(map), &mut Default::default());
+            program.visit_mut_with(&mut ApplyVisitors::new(visitors));
 
             let mut bytes =
                 format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();

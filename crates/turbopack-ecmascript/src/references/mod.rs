@@ -17,14 +17,16 @@ use regex::Regex;
 use swc_common::{
     comments::CommentKind,
     errors::{DiagnosticId, Handler, HANDLER},
+    pass::AstNodePath,
     Span, Spanned, GLOBALS,
 };
+use swc_ecma_visit::{AstNodeRef, VisitWithPath};
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
         ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
     },
-    visit::{self, Visit, VisitWith},
+    visit::VisitAstPath,
 };
 use turbo_tasks::{util::try_join_all, Value};
 use turbo_tasks_fs::FileSystemPathVc;
@@ -187,7 +189,7 @@ pub(crate) async fn module_references(
 
                         // TODO migrate to effects
                         let mut visitor = AssetReferencesVisitor::new(context, &mut references);
-                        program.visit_with(&mut visitor);
+                        program.visit_with_path(&mut visitor, &mut Default::default());
 
                         (
                             var_graph,
@@ -245,7 +247,7 @@ pub(crate) async fn module_references(
                 handler: &'a Handler,
                 source: AssetVc,
                 context: AssetContextVc,
-                span: &'a Span,
+                ast_path: &'a Vec<Span>,
                 func: &'a JsValue,
                 this: &'a JsValue,
                 args: &'a Vec<JsValue>,
@@ -259,7 +261,7 @@ pub(crate) async fn module_references(
                     handler,
                     source,
                     context,
-                    span,
+                    ast_path,
                     func,
                     this,
                     args,
@@ -278,7 +280,7 @@ pub(crate) async fn module_references(
                 handler: &Handler,
                 source: AssetVc,
                 context: AssetContextVc,
-                span: &Span,
+                ast_path: &Vec<Span>,
                 func: &JsValue,
                 this: &JsValue,
                 args: &Vec<JsValue>,
@@ -299,7 +301,7 @@ pub(crate) async fn module_references(
                                 handler,
                                 source,
                                 context,
-                                span,
+                                ast_path,
                                 alt,
                                 this,
                                 args,
@@ -329,7 +331,7 @@ pub(crate) async fn module_references(
                                             handler,
                                             source,
                                             context,
-                                            span,
+                                            ast_path,
                                             &callee,
                                             this,
                                             &args,
@@ -352,7 +354,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("import({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
@@ -364,7 +366,7 @@ pub(crate) async fn module_references(
                                 EsmAsyncAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
-                                    SwcSpanVc::cell(*span),
+                                    AstPathVc::cell(ast_path.clone()),
                                 )
                                 .into(),
                             );
@@ -372,7 +374,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!("import({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
@@ -386,7 +388,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("require({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -404,7 +406,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!("require({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -419,7 +421,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("require.resolve({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
@@ -438,7 +440,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require.resolve({args}) is not statically analyse-able{hints}",
                             ),
@@ -454,7 +456,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("fs.{name}({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::FS_METHOD
@@ -467,7 +469,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!("fs.{name}({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
@@ -491,7 +493,7 @@ pub(crate) async fn module_references(
                         if !pat.has_constant_parts() {
                             let (args, hints) = explain_args(&linked_args().await?);
                             handler.span_warn_with_code(
-                                *span,
+                                ast_path.last().span(),
                                 &format!("path.resolve({args}) is very dynamic{hints}",),
                                 DiagnosticId::Lint(
                                     errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
@@ -512,7 +514,7 @@ pub(crate) async fn module_references(
                         if !pat.has_constant_parts() {
                             let (args, hints) = explain_args(&linked_args().await?);
                             handler.span_warn_with_code(
-                                *span,
+                                ast_path.last().span(),
                                 &format!("path.join({args}) is very dynamic{hints}",),
                                 DiagnosticId::Lint(
                                     errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
@@ -548,7 +550,7 @@ pub(crate) async fn module_references(
                             if show_dynamic_warning || !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("child_process.{name}({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
@@ -561,7 +563,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "child_process.{name}({args}) is not statically \
                                  analyse-able{hints}",
@@ -579,7 +581,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&linked_args().await?);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("child_process.fork({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
@@ -598,7 +600,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&linked_args().await?);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "child_process.fork({args}) is not statically analyse-able{hints}",
                             ),
@@ -618,7 +620,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&linked_args().await?);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    ast_path.last().span(),
                                     &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
@@ -639,7 +641,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('@mapbox/node-pre-gyp').find({args}) is not statically \
                                  analyse-able{hints}",
@@ -672,7 +674,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('node-gyp-build')({args}) is not statically \
                                  analyse-able{hints}",
@@ -701,7 +703,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('bindings')({args}) is not statically analyse-able{hints}",
                             ),
@@ -721,7 +723,7 @@ pub(crate) async fn module_references(
                                 if !pat.has_constant_parts() {
                                     let (args, hints) = explain_args(&linked_args);
                                     handler.span_warn_with_code(
-                                        *span,
+                                        ast_path.last().span(),
                                         &format!(
                                             "require('express')().set({args}) is very \
                                              dynamic{hints}",
@@ -784,7 +786,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('express')().set({args}) is not statically \
                                  analyse-able{hints}",
@@ -819,7 +821,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('strong-globalize').SetRootDir({args}) is not statically \
                                  analyse-able{hints}",
@@ -844,7 +846,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('resolve-from')({args}) is not statically \
                                  analyse-able{hints}",
@@ -897,7 +899,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            ast_path.last().span(),
                             &format!(
                                 "require('@grpc/proto-loader').load({args}) is not statically \
                                  analyse-able{hints}",
@@ -920,8 +922,13 @@ pub(crate) async fn module_references(
 
             for effect in var_graph.effects.iter() {
                 match effect {
-                    Effect::Call { func, args, span } => {
-                        if let Some(ignored) = &ignore_effect_span {
+                    Effect::Call {
+                        func,
+                        args,
+                        ast_path,
+                    } => {
+                        if let (Some(ignored), Some(span)) = (&ignore_effect_span, ast_path.last())
+                        {
                             if ignored == span {
                                 continue;
                             }
@@ -932,7 +939,7 @@ pub(crate) async fn module_references(
                             &handler,
                             source,
                             context,
-                            &span,
+                            &ast_path,
                             &func,
                             &JsValue::Unknown(None, "no this provided"),
                             &args,
@@ -948,9 +955,10 @@ pub(crate) async fn module_references(
                         obj,
                         prop,
                         args,
-                        span,
+                        ast_path,
                     } => {
-                        if let Some(ignored) = &ignore_effect_span {
+                        if let (Some(ignored), Some(span)) = (&ignore_effect_span, ast_path.last())
+                        {
                             if ignored == span {
                                 continue;
                             }
@@ -963,7 +971,7 @@ pub(crate) async fn module_references(
                             &handler,
                             source,
                             context,
-                            &span,
+                            &ast_path,
                             &func,
                             &obj,
                             &args,
@@ -1194,21 +1202,36 @@ impl<'a> AssetReferencesVisitor<'a> {
     }
 }
 
-impl<'a> Visit for AssetReferencesVisitor<'a> {
-    fn visit_export_all(&mut self, export: &ExportAll) {
+fn as_span_path(_ast_path: &AstNodePath<AstNodeRef<'_>>) -> Vec<Span> {
+    todo!("there is no span() method yet");
+    // let path = ast_path.iter().filter_map(|r| r.span()).collect();
+    // path.pop(); // We drop the ModuleDecl to get the ModuleItem
+    // path
+}
+
+impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
+    fn visit_export_all<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportAll,
+        ast_path: &mut AstNodePath<AstNodeRef<'r>>,
+    ) {
         let src = export.src.value.to_string();
         self.references.push(
             // TODO create a separate AssetReference for this
             EsmAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.into())),
-                SwcSpanVc::cell(export.span()),
+                AstPathVc::cell(as_span_path(ast_path)),
             )
             .into(),
         );
-        visit::visit_export_all(self, export);
+        export.visit_children_with_path(self, ast_path);
     }
-    fn visit_named_export(&mut self, export: &NamedExport) {
+    fn visit_named_export<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast NamedExport,
+        ast_path: &mut AstNodePath<AstNodeRef<'r>>,
+    ) {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
             self.references.push(
@@ -1216,24 +1239,28 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 EsmAssetReferenceVc::new(
                     self.context,
                     RequestVc::parse(Value::new(src.into())),
-                    SwcSpanVc::cell(export.span()),
+                    AstPathVc::cell(as_span_path(ast_path)),
                 )
                 .into(),
             );
         }
-        visit::visit_named_export(self, export);
+        export.visit_children_with_path(self, ast_path);
     }
-    fn visit_import_decl(&mut self, import: &ImportDecl) {
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        import: &'ast ImportDecl,
+        ast_path: &mut AstNodePath<AstNodeRef<'r>>,
+    ) {
         let src = import.src.value.to_string();
         self.references.push(
             EsmAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.clone().into())),
-                SwcSpanVc::cell(import.span()),
+                AstPathVc::cell(as_span_path(ast_path)),
             )
             .into(),
         );
-        visit::visit_import_decl(self, import);
+        import.visit_children_with_path(self, ast_path);
         if import.type_only {
             return;
         }
@@ -1269,7 +1296,11 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         }
     }
 
-    fn visit_var_declarator(&mut self, decl: &VarDeclarator) {
+    fn visit_var_declarator<'ast: 'r, 'r>(
+        &mut self,
+        decl: &'ast VarDeclarator,
+        ast_path: &mut AstNodePath<AstNodeRef<'r>>,
+    ) {
         if let Some(ident) = decl.name.as_ident() {
             if &*ident.id.sym == "__webpack_require__" {
                 if let Some(init) = &decl.init {
@@ -1293,10 +1324,14 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 }
             }
         }
-        visit::visit_var_declarator(self, decl);
+        decl.visit_children_with_path(self, ast_path);
     }
 
-    fn visit_call_expr(&mut self, call: &CallExpr) {
+    fn visit_call_expr<'ast: 'r, 'r>(
+        &mut self,
+        call: &'ast CallExpr,
+        ast_path: &mut AstNodePath<AstNodeRef<'r>>,
+    ) {
         match &call.callee {
             Callee::Expr(expr) => match self.old_analyser.evaluate_expr(&expr) {
                 StaticExpr::FreeVar(var) => match &var[..] {
@@ -1330,7 +1365,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             },
             _ => {}
         }
-        visit::visit_call_expr(self, call);
+        call.visit_children_with_path(self, ast_path);
     }
 }
 
@@ -1353,4 +1388,4 @@ async fn resolve_as_webpack_runtime(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct SwcSpan(#[trace_ignore] Span);
+pub struct AstPath(#[trace_ignore] Vec<Span>);
