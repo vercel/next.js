@@ -6,13 +6,15 @@ export default async function transformSource(this: any): Promise<string> {
     modules = modules ? [modules] : []
   }
 
-  return (
-    modules
-      .map(
-        (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
-      )
-      .join(';') +
+  const requests = modules as string[]
+  const code =
+    requests
+      .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
+      .join(';\n') +
     `
+    export const __next_rsc_css__ = ${JSON.stringify(
+      requests.filter((request) => request.endsWith('.css'))
+    )};
     export const __next_rsc__ = {
       server: false,
       __webpack_require__
@@ -25,5 +27,6 @@ export default async function transformSource(this: any): Promise<string> {
       : ssr
       ? `export const __N_SSP = true;`
       : `export const __N_SSG = true;`)
-  )
+
+  return code
 }
