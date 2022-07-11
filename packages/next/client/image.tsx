@@ -349,7 +349,8 @@ function handleLoading(
   })
 }
 
-export default function Image({
+export default Image
+export function Image({
   src,
   sizes,
   unoptimized = false,

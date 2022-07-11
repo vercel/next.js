@@ -137,7 +137,7 @@ type LinkPropsReal = React.PropsWithChildren<
     LinkProps
 >
 
-const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
+export const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {

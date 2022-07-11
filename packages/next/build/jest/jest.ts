@@ -30,6 +30,9 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 /*
 // Usage in jest.config.js
 const nextJest = require('next/jest');
+// Usage in jest.config.js with @ts-check
+const { default: nextJest } = require('next/jest');
+const { nextJest } = require('next/jest');
 
 // Optionally provide path to Next.js app which will enable loading next.config.js and .env files
 const createJestConfig = nextJest({ dir })
@@ -42,7 +45,7 @@ const customJestConfig = {
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
 module.exports = createJestConfig(customJestConfig)
 */
-export default function nextJest(options: { dir?: string } = {}) {
+export function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
   return (customJestConfig?: any) => {
     // Function that is provided as the module.exports of jest.config.js
@@ -150,3 +153,5 @@ export default function nextJest(options: { dir?: string } = {}) {
     }
   }
 }
+
+export default nextJest

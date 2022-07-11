@@ -260,7 +260,7 @@ class LoadableSubscription {
   }
 }
 
-function Loadable(opts) {
+export function Loadable(opts) {
   return createLoadableComponent(load, opts)
 }
 

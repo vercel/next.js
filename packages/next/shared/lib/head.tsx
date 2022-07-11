@@ -179,7 +179,7 @@ function reduceComponents(
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
-function Head({ children }: { children: React.ReactNode }) {
+export function Head({ children }: { children: React.ReactNode }) {
   const ampState = useContext(AmpStateContext)
   const headManager = useContext(HeadManagerContext)
   return (
