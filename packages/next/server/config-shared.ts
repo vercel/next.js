@@ -758,8 +758,9 @@ const configSchema = {
       type: 'object',
     },
     distDir: {
-      maxLength: 1,
+      minLength: 1,
       type: 'string',
+      nullable: true,
     },
     env: {
       type: 'object',
@@ -1167,7 +1168,7 @@ const configSchema = {
       instanceof: 'Function',
     } as any,
   },
-} as JSONSchemaType<NextConfigComplete>
+} as JSONSchemaType<NextConfig>
 
 export function validateConfig(userConfig: NextConfig): {
   errors?: Array<any> | null
