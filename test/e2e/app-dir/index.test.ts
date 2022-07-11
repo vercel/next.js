@@ -747,11 +747,104 @@ describe('app dir', () => {
           }
         })
       })
+
+      describe('useRouter', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-router/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useParams', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-params/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useSearchParams', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('usePathname', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useLayoutSegments', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-layout-segments/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useSelectedLayoutSegment', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-selected-layout-segment/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
     })
   })
 
   describe('client components', () => {
     describe('hooks', () => {
+      describe('useCookies', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-cookies/client')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('usePreviewData', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-preview-data/client'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useHeaders', () => {
+        // TODO: remove skip when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-headers/client')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
       describe('usePathname', () => {
         it('should have the correct pathname', async () => {
           const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
