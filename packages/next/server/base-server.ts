@@ -36,6 +36,7 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/load-custom-routes'
 import {
   NEXT_BUILTIN_DOCUMENT,
+  NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
@@ -220,7 +221,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract findPageComponents(
     pathname: string,
     query?: NextParsedUrlQuery,
-    params?: Params
+    params?: Params,
+    isAppDir?: boolean
   ): Promise<FindComponentsResult | null>
   protected abstract getPagePath(pathname: string, locales?: string[]): string
   protected abstract getFontManifest(): FontManifest | undefined
@@ -489,7 +491,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (
             !isDynamicRoute(srcPathname) &&
-            !(await this.hasPage(srcPathname))
+            !(await this.hasPage(removeTrailingSlash(srcPathname)))
           ) {
             for (const dynamicRoute of this.dynamicRoutes || []) {
               if (dynamicRoute.match(srcPathname)) {
@@ -769,6 +771,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let pathname = `/${params.path.join('/')}`
           pathname = getRouteFromAssetPath(pathname, '.json')
 
+          // ensure trailing slash is normalized per config
+          if (this.router.catchAllMiddleware[0]) {
+            if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
+              pathname += '/'
+            }
+            if (
+              !this.nextConfig.trailingSlash &&
+              pathname.length > 1 &&
+              pathname.endsWith('/')
+            ) {
+              pathname = pathname.substring(0, pathname.length - 1)
+            }
+          }
+
           if (this.nextConfig.i18n) {
             const { host } = req?.headers || {}
             // remove port from host and remove port if present
@@ -899,7 +915,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
-      this.appPathRoutes = this.getappPathRoutes()
+      this.appPathRoutes = this.getAppPathRoutes()
       this.dynamicRoutes = this.getDynamicRoutes()
     }
 
@@ -1008,35 +1024,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       .filter((item): item is RoutingItem => Boolean(item))
   }
 
-  protected getappPathRoutes(): Record<string, string> {
+  protected getAppPathRoutes(): Record<string, string> {
     const appPathRoutes: Record<string, string> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
+      if (entry.endsWith(NEXT_CLIENT_SSR_ENTRY_SUFFIX)) {
+        return
+      }
       appPathRoutes[normalizeAppPath(entry) || '/'] = entry
     })
     return appPathRoutes
-  }
-
-  protected getappPathLayouts(pathname: string): string[] {
-    const layoutPaths: string[] = []
-
-    if (this.appPathRoutes) {
-      const paths = Object.values(this.appPathRoutes)
-      const parts = pathname.split('/').filter(Boolean)
-
-      for (let i = 1; i < parts.length; i++) {
-        const layoutPath = `/${parts.slice(0, i).join('/')}/layout`
-
-        if (paths.includes(layoutPath)) {
-          layoutPaths.push(layoutPath)
-        }
-      }
-
-      if (this.appPathRoutes['/layout']) {
-        layoutPaths.unshift('/layout')
-      }
-    }
-    return layoutPaths
   }
 
   protected async run(
@@ -1799,10 +1796,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (typeof appPath === 'string') {
       page = appPath
     }
+
     const result = await this.findPageComponents(
       page,
       query,
-      ctx.renderOpts.params
+      ctx.renderOpts.params,
+      typeof appPath === 'string'
     )
     if (result) {
       try {

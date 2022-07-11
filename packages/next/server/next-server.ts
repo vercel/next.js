@@ -613,13 +613,18 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
-    if (renderOpts.isAppPath) {
+    if (
+      this.nextConfig.experimental.appDir &&
+      (renderOpts.isAppPath || query.__flight__)
+    ) {
+      const isPagesDir = !renderOpts.isAppPath
       return appRenderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
-        renderOpts
+        renderOpts,
+        isPagesDir
       )
     }
 
@@ -678,7 +683,8 @@ export default class NextNodeServer extends BaseServer {
   protected async findPageComponents(
     pathname: string,
     query: NextParsedUrlQuery = {},
-    params: Params | null = null
+    params: Params | null = null,
+    isAppDir: boolean = false
   ): Promise<FindComponentsResult | null> {
     let paths = [
       // try serving a static AMP version first
@@ -727,7 +733,8 @@ export default class NextNodeServer extends BaseServer {
                   __flight__: query.__flight__,
                 } as NextParsedUrlQuery)
               : query),
-            ...(params || {}),
+            // For appDir params is excluded.
+            ...((isAppDir ? {} : params) || {}),
           },
         }
       } catch (err) {

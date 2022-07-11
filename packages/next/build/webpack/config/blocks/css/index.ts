@@ -347,6 +347,31 @@ export const css = curry(async function css(
         })
       )
     }
+
+    if (ctx.experimental.appDir) {
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              // A global CSS import always has side effects. Webpack will tree
+              // shake the CSS without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexCssGlobal,
+              issuer: {
+                or: [
+                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
+                  // Also match the virtual client entry which doesn't have file path
+                  (filePath) => !filePath,
+                ],
+              },
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
+            }),
+          ],
+        })
+      )
+    }
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
@@ -375,6 +400,18 @@ export const css = curry(async function css(
       oneOf: [
         markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
+          issuer: ctx.experimental.appDir
+            ? {
+                // If it's inside the app dir, but not importing from a layout file,
+                // throw an error.
+                or: [
+                  {
+                    and: [ctx.rootDirectory],
+                    not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
+                  },
+                ],
+              }
+            : undefined,
           use: {
             loader: 'error-loader',
             options: {

@@ -70,7 +70,7 @@ module.exports = {
 }
 ```
 
-Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+`minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 
@@ -385,11 +385,14 @@ You can configure swc's transform to use SWC's experimental plugin support writt
 module.exports = {
   experimental: {
     swcPlugins: [
-      ['plugin', {
-        ..pluginOptions
-      }]
-    ]
-  }
+      [
+        'plugin',
+        {
+          ...pluginOptions,
+        },
+      ],
+    ],
+  },
 }
 ```
 

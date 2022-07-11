@@ -23,7 +23,8 @@ export async function getErrorByType(
         error: event.reason,
         frames: await getOriginalStackFrames(
           event.frames,
-          getErrorSource(event.reason)
+          getErrorSource(event.reason),
+          event.reason.toString()
         ),
       }
     }
