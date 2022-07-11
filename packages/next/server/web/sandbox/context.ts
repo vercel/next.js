@@ -11,6 +11,7 @@ import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import path from 'path'
 import { requestToBodyStream } from '../../body-streams'
+import { fetchInlineBlob } from './fetch-inline-blobs'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -107,7 +108,6 @@ async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
   const wasm = await loadWasm(options.wasm)
-  console.log({ cwd: process.cwd(), wasm: options.wasm })
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -202,6 +202,15 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
       const __fetch = context.fetch
       context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
+        const blobResponse = await fetchInlineBlob({
+          input,
+          distDir: options.distDir,
+          context,
+        })
+        if (blobResponse) {
+          return blobResponse
+        }
+
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -210,26 +219,6 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)
-        }
-
-        const inputString = String(input)
-        if (inputString.startsWith('/_next/static/media/')) {
-          const pathname = inputString.replace('/_next/static/media/', '')
-          const fullPathname = path.join(
-            options.distDir,
-            `server/static/media/${pathname}`
-          )
-          if (
-            await fs.access(fullPathname).then(
-              () => true,
-              () => false
-            )
-          ) {
-            const blob = createReadStream(fullPathname)
-            return new context.Response(requestToBodyStream(blob))
-          }
-        } else if (inputString.startsWith('file://')) {
-          return new Response('Not Found', { status: 404 })
         }
 
         if (typeof input === 'object' && 'url' in input) {
