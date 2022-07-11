@@ -73,7 +73,8 @@ module.exports = async function collectStats(
     if (!orderedStats['General']) {
       orderedStats['General'] = {}
     }
-    orderedStats['General']['server start time (ms)'] = Date.now() - startTime
+    orderedStats['General']['nextStartReadyDuration (ms)'] =
+      Date.now() - startTime
 
     if (exitCode !== null) {
       throw new Error(

@@ -79,9 +79,9 @@ async function runConfigs(
       }
 
       const collectedStats = await collectStats(config, statsConfig)
-      curStats = {
-        ...curStats,
-        ...collectedStats,
+
+      for (const key of Object.keys(collectedStats)) {
+        curStats[key] = Object.assign({}, curStats[key], collectedStats[key])
       }
 
       const applyRenames = (renames, stats) => {
@@ -204,10 +204,7 @@ async function runConfigs(
         await serverReadyPromise
         child.kill()
 
-        if (!curStats['General']) {
-          curStats['General'] = {}
-        }
-        curStats['General']['dev start time (ms)'] = Date.now() - startTime
+        curStats['General']['nextDevReadyDuration'] = Date.now() - startTime
       }
     }
 
