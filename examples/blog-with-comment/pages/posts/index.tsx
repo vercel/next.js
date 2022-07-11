@@ -1,5 +1,4 @@
 import type { InferGetStaticPropsType } from 'next'
-import type { Post } from '../../interfaces'
 import Link from 'next/link'
 import Container from '../../components/container'
 import distanceToNow from '../../lib/dateRelative'
