@@ -721,6 +721,32 @@ describe('app dir', () => {
           expect($('#does-not-have-header').length).toBe(0)
         })
       })
+
+      describe('usePreviewData', () => {
+        it('should return no preview data when there is none', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-preview-data')
+
+          try {
+            await browser.waitForElementByCss('#does-not-have-preview-data')
+          } finally {
+            await browser.close()
+          }
+        })
+
+        it('should return preview data when there is some', async () => {
+          const browser = await webdriver(next.url, '/api/preview')
+
+          try {
+            await browser.loadPage(next.url + '/hooks/use-preview-data', {
+              disableCache: false,
+              beforePageLoad: null,
+            })
+            await browser.waitForElementByCss('#has-preview-data')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
     })
   })
 
