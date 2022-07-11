@@ -828,12 +828,12 @@ importers:
       core-js: 3.6.5
       microbundle: 0.15.0
       object-assign: 4.1.1
-      whatwg-fetch: 3.6.2
+      whatwg-fetch: 3.0.0
     devDependencies:
       core-js: 3.6.5
       microbundle: 0.15.0
       object-assign: 4.1.1
-      whatwg-fetch: 3.6.2
+      whatwg-fetch: 3.0.0
 
   packages/next-swc:
     specifiers: {}
@@ -22457,10 +22457,6 @@ packages:
 
   /whatwg-fetch/3.0.0:
     resolution: {integrity: sha512-9GSJUgz1D4MfyKU7KRqwOjXCXTqWdFNvEr7eUBYchQiVc744mqK/MzXPNR2WsPkmkOa4ywfg8C2n8h+13Bey1Q==}
-    dev: true
-
-  /whatwg-fetch/3.6.2:
-    resolution: {integrity: sha512-bJlen0FcuU/0EMLrdbJ7zOnW6ITZLrZMIarMUVmdKtsGvZna8vxKYaexICWPfZ8qwf9fzNq+UEIZrnSaApt6RA==}
     dev: true
 
   /whatwg-mimetype/2.3.0:
