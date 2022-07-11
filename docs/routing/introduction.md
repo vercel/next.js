@@ -74,7 +74,7 @@ The example above uses multiple links. Each one maps a path (`href`) to a known 
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
-Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md). The corresponding data for [server-rendered](/docs/basic-features/data-fetching/get-server-side-props.md) routes is _not_ prefetched.
+Learn more about [prefetch pages](#prefetching-pages) for fast transitions.
 
 ### Linking to dynamic paths
 
@@ -146,6 +146,34 @@ Now, instead of using interpolation to create the path, we use a URL object in `
 To access the [`router` object](/docs/api-reference/next/router.md#router-object) in a React component you can use [`useRouter`](/docs/api-reference/next/router.md#useRouter) or [`withRouter`](/docs/api-reference/next/router.md#withRouter).
 
 In general we recommend using [`useRouter`](/docs/api-reference/next/router.md#useRouter).
+
+## Prefetching pages
+
+Next.js can automatically (or declaritvely) prefetch pages for faster transitions even when networks are slow.
+
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions.
+
+Next.js also allows you to prefetch server-rendered pages using HTML `<link rel="prefetch"/>` tags:
+
+> [Link prefetching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Link_prefetching_FAQ) is a browser mechanism, which utilizes browser idle time to download or prefetch documents that the user might visit in the near future. A web page provides a set of prefetching hints to the browser, and after the browser is finished loading the page, it begins silently prefetching specified documents and stores them in its cache. When the user visits one of the prefetched documents, it can be served up quickly out of the browser's cache.
+
+```javascript
+import Link from 'next/link'
+import Head from 'next/head'
+
+export default function Home() {
+  return (
+    <>
+      <Head>
+        <link rel="prefetch" href="/about">
+      </Head>
+      <Link href="/about">
+        <a>About</a>
+      </Link>
+    </>
+  )
+}
+```
 
 ## Learn more
 
