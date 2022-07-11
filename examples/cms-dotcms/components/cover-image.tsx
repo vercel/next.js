@@ -1,6 +1,6 @@
 import DotCmsImage from './dotcms-image'
 import Link from 'next/link'
-import cn from "classnames";
+import cn from 'classnames'
 
 export default function CoverImage(props) {
   const image = (
@@ -9,7 +9,8 @@ export default function CoverImage(props) {
       alt={`Cover Image for ${props.title}`}
       className={cn('shadow-small', {
         'hover:shadow-medium transition-shadow duration-200': props.slug,
-      })}/>
+      })}
+    />
   )
 
   return (

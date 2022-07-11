@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Avatar from '../components/avatar'
 import DateComponent from '../components/date'
 import CoverImage from './cover-image'
-import cn from "classnames";
+import cn from 'classnames'
 
 export default function PostPreview({
   title,
@@ -30,9 +30,18 @@ export default function PostPreview({
           <a className="hover:underline">{title}</a>
         </Link>
       </h3>
-        {date != 'now' ? <div className="mb-4 text-lg"><DateComponent dateString={date} /></div> : null}
+      {date != 'now' ? (
+        <div className="mb-4 text-lg">
+          <DateComponent dateString={date} />
+        </div>
+      ) : null}
       <p className="mb-4 text-lg leading-relaxed">{excerpt}</p>
-      {author.length ? <Avatar name={`${author[0].firstName} ${author[0].lastName}`} picture={author[0].profilePhoto} /> : null}
+      {author.length ? (
+        <Avatar
+          name={`${author[0].firstName} ${author[0].lastName}`}
+          picture={author[0].profilePhoto}
+        />
+      ) : null}
     </div>
   )
 }

@@ -3,23 +3,26 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@types/node": "18.0.3",
-    "@types/react": "18.0.15",
-    "classnames": "2.3.1",
-    "cross-fetch": "^3.1.5",
+    "tailwindcss": "^3.0.15",
+    "react-dom": "18.2.0",
+    "react": "18.2.0",
+    "next": "12.2.2",
     "date-fns": "2.25.0",
-    "next": "^12.2.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "typescript": "4.7.4"
+    "classnames": "2.3.1",
+    "@tailwindcss/typography": "0.5.2"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "0.5.2",
+    "@types/node": "18.0.3",
+    "@types/react": "18.0.15",
+    "@types/react-dom": "18.0.6",
     "autoprefixer": "10.4.2",
+    "eslint": "8.19.0",
+    "eslint-config-next": "12.2.2",
     "postcss": "8.4.5",
-    "tailwindcss": "^3.0.15"
+    "typescript": "4.7.4"
   }
 }

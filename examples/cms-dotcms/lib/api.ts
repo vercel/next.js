@@ -6,18 +6,21 @@
  * @param {Object} param1.preview - Indicate if the query should be previewed
  * @returns {Promise} - A promise that resolves to the result of the query
  */
-async function fetchAPI(query, {variables} = {variables: null}) {
-  const res = await fetch(process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.DOTCMS_TOKEN}`,
-    },
-    body: JSON.stringify({
-      query,
-      variables,
-    }),
-  })
+async function fetchAPI(query, { variables } = { variables: null }) {
+  const res = await fetch(
+    process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.DOTCMS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        query,
+        variables,
+      }),
+    }
+  )
 
   const json = await res.json()
 
@@ -55,7 +58,7 @@ export async function getAllPostsWithSlug() {
         urlTitle
       }
     }
-  `);
+  `)
 
   return entries?.BlogCollection ?? []
 }
@@ -67,8 +70,8 @@ export async function getAllPostsWithSlug() {
  * @returns An array of posts
  */
 export async function getAllPostsForHome(preview) {
-
-  const entries = await fetchAPI(`
+  const entries = await fetchAPI(
+    `
     query getAllPostsForHome($query: String!) {
       BlogCollection(query: $query) {
         title
@@ -87,11 +90,13 @@ export async function getAllPostsForHome(preview) {
         }
       }
     }
-  `, {
-    variables: {
-      query: `${showPreviewPosts(preview)}`,
+  `,
+    {
+      variables: {
+        query: `${showPreviewPosts(preview)}`,
+      },
     }
-  })
+  )
   return entries?.BlogCollection ?? []
 }
 
@@ -103,7 +108,8 @@ export async function getAllPostsForHome(preview) {
  * @returns An object with a post and more posts array
  */
 export async function getPostAndMorePosts(slug, preview) {
-  const data = await fetchAPI(`
+  const data = await fetchAPI(
+    `
     query PostBySlug($query: String!, $morePostsQuery: String!) {
       post: BlogCollection(query: $query, limit: 1) {
         title
@@ -141,12 +147,16 @@ export async function getPostAndMorePosts(slug, preview) {
         }
       }
     }
-  `, {
-    variables: {
-      query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
-      morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
+  `,
+    {
+      variables: {
+        query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
+        morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(
+          preview
+        )}`,
+      },
     }
-  })
+  )
   return {
     post: data?.post[0] ?? {},
     morePosts: data?.morePosts ?? [],
@@ -160,5 +170,7 @@ export async function getPostAndMorePosts(slug, preview) {
  * @returns {string}
  */
 const showPreviewPosts = (preview) => {
-  return (preview === true) ? '+working:true +deleted:false' : '+live:true +deleted:false'
+  return preview === true
+    ? '+working:true +deleted:false'
+    : '+live:true +deleted:false'
 }

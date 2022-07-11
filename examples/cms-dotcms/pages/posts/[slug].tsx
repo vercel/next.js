@@ -15,7 +15,6 @@ import { CMS_NAME } from '../../lib/constants'
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
 
-
   if (!router.isFallback && !post) {
     return <ErrorPage statusCode={404} />
   }
@@ -29,13 +28,14 @@ export default function Post({ post, morePosts, preview }) {
         ) : (
           <>
             <article>
-
               <Head>
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                <meta property="og:image"
-                  content={`${process.env.NEXT_PUBLIC_DOTCMS_HOST}${post.image.idPath}`} />
+                <meta
+                  property="og:image"
+                  content={`${process.env.NEXT_PUBLIC_DOTCMS_HOST}${post.image.idPath}`}
+                />
               </Head>
 
               <PostHeader
@@ -45,7 +45,6 @@ export default function Post({ post, morePosts, preview }) {
               />
 
               <PostBody content={post} />
-
             </article>
 
             <SectionSeparator />
@@ -53,7 +52,6 @@ export default function Post({ post, morePosts, preview }) {
             {morePosts && morePosts.length > 0 && (
               <MoreStories posts={morePosts} />
             )}
-
           </>
         )}
       </Container>

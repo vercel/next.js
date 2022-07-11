@@ -7,7 +7,7 @@ import {
   ListItem,
   OrderedList,
   Paragraph,
-  TextNode
+  TextNode,
 } from './blocks'
 
 /*
@@ -22,16 +22,32 @@ export const ContentBlocks = ({ content }) => {
       {content?.map((data, index) => {
         switch (data.type) {
           case 'paragraph':
-            return <Paragraph key={index}><ContentBlocks content={data.content} /></Paragraph>
+            return (
+              <Paragraph key={index}>
+                <ContentBlocks content={data.content} />
+              </Paragraph>
+            )
 
           case 'heading':
-            return <Heading key={index} level={data.attrs.level}><ContentBlocks content={data.content} /></Heading>
+            return (
+              <Heading key={index} level={data.attrs.level}>
+                <ContentBlocks content={data.content} />
+              </Heading>
+            )
 
           case 'bulletList':
-            return <BulletList key={index}><ContentBlocks content={data.content} /></BulletList>
+            return (
+              <BulletList key={index}>
+                <ContentBlocks content={data.content} />
+              </BulletList>
+            )
 
           case 'orderedList':
-            return <OrderedList key={index}><ContentBlocks content={data.content} /></OrderedList>
+            return (
+              <OrderedList key={index}>
+                <ContentBlocks content={data.content} />
+              </OrderedList>
+            )
 
           case 'dotImage':
             return <DotImage key={index} {...data} />
@@ -40,10 +56,18 @@ export const ContentBlocks = ({ content }) => {
             return <hr key={index} />
 
           case 'blockquote':
-            return <BlockQuote key={index}><ContentBlocks content={data.content} /></BlockQuote>
+            return (
+              <BlockQuote key={index}>
+                <ContentBlocks content={data.content} />
+              </BlockQuote>
+            )
 
           case 'codeBlock':
-            return <CodeBlock language={data.attrs.language} key={index}><ContentBlocks content={data.content} /></CodeBlock>
+            return (
+              <CodeBlock language={data.attrs.language} key={index}>
+                <ContentBlocks content={data.content} />
+              </CodeBlock>
+            )
 
           case 'hardBreak':
             return <br key={index} />
@@ -52,7 +76,11 @@ export const ContentBlocks = ({ content }) => {
             return <TextNode key={index} {...data} />
 
           case 'listItem':
-            return <ListItem key={index}><ContentBlocks content={data.content} /></ListItem>
+            return (
+              <ListItem key={index}>
+                <ContentBlocks content={data.content} />
+              </ListItem>
+            )
 
           case 'default':
             return <p>Block not supported</p>

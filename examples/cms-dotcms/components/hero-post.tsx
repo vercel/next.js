@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Avatar from '../components/avatar'
 import DateComponent from '../components/date'
 import CoverImage from '../components/cover-image'
-import cn from "classnames";
+import cn from 'classnames'
 
 export default function HeroPost({
   title,
@@ -42,7 +42,12 @@ export default function HeroPost({
         </div>
         <div>
           <p className="mb-4 text-lg leading-relaxed">{excerpt}</p>
-          {author.length ? <Avatar name={`${author[0].firstName} ${author[0].lastName}`} picture={author[0].profilePhoto} /> : null}
+          {author.length ? (
+            <Avatar
+              name={`${author[0].firstName} ${author[0].lastName}`}
+              picture={author[0].profilePhoto}
+            />
+          ) : null}
         </div>
       </div>
     </section>

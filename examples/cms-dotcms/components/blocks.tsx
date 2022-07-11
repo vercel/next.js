@@ -1,15 +1,23 @@
-import cn from 'classnames';
-import DotCmsImage from "./dotcms-image";
-import Link from 'next/link';
+import cn from 'classnames'
+import DotCmsImage from './dotcms-image'
+import Link from 'next/link'
 
 export const Bold = ({ children }) => <strong>{children}</strong>
 export const Italic = ({ children }) => <em>{children}</em>
 export const Strike = ({ children }) => <s>{children}</s>
 export const Underline = ({ children }) => <u>{children}</u>
 export const DotLink = ({ attrs: { href, target }, children }) => {
-  const regEx = /https?:\/\//;
+  const regEx = /https?:\/\//
 
-  return regEx.test(href) ? <a href={href} rel="noopener noreferrer" target="_blank">{children}</a> : <Link href={href} target={target || '_self'}>{children}</Link>
+  return regEx.test(href) ? (
+    <a href={href} rel="noopener noreferrer" target="_blank">
+      {children}
+    </a>
+  ) : (
+    <Link href={href} target={target || '_self'}>
+      {children}
+    </Link>
+  )
 }
 
 const nodeMarks = {
@@ -30,9 +38,11 @@ export const TextNode = (props) => {
     return text
   }
 
-  return <Component attrs={mark.attrs}>
-    <TextNode {...newProps} />
-  </Component>
+  return (
+    <Component attrs={mark.attrs}>
+      <TextNode {...newProps} />
+    </Component>
+  )
 }
 
 export const DotImage = ({ attrs: { textAlign, data } }) => {
@@ -51,7 +61,6 @@ export const DotImage = ({ attrs: { textAlign, data } }) => {
       })}
       src={asset}
     />
-
   )
 }
 
@@ -81,7 +90,9 @@ export const BlockQuote = ({ children }) => {
 }
 
 export const CodeBlock = ({ language, children }) => {
-  return <pre data-language={language}>
-    <code>{children}</code>
-  </pre>
+  return (
+    <pre data-language={language}>
+      <code>{children}</code>
+    </pre>
+  )
 }
