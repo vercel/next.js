@@ -446,6 +446,10 @@ function AmpStyles({
     })
   }
 
+  if (curStyles.length === 0) {
+    return null;
+  }
+
   /* Add custom styles before AMP styles to prevent accidental overrides */
   return (
     <style
