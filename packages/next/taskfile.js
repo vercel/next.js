@@ -202,10 +202,19 @@ export async function compile_config_schema(task, opts) {
 
   const compiled = ajv.compile(configSchema)
   const validateCode = standaloneCode(ajv, compiled)
-  await fs.writeFile(
-    join(__dirname, 'dist', 'next-config-validate.js'),
-    validateCode
+  const preNccFilename = join(__dirname, 'dist', 'next-config-validate.js')
+  await fs.writeFile(preNccFilename, validateCode)
+  await task
+    .source(opts.src || './dist/next-config-validate.js')
+    .ncc({})
+    .target('dist/next-config-validate')
+
+  await fs.unlink(preNccFilename)
+  await fs.rename(
+    join(__dirname, 'dist/next-config-validate/next-config-validate.js'),
+    join(__dirname, 'dist/next-config-validate.js')
   )
+  await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
 }
 
 // eslint-disable-next-line camelcase
