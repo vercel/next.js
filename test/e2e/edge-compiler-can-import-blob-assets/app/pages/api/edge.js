@@ -20,6 +20,13 @@ const handlers = new Map([
       return fetch(url)
     },
   ],
+  [
+    'image-file',
+    async () => {
+      const url = new URL('../../src/vercel.png', import.meta.url)
+      return fetch(url)
+    },
+  ],
 ])
 
 const defaultHandler = async () =>

@@ -6,12 +6,11 @@ import {
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { EDGE_UNSUPPORTED_NODE_APIS } from '../../../shared/lib/constants'
 import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { readFileSync, createReadStream, promises as fs } from 'fs'
+import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
-import path from 'path'
-import { requestToBodyStream } from '../../body-streams'
 import { fetchInlineBlob } from './fetch-inline-blobs'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -51,8 +50,8 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
-  wasm: WasmBinding[]
   distDir: string
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -107,7 +106,7 @@ export async function getModuleContext(options: ModuleContextOptions) {
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const wasm = await loadWasm(options.wasm)
+  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -204,6 +203,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
       context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
         const blobResponse = await fetchInlineBlob({
           input,
+          assets: options.edgeFunctionEntry.assets,
           distDir: options.distDir,
           context,
         })

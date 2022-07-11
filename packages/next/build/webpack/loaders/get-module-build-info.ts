@@ -11,6 +11,7 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     nextEdgeSSR?: EdgeSSRMeta
     nextUsedEnvVars?: Set<string>
     nextWasmMiddlewareBinding?: WasmBinding
+    nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
@@ -35,4 +36,14 @@ export interface EdgeSSRMeta {
 export interface WasmBinding {
   filePath: string
   name: string
+}
+
+export interface AssetBinding {
+  filePath: string
+  name: string
+  /**
+   * this.emitFile fails so I add the source here to add an asset
+   * directly in the hook. Maybe I can fix it
+   */
+  source: Buffer
 }

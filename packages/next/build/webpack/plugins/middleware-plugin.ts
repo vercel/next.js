@@ -1,4 +1,7 @@
-import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
+import {
+  AssetBinding,
+  EdgeMiddlewareMeta,
+} from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
@@ -13,16 +16,15 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
-import { join } from 'path'
 
-interface EdgeFunctionDefinition {
+export interface EdgeFunctionDefinition {
   env: string[]
   files: string[]
   name: string
   page: string
   regexp: string
   wasm?: WasmBinding[]
-  blobs: WasmBinding[]
+  assets?: Omit<AssetBinding, 'source'>[]
 }
 
 export interface MiddlewareManifest {
@@ -38,7 +40,7 @@ interface EntryMetadata {
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
-  blobBindings: Set<webpack5.Module>
+  assetBindings: Set<AssetBinding>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -414,7 +416,7 @@ function getExtractMetadata(params: {
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
         wasmBindings: new Set<WasmBinding>(),
-        blobBindings: new Set(),
+        assetBindings: new Set<AssetBinding>(),
       }
 
       for (const entryModule of entryModules) {
@@ -486,8 +488,8 @@ function getExtractMetadata(params: {
           entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
         }
 
-        if (entryModule.type === 'asset/resource') {
-          entryMetadata.blobBindings.add(entryModule)
+        if (buildInfo?.nextAssetMiddlewareBinding) {
+          entryMetadata.assetBindings.add(buildInfo.nextAssetMiddlewareBinding)
         }
 
         /**
@@ -559,6 +561,13 @@ function getCreateAssets(params: {
       })
       const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 
+      for (const asset of metadata.assetBindings) {
+        assets[asset.filePath.replace('server/', '')] = new sources.RawSource(
+          // it is allowed to provide a Buffer
+          asset.source as unknown as string
+        )
+      }
+
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
@@ -566,12 +575,10 @@ function getCreateAssets(params: {
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
-        blobs: Array.from(metadata.blobBindings, (mod) => {
-          return {
-            filePath: join('server', mod.buildInfo.filename),
-            name: mod.buildInfo.fullContentHash,
-          }
-        }),
+        assets: Array.from(metadata.assetBindings, (v) => ({
+          name: v.name,
+          filePath: v.filePath,
+        })),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

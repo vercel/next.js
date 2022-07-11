@@ -1,5 +1,6 @@
 import { createReadStream, promises as fs } from 'fs'
 import path from 'path'
+import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
 
 /**
@@ -10,42 +11,29 @@ import { requestToBodyStream } from '../../body-streams'
 export async function fetchInlineBlob(options: {
   input: RequestInfo
   distDir: string
+  assets: EdgeFunctionDefinition['assets']
   context: { Response: any }
 }): Promise<Response | undefined> {
   const inputString = String(options.input)
-
-  /**
-   * `file://` URLs should always fail to load
-   */
-  if (inputString.startsWith('file://')) {
-    return new Response('Not Found', { status: 404 })
-  } else if (!inputString.startsWith('/_next/static/media/')) {
+  if (!inputString.startsWith('blob:')) {
     return
   }
 
-  const rootMediaDirectory = path.resolve(
-    options.distDir,
-    'server/static/media'
-  )
-  const pathname = inputString.replace('/_next/static/media/', '')
-  const fullPathname = path.resolve(rootMediaDirectory, pathname)
-
-  if (isPathUnderRoot({ root: rootMediaDirectory, path: fullPathname })) {
+  const hash = inputString.replace('blob:', '')
+  const asset = options.assets?.find((x) => x.name === hash)
+  if (!asset) {
     return
   }
 
-  const fileIsReadable = await fs.access(fullPathname).then(
+  const filePath = path.resolve(options.distDir, asset.filePath)
+
+  const fileIsReadable = await fs.access(filePath).then(
     () => true,
     () => false
   )
 
   if (fileIsReadable) {
-    const blob = createReadStream(fullPathname)
+    const blob = createReadStream(filePath)
     return new options.context.Response(requestToBodyStream(blob))
   }
-}
-
-function isPathUnderRoot(options: { root: string; path: string }): boolean {
-  const relative = path.relative(options.root, options.path)
-  return !relative || relative.startsWith('..') || path.isAbsolute(relative)
 }

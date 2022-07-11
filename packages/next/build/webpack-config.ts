@@ -1272,6 +1272,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-edge-function-loader',
         'next-edge-ssr-loader',
+        'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
       ].reduce((alias, loader) => {
@@ -1768,6 +1769,12 @@ export default async function getBaseWebpackConfig(
       loader: 'next-middleware-wasm-loader',
       type: 'javascript/auto',
       resourceQuery: /module/i,
+    })
+    webpack5Config.module?.rules?.unshift({
+      dependency: 'url',
+      loader: 'next-middleware-asset-loader',
+      type: 'javascript/auto',
+      layer: 'edge-asset',
     })
   }
 

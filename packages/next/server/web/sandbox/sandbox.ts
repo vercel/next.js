@@ -1,7 +1,7 @@
 import type { RequestData, FetchEventResult } from '../types'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { getModuleContext } from './context'
+import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -12,7 +12,7 @@ type RunnerFn = (params: {
   paths: string[]
   request: RequestData
   useCache: boolean
-  wasm: WasmBinding[]
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
   distDir: string
 }) => Promise<FetchEventResult>
 
@@ -22,7 +22,7 @@ export const run = withTaggedErrors(async (params) => {
     onWarning: params.onWarning,
     useCache: params.useCache !== false,
     env: params.env,
-    wasm: params.wasm,
+    edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
 
