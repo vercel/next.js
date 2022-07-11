@@ -136,7 +136,7 @@ Also, you must use export `getStaticProps` as a standalone function — it will 
 
 The props returned by `getStaticProps` will be automatically passed through to the page by the default app.
 
-If however you've created a [custom app](/docs/advanced-features/custom-app), ensure you're passing the props manually from your app to the page component, otherwise the page props will be empty.
+If however you've created a [custom app](/docs/advanced-features/custom-app.md), ensure you're passing the props manually from your app to the page component, otherwise the page props will be empty.
 
 ## Runs on every request in development
 
