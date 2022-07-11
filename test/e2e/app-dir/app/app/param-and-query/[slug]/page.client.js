@@ -1,15 +1,9 @@
 import { useRouter } from 'next/dist/client/components/hooks-client'
 
-export default function Page() {
-  const router = useRouter()
-
+export default function Page({ params, query }) {
   return (
-    <h1
-      id="params-and-query"
-      data-params={router.params.slug}
-      data-query={router.query.slug}
-    >
-      hello from /param-and-query/{router.params.slug}?slug={router.query.slug}
+    <h1 id="params-and-query" data-params={params.slug} data-query={query.slug}>
+      hello from /param-and-query/{params.slug}?slug={query.slug}
     </h1>
   )
 }
