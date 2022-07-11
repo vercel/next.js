@@ -50,12 +50,12 @@ describe('app dir - react server components', () => {
   afterAll(() => next.destroy())
 
   const { isNextDeploy, isNextDev } = global as any
-  if (isNextDeploy) {
-    it('should skip tests for next-deploy', () => {})
+  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+  if (isNextDeploy || isReact17) {
+    it('should skip tests for next-deploy and react 17', () => {})
     return
   }
 
-  // TODO: support RSC index route
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(next.url, '/', null, {
       headers: {
