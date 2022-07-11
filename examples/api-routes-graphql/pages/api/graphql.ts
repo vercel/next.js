@@ -11,7 +11,7 @@ const typeDefs = /* GraphQL */ `
 
 const resolvers = {
   Query: {
-    users(parent, args, context) {
+    users() {
       return [{ name: 'Nextjs' }]
     },
   },
