@@ -8,11 +8,11 @@ The Next.js team is committed to making Next.js accessible to all developers (an
 
 ## Route Announcements
 
-When using screen readers or other assistive technology, routes are announced when navigating between pages. This works by default when transitioning between pages on the server (e.g. using the `<a>` tag).
+When transitioning between pages rendered on the server (e.g. using the `<a href>` tag) screen readers and other assistive technology announce the page title when the page loads so that users understand that the page has changed.
 
-Next.js also supports client-side transitions for improved performance (using `next/link`). To ensure that client-side transitions are also announced to assistive technology, Next.js includes a route announcer by default.
+In addition to traditional page navigations, Next.js also supports client-side transitions for improved performance (using `next/link`). To ensure that client-side transitions are also announced to assistive technology, Next.js includes a route announcer by default.
 
-The Next.js route announcer looks for the page name to announce by first inspecting `document.title`, then the `<h1>` element, and finally the URL pathname.
+The Next.js route announcer looks for the page name to announce by first inspecting `document.title`, then the `<h1>` element, and finally the URL pathname. For the most accessible user experience, ensure that each page in your application has a unique and descriptive title.
 
 ## Linting
 
@@ -41,6 +41,8 @@ export const config = {
 
 ## Accessibility Resources
 
+- [WebAIM WCAG checklist](https://webaim.org/standards/wcag/checklist)
+- [WCAG 2.1 Guidelines](https://www.w3.org/TR/WCAG21/)
+- [The A11y Project](https://www.a11yproject.com/)
 - Check [color contrast ratios](https://developer.mozilla.org/en-US/docs/Web/Accessibility/Understanding_WCAG/Perceivable/Color_contrast) between foreground and background elements
 - Use [`prefers-reduced-motion`](https://web.dev/prefers-reduced-motion/) when working with animations
-- TODO add more pls
