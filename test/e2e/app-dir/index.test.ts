@@ -796,6 +796,17 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        it('should have consistent query and params handling', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/param-and-query/params?slug=query'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params-and-query')
+          expect(el.attr('data-params')).toBe('params')
+          expect(el.attr('data-query')).toBe('query')
+        })
       })
     })
 
