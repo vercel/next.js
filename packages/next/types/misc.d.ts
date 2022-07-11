@@ -32,18 +32,6 @@ declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
 
-declare module 'next/dist/compiled/ajv' {
-  import ajv from 'ajv'
-  export default ajv
-  export * from 'ajv'
-}
-
-declare module 'next/dist/compiled/ajv-keywords' {
-  import ajvKeywords from 'ajv-keywords'
-  export default ajvKeywords
-  export * from 'ajv-keywords'
-}
-
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }

@@ -170,7 +170,6 @@
     "@vercel/nft": "0.20.0",
     "acorn": "8.5.0",
     "ajv": "8.11.0",
-    "ajv-keywords": "5.1.0",
     "amphtml-validator": "1.0.35",
     "arg": "4.1.0",
     "assert": "2.0.0",

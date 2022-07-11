@@ -177,19 +177,35 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_ajv(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('ajv')))
-    .ncc({ packageName: 'ajv', externals })
-    .target('compiled/ajv')
-}
+export async function compile_config_schema(task, opts) {
+  const { configSchema } = require('./dist/server/config-schema')
+  // eslint-disable-next-line
+  const Ajv = require('ajv')
+  // eslint-disable-next-line
+  const standaloneCode = require('ajv/dist/standalone').default
+  // eslint-disable-next-line
+  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  ajv.addKeyword({
+    keyword: 'isFunction',
+    schemaType: 'boolean',
+    compile() {
+      return (data) => data instanceof Function
+    },
+    code(ctx) {
+      const { data } = ctx
+      ctx.fail(Ajv._`!(${data} instanceof Function)`)
+    },
+    metaSchema: {
+      anyOf: [{ type: 'boolean' }],
+    },
+  })
 
-// eslint-disable-next-line camelcase
-export async function ncc_ajv_keywords(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('ajv-keywords')))
-    .ncc({ packageName: 'ajv-keywords', externals })
-    .target('compiled/ajv-keywords')
+  const compiled = ajv.compile(configSchema)
+  const validateCode = standaloneCode(ajv, compiled)
+  await fs.writeFile(
+    join(__dirname, 'dist', 'next-config-validate.js'),
+    validateCode
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1724,8 +1740,6 @@ export async function ncc(task, opts) {
         'ncc_hapi_accept',
         'ncc_node_fetch',
         'ncc_acorn',
-        'ncc_ajv',
-        'ncc_ajv_keywords',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
@@ -1971,7 +1985,7 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
 }
 
 export default async function (task) {

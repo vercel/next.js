@@ -22,7 +22,7 @@ describe('next.config.js validation', () => {
         'must be equal to one of the allowed values',
         'imgix',
         '/rewrites',
-        'must pass \\"instanceof\\" keyword validation',
+        'must pass \\"isFunction\\" keyword validation',
         '/swcMinify',
         'must be boolean',
       ],
