@@ -32,6 +32,17 @@ Using the Deploy Button below, you'll deploy the Next.js project.
 
 ## How to use
 
+Rename `.env.local.example` to `.env.local` and complete the variables:
+
+`NEXT_PUBLIC_DOTCMS_HOST` is the dotCMS host, you can use `https://demo.dotcms.com`
+`DOTCMS_TOKEN` for the demo site, you can generate the token using:
+
+```
+curl -H "Content-Type:application/json" --insecure  -X POST -d  '
+{ "user":"admin@dotcms.com", "password":"admin", "expirationDays": 10 }
+' http://demo.dotcms.com:8080/api/v1/authentication/api-token
+```
+
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
