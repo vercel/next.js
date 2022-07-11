@@ -9,7 +9,6 @@ import {
 } from 'antd'
 import type { DatePickerProps } from 'antd'
 import { SmileFilled } from '@ant-design/icons'
-import type { NextPage } from 'next'
 import Link from 'next/link'
 
 const FormItem = Form.Item
@@ -19,7 +18,7 @@ const content = {
   marginTop: '100px',
 }
 
-const Home: NextPage = () => {
+export default function Home() {
   const onDatePickerChange: DatePickerProps['onChange'] = (
     date,
     dateString
@@ -88,5 +87,3 @@ const Home: NextPage = () => {
     </div>
   )
 }
-
-export default Home
