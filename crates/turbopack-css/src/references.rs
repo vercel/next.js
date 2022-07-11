@@ -70,6 +70,7 @@ pub async fn module_references_(
 struct AssetReferencesVisitor<'a> {
     context: AssetContextVc,
     references: &'a mut Vec<AssetReferenceVc>,
+    is_import: bool,
 }
 
 impl<'a> AssetReferencesVisitor<'a> {
@@ -77,6 +78,7 @@ impl<'a> AssetReferencesVisitor<'a> {
         Self {
             context,
             references,
+            is_import: false,
         }
     }
 }
@@ -91,12 +93,14 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
 
         if let Some(src) = src {
             self.references.push(
-                UrlAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
+                ImportAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
                     .into(),
             );
         }
 
-        visit::visit_import_prelude(self, i)
+        self.is_import = true;
+        visit::visit_import_prelude(self, i);
+        self.is_import = false;
     }
 
     fn visit_url(&mut self, u: &Url) {
@@ -107,23 +111,17 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         };
 
         if let Some(src) = src {
-            self.references.push(
+            self.references.push(if self.is_import {
+                ImportAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
+                    .into()
+            } else {
                 UrlAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
-                    .into(),
-            );
+                    .into()
+            });
         }
 
         visit::visit_url(self, u)
     }
-}
-
-#[turbo_tasks::function]
-pub async fn url_resolve(request: RequestVc, context: AssetContextVc) -> Result<ResolveResultVc> {
-    let context_path = context.context_path();
-    let options = context.resolve_options();
-    let result = context.resolve_asset(context_path, request, options);
-
-    handle_resolve_error(result, context_path, request).await
 }
 
 pub async fn handle_resolve_error(
@@ -156,7 +154,7 @@ pub async fn handle_resolve_error(
     })
 }
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Debug)]
 pub struct UrlAssetReference {
     pub context: AssetContextVc,
@@ -174,8 +172,12 @@ impl UrlAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for UrlAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        url_resolve(self.request, self.context)
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let context_path = self.context.context_path();
+        let options = self.context.resolve_options();
+        let result = self.context.resolve_asset(context_path, self.request, options);
+
+        handle_resolve_error(result, context_path, self.request).await
     }
 
     #[turbo_tasks::function]
@@ -187,8 +189,43 @@ impl AssetReference for UrlAssetReference {
     }
 }
 
+#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[derive(Hash, Debug)]
+pub struct ImportAssetReference {
+    pub context: AssetContextVc,
+    pub request: RequestVc,
+}
+
 #[turbo_tasks::value_impl]
-impl ChunkableAssetReference for UrlAssetReference {
+impl ImportAssetReferenceVc {
+    #[turbo_tasks::function]
+    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
+        Self::cell(ImportAssetReference { context, request })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for ImportAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        let context_path = self.context.context_path();
+        let options = self.context.resolve_options();
+        let result = self.context.resolve_asset(context_path, self.request, options);
+
+        handle_resolve_error(result, context_path, self.request).await
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "import(url) {}",
+            self.request.to_string().await?,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableAssetReference for ImportAssetReference {
     #[turbo_tasks::function]
     fn is_chunkable(&self) -> BoolVc {
         BoolVc::cell(true)

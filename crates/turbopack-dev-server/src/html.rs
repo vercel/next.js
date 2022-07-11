@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -22,14 +22,29 @@ impl Asset for DevHtmlAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<FileContentVc> {
         let context_path = self.path.parent().await?;
-        let mut str = format!("<!doctype html><html><body>");
+
+        let mut scripts = Vec::new();
+        let mut stylesheets = Vec::new();
+
         for chunk in self.chunk_group.chunks().await?.iter() {
             if let Some(p) = context_path.get_relative_path_to(&*chunk.as_asset().path().await?) {
-                str += &format!("<script src=\"{p}\"></script>");
+                if p.ends_with(".js") {
+                    scripts.push(format!("<script src=\"{}\"></script>", p));
+                } else if p.ends_with(".css") {
+                    stylesheets.push(format!("<link rel=\"stylesheet\" href=\"{}\">", p));
+                } else {
+                    return Err(anyhow!("chunk with unknown asset type: {}", p));
+                }
             }
         }
-        str += "</body></html>";
-        Ok(FileContent::Content(File::from_source(str)).into())
+
+        let html = format!(
+            "<!DOCTYPE html>\n<html>\n<head>{}</head>\n<body>{}</body>\n</html>",
+            stylesheets.join(""),
+            scripts.join(""),
+        );
+
+        Ok(FileContent::Content(File::from_source(html)).into())
     }
 
     #[turbo_tasks::function]
