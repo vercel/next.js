@@ -50,10 +50,12 @@ export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   children,
+  hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: React.ReactNode
+  hotReloader?: React.ReactNode
 }) {
   const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
     typeof reducer
@@ -161,23 +163,21 @@ export default function AppRouter({
   }, [])
 
   useEffect(() => {
-    console.log(
-      'UPDATE URL',
-      pushRef.pendingPush ? 'push' : 'replace',
-      pushRef.mpaNavigation ? 'MPA' : '',
-      tree
-    )
-
     if (pushRef.mpaNavigation) {
       window.location.href = canonicalUrl
       return
     }
 
+    // Identifier is shortened intentionally.
+    // __NA is used to identify if the history entry can be handled by the app-router.
+    // __N is used to identify if the history entry can be handled by the old router.
+    const historyState = { __NA: true, tree }
     if (pushRef.pendingPush) {
       pushRef.pendingPush = false
-      window.history.pushState({ tree }, '', canonicalUrl)
+
+      window.history.pushState(historyState, '', canonicalUrl)
     } else {
-      window.history.replaceState({ tree }, '', canonicalUrl)
+      window.history.replaceState(historyState, '', canonicalUrl)
     }
   }, [tree, pushRef, canonicalUrl])
 
@@ -192,6 +192,13 @@ export default function AppRouter({
       return
     }
 
+    // TODO: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
+    // It reloads the page in this case but we might have to revisit this as the old router ignores it.
+    if (!state.__NA) {
+      window.location.reload()
+      return
+    }
+
     // @ts-ignore useTransition exists
     // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
     // Without startTransition works if the cache is there for this path
@@ -200,7 +207,7 @@ export default function AppRouter({
         type: 'restore',
         payload: {
           url: new URL(window.location.href),
-          historyState: state,
+          tree: state.tree,
         },
       })
     })
@@ -212,10 +219,6 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
-
-  React.useEffect(() => {
-    window.history.replaceState({ tree: initialTree }, '')
-  }, [initialTree])
 
   return (
     <PathnameContext.Provider value={pathname}>
@@ -237,6 +240,7 @@ export default function AppRouter({
               }}
             >
               {children}
+              {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </FullAppTreeContext.Provider>
