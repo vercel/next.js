@@ -2,8 +2,8 @@ import { getModuleBuildInfo } from './get-module-build-info'
 import crypto from 'crypto'
 
 export default function MiddlewareAssetLoader(this: any, source: Buffer) {
-  const name = `asset_${sha1(source)}`
-  const filePath = `edge-chunks/${name}`
+  const name = sha1(source)
+  const filePath = `edge-chunks/asset_${name}`
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextAssetMiddlewareBinding = {
     filePath: `server/${filePath}`,
