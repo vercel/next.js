@@ -175,7 +175,9 @@ impl AssetReference for UrlAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context_path = self.context.context_path();
         let options = self.context.resolve_options();
-        let result = self.context.resolve_asset(context_path, self.request, options);
+        let result = self
+            .context
+            .resolve_asset(context_path, self.request, options);
 
         handle_resolve_error(result, context_path, self.request).await
     }
@@ -210,7 +212,9 @@ impl AssetReference for ImportAssetReference {
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
         let context_path = self.context.context_path();
         let options = self.context.resolve_options();
-        let result = self.context.resolve_asset(context_path, self.request, options);
+        let result = self
+            .context
+            .resolve_asset(context_path, self.request, options);
 
         handle_resolve_error(result, context_path, self.request).await
     }
