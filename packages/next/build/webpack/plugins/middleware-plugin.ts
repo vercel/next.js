@@ -24,7 +24,7 @@ export interface EdgeFunctionDefinition {
   page: string
   regexp: string
   wasm?: WasmBinding[]
-  assets?: Omit<AssetBinding, 'source'>[]
+  assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
@@ -561,13 +561,6 @@ function getCreateAssets(params: {
       })
       const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 
-      for (const asset of metadata.assetBindings) {
-        assets[asset.filePath.replace('server/', '')] = new sources.RawSource(
-          // it is allowed to provide a Buffer
-          asset.source as unknown as string
-        )
-      }
-
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
@@ -575,10 +568,7 @@ function getCreateAssets(params: {
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
-        assets: Array.from(metadata.assetBindings, (v) => ({
-          name: v.name,
-          filePath: v.filePath,
-        })),
+        assets: Array.from(metadata.assetBindings),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

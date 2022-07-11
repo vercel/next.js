@@ -41,9 +41,4 @@ export interface WasmBinding {
 export interface AssetBinding {
   filePath: string
   name: string
-  /**
-   * this.emitFile fails so I add the source here to add an asset
-   * directly in the hook. Maybe I can fix it
-   */
-  source: Buffer
 }

@@ -1776,6 +1776,10 @@ export default async function getBaseWebpackConfig(
       type: 'javascript/auto',
       layer: 'edge-asset',
     })
+    webpack5Config.module?.rules?.unshift({
+      issuerLayer: 'edge-asset',
+      type: 'asset/source',
+    })
   }
 
   webpack5Config.experiments = {

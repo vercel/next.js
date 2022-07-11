@@ -8,8 +8,8 @@ export default function MiddlewareAssetLoader(this: any, source: Buffer) {
   buildInfo.nextAssetMiddlewareBinding = {
     filePath: `server/${filePath}`,
     name,
-    source,
   }
+  this.emitFile(filePath, source)
   return `module.exports = ${JSON.stringify(`blob:${name}`)}`
 }
 
