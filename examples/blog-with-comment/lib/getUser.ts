@@ -1,4 +1,4 @@
-export default async function getUser(token) {
+export default async function getUser(token: string) {
   const response = await fetch(
     `https://${process.env.NEXT_PUBLIC_AUTH0_DOMAIN}/userinfo`,
     {

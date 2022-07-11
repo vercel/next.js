@@ -1,10 +1,19 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import type { Comment } from '../interfaces'
 import redis from './redis'
 
-export default async function fetchComment(req, res) {
-  const { url } = req.query
+export default async function fetchComment(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { url }: { url?: string } = req.query
 
   if (!url) {
     return res.status(400).json({ message: 'Missing parameter.' })
+  }
+
+  if (!redis) {
+    return res.status(500).json({ message: 'Failed to connect to redis.' })
   }
 
   try {
@@ -13,7 +22,7 @@ export default async function fetchComment(req, res) {
 
     // string data to object
     const comments = rawComments.map((c) => {
-      const comment = JSON.parse(c)
+      const comment: Comment = JSON.parse(c)
       delete comment.user.email
       return comment
     })

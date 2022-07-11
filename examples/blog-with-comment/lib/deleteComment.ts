@@ -1,17 +1,26 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import type { User, Comment } from '../interfaces'
 import redis from './redis'
 import getUser from './getUser'
 
-export default async function deleteComments(req, res) {
-  const { url, comment } = req.body
+export default async function deleteComments(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { url, comment }: { url: string; comment: Comment } = req.body
   const { authorization } = req.headers
 
   if (!url || !comment || !authorization) {
     return res.status(400).json({ message: 'Missing parameter.' })
   }
 
+  if (!redis) {
+    return res.status(500).json({ message: 'Failed to connect to redis.' })
+  }
+
   try {
     // verify user token
-    const user = await getUser(authorization)
+    const user: User = await getUser(authorization)
     if (!user) return res.status(400).json({ message: 'Invalid token.' })
     comment.user.email = user.email
 
@@ -25,7 +34,7 @@ export default async function deleteComments(req, res) {
     // delete
     await redis.lrem(url, 0, JSON.stringify(comment))
 
-    return res.status(200).json()
+    return res.status(200).end()
   } catch (err) {
     return res.status(400)
   }

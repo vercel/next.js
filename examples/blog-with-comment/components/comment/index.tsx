@@ -2,7 +2,7 @@ import CommentForm from './form'
 import CommentList from './list'
 import useComments from '../../hooks/useComment'
 
-function Comment() {
+export default function Comment() {
   const { text, setText, comments, onSubmit, onDelete } = useComments()
 
   return (
@@ -12,5 +12,3 @@ function Comment() {
     </div>
   )
 }
-
-export default Comment

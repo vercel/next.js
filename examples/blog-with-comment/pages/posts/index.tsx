@@ -1,9 +1,13 @@
+import type { InferGetStaticPropsType } from 'next'
+import type { Post } from '../../interfaces'
 import Link from 'next/link'
 import Container from '../../components/container'
 import distanceToNow from '../../lib/dateRelative'
 import { getAllPosts } from '../../lib/getPost'
 
-export default function NotePage({ allPosts }) {
+export default function NotePage({
+  allPosts,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   return (
     <Container>
       {allPosts.length ? (

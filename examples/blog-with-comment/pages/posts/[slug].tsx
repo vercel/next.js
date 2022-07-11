@@ -1,3 +1,4 @@
+import type { InferGetStaticPropsType } from 'next'
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Comment from '../../components/comment'
@@ -7,7 +8,9 @@ import { getAllPosts, getPostBySlug } from '../../lib/getPost'
 import markdownToHtml from '../../lib/markdownToHtml'
 import Head from 'next/head'
 
-export default function PostPage({ post }) {
+export default function PostPage({
+  post,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   const router = useRouter()
 
   if (!router.isFallback && !post?.slug) {
@@ -48,7 +51,13 @@ export default function PostPage({ post }) {
   )
 }
 
-export async function getStaticProps({ params }) {
+type Params = {
+  params: {
+    slug: string
+  }
+}
+
+export async function getStaticProps({ params }: Params) {
   const post = getPostBySlug(params.slug, [
     'slug',
     'title',
