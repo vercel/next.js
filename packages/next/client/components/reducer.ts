@@ -209,6 +209,18 @@ const walkTreeWithFlightDataPath = (
   treePatch: FlightRouterState
 ): FlightRouterState => {
   const [segment, parallelRoutes, url] = flightRouterState
+
+  // Root refresh
+  if (flightSegmentPath.length === 1) {
+    const tree: FlightRouterState = [...treePatch]
+
+    if (url) {
+      tree.push(url)
+    }
+
+    return tree
+  }
+
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
@@ -250,6 +262,17 @@ type AppRouterState = {
 export function reducer(
   state: AppRouterState,
   action:
+    | {
+        type: 'reload'
+        payload: {
+          url: URL
+          cache: CacheNode
+          mutable: {
+            previousTree?: FlightRouterState
+            patchedTree?: FlightRouterState
+          }
+        }
+      }
     | {
         type: 'navigate'
         payload: {
@@ -398,6 +421,7 @@ export function reducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
+      cache.subTreeData = state.cache.subTreeData
       fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
       return {
@@ -448,6 +472,7 @@ export function reducer(
       treePatch
     )
 
+    cache.subTreeData = state.cache.subTreeData
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
     return {
@@ -455,6 +480,79 @@ export function reducer(
       pushRef: state.pushRef,
       tree: newTree,
       cache: cache,
+    }
+  }
+
+  if (action.type === 'reload') {
+    const { url, cache, mutable } = action.payload
+    const href = url.pathname + url.search + url.hash
+    const pendingPush = false
+
+    // When doing a hard push there can be two cases: with optimistic tree and without
+    // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
+    // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
+
+    if (
+      mutable.patchedTree &&
+      JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
+    ) {
+      return {
+        canonicalUrl: href,
+        pushRef: { pendingPush, mpaNavigation: false },
+        cache: cache,
+        tree: mutable.patchedTree,
+      }
+    }
+
+    if (!cache.data) {
+      cache.data = fetchServerResponse(url, [
+        state.tree[0],
+        state.tree[1],
+        state.tree[2],
+        'refetch',
+      ])
+    }
+    const flightData = cache.data.readRoot()
+
+    // Handle case when navigating to page in `pages` from `app`
+    if (typeof flightData === 'string') {
+      return {
+        canonicalUrl: flightData,
+        pushRef: { pendingPush: true, mpaNavigation: true },
+        cache: state.cache,
+        tree: state.tree,
+      }
+    }
+
+    cache.data = null
+
+    // TODO: ensure flightDataPath does not have "" as first item
+    const flightDataPath = flightData[0]
+
+    if (flightDataPath.length !== 2) {
+      // TODO: handle this case better
+      console.log('RELOAD FAILED')
+      return state
+    }
+
+    const [treePatch, subTreeData] = flightDataPath.slice(-2)
+    const newTree = walkTreeWithFlightDataPath(
+      // TODO: remove ''
+      [''],
+      state.tree,
+      treePatch
+    )
+
+    mutable.previousTree = state.tree
+    mutable.patchedTree = newTree
+
+    cache.subTreeData = subTreeData
+
+    return {
+      canonicalUrl: href,
+      pushRef: { pendingPush, mpaNavigation: false },
+      cache: cache,
+      tree: newTree,
     }
   }
 
