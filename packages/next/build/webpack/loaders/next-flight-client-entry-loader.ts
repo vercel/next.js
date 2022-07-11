@@ -6,15 +6,14 @@ export default async function transformSource(this: any): Promise<string> {
     modules = modules ? [modules] : []
   }
 
+  const requests = modules as string[]
   const code =
-    modules
-      .map(
-        (request: string) => `import(/* webpackMode: "eager" */ '${request}')`
-      )
+    requests
+      .map((request) => `import(/* webpackMode: "eager" */ '${request}')`)
       .join(';\n') +
     `
     export const __next_rsc_css__ = ${JSON.stringify(
-      modules.filter((file: string) => file.endsWith('.css'))
+      requests.filter((request) => request.endsWith('.css'))
     )};
     export const __next_rsc__ = {
       server: false,

@@ -122,8 +122,10 @@ function useInitialServerResponse(cacheKey: string) {
         return (self as any).__next_chunk_load__(chunkId)
       })
     )
-    // import css
-    ;(self as any).__next_require__(data.id)
+    // import css in dev when it's wrapped by style loader
+    if (process.env.NODE_ENV === 'development') {
+      ;(self as any).__next_require__(data.id)
+    }
   }
 
   const loadCssFromStreamData = (data: string) => {

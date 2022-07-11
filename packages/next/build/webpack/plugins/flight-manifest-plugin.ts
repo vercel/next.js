@@ -9,7 +9,6 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
-import { getEntrypointFiles } from './build-manifest-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
@@ -187,29 +186,35 @@ export class FlightManifestPlugin {
           .filter((name) => name !== null)
 
         // Get all CSS files imported from the module's dependencies.
-        const visited = new Set()
+        const visitedCss = new Set()
         const cssChunks: string[] = []
-        function findCSSDeps(module: any) {
+
+        function collectClientImportedCss(module: any) {
           if (!module) return
 
           const modRequest = module.userRequest
-          if (visited.has(modRequest)) return
-          visited.add(modRequest)
+          if (visitedCss.has(modRequest)) return
+          visitedCss.add(modRequest)
 
-          if (/(?<!\.module)\.css$/.test(modRequest)) {
-            cssChunks.push(modRequest)
+          if (/\.css$/.test(modRequest)) {
+            // collect relative imported css chunks
+            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
+              ;[...c.files]
+                .filter((file) => file.endsWith('.css'))
+                .forEach((file) => cssChunks.push(file))
+            })
           }
 
-          compilation.moduleGraph
-            .getOutgoingConnections(module)
-            // @ts-ignore
-            .forEach((connection: any) => {
-              findCSSDeps(
-                compilation.moduleGraph.getResolvedModule(connection.dependency)
-              )
-            })
+          const connections = Array.from(
+            compilation.moduleGraph.getOutgoingConnections(module)
+          )
+          connections.forEach((connection) => {
+            collectClientImportedCss(
+              compilation.moduleGraph.getResolvedModule(connection.dependency!)
+            )
+          })
         }
-        findCSSDeps(mod)
+        collectClientImportedCss(mod)
 
         moduleExportedKeys.forEach((name) => {
           let requiredChunks = []

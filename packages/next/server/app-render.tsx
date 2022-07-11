@@ -333,8 +333,22 @@ function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
-  const cssFlight = importedServerCSSFiles
-    .map((css) => `CSS:${JSON.stringify(serverComponentManifest[css].default)}`)
+  const cssFiles = importedServerCSSFiles.map(
+    (css) => serverComponentManifest[css].default
+  )
+  if (process.env.NODE_ENV === 'development') {
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+  }
+
+  const cssSet = cssFiles.reduce((res, css) => {
+    res.add(...css.chunks)
+    return res
+  }, new Set())
+
+  const cssFlight = Array.from(cssSet)
+    .map(
+      (css) => `CSS:${JSON.stringify({ id: 'css', name: '', chunks: [css] })}`
+    )
     .join('\n')
   return cssFlight
 }
