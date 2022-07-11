@@ -13,6 +13,7 @@ export type CacheNode = {
 }
 
 export type AppRouterInstance = {
+  reload(): void
   push(href: string): void
   softPush(href: string): void
   replace(href: string): void
