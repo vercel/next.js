@@ -158,6 +158,7 @@ async function runConfigs(
       curStats.General.buildDurationCached = Date.now() - secondBuildStart
 
       if (statsConfig.appDevCommand) {
+        const port = await getPort()
         const startTime = Date.now()
         const child = exec.spawn(statsConfig.appDevCommand, {
           cwd: statsAppDir,
