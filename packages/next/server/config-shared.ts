@@ -534,6 +534,7 @@ export const defaultConfig: NextConfig = {
     appDir: false,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    incrementalCacheHandlerPath: undefined,
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
