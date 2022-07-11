@@ -422,6 +422,12 @@ module.exports = {
         locale: false,
       },
       {
+        // it's possible to match all locales even when locale: false is set
+        source: '/:locale/api-alias/:path*',
+        destination: '/api/:path*',
+        locale: false,
+      },
+      {
         // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
         // `/` or `/fr` routes like /:path* would
         source: '/(.*)',

@@ -8,30 +8,31 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
+interface EdgeFunctionDefinition {
+  env: string[]
+  files: string[]
+  name: string
+  page: string
+  regexp: string
+  wasm?: WasmBinding[]
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
-  clientInfo: [location: string, isSSR: boolean][]
-  middleware: {
-    [page: string]: {
-      env: string[]
-      files: string[]
-      name: string
-      page: string
-      regexp: string
-      wasm?: WasmBinding[]
-    }
-  }
+  middleware: { [page: string]: EdgeFunctionDefinition }
+  functions: { [page: string]: EdgeFunctionDefinition }
 }
 
 interface EntryMetadata {
   edgeMiddleware?: EdgeMiddlewareMeta
+  edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<WasmBinding>
@@ -40,8 +41,8 @@ interface EntryMetadata {
 const NAME = 'MiddlewarePlugin'
 const middlewareManifest: MiddlewareManifest = {
   sortedMiddleware: [],
-  clientInfo: [],
   middleware: {},
+  functions: {},
   version: 1,
 }
 
@@ -95,6 +96,18 @@ export default class MiddlewarePlugin {
   }
 }
 
+export async function handleWebpackExtenalForEdgeRuntime({
+  request,
+  contextInfo,
+}: {
+  request: string
+  contextInfo: any
+}) {
+  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+    return `root  __import_unsupported('${request}')`
+  }
+}
+
 function getCodeAnalizer(params: {
   dev: boolean
   compiler: webpack5.Compiler
@@ -136,6 +149,60 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * This expression handler allows to wrap a WebAssembly.compile invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     */
+    const handleWrapWasmCompileExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_compile__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
+
+      handleExpression()
+    }
+
+    /**
+     * This expression handler allows to wrap a WebAssembly.instatiate invocation with a
+     * function call where we can warn about WASM code generation not being allowed
+     * but actually execute the expression.
+     *
+     * Note that we don't update `usingIndirectEval`, i.e. we don't abort a production build
+     * since we can't determine statically if the first parameter is a module (legit use) or
+     * a buffer (dynamic code generation).
+     */
+    const handleWrapWasmInstantiateExpression = (expr: any) => {
+      if (!isInMiddlewareLayer(parser)) {
+        return
+      }
+
+      if (dev) {
+        const { ConstDependency } = wp.dependencies
+        const dep1 = new ConstDependency(
+          '__next_webassembly_instantiate__(function() { return ',
+          expr.range[0]
+        )
+        dep1.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep1)
+        const dep2 = new ConstDependency('})', expr.range[1])
+        dep2.loc = expr.loc
+        parser.state.module.addPresentationalDependency(dep2)
+      }
+    }
+
+    /**
      * For an expression this will check the graph to ensure it is being used
      * by exports. Then it will store in the module buildInfo a boolean to
      * express that it contains dynamic code and, if it is available, the
@@ -165,17 +232,25 @@ function getCodeAnalizer(params: {
     }
 
     /**
+     * Declares an environment variable that is being used in this module
+     * through this static analysis.
+     */
+    const addUsedEnvVar = (envVarName: string) => {
+      const buildInfo = getModuleBuildInfo(parser.state.module)
+      if (buildInfo.nextUsedEnvVars === undefined) {
+        buildInfo.nextUsedEnvVars = new Set()
+      }
+
+      buildInfo.nextUsedEnvVars.add(envVarName)
+    }
+
+    /**
      * A handler for calls to `process.env` where we identify the name of the
      * ENV variable being assigned and store it in the module info.
      */
     const handleCallMemberChain = (_: unknown, members: string[]) => {
       if (members.length >= 2 && members[0] === 'env') {
-        const buildInfo = getModuleBuildInfo(parser.state.module)
-        if (buildInfo.nextUsedEnvVars === undefined) {
-          buildInfo.nextUsedEnvVars = new Set()
-        }
-
-        buildInfo.nextUsedEnvVars.add(members[1])
+        addUsedEnvVar(members[1])
         if (!isInMiddlewareLayer(parser)) {
           return true
         }
@@ -193,16 +268,51 @@ function getCodeAnalizer(params: {
         !isNullLiteral(firstParameter) &&
         !isUndefinedIdentifier(firstParameter)
       ) {
-        const error = new wp.WebpackError(
-          `Your middleware is returning a response body (line: ${node.loc.start.line}), which is not supported. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
-        )
-        error.name = NAME
-        error.module = parser.state.current
-        error.loc = node.loc
+        const error = buildWebpackError({
+          message: `Middleware is returning a response body (line: ${node.loc.start.line}), which is not supported.
+Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
+          compilation,
+          parser,
+          ...node,
+        })
         if (dev) {
           compilation.warnings.push(error)
         } else {
           compilation.errors.push(error)
+        }
+      }
+    }
+
+    /**
+     * Handler to store original source location of static and dynamic imports into module's buildInfo.
+     */
+    const handleImport = (node: any) => {
+      if (isInMiddlewareLayer(parser) && node.source?.value && node?.loc) {
+        const { module, source } = parser.state
+        const buildInfo = getModuleBuildInfo(module)
+        if (!buildInfo.importLocByPath) {
+          buildInfo.importLocByPath = new Map()
+        }
+
+        const importedModule = node.source.value?.toString()!
+        buildInfo.importLocByPath.set(importedModule, {
+          sourcePosition: {
+            ...node.loc.start,
+            source: module.identifier(),
+          },
+          sourceContent: source.toString(),
+        })
+
+        if (!dev && isNodeJsModule(importedModule)) {
+          compilation.warnings.push(
+            buildWebpackError({
+              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
+              compilation,
+              parser,
+              ...node,
+            })
+          )
         }
       }
     }
@@ -221,11 +331,50 @@ function getCodeAnalizer(params: {
       hooks.new.for(`${prefix}Function`).tap(NAME, handleWrapExpression)
       hooks.expression.for(`${prefix}eval`).tap(NAME, handleExpression)
       hooks.expression.for(`${prefix}Function`).tap(NAME, handleExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.compile`)
+        .tap(NAME, handleWrapWasmCompileExpression)
+      hooks.call
+        .for(`${prefix}WebAssembly.instantiate`)
+        .tap(NAME, handleWrapWasmInstantiateExpression)
     }
     hooks.new.for('Response').tap(NAME, handleNewResponseExpression)
     hooks.new.for('NextResponse').tap(NAME, handleNewResponseExpression)
     hooks.callMemberChain.for('process').tap(NAME, handleCallMemberChain)
     hooks.expressionMemberChain.for('process').tap(NAME, handleCallMemberChain)
+    hooks.importCall.tap(NAME, handleImport)
+    hooks.import.tap(NAME, handleImport)
+
+    /**
+     * Support static analyzing environment variables through
+     * destructuring `process.env` or `process["env"]`:
+     *
+     * const { MY_ENV, "MY-ENV": myEnv } = process.env
+     *         ^^^^^^   ^^^^^^
+     */
+    hooks.declarator.tap(NAME, (declarator) => {
+      if (
+        declarator.init?.type === 'MemberExpression' &&
+        isProcessEnvMemberExpression(declarator.init) &&
+        declarator.id?.type === 'ObjectPattern'
+      ) {
+        for (const property of declarator.id.properties) {
+          if (property.type === 'RestElement') continue
+          if (
+            property.key.type === 'Literal' &&
+            typeof property.key.value === 'string'
+          ) {
+            addUsedEnvVar(property.key.value)
+          } else if (property.key.type === 'Identifier') {
+            addUsedEnvVar(property.key.name)
+          }
+        }
+
+        if (!isInMiddlewareLayer(parser)) {
+          return true
+        }
+      }
+    })
     registerUnsupportedApiHooks(parser, compilation)
   }
 }
@@ -288,18 +437,19 @@ function getExtractMetadata(params: {
             continue
           }
 
-          const error = new wp.WebpackError(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${entryName}${
-              typeof buildInfo.usingIndirectEval !== 'boolean'
-                ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
-                    ', '
-                  )}`
-                : ''
-            }`
+          compilation.errors.push(
+            buildWebpackError({
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
+                typeof buildInfo.usingIndirectEval !== 'boolean'
+                  ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
+                      ', '
+                    )}`
+                  : ''
+              }`,
+              entryModule,
+              compilation,
+            })
           )
-
-          error.module = entryModule
-          compilation.errors.push(error)
         }
 
         /**
@@ -310,6 +460,8 @@ function getExtractMetadata(params: {
           entryMetadata.edgeSSR = buildInfo.nextEdgeSSR
         } else if (buildInfo?.nextEdgeMiddleware) {
           entryMetadata.edgeMiddleware = buildInfo.nextEdgeMiddleware
+        } else if (buildInfo?.nextEdgeApiFunction) {
+          entryMetadata.edgeApiFunction = buildInfo.nextEdgeApiFunction
         }
 
         /**
@@ -386,34 +538,37 @@ function getCreateAssets(params: {
 
       // There should always be metadata for the entrypoint.
       const metadata = metadataByEntry.get(entrypoint.name)
-      const page = metadata?.edgeMiddleware?.page || metadata?.edgeSSR?.page
+      const page =
+        metadata?.edgeMiddleware?.page ||
+        metadata?.edgeSSR?.page ||
+        metadata?.edgeApiFunction?.page
       if (!page) {
         continue
       }
 
       const { namedRegex } = getNamedMiddlewareRegex(page, {
-        catchAll: !metadata.edgeSSR,
+        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
+      const regexp = metadata?.edgeMiddleware?.matcherRegexp || namedRegex
 
-      middlewareManifest.middleware[page] = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition = {
         env: Array.from(metadata.env),
         files: getEntryFiles(entrypoint.getFiles(), metadata),
         name: entrypoint.name,
         page: page,
-        regexp: namedRegex,
+        regexp,
         wasm: Array.from(metadata.wasmBindings),
+      }
+
+      if (metadata.edgeApiFunction || metadata.edgeSSR) {
+        middlewareManifest.functions[page] = edgeFunctionDefinition
+      } else {
+        middlewareManifest.middleware[page] = edgeFunctionDefinition
       }
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
-    )
-
-    middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
-      (key) => [
-        key,
-        !!metadataByEntry.get(middlewareManifest.middleware[key].name)?.edgeSSR,
-      ]
     )
 
     assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
@@ -426,7 +581,7 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`)
+      files.push(`server/${FLIGHT_MANIFEST}.js`)
       files.push(
         ...entryFiles
           .filter(
@@ -459,14 +614,18 @@ function registerUnsupportedApiHooks(
   parser: webpack5.javascript.JavascriptParser,
   compilation: webpack5.Compilation
 ) {
-  const { WebpackError } = compilation.compiler.webpack
   for (const expression of EDGE_UNSUPPORTED_NODE_APIS) {
     const warnForUnsupportedApi = (node: any) => {
       if (!isInMiddlewareLayer(parser)) {
         return
       }
       compilation.warnings.push(
-        makeUnsupportedApiError(WebpackError, parser, expression, node.loc)
+        buildUnsupportedApiError({
+          compilation,
+          parser,
+          apiName: expression,
+          ...node,
+        })
       )
       return true
     }
@@ -485,12 +644,12 @@ function registerUnsupportedApiHooks(
       return
     }
     compilation.warnings.push(
-      makeUnsupportedApiError(
-        WebpackError,
+      buildUnsupportedApiError({
+        compilation,
         parser,
-        `process.${callee}`,
-        node.loc
-      )
+        apiName: `process.${callee}`,
+        ...node,
+      })
     )
     return true
   }
@@ -503,18 +662,43 @@ function registerUnsupportedApiHooks(
     .tap(NAME, warnForUnsupportedProcessApi)
 }
 
-function makeUnsupportedApiError(
-  WebpackError: typeof webpack5.WebpackError,
-  parser: webpack5.javascript.JavascriptParser,
-  name: string,
+function buildUnsupportedApiError({
+  apiName,
+  loc,
+  ...rest
+}: {
+  apiName: string
   loc: any
-) {
-  const error = new WebpackError(
-    `You're using a Node.js API (${name} at line: ${loc.start.line}) which is not supported in the Edge Runtime that Middleware uses. 
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`
-  )
+  compilation: webpack5.Compilation
+  parser: webpack5.javascript.JavascriptParser
+}) {
+  return buildWebpackError({
+    message: `A Node.js API is used (${apiName} at line: ${loc.start.line}) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime`,
+    loc,
+    ...rest,
+  })
+}
+
+function buildWebpackError({
+  message,
+  loc,
+  compilation,
+  entryModule,
+  parser,
+}: {
+  message: string
+  loc?: any
+  compilation: webpack5.Compilation
+  entryModule?: webpack5.Module
+  parser?: webpack5.javascript.JavascriptParser
+}) {
+  const error = new compilation.compiler.webpack.WebpackError(message)
   error.name = NAME
-  error.module = parser.state.current
+  const module = entryModule ?? parser?.state.current
+  if (module) {
+    error.module = module
+  }
   error.loc = loc
   return error
 }
@@ -536,4 +720,19 @@ function isNullLiteral(expr: any) {
 
 function isUndefinedIdentifier(expr: any) {
   return expr.name === 'undefined'
+}
+
+function isProcessEnvMemberExpression(memberExpression: any): boolean {
+  return (
+    memberExpression.object?.type === 'Identifier' &&
+    memberExpression.object.name === 'process' &&
+    ((memberExpression.property?.type === 'Literal' &&
+      memberExpression.property.value === 'env') ||
+      (memberExpression.property?.type === 'Identifier' &&
+        memberExpression.property.name === 'env'))
+  )
+}
+
+function isNodeJsModule(moduleName: string) {
+  return require('module').builtinModules.includes(moduleName)
 }

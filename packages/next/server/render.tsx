@@ -21,6 +21,7 @@ import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import type { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ServerRuntime } from './config-shared'
 
 import React from 'react'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
@@ -43,7 +44,7 @@ import {
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
 import { isSerializableProps } from '../lib/is-serializable-props'
-import { isInAmpMode } from '../shared/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp-mode'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -83,12 +84,13 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { postProcessHTML } from './post-process'
 import { htmlEscapeJsonString } from './htmlescape'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 
 const DOCTYPE = '<!DOCTYPE html>'
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -237,12 +239,11 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicHTML?: boolean
-  runtime?: 'nodejs' | 'edge'
+  runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
   crossOrigin?: string
   images: ImageConfigComplete
-  reactRoot: boolean
   largePageDataBytes?: number
 }
 
@@ -313,20 +314,26 @@ function checkRedirectValues(
 const rscCache = new Map()
 
 function useFlightResponse({
-  id,
+  cachePrefix,
   req,
   pageData,
   inlinedDataWritable,
+  serverComponentManifest,
 }: {
-  id: string
+  cachePrefix: string
   req: ReadableStream<Uint8Array>
   pageData: { current: string } | null
   inlinedDataWritable: WritableStream<Uint8Array>
+  serverComponentManifest: any
 }) {
+  const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
   if (!entry) {
     const [renderStream, forwardStream] = readableStreamTee(req)
-    entry = createFromReadableStream(renderStream)
+
+    entry = createFromReadableStream(renderStream, {
+      moduleMap: serverComponentManifest.__ssr_module_mapping__,
+    })
     rscCache.set(id, entry)
 
     let bootstrapped = false
@@ -386,22 +393,20 @@ function createServerComponentRenderer(
   }
 ) {
   function ServerComponentWrapper({ router, ...props }: any) {
-    const id = (React as any).useId()
-
     const reqStream: ReadableStream<Uint8Array> = renderToReadableStream(
       <Component {...props} />,
       serverComponentManifest
     )
 
     const response = useFlightResponse({
-      id: cachePrefix + ',' + id,
+      cachePrefix,
       req: reqStream,
       pageData,
       inlinedDataWritable: inlinedTransformStream.writable,
+      serverComponentManifest,
     })
 
     const root = response.readRoot()
-    rscCache.delete(id)
     return root
   }
 
@@ -479,16 +484,27 @@ export async function renderToHTML(
       ? { current: '' }
       : null
 
+  let renderServerComponentData = isServerComponent
+    ? query.__flight__ !== undefined
+    : false
+
+  const serverComponentProps =
+    isServerComponent && query.__props__
+      ? JSON.parse(query.__props__ as string)
+      : undefined
+
+  const isFallback = !!query.__nextFallback
+  const notFoundSrcPage = query.__nextNotFoundSrcPage
+
+  stripInternalQueries(query)
+
+  // next internal queries should be stripped out
   if (isServerComponent) {
     serverComponentsInlinedTransformStream = new TransformStream()
     const search = urlQueryToSearchParams(query).toString()
 
     // @ts-ignore
-    globalThis.__next_require__ = (clientModuleId) => {
-      const ssrModuleId =
-        serverComponentManifest.__ssr_module_id__[clientModuleId]
-      return ComponentMod.__next_rsc__.__webpack_require__(ssrModuleId)
-    }
+    globalThis.__next_require__ = ComponentMod.__next_rsc__.__webpack_require__
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
 
@@ -499,18 +515,6 @@ export async function renderToHTML(
       serverComponentManifest,
     })
   }
-
-  let renderServerComponentData = isServerComponent
-    ? query.__flight__ !== undefined
-    : false
-
-  const serverComponentProps =
-    isServerComponent && query.__props__
-      ? JSON.parse(query.__props__ as string)
-      : undefined
-
-  delete query.__flight__
-  delete query.__props__
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -536,13 +540,6 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const isFallback = !!query.__nextFallback
-  const notFoundSrcPage = query.__nextNotFoundSrcPage
-  delete query.__nextFallback
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextIsNotFound
-
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
@@ -552,6 +549,24 @@ export async function renderToHTML(
   const hasPageScripts = (Component as any)?.unstable_scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
+
+  const defaultErrorGetInitialProps =
+    pathname === '/_error' &&
+    (Component as any).getInitialProps ===
+      (Component as any).origGetInitialProps
+
+  if (
+    renderOpts.nextExport &&
+    hasPageGetInitialProps &&
+    !defaultErrorGetInitialProps
+  ) {
+    warn(
+      `Detected getInitialProps on page '${pathname}'` +
+        `while running "next export". It's recommended to use getStaticProps` +
+        `which has a more correct behavior for static exporting.` +
+        `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
+    )
+  }
 
   const isAutoExport =
     !hasPageGetInitialProps &&
@@ -1455,6 +1470,7 @@ export async function renderToHTML(
       let styles
       if (hasDocumentGetInitialProps) {
         styles = docProps.styles
+        head = docProps.head
       } else {
         styles = jsxStyleRegistry.styles()
         jsxStyleRegistry.flush()
@@ -1655,18 +1671,27 @@ export async function renderToHTML(
 }
 
 function errorToJSON(err: Error) {
+  let source: 'server' | 'edge-server' = 'server'
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    source =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
+        err
+      ) || 'server'
+  }
+
   return {
     name: err.name,
+    source,
     message: stripAnsi(err.message),
     stack: err.stack,
-    middleware: (err as any).middleware,
   }
 }
 
 function serializeError(
   dev: boolean | undefined,
   err: Error
-): Error & { statusCode?: number } {
+): Error & { statusCode?: number; source?: 'edge-server' | 'server' } {
   if (dev) {
     return errorToJSON(err)
   }

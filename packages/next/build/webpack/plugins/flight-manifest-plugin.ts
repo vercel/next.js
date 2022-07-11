@@ -6,9 +6,10 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { MIDDLEWARE_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -65,32 +66,91 @@ export class FlightManifestPlugin {
     })
   }
 
-  createAsset(assets: any, compilation: any, context: string) {
+  createAsset(assets: any, compilation: webpack5.Compilation, context: string) {
     const manifest: any = {}
     const appDir = this.appDir
     const dev = this.dev
 
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(chunk: any, id: string | number, mod: any) {
+      function recordModule(
+        chunk: webpack5.Chunk,
+        id: string | number,
+        mod: any
+      ) {
         const resource: string = mod.resource
-
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!resource || !clientComponentRegex.test(resource)) {
-          return
-        }
+        if (!resource) return
 
         const moduleExports: any = manifest[resource] || {}
-        const moduleIdMapping: any = manifest.__ssr_module_id__ || {}
+        const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
+        moduleIdMapping[id] = moduleIdMapping[id] || {}
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        const ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
-        moduleIdMapping[id] = ssrNamedModuleId.startsWith('.')
-          ? ssrNamedModuleId
-          : `./${ssrNamedModuleId}`
+        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        if (!ssrNamedModuleId.startsWith('.'))
+          ssrNamedModuleId = `./${ssrNamedModuleId}`
+
+        if (
+          mod.request &&
+          /(?<!\.module)\.css$/.test(mod.request) &&
+          (dev
+            ? mod.loaders.some((item: any) =>
+                item.loader.includes('next-style-loader/index.js')
+              )
+            : mod.loaders.some((item: any) =>
+                item.loader.includes('mini-css-extract-plugin/loader.js')
+              ))
+        ) {
+          if (!manifest[resource]) {
+            if (dev) {
+              const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
+                return (
+                  chunkId +
+                  ':' +
+                  (chunk.name || chunk.id) +
+                  (dev ? '' : '-' + chunk.hash)
+                )
+              })
+              manifest[resource] = {
+                default: {
+                  id,
+                  name: 'default',
+                  chunks: chunkIdNameMapping,
+                },
+              }
+              moduleIdMapping[id]['default'] = {
+                id: ssrNamedModuleId,
+                name: 'default',
+                chunks: chunkIdNameMapping,
+              }
+              manifest.__ssr_module_mapping__ = moduleIdMapping
+            } else {
+              const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+              manifest[resource] = {
+                default: {
+                  id,
+                  name: 'default',
+                  chunks,
+                },
+              }
+              moduleIdMapping[id]['default'] = {
+                id: ssrNamedModuleId,
+                name: 'default',
+                chunks,
+              }
+              manifest.__ssr_module_mapping__ = moduleIdMapping
+            }
+          }
+          return
+        }
+
+        // TODO: Hook into deps instead of the target module.
+        // That way we know by the type of dep whether to include.
+        // It also resolves conflicts when the same module is in multiple chunks.
+        if (!clientComponentRegex.test(resource)) {
+          return
+        }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
@@ -119,37 +179,84 @@ export class FlightManifestPlugin {
 
         const moduleExportedKeys = ['', '*']
           .concat(
-            [...exportsInfo.exports].map((exportInfo) => {
-              if (exportInfo.provided) {
-                return exportInfo.name
-              }
-              return null
-            }),
+            [...exportsInfo.exports]
+              .filter((exportInfo) => exportInfo.provided)
+              .map((exportInfo) => exportInfo.name),
             ...cjsExports
           )
           .filter((name) => name !== null)
 
+        // Get all CSS files imported from the module's dependencies.
+        const visitedModule = new Set()
+        const cssChunks: Set<string> = new Set()
+
+        function collectClientImportedCss(module: any) {
+          if (!module) return
+
+          const modRequest = module.userRequest
+          if (visitedModule.has(modRequest)) return
+          visitedModule.add(modRequest)
+
+          if (/\.css$/.test(modRequest)) {
+            // collect relative imported css chunks
+            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
+              ;[...c.files]
+                .filter((file) => file.endsWith('.css'))
+                .forEach((file) => cssChunks.add(file))
+            })
+          }
+
+          const connections = Array.from(
+            compilation.moduleGraph.getOutgoingConnections(module)
+          )
+          connections.forEach((connection) => {
+            collectClientImportedCss(
+              compilation.moduleGraph.getResolvedModule(connection.dependency!)
+            )
+          })
+        }
+        collectClientImportedCss(mod)
+
         moduleExportedKeys.forEach((name) => {
+          let requiredChunks = []
           if (!moduleExports[name]) {
+            const isRelatedChunk = (c: webpack5.Chunk) =>
+              // If current chunk is a page, it should require the related page chunk;
+              // If current chunk is a component, it should filter out the related page chunk;
+              chunk.name?.startsWith('pages/') || !c.name?.startsWith('pages/')
+
+            if (appDir) {
+              requiredChunks = chunkGroup.chunks
+                .filter(isRelatedChunk)
+                .map((requiredChunk: webpack5.Chunk) => {
+                  return (
+                    requiredChunk.id +
+                    ':' +
+                    (requiredChunk.name || requiredChunk.id) +
+                    (dev ? '' : '-' + requiredChunk.hash)
+                  )
+                })
+            }
+
             moduleExports[name] = {
               id,
               name,
-              chunks: appDir
-                ? chunk.ids.map((chunkId: string) => {
-                    return (
-                      chunkId + ':' + chunk.name + (dev ? '' : '-' + chunk.hash)
-                    )
-                  })
-                : [],
+              chunks: requiredChunks.concat([...cssChunks]),
+            }
+          }
+          if (!moduleIdMapping[id][name]) {
+            moduleIdMapping[id][name] = {
+              ...moduleExports[name],
+              id: ssrNamedModuleId,
             }
           }
         })
 
         manifest[resource] = moduleExports
-        manifest.__ssr_module_id__ = moduleIdMapping
+        manifest.__ssr_module_mapping__ = moduleIdMapping
       }
 
-      chunkGroup.chunks.forEach((chunk: any) => {
+      chunkGroup.chunks.forEach((chunk: webpack5.Chunk) => {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
@@ -158,8 +265,9 @@ export class FlightManifestPlugin {
           recordModule(chunk, modId, mod)
 
           // If this is a concatenation, register each child to the parent ID.
-          if (mod.modules) {
-            mod.modules.forEach((concatenatedMod: any) => {
+          const anyModule = mod as any
+          if (anyModule.modules) {
+            anyModule.modules.forEach((concatenatedMod: any) => {
               recordModule(chunk, modId, concatenatedMod)
             })
           }
@@ -167,7 +275,7 @@ export class FlightManifestPlugin {
       })
     })
 
-    const file = 'server/' + MIDDLEWARE_FLIGHT_MANIFEST
+    const file = 'server/' + FLIGHT_MANIFEST
     const json = JSON.stringify(manifest)
 
     assets[file + '.js'] = new sources.RawSource('self.__RSC_MANIFEST=' + json)

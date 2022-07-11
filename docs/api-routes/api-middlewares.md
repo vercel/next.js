@@ -140,7 +140,7 @@ async function handler(req, res) {
 export default handler
 ```
 
-> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app
+> Go to the [API Routes with CORS](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors) example to see the finished app.
 
 ## Extending the `req`/`res` objects with TypeScript
 

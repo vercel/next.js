@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-nomodule",
-  "version": "12.1.7-canary.25",
+  "version": "12.2.3-canary.0",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "core-js": "3.6.5",
-    "microbundle": "0.13.0",
+    "microbundle": "0.15.0",
     "object-assign": "4.1.1",
     "whatwg-fetch": "3.0.0"
   }

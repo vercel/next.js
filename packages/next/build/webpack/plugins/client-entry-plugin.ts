@@ -12,6 +12,7 @@ import {
   entries,
 } from '../../../server/dev/on-demand-entry-handler'
 import { getPageStaticInfo } from '../../analysis/get-page-static-info'
+import { SERVER_RUNTIME } from '../../../lib/constants'
 
 type Options = {
   dev: boolean
@@ -21,6 +22,7 @@ type Options = {
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+const regexCssGlobal = /(?<!\.module)\.css$/
 
 export class ClientEntryPlugin {
   dev: boolean = false
@@ -76,11 +78,15 @@ export class ClientEntryPlugin {
           const module = compilation.moduleGraph.getResolvedModule(dependency)
           if (!module) return
 
-          if (visited.has(module.userRequest)) return
-          visited.add(module.userRequest)
+          const modRequest = module.userRequest
+          if (visited.has(modRequest)) return
+          visited.add(modRequest)
 
-          if (clientComponentRegex.test(module.userRequest)) {
-            clientComponentImports.push(module.userRequest)
+          if (
+            clientComponentRegex.test(modRequest) ||
+            regexCssGlobal.test(modRequest)
+          ) {
+            clientComponentImports.push(modRequest)
           }
 
           compilation.moduleGraph
@@ -111,13 +117,15 @@ export class ClientEntryPlugin {
 
         const clientLoader = `next-flight-client-entry-loader?${stringify({
           modules: clientComponentImports,
-          runtime: this.isEdgeServer ? 'edge' : 'nodejs',
+          runtime: this.isEdgeServer
+            ? SERVER_RUNTIME.edge
+            : SERVER_RUNTIME.nodejs,
           ssr: pageStaticInfo.ssr,
           // Adding name here to make the entry key unique.
           name,
         })}!`
 
-        const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
+        const bundlePath = 'app' + normalizePagePath(routeInfo.page)
 
         // Inject the entry to the client compiler.
         if (this.dev) {
@@ -146,13 +154,12 @@ export class ClientEntryPlugin {
           )
         }
 
-        // Inject the entry to the server compiler.
+        // Inject the entry to the server compiler (__sc_client__).
         const clientComponentEntryDep = (
           webpack as any
-        ).EntryPlugin.createDependency(
-          clientLoader,
-          name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
-        )
+        ).EntryPlugin.createDependency(clientLoader, {
+          name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+        })
         promises.push(
           new Promise<void>((res, rej) => {
             compilation.addEntry(

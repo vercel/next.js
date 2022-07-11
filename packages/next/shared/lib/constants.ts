@@ -5,6 +5,7 @@ export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
+export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
@@ -36,8 +37,8 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/middleware-flight-manifest.js
-export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/flight-manifest.js
+export const FLIGHT_MANIFEST = 'flight-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -46,7 +47,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
-export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-root`
+export const CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js
@@ -83,7 +84,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'CountQueuingStrategy',
   'DecompressionStream',
   'DomException',
-  'EventTarget',
   'MessageChannel',
   'MessageEvent',
   'MessagePort',

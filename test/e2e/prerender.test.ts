@@ -336,12 +336,12 @@ describe('Prerender', () => {
         await goFromHomeToAnother()
 
         const nextTime = await browser.elementByCss('#anotherTime').text()
+        // in dev the time should always differ as we don't cache
+        // in production the time may differ or may not depending
+        // on if fresh content beat the stale content
         if (isDev) {
           expect(snapTime).not.toMatch(nextTime)
-        } else {
-          expect(snapTime).toMatch(nextTime)
         }
-
         // Reset to Home for next test
         await goFromAnotherToHome()
       }
@@ -740,6 +740,20 @@ describe('Prerender', () => {
       const value = await browser.elementByCss('#catchall').text()
       expect(value).toMatch(/Hi \[third\] \[fourth\]/)
     })
+
+    if (!(global as any).isNextDeploy) {
+      it('should show error about renaming unstable_revalidate', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/blog/first',
+          deprecated: '1',
+        })
+        expect(res.status).toBe(500)
+
+        expect(next.cliOutput).toContain(
+          '"unstable_revalidate" has been renamed to "revalidate"'
+        )
+      })
+    }
 
     if ((global as any).isNextStart) {
       // TODO: dev currently renders this page as blocking, meaning it shows the
@@ -1913,11 +1927,6 @@ describe('Prerender', () => {
       })
     }
 
-    // this should come very last
-    it('should not have attempted sending invalid payload', async () => {
-      expect(next.cliOutput).not.toContain('argument entity must be string')
-    })
-
     if ((global as any).isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
@@ -2307,6 +2316,25 @@ describe('Prerender', () => {
         expect(initialTime).not.toBe($2('#time').text())
       })
     }
+
+    it('should respond for catch-all deep folder', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `/_next/data/${next.buildId}/catchall/first/second/third.json`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('["first","second","third"]')
+    })
+
+    // this should come very last
+    it('should not fail to update incremental cache', async () => {
+      await waitFor(1000)
+      expect(next.cliOutput).not.toContain('Failed to update prerender cache')
+    })
+
+    it('should not have attempted sending invalid payload', async () => {
+      expect(next.cliOutput).not.toContain('argument entity must be string')
+    })
   }
   runTests((global as any).isNextDev, (global as any).isNextDeploy)
 })

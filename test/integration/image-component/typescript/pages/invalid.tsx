@@ -8,20 +8,20 @@ const Invalid = () => {
       <Image id="invalid-src" src={new Date()} width={500} height={500}></Image>
       <Image
         id="invalid-width"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={new Date()}
         height={500}
       ></Image>
       <Image
         id="invalid-layout"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width="500"
         height="500"
         layout="invalid"
       ></Image>
       <Image
         id="invalid-placeholder"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width="500"
         height="500"
         placeholder="invalid"
