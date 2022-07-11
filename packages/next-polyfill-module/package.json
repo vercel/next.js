@@ -13,6 +13,6 @@
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "microbundle": "0.13.0"
+    "microbundle": "0.15.0"
   }
 }
