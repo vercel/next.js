@@ -292,6 +292,8 @@ function processMessage(e: any, sendMessage: any) {
       }
       return
     }
+    // TODO: make server component change more granular
+    case 'serverComponentChanges':
     case 'reloadPage': {
       sendMessage(
         JSON.stringify({
