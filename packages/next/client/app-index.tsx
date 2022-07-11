@@ -30,8 +30,7 @@ __webpack_require__.u = (chunkId: any) => {
 self.__next_require__ = __webpack_require__
 
 // eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_chunk_load__ = (chunk) => {
+;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (chunk.endsWith('.css')) {
     const link = document.createElement('link')
     link.rel = 'stylesheet'

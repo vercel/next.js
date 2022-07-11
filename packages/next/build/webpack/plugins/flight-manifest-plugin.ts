@@ -94,12 +94,13 @@ export class FlightManifestPlugin {
         if (
           mod.request &&
           /(?<!\.module)\.css$/.test(mod.request) &&
-          ((dev &&
-            mod.request.includes(
-              'webpack/loaders/next-style-loader/index.js'
-            )) ||
-            (!dev &&
-              mod.request.includes('webpack/loaders/css-loader/src/index.js')))
+          (dev
+            ? mod.loaders.some((item: any) =>
+                item.loader.includes('next-style-loader/index.js')
+              )
+            : mod.loaders.some((item: any) =>
+                item.loader.includes('mini-css-extract-plugin/loader.js')
+              ))
         ) {
           if (!manifest[resource]) {
             if (dev) {
@@ -187,7 +188,7 @@ export class FlightManifestPlugin {
 
         // Get all CSS files imported from the module's dependencies.
         const visitedCss = new Set()
-        const cssChunks: string[] = []
+        const cssChunks: Set<string> = new Set()
 
         function collectClientImportedCss(module: any) {
           if (!module) return
@@ -201,7 +202,7 @@ export class FlightManifestPlugin {
             compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
               ;[...c.files]
                 .filter((file) => file.endsWith('.css'))
-                .forEach((file) => cssChunks.push(file))
+                .forEach((file) => cssChunks.add(file))
             })
           }
 
@@ -240,7 +241,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: requiredChunks.concat(cssChunks),
+              chunks: requiredChunks.concat([...cssChunks]),
             }
           }
           if (!moduleIdMapping[id][name]) {
