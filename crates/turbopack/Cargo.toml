@@ -26,7 +26,6 @@ rand = "0.8.5"
 json = "0.12.4"
 swc_atoms = "0.2.13"
 swc_ecma_transforms_base = "0.96.0"
-swc_ecma_loader = { version = "0.34.0", features = ["node"] }
 url = "2.2.2"
 indexmap = "1.8.0"
 serde = "1.0.136"
@@ -52,7 +51,7 @@ rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 criterion = { version = "0.3.5", features = ["tokio"] }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-testing = "0.22.0"
+testing = "0.24.0"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
