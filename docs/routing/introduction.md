@@ -74,7 +74,7 @@ The example above uses multiple links. Each one maps a path (`href`) to a known 
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
-Learn more about [prefetch pages](#prefetching-pages) for fast transitions.
+Learn more about [prefetching pages](#prefetching-pages) for fast page transitions.
 
 ### Linking to dynamic paths
 
@@ -149,9 +149,9 @@ In general we recommend using [`useRouter`](/docs/api-reference/next/router.md#u
 
 ## Prefetching pages
 
-Next.js can automatically (or declaritvely) prefetch pages for faster transitions even when networks are slow.
+Next.js can prefetch pages for fast transitions even when networks are slow.
 
-Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions.
+Any `<Link />` in the viewport (initially or through scroll) will be automatically prefetched by default. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions.
 
 Next.js also allows you to prefetch server-rendered pages using HTML `<link rel="prefetch"/>` tags:
 
