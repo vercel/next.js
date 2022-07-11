@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.2
+      '@next/eslint-plugin-next': 12.2.3-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.2
-      '@next/polyfill-module': 12.2.2
-      '@next/polyfill-nomodule': 12.2.2
-      '@next/react-dev-overlay': 12.2.2
-      '@next/react-refresh-utils': 12.2.2
-      '@next/swc': 12.2.2
+      '@next/env': 12.2.3-canary.0
+      '@next/polyfill-module': 12.2.3-canary.0
+      '@next/polyfill-nomodule': 12.2.3-canary.0
+      '@next/react-dev-overlay': 12.2.3-canary.0
+      '@next/react-refresh-utils': 12.2.3-canary.0
+      '@next/swc': 12.2.3-canary.0
       '@swc/helpers': 0.4.2
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -20778,7 +20778,7 @@ packages:
       worker-farm: 1.7.0
     dev: true
 
-  /terser-webpack-plugin/5.2.4_webpack@5.73.0:
+  /terser-webpack-plugin/5.2.4:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
     engines: {node: '>= 10.13.0'}
     peerDependencies:
@@ -20800,7 +20800,6 @@ packages:
       serialize-javascript: 6.0.0
       source-map: 0.6.1
       terser: 5.10.0
-      webpack: 5.73.0
     dev: true
 
   /terser/4.8.0:
@@ -22229,7 +22228,7 @@ packages:
       neo-async: 2.6.2
       schema-utils: 3.1.1
       tapable: 2.2.0
-      terser-webpack-plugin: 5.2.4_webpack@5.73.0
+      terser-webpack-plugin: 5.2.4
       watchpack: 2.4.0
       webpack-sources: 3.2.3
     transitivePeerDependencies:

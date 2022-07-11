@@ -1,7 +1,8 @@
 import useSWR from 'swr'
-import Person from '../components/Person'
+import PersonComponent from '../components/Person'
+import { Person } from '../interfaces'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function Index() {
   const { data, error } = useSWR('/api/people', fetcher)
@@ -11,8 +12,8 @@ export default function Index() {
 
   return (
     <ul>
-      {data.map((p, i) => (
-        <Person key={i} person={p} />
+      {data.map((p: Person) => (
+        <PersonComponent key={p.id} person={p} />
       ))}
     </ul>
   )
