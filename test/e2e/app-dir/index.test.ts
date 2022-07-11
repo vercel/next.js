@@ -750,6 +750,74 @@ describe('app dir', () => {
     })
   })
 
+  describe('client components', () => {
+    describe('hooks', () => {
+      describe('usePathname', () => {
+        it('should have the correct pathname', async () => {
+          const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
+          const $ = cheerio.load(html)
+          expect($('#pathname').attr('data-pathname')).toBe(
+            '/hooks/use-pathname'
+          )
+        })
+      })
+
+      describe('useSearchParams', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-search-params?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+
+      describe('useRouter', () => {
+        it('should allow access to the router', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-router')
+
+          try {
+            // Wait for the page to load, click the button (which uses a method
+            // on the router) and then wait for the correct page to load.
+            await browser.waitForElementByCss('#router')
+            await browser.elementById('button-push').click()
+            await browser.waitForElementByCss('#router-sub-page')
+
+            // Go back (confirming we did do a hard push), and wait for the
+            // correct previous page.
+            await browser.back()
+            await browser.waitForElementByCss('#router')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+    })
+
+    it('should throw an error when getStaticProps is used', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/client-with-errors/get-static-props'
+      )
+      expect(res.status).toBe(500)
+      expect(await res.text()).toContain('Internal Server Error')
+    })
+
+    it('should throw an error when getServerSideProps is used', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/client-with-errors/get-server-side-props'
+      )
+      expect(res.status).toBe(500)
+      expect(await res.text()).toContain('Internal Server Error')
+    })
+  })
+
   describe('css support', () => {
     describe('server layouts', () => {
       it('should support global css inside server layouts', async () => {
