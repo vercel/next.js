@@ -12,7 +12,7 @@ type RunnerFn = (params: {
   paths: string[]
   request: RequestData
   useCache: boolean
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'blobs'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
   distDir: string
 }) => Promise<FetchEventResult>
 

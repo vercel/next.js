@@ -610,7 +610,7 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<RenderResult | null> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
     // object here but only updating its `serverComponentManifest` field.
-    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+    // https://github.com/vercel/next.js/asset/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
 
     if (
@@ -927,10 +927,10 @@ export default class NextNodeServer extends BaseServer {
   protected isServeableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
-    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
+    //    https://github.com/pillarjs/send/asset/0.17.1/index.js#L989
+    //    https://github.com/pillarjs/send/asset/0.17.1/index.js#L518-L522
     // 2. resolve:
-    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+    //    https://github.com/pillarjs/send/asset/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
 
     let decodedUntrustedFilePath: string
     try {
@@ -1121,7 +1121,7 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
-      blobs: (pageInfo.blobs ?? []).map((binding) => {
+      assets: (pageInfo.assets ?? []).map((binding) => {
         return {
           ...binding,
           filePath: join(this.distDir, binding.filePath),

@@ -1,11 +1,14 @@
+import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getModuleBuildInfo } from './get-module-build-info'
-import crypto from 'crypto'
 
 export default function MiddlewareAssetLoader(this: any, source: Buffer) {
-  const name = sha1(source)
+  const name = loaderUtils.interpolateName(this, '[name].[hash:8].[ext]', {
+    context: this.rootContext,
+    content: source,
+  })
   const filePath = `edge-chunks/asset_${name}`
   const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.nextBlobMiddlewareBinding = {
+  buildInfo.nextAssetMiddlewareBinding = {
     filePath: `server/${filePath}`,
     name,
   }
@@ -14,7 +17,3 @@ export default function MiddlewareAssetLoader(this: any, source: Buffer) {
 }
 
 export const raw = true
-
-function sha1(source: string | Buffer) {
-  return crypto.createHash('sha1').update(source).digest('hex')
-}

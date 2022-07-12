@@ -5,13 +5,13 @@ import { requestToBodyStream } from '../../body-streams'
 
 /**
  * Short-circuits the `fetch` function
- * to return a stream for a given blob, if a user used `new URL("file", import.meta.url)`.
- * This allows to embed blobs in Edge Runtime.
+ * to return a stream for a given asset, if a user used `new URL("file", import.meta.url)`.
+ * This allows to embed assets in Edge Runtime.
  */
-export async function fetchInlineBlob(options: {
+export async function fetchInlineAsset(options: {
   input: RequestInfo
   distDir: string
-  assets: EdgeFunctionDefinition['blobs']
+  assets: EdgeFunctionDefinition['assets']
   context: { Response: any }
 }): Promise<Response | undefined> {
   const inputString = String(options.input)
@@ -33,7 +33,7 @@ export async function fetchInlineBlob(options: {
   )
 
   if (fileIsReadable) {
-    const blob = createReadStream(filePath)
-    return new options.context.Response(requestToBodyStream(blob))
+    const readStream = createReadStream(filePath)
+    return new options.context.Response(requestToBodyStream(readStream))
   }
 }

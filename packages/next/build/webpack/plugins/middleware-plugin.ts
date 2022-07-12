@@ -24,7 +24,7 @@ export interface EdgeFunctionDefinition {
   page: string
   regexp: string
   wasm?: AssetBinding[]
-  blobs?: AssetBinding[]
+  assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
@@ -40,7 +40,7 @@ interface EntryMetadata {
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
   wasmBindings: Set<AssetBinding>
-  blobBindings: Set<AssetBinding>
+  assetBindings: Set<AssetBinding>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -416,7 +416,7 @@ function getExtractMetadata(params: {
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
         wasmBindings: new Set(),
-        blobBindings: new Set(),
+        assetBindings: new Set(),
       }
 
       for (const entryModule of entryModules) {
@@ -488,8 +488,8 @@ function getExtractMetadata(params: {
           entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
         }
 
-        if (buildInfo?.nextBlobMiddlewareBinding) {
-          entryMetadata.blobBindings.add(buildInfo.nextBlobMiddlewareBinding)
+        if (buildInfo?.nextAssetMiddlewareBinding) {
+          entryMetadata.assetBindings.add(buildInfo.nextAssetMiddlewareBinding)
         }
 
         /**
@@ -568,7 +568,7 @@ function getCreateAssets(params: {
         page: page,
         regexp,
         wasm: Array.from(metadata.wasmBindings),
-        blobs: Array.from(metadata.blobBindings),
+        assets: Array.from(metadata.assetBindings),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

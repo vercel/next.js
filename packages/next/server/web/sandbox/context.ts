@@ -9,7 +9,7 @@ import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
-import { fetchInlineBlob } from './fetch-inline-blobs'
+import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 const WEBPACK_HASH_REGEX =
@@ -51,7 +51,7 @@ interface ModuleContextOptions {
   useCache: boolean
   env: string[]
   distDir: string
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'blobs' | 'wasm'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -201,14 +201,14 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
       const __fetch = context.fetch
       context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
-        const blobResponse = await fetchInlineBlob({
+        const assetResponse = await fetchInlineAsset({
           input,
-          assets: options.edgeFunctionEntry.blobs,
+          assets: options.edgeFunctionEntry.assets,
           distDir: options.distDir,
           context,
         })
-        if (blobResponse) {
-          return blobResponse
+        if (assetResponse) {
+          return assetResponse
         }
 
         init.headers = new Headers(init.headers ?? {})

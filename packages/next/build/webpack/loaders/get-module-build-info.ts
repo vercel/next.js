@@ -11,7 +11,7 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     nextEdgeSSR?: EdgeSSRMeta
     nextUsedEnvVars?: Set<string>
     nextWasmMiddlewareBinding?: AssetBinding
-    nextBlobMiddlewareBinding?: AssetBinding
+    nextAssetMiddlewareBinding?: AssetBinding
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
     importLocByPath?: Map<string, any>
