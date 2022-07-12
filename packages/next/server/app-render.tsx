@@ -209,7 +209,7 @@ function createServerComponentRenderer(
   }
 
   const writable = transformStream.writable
-  const ServerComponentWrapper = () => {
+  return function ServerComponentWrapper() {
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
@@ -218,11 +218,8 @@ function createServerComponentRenderer(
       serverComponentManifest,
       cssFlightData
     )
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
-
-  return ServerComponentWrapper
 }
 
 type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
@@ -327,6 +324,26 @@ function getSegmentParam(segment: string): {
   return null
 }
 
+function getCSSInlinedLinkTags(
+  ComponentMod: any,
+  serverComponentManifest: any
+) {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  return Array.from(
+    new Set(
+      importedServerCSSFiles
+        .map((css) =>
+          css.endsWith('.css')
+            ? serverComponentManifest[css].default.chunks
+            : []
+        )
+        .flat()
+    )
+  )
+}
+
 function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
@@ -335,7 +352,7 @@ function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
     (css) => serverComponentManifest[css].default
   )
   if (process.env.NODE_ENV === 'development') {
-    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
   }
 
   // Multiple css chunks could be merged into one by mini-css-extract-plugin,
@@ -345,10 +362,7 @@ function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
     return res
   }, new Set())
 
-  const cssFlight = Array.from(cssSet)
-    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
-    .join('\n')
-  return cssFlight
+  return `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n`
 }
 
 export async function renderToHTML(
@@ -793,6 +807,11 @@ export async function renderToHTML(
   // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
+  const initialStylesheets = getCSSInlinedLinkTags(
+    ComponentMod,
+    serverComponentManifest
+  )
+
   const { Component: ComponentTree } = createComponentTree({
     createSegmentPath: (child) => child,
     tree,
@@ -818,6 +837,7 @@ export async function renderToHTML(
             hotReloader={HotReloader && <HotReloader assetPrefix="" />}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            initialStylesheets={initialStylesheets}
           >
             <ComponentTree />
           </AppRouter>
@@ -896,7 +916,6 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
