@@ -27,6 +27,13 @@ const handlers = new Map([
       return fetch(url)
     },
   ],
+  [
+    'from-node-module',
+    async () => {
+      const url = new URL('my-pkg/hello/world.json', import.meta.url)
+      return fetch(url)
+    },
+  ],
 ])
 
 const defaultHandler = async () =>

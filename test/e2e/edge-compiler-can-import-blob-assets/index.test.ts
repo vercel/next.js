@@ -4,6 +4,7 @@ import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { readJson } from 'fs-extra'
+import type { MiddlewareManifest } from 'next/build/webpack/plugins/middleware-plugin'
 
 describe('Edge Compiler can import asset assets', () => {
   let next: NextInstance
@@ -11,7 +12,6 @@ describe('Edge Compiler can import asset assets', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './app')),
-      dependencies: {},
     })
   })
   afterAll(() => next.destroy())
@@ -34,13 +34,29 @@ describe('Edge Compiler can import asset assets', () => {
     expect(buffer.equals(image)).toBeTrue()
   })
 
+  it('allows to assets from node_modules', async () => {
+    const response = await fetchViaHTTP(next.url, '/api/edge', {
+      handler: 'from-node-module',
+    })
+    const json = await response.json()
+    expect(json).toEqual({
+      'i am': 'a node dependency',
+    })
+  })
+
   it('extracts all the assets from the bundle', async () => {
     const manifestPath = path.join(
       next.testDir,
       '.next/server/middleware-manifest.json'
     )
-    const manifest = await readJson(manifestPath)
-    expect(manifest.functions['/api/edge'].assets).toMatchObject([
+    const manifest: MiddlewareManifest = await readJson(manifestPath)
+    const orderedAssets = manifest.functions['/api/edge'].assets.sort(
+      (a, z) => {
+        return String(a.name).localeCompare(z.name)
+      }
+    )
+
+    expect(orderedAssets).toMatchObject([
       {
         name: expect.stringMatching(/^text-file\.[0-9a-f]{16}\.txt$/),
         filePath: expect.stringMatching(
@@ -50,6 +66,10 @@ describe('Edge Compiler can import asset assets', () => {
       {
         name: expect.stringMatching(/^vercel\.[0-9a-f]{16}\.png$/),
         filePath: expect.stringMatching(/^server\/edge-chunks\/asset_vercel/),
+      },
+      {
+        name: expect.stringMatching(/^world\.[0-9a-f]{16}\.json/),
+        filePath: expect.stringMatching(/^server\/edge-chunks\/asset_world/),
       },
     ])
   })
