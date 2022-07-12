@@ -169,7 +169,10 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
   const loadCssFromStreamData = (data: string) => {
     if (data.startsWith('CSS')) {
       const cssJson = data.slice(4).trim()
-      if (!loadedCss.has(cssJson)) cssLoadingPromises.push(loadCss(cssJson))
+      if (!loadedCss.has(cssJson)) {
+        loadedCss.add(cssJson)
+        cssLoadingPromises.push(loadCss(cssJson))
+      }
     }
   }
 
@@ -177,23 +180,26 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
+      const process = (buf: string) => {
+        if (buf) {
+          if (buf.startsWith('CSS:')) {
+            loadCssFromStreamData(buf)
+          } else {
+            controller.enqueue(new TextEncoder().encode(buf))
+          }
+        }
+      }
+
       const data = new TextDecoder().decode(chunk)
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-        if (line.startsWith('CSS:')) {
-          loadCssFromStreamData(line)
-        } else {
-          controller.enqueue(new TextEncoder().encode(line))
-        }
+        process(line)
       }
-
-      if (buffer && !buffer.startsWith('CSS:')) {
-        controller.enqueue(new TextEncoder().encode(buffer))
-        buffer = ''
-      }
+      process(buffer)
+      buffer = ''
     },
   })
 
@@ -262,9 +268,7 @@ function RSCComponent(props: any) {
   return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
-export async function hydrate(opts?: {
-  onFlightCssLoaded?: () => Promise<void>
-}) {
+export function hydrate(opts?: { onFlightCssLoaded?: () => Promise<void> }) {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
       <Root>

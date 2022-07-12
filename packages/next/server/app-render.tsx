@@ -191,7 +191,11 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const cssFlightData = getCssFlightData(ComponentMod, serverComponentManifest)
+  const cssFlightData = getCssFlightData(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -346,13 +350,22 @@ function getCSSInlinedLinkTags(
   )
 }
 
-function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
+function getCssFlightData(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev: boolean
+) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
   const cssFiles = importedServerCSSFiles.map(
     (css) => serverComponentManifest[css].default
   )
+
+  if (dev) {
+    // Keep `id` in dev mode css flight to require the css module
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
+  }
 
   // Multiple css chunks could be merged into one by mini-css-extract-plugin,
   // we use a set here to dedupe the css chunks in production.
@@ -781,7 +794,8 @@ export async function renderToHTML(
 
     const cssFlightData = getCssFlightData(
       ComponentMod,
-      serverComponentManifest
+      serverComponentManifest,
+      dev
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''

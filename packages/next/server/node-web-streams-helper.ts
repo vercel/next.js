@@ -231,9 +231,9 @@ export function createPrefixStream(
   let prefixFlushed = false
   return new TransformStream({
     transform(chunk, controller) {
-      if (!prefixFlushed && prefix) {
-        prefixFlushed = true
+      if (!prefixFlushed) {
         controller.enqueue(encodeText(prefix))
+        prefixFlushed = true
       }
       controller.enqueue(chunk)
     },

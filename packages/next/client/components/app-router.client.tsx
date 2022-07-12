@@ -49,26 +49,26 @@ function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
+      const process = (buf: string) => {
+        if (buf) {
+          if (buf.startsWith('CSS:')) {
+            loadCssFromStreamData(buf)
+          } else {
+            controller.enqueue(new TextEncoder().encode(buf))
+          }
+        }
+      }
+
       const data = new TextDecoder().decode(chunk)
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-
-        if (line.startsWith('CSS:')) {
-          loadCssFromStreamData(line)
-        } else {
-          controller.enqueue(new TextEncoder().encode(line))
-        }
+        process(line)
       }
-      if (buffer && !buffer.startsWith('CSS:')) {
-        controller.enqueue(new TextEncoder().encode(buffer))
-        buffer = ''
-      }
-    },
-    flush() {
-      loadCssFromStreamData(buffer)
+      process(buffer)
+      buffer = ''
     },
   })
 
