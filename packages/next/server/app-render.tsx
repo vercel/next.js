@@ -131,6 +131,7 @@ function useFlightResponse(
       .pipeThrough(createPrefixStream(cssFlightData))
       .getReader()
     const writer = writable.getWriter()
+    // let remainingFlightResponse = ''
     function process() {
       forwardReader.read().then(({ done, value }) => {
         if (!bootstrapped) {
@@ -148,13 +149,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          writer.write(
-            encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, responsePartial])
-              )})</script>`
-            )
-          )
+          const scripts = `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([1, id, responsePartial])
+          )})</script>`
+
+          writer.write(encodeText(scripts))
           process()
         }
       })
@@ -335,20 +334,19 @@ function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
     (css) => serverComponentManifest[css].default
   )
   if (process.env.NODE_ENV === 'development') {
-    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}\n`).join('')
   }
 
   // Multiple css chunks could be merged into one by mini-css-extract-plugin,
   // we use a set here to dedupe the css chunks in production.
-  const cssSet = cssFiles.reduce((res, css) => {
+  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
     res.add(...css.chunks)
     return res
   }, new Set())
 
-  const cssFlight = Array.from(cssSet)
-    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
-    .join('\n')
-  return cssFlight
+  return cssSet.size
+    ? `CSS:${JSON.stringify({ chunks: [Array.from(cssSet)] })}\n`
+    : ''
 }
 
 export async function renderToHTML(
@@ -896,6 +894,7 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
+      dev: renderOpts.dev,
       suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
