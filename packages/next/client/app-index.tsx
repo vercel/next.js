@@ -172,12 +172,12 @@ function useInitialServerResponse(cacheKey: string) {
   }
 
   const loadCssFromStreamData = (data: string) => {
-    const seg = data.split(':')
-    if (seg[0] === 'CSS') {
-      loadCss(seg.slice(1).join(':'))
+    if (data.startsWith('CSS:')) {
+      loadCss(data.slice(4))
     }
   }
 
+  // TODO-APP: Refine the buffering code here to make it more correct.
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
@@ -185,12 +185,16 @@ function useInitialServerResponse(cacheKey: string) {
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index)
+        const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-        loadCssFromStreamData(line)
+        if (line.startsWith('CSS:')) {
+          loadCssFromStreamData(line)
+        } else {
+          controller.enqueue(new TextEncoder().encode(line))
+        }
       }
-      if (!data.startsWith('CSS:')) {
-        controller.enqueue(chunk)
+      if (buffer && !buffer.startsWith('CSS:')) {
+        controller.enqueue(new TextEncoder().encode(buffer))
       }
     },
     flush() {
