@@ -1018,7 +1018,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         request,
                         export,
                         ast_path,
-                        span,
+                        span: _,
                     } => {
                         if let Some(r) = import_references.get(&request) {
                             code_gen.push(

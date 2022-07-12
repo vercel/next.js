@@ -12,7 +12,7 @@ use turbopack_core::{
 
 use crate::{
     chunk::EcmascriptChunkContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGenerationVc},
     references::AstPathVc,
     resolve::esm_resolve,
 };
@@ -77,6 +77,6 @@ impl CodeGenerateable for EsmAsyncAssetReference {
         _chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        Ok(CodeGeneration { visitors: todo!() }.into())
+        todo!()
     }
 }

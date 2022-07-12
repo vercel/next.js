@@ -150,6 +150,7 @@ impl DevServerVc {
         }
         Ok(FindAssetResult::NotFound.into())
     }
+
     #[turbo_tasks::function]
     async fn find_asset_2(self, root_asset: AssetVc, path: &str) -> Result<FindAssetResultVc> {
         let root_path = &*self.await?.root_path.await?;
@@ -185,7 +186,6 @@ impl DevServerVc {
     pub async fn listen(self) -> Result<DevServerListening> {
         let tt = turbo_tasks::turbo_tasks();
         let this = self.await?;
-        let root_path = this.root_path;
         let root_path_str = this.root_path.to_string();
         let root_asset = this.root_asset;
         let fallback_handler = this.fallback_handler.clone();
@@ -311,7 +311,7 @@ impl DevServerVc {
                 format!("http://{}", this.addr)
             };
             println!("server listening on: {uri}", uri = index_uri);
-            webbrowser::open(&index_uri);
+            let _ = webbrowser::open(&index_uri);
         }
 
         Ok(DevServerListening::new(async move {
