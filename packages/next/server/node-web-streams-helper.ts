@@ -172,7 +172,7 @@ export async function continueFromInitialStream(
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
     flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
-    suffixUnclosed != null ? createPrefixStream(suffixUnclosed) : null,
+    suffixUnclosed != null ? createDeferredPrefixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
   ].filter(nonNullable)
@@ -196,6 +196,21 @@ export function createSuffixStream(
 }
 
 export function createPrefixStream(
+  prefix: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let prefixEnqueued = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (!prefixEnqueued) {
+        controller.enqueue(encodeText(prefix))
+        prefixEnqueued = true
+      }
+      controller.enqueue(chunk)
+    },
+  })
+}
+
+export function createDeferredPrefixStream(
   prefix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let prefixFlushed = false
