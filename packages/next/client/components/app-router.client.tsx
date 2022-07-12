@@ -36,43 +36,50 @@ export function fetchServerResponse(
   return createFromFetch(fetchFlight(url, flightRouterStateData))
 }
 
-// TODO: move this back into AppRouter
-let initialCache: CacheNode =
-  typeof window === 'undefined'
-    ? null!
-    : {
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      }
+function ErrorOverlay({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
+  if (process.env.NODE_ENV === 'production') {
+    return <>{children}</>
+  } else {
+    const {
+      ReactDevOverlay,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
+  }
+}
+
+// TODO-APP: move this back into AppRouter
+let initialParallelRoutes: CacheNode['parallelRoutes'] =
+  typeof window === 'undefined' ? null! : new Map()
 
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   children,
+  hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   children: React.ReactNode
+  hotReloader?: React.ReactNode
 }) {
   const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
     typeof reducer
   >(reducer, {
     tree: initialTree,
-    cache:
-      typeof window === 'undefined'
-        ? {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          }
-        : initialCache,
+    cache: {
+      data: null,
+      subTreeData: children,
+      parallelRoutes:
+        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+    },
     pushRef: { pendingPush: false, mpaNavigation: false },
     canonicalUrl: initialCanonicalUrl,
   })
 
   useEffect(() => {
-    initialCache = null!
+    initialParallelRoutes = null!
   }, [])
 
   const { query, pathname } = React.useMemo(() => {
@@ -129,7 +136,7 @@ export default function AppRouter({
     }
 
     const routerInstance: AppRouterInstance = {
-      // TODO: implement prefetching of loading / flight
+      // TODO-APP: implement prefetching of loading / flight
       prefetch: (_href) => Promise.resolve(),
       replace: (href) => {
         // @ts-ignore startTransition exists
@@ -153,6 +160,24 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'hard', 'push')
+        })
+      },
+      reload: () => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'reload',
+            payload: {
+              // TODO-APP: revisit if this needs to be passed.
+              url: new URL(window.location.href),
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
+              mutable: {},
+            },
+          })
         })
       },
     }
@@ -186,11 +211,11 @@ export default function AppRouter({
 
   const onPopState = React.useCallback(({ state }: PopStateEvent) => {
     if (!state) {
-      // TODO: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+      // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
       return
     }
 
-    // TODO: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
+    // TODO-APP: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
     // It reloads the page in this case but we might have to revisit this as the old router ignores it.
     if (!state.__NA) {
       window.location.reload()
@@ -198,7 +223,7 @@ export default function AppRouter({
     }
 
     // @ts-ignore useTransition exists
-    // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+    // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
     // Without startTransition works if the cache is there for this path
     React.startTransition(() => {
       dispatch({
@@ -217,7 +242,6 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
-
   return (
     <PathnameContext.Provider value={pathname}>
       <QueryContext.Provider value={query}>
@@ -237,7 +261,8 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {children}
+              <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>
+              {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </FullAppTreeContext.Provider>

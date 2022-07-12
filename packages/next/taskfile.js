@@ -1982,6 +1982,11 @@ export default async function (task) {
     opts
   )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
+  await task.watch(
+    '../react-dev-overlay/dist/**/*.js',
+    'ncc_next__react_dev_overlay',
+    opts
+  )
 }
 
 export async function shared(task, opts) {

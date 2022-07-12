@@ -8,6 +8,45 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 /// <reference types="react-dom/experimental" />
 
+// Override chunk URL mapping in the webpack runtime
+// https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
+
+declare global {
+  const __webpack_require__: any
+}
+
+// eslint-disable-next-line no-undef
+const getChunkScriptFilename = __webpack_require__.u
+const chunkFilenameMap: any = {}
+
+// eslint-disable-next-line no-undef
+__webpack_require__.u = (chunkId: any) => {
+  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+}
+
+// Ignore the module ID transform in client.
+// eslint-disable-next-line no-undef
+// @ts-expect-error TODO: fix type
+self.__next_require__ = __webpack_require__
+
+// eslint-disable-next-line no-undef
+;(self as any).__next_chunk_load__ = (chunk: string) => {
+  if (chunk.endsWith('.css')) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = '/_next/' + chunk
+    document.head.appendChild(link)
+    return Promise.resolve()
+  }
+
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
+
+  // @ts-ignore
+  // eslint-disable-next-line no-undef
+  return __webpack_chunk_load__(chunkId)
+}
+
 export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
@@ -113,13 +152,58 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
-  const newResponse = createFromReadableStream(readable)
+
+  async function loadCss(cssChunkInfoJson: string) {
+    const data = JSON.parse(cssChunkInfoJson)
+    await Promise.all(
+      data.chunks.map((chunkId: string) => {
+        // load css related chunks
+        return (self as any).__next_chunk_load__(chunkId)
+      })
+    )
+    // In development mode, import css in dev when it's wrapped by style loader.
+    // In production mode, css are standalone chunk that doesn't need to be imported.
+    if (data.id) {
+      ;(self as any).__next_require__(data.id)
+    }
+  }
+
+  const loadCssFromStreamData = (data: string) => {
+    const seg = data.split(':')
+    if (seg[0] === 'CSS') {
+      loadCss(seg.slice(1).join(':'))
+    }
+  }
+
+  let buffer = ''
+  const loadCssFromFlight = new TransformStream({
+    transform(chunk, controller) {
+      const data = new TextDecoder().decode(chunk)
+      buffer += data
+      let index
+      while ((index = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, index)
+        buffer = buffer.slice(index + 1)
+        loadCssFromStreamData(line)
+      }
+      if (!data.startsWith('CSS:')) {
+        controller.enqueue(chunk)
+      }
+    },
+    flush() {
+      loadCssFromStreamData(buffer)
+    },
+  })
+
+  const newResponse = createFromReadableStream(
+    readable.pipeThrough(loadCssFromFlight)
+  )
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
 }
 
-const ServerRoot = ({ cacheKey }: { cacheKey: string }) => {
+function ServerRoot({ cacheKey }: { cacheKey: string }) {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
@@ -143,7 +227,7 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-const RSCComponent = () => {
+function RSCComponent() {
   const cacheKey = getCacheKey()
   return <ServerRoot cacheKey={cacheKey} />
 }
