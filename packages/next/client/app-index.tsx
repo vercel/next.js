@@ -32,10 +32,13 @@ self.__next_require__ = __webpack_require__
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (chunk.endsWith('.css')) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = '/_next/' + chunk
-    document.head.appendChild(link)
+    const existingTag = document.querySelector(`link[href="${chunk}"]`)
+    if (!existingTag) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = '/_next/' + chunk
+      document.head.appendChild(link)
+    }
     return Promise.resolve()
   }
 
@@ -158,19 +161,19 @@ async function loadCss(cssChunkInfoJson: string) {
     return (self as any).__next_require__(data.id)
   }
 
-  return Promise.resolve(1)
+  return Promise.resolve()
 }
 
 function createLoadFlightCssStream(callback?: () => Promise<void>) {
   const cssLoadingPromises: Promise<any>[] = []
   const loadCssFromStreamData = (data: string) => {
-    const seg = data.split(':')
-    if (seg[0] === 'CSS') {
-      const cssJson = seg.slice(1).join(':')
+    if (data.startsWith('CSS')) {
+      const cssJson = data.slice(4).trim()
       if (!loadedCss.has(cssJson)) cssLoadingPromises.push(loadCss(cssJson))
     }
   }
 
+  // TODO-APP: Refine the buffering code here to make it more correct.
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
@@ -178,13 +181,18 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index)
+        const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-        loadCssFromStreamData(line)
+        if (line.startsWith('CSS:')) {
+          loadCssFromStreamData(line)
+        } else {
+          controller.enqueue(new TextEncoder().encode(line))
+        }
       }
-      loadCssFromStreamData(buffer)
-      if (!data.startsWith('CSS:')) {
-        controller.enqueue(chunk)
+
+      if (buffer && !buffer.startsWith('CSS:')) {
+        controller.enqueue(new TextEncoder().encode(buffer))
+        buffer = ''
       }
     },
   })

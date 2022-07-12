@@ -201,7 +201,7 @@ export async function continueFromInitialStream(
   const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
     createBufferedTransformStream(),
     flushEffectHandler ? createFlushEffectStream(flushEffectHandler) : null,
-    suffixUnclosed != null ? createBufferedSuffix(suffixUnclosed) : null,
+    suffixUnclosed != null ? createDeferredSuffixStream(suffixUnclosed) : null,
     dataStream ? createInlineDataStream(dataStream) : null,
     suffixUnclosed != null ? createSuffixStream(closeTag) : null,
     dev ? createDevScriptTransformStream() : null,
@@ -211,26 +211,6 @@ export async function continueFromInitialStream(
     (readable, transform) => readable.pipeThrough(transform),
     renderStream
   )
-}
-
-export function createPrefixStream(
-  prefix: string
-): TransformStream<Uint8Array, Uint8Array> {
-  let prefixFlushed = false
-  return new TransformStream({
-    transform(chunk, controller) {
-      if (!prefixFlushed) {
-        prefixFlushed = true
-        controller.enqueue(encodeText(prefix))
-      }
-      controller.enqueue(chunk)
-    },
-    flush(controller) {
-      if (!prefixFlushed) {
-        controller.enqueue(encodeText(prefix))
-      }
-    },
-  })
 }
 
 export function createSuffixStream(
@@ -245,13 +225,29 @@ export function createSuffixStream(
   })
 }
 
+export function createPrefixStream(
+  prefix: string
+): TransformStream<Uint8Array, Uint8Array> {
+  let prefixFlushed = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (!prefixFlushed && prefix) {
+        prefixFlushed = true
+        controller.enqueue(encodeText(prefix))
+      }
+      controller.enqueue(chunk)
+    },
+  })
+}
+
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-export function createBufferedSuffix(
+export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let suffixFlushed = false
   let suffixFlushTask: Promise<void> | null = null
+
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
