@@ -22,3 +22,8 @@ If a test suite already exists that relates closely to the item being tested (e.
 
 - When checking for a condition that might take time, ensure it is waited for either using the browser `waitForElement` or using the `check` util in `next-test-utils`.
 - When applying a fix, ensure the test fails without the fix. This makes sure the test will properly catch regressions.
+
+## Helpful env variables
+
+- When investigating failures in isolated tests you can use `NEXT_TEST_SKIP_CLEANUP=1` to prevent deleting the temp folder created for the test.
+- You can also use `NEXT_SKIP_ISOLATE=1` if the test doesn't need to be installed to debug and it will run inside of the Next.js repo.
