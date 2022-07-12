@@ -32,10 +32,13 @@ self.__next_require__ = __webpack_require__
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (chunk.endsWith('.css')) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = '/_next/' + chunk
-    document.head.appendChild(link)
+    const existingTag = document.querySelector(`link[href="${chunk}"]`)
+    if (!existingTag) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = '/_next/' + chunk
+      document.head.appendChild(link)
+    }
     return Promise.resolve()
   }
 
@@ -169,12 +172,12 @@ function useInitialServerResponse(cacheKey: string) {
   }
 
   const loadCssFromStreamData = (data: string) => {
-    const seg = data.split(':')
-    if (seg[0] === 'CSS') {
-      loadCss(seg.slice(1).join(':'))
+    if (data.startsWith('CSS:')) {
+      loadCss(data.slice(4).trim())
     }
   }
 
+  // TODO-APP: Refine the buffering code here to make it more correct.
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
@@ -182,12 +185,17 @@ function useInitialServerResponse(cacheKey: string) {
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index)
+        const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-        loadCssFromStreamData(line)
+        if (line.startsWith('CSS:')) {
+          loadCssFromStreamData(line)
+        } else {
+          controller.enqueue(new TextEncoder().encode(line))
+        }
       }
-      if (!data.startsWith('CSS:')) {
-        controller.enqueue(chunk)
+      if (buffer && !buffer.startsWith('CSS:')) {
+        controller.enqueue(new TextEncoder().encode(buffer))
+        buffer = ''
       }
     },
     flush() {

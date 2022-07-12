@@ -28,6 +28,7 @@ export const AppTreeContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
+  stylesheets?: string[]
 }>(null as any)
 export const FullAppTreeContext = React.createContext<{
   tree: FlightRouterState
