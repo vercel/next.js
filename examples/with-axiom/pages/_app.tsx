@@ -4,8 +4,6 @@ export { reportWebVitals } from 'next-axiom'
 
 log.info('Hello from frontend', { foo: 'bar' })
 
-type props = {}
-
 const MyApp = ({ Component, pageProps }: AppProps) => {
   return <Component {...pageProps} />
 }
