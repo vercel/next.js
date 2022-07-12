@@ -23,7 +23,9 @@ If a test suite already exists that relates closely to the item being tested (e.
 - When checking for a condition that might take time, ensure it is waited for either using the browser `waitForElement` or using the `check` util in `next-test-utils`.
 - When applying a fix, ensure the test fails without the fix. This makes sure the test will properly catch regressions.
 
-## Helpful env variables
+## Helpful environment variables
 
-- When investigating failures in isolated tests you can use `NEXT_TEST_SKIP_CLEANUP=1` to prevent deleting the temp folder created for the test.
-- You can also use `NEXT_SKIP_ISOLATE=1` if the test doesn't need to be installed to debug and it will run inside of the Next.js repo.
+There are some test specific environment variables that can be used to help debug isolated tests better, these can be leveraged by prefixing the `pnpm testheadless` command.
+
+- When investigating failures in isolated tests you can use `NEXT_TEST_SKIP_CLEANUP=1` to prevent deleting the temp folder created for the test, then you can run `pnpm next` while inside of the temp folder to debug the fully setup test project.
+- You can also use `NEXT_SKIP_ISOLATE=1` if the test doesn't need to be installed to debug and it will run inside of the Next.js repo instead of the temp directory, this can also reduce test times locally but is not compatible with all tests.
