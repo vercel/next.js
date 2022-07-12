@@ -15,9 +15,9 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 The `next/future/image` component is an experiment to improve both the performance and developer experience of `next/image` by using the native `<img>` element with better default behavior.
 
-This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. Furthermore, it may not work in every browser due to native features that are not polyfilled.
+This new component is considered experimental and therefore not covered by semver, and may cause unexpected or broken application behavior. This component uses web native [lazy loading](https://caniuse.com/loading-lazy-attr) and [`aspect-ratio`](https://caniuse.com/mdn-css_properties_aspect-ratio), which currently isn't supported in IE11 or before Safari 15.4.
 
-In order to try it out today, you must add the following to your `next.config.js` file, as shown below:
+To use `next/future/image`, add the following to your `next.config.js` file:
 
 ```js
 module.exports = {
