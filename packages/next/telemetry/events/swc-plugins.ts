@@ -5,8 +5,8 @@ const EVENT_SWC_PLUGIN_PRESENT = 'NEXT_SWC_PLUGIN_DETECTED'
 type SwcPluginsEvent = {
   eventName: string
   payload: {
-    packageName: string
-    packageVersion?: string
+    pluginName: string
+    pluginVersion?: string
   }
 }
 
@@ -34,8 +34,8 @@ export async function eventSwcPlugins(
         events.push({
           eventName: EVENT_SWC_PLUGIN_PRESENT,
           payload: {
-            packageName: plugin,
-            packageVersion: version,
+            pluginName: plugin,
+            pluginVersion: version,
           },
         })
 

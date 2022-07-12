@@ -140,6 +140,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
+    export const HotReloader = ${
+      // Disable HotReloader component in production
+      this.mode === 'development'
+        ? `require('next/dist/client/components/hot-reloader.client.js').default`
+        : 'null'
+    }
     export const hooksClientContext = require('next/dist/client/components/hooks-client-context.js')
 
     export const __next_app_webpack_require__ = __webpack_require__

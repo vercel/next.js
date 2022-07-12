@@ -47,9 +47,11 @@ type ErrorType = 'runtime' | 'build'
 const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
   children,
   preventDisplay,
+  globalOverlay,
 }: {
   children?: React.ReactNode
   preventDisplay?: ErrorType[]
+  globalOverlay?: boolean
 }) {
   const [state, dispatch] = React.useReducer<
     React.Reducer<OverlayState, Bus.BusEvent>
@@ -84,7 +86,7 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal>
+        <ShadowPortal globalOverlay={globalOverlay}>
           <CssReset />
           <Base />
           <ComponentStyles />
