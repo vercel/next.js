@@ -63,8 +63,7 @@ async fn main() {
             let disk_fs = DiskFileSystemVc::new("project".to_string(), dir);
             let fs = disk_fs.into();
             let root = FileSystemPathVc::new(fs, "src");
-            let source_asset =
-                SourceAssetVc::new(FileSystemPathVc::new(fs, "src/index.js")).into();
+            let source_asset = SourceAssetVc::new(FileSystemPathVc::new(fs, "src/index.js")).into();
             let context: AssetContextVc = ModuleAssetContextVc::new(
                 root,
                 GraphOptionsVc::new(false, false, CompileTarget::Current.into()),
