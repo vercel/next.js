@@ -173,7 +173,7 @@ function useInitialServerResponse(cacheKey: string) {
 
   const loadCssFromStreamData = (data: string) => {
     if (data.startsWith('CSS:')) {
-      loadCss(data.slice(4))
+      loadCss(data.slice(4).trim())
     }
   }
 
@@ -195,6 +195,7 @@ function useInitialServerResponse(cacheKey: string) {
       }
       if (buffer && !buffer.startsWith('CSS:')) {
         controller.enqueue(new TextEncoder().encode(buffer))
+        buffer = ''
       }
     },
     flush() {
