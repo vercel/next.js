@@ -17,7 +17,7 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc},
     resolve::{parse::RequestVc, ResolveResultVc},
 };
-
+use swc_ecma_visit::{AstParentKind};
 use super::AstPathVc;
 use crate::{
     chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc},
@@ -28,7 +28,7 @@ use crate::{
     resolve::esm_resolve,
 };
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
+#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerationReference)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub context: AssetContextVc,
@@ -72,6 +72,11 @@ impl ChunkableAssetReference for EsmAssetReference {
     }
 }
 
+fn path_to(path: &[AstParentKind], f: impl FnMut(&AstParentKind) -> bool) -> Vec<AstParentKind> {
+    let index = path.len() - path.iter().rev().position(f).unwrap() - 1;
+    path[..index].to_vec()
+}
+
 #[turbo_tasks::value_impl]
 impl CodeGenerationReference for EsmAssetReference {
     #[turbo_tasks::function]
@@ -98,7 +103,7 @@ impl CodeGenerationReference for EsmAssetReference {
                 }
 
                 visitors.push((
-                    self.path.await?.clone(),
+                    path_to(&self.path.await?, |n| matches!(n, AstParentKind::ModuleItem(_))),
                     (box move || (box EsmAssetReferenceVistor { id: id.clone() }) as Visitor)
                         as VisitorFn,
                 ))

@@ -29,6 +29,7 @@ use crate::analyzer::graph::EvalContext;
 
 #[turbo_tasks::value(shared, serialization: none, eq: manual)]
 pub enum ParseResult {
+    #[allow(clippy::large_enum_variant)]
     Ok {
         #[trace_ignore]
         program: Program,

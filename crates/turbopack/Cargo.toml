@@ -25,7 +25,7 @@ regex = "1.5.4"
 rand = "0.8.5"
 json = "0.12.4"
 swc_atoms = "0.2.13"
-swc_ecma_transforms_base = "0.96.0"
+swc_ecma_transforms_base = "0.98.0"
 url = "2.2.2"
 indexmap = "1.8.0"
 serde = "1.0.136"
@@ -34,11 +34,11 @@ serde_regex = "1.1.0"
 turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
 [dependencies.swc_common]
-version = "0.22.0"
+version = "0.24.0"
 features = ["concurrent"]
 
 [dependencies.swc_ecmascript]
-version = "0.178.0"
+version = "0.181.0"
 features = ["parser", "utils", "visit"]
 
 [dependencies.num-bigint]
@@ -51,7 +51,7 @@ rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 criterion = { version = "0.3.5", features = ["tokio"] }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-testing = "0.24.0"
+testing = "0.26.0"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

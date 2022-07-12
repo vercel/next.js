@@ -21,11 +21,11 @@ swc_atoms = "0.2.13"
 serde = "1.0.136"
 
 [dependencies.swc_common]
-version = "0.22.0"
+version = "0.24.0"
 features = ["concurrent"]
 
 [dependencies.swc_css]
-version = "0.110.0"
+version = "0.112.0"
 features = []
 
 [build-dependencies]

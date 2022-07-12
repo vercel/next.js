@@ -1,5 +1,4 @@
-use swc_common::Span;
-use swc_ecma_visit::VisitMut;
+use swc_ecma_visit::{AstParentKind, VisitMut};
 use turbopack_core::chunk::ChunkingContextVc;
 
 use crate::chunk::EcmascriptChunkContextVc;
@@ -10,7 +9,7 @@ use crate::chunk::EcmascriptChunkContextVc;
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     #[trace_ignore]
-    pub visitors: Vec<(Vec<Span>, VisitorFn)>,
+    pub visitors: Vec<(Vec<AstParentKind>, VisitorFn)>,
 }
 
 pub type VisitorFn = Box<dyn Send + Sync + Fn() -> Visitor>;

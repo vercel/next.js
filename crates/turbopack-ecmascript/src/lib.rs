@@ -28,7 +28,7 @@ use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
-use swc_ecma_visit::VisitMutWith;
+use swc_ecma_visit::VisitMutWithPath;
 use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
@@ -79,7 +79,7 @@ impl ModuleAssetVc {
             source,
             context,
             ty: ty.into_value(),
-            target: target,
+            target,
             node_native_bindings,
         })
     }
@@ -193,7 +193,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         {
             let mut program = program.clone();
 
-            program.visit_mut_with(&mut ApplyVisitors::new(visitors));
+            program.visit_mut_with_path(&mut ApplyVisitors::new(visitors), &mut Default::default());
 
             let mut bytes =
                 format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
