@@ -114,6 +114,7 @@ use turbopack_ecmascript::target::CompileTargetVc;
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js", true))]
 #[case::simple("integration/simple.js", true)]
 #[case::socket_io("integration/socket.io.js", true)]
+#[case::source_map("integration/source-map/index.js", true)]
 #[case::sparql_builder("integration/sparql-builder.js", true)]
 #[case::sqlite("integration/sqlite.js", true)]
 #[case::stripe("integration/stripe.js", true)]
