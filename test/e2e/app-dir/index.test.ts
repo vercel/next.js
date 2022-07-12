@@ -418,13 +418,13 @@ describe('app dir', () => {
           await browser.eval(
             `window.getComputedStyle(document.querySelector('#server-cssm')).color`
           )
-        ).toBe('rgb(0, 255, 0)')
+        ).toBe('rgb(0, 128, 0)')
       })
     })
 
-    describe('server pages', () => {
-      it.todo('should support global css inside server pages', async () => {})
-      it.todo('should support css modules inside server pages', async () => {})
+    describe.skip('server pages', () => {
+      it('should support global css inside server pages', async () => {})
+      it('should support css modules inside server pages', async () => {})
     })
 
     describe('client layouts', () => {
