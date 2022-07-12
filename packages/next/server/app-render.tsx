@@ -131,7 +131,6 @@ function useFlightResponse(
       .pipeThrough(createPrefixStream(cssFlightData))
       .getReader()
     const writer = writable.getWriter()
-    // let remainingFlightResponse = ''
     function process() {
       forwardReader.read().then(({ done, value }) => {
         if (!bootstrapped) {

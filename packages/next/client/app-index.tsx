@@ -72,6 +72,7 @@ const getCacheKey = () => {
 }
 
 const encoder = new TextEncoder()
+const loadedCss: Set<string> = new Set()
 
 let initialServerDataBuffer: string[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
@@ -161,11 +162,12 @@ async function loadCss(cssChunkInfoJson: string) {
 }
 
 function createLoadFlightCssStream(callback?: () => Promise<void>) {
-  const promises: Promise<any>[] = []
+  const cssLoadingPromises: Promise<any>[] = []
   const loadCssFromStreamData = (data: string) => {
     const seg = data.split(':')
     if (seg[0] === 'CSS') {
-      promises.push(loadCss(seg.slice(1).join(':')))
+      const cssJson = seg.slice(1).join(':')
+      if (!loadedCss.has(cssJson)) cssLoadingPromises.push(loadCss(cssJson))
     }
   }
 
@@ -188,7 +190,7 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
   })
 
   if (process.env.NODE_ENV === 'development') {
-    Promise.all(promises).then(() => {
+    Promise.all(cssLoadingPromises).then(() => {
       // TODO: find better timing for css injection
       setTimeout(() => {
         callback?.()
@@ -247,11 +249,9 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent({ onFlightCssLoaded }: { onFlightCssLoaded: any }) {
+function RSCComponent(props: any) {
   const cacheKey = getCacheKey()
-  return (
-    <ServerRoot cacheKey={cacheKey} onFlightCssLoaded={onFlightCssLoaded} />
-  )
+  return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export async function hydrate(opts?: {

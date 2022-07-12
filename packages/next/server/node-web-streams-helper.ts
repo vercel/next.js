@@ -140,20 +140,21 @@ export function createDevScriptTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
 > {
-  const headClosedTag = '</head>'
+  let injected = false
   const foucTags = `<style data-next-hide-fouc>body{display:none}</style>
-    <noscript data-next-hide-fouc>
-      <style>body{display:block}</style>
-    </noscript>`
+  <noscript data-next-hide-fouc>
+    <style>body{display:block}</style>
+  </noscript>`
   return new TransformStream({
     transform(chunk, controller) {
       const content = decodeText(chunk)
+      let index
+      if (!injected && (index = content.indexOf('</head')) !== -1) {
+        injected = true
+        // head content + fouc tags + </head
+        const injectedContent =
+          content.slice(0, index) + foucTags + content.slice(index)
 
-      if (content.includes(headClosedTag)) {
-        const injectedContent = content.replaceAll(
-          headClosedTag,
-          foucTags + headClosedTag
-        )
         controller.enqueue(encodeText(injectedContent))
       } else {
         controller.enqueue(chunk)
