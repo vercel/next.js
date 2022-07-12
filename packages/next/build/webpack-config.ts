@@ -571,14 +571,29 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                  )
-                  .replace(/\\/g, '/'),
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+                ? [
+                    require.resolve(
+                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+                    ),
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next-dev.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ]
+                : `./` +
+                  path
+                    .relative(
+                      dir,
+                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
+                    )
+                    .replace(/\\/g, '/'),
             }
           : {}),
       } as ClientEntries)
@@ -1482,7 +1497,14 @@ export default async function getBaseWebpackConfig(
         ...(compilerType !== 'edge-server'
           ? {}
           : {
-              EdgeRuntime: JSON.stringify('edge-runtime'),
+              EdgeRuntime: JSON.stringify(
+                /**
+                 * Cloud providers can set this environment variable to allow users
+                 * and library authors to have different implementations based on
+                 * the runtime they are running with, if it's not using `edge-runtime`
+                 */
+                process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
+              ),
             }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
