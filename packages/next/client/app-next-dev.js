@@ -1,8 +1,8 @@
 import { hydrate, version } from './app-index'
 
-// TODO: implement FOUC guard
+// TODO-APP: implement FOUC guard
 
-// TODO: hydration warning
+// TODO-APP: hydration warning
 
 window.next = {
   version,
@@ -11,4 +11,4 @@ window.next = {
 
 hydrate()
 
-// TODO: build indicator
+// TODO-APP: build indicator

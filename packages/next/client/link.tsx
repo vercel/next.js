@@ -46,7 +46,7 @@ type InternalLinkProps = {
   onClick?: (e: any) => void
 }
 
-// TODO: Include the full set of Anchor props
+// TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 export type LinkProps = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -292,7 +292,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       : []
     let router = React.useContext(RouterContext)
 
-    // TODO: type error. Remove `as any`
+    // TODO-APP: type error. Remove `as any`
     const appRouter = React.useContext(AppRouterContext) as any
     if (appRouter) {
       router = appRouter
