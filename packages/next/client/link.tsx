@@ -33,7 +33,7 @@ type InternalLinkProps = {
   replace?: boolean
 
   /**
-   * TODO
+   * TODO-APP
    */
   soft?: boolean
   scroll?: boolean
