@@ -36,6 +36,19 @@ export function fetchServerResponse(
   return createFromFetch(fetchFlight(url, flightRouterStateData))
 }
 
+function ErrorOverlay({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
+  if (process.env.NODE_ENV === 'production') {
+    return <>{children}</>
+  } else {
+    const {
+      ReactDevOverlay,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
+  }
+}
+
 // TODO: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
@@ -248,7 +261,7 @@ export default function AppRouter({
                 url: canonicalUrl,
               }}
             >
-              {cache.subTreeData}
+              <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>
               {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>

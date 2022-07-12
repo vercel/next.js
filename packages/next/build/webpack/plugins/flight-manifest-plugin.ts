@@ -93,7 +93,7 @@ export class FlightManifestPlugin {
 
         if (
           mod.request &&
-          /(?<!\.module)\.css$/.test(mod.request) &&
+          /\.css$/.test(mod.request) &&
           (dev
             ? mod.loaders.some((item: any) =>
                 item.loader.includes('next-style-loader/index.js')

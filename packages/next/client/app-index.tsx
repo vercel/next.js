@@ -212,19 +212,6 @@ function ServerRoot({ cacheKey }: { cacheKey: string }) {
   return root
 }
 
-function ErrorOverlay({
-  children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
-  if (process.env.NODE_ENV === 'production') {
-    return <>{children}</>
-  } else {
-    const {
-      ReactDevOverlay,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
-  }
-}
-
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -247,12 +234,10 @@ function RSCComponent() {
 
 export function hydrate() {
   renderReactElement(appElement!, () => (
-    <ErrorOverlay>
-      <React.StrictMode>
-        <Root>
-          <RSCComponent />
-        </Root>
-      </React.StrictMode>
-    </ErrorOverlay>
+    <React.StrictMode>
+      <Root>
+        <RSCComponent />
+      </Root>
+    </React.StrictMode>
   ))
 }
