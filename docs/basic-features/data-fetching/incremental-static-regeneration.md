@@ -101,7 +101,7 @@ Starting with `v12.2.0`, Next.js supports On-Demand Incremental Static Regenerat
 
 Inside `getStaticProps`, you do not need to specify `revalidate` to use on-demand revalidation. If `revalidate` is omitted, Next.js will use the default value of `false` (no revalidation) and only revalidate the page on-demand when `revalidate()` is called.
 
-> Note: If you're using [middleware](/docs/advanced-features/middleware.md) to perform rewrites in your application, the middleware won't be executed for on-demand ISR requests. In cases like that, you'd need to call the `revalidate` function on the exact path that you want revalidated. E.g.: in the case of the Platforms Starter Kit, we call the revalidate function on [these paths here](https://github.com/vercel/platforms/blob/main/lib/revalidate.ts#L8) and not [the ones they're rewritten to](https://github.com/vercel/platforms/blob/main/middleware.ts#L57).
+> Note: If you're using [middleware](/docs/advanced-features/middleware.md) to perform rewrites in your application, the middleware won't be executed for On-Demand ISR requests. In cases like that, you'd need to call the `revalidate` function on the exact path that you want revalidated. For example, if you have `pages/blog/[slug].js` and a rewrite `/post-1` -> `/blog/post-1` you need to call `res.revalidate('/blog/post-1')`.
 
 ### Using On-Demand Revalidation
 
