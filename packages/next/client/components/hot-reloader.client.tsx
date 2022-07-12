@@ -1,7 +1,15 @@
-import { useCallback, useContext, useEffect, useRef } from 'react'
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  // @ts-expect-error TODO: startTransition exists
+  startTransition,
+} from 'react'
 import { FullAppTreeContext } from '../../shared/lib/app-router-context'
 import {
   register,
+  unregister,
   onBuildError,
   onBuildOk,
   onRefresh,
@@ -305,7 +313,15 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      return router.reload()
+      if (hadRuntimeError) {
+        return window.location.reload()
+      }
+      startTransition(() => {
+        router.reload()
+        onRefresh()
+      })
+
+      return
     }
     case 'reloadPage': {
       sendMessage(
@@ -393,6 +409,16 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
 
   useEffect(() => {
     register()
+    const onError = () => {
+      hadRuntimeError = true
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onError)
+    return () => {
+      unregister()
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onError)
+    }
   }, [])
 
   useEffect(() => {
