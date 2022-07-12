@@ -12,7 +12,7 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  // TODO: handle case of / (root of the tree) refetch
+  // TODO-APP: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -224,7 +224,7 @@ const walkTreeWithFlightDataPath = (
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
-  // TODO: verify
+  // TODO-APP: verify
   if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
@@ -315,7 +315,7 @@ export function reducer(
     const href = url.pathname + url.search + url.hash
 
     const segments = pathname.split('/')
-    // TODO: figure out something better for index pages
+    // TODO-APP: figure out something better for index pages
     segments.push('')
 
     // In case of soft push data fetching happens in layout-router if a segment is missing
@@ -352,7 +352,7 @@ export function reducer(
         }
       }
 
-      // TODO: flag on the tree of which part of the tree for if there is a loading boundary
+      // TODO-APP: flag on the tree of which part of the tree for if there is a loading boundary
       const isOptimistic = false
 
       if (isOptimistic) {
@@ -367,7 +367,7 @@ export function reducer(
         )
 
         // Fill in the cache with blank that holds the `data` field.
-        // TODO: segments.slice(1) strips '', we can get rid of '' altogether.
+        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
@@ -406,13 +406,13 @@ export function reducer(
 
       cache.data = null
 
-      // TODO: ensure flightDataPath does not have "" as first item
+      // TODO-APP: ensure flightDataPath does not have "" as first item
       const flightDataPath = flightData[0]
 
       const [treePatch] = flightDataPath.slice(-2)
       const treePath = flightDataPath.slice(0, -3)
       const newTree = walkTreeWithFlightDataPath(
-        // TODO: remove ''
+        // TODO-APP: remove ''
         ['', ...treePath],
         state.tree,
         treePatch
@@ -438,7 +438,7 @@ export function reducer(
   if (action.type === 'server-patch') {
     const { flightData, previousTree, cache } = action.payload
     if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
-      // TODO: Handle tree mismatch
+      // TODO-APP: Handle tree mismatch
       console.log('TREE MISMATCH')
       return {
         canonicalUrl: state.canonicalUrl,
@@ -458,7 +458,7 @@ export function reducer(
       }
     }
 
-    // TODO: flightData could hold multiple paths
+    // TODO-APP: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
     // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
@@ -466,7 +466,7 @@ export function reducer(
     const [treePatch] = flightDataPath.slice(-2)
 
     const newTree = walkTreeWithFlightDataPath(
-      // TODO: remove ''
+      // TODO-APP: remove ''
       ['', ...treePath],
       state.tree,
       treePatch
@@ -526,18 +526,18 @@ export function reducer(
 
     cache.data = null
 
-    // TODO: ensure flightDataPath does not have "" as first item
+    // TODO-APP: ensure flightDataPath does not have "" as first item
     const flightDataPath = flightData[0]
 
     if (flightDataPath.length !== 2) {
-      // TODO: handle this case better
+      // TODO-APP: handle this case better
       console.log('RELOAD FAILED')
       return state
     }
 
     const [treePatch, subTreeData] = flightDataPath.slice(-2)
     const newTree = walkTreeWithFlightDataPath(
-      // TODO: remove ''
+      // TODO-APP: remove ''
       [''],
       state.tree,
       treePatch
