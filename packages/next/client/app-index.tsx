@@ -187,11 +187,11 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
     },
   })
 
-  if (callback) {
+  if (process.env.NODE_ENV === 'development') {
     Promise.all(promises).then(() => {
       // TODO: find better timing for css injection
       setTimeout(() => {
-        callback()
+        callback?.()
       })
     })
   }

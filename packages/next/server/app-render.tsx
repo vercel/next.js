@@ -177,7 +177,8 @@ function createServerComponentRenderer(
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<[ServerContextName: string, JSONValue: any]>
-  }
+  },
+  dev: boolean
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -191,7 +192,11 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const cssFlightData = getCssFlightData(ComponentMod, serverComponentManifest)
+  const cssFlightData = getCssFlightData(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -329,7 +334,7 @@ function getSegmentParam(segment: string): {
 function getCssFlightData(
   ComponentMod: any,
   serverComponentManifest: any,
-  dev?: boolean
+  dev: boolean
 ) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
@@ -370,6 +375,7 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
   } = renderOpts
+  const dev = !!renderOpts.dev
 
   const isFlight = query.__flight__ !== undefined
 
@@ -769,7 +775,7 @@ export async function renderToHTML(
     const cssFlightData = getCssFlightData(
       ComponentMod,
       serverComponentManifest,
-      renderOpts.dev
+      dev
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
@@ -848,7 +854,8 @@ export async function renderToHTML(
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
-    }
+    },
+    dev
   )
 
   const jsxStyleRegistry = createStyleRegistry()
@@ -898,7 +905,7 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      dev: renderOpts.dev,
+      dev,
       suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,

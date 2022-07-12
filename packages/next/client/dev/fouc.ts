@@ -6,7 +6,6 @@ const safeSetTimeout = (callback: () => void) => setTimeout(callback)
 // rendering won't have the correct computed values in effects.
 export function displayContent(): Promise<void> {
   return new Promise((resolve) => {
-    console.log('fouc')
     ;(window.requestAnimationFrame || safeSetTimeout)(function () {
       for (
         var x = document.querySelectorAll('[data-next-hide-fouc]'),
