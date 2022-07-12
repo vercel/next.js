@@ -694,12 +694,12 @@ impl<'a, T> FromTaskInput<'a> for Option<T>
 where
     T: FromTaskInput<'a>,
 {
-    type Error = anyhow::Error;
+    type Error = T::Error;
 
     fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
         match value {
             TaskInput::Nothing => Ok(None),
-            _ => FromTaskInput::try_from(value),
+            _ => Ok(Some(FromTaskInput::try_from(value)?)),
         }
     }
 }
