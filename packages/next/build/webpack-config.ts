@@ -1497,7 +1497,14 @@ export default async function getBaseWebpackConfig(
         ...(compilerType !== 'edge-server'
           ? {}
           : {
-              EdgeRuntime: JSON.stringify('edge-runtime'),
+              EdgeRuntime: JSON.stringify(
+                /**
+                 * Cloud providers can set this environment variable to allow users
+                 * and library authors to have different implementations based on
+                 * the runtime they are running with, if it's not using `edge-runtime`
+                 */
+                process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
+              ),
             }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
