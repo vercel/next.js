@@ -38,7 +38,8 @@ use turbopack_core::{
         find_context_file,
         parse::RequestVc,
         pattern::{Pattern, PatternVc},
-        resolve, resolve_raw, FindContextFileResult, ResolveResult, ResolveResultVc,
+        resolve, resolve_raw, AffectingResolvingAssetReferenceVc, FindContextFileResult,
+        ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };
@@ -108,10 +109,11 @@ pub(crate) async fn module_references(
             eval_context,
             source_map,
             leading_comments,
+            trailing_comments,
             ..
         } => {
+            let pos = program.span().lo;
             if is_typescript {
-                let pos = program.span().lo;
                 if let Some(comments) = leading_comments.get(&pos) {
                     for comment in comments.iter() {
                         match comment.kind {
@@ -152,6 +154,26 @@ pub(crate) async fn module_references(
                     }
                 }
             }
+            trailing_comments.values().for_each(|comments| {
+                comments.iter().for_each(|comment| match comment.kind {
+                    CommentKind::Line => {
+                        lazy_static! {
+                            static ref SOURCE_MAP_FILE_REFERENCE: Regex =
+                                Regex::new(r#"# sourceMappingURL=(.*?\.map)$"#).unwrap();
+                        }
+                        if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
+                            let path = &m[1];
+                            references.push(
+                                AffectingResolvingAssetReferenceVc::new(
+                                    context.context_path().join(path),
+                                )
+                                .into(),
+                            )
+                        }
+                    }
+                    CommentKind::Block => {}
+                });
+            });
 
             let buf = Buffer::new();
             let handler =
