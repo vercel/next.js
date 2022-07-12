@@ -18,6 +18,7 @@ import path from 'path'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 
+export * from 'next/dist/lib/get-network-host'
 export const nextServer = server
 export const pkg = _pkg
 

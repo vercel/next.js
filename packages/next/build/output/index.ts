@@ -3,11 +3,11 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
-import { OutputState, store as consoleStore } from './store'
+import { OutputState, store as consoleStore, Address } from './store'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
-  consoleStore.setState({ appUrl, bindAddr })
+export function startedDevelopmentServer(args: Address) {
+  consoleStore.setState(args)
 }
 
 let previousClient: webpack5.Compiler | null = null

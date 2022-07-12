@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
+import chalk from 'chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
+import { getNetworkHost } from '../lib/get-network-host'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -55,6 +57,7 @@ const nextStart: cliCommand = (argv) => {
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
   if (process.env.__NEXT_FORCED_PORT) {
     port = parseInt(process.env.__NEXT_FORCED_PORT, 10) || 0
@@ -76,6 +79,20 @@ const nextStart: cliCommand = (argv) => {
   const keepAliveTimeout = keepAliveTimeoutArg
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
+  function logNetworkUrls() {
+    const space = ' '.repeat(8)
+    let message = `started server on - \n`
+    message +=
+      space + `local - url: ${chalk.green(appUrl)}, on - ${host}:${port} \n`
+
+    const networkHost = getNetworkHost()
+    if (networkHost) {
+      message +=
+        space + `network - url: ${chalk.green(`http://${networkHost}:${port}`)}`
+    }
+
+    Log.ready(message)
+  }
 
   startServer({
     dir,
@@ -84,8 +101,7 @@ const nextStart: cliCommand = (argv) => {
     keepAliveTimeout,
   })
     .then(async (app) => {
-      const appUrl = `http://${app.hostname}:${app.port}`
-      Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
+      logNetworkUrls()
       await app.prepare()
     })
     .catch((err) => {

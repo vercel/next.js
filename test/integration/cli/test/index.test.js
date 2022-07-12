@@ -5,6 +5,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  getNetworkHost,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -173,27 +174,39 @@ describe('CLI Usage', () => {
 
     test('--port', async () => {
       const port = await findPort()
+      const networkHost = getNetworkHost()
       const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      if (networkHost) {
+        expect(output).toMatch(new RegExp(`http://${networkHost}:${port}`))
+      }
     })
 
     test("NODE_OPTIONS='--inspect'", async () => {
       // this test checks that --inspect works by launching a single debugger for the main Next.js process,
       // not for its subprocesses
       const port = await findPort()
+      const networkHost = getNetworkHost()
       const output = await runNextCommandDev([dir, '--port', port], true, {
         env: { NODE_OPTIONS: '--inspect' },
       })
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      if (networkHost) {
+        expect(output).toMatch(new RegExp(`http://${networkHost}:${port}`))
+      }
     })
 
     test('-p', async () => {
       const port = await findPort()
+      const networkHost = getNetworkHost()
       const output = await runNextCommandDev([dir, '-p', port], true)
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      if (networkHost) {
+        expect(output).toMatch(new RegExp(`http://${networkHost}:${port}`))
+      }
     })
 
     test('-p conflict', async () => {
@@ -231,22 +244,30 @@ describe('CLI Usage', () => {
 
     test('--hostname', async () => {
       const port = await findPort()
+      const networkHost = getNetworkHost()
       const output = await runNextCommandDev(
         [dir, '--hostname', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      if (networkHost) {
+        expect(output).toMatch(new RegExp(`http://${networkHost}:${port}`))
+      }
     })
 
     test('-H', async () => {
       const port = await findPort()
+      const networkHost = getNetworkHost()
       const output = await runNextCommandDev(
         [dir, '-H', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      if (networkHost) {
+        expect(output).toMatch(new RegExp(`http://${networkHost}:${port}`))
+      }
     })
 
     test('should warn when unknown argument provided', async () => {
