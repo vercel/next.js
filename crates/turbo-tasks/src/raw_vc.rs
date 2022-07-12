@@ -20,7 +20,7 @@ use crate::{
         TurboTasksApi,
     },
     registry::get_value_type,
-    turbo_tasks, SharedReference, TaskId, TraitTypeId,
+    turbo_tasks, SharedReference, TaskId, TraitTypeId, ValueTypeId,
 };
 
 /// The result of reading a ValueVc.
@@ -93,7 +93,7 @@ impl<T: Any + Send + Sync, O: Debug, F: Fn(&T) -> &O> Debug for RawVcReadAndMapR
 }
 
 #[derive(Error, Debug)]
-pub enum ResolveTraitError {
+pub enum ResolveTypeError {
     #[error("no content in the cell")]
     NoContent,
     #[error("the content in the cell has no type")]
@@ -166,7 +166,7 @@ impl RawVc {
     pub async fn resolve_trait(
         self,
         trait_type: TraitTypeId,
-    ) -> Result<Option<RawVc>, ResolveTraitError> {
+    ) -> Result<Option<RawVc>, ResolveTypeError> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let mut current = self;
@@ -175,12 +175,12 @@ impl RawVc {
                 RawVc::TaskOutput(task) => {
                     current = read_task_output(&*tt, task, false)
                         .await
-                        .map_err(|source| ResolveTraitError::TaskError { source })?;
+                        .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::TaskCell(task, index) => {
                     let content = read_task_cell(&*tt, task, index)
                         .await
-                        .map_err(|source| ResolveTraitError::ReadError { source })?;
+                        .map_err(|source| ResolveTypeError::ReadError { source })?;
                     if let CellContent(Some(shared_reference)) = content {
                         if let SharedReference(Some(value_type), _) = shared_reference {
                             if get_value_type(value_type).traits.contains(&trait_type) {
@@ -189,10 +189,46 @@ impl RawVc {
                                 return Ok(None);
                             }
                         } else {
-                            return Err(ResolveTraitError::UntypedContent);
+                            return Err(ResolveTypeError::UntypedContent);
                         }
                     } else {
-                        return Err(ResolveTraitError::NoContent);
+                        return Err(ResolveTypeError::NoContent);
+                    }
+                }
+            }
+        }
+    }
+
+    pub async fn resolve_value(
+        self,
+        value_type: ValueTypeId,
+    ) -> Result<Option<RawVc>, ResolveTypeError> {
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
+        let mut current = self;
+        loop {
+            match current {
+                RawVc::TaskOutput(task) => {
+                    current = read_task_output(&*tt, task, false)
+                        .await
+                        .map_err(|source| ResolveTypeError::TaskError { source })?;
+                }
+                RawVc::TaskCell(task, index) => {
+                    let content = read_task_cell(&*tt, task, index)
+                        .await
+                        .map_err(|source| ResolveTypeError::ReadError { source })?;
+                    if let CellContent(Some(shared_reference)) = content {
+                        if let SharedReference(Some(cell_value_type), _) = shared_reference {
+                            if cell_value_type == value_type {
+                                return Ok(Some(RawVc::TaskCell(task, index)));
+                            } else {
+                                return Ok(None);
+                            }
+                        } else {
+                            return Err(ResolveTypeError::UntypedContent);
+                        }
+                    } else {
+                        return Err(ResolveTypeError::NoContent);
                     }
                 }
             }

@@ -1,5 +1,6 @@
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
+#![feature(box_patterns)]
 
 extern crate proc_macro;
 
@@ -15,9 +16,9 @@ use syn::{
     token::Paren,
     AngleBracketedGenericArguments, Attribute, Error, Expr, Field, Fields, FieldsNamed,
     FieldsUnnamed, FnArg, GenericArgument, ImplItem, ImplItemMethod, Item, ItemEnum, ItemFn,
-    ItemImpl, ItemStruct, ItemTrait, PatType, Path, PathArguments, PathSegment, Receiver, Result,
-    ReturnType, Signature, Token, TraitBound, TraitItem, TraitItemMethod, Type, TypeParamBound,
-    TypePath, TypeReference, TypeTuple,
+    ItemImpl, ItemStruct, ItemTrait, Pat, PatIdent, PatType, Path, PathArguments, PathSegment,
+    Receiver, Result, ReturnType, Signature, Token, TraitBound, TraitItem, TraitItemMethod, Type,
+    TypeParamBound, TypePath, TypeReference, TypeTuple,
 };
 
 fn get_ref_ident(ident: &Ident) -> Ident {
@@ -470,6 +471,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
             }
+
+            impl #ref_ident {
+                pub fn future(self) -> turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type> {
+                    self.node.into_read::<#ident>().map(|r| &r.0)
+                }
+            }
         }
     } else {
         quote! {
@@ -486,6 +493,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
                 type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
+                    self.node.into_read::<#ident>()
+                }
+            }
+
+            impl #ref_ident {
+                pub fn future(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
                     self.node.into_read::<#ident>()
                 }
             }
@@ -553,6 +566,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// This is async and will rethrow any fatal error that happened during task execution.
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve().await? })
+            }
+
+            pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
+                let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
+                let raw_vc = raw_vc.resolve_value(*#value_type_id_ident).await?;
+                Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
             }
 
             #strongly_consistent
@@ -855,7 +874,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
                 Ok(Self { node: self.node.resolve().await? })
             }
 
-            pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTraitError> {
+            pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 let raw_vc = raw_vc.resolve_trait(*#trait_type_id_ident).await?;
                 Ok(raw_vc.map(|raw_vc| #ref_ident { node: raw_vc }))
@@ -977,18 +996,19 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     let mut external_sig = sig.clone();
                     external_sig.asyncness = None;
 
-                    let (native_function_code, input_raw_vc_arguments) = gen_native_function_code(
-                        // use const string
-                        quote! { stringify!(#vc_ident::#ident) },
-                        quote! { #vc_ident::#inline_ident },
-                        &function_ident,
-                        &function_id_ident,
-                        sig.asyncness.is_some(),
-                        &sig.inputs,
-                        &output_type,
-                        Some(vc_ident),
-                        true,
-                    );
+                    let (native_function_code, mut input_raw_vc_arguments) =
+                        gen_native_function_code(
+                            // use const string
+                            quote! { stringify!(#vc_ident::#ident) },
+                            quote! { #vc_ident::#inline_ident },
+                            &function_ident,
+                            &function_id_ident,
+                            sig.asyncness.is_some(),
+                            &sig.inputs,
+                            &output_type,
+                            Some(vc_ident),
+                            true,
+                        );
 
                     let (raw_output_type, _) = unwrap_result_type(&output_type);
                     let convert_result_code = if is_empty_type(raw_output_type) {
@@ -1001,6 +1021,25 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                         );
                         quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) }
                     };
+                    let custom_self_type = if let Some(FnArg::Typed(PatType {
+                        pat: box Pat::Ident(PatIdent { ident, .. }),
+                        ..
+                    })) = sig.inputs.first()
+                    {
+                        ident == "self_vc"
+                    } else {
+                        false
+                    };
+                    if custom_self_type {
+                        let external_self = external_sig.inputs.first_mut().unwrap();
+                        *external_self = FnArg::Receiver(Receiver {
+                            attrs: Vec::new(),
+                            reference: Some((Token![&](Span::call_site()), None)),
+                            mutability: None,
+                            self_token: Token![self](Span::call_site()),
+                        });
+                        input_raw_vc_arguments[0] = quote! { self.into() };
+                    }
 
                     functions.push(quote! {
                         impl #vc_ident {
