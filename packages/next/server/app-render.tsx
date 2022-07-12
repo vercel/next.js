@@ -16,7 +16,7 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
-  createSuffixStream,
+  createPrefixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -113,7 +113,8 @@ function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   cachePrefix: string,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any
+  serverComponentManifest: any,
+  cssFlightData: string
 ) {
   const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
@@ -125,7 +126,10 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
-    const forwardReader = forwardStream.getReader()
+    // We only attach CSS chunks to the inlined data.
+    const forwardReader = forwardStream
+      .pipeThrough(createPrefixStream(cssFlightData))
+      .getReader()
     const writer = writable.getWriter()
     function process() {
       forwardReader.read().then(({ done, value }) => {
@@ -188,7 +192,7 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
+  const cssFlightData = getCssFlightData(ComponentMod, serverComponentManifest)
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -199,7 +203,7 @@ function createServerComponentRenderer(
         {
           context: serverContexts,
         }
-      ).pipeThrough(createSuffixStream(cssFlight))
+      )
     }
     return RSCStream
   }
@@ -211,7 +215,8 @@ function createServerComponentRenderer(
       writable,
       cachePrefix,
       reqStream,
-      serverComponentManifest
+      serverComponentManifest,
+      cssFlightData
     )
     const root = response.readRoot()
     return root
@@ -322,7 +327,7 @@ function getSegmentParam(segment: string): {
   return null
 }
 
-function getCssFlight(ComponentMod: any, serverComponentManifest: any) {
+function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
@@ -760,7 +765,10 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
-    const cssFlight = getCssFlight(ComponentMod, serverComponentManifest)
+    const cssFlightData = getCssFlightData(
+      ComponentMod,
+      serverComponentManifest
+    )
     const flightData: FlightData = [
       // TODO: change walk to output without ''
       walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
@@ -770,7 +778,7 @@ export async function renderToHTML(
 
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest)
-        .pipeThrough(createSuffixStream(cssFlight))
+        .pipeThrough(createPrefixStream(cssFlightData))
         .pipeThrough(createBufferedTransformStream())
     )
   }
