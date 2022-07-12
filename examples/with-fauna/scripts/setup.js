@@ -89,14 +89,6 @@ const MakeGuestbookKey = () =>
 const isDatabasePrepared = ({ client }) =>
   client.query(Q.Exists(Q.Index('latestEntries')))
 
-const resolveDbDomain = () => {
-    if (process.env.FAUNA_DB_DOMAIN) {
-        return Promise.resolve(process.env.FAUNA_DB_DOMAIN)
-    } else {
-        // Fallback to Classic region group
-        return 'db.fauna.com'
-    }
-}
 const resolveAdminKey = () => {
   if (process.env.FAUNA_ADMIN_KEY) {
     return Promise.resolve(process.env.FAUNA_ADMIN_KEY)
@@ -148,11 +140,10 @@ const findImportError = (msg) => {
 
 const main = async () => {
   const adminKey = await resolveAdminKey()
-  const domain = await resolveDbDomain()
 
   const client = new Client({
       secret: adminKey,
-      domain: domain
+      domain: process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com'
   })
 
   if (await isDatabasePrepared({ client })) {

@@ -8,20 +8,11 @@ export const serverClient = new faunadb.Client({
 })
 
 // Used for any authed requests.
-export const faunaClient = (secret, domain) =>
+export const faunaClient = (secret) =>
   new faunadb.Client({
     secret: secret,
-    domain: domain
+    domain: process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com'
   })
-
-export const resolveDbDomain = () => {
-  if (process.env.FAUNA_DB_DOMAIN) {
-    return Promise.resolve(process.env.FAUNA_DB_DOMAIN)
-  } else {
-    // Fallback to Classic region group
-    return 'db.fauna.com'
-  }
-}
 
 export const serializeFaunaCookie = (userSecret) => {
   const cookieSerialized = cookie.serialize(FAUNA_SECRET_COOKIE, userSecret, {
