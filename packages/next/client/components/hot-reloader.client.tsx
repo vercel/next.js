@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  // @ts-expect-error TODO: startTransition exists
   startTransition,
 } from 'react'
 import { FullAppTreeContext } from '../../shared/lib/app-router-context'
