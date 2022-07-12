@@ -5,7 +5,10 @@ use turbopack_core::{
     chunk::{ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc},
 };
 
-use super::{EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc};
+use super::{
+    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
+    EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
+};
 
 #[turbo_tasks::value(ChunkItem, ValueToString, EcmascriptChunkItem)]
 pub struct ChunkGroupLoaderChunkItem {
@@ -39,17 +42,21 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        _chunk_content: EcmascriptChunkContextVc,
+        chunk_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
-    ) -> Result<StringVc> {
+    ) -> Result<EcmascriptChunkItemContentVc> {
         let chunk_group = ChunkGroupVc::from_asset(self.asset, context);
         let chunks = chunk_group.chunks().await?;
-        let mut code = "TODO load chunk group".to_string();
+        let mut code = "console.log(\"TODO load chunk group\");".to_string();
         for chunk in chunks.iter() {
             let asset: AssetVc = (*chunk).into();
             let path = asset.path().await?;
-            code += &format!("\n/{}", path.path);
+            code += &format!("\nconsole.log(\"/{}\");", path.path);
         }
-        Ok(StringVc::cell(code))
+        Ok(EcmascriptChunkItemContent {
+            inner_code: code,
+            id: chunk_context.helper_id("chunk loader", Some(self.asset.as_asset())),
+        }
+        .into())
     }
 }

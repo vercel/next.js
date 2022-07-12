@@ -1,5 +1,6 @@
+use json::codegen::Generator;
 use swc_ecmascript::ast::Expr;
-use turbopack_core::resolve::pattern::Pattern;
+use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};
 
@@ -37,4 +38,21 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     };
     result.normalize();
     result
+}
+
+pub fn stringify_module_id(id: &ModuleId) -> String {
+    match id {
+        ModuleId::Number(n) => stringify_number(*n),
+        ModuleId::String(s) => stringify_str(s),
+    }
+}
+
+pub fn stringify_str(s: &str) -> String {
+    let mut dump = json::codegen::DumpGenerator::new();
+    dump.write_string(s).unwrap();
+    dump.consume()
+}
+
+pub fn stringify_number(s: u32) -> String {
+    s.to_string()
 }

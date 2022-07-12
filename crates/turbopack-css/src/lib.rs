@@ -78,7 +78,7 @@ impl ValueToString for ModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "css {}",
+            "{} (css)",
             self.source.path().to_string().await?
         )))
     }

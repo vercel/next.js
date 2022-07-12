@@ -16,9 +16,18 @@ use crate::{
 };
 
 /// A module id, which can be a number or string
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub enum ModuleId {
-    Number(i32),
+    Number(u32),
+    String(String),
+}
+
+/// A chunk id, which can be a number or string
+#[turbo_tasks::value(shared)]
+#[derive(Clone)]
+pub enum ChunkId {
+    Number(u32),
     String(String),
 }
 
@@ -49,9 +58,13 @@ impl ChunkGroupVc {
     /// Creates a chunk group from an asset as entrypoint
     #[turbo_tasks::function]
     pub fn from_asset(asset: ChunkableAssetVc, context: ChunkingContextVc) -> Self {
-        Self::cell(ChunkGroup {
-            entry: asset.as_chunk(context),
-        })
+        Self::from_chunk(asset.as_chunk(context))
+    }
+
+    /// Creates a chunk group from an chunk as entrypoint
+    #[turbo_tasks::function]
+    pub fn from_chunk(chunk: ChunkVc) -> Self {
+        Self::cell(ChunkGroup { entry: chunk })
     }
 
     /// Lists all chunks that are in this chunk group.

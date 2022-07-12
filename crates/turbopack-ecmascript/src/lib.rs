@@ -25,6 +25,7 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 
+use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc};
 use crate::{
     chunk::{
         EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
@@ -69,6 +70,11 @@ impl ModuleAssetVc {
             target: target,
             node_native_bindings,
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn as_evaluated_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+        EcmascriptChunkVc::new_evaluate(context, self_vc.into()).into()
     }
 }
 
@@ -119,7 +125,7 @@ impl ValueToString for ModuleAsset {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
-            "ecmascript {}",
+            "{} (ecmascript)",
             self.source.path().to_string().await?
         )))
     }
@@ -139,9 +145,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        _chunk_content: EcmascriptChunkContextVc,
+        chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
-    ) -> Result<StringVc> {
+    ) -> Result<EcmascriptChunkItemContentVc> {
         // TODO: code generation
         // Some(placeable) =
         //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
@@ -149,10 +155,14 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         // generate:
         // __turbopack_require__({id}) => exports / esm namespace object
         // __turbopack_xxx__
-        Ok(StringVc::cell(format!(
-            "todo {};",
-            self.module.path().to_string().await?
-        )))
+        Ok(EcmascriptChunkItemContent {
+            inner_code: format!(
+                "console.log(\"todo {}\");",
+                self.module.path().to_string().await?
+            ),
+            id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+        }
+        .into())
     }
 }
 
