@@ -254,13 +254,13 @@ function RSCComponent({ onFlightCssLoaded }: { onFlightCssLoaded: any }) {
   )
 }
 
-export async function hydrate(opts: {
+export async function hydrate(opts?: {
   onFlightCssLoaded?: () => Promise<void>
 }) {
   renderReactElement(appElement!, () => (
     <React.StrictMode>
       <Root>
-        <RSCComponent onFlightCssLoaded={opts.onFlightCssLoaded} />
+        <RSCComponent onFlightCssLoaded={opts?.onFlightCssLoaded} />
       </Root>
     </React.StrictMode>
   ))

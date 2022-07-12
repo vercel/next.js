@@ -326,14 +326,19 @@ function getSegmentParam(segment: string): {
   return null
 }
 
-function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
+function getCssFlightData(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev?: boolean
+) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
   const cssFiles = importedServerCSSFiles.map(
     (css) => serverComponentManifest[css].default
   )
-  if (process.env.NODE_ENV === 'development') {
+
+  if (dev) {
     return cssFiles.map((css) => `CSS:${JSON.stringify(css)}\n`).join('')
   }
 
@@ -344,9 +349,7 @@ function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
     return res
   }, new Set())
 
-  return cssSet.size
-    ? `CSS:${JSON.stringify({ chunks: [Array.from(cssSet)] })}\n`
-    : ''
+  return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
 export async function renderToHTML(
@@ -765,7 +768,8 @@ export async function renderToHTML(
 
     const cssFlightData = getCssFlightData(
       ComponentMod,
-      serverComponentManifest
+      serverComponentManifest,
+      renderOpts.dev
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
