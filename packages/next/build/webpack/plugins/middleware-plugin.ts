@@ -39,8 +39,8 @@ interface EntryMetadata {
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
-  wasmBindings: Set<AssetBinding>
-  assetBindings: Set<AssetBinding>
+  wasmBindings: Map<string, string>
+  assetBindings: Map<string, string>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -415,8 +415,8 @@ function getExtractMetadata(params: {
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
-        wasmBindings: new Set(),
-        assetBindings: new Set(),
+        wasmBindings: new Map(),
+        assetBindings: new Map(),
       }
 
       for (const entryModule of entryModules) {
@@ -485,11 +485,17 @@ function getExtractMetadata(params: {
          * append it to the entry wasm bindings.
          */
         if (buildInfo?.nextWasmMiddlewareBinding) {
-          entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
+          entryMetadata.wasmBindings.set(
+            buildInfo.nextWasmMiddlewareBinding.name,
+            buildInfo.nextWasmMiddlewareBinding.filePath
+          )
         }
 
         if (buildInfo?.nextAssetMiddlewareBinding) {
-          entryMetadata.assetBindings.add(buildInfo.nextAssetMiddlewareBinding)
+          entryMetadata.assetBindings.set(
+            buildInfo.nextAssetMiddlewareBinding.name,
+            buildInfo.nextAssetMiddlewareBinding.filePath
+          )
         }
 
         /**
@@ -567,8 +573,14 @@ function getCreateAssets(params: {
         name: entrypoint.name,
         page: page,
         regexp,
-        wasm: Array.from(metadata.wasmBindings),
-        assets: Array.from(metadata.assetBindings),
+        wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
+        assets: Array.from(metadata.assetBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

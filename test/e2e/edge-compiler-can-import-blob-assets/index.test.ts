@@ -42,13 +42,13 @@ describe('Edge Compiler can import asset assets', () => {
     const manifest = await readJson(manifestPath)
     expect(manifest.functions['/api/edge'].assets).toMatchObject([
       {
-        name: expect.stringMatching(/^text-file\.[0-9a-f]{8}\.txt$/),
+        name: expect.stringMatching(/^text-file\.[0-9a-f]{16}\.txt$/),
         filePath: expect.stringMatching(
           /^server\/edge-chunks\/asset_text-file/
         ),
       },
       {
-        name: expect.stringMatching(/^vercel\.[0-9a-f]{8}\.png$/),
+        name: expect.stringMatching(/^vercel\.[0-9a-f]{16}\.png$/),
         filePath: expect.stringMatching(/^server\/edge-chunks\/asset_vercel/),
       },
     ])

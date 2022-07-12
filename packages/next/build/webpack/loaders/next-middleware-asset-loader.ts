@@ -2,7 +2,7 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getModuleBuildInfo } from './get-module-build-info'
 
 export default function MiddlewareAssetLoader(this: any, source: Buffer) {
-  const name = loaderUtils.interpolateName(this, '[name].[hash:8].[ext]', {
+  const name = loaderUtils.interpolateName(this, '[name].[hash].[ext]', {
     context: this.rootContext,
     content: source,
   })
