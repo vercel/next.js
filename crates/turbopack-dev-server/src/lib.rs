@@ -35,6 +35,8 @@ pub struct DevServer {
     root_path: FileSystemPathVc,
     root_asset: AssetVc,
     #[trace_ignore]
+    addr: SocketAddr,
+    #[trace_ignore]
     fallback_handler: Arc<dyn Fn(&str) -> Option<String> + Send + Sync>,
 }
 
@@ -44,11 +46,13 @@ impl DevServerVc {
     pub fn new(
         root_path: FileSystemPathVc,
         root_asset: AssetVc,
+        addr: TransientValue<SocketAddr>,
         fallback_handler: TransientValue<Arc<dyn Fn(&str) -> Option<String> + Send + Sync>>,
     ) -> Self {
         Self::cell(DevServer {
             root_path,
             root_asset,
+            addr: addr.into_value(),
             fallback_handler: fallback_handler.into_value(),
         })
     }
@@ -120,7 +124,6 @@ impl DevServerVc {
 
 impl DevServerVc {
     pub async fn listen(self) -> Result<DevServerListening> {
-        let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
         let tt = turbo_tasks::turbo_tasks();
         let this = self.await?;
         let root_asset = this.root_asset;
@@ -183,8 +186,8 @@ impl DevServerVc {
                 Ok::<_, anyhow::Error>(service_fn(handler))
             }
         });
-        let server = Server::bind(&addr).serve(make_svc);
-        println!("server listening on: {}", addr);
+        let server = Server::bind(&this.addr).serve(make_svc);
+        println!("server listening on: {}", this.addr);
         Ok(DevServerListening::new(async move {
             server.await?;
             Ok(())

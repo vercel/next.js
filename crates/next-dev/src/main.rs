@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(future_poll_fn)]
 
-use std::{env::current_dir, future::join, sync::Arc, time::Instant};
+use std::{env::current_dir, future::join, net::IpAddr, path::PathBuf, sync::Arc, time::Instant};
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -22,7 +22,20 @@ use turbopack_dev_server::{fs::DevServerFileSystemVc, html::DevHtmlAsset, DevSer
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
-struct Args {}
+struct Cli {
+    /// The directory of the Next.js application.
+    /// If no directory is provided, the current directory will be used.
+    #[clap(value_parser)]
+    dir: Option<PathBuf>,
+
+    /// The port number on which to start the application
+    #[clap(short, long, value_parser, default_value_t = 3000)]
+    port: u16,
+
+    /// Hostname on which to start the application
+    #[clap(short = 'H', long, value_parser, default_value = "127.0.0.1")]
+    hostname: IpAddr,
+}
 
 #[tokio::main]
 async fn main() {
@@ -30,12 +43,13 @@ async fn main() {
     console_subscriber::init();
     register();
 
-    let Args {} = Args::parse();
+    let args = Cli::parse();
 
     let start = Instant::now();
 
-    let dir = current_dir()
-        .unwrap()
+    let dir = args
+        .dir
+        .unwrap_or_else(|| current_dir().unwrap())
         .to_str()
         .ok_or_else(|| anyhow!("current directory contains invalid characters"))
         .unwrap()
@@ -48,9 +62,8 @@ async fn main() {
         .run_once(async move {
             let disk_fs = DiskFileSystemVc::new("project".to_string(), dir);
             let fs = disk_fs.into();
-            let root = FileSystemPathVc::new(fs, "demo");
-            let source_asset =
-                SourceAssetVc::new(FileSystemPathVc::new(fs, "demo/index.js")).into();
+            let root = FileSystemPathVc::new(fs, "src");
+            let source_asset = SourceAssetVc::new(FileSystemPathVc::new(fs, "src/index.js")).into();
             let context: AssetContextVc = ModuleAssetContextVc::new(
                 root,
                 GraphOptionsVc::new(false, false, CompileTarget::Current.into()),
@@ -77,6 +90,7 @@ async fn main() {
             let server = DevServerVc::new(
                 FileSystemPathVc::new(dev_server_fs, ""),
                 lazy_asset,
+                TransientValue::new((args.hostname, args.port).into()),
                 TransientValue::new(Arc::new(move |path| {
                     if path == "/__turbo_tasks_graph__" {
                         let mut stats = Stats::new();
