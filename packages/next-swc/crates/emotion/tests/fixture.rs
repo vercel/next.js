@@ -38,7 +38,8 @@ fn next_emotion_fixture(input: PathBuf) {
                 top_level_mark,
             );
 
-            let mut test_import_map = HashMap::default();
+            let test_import_map =
+                serde_json::from_str(include_str!("./testImportMap.json")).unwrap();
 
             chain!(
                 swc_emotion::emotion(
