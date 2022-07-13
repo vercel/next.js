@@ -1240,7 +1240,7 @@ fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
                 .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
         }
         Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
-            panic!("typescript is unexpected here");
+            // ignore typescript for code generation
         }
     }
 }
@@ -1390,7 +1390,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                 );
             }
             DefaultDecl::TsInterfaceDecl(TsInterfaceDecl { .. }) => {
-                panic!("typescript is unexpected here");
+                // ignore
             }
         }
         self.code_gen
