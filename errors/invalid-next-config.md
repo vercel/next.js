@@ -10,4 +10,4 @@ Fixing the listed config errors will remove this warning. You can also leverage 
 
 ### Useful Links
 
-- [`next.config.js` types](https://github.com/vercel/next.js/blob/canary/packages/next/server/config-shared.ts)
+- [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
