@@ -58,8 +58,10 @@ export class FlightManifestPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets: any) => this.createAsset(assets, compilation, compiler.context)
       )
@@ -77,7 +79,22 @@ export class FlightManifestPlugin {
         id: string | number,
         mod: any
       ) {
-        const resource: string = mod.resource
+        const isCSSModule =
+          mod.type === 'css/mini-extract' ||
+          (mod.loaders &&
+            (dev
+              ? mod.loaders.some((item: any) =>
+                  item.loader.includes('next-style-loader/index.js')
+                )
+              : mod.loaders.some((item: any) =>
+                  item.loader.includes('mini-css-extract-plugin/loader.js')
+                )))
+
+        const resource =
+          mod.type === 'css/mini-extract'
+            ? mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            : mod.resource
+
         if (!resource) return
 
         const moduleExports: any = manifest[resource] || {}
@@ -87,21 +104,14 @@ export class FlightManifestPlugin {
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        let ssrNamedModuleId = relative(
+          context,
+          mod.resourceResolveData?.path || resource
+        )
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId}`
 
-        if (
-          mod.request &&
-          /\.css$/.test(mod.request) &&
-          (dev
-            ? mod.loaders.some((item: any) =>
-                item.loader.includes('next-style-loader/index.js')
-              )
-            : mod.loaders.some((item: any) =>
-                item.loader.includes('mini-css-extract-plugin/loader.js')
-              ))
-        ) {
+        if (isCSSModule) {
           if (!manifest[resource]) {
             if (dev) {
               const chunkIdNameMapping = (chunk.ids || []).map((chunkId) => {
