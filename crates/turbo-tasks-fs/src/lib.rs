@@ -1,6 +1,5 @@
 #![feature(trivial_bounds)]
 #![feature(hash_drain_filter)]
-#![feature(into_future)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 

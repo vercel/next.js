@@ -1,6 +1,5 @@
 #![feature(backtrace)]
 #![feature(trivial_bounds)]
-#![feature(into_future)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
 #![feature(hash_drain_filter)]
