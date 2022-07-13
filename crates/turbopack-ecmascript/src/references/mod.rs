@@ -20,7 +20,7 @@ use swc_common::{
     pass::AstNodePath,
     Span, Spanned, GLOBALS,
 };
-use swc_ecma_visit::{AstParentNodeRef, VisitWithPath, AstParentKind};
+use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitWithPath};
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
@@ -217,13 +217,7 @@ pub(crate) async fn module_references(
                             .into(),
                         );
                         if webpack_entry {
-                            references.push(
-                                WebpackEntryAssetReference {
-                                    source,
-                                    runtime,
-                                }
-                                .into(),
-                            );
+                            references.push(WebpackEntryAssetReference { source, runtime }.into());
                         }
                         for chunk in webpack_chunks {
                             references.push(
@@ -931,10 +925,9 @@ pub(crate) async fn module_references(
                         func,
                         args,
                         ast_path,
-                        span
+                        span,
                     } => {
-                        if let Some(ignored) = &ignore_effect_span
-                        {
+                        if let Some(ignored) = &ignore_effect_span {
                             if ignored == span {
                                 continue;
                             }
@@ -963,10 +956,9 @@ pub(crate) async fn module_references(
                         prop,
                         args,
                         ast_path,
-                        span
+                        span,
                     } => {
-                        if let Some(ignored) = &ignore_effect_span
-                        {
+                        if let Some(ignored) = &ignore_effect_span {
                             if ignored == span {
                                 continue;
                             }
