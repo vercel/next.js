@@ -165,15 +165,11 @@ async function loadCss(cssChunkInfoJson: string) {
   return Promise.resolve()
 }
 
-function createLoadFlightCssStream(callback?: () => Promise<void>) {
-  const cssLoadingPromises: Promise<any>[] = []
+function createLoadFlightCssStream() {
   const loadCssFromStreamData = (data: string) => {
     if (data.startsWith('CSS')) {
       const cssJson = data.slice(4).trim()
-      if (!loadedCss.has(cssJson)) {
-        loadedCss.add(cssJson)
-        cssLoadingPromises.push(loadCss(cssJson))
-      }
+      loadCss(cssJson)
     }
   }
 
@@ -204,19 +200,10 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
     },
   })
 
-  if (process.env.NODE_ENV === 'development') {
-    Promise.all(cssLoadingPromises).then(() => {
-      // TODO: find better timing for css injection
-      setTimeout(() => {
-        callback?.()
-      })
-    })
-  }
-
   return loadCssFromFlight
 }
 
-function useInitialServerResponse(cacheKey: string, onFlightCssLoaded: any) {
+function useInitialServerResponse(cacheKey: string) {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -227,7 +214,7 @@ function useInitialServerResponse(cacheKey: string, onFlightCssLoaded: any) {
   })
 
   const newResponse = createFromReadableStream(
-    readable.pipeThrough(createLoadFlightCssStream(onFlightCssLoaded))
+    readable.pipeThrough(createLoadFlightCssStream())
   )
 
   rscCache.set(cacheKey, newResponse)
@@ -239,12 +226,17 @@ function ServerRoot({
   onFlightCssLoaded,
 }: {
   cacheKey: string
-  onFlightCssLoaded: any
+  onFlightCssLoaded: () => Promise<void>
 }) {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
-  const response = useInitialServerResponse(cacheKey, onFlightCssLoaded)
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      onFlightCssLoaded?.()
+    }
+  }, [])
+  const response = useInitialServerResponse(cacheKey)
   const root = response.readRoot()
   return root
 }
