@@ -1,5 +1,5 @@
 use json::codegen::Generator;
-use swc_ecmascript::ast::Expr;
+use swc_ecma_ast::Expr;
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{ConstantNumber, ConstantValue, JsValue};

@@ -2,13 +2,11 @@ use std::borrow::Cow;
 
 use anyhow::Result;
 use swc_common::GLOBALS;
-use swc_ecmascript::{
-    ast::{
-        ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
-        FnExpr, Lit, Module, ModuleItem, Program, Script, Stmt,
-    },
-    visit::{self, Visit, VisitWith},
+use swc_ecma_ast::{
+    ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt, FnExpr,
+    Lit, Module, ModuleItem, Program, Script, Stmt,
 };
+use swc_ecma_visit::{self, Visit, VisitWith};
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::asset::AssetVc;
@@ -165,7 +163,7 @@ impl Visit for RequirePrefixVisitor {
                 }
             }
         }
-        visit::visit_call_expr(self, call);
+        call.visit_children_with(self);
     }
 }
 

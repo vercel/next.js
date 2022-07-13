@@ -17,7 +17,6 @@ pub mod target;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
-
 use std::future::IntoFuture;
 
 use anyhow::Result;
@@ -29,7 +28,7 @@ use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
-use swc_ecma_visit::VisitMutWithPath;
+use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
 use target::CompileTargetVc;
 use turbo_tasks::{
     primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
@@ -192,9 +191,14 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
         // TOOD use interval tree with references into "code_gens"
         let mut visitors = Vec::new();
+        let mut root_visitors = Vec::new();
         for code_gen in code_gens {
             for (path, visitor) in code_gen.visitors.iter() {
-                visitors.push((path, &**visitor));
+                if path.is_empty() {
+                    root_visitors.push(&**visitor);
+                } else {
+                    visitors.push((path, &**visitor));
+                }
             }
         }
 
@@ -211,10 +215,15 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             let mut program = program.clone();
 
             GLOBALS.set(&globals, || {
-                program.visit_mut_with_path(
-                    &mut ApplyVisitors::new(visitors),
-                    &mut Default::default(),
-                );
+                if !visitors.is_empty() {
+                    program.visit_mut_with_path(
+                        &mut ApplyVisitors::new(visitors),
+                        &mut Default::default(),
+                    );
+                }
+                for visitor in root_visitors {
+                    program.visit_mut_with(&mut visitor.create());
+                }
             });
 
             let mut bytes =

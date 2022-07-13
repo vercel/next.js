@@ -12,7 +12,7 @@ use indexmap::IndexSet;
 use num_bigint::BigInt;
 use swc_atoms::{js_word, JsWord};
 use swc_common::Mark;
-use swc_ecmascript::ast::{Id, Ident, Lit};
+use swc_ecma_ast::{Id, Ident, Lit};
 use url::Url;
 
 pub(crate) use self::imports::ImportMap;
@@ -205,8 +205,8 @@ impl From<String> for JsValue {
     }
 }
 
-impl From<swc_ecmascript::ast::Str> for JsValue {
-    fn from(v: swc_ecmascript::ast::Str) -> Self {
+impl From<swc_ecma_ast::Str> for JsValue {
+    fn from(v: swc_ecma_ast::Str) -> Self {
         ConstantValue::Str(v.value).into()
     }
 }
@@ -1921,8 +1921,10 @@ mod tests {
     use std::{path::PathBuf, sync::Mutex, time::Instant};
 
     use swc_common::Mark;
+    use swc_ecma_ast::EsVersion;
+    use swc_ecma_parser::parse_file_as_program;
     use swc_ecma_transforms_base::resolver;
-    use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
+    use swc_ecma_visit::VisitMutWith;
     use testing::NormalizedOutput;
 
     use super::{

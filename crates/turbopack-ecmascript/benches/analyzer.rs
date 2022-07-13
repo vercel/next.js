@@ -7,8 +7,10 @@ use std::{
 
 use criterion::Criterion;
 use swc_common::{FilePathMapping, Mark, SourceMap, GLOBALS};
+use swc_ecma_ast::EsVersion;
+use swc_ecma_parser::parse_file_as_program;
 use swc_ecma_transforms_base::resolver;
-use swc_ecmascript::{ast::EsVersion, parser::parse_file_as_program, visit::VisitMutWith};
+use swc_ecma_visit::VisitMutWith;
 use turbo_tasks_testing::VcStorage;
 use turbopack_ecmascript::{
     analyzer::{

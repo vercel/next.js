@@ -1,9 +1,7 @@
 use swc_atoms::JsWord;
 use swc_common::collections::AHashMap;
-use swc_ecmascript::{
-    ast::*,
-    visit::{Visit, VisitWith},
-};
+use swc_ecma_ast::*;
+use swc_ecma_visit::{Visit, VisitWith};
 
 use super::JsValue;
 

@@ -1,9 +1,7 @@
 use anyhow::Result;
 use swc_common::errors::{Handler, HANDLER};
-use swc_ecmascript::{
-    ast::{CallExpr, Expr, ExprOrSpread},
-    visit::{self, Visit, VisitWith},
-};
+use swc_ecma_ast::{CallExpr, Expr, ExprOrSpread};
+use swc_ecma_visit::{self, Visit, VisitWith};
 use turbo_tasks::Value;
 use turbopack_core::{
     asset::AssetVc,
@@ -73,6 +71,6 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 }
             }
         }
-        visit::visit_call_expr(self, call);
+        call.visit_children_with(self);
     }
 }

@@ -1,8 +1,8 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use swc_common::pass::AstKindPath;
+use swc_ecma_ast::*;
 use swc_ecma_visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithPath};
-use swc_ecmascript::ast::*;
 
 use crate::code_gen::VisitorFactory;
 
@@ -45,10 +45,11 @@ impl<'a> ApplyVisitors<'a> {
 
                 index += 1;
 
+                let mut active_visitors = Vec::new();
                 for (path, visitor) in visitors.iter() {
                     if index == path.len() {
                         if current {
-                            n.visit_mut_with(&mut visitor.create());
+                            active_visitors.push(*visitor);
                         }
                     } else {
                         debug_assert!(index < path.len());
@@ -61,19 +62,20 @@ impl<'a> ApplyVisitors<'a> {
                     }
                 }
 
-                if visitors_map.is_empty() {
-                    // Skip visiting this sub tree
-                    return;
-                }
-
                 if current {
-                    n.visit_mut_children_with_path(
-                        &mut ApplyVisitors {
-                            visitors: visitors_map,
-                            index,
-                        },
-                        ast_path,
-                    );
+                    // Potentially skip visiting this sub tree
+                    if !visitors_map.is_empty() {
+                        n.visit_mut_children_with_path(
+                            &mut ApplyVisitors {
+                                visitors: visitors_map,
+                                index,
+                            },
+                            ast_path,
+                        );
+                    }
+                    for visitor in active_visitors {
+                        n.visit_mut_with(&mut visitor.create());
+                    }
                     return;
                 } else {
                     current_visitors_map = Cow::Owned(visitors_map);
@@ -114,10 +116,11 @@ mod tests {
     use std::sync::Arc;
 
     use swc_common::{errors::HANDLER, FileName, Mark, SourceFile, SourceMap};
+    use swc_ecma_ast::*;
     use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
+    use swc_ecma_parser::parse_file_as_module;
     use swc_ecma_transforms_base::resolver;
-    use swc_ecma_visit::{fields::*, AstParentKind, VisitMut, VisitMutWithPath};
-    use swc_ecmascript::{ast::*, parser::parse_file_as_module, visit::VisitMutWith};
+    use swc_ecma_visit::{fields::*, AstParentKind, VisitMut, VisitMutWith, VisitMutWithPath};
 
     use super::{ApplyVisitors, VisitorFactory};
 

@@ -5,7 +5,7 @@ pub mod raw;
 pub mod typescript;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -20,15 +20,8 @@ use swc_common::{
     pass::AstNodePath,
     Span, Spanned, GLOBALS,
 };
-use swc_ecma_ast::ExportDefaultExpr;
-use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitWithPath};
-use swc_ecmascript::{
-    ast::{
-        CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
-        ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
-    },
-    visit::VisitAstPath,
-};
+use swc_ecma_ast::*;
+use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath};
 use turbo_tasks::{util::try_join_all, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -43,7 +36,7 @@ use turbopack_core::{
 
 use self::{
     cjs::CjsAssetReferenceVc,
-    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc},
+    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExportVc, EsmExports, EsmExportsVc},
     node::{DirAssetReferenceVc, PackageJsonReferenceVc},
     raw::SourceAssetReferenceVc,
     typescript::{
@@ -71,7 +64,10 @@ use super::{
     },
     ModuleAssetType,
 };
-use crate::{code_gen::CodeGenerateablesVc, references::esm::EsmExportVc, CodeGenerateableVc};
+use crate::{
+    code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
+    magic_identifier,
+};
 #[turbo_tasks::value]
 pub struct AnalyseEcmascriptModuleResult {
     pub references: AssetReferencesVc,
@@ -184,8 +180,8 @@ pub(crate) async fn analyze_ecmascript_module(
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
-            let (var_graph, webpack_runtime, webpack_entry, webpack_chunks) =
-                HANDLER.set(&handler, || {
+            let (var_graph, webpack_runtime, webpack_entry, webpack_chunks, esm_exports) = HANDLER
+                .set(&handler, || {
                     GLOBALS.set(globals, || {
                         let var_graph = create_graph(&program, eval_context);
 
@@ -199,6 +195,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             visitor.webpack_runtime,
                             visitor.webpack_entry,
                             visitor.webpack_chunks,
+                            visitor.esm_exports,
                         )
                     })
                 });
@@ -234,6 +231,15 @@ pub(crate) async fn analyze_ecmascript_module(
                     }
                     WebpackRuntime::None => {}
                 }
+            }
+
+            if !esm_exports.is_empty() {
+                code_gen.push(
+                    EsmExports {
+                        exports: esm_exports,
+                    }
+                    .into(),
+                )
             }
 
             fn handle_call_boxed<
@@ -1195,6 +1201,7 @@ struct AssetReferencesVisitor<'a> {
     old_analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceVc>,
     code_gen: &'a mut Vec<CodeGenerateableVc>,
+    pub esm_exports: BTreeMap<String, String>,
     webpack_runtime: Option<(String, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
@@ -1210,6 +1217,7 @@ impl<'a> AssetReferencesVisitor<'a> {
             old_analyser: StaticAnalyser::default(),
             references,
             code_gen,
+            esm_exports: BTreeMap::new(),
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
@@ -1219,6 +1227,56 @@ impl<'a> AssetReferencesVisitor<'a> {
 
 fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
     ast_path.iter().map(|n| n.kind()).collect()
+}
+
+fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
+    match decl {
+        Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
+            f(ident.sym.to_string());
+        }
+        Decl::Var(VarDecl { decls, .. }) => {
+            decls
+                .iter()
+                .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
+        }
+        Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
+            // ignore typescript for code generation
+        }
+    }
+}
+fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(String)) {
+    match pat {
+        Pat::Ident(BindingIdent { id, .. }) => {
+            f(id.sym.to_string());
+        }
+        Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
+            if let Some(e) = e {
+                for_each_ident_in_pat(e, f);
+            }
+        }),
+        Pat::Rest(RestPat { arg, .. }) => {
+            for_each_ident_in_pat(arg, f);
+        }
+        Pat::Object(ObjectPat { props, .. }) => {
+            props.iter().for_each(|p| match p {
+                ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
+                    for_each_ident_in_pat(value, f);
+                }
+                ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
+                    f(key.sym.to_string());
+                }
+                ObjectPatProp::Rest(RestPat { arg, .. }) => {
+                    for_each_ident_in_pat(arg, f);
+                }
+            });
+        }
+        Pat::Assign(AssignPat { left, .. }) => {
+            for_each_ident_in_pat(left, f);
+        }
+        Pat::Invalid(_) | Pat::Expr(_) => {
+            panic!("Unexpected pattern while enumerating idents");
+        }
+    }
 }
 
 impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
@@ -1237,6 +1295,8 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             )
             .into(),
         );
+        self.code_gen
+            .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
         export.visit_children_with_path(self, ast_path);
     }
     fn visit_named_export<'ast: 'r, 'r>(
@@ -1255,7 +1315,50 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                 )
                 .into(),
             );
+        } else {
+            for spec in export.specifiers.iter() {
+                fn to_string(name: &ModuleExportName) -> String {
+                    match name {
+                        ModuleExportName::Ident(ident) => ident.sym.to_string(),
+                        ModuleExportName::Str(str) => str.value.to_string(),
+                    }
+                }
+                match spec {
+                    ExportSpecifier::Namespace(ExportNamespaceSpecifier { .. }) => {
+                        panic!(
+                            "ExportNamespaceSpecifier will not happen in combination with src == \
+                             None"
+                        );
+                    }
+                    ExportSpecifier::Default(ExportDefaultSpecifier { .. }) => {
+                        panic!(
+                            "ExportDefaultSpecifier will not happen in combination with src == \
+                             None"
+                        );
+                    }
+                    ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
+                        self.esm_exports.insert(
+                            to_string(exported.as_ref().unwrap_or(orig)),
+                            to_string(orig),
+                        );
+                    }
+                }
+            }
         }
+        self.code_gen
+            .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
+        export.visit_children_with_path(self, ast_path);
+    }
+    fn visit_export_decl<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        for_each_ident_in_decl(&export.decl, &mut |name| {
+            self.esm_exports.insert(name.clone(), name);
+        });
+        self.code_gen
+            .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
         export.visit_children_with_path(self, ast_path);
     }
     fn visit_export_default_expr<'ast: 'r, 'r>(
@@ -1263,8 +1366,35 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         export: &'ast ExportDefaultExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        self.esm_exports.insert(
+            "default".to_string(),
+            magic_identifier::encode("default export"),
+        );
         self.code_gen
-            .push(EsmExportVc::new_default(AstPathVc::cell(as_parent_path(ast_path))).into());
+            .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
+        export.visit_children_with_path(self, ast_path);
+    }
+    fn visit_export_default_decl<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        match &export.decl {
+            DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
+                self.esm_exports.insert(
+                    "default".to_string(),
+                    ident
+                        .as_ref()
+                        .map(|i| i.sym.to_string())
+                        .unwrap_or_else(|| magic_identifier::encode("default export")),
+                );
+            }
+            DefaultDecl::TsInterfaceDecl(TsInterfaceDecl { .. }) => {
+                // ignore
+            }
+        }
+        self.code_gen
+            .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
         export.visit_children_with_path(self, ast_path);
     }
     fn visit_import_decl<'ast: 'r, 'r>(
