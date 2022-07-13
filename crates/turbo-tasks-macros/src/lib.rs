@@ -471,12 +471,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                     self.node.into_read::<#ident>().map(|r| &r.0)
                 }
             }
-
-            impl #ref_ident {
-                pub fn future(self) -> turbo_tasks::ReadAndMapRawVcFuture<#ident, #inner_type, fn(&#ident) -> &#inner_type> {
-                    self.node.into_read::<#ident>().map(|r| &r.0)
-                }
-            }
         }
     } else {
         quote! {
@@ -493,12 +487,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 type Output = turbo_tasks::Result<turbo_tasks::RawVcReadResult<#ident>>;
                 type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
                 fn into_future(self) -> Self::IntoFuture {
-                    self.node.into_read::<#ident>()
-                }
-            }
-
-            impl #ref_ident {
-                pub fn future(self) -> turbo_tasks::ReadRawVcFuture<#ident> {
                     self.node.into_read::<#ident>()
                 }
             }

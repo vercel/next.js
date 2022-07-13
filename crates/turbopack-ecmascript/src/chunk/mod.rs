@@ -1,5 +1,7 @@
 pub mod loader;
 
+use std::future::IntoFuture;
+
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
@@ -148,7 +150,7 @@ impl Asset for EcmascriptChunk {
                 if *c == self_vc.as_chunk() {
                     None
                 } else {
-                    Some(c.path().to_string().future())
+                    Some(c.path().to_string().into_future())
                 }
             }))
             .await?;
