@@ -12,7 +12,6 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  // TODO-APP: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -149,6 +148,43 @@ const fillCacheWithDataProperty = (
   )
 }
 
+const canOptimisticallyRender = (
+  segments: string[],
+  flightRouterState: FlightRouterState
+): boolean => {
+  const segment = segments[0]
+  const isLastSegment = segments.length === 1
+
+  const [existingSegment, existingParallelRoutes, , , loadingMarker] =
+    flightRouterState
+
+  const hasLoading = loadingMarker === 'loading'
+
+  // If the tree path holds at least one loading.js it will be optimistic
+  if (hasLoading) {
+    return true
+  }
+
+  // Above already catches the last segment case where `hasLoading` is true, so in this case it would always be `false`.
+  if (isLastSegment) {
+    return false
+  }
+
+  // If the segments mismatch we can't resolve deeper into the tree
+  const segmentMatches = matchSegment(existingSegment, segment)
+
+  // If the existingParallelRoutes does not have a `children` parallelRouteKey we can't resolve deeper into the tree
+  if (!segmentMatches || !existingParallelRoutes.children) {
+    return hasLoading
+  }
+
+  // Resolve deeper in the tree as the current level did not have a loading marker
+  return canOptimisticallyRender(
+    segments.slice(1),
+    existingParallelRoutes.children
+  )
+}
+
 const createOptimisticTree = (
   segments: string[],
   flightRouterState: FlightRouterState | null,
@@ -163,11 +199,12 @@ const createOptimisticTree = (
   const segment = segments[0]
   const isLastSegment = segments.length === 1
 
-  const shouldRefetchThisLevel =
-    !flightRouterState || segment !== flightRouterState[0]
+  const segmentMatches =
+    existingSegment !== null && matchSegment(existingSegment, segment)
+  const shouldRefetchThisLevel = !flightRouterState || !segmentMatches
 
   let parallelRoutes: FlightRouterState[1] = {}
-  if (existingSegment !== null && matchSegment(existingSegment, segment)) {
+  if (existingSegment !== null && segmentMatches) {
     parallelRoutes = existingParallelRoutes
   }
 
@@ -200,6 +237,11 @@ const createOptimisticTree = (
     result[2] = href
   }
 
+  // Copy the loading flag from existing tree
+  if (flightRouterState && flightRouterState[4]) {
+    result[4] = flightRouterState[4]
+  }
+
   return result
 }
 
@@ -215,7 +257,7 @@ const walkTreeWithFlightDataPath = (
     const tree: FlightRouterState = [...treePatch]
 
     if (url) {
-      tree.push(url)
+      tree[2] = url
     }
 
     return tree
@@ -224,7 +266,6 @@ const walkTreeWithFlightDataPath = (
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
-  // TODO-APP: verify
   if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
@@ -246,7 +287,12 @@ const walkTreeWithFlightDataPath = (
   ]
 
   if (url) {
-    tree.push(url)
+    tree[2] = url
+  }
+
+  // Copy loading flag
+  if (flightSegmentPath[4]) {
+    tree[4] = flightSegmentPath[4]
   }
 
   return tree
@@ -353,7 +399,7 @@ export function reducer(
       }
 
       // TODO-APP: flag on the tree of which part of the tree for if there is a loading boundary
-      const isOptimistic = false
+      const isOptimistic = canOptimisticallyRender(segments, state.tree)
 
       if (isOptimistic) {
         // Build optimistic tree
@@ -368,6 +414,7 @@ export function reducer(
 
         // Fill in the cache with blank that holds the `data` field.
         // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+        cache.subTreeData = state.cache.subTreeData
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
@@ -526,7 +573,6 @@ export function reducer(
 
     cache.data = null
 
-    // TODO-APP: ensure flightDataPath does not have "" as first item
     const flightDataPath = flightData[0]
 
     if (flightDataPath.length !== 2) {
