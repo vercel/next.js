@@ -140,7 +140,11 @@ const findImportError = (msg) => {
 
 const main = async () => {
   const adminKey = await resolveAdminKey()
-  const client = new Client({ secret: adminKey })
+
+  const client = new Client({
+    secret: adminKey,
+    domain: process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com',
+  })
 
   if (await isDatabasePrepared({ client })) {
     return console.info(

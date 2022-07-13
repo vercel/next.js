@@ -148,13 +148,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          writer.write(
-            encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, responsePartial])
-              )})</script>`
-            )
-          )
+          const scripts = `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([1, id, responsePartial])
+          )})</script>`
+
+          writer.write(encodeText(scripts))
           process()
         }
       })
@@ -178,7 +176,8 @@ function createServerComponentRenderer(
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<[ServerContextName: string, JSONValue: any]>
-  }
+  },
+  dev: boolean
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -192,7 +191,11 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const cssFlightData = getCssFlightData(ComponentMod, serverComponentManifest)
+  const cssFlightData = getCssFlightData(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -209,7 +212,7 @@ function createServerComponentRenderer(
   }
 
   const writable = transformStream.writable
-  const ServerComponentWrapper = () => {
+  return function ServerComponentWrapper() {
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
@@ -218,11 +221,8 @@ function createServerComponentRenderer(
       serverComponentManifest,
       cssFlightData
     )
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
-
-  return ServerComponentWrapper
 }
 
 type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
@@ -327,28 +327,54 @@ function getSegmentParam(segment: string): {
   return null
 }
 
-function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
+function getCSSInlinedLinkTags(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev: boolean
+) {
+  if (dev) return []
+
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  return Array.from(
+    new Set(
+      importedServerCSSFiles
+        .map((css) =>
+          css.endsWith('.css')
+            ? serverComponentManifest[css].default.chunks
+            : []
+        )
+        .flat()
+    )
+  )
+}
+
+function getCssFlightData(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev: boolean
+) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
   const cssFiles = importedServerCSSFiles.map(
     (css) => serverComponentManifest[css].default
   )
-  if (process.env.NODE_ENV === 'development') {
-    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n')
+
+  if (dev) {
+    // Keep `id` in dev mode css flight to require the css module
+    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
   }
 
   // Multiple css chunks could be merged into one by mini-css-extract-plugin,
   // we use a set here to dedupe the css chunks in production.
-  const cssSet = cssFiles.reduce((res, css) => {
+  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
     res.add(...css.chunks)
     return res
   }, new Set())
 
-  const cssFlight = Array.from(cssSet)
-    .map((css) => `CSS:${JSON.stringify({ chunks: [css] })}`)
-    .join('\n')
-  return cssFlight
+  return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
 export async function renderToHTML(
@@ -359,6 +385,13 @@ export async function renderToHTML(
   renderOpts: RenderOpts,
   isPagesDir: boolean
 ): Promise<RenderResult | null> {
+  // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
+  if (typeof React.createServerContext === 'undefined') {
+    throw new Error(
+      '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+    )
+  }
+
   // don't modify original query object
   query = Object.assign({}, query)
 
@@ -369,6 +402,7 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
   } = renderOpts
+  const dev = !!renderOpts.dev
 
   const isFlight = query.__flight__ !== undefined
 
@@ -767,7 +801,8 @@ export async function renderToHTML(
 
     const cssFlightData = getCssFlightData(
       ComponentMod,
-      serverComponentManifest
+      serverComponentManifest,
+      dev
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
@@ -777,7 +812,9 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest)
+      renderToReadableStream(flightData, serverComponentManifest, {
+        context: serverContexts,
+      })
         .pipeThrough(createPrefixStream(cssFlightData))
         .pipeThrough(createBufferedTransformStream())
     )
@@ -792,6 +829,12 @@ export async function renderToHTML(
   // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
   // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
+
+  const initialStylesheets: string[] = getCSSInlinedLinkTags(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
 
   const { Component: ComponentTree } = createComponentTree({
     createSegmentPath: (child) => child,
@@ -818,6 +861,7 @@ export async function renderToHTML(
             hotReloader={HotReloader && <HotReloader assetPrefix="" />}
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
+            initialStylesheets={initialStylesheets}
           >
             <ComponentTree />
           </AppRouter>
@@ -846,7 +890,8 @@ export async function renderToHTML(
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
-    }
+    },
+    dev
   )
 
   const jsxStyleRegistry = createStyleRegistry()
@@ -896,7 +941,7 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      suffix: '',
+      dev,
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
