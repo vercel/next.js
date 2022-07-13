@@ -66,6 +66,7 @@ module.exports = {
       transpileTemplateLiterals?: boolean,
       // Not supported yet.
       pure?: boolean,
+    },
   },
 }
 ```
