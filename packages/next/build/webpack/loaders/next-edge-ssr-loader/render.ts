@@ -105,7 +105,7 @@ export function getRender({
   })
   const requestHandler = server.getRequestHandler()
 
-  return async function render(request: NextRequest) {
+  return async function render(request: Request) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
     requestHandler(extendedReq, extendedRes)
