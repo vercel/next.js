@@ -14,6 +14,9 @@ export default function Page() {
       ) : (
         <h2 id="does-not-have-header">Does not have x-use-headers header</h2>
       )}
+      {'referer' in headers && headers['referer'] && (
+        <h3 id="has-referer">Has referer header</h3>
+      )}
     </>
   )
 }

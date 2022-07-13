@@ -694,6 +694,39 @@ describe('app dir', () => {
             await browser.close()
           }
         })
+
+        it('should access cookies on <Link /> navigation', async () => {
+          const browser = await webdriver(next.url, '/navigation')
+
+          try {
+            // Click the cookies link to verify it can't see the cookie that's
+            // not there.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#does-not-have-cookie')
+
+            // Go back and add the cookies.
+            await browser.back()
+            await browser.waitForElementByCss('#from-navigation')
+            browser.addCookie({ name: 'use-cookies', value: 'value' })
+
+            // Click the cookies link again to see that the cookie can be picked
+            // up again.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#has-cookie')
+
+            // Go back and remove the cookies.
+            await browser.back()
+            await browser.waitForElementByCss('#from-navigation')
+            browser.deleteCookies()
+
+            // Verify for the last time that after clicking the cookie link
+            // again, there are no cookies.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#does-not-have-cookie')
+          } finally {
+            await browser.close()
+          }
+        })
       })
 
       describe('useHeaders', () => {
@@ -719,6 +752,17 @@ describe('app dir', () => {
           $ = cheerio.load(html)
           expect($('#has-header').length).toBe(1)
           expect($('#does-not-have-header').length).toBe(0)
+        })
+
+        it('should access headers on <Link /> navigation', async () => {
+          const browser = await webdriver(next.url, '/navigation')
+
+          try {
+            await browser.elementById('use-headers').click()
+            await browser.waitForElementByCss('#has-referer')
+          } finally {
+            await browser.close()
+          }
         })
       })
 
