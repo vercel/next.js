@@ -10,7 +10,7 @@ use sourcemap::{RawToken, SourceMap as RawSourcemap};
 use swc_atoms::JsWord;
 use swc_common::comments::Comments;
 use swc_common::util::take::Take;
-use swc_common::{BytePos, SourceMap, SourceMapperDyn, DUMMY_SP};
+use swc_common::{BytePos, SourceMapperDyn, DUMMY_SP};
 use swc_ecmascript::ast::{
     ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
     JSXExpr, JSXExprContainer, JSXObject, SourceMapperExt,
