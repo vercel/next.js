@@ -3,6 +3,7 @@ const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 const nextClientComponents = [
   'link',
   'image',
+  // TODO-APP: check if this affects the regex
   'future/image',
   'head',
   'script',
