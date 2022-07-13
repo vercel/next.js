@@ -47,7 +47,12 @@ export interface FetchEventResult {
   waitUntil: Promise<any>
 }
 
-export type NextMiddlewareResult = NextResponse | Response | null | undefined
+export type NextMiddlewareResult =
+  | NextResponse
+  | Response
+  | null
+  | undefined
+  | void
 
 export type NextMiddleware = (
   request: NextRequest,
