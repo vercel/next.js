@@ -264,7 +264,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  loading?: 'loading'
 ]
 
 export type FlightSegmentPath =
@@ -508,7 +509,9 @@ export async function renderToHTML(
   const createFlightRouterStateFromLoaderTree = ([
     segment,
     parallelRoutes,
+    { loading },
   ]: LoaderTree): FlightRouterState => {
+    const hasLoading = Boolean(loading)
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
@@ -528,6 +531,10 @@ export async function renderToHTML(
         },
         {} as FlightRouterState[1]
       )
+    }
+
+    if (hasLoading) {
+      segmentTree[4] = 'loading'
     }
     return segmentTree
   }
