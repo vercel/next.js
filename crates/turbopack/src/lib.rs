@@ -94,26 +94,11 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
 
     let mut effects = HashMap::new();
     for rule in options.rules.iter() {
-        if rule.conditions.iter().all(|c| match c {
-            ModuleRuleCondition::ResourcePathEndsWith(end) => path_value.path.ends_with(end),
-            ModuleRuleCondition::ResourcePathHasNoExtension => {
-                if let Some(i) = path_value.path.rfind('.') {
-                    if let Some(j) = path_value.path.rfind('/') {
-                        j > i
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                }
-            }
-            _ => todo!("not implemented yet"),
-        }) {
-            for (key, effect) in rule.effects.iter() {
-                effects.insert(key, effect);
-            }
+        if rule.matches(&path_value) {
+            effects.extend(rule.effects());
         }
     }
+
     Ok(
         match effects
             .get(&ModuleRuleEffectKey::ModuleType)
@@ -153,6 +138,11 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::ModuleAssetVc::new(
+                source,
+                ModuleAssetContextVc::new(path.parent(), graph_options).into(),
+            )
+            .into(),
+            ModuleType::Static => turbopack_static::ModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), graph_options).into(),
             )
@@ -427,5 +417,6 @@ pub fn register() {
     turbopack_core::register();
     turbopack_ecmascript::register();
     turbopack_css::register();
+    turbopack_static::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
