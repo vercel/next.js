@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use swc_atoms::JsWord;
 use swc_common::collections::AHashMap;
 
-use crate::EmotionModuleConfig;
+use crate::{EmotionModuleConfig, ExportItem};
 
 /// key: `importSource`
 pub type ImportMap = AHashMap<JsWord, ImportMapValue>;
@@ -50,16 +50,31 @@ pub(crate) fn expand_import_map(
                     } else if &*package_name == "@emotion/styled" && export_name == "default" {
                     }
 
-                    let exports = package_transformers
+                    let kind = package_transformers
                         .exported_names
                         .iter()
-                        .filter(|v| v.name == &**export_name)
-                        .cloned()
-                        .collect::<Vec<_>>();
+                        .find(|v| v.name == &**export_name)
+                        .map(|v| v.kind)
+                        .or_else(|| {
+                            if export_name == "default" {
+                                package_transformers.default_export
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "failed to find export '{}' from package '{}'",
+                                export_name, package_name
+                            )
+                        });
 
                     imports.push(EmotionModuleConfig {
                         module_name: import_source.clone(),
-                        exported_names: exports,
+                        exported_names: vec![ExportItem {
+                            name: local_export_name.to_string(),
+                            kind,
+                        }],
                         default_export: package_transformers.default_export,
                     });
                 })
