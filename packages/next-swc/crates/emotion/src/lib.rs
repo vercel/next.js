@@ -172,13 +172,13 @@ pub struct EmotionTransformer<C: Comments> {
 #[swc_trace]
 impl<C: Comments> EmotionTransformer<C> {
     pub fn new(
-        mut options: EmotionOptions,
+        options: EmotionOptions,
         path: &Path,
         cm: Arc<SourceMapperDyn>,
         comments: C,
     ) -> Self {
         let registered_imports = self::import_map::expand_import_map(
-            options.import_map.take().unwrap_or_default(),
+            options.import_map.as_ref(),
             EMOTION_OFFICIAL_LIBRARIES.to_vec(),
         );
 
