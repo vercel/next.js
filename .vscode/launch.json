@@ -10,7 +10,7 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "test/e2e/app-dir/app"],
+      "runtimeArgs": ["run", "debug-react-exp", "dev", "test/e2e/app-dir/app"],
       "skipFiles": ["<node_internals>/**"],
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
       "port": 9229,

@@ -812,7 +812,9 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest)
+      renderToReadableStream(flightData, serverComponentManifest, {
+        context: serverContexts,
+      })
         .pipeThrough(createPrefixStream(cssFlightData))
         .pipeThrough(createBufferedTransformStream())
     )
