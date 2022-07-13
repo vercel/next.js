@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use swc_common::{chain, comments::SingleThreadedComments, Mark};
 use swc_ecma_transforms_testing::test_fixture;
