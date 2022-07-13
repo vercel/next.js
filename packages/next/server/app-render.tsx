@@ -385,6 +385,13 @@ export async function renderToHTML(
   renderOpts: RenderOpts,
   isPagesDir: boolean
 ): Promise<RenderResult | null> {
+  // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
+  if (typeof React.createServerContext === 'undefined') {
+    throw new Error(
+      '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+    )
+  }
+
   // don't modify original query object
   query = Object.assign({}, query)
 
