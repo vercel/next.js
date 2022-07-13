@@ -14,12 +14,10 @@ use swc_common::{
     sync::Lrc,
     FileName, Globals, Mark, SourceMap, GLOBALS,
 };
+use swc_ecma_ast::{EsVersion, Program};
+use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
 use swc_ecma_transforms_base::resolver;
-use swc_ecmascript::{
-    ast::{EsVersion, Program},
-    parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
-    visit::VisitMutWith,
-};
+use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;

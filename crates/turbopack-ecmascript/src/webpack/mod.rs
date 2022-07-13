@@ -1,5 +1,5 @@
 use anyhow::Result;
-use swc_ecmascript::ast::Lit;
+use swc_ecma_ast::Lit;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{

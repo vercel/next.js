@@ -2,11 +2,8 @@ use std::{collections::HashMap, iter, mem::replace, sync::Arc};
 
 use swc_atoms::js_word;
 use swc_common::{pass::AstNodePath, Mark, Span, Spanned, SyntaxContext};
-use swc_ecma_visit::{fields::*, *};
-use swc_ecmascript::{
-    ast::*,
-    visit::{VisitAstPath, VisitWithPath},
-};
+use swc_ecma_ast::*;
+use swc_ecma_visit::{fields::*, VisitAstPath, VisitWithPath, *};
 
 use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
 use crate::{

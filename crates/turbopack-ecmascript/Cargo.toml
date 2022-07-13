@@ -31,14 +31,11 @@ serde = "1.0.136"
 serde_regex = "1.1.0"
 serde_json = "1.0.81"
 swc_ecma_ast = "0.85.0"
+swc_ecma_parser = "0.112.0"
 
 [dependencies.swc_common]
 version = "0.24.0"
 features = ["concurrent"]
-
-[dependencies.swc_ecmascript]
-version = "0.181.0"
-features = ["parser", "utils", "visit"]
 
 [dependencies.swc_ecma_visit]
 version = "0.71.0"
