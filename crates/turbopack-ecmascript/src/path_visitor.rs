@@ -188,9 +188,12 @@ mod tests {
             let module_kind = AstParentKind::Module(ModuleField::Body(0));
             let module_item_kind = AstParentKind::ModuleItem(ModuleItemField::Stmt);
             let stmt_kind = AstParentKind::Stmt(StmtField::Expr);
-            let expr_kind = AstParentKind::Expr(ExprField::Seq);
+            let expr_stmt_kind = AstParentKind::ExprStmt(ExprStmtField::Expr);
+            let expr_kind = AstParentKind::Expr(ExprField::Paren);
+            let paren_kind = AstParentKind::ParenExpr(ParenExprField::Expr);
+            let expr2_kind = AstParentKind::Expr(ExprField::Seq);
             let seq_kind = AstParentKind::SeqExpr(SeqExprField::Exprs(1));
-            let expr2_kind = AstParentKind::Expr(ExprField::Lit);
+            let expr3_kind = AstParentKind::Expr(ExprField::Lit);
             let lit_kind = AstParentKind::Lit(LitField::Str);
 
             {
@@ -198,9 +201,12 @@ mod tests {
                     module_kind,
                     module_item_kind,
                     stmt_kind,
+                    expr_stmt_kind,
                     expr_kind,
-                    seq_kind,
+                    paren_kind,
                     expr2_kind,
+                    seq_kind,
+                    expr3_kind,
                     lit_kind,
                 ];
                 let bar_replacer = replacer("bar", "bar-success");
@@ -220,9 +226,12 @@ mod tests {
                     module_kind,
                     module_item_kind,
                     stmt_kind,
+                    expr_stmt_kind,
                     // expr_kind,
-                    seq_kind,
+                    paren_kind,
                     expr2_kind,
+                    seq_kind,
+                    expr3_kind,
                     lit_kind,
                 ];
                 let bar_replacer = replacer("bar", "bar-success");
