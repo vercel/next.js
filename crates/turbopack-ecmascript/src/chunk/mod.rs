@@ -252,9 +252,11 @@ impl EcmascriptChunkContextVc {
     #[turbo_tasks::function]
     pub async fn helper_id(self, name: &str, related_asset: Option<AssetVc>) -> Result<ModuleIdVc> {
         if let Some(related_asset) = related_asset {
-            Ok(ModuleId::String(
-                format!("{}/__/{}", related_asset.path().to_string().await?, name).into(),
-            )
+            Ok(ModuleId::String(format!(
+                "{}/__/{}",
+                related_asset.path().to_string().await?,
+                name
+            ))
             .into())
         } else {
             Ok(ModuleId::String(name.to_string()).into())
