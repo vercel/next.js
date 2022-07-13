@@ -76,7 +76,6 @@ const getCacheKey = () => {
 }
 
 const encoder = new TextEncoder()
-const loadedCss: Set<string> = new Set()
 
 let initialServerDataBuffer: string[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
@@ -235,7 +234,7 @@ function ServerRoot({
     if (process.env.NODE_ENV === 'development') {
       onFlightCssLoaded?.()
     }
-  }, [])
+  }, [onFlightCssLoaded])
   const response = useInitialServerResponse(cacheKey)
   const root = response.readRoot()
   return root
