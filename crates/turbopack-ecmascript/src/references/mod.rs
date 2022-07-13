@@ -20,6 +20,7 @@ use swc_common::{
     pass::AstNodePath,
     Span, Spanned, GLOBALS,
 };
+use swc_ecma_ast::ExportDefaultExpr;
 use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitWithPath};
 use swc_ecmascript::{
     ast::{
@@ -70,16 +71,23 @@ use super::{
     },
     ModuleAssetType,
 };
+use crate::{code_gen::CodeGenerateablesVc, references::esm::EsmExportVc, CodeGenerateableVc};
+#[turbo_tasks::value]
+pub struct AnalyseEcmascriptModuleResult {
+    pub references: AssetReferencesVc,
+    pub code_generation: CodeGenerateablesVc,
+}
 
 #[turbo_tasks::function]
-pub(crate) async fn module_references(
+pub(crate) async fn analyze_ecmascript_module(
     source: AssetVc,
     context: AssetContextVc,
     ty: Value<ModuleAssetType>,
     target: CompileTargetVc,
     node_native_bindings: bool,
-) -> Result<AssetReferencesVc> {
+) -> Result<AnalyseEcmascriptModuleResultVc> {
     let mut references = Vec::new();
+    let mut code_gen = Vec::new();
     let path = source.path();
 
     match &*find_context_file(path.parent(), "package.json").await? {
@@ -120,40 +128,34 @@ pub(crate) async fn module_references(
             if is_typescript {
                 if let Some(comments) = leading_comments.get(&pos) {
                     for comment in comments.iter() {
-                        match comment.kind {
-                            CommentKind::Line => {
-                                lazy_static! {
-                                    static ref REFERENCE_PATH: Regex = Regex::new(
-                                        r#"^/\s*<reference\s*path\s*=\s*["'](.+)["']\s*/>\s*$"#
-                                    )
-                                    .unwrap();
-                                    static ref REFERENCE_TYPES: Regex = Regex::new(
-                                        r#"^/\s*<reference\s*types\s*=\s*["'](.+)["']\s*/>\s*$"#
-                                    )
-                                    .unwrap();
-                                }
-                                let text = &comment.text;
-                                if let Some(m) = REFERENCE_PATH.captures(text) {
-                                    let path = &m[1];
-                                    references.push(
-                                        TsReferencePathAssetReferenceVc::new(
-                                            context,
-                                            path.to_string(),
-                                        )
-                                        .into(),
-                                    );
-                                } else if let Some(m) = REFERENCE_TYPES.captures(text) {
-                                    let types = &m[1];
-                                    references.push(
-                                        TsReferenceTypeAssetReferenceVc::new(
-                                            context,
-                                            types.to_string(),
-                                        )
-                                        .into(),
-                                    );
-                                }
+                        if let CommentKind::Line = comment.kind {
+                            lazy_static! {
+                                static ref REFERENCE_PATH: Regex = Regex::new(
+                                    r#"^/\s*<reference\s*path\s*=\s*["'](.+)["']\s*/>\s*$"#
+                                )
+                                .unwrap();
+                                static ref REFERENCE_TYPES: Regex = Regex::new(
+                                    r#"^/\s*<reference\s*types\s*=\s*["'](.+)["']\s*/>\s*$"#
+                                )
+                                .unwrap();
                             }
-                            _ => {}
+                            let text = &comment.text;
+                            if let Some(m) = REFERENCE_PATH.captures(text) {
+                                let path = &m[1];
+                                references.push(
+                                    TsReferencePathAssetReferenceVc::new(context, path.to_string())
+                                        .into(),
+                                );
+                            } else if let Some(m) = REFERENCE_TYPES.captures(text) {
+                                let types = &m[1];
+                                references.push(
+                                    TsReferenceTypeAssetReferenceVc::new(
+                                        context,
+                                        types.to_string(),
+                                    )
+                                    .into(),
+                                );
+                            }
                         }
                     }
                 }
@@ -188,7 +190,8 @@ pub(crate) async fn module_references(
                         let var_graph = create_graph(&program, eval_context);
 
                         // TODO migrate to effects
-                        let mut visitor = AssetReferencesVisitor::new(context, &mut references);
+                        let mut visitor =
+                            AssetReferencesVisitor::new(context, &mut references, &mut code_gen);
                         program.visit_with_path(&mut visitor, &mut Default::default());
 
                         (
@@ -993,7 +996,12 @@ pub(crate) async fn module_references(
         }
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
-    Ok(AssetReferencesVc::cell(references))
+    Ok(AnalyseEcmascriptModuleResultVc::cell(
+        AnalyseEcmascriptModuleResult {
+            references: AssetReferencesVc::cell(references),
+            code_generation: CodeGenerateablesVc::cell(code_gen),
+        },
+    ))
 }
 
 async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
@@ -1186,16 +1194,22 @@ struct AssetReferencesVisitor<'a> {
     context: AssetContextVc,
     old_analyser: StaticAnalyser,
     references: &'a mut Vec<AssetReferenceVc>,
+    code_gen: &'a mut Vec<CodeGenerateableVc>,
     webpack_runtime: Option<(String, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
 }
 impl<'a> AssetReferencesVisitor<'a> {
-    fn new(context: AssetContextVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
+    fn new(
+        context: AssetContextVc,
+        references: &'a mut Vec<AssetReferenceVc>,
+        code_gen: &'a mut Vec<CodeGenerateableVc>,
+    ) -> Self {
         Self {
             context,
             old_analyser: StaticAnalyser::default(),
             references,
+            code_gen,
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
@@ -1242,6 +1256,15 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                 .into(),
             );
         }
+        export.visit_children_with_path(self, ast_path);
+    }
+    fn visit_export_default_expr<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.code_gen
+            .push(EsmExportVc::new_default(AstPathVc::cell(as_parent_path(ast_path))).into());
         export.visit_children_with_path(self, ast_path);
     }
     fn visit_import_decl<'ast: 'r, 'r>(
