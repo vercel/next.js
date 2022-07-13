@@ -164,11 +164,14 @@ async function loadCss(cssChunkInfoJson: string) {
   return Promise.resolve()
 }
 
-function createLoadFlightCssStream() {
+function createLoadFlightCssStream(onFlightCssLoaded: () => void) {
+  const promises: Promise<any>[] = []
+  let cssFlushed = false
+
   const loadCssFromStreamData = (data: string) => {
     if (data.startsWith('CSS')) {
       const cssJson = data.slice(4).trim()
-      loadCss(cssJson)
+      promises.push(loadCss(cssJson))
     }
   }
 
@@ -182,6 +185,11 @@ function createLoadFlightCssStream() {
             loadCssFromStreamData(buf)
           } else {
             controller.enqueue(new TextEncoder().encode(buf))
+
+            if (!cssFlushed) {
+              cssFlushed = true
+              Promise.all(promises).then(() => onFlightCssLoaded())
+            }
           }
         }
       }
@@ -202,7 +210,10 @@ function createLoadFlightCssStream() {
   return loadCssFromFlight
 }
 
-function useInitialServerResponse(cacheKey: string) {
+function useInitialServerResponse(
+  cacheKey: string,
+  onFlightCssLoaded: () => void
+) {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -213,7 +224,7 @@ function useInitialServerResponse(cacheKey: string) {
   })
 
   const newResponse = createFromReadableStream(
-    readable.pipeThrough(createLoadFlightCssStream())
+    readable.pipeThrough(createLoadFlightCssStream(onFlightCssLoaded))
   )
 
   rscCache.set(cacheKey, newResponse)
@@ -230,12 +241,7 @@ function ServerRoot({
   React.useEffect(() => {
     rscCache.delete(cacheKey)
   })
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      onFlightCssLoaded?.()
-    }
-  }, [onFlightCssLoaded])
-  const response = useInitialServerResponse(cacheKey)
+  const response = useInitialServerResponse(cacheKey, onFlightCssLoaded)
   const root = response.readRoot()
   return root
 }
