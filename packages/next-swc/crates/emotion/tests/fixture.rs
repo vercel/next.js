@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use swc_common::{chain, comments::SingleThreadedComments, Mark};
 use swc_ecma_transforms_testing::test_fixture;
@@ -16,7 +16,7 @@ fn ts_syntax() -> Syntax {
     })
 }
 
-#[fixture("tests/fixture/*/input.tsx")]
+#[fixture("tests/fixture/**/input.tsx")]
 fn next_emotion_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.ts");
     test_fixture(
@@ -37,12 +37,16 @@ fn next_emotion_fixture(input: PathBuf) {
                 },
                 top_level_mark,
             );
+
+            let mut test_import_map = HashMap::default();
+
             chain!(
                 swc_emotion::emotion(
                     EmotionOptions {
                         enabled: Some(true),
                         sourcemap: Some(true),
                         auto_label: Some(true),
+                        import_map: Some(test_import_map),
                         ..Default::default()
                     },
                     &PathBuf::from("input.ts"),
