@@ -11,7 +11,7 @@ pub(crate) type ImportMapValue = AHashMap<String, Config>;
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Config {
-    canonicalImport: ImportItem,
+    canonical_import: ImportItem,
 }
 
 #[derive(Debug, Deserialize)]
