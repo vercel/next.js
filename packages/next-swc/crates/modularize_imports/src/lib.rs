@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use convert_case::{Case, Casing};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex};
@@ -175,6 +176,9 @@ pub fn modularize_imports(config: Config) -> impl Fold {
     folder
         .renderer
         .register_helper("camelCase", Box::new(helper_camel_case));
+    folder
+        .renderer
+        .register_helper("kebabCase", Box::new(helper_kebab_case));
     for (mut k, v) in config.packages {
         // XXX: Should we keep this hack?
         if !k.starts_with('^') && !k.ends_with('$') {
@@ -223,13 +227,21 @@ fn helper_camel_case(
 ) -> HelperResult {
     // get parameter from helper or throw an error
     let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
-    let value = if param.is_empty() || param.chars().next().unwrap().is_lowercase() {
-        Cow::Borrowed(param)
-    } else {
-        let mut it = param.chars();
-        let fst = it.next().unwrap();
-        Cow::Owned(fst.to_lowercase().chain(it).collect::<String>())
-    };
-    out.write(value.as_ref())?;
+
+    out.write(param.to_case(Case::Camel).as_ref())?;
+    Ok(())
+}
+
+fn helper_kebab_case(
+    h: &Helper<'_, '_>,
+    _: &Handlebars<'_>,
+    _: &Context,
+    _: &mut RenderContext<'_, '_>,
+    out: &mut dyn Output,
+) -> HelperResult {
+    // get parameter from helper or throw an error
+    let param = h.param(0).and_then(|v| v.value().as_str()).unwrap_or("");
+
+    out.write(param.to_case(Case::Kebab).as_ref())?;
     Ok(())
 }
