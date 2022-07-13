@@ -26,18 +26,18 @@ swc_emotion = {path="../emotion"}
 styled_components = {path="../styled_components"}
 styled_jsx = {path="../styled_jsx"}
 modularize_imports = {path="../modularize_imports"}
-swc = "0.205.0"
+swc = "0.206.0"
 swc_atoms = "0.2.13"
-swc_common = { version = "0.23.0", features = ["concurrent", "sourcemap"] }
-swc_ecma_loader = { version = "0.35.0", features = ["node", "lru"] }
-swc_ecmascript = { version = "0.180.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_plugin_runner = { version = "0.64.0", optional = true, default-features = false }
+swc_common = { version = "0.24.0", features = ["concurrent", "sourcemap"] }
+swc_ecma_loader = { version = "0.36.0", features = ["node", "lru"] }
+swc_ecmascript = { version = "0.181.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_plugin_runner = { version = "0.65.0", optional = true, default-features = false }
 swc_cached = "0.1.1"
 tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 wasmer = { version = "2.3.0", optional = true, default-features = false }
 wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.99.0"
-testing = "0.25.0"
+swc_ecma_transforms_testing = "0.100.0"
+testing = "0.26.0"
 walkdir = "2.3.2"
