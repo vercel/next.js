@@ -363,7 +363,9 @@ describe('app dir - react server components', () => {
     )
 
     // Should end up with "next_streaming_data".
-    const browser = await webdriver(next.url, '/partial-hydration')
+    const browser = await webdriver(next.url, '/partial-hydration', {
+      waitHydration: false,
+    })
     const content = await browser.eval(`window.document.body.innerText`)
     expect(content).toContain('next_streaming_data')
 
