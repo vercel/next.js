@@ -439,15 +439,6 @@ export async function ncc_cssnano_simple(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['etag'] = 'next/dist/compiled/etag'
-export async function ncc_etag(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('etag')))
-    .ncc({ packageName: 'etag', externals })
-    .target('compiled/etag')
-}
-
-// eslint-disable-next-line camelcase
 externals['p-limit'] = 'next/dist/compiled/p-limit'
 export async function ncc_p_limit(task, opts) {
   await task
@@ -1697,7 +1688,6 @@ export async function ncc(task, opts) {
         'ncc_watchpack',
         'ncc_chalk',
         'ncc_napirs_triples',
-        'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',

@@ -444,7 +444,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -497,7 +496,6 @@ importers:
       devalue: 2.0.1
       domain-browser: 4.19.0
       edge-runtime: 1.1.0-beta.11
-      etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -636,7 +634,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -688,7 +685,6 @@ importers:
       devalue: 2.0.1
       domain-browser: 4.19.0
       edge-runtime: 1.1.0-beta.11
-      etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -5573,12 +5569,6 @@ packages:
     resolution: {integrity: sha512-CuPgU6f3eT/XgKKPqKd/gLZV1Xmvf1a2R5POBOGQa6uv82xpls89HU5zKeVoyR8XzHd1RGNOlQlvUe3CFkjWNQ==}
     dev: true
 
-  /@types/etag/1.8.0:
-    resolution: {integrity: sha512-EdSN0x+Y0/lBv7YAb8IU4Jgm6DWM+Bqtz7o5qozl96fzaqdqbdfHS5qjdpFeIv7xQ8jSLyjMMNShgYtMajEHyQ==}
-    dependencies:
-      '@types/node': 17.0.21
-    dev: true
-
   /@types/events/3.0.0:
     resolution: {integrity: sha512-EaObqwIvayI5a8dCzhFrjKzVwKLxjoG9T6Ppd5CEo07LRKfQ8Yokw54r5+Wq7FaBQ+yXRvQAYPrHwya1/UFt9g==}
     dev: true
@@ -7778,7 +7768,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1
+      promise-inflight: 1.0.1_bluebird@3.7.2
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -18305,6 +18295,17 @@ packages:
         optional: true
     dev: true
 
+  /promise-inflight/1.0.1_bluebird@3.7.2:
+    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
+    peerDependencies:
+      bluebird: '*'
+    peerDependenciesMeta:
+      bluebird:
+        optional: true
+    dependencies:
+      bluebird: 3.7.2
+    dev: true
+
   /promise-polyfill/6.1.0:
     resolution: {integrity: sha512-g0LWaH0gFsxovsU7R5LrrhHhWAWiHRnh1GPrhXnPgYsDkIqjRYUYSZEsej/wtleDrz5xVSIDbeKfidztp2XHFQ==}
     dev: true
@@ -20960,7 +20961,7 @@ packages:
       worker-farm: 1.7.0
     dev: true
 
-  /terser-webpack-plugin/5.2.4_webpack@5.73.0:
+  /terser-webpack-plugin/5.2.4:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
     engines: {node: '>= 10.13.0'}
     peerDependencies:
@@ -20982,7 +20983,6 @@ packages:
       serialize-javascript: 6.0.0
       source-map: 0.6.1
       terser: 5.14.1
-      webpack: 5.73.0
     dev: true
 
   /terser/4.8.0:
@@ -21339,7 +21339,7 @@ packages:
       typescript: 4.6.3
 
   /tty-browserify/0.0.0:
-    resolution: {integrity: sha1-oVe6QC2iTpv5V/mqadUk7tQpAaY=}
+    resolution: {integrity: sha512-JVa5ijo+j/sOoHGjw0sxw734b1LhBkQ3bvUGNdxnVXDCX81Yx7TFgnZygxrIIWn23hbfTaMYLwRmAxFyDuFmIw==}
     dev: true
 
   /tty-browserify/0.0.1:
@@ -21921,7 +21921,7 @@ packages:
     dev: true
 
   /unset-value/1.0.0:
-    resolution: {integrity: sha1-g3aHP30jNRef+x5vw6jtDfyKtVk=}
+    resolution: {integrity: sha512-PcA2tsuGSF9cnySLHTLSh2qrQiJ70mn+r+Glzxv2TWZblxsxCC52BDlZoPCsz7STd9pN7EZetkWZBAvk4cgZdQ==}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:
@@ -22001,7 +22001,7 @@ packages:
       punycode: 2.1.1
 
   /urix/0.1.0:
-    resolution: {integrity: sha1-2pN/emLiH+wf0Y1Js1wpNQZ6bHI=}
+    resolution: {integrity: sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg==}
     deprecated: Please see https://github.com/lydell/urix#deprecated
     requiresBuild: true
 
@@ -22047,7 +22047,7 @@ packages:
     requiresBuild: true
 
   /util-deprecate/1.0.2:
-    resolution: {integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=}
+    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
   /util-promisify/2.1.0:
@@ -22422,7 +22422,7 @@ packages:
       neo-async: 2.6.2
       schema-utils: 3.1.1
       tapable: 2.2.0
-      terser-webpack-plugin: 5.2.4_webpack@5.73.0
+      terser-webpack-plugin: 5.2.4
       watchpack: 2.4.0
       webpack-sources: 3.2.3
     transitivePeerDependencies:
