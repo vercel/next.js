@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use fxhash::FxHashMap;
+use import_map::ImportMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -82,6 +83,7 @@ pub struct EmotionOptions {
     pub sourcemap: Option<bool>,
     pub auto_label: Option<bool>,
     pub label_format: Option<String>,
+    pub import_map: Option<ImportMap>,
 }
 
 impl Default for EmotionOptions {
@@ -91,6 +93,7 @@ impl Default for EmotionOptions {
             sourcemap: Some(true),
             auto_label: Some(true),
             label_format: Some("[local]".to_owned()),
+            import_map: None,
         }
     }
 }
@@ -162,16 +165,23 @@ pub struct EmotionTransformer<C: Comments> {
     current_context: Option<String>,
     // skip `css` transformation if it in JSX Element/Attribute
     in_jsx_element: bool,
+
+    registered_imports: Vec<EmotionModuleConfig>,
 }
 
 #[swc_trace]
 impl<C: Comments> EmotionTransformer<C> {
     pub fn new(
-        options: EmotionOptions,
+        mut options: EmotionOptions,
         path: &Path,
         cm: Arc<SourceMapperDyn>,
         comments: C,
     ) -> Self {
+        let registered_imports = self::import_map::expand_import_map(
+            options.import_map.take().unwrap_or_default(),
+            EMOTION_OFFICIAL_LIBRARIES.to_vec(),
+        );
+
         EmotionTransformer {
             options,
             filepath_hash: None,
@@ -187,6 +197,7 @@ impl<C: Comments> EmotionTransformer<C> {
             emotion_target_class_name_count: 0,
             current_context: None,
             in_jsx_element: false,
+            registered_imports,
         }
     }
 
@@ -261,7 +272,7 @@ impl<C: Comments> EmotionTransformer<C> {
     //    import { css } from '@emotion/react'
     //    import * as emotionCss from '@emotion/react'
     fn generate_import_info(&mut self, expr: &ImportDecl) {
-        for c in EMOTION_OFFICIAL_LIBRARIES.iter() {
+        for c in self.registered_imports.iter() {
             if expr.src.value == c.module_name {
                 for specifier in expr.specifiers.iter() {
                     match specifier {
