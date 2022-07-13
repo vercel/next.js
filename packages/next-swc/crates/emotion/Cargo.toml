@@ -27,3 +27,4 @@ tracing = { version = "0.1.32", features = ["release_max_level_info"] }
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.100.0"
 testing = "0.26.0"
+serde_json = "1"

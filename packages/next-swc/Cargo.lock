@@ -3732,6 +3732,7 @@ dependencies = [
  "radix_fmt",
  "regex",
  "serde",
+ "serde_json",
  "sourcemap",
  "swc_atoms",
  "swc_common",
