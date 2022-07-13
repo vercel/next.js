@@ -39,9 +39,9 @@ impl Asset for DevHtmlAsset {
         }
 
         let html = format!(
-            "<!DOCTYPE html>\n<html>\n<head>{}</head>\n<body>{}</body>\n</html>",
-            stylesheets.join(""),
-            scripts.join(""),
+            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n</body>\n</html>",
+            stylesheets.join("\n"),
+            scripts.join("\n"),
         );
 
         Ok(FileContent::Content(File::from_source(html)).into())

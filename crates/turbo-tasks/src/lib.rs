@@ -1,6 +1,5 @@
 #![feature(backtrace)]
 #![feature(trivial_bounds)]
-#![feature(into_future)]
 #![feature(min_specialization)]
 #![feature(try_trait_v2)]
 #![feature(hash_drain_filter)]
@@ -47,7 +46,7 @@ pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
 pub use raw_vc::{
     RawVc, RawVcReadAndMapResult, RawVcReadResult, ReadAndMapRawVcFuture, ReadRawVcFuture,
-    ResolveTraitError,
+    ResolveTypeError,
 };
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};

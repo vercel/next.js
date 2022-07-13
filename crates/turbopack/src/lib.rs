@@ -1,7 +1,6 @@
 #![feature(box_patterns)]
 #![feature(box_syntax)]
 #![feature(trivial_bounds)]
-#![feature(into_future)]
 #![feature(min_specialization)]
 #![feature(map_try_insert)]
 #![feature(option_get_or_insert_default)]

@@ -8,7 +8,10 @@ use clap::Parser;
 use turbo_tasks::{TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
-use turbopack::{ecmascript::target::CompileTarget, GraphOptionsVc, ModuleAssetContextVc};
+use turbopack::{
+    ecmascript::{target::CompileTarget, ModuleAssetVc as EcmascriptModuleAssetVc},
+    GraphOptionsVc, ModuleAssetContextVc,
+};
 use turbopack_core::{
     chunk::{
         dev::{DevChunkingContext, DevChunkingContextVc},
@@ -76,16 +79,31 @@ async fn main() {
                 root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
             }
             .into();
-            let chunk_group = ChunkGroupVc::from_asset(
-                ChunkableAssetVc::cast_from(module),
-                chunking_context.into(),
-            );
-            let html = DevHtmlAsset {
-                path: FileSystemPathVc::new(dev_server_fs, "index.html"),
-                chunk_group,
-            }
-            .into();
-            let lazy_asset = LazyAssetVc::new(html).into();
+            let entry_asset =
+                if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
+                    let chunk = ecmascript.as_evaluated_chunk(chunking_context.into());
+                    let chunk_group = ChunkGroupVc::from_chunk(chunk);
+                    DevHtmlAsset {
+                        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
+                        chunk_group,
+                    }
+                    .into()
+                } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
+                    let chunk = chunkable.as_chunk(chunking_context.into());
+                    let chunk_group = ChunkGroupVc::from_chunk(chunk);
+                    DevHtmlAsset {
+                        path: FileSystemPathVc::new(dev_server_fs, "index.html"),
+                        chunk_group,
+                    }
+                    .into()
+                } else {
+                    // TODO convert into a serve-able asset
+                    return Err(anyhow!(
+                        "Entry module is not chunkable, so it can't be used to bootstrap the \
+                         application"
+                    ));
+                };
+            let lazy_asset = LazyAssetVc::new(entry_asset).into();
 
             let server = DevServerVc::new(
                 FileSystemPathVc::new(dev_server_fs, ""),
