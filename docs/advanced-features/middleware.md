@@ -86,6 +86,8 @@ export const config = {
 }
 ```
 
+> **Note:** The `matcher` values need to be constants so they can be analyzed at build-time. Non-static values will be ignored.
+
 ### Conditional Statements
 
 ```typescript
