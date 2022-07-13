@@ -86,7 +86,7 @@ export const config = {
 }
 ```
 
-> **Note:** The `matcher` values need to be constants so they can be analyzed at build-time. Non-static values will be ignored.
+> **Note:** The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
 
 ### Conditional Statements
 
