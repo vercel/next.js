@@ -154,7 +154,7 @@ pub struct EmotionTransformer<C: Comments> {
     filepath: PathBuf,
     dir: Option<String>,
     filename: Option<String>,
-    cm: Arc<SourceMap>,
+    cm: Arc<SourceMapperDyn>,
     comments: C,
     import_packages: FxHashMap<Id, PackageMeta>,
     emotion_target_class_name_count: usize,
@@ -165,7 +165,12 @@ pub struct EmotionTransformer<C: Comments> {
 
 #[swc_trace]
 impl<C: Comments> EmotionTransformer<C> {
-    pub fn new(options: EmotionOptions, path: &Path, cm: Arc<SourceMap>, comments: C) -> Self {
+    pub fn new(
+        options: EmotionOptions,
+        path: &Path,
+        cm: Arc<SourceMapperDyn>,
+        comments: C,
+    ) -> Self {
         EmotionTransformer {
             options,
             filepath_hash: None,
