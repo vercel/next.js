@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{Expr, Ident};
@@ -19,15 +17,12 @@ use turbopack_core::{
 use super::AstPathVc;
 use crate::{
     chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc},
-    code_gen::{
-        CodeGeneration, CodeGenerationReference, CodeGenerationReferenceVc, CodeGenerationVc,
-        VisitorFactory,
-    },
-    magic_identifier,
+    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    create_visitor, magic_identifier,
     resolve::esm_resolve,
 };
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerationReference)]
+#[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerateable)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub context: AssetContextVc,
@@ -77,7 +72,7 @@ fn path_to(path: &[AstParentKind], f: impl FnMut(&AstParentKind) -> bool) -> Vec
 }
 
 #[turbo_tasks::value_impl]
-impl CodeGenerationReference for EsmAssetReference {
+impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
@@ -88,48 +83,24 @@ impl CodeGenerationReference for EsmAssetReference {
         let mut visitors = Vec::new();
         for asset in assets.await?.iter() {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                let id = chunk_context.id(placeable).await?.into_arc();
+                let id = chunk_context.id(placeable).await?;
                 let path = asset.path().to_string().await?;
 
-                struct EsmAssetReferenceVistor {
-                    id: Arc<ModuleId>,
-                    path: String,
-                }
-
-                impl VisitorFactory for Box<EsmAssetReferenceVistor> {
-                    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
-                        box &**self
-                    }
-                }
-
-                impl<'a> VisitMut for &'a EsmAssetReferenceVistor {
-                    fn visit_mut_module_item(&mut self, module_item: &mut ModuleItem) {
-                        // TODO use id to generation `__turbopack_import__(id)`
-                        let stmt = quote!(
-                            "var $name = __turbopack_import__($id);" as Stmt,
-                            name = Ident::new(
-                                magic_identifier::encode(&format!("imported module {}", self.path))
-                                    .into(),
-                                DUMMY_SP
-                            ),
-                            id: Expr = Expr::Lit(match &*self.id {
-                                ModuleId::String(s) => s.clone().into(),
-                                ModuleId::Number(n) => (*n as f64).into(),
-                            })
-                        );
-                        *module_item = ModuleItem::Stmt(stmt);
-                    }
-                }
-
-                visitors.push((
-                    path_to(&self.path.await?, |n| {
-                        matches!(n, AstParentKind::ModuleItem(_))
-                    }),
-                    box box EsmAssetReferenceVistor {
-                        id,
-                        path: path.clone(),
-                    } as Box<dyn VisitorFactory>,
-                ))
+                visitors.push(create_visitor!((&self.path.await?), visit_mut_module_item(module_item: &mut ModuleItem) {
+                    let stmt = quote!(
+                        "var $name = __turbopack_import__($id);" as Stmt,
+                        name = Ident::new(
+                            magic_identifier::encode(&format!("imported module {}", path))
+                                .into(),
+                            DUMMY_SP
+                        ),
+                        id: Expr = Expr::Lit(match &*id {
+                            ModuleId::String(s) => s.clone().into(),
+                            ModuleId::Number(n) => (*n as f64).into(),
+                        })
+                    );
+                    *module_item = ModuleItem::Stmt(stmt);
+                }));
             }
         }
         Ok(CodeGeneration { visitors }.into())
@@ -141,17 +112,17 @@ impl CodeGenerationReference for EsmAssetReference {
 pub struct EsmAsyncAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
-    pub span: AstPathVc,
+    pub path: AstPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmAsyncAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc, span: AstPathVc) -> Self {
+    pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(EsmAsyncAssetReference {
             context,
             request,
-            span,
+            path,
         })
     }
 }
@@ -189,7 +160,7 @@ impl AsyncLoadableReference for EsmAsyncAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl CodeGenerationReference for EsmAsyncAssetReference {
+impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
@@ -197,5 +168,42 @@ impl CodeGenerationReference for EsmAsyncAssetReference {
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         Ok(CodeGeneration { visitors: todo!() }.into())
+    }
+}
+
+#[turbo_tasks::value(CodeGenerateable)]
+#[derive(Hash, Debug)]
+pub struct EsmExport {
+    pub name: Option<String>,
+    pub path: AstPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmExportVc {
+    #[turbo_tasks::function]
+    pub fn new_default(path: AstPathVc) -> Self {
+        Self::cell(EsmExport { name: None, path })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CodeGenerateable for EsmExport {
+    #[turbo_tasks::function]
+    async fn code_generation(
+        &self,
+        _chunk_context: EcmascriptChunkContextVc,
+        _context: ChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
+        let mut visitors = Vec::new();
+
+        let path = &self.path.await?;
+        visitors.push(
+            create_visitor!(path, visit_mut_module_item(module_item: &mut ModuleItem) {
+                let stmt = quote!(";" as Stmt);
+                *module_item = ModuleItem::Stmt(stmt);
+            }),
+        );
+
+        Ok(CodeGeneration { visitors }.into())
     }
 }

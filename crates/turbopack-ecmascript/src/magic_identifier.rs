@@ -14,7 +14,7 @@ pub fn encode(content: &str) -> String {
             } else {
                 r.push(c);
             }
-        } else if c == '_' && (!r.ends_with("_") || hex_mode) {
+        } else if c == '_' && (!r.ends_with('_') || hex_mode) {
             if hex_mode {
                 r.push('$');
                 hex_mode = false;

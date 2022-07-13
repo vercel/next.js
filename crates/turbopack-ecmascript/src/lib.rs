@@ -24,7 +24,7 @@ use anyhow::Result;
 use chunk::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
 };
-use code_gen::CodeGenerationReferenceVc;
+use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
@@ -42,10 +42,13 @@ use turbopack_core::{
     reference::AssetReferencesVc,
 };
 
-use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc};
+use self::{
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc},
+    references::{AnalyseEcmascriptModuleResult, AnalyseEcmascriptModuleResultVc},
+};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
-    references::module_references,
+    references::analyze_ecmascript_module,
 };
 
 #[turbo_tasks::value(serialization: auto_for_input)]
@@ -89,6 +92,18 @@ impl ModuleAssetVc {
     pub fn as_evaluated_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
         EcmascriptChunkVc::new_evaluate(context, self_vc.into()).into()
     }
+
+    #[turbo_tasks::function]
+    pub async fn analyze(self) -> Result<AnalyseEcmascriptModuleResultVc> {
+        let this = self.await?;
+        Ok(analyze_ecmascript_module(
+            this.source,
+            this.context,
+            Value::new(this.ty),
+            this.target,
+            this.node_native_bindings,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -102,14 +117,8 @@ impl Asset for ModuleAsset {
         self.source.content()
     }
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        Ok(module_references(
-            self.source,
-            self.context,
-            Value::new(self.ty),
-            self.target,
-            self.node_native_bindings,
-        ))
+    async fn references(self_vc: ModuleAssetVc) -> Result<AssetReferencesVc> {
+        Ok(self_vc.analyze().await?.references)
     }
 }
 
@@ -161,23 +170,29 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         chunk_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        let references = self.module.references();
-        let mut code_generation = Vec::new();
+        let AnalyseEcmascriptModuleResult {
+            references,
+            code_generation,
+        } = &*self.module.analyze().await?;
+        let mut code_gens = Vec::new();
         for r in references.await?.iter() {
-            if let Some(code_gen) = CodeGenerationReferenceVc::resolve_from(r).await? {
-                code_generation.push(
+            if let Some(code_gen) = CodeGenerateableVc::resolve_from(r).await? {
+                code_gens.push(
                     code_gen
                         .code_generation(chunk_context, context)
                         .into_future(),
                 );
             }
         }
+        for c in code_generation.await?.iter() {
+            code_gens.push(c.code_generation(chunk_context, context).into_future());
+        }
         // need to keep that around to allow references into that
-        let code_generation = try_join_all(code_generation.into_iter()).await?;
-        let code_generation = code_generation.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        // TOOD use interval tree with references into "code_generation"
+        let code_gens = try_join_all(code_gens.into_iter()).await?;
+        let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        // TOOD use interval tree with references into "code_gens"
         let mut visitors = Vec::new();
-        for code_gen in code_generation {
+        for code_gen in code_gens {
             for (path, visitor) in code_gen.visitors.iter() {
                 visitors.push((path, &**visitor));
             }

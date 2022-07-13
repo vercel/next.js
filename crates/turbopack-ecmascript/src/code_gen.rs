@@ -17,10 +17,41 @@ pub trait VisitorFactory: Send + Sync {
 }
 
 #[turbo_tasks::value_trait]
-pub trait CodeGenerationReference {
+pub trait CodeGenerateable {
     fn code_generation(
         &self,
         chunk_context: EcmascriptChunkContextVc,
         context: ChunkingContextVc,
     ) -> CodeGenerationVc;
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct CodeGenerateables(Vec<CodeGenerateableVc>);
+
+#[macro_export]
+macro_rules! create_visitor {
+    ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
+        struct Visitor<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> {
+           $name: T,
+        }
+
+        impl<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory for Box<Visitor<T>> {
+            fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+                box &**self
+            }
+        }
+
+        impl<'a, T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> swc_ecma_visit::VisitMut for &'a Visitor<T> {
+            fn $name(&mut self, $arg: &mut swc_ecma_ast::$ty) {
+                (self.$name)($arg);
+            }
+        }
+
+        (
+            path_to(&$ast_path, |n| matches!(n, swc_ecma_visit::AstParentKind::$ty(_))),
+            box box Visitor {
+                $name: move |$arg: &mut swc_ecma_ast::$ty| $b,
+            } as Box<dyn $crate::code_gen::VisitorFactory>,
+        )
+    }};
 }
