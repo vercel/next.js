@@ -715,6 +715,10 @@
         {
           "title": "invalid-next-config",
           "path": "/errors/invalid-next-config.md"
+        },
+        {
+          "title": "middleware-parse-user-agent",
+          "path": "/errors/middleware-parse-user-agent.md"
         }
       ]
     }
