@@ -8722,7 +8722,7 @@
         function notifyOnIssue(e, p) {
           const d = { ...o, issue_number: m }
           if (i) {
-            a.info('Skipping comment because of DEBUG mode')
+            a.info('Skipping comment/label because we are in DEBUG mode')
             a.info(JSON.stringify({ label: e, comment: p }, null, 2))
             return
           }

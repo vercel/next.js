@@ -44,7 +44,7 @@ async function run() {
       const issueCommon = { ...repo, issue_number: issueNumber }
 
       if (debug) {
-        core.info('Skipping comment because of DEBUG mode')
+        core.info('Skipping comment/label because we are in DEBUG mode')
         core.info(JSON.stringify({ label, comment }, null, 2))
         return
       }
