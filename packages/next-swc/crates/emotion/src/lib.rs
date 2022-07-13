@@ -32,6 +32,14 @@ mod import_map;
 static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(|| {
     vec![
         EmotionModuleConfig {
+            module_name: "@emotion/css".into(),
+            exported_names: vec![ExportItem {
+                name: "css".to_owned(),
+                kind: ExprKind::Css,
+            }],
+            default_export: Some(ExprKind::Css),
+        },
+        EmotionModuleConfig {
             module_name: "@emotion/styled".into(),
             exported_names: vec![],
             default_export: Some(ExprKind::Styled),
