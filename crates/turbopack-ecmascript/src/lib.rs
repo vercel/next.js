@@ -5,8 +5,11 @@
 
 pub mod analyzer;
 pub mod chunk;
+pub mod code_gen;
 mod errors;
+pub mod magic_identifier;
 pub(crate) mod parse;
+mod path_visitor;
 pub(crate) mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
@@ -15,8 +18,22 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
+use std::future::IntoFuture;
+
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use chunk::{
+    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkVc,
+};
+use code_gen::CodeGenerationReferenceVc;
+use parse::{parse, ParseResult};
+use path_visitor::ApplyVisitors;
+use swc_common::GLOBALS;
+use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
+use swc_ecma_visit::VisitMutWithPath;
+use target::CompileTargetVc;
+use turbo_tasks::{
+    primitives::StringVc, util::try_join_all, Value, ValueToString, ValueToStringVc,
+};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -27,12 +44,8 @@ use turbopack_core::{
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc};
 use crate::{
-    chunk::{
-        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    },
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
     references::module_references,
-    target::CompileTargetVc,
 };
 
 #[turbo_tasks::value(serialization: auto_for_input)]
@@ -67,7 +80,7 @@ impl ModuleAssetVc {
             source,
             context,
             ty: ty.into_value(),
-            target: target,
+            target,
             node_native_bindings,
         })
     }
@@ -146,23 +159,77 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content(
         &self,
         chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
+        context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        // TODO: code generation
-        // Some(placeable) =
-        //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
-        // let id = context.id(placeable)
-        // generate:
-        // __turbopack_require__({id}) => exports / esm namespace object
-        // __turbopack_xxx__
-        Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "console.log(\"todo {}\");",
-                self.module.path().to_string().await?
-            ),
-            id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+        let references = self.module.references();
+        let mut code_generation = Vec::new();
+        for r in references.await?.iter() {
+            if let Some(code_gen) = CodeGenerationReferenceVc::resolve_from(r).await? {
+                code_generation.push(
+                    code_gen
+                        .code_generation(chunk_context, context)
+                        .into_future(),
+                );
+            }
         }
-        .into())
+        // need to keep that around to allow references into that
+        let code_generation = try_join_all(code_generation.into_iter()).await?;
+        let code_generation = code_generation.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        // TOOD use interval tree with references into "code_generation"
+        let mut visitors = Vec::new();
+        for code_gen in code_generation {
+            for (path, visitor) in code_gen.visitors.iter() {
+                visitors.push((path, &**visitor));
+            }
+        }
+
+        let module = self.module.await?;
+        let parsed = parse(module.source, Value::new(module.ty)).await?;
+
+        if let ParseResult::Ok {
+            program,
+            source_map,
+            globals,
+            ..
+        } = &*parsed
+        {
+            let mut program = program.clone();
+
+            GLOBALS.set(&globals, || {
+                program.visit_mut_with_path(
+                    &mut ApplyVisitors::new(visitors),
+                    &mut Default::default(),
+                );
+            });
+
+            let mut bytes =
+                format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
+
+            let mut emitter = Emitter {
+                cfg: swc_ecma_codegen::Config {
+                    ..Default::default()
+                },
+                cm: source_map.clone(),
+                comments: None,
+                wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, None),
+            };
+
+            emitter.emit_program(&program)?;
+
+            // TODO SWC magic to apply all visitors from the interval tree
+            // to the "program" and generate code for that.
+            Ok(EcmascriptChunkItemContent {
+                inner_code: String::from_utf8(bytes)?,
+                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+            }
+            .into())
+        } else {
+            Ok(EcmascriptChunkItemContent {
+                inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
+                id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+            }
+            .into())
+        }
     }
 }
 

@@ -45,13 +45,17 @@ impl<T: Any + Send + Sync> RawVcReadResult<T> {
             func,
         }
     }
+
+    pub fn into_arc(self) -> Arc<T> {
+        self.inner
+    }
 }
 
 impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &*self.inner
+        &self.inner
     }
 }
 

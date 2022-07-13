@@ -1,5 +1,11 @@
+pub mod cjs;
+pub mod esm;
+pub mod node;
+pub mod raw;
+pub mod typescript;
+
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -11,39 +17,38 @@ use regex::Regex;
 use swc_common::{
     comments::CommentKind,
     errors::{DiagnosticId, Handler, HANDLER},
+    pass::AstNodePath,
     Span, Spanned, GLOBALS,
 };
+use swc_ecma_visit::{AstParentKind, AstParentNodeRef, VisitWithPath};
 use swc_ecmascript::{
     ast::{
         CallExpr, Callee, ComputedPropName, ExportAll, Expr, ExprOrSpread, ImportDecl,
         ImportSpecifier, Lit, MemberProp, ModuleExportName, NamedExport, VarDeclarator,
     },
-    visit::{self, Visit, VisitWith},
+    visit::VisitAstPath,
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    util::try_join_all,
-    Value,
-};
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks::{util::try_join_all, Value};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
-    chunk::{
-        AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
-        ChunkableAssetReferenceVc,
-    },
     context::AssetContextVc,
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    reference::{AssetReferenceVc, AssetReferencesVc},
     resolve::{
-        find_context_file,
-        parse::RequestVc,
-        pattern::{Pattern, PatternVc},
-        resolve, resolve_raw, AffectingResolvingAssetReferenceVc, FindContextFileResult,
-        ResolveResult, ResolveResultVc,
+        find_context_file, parse::RequestVc, pattern::Pattern, resolve,
+        AffectingResolvingAssetReferenceVc, FindContextFileResult, ResolveResult,
     },
-    source_asset::SourceAssetVc,
 };
 
+use self::{
+    cjs::CjsAssetReferenceVc,
+    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc},
+    node::{DirAssetReferenceVc, PackageJsonReferenceVc},
+    raw::SourceAssetReferenceVc,
+    typescript::{
+        TsConfigReferenceVc, TsReferencePathAssetReferenceVc, TsReferenceTypeAssetReferenceVc,
+    },
+};
 use super::{
     analyzer::{
         builtin::replace_builtin,
@@ -55,10 +60,9 @@ use super::{
     },
     errors,
     parse::{parse, Buffer, ParseResult},
-    resolve::{apply_cjs_specific_options, cjs_resolve, esm_resolve},
+    resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     target::CompileTargetVc,
-    typescript::{resolve::type_resolve, TsConfigModuleAssetVc},
     utils::js_value_to_pattern,
     webpack::{
         parse::{webpack_runtime, WebpackRuntime, WebpackRuntimeVc},
@@ -185,7 +189,7 @@ pub(crate) async fn module_references(
 
                         // TODO migrate to effects
                         let mut visitor = AssetReferencesVisitor::new(context, &mut references);
-                        program.visit_with(&mut visitor);
+                        program.visit_with_path(&mut visitor, &mut Default::default());
 
                         (
                             var_graph,
@@ -206,26 +210,20 @@ pub(crate) async fn module_references(
                         ignore_effect_span = Some(span);
                         references.push(
                             WebpackRuntimeAssetReference {
-                                context: context,
-                                request: request,
-                                runtime: runtime,
+                                context,
+                                request,
+                                runtime,
                             }
                             .into(),
                         );
                         if webpack_entry {
-                            references.push(
-                                WebpackEntryAssetReference {
-                                    source: source,
-                                    runtime: runtime,
-                                }
-                                .into(),
-                            );
+                            references.push(WebpackEntryAssetReference { source, runtime }.into());
                         }
                         for chunk in webpack_chunks {
                             references.push(
                                 WebpackChunkAssetReference {
                                     chunk_id: chunk,
-                                    runtime: runtime,
+                                    runtime,
                                 }
                                 .into(),
                             );
@@ -243,7 +241,8 @@ pub(crate) async fn module_references(
                 handler: &'a Handler,
                 source: AssetVc,
                 context: AssetContextVc,
-                span: &'a Span,
+                ast_path: &'a Vec<AstParentKind>,
+                span: Span,
                 func: &'a JsValue,
                 this: &'a JsValue,
                 args: &'a Vec<JsValue>,
@@ -257,6 +256,7 @@ pub(crate) async fn module_references(
                     handler,
                     source,
                     context,
+                    ast_path,
                     span,
                     func,
                     this,
@@ -276,7 +276,8 @@ pub(crate) async fn module_references(
                 handler: &Handler,
                 source: AssetVc,
                 context: AssetContextVc,
-                span: &Span,
+                ast_path: &Vec<AstParentKind>,
+                span: Span,
                 func: &JsValue,
                 this: &JsValue,
                 args: &Vec<JsValue>,
@@ -297,6 +298,7 @@ pub(crate) async fn module_references(
                                 handler,
                                 source,
                                 context,
+                                ast_path,
                                 span,
                                 alt,
                                 this,
@@ -327,6 +329,7 @@ pub(crate) async fn module_references(
                                             handler,
                                             source,
                                             context,
+                                            ast_path,
                                             span,
                                             &callee,
                                             this,
@@ -350,7 +353,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("import({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT
@@ -362,6 +365,7 @@ pub(crate) async fn module_references(
                                 EsmAsyncAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
+                                    AstPathVc::cell(ast_path.clone()),
                                 )
                                 .into(),
                             );
@@ -369,7 +373,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!("import({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
@@ -383,7 +387,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("require({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -401,7 +405,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!("require({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
@@ -416,7 +420,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("require.resolve({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE
@@ -435,7 +439,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require.resolve({args}) is not statically analyse-able{hints}",
                             ),
@@ -451,7 +455,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("fs.{name}({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::FS_METHOD
@@ -464,7 +468,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!("fs.{name}({args}) is not statically analyse-able{hints}",),
                             DiagnosticId::Error(
                                 errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
@@ -488,7 +492,7 @@ pub(crate) async fn module_references(
                         if !pat.has_constant_parts() {
                             let (args, hints) = explain_args(&linked_args().await?);
                             handler.span_warn_with_code(
-                                *span,
+                                span,
                                 &format!("path.resolve({args}) is very dynamic{hints}",),
                                 DiagnosticId::Lint(
                                     errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
@@ -509,7 +513,7 @@ pub(crate) async fn module_references(
                         if !pat.has_constant_parts() {
                             let (args, hints) = explain_args(&linked_args().await?);
                             handler.span_warn_with_code(
-                                *span,
+                                span,
                                 &format!("path.join({args}) is very dynamic{hints}",),
                                 DiagnosticId::Lint(
                                     errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
@@ -545,7 +549,7 @@ pub(crate) async fn module_references(
                             if show_dynamic_warning || !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("child_process.{name}({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
@@ -558,7 +562,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "child_process.{name}({args}) is not statically \
                                  analyse-able{hints}",
@@ -576,7 +580,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&linked_args().await?);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("child_process.fork({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN
@@ -595,7 +599,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&linked_args().await?);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "child_process.fork({args}) is not statically analyse-able{hints}",
                             ),
@@ -615,7 +619,7 @@ pub(crate) async fn module_references(
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&linked_args().await?);
                                 handler.span_warn_with_code(
-                                    *span,
+                                    span,
                                     &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
                                     DiagnosticId::Lint(
                                         errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND
@@ -636,7 +640,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('@mapbox/node-pre-gyp').find({args}) is not statically \
                                  analyse-able{hints}",
@@ -669,7 +673,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('node-gyp-build')({args}) is not statically \
                                  analyse-able{hints}",
@@ -698,7 +702,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('bindings')({args}) is not statically analyse-able{hints}",
                             ),
@@ -718,7 +722,7 @@ pub(crate) async fn module_references(
                                 if !pat.has_constant_parts() {
                                     let (args, hints) = explain_args(&linked_args);
                                     handler.span_warn_with_code(
-                                        *span,
+                                        span,
                                         &format!(
                                             "require('express')().set({args}) is very \
                                              dynamic{hints}",
@@ -781,7 +785,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('express')().set({args}) is not statically \
                                  analyse-able{hints}",
@@ -816,7 +820,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('strong-globalize').SetRootDir({args}) is not statically \
                                  analyse-able{hints}",
@@ -841,7 +845,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('resolve-from')({args}) is not statically \
                                  analyse-able{hints}",
@@ -894,7 +898,7 @@ pub(crate) async fn module_references(
                         }
                         let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
-                            *span,
+                            span,
                             &format!(
                                 "require('@grpc/proto-loader').load({args}) is not statically \
                                  analyse-able{hints}",
@@ -917,7 +921,12 @@ pub(crate) async fn module_references(
 
             for effect in var_graph.effects.iter() {
                 match effect {
-                    Effect::Call { func, args, span } => {
+                    Effect::Call {
+                        func,
+                        args,
+                        ast_path,
+                        span,
+                    } => {
                         if let Some(ignored) = &ignore_effect_span {
                             if ignored == span {
                                 continue;
@@ -929,7 +938,8 @@ pub(crate) async fn module_references(
                             &handler,
                             source,
                             context,
-                            &span,
+                            &ast_path,
+                            *span,
                             &func,
                             &JsValue::Unknown(None, "no this provided"),
                             &args,
@@ -945,6 +955,7 @@ pub(crate) async fn module_references(
                         obj,
                         prop,
                         args,
+                        ast_path,
                         span,
                     } => {
                         if let Some(ignored) = &ignore_effect_span {
@@ -960,7 +971,8 @@ pub(crate) async fn module_references(
                             &handler,
                             source,
                             context,
-                            &span,
+                            &ast_path,
+                            *span,
                             &func,
                             &obj,
                             &args,
@@ -1191,34 +1203,62 @@ impl<'a> AssetReferencesVisitor<'a> {
     }
 }
 
-impl<'a> Visit for AssetReferencesVisitor<'a> {
-    fn visit_export_all(&mut self, export: &ExportAll) {
+fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
+    ast_path.iter().map(|n| n.kind()).collect()
+}
+
+impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
+    fn visit_export_all<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportAll,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         let src = export.src.value.to_string();
         self.references.push(
-            EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into()))).into(),
+            // TODO create a separate AssetReference for this
+            EsmAssetReferenceVc::new(
+                self.context,
+                RequestVc::parse(Value::new(src.into())),
+                AstPathVc::cell(as_parent_path(ast_path)),
+            )
+            .into(),
         );
-        visit::visit_export_all(self, export);
+        export.visit_children_with_path(self, ast_path);
     }
-    fn visit_named_export(&mut self, export: &NamedExport) {
+    fn visit_named_export<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast NamedExport,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
             self.references.push(
-                EsmAssetReferenceVc::new(self.context, RequestVc::parse(Value::new(src.into())))
-                    .into(),
+                // TODO create a separate AssetReference for this
+                EsmAssetReferenceVc::new(
+                    self.context,
+                    RequestVc::parse(Value::new(src.into())),
+                    AstPathVc::cell(as_parent_path(ast_path)),
+                )
+                .into(),
             );
         }
-        visit::visit_named_export(self, export);
+        export.visit_children_with_path(self, ast_path);
     }
-    fn visit_import_decl(&mut self, import: &ImportDecl) {
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        import: &'ast ImportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         let src = import.src.value.to_string();
         self.references.push(
             EsmAssetReferenceVc::new(
                 self.context,
                 RequestVc::parse(Value::new(src.clone().into())),
+                AstPathVc::cell(as_parent_path(ast_path)),
             )
             .into(),
         );
-        visit::visit_import_decl(self, import);
+        import.visit_children_with_path(self, ast_path);
         if import.type_only {
             return;
         }
@@ -1254,7 +1294,11 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
         }
     }
 
-    fn visit_var_declarator(&mut self, decl: &VarDeclarator) {
+    fn visit_var_declarator<'ast: 'r, 'r>(
+        &mut self,
+        decl: &'ast VarDeclarator,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         if let Some(ident) = decl.name.as_ident() {
             if &*ident.id.sym == "__webpack_require__" {
                 if let Some(init) = &decl.init {
@@ -1278,10 +1322,14 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                 }
             }
         }
-        visit::visit_var_declarator(self, decl);
+        decl.visit_children_with_path(self, ast_path);
     }
 
-    fn visit_call_expr(&mut self, call: &CallExpr) {
+    fn visit_call_expr<'ast: 'r, 'r>(
+        &mut self,
+        call: &'ast CallExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         match &call.callee {
             Callee::Expr(expr) => match self.old_analyser.evaluate_expr(&expr) {
                 StaticExpr::FreeVar(var) => match &var[..] {
@@ -1315,7 +1363,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
             },
             _ => {}
         }
-        visit::visit_call_expr(self, call);
+        call.visit_children_with_path(self, ast_path);
     }
 }
 
@@ -1337,399 +1385,6 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug)]
-pub struct PackageJsonReference {
-    pub package_json: FileSystemPathVc,
-}
-
-#[turbo_tasks::value_impl]
-impl PackageJsonReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(package_json: FileSystemPathVc) -> Self {
-        Self::cell(PackageJsonReference { package_json })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for PackageJsonReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.package_json).into(), Vec::new()).into()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "package.json {}",
-            self.package_json.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Clone, Debug)]
-pub struct TsConfigReference {
-    pub tsconfig: FileSystemPathVc,
-    pub context: AssetContextVc,
-}
-
-#[turbo_tasks::value_impl]
-impl TsConfigReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(tsconfig: FileSystemPathVc, context: AssetContextVc) -> Self {
-        Self::cell(TsConfigReference { tsconfig, context })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsConfigReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        let context = self.context.with_context_path(self.tsconfig.parent());
-        ResolveResult::Single(
-            TsConfigModuleAssetVc::new(SourceAssetVc::new(self.tsconfig).into(), context).into(),
-            Vec::new(),
-        )
-        .into()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "tsconfig {}",
-            self.tsconfig.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference)]
-#[derive(Hash, Debug)]
-pub struct EsmAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(EsmAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "import {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, AsyncLoadableReference)]
-#[derive(Hash, Debug)]
-pub struct EsmAsyncAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmAsyncAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(EsmAsyncAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "dynamic import {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAssetReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn is_chunkable(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AsyncLoadableReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn is_loaded_async(&self) -> BoolVc {
-        BoolVc::cell(true)
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct CjsAssetReference {
-    pub context: AssetContextVc,
-    pub request: RequestVc,
-}
-
-#[turbo_tasks::value_impl]
-impl CjsAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, request: RequestVc) -> Self {
-        Self::cell(CjsAssetReference { context, request })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for CjsAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.request, self.context)
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "require {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct TsReferencePathAssetReference {
-    pub context: AssetContextVc,
-    pub path: String,
-}
-
-#[turbo_tasks::value_impl]
-impl TsReferencePathAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, path: String) -> Self {
-        Self::cell(TsReferencePathAssetReference { context, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsReferencePathAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        Ok(
-            if let Some(path) = &*self.context.context_path().try_join(&self.path).await? {
-                ResolveResult::Single(
-                    self.context.process(SourceAssetVc::new(*path).into()),
-                    Vec::new(),
-                )
-                .into()
-            } else {
-                ResolveResult::unresolveable().into()
-            },
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "typescript reference path comment {}",
-            self.path,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct TsReferenceTypeAssetReference {
-    pub context: AssetContextVc,
-    pub module: String,
-}
-
-#[turbo_tasks::value_impl]
-impl TsReferenceTypeAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(context: AssetContextVc, module: String) -> Self {
-        Self::cell(TsReferenceTypeAssetReference { context, module })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for TsReferenceTypeAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        type_resolve(
-            RequestVc::module(self.module.clone(), Value::new("".to_string().into())),
-            self.context,
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "typescript reference type comment {}",
-            self.module,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct SourceAssetReference {
-    pub source: AssetVc,
-    pub path: PatternVc,
-}
-
-#[turbo_tasks::value_impl]
-impl SourceAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::cell(SourceAssetReference { source, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for SourceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context = self.source.path().parent();
-
-        Ok(resolve_raw(context, self.path, false))
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "raw asset {}",
-            self.path.to_string().await?,
-        )))
-    }
-}
-
-#[turbo_tasks::value(AssetReference)]
-#[derive(Hash, Debug)]
-pub struct DirAssetReference {
-    pub source: AssetVc,
-    pub path: PatternVc,
-}
-
-#[turbo_tasks::value_impl]
-impl DirAssetReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(source: AssetVc, path: PatternVc) -> Self {
-        Self::cell(DirAssetReference { source, path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context_path = self.source.path().await?;
-        // ignore path.join in `node-gyp`, it will includes too many files
-        if context_path.path.contains("node_modules/node-gyp") {
-            return Ok(ResolveResult::Alternatives(HashSet::default(), vec![]).into());
-        }
-        let context = self.source.path().parent();
-        let pat = self.path.await?;
-        let mut result = HashSet::default();
-        let fs = context.fs();
-        match &*pat {
-            Pattern::Constant(p) => {
-                let dest_file_path = FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                // ignore error
-                if let Ok(entry_type) = dest_file_path.get_type().await {
-                    match &*entry_type {
-                        FileSystemEntryType::Directory => {
-                            result = read_dir(dest_file_path).await?;
-                        }
-                        FileSystemEntryType::File => {
-                            result.insert(SourceAssetVc::new(dest_file_path).into());
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            Pattern::Alternatives(alternatives) => {
-                for alternative_pattern in alternatives {
-                    let mut pat = alternative_pattern.clone();
-                    pat.normalize();
-                    if let Pattern::Constant(p) = pat {
-                        let dest_file_path =
-                            FileSystemPathVc::new(fs, p.trim_start_matches("/ROOT/"));
-                        // ignore error
-                        if let Ok(entry_type) = dest_file_path.get_type().await {
-                            match &*entry_type {
-                                FileSystemEntryType::Directory => {
-                                    result.extend(read_dir(dest_file_path).await?);
-                                }
-                                FileSystemEntryType::File => {
-                                    result.insert(SourceAssetVc::new(dest_file_path).into());
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-        Ok(ResolveResult::Alternatives(result, vec![]).into())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "directory assets {}",
-            self.path.to_string().await?,
-        )))
-    }
-}
-
-async fn read_dir(p: FileSystemPathVc) -> Result<HashSet<AssetVc>> {
-    let mut result = HashSet::default();
-    let dir_entries = p.read_dir().await?;
-    if let DirectoryContent::Entries(entries) = &*dir_entries {
-        for (_, entry) in entries.iter() {
-            match entry {
-                DirectoryEntry::File(file) => {
-                    result.insert(SourceAssetVc::new(*file).into());
-                }
-                DirectoryEntry::Directory(dir) => {
-                    let sub = read_dir_boxed(*dir).await?;
-                    result.extend(sub);
-                }
-                _ => {}
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn read_dir_boxed(
-    p: FileSystemPathVc,
-) -> Pin<Box<dyn Future<Output = Result<HashSet<AssetVc>>> + Send>> {
-    Box::pin(read_dir(p))
-}
+// TODO enable serialization
+#[turbo_tasks::value(transparent, serialization: none)]
+pub struct AstPath(#[trace_ignore] Vec<AstParentKind>);

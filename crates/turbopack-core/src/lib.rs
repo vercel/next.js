@@ -1,4 +1,3 @@
-#![feature(into_future)]
 #![feature(min_specialization)]
 #![feature(option_get_or_insert_default)]
 
