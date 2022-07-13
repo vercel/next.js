@@ -21,8 +21,16 @@ pub struct Config {
 pub(crate) struct ImportItem(JsWord, JsWord);
 
 pub(crate) fn expand_import_map(
-    map: ImportMap,
+    map: Option<&ImportMap>,
     imports: Vec<EmotionModuleConfig>,
 ) -> Vec<EmotionModuleConfig> {
+    if let Some(map) = map {
+        map.iter().for_each(|(import_source, value)| {
+            value
+                .iter()
+                .for_each(|(local_export_name, Config { canonical_import })| {})
+        });
+    }
+
     imports
 }
