@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -64,11 +64,24 @@ describe('app dir', () => {
   it('should serve /index as separate page', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/index')
     expect(html).toContain('hello from app/dashboard/index')
+    // should load chunks generated via async import correctly
+    expect(html).toContain('hello from lazy')
   })
 
-  it('should load chunks generated via async import correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard/index')
-    expect(html).toContain('hello from lazy')
+  // TODO-APP: handle css modules fouc in dev
+  it.skip('should handle css imports in next/dynamic correctly', async () => {
+    const browser = await webdriver(next.url, '/dashboard/index')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-dynamic')).color`
+      )
+    ).toBe('rgb(0, 0, 255)')
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-lazy')).color`
+      )
+    ).toBe('rgb(128, 0, 128)')
   })
 
   it('should include layouts when no direct parent layout', async () => {

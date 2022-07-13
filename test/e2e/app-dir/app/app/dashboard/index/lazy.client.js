@@ -3,7 +3,9 @@ import styles from './lazy.module.css'
 export default function LazyComponent() {
   return (
     <>
-      <p className={styles.lazy}>hello from lazy</p>
+      <p id="css-text-lazy" className={styles.lazy}>
+        hello from lazy
+      </p>
     </>
   )
 }

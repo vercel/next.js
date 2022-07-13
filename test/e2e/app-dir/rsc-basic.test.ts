@@ -361,7 +361,9 @@ describe('app dir - react server components', () => {
         expect(gotInlinedData).toBe(true)
       }
     )
+  })
 
+  it('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
     const browser = await webdriver(next.url, '/partial-hydration', {
       waitHydration: false,

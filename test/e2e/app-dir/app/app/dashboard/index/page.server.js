@@ -1,5 +1,5 @@
-import { LazyClientComponent } from './react-lazy.client.js'
-import { NextDynamicClientComponent } from './next-dynamic.server.js'
+import { LazyClientComponent } from './react-lazy.client'
+import { NextDynamicClientComponent } from './next-dynamic.client'
 
 export default function DashboardIndexPage() {
   return (
