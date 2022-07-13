@@ -14,7 +14,7 @@ use swc_common::util::take::Take;
 use swc_common::{BytePos, SourceMapperDyn, DUMMY_SP};
 use swc_ecmascript::ast::{
     ArrayLit, CallExpr, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXAttrValue, JSXElementName,
-    JSXExpr, JSXExprContainer, JSXObject, SourceMapperExt,
+    JSXExpr, JSXExprContainer, JSXObject, ModuleExportName, SourceMapperExt,
 };
 use swc_ecmascript::utils::ExprFactory;
 use swc_ecmascript::{
@@ -286,7 +286,14 @@ impl<C: Comments> EmotionTransformer<C> {
                     match specifier {
                         ImportSpecifier::Named(named) => {
                             for exported in c.exported_names.iter() {
-                                if named.local.as_ref() == exported.name {
+                                let matched = match &named.imported {
+                                    Some(imported) => match imported {
+                                        ModuleExportName::Ident(v) => v.sym == exported.name,
+                                        ModuleExportName::Str(v) => v.value == exported.name,
+                                    },
+                                    _ => named.local.as_ref() == exported.name,
+                                };
+                                if matched {
                                     self.import_packages.insert(
                                         named.local.to_id(),
                                         PackageMeta::Named(exported.kind),
