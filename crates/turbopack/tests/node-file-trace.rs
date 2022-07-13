@@ -274,6 +274,9 @@ fn node_file_trace<B: Backend + 'static>(
                 let input = FileSystemPathVc::new(input_fs, &input_string);
                 let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
+                #[cfg(not(bench_against_node_nft))]
+                let original_output = exec_node(tests_root, input.clone());
+
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
 
@@ -288,19 +291,17 @@ fn node_file_trace<B: Backend + 'static>(
                 let output_path = rebased.path();
                 emit_with_completion(rebased.into()).await?;
 
-                let original_output = exec_node(tests_root, input.clone());
-
                 #[cfg(not(bench_against_node_nft))]
                 {
                     let output = exec_node(directory.clone(), output_path);
-                    assert_output(original_output, output);
+                    let output = assert_output(original_output, output);
                     Ok(output.await?)
                 }
                 #[cfg(bench_against_node_nft)]
                 {
                     let duration = before_start.elapsed();
                     let node_start = Instant::now();
-                    original_output.await?;
+                    exec_node(tests_root, input.clone()).await?;
                     let node_duration = node_start.elapsed();
                     let is_faster = node_duration > duration;
                     {
@@ -398,7 +399,6 @@ impl Display for CommandOutput {
 
 #[turbo_tasks::function]
 async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandOutputVc> {
-    let is_bench = cfg!(bench_against_node_nft);
     let mut cmd = Command::new("node");
 
     let p = path.await?;
@@ -406,7 +406,8 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;
 
-    if p.path.ends_with(".ts") && !is_bench {
+    #[cfg(not(bench_against_node_nft))]
+    if p.path.ends_with(".ts") {
         let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         ts_node.push("tests");
         ts_node.push("node-file-trace");
@@ -417,7 +418,8 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         cmd.arg(&ts_node);
     }
 
-    if is_bench {
+    #[cfg(bench_against_node_nft)]
+    {
         let mut node_nft = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         node_nft.push("tests");
         node_nft.push("node-file-trace");
@@ -426,12 +428,13 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         node_nft.push("nft");
         cmd.arg(&node_nft).arg("build");
     }
-
-    if !is_bench {
+    #[cfg(not(bench_against_node_nft))]
+    {
         cmd.arg(&f);
         cmd.current_dir(dir);
     }
-    if is_bench {
+    #[cfg(bench_against_node_nft)]
+    {
         let mut current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         current_dir.push("tests");
         current_dir.push("node-file-trace");
@@ -478,7 +481,7 @@ fn diff(expected: &str, actual: &str) -> String {
     {
         return String::new();
     }
-    let Changeset { diffs, .. } = Changeset::new(expected, actual, "\n");
+    let Changeset { diffs, .. } = Changeset::new(expected.trim(), actual.trim(), "\n");
     let mut result = Vec::new();
     const CONTEXT_LINES: usize = 3;
     let mut context = VecDeque::new();
