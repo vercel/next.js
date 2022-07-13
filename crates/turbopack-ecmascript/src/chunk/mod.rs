@@ -102,8 +102,8 @@ impl ValueToString for EcmascriptChunk {
 async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringVc> {
     let content = content.await?;
     Ok(StringVc::cell(format!(
-        "\n{}: ({{ e: __turbopack_exports__, r: __turbopack_require__, i: __turbopack_import__, \
-         s: __turbopack_esm__, m: __turbopack_module__ }}) => {{\n\n{}\n}},\n",
+        "\n{}: (({{ e: __turbopack_exports__, r: __turbopack_require__, i: __turbopack_import__, \
+         s: __turbopack_esm__, m: __turbopack_module__ }}) => {{\n\n{}\n}}),\n",
         match &*content.id.await? {
             ModuleId::Number(n) => stringify_number(*n),
             ModuleId::String(s) => stringify_str(s),
