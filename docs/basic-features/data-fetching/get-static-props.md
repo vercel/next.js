@@ -126,11 +126,13 @@ When using Incremental Static Generation, `getStaticProps` will be executed in t
 
 ## Where can I use getStaticProps
 
-`getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files.
+`getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files, `_app`, `_document`, or `_error`.
 
 One of the reasons for this restriction is that React needs to have all the required data before the page is rendered.
 
 Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
+
+> Note: if you have created a [custom app](/docs/advanced-features/custom-app.md), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
 
 ## Runs on every request in development
 
