@@ -1,10 +1,14 @@
+/// Explicit extern crate to use allocator.
+extern crate turbo_malloc;
+#[cfg(bench_against_node_nft)]
+use std::time::Instant;
 use std::{
     collections::VecDeque,
     fmt::Display,
-    fs::remove_dir_all,
-    io::ErrorKind,
+    fs::{self, remove_dir_all},
+    io::{ErrorKind, Write},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -14,6 +18,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use rstest::*;
 use rstest_reuse::{self, *};
+use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_tasks::{backend::Backend, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
@@ -129,9 +134,18 @@ use turbopack_ecmascript::target::CompileTargetVc;
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]
 #[case::when("integration/when.js", true)]
-#[case::ts_package_base("integration/ts-package/index.ts", true)]
-#[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
-#[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_base("integration/ts-package/index.ts", true)
+)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_extends("integration/ts-package-extends/index.ts", true)
+)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_from_js("integration/ts-package-from-js/index.js", true)
+)]
 fn test_cases() {}
 
 #[apply(test_cases)]
@@ -177,6 +191,29 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
     );
 }
 
+#[cfg(bench_against_node_nft)]
+#[apply(test_cases)]
+fn bench_against_node_nft(#[case] input: String, #[case] should_succeed: bool) {
+    node_file_trace(
+        input,
+        should_succeed,
+        "memory",
+        1,
+        120,
+        |_| TurboTasks::new(MemoryBackend::new()),
+        |tt| {
+            let b = tt.backend();
+            b.with_all_cached_tasks(|task| {
+                b.with_task(task, |task| {
+                    if task.is_pending() {
+                        println!("PENDING: {task}");
+                    }
+                })
+            });
+        },
+    );
+}
+
 fn node_file_trace<B: Backend + 'static>(
     input: String,
     should_succeed: bool,
@@ -186,6 +223,11 @@ fn node_file_trace<B: Backend + 'static>(
     create_turbo_tasks: impl Fn(&Path) -> Arc<TurboTasks<B>>,
     handle_timeout_error: impl Fn(&Arc<TurboTasks<B>>),
 ) {
+    lazy_static! {
+        static ref BENCH_SUITES: Arc<Mutex<Vec<BenchSuite>>> = Arc::new(Mutex::new(Vec::new()));
+    };
+
+    let is_bench = cfg!(bench_against_node_nft);
     let r = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -196,7 +238,7 @@ fn node_file_trace<B: Backend + 'static>(
             env!("OUT_DIR"),
             "/register_test_node-file-trace.rs"
         ));
-
+        let bench_suites = BENCH_SUITES.clone();
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut tests_root = package_root.clone();
         tests_root.push("tests");
@@ -218,15 +260,21 @@ fn node_file_trace<B: Backend + 'static>(
             .unwrap();
 
         for _ in 0..run_count {
+            let bench_suites = bench_suites.clone();
             let tests_root = tests_root.clone();
-            let input = input.clone();
+            let input_string = input.clone();
             let directory = directory.clone();
             let task = async move {
+                #[allow(unused)]
+                let bench_suites = bench_suites.clone();
+                #[cfg(bench_against_node_nft)]
+                let before_start = Instant::now();
                 let input_fs: FileSystemVc =
                     DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
-                let input = FileSystemPathVc::new(input_fs, &input);
+                let input = FileSystemPathVc::new(input_fs, &input_string);
                 let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
+                #[cfg(not(bench_against_node_nft))]
                 let original_output = exec_node(tests_root, input.clone());
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
@@ -243,23 +291,50 @@ fn node_file_trace<B: Backend + 'static>(
                 let output_path = rebased.path();
                 emit_with_completion(rebased.into()).await?;
 
-                let output = exec_node(directory.clone(), output_path);
-
-                let output = assert_output(original_output, output);
-
-                Ok(output.await?)
+                #[cfg(not(bench_against_node_nft))]
+                {
+                    let output = exec_node(directory.clone(), output_path);
+                    let output = assert_output(original_output, output);
+                    Ok(output.await?)
+                }
+                #[cfg(bench_against_node_nft)]
+                {
+                    let duration = before_start.elapsed();
+                    let node_start = Instant::now();
+                    exec_node(tests_root, input.clone()).await?;
+                    let node_duration = node_start.elapsed();
+                    let is_faster = node_duration > duration;
+                    {
+                        let mut bench_suites_lock = bench_suites.lock().unwrap();
+                        let rust_duration = format!("{:?}", duration);
+                        let node_duration = format!("{:?}", node_duration);
+                        bench_suites_lock.push(BenchSuite {
+                            suite: input_string,
+                            is_faster,
+                            rust_duration,
+                            node_duration,
+                        });
+                    }
+                    CommandOutputVc::cell(CommandOutput {
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    })
+                    .await
+                }
             };
             let handle_result =
                 |result: Result<turbo_tasks::RawVcReadResult<CommandOutput>>| match result {
                     Ok(output) => {
-                        if should_succeed {
-                            assert!(
-                                output.is_empty(),
-                                "emitted files behave differently when executed via \
-                                 node.js\n{output}"
-                            );
-                        } else {
-                            assert!(!output.is_empty(), "test case works now! enable it");
+                        if !is_bench {
+                            if should_succeed {
+                                assert!(
+                                    output.is_empty(),
+                                    "emitted files behave differently when executed via \
+                                     node.js\n{output}"
+                                );
+                            } else {
+                                assert!(!output.is_empty(), "test case works now! enable it");
+                            }
                         }
                     }
                     Err(err) => {
@@ -281,6 +356,21 @@ fn node_file_trace<B: Backend + 'static>(
                     panic!("Stopping is hanging (for > 60s): {err}");
                 }
             }
+        }
+        let bench_suites_lock = BENCH_SUITES.lock().unwrap();
+        if !bench_suites_lock.is_empty() {
+            static BENCH_FILE_NAME: &str = "bench.json";
+            let mut bench_result = fs::File::options()
+                .append(true)
+                .open(BENCH_FILE_NAME)
+                .unwrap_or_else(|_| fs::File::create(BENCH_FILE_NAME).unwrap());
+            bench_result
+                .write_all(
+                    { serde_json::to_string(bench_suites_lock.as_slice()).unwrap() + "\n" }
+                        .as_bytes(),
+                )
+                .unwrap();
+            drop(bench_result);
         }
     })
 }
@@ -315,9 +405,9 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;
-    let typescript = p.path.ends_with(".ts");
 
-    if typescript {
+    #[cfg(not(bench_against_node_nft))]
+    if p.path.ends_with(".ts") {
         let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         ts_node.push("tests");
         ts_node.push("node-file-trace");
@@ -327,8 +417,30 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         ts_node.push("bin.js");
         cmd.arg(&ts_node);
     }
-    cmd.arg(&f);
-    cmd.current_dir(dir);
+
+    #[cfg(bench_against_node_nft)]
+    {
+        let mut node_nft = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        node_nft.push("tests");
+        node_nft.push("node-file-trace");
+        node_nft.push("node_modules");
+        node_nft.push(".bin");
+        node_nft.push("nft");
+        cmd.arg(&node_nft).arg("build");
+    }
+    #[cfg(not(bench_against_node_nft))]
+    {
+        cmd.arg(&f);
+        cmd.current_dir(dir);
+    }
+    #[cfg(bench_against_node_nft)]
+    {
+        let mut current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        current_dir.push("tests");
+        current_dir.push("node-file-trace");
+        cmd.arg(&p.path.trim_start_matches("node-file-trace/"));
+        cmd.current_dir(current_dir);
+    }
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
@@ -369,7 +481,7 @@ fn diff(expected: &str, actual: &str) -> String {
     {
         return String::new();
     }
-    let Changeset { diffs, .. } = Changeset::new(expected, actual, "\n");
+    let Changeset { diffs, .. } = Changeset::new(expected.trim(), actual.trim(), "\n");
     let mut result = Vec::new();
     const CONTEXT_LINES: usize = 3;
     let mut context = VecDeque::new();
@@ -416,6 +528,7 @@ fn diff(expected: &str, actual: &str) -> String {
     result.join("\n")
 }
 
+#[allow(unused)]
 #[turbo_tasks::function]
 async fn assert_output(
     expected: CommandOutputVc,
@@ -427,4 +540,12 @@ async fn assert_output(
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: diff(&expected.stderr, &actual.stderr),
     }))
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct BenchSuite {
+    suite: String,
+    is_faster: bool,
+    rust_duration: String,
+    node_duration: String,
 }
