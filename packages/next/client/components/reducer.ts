@@ -12,7 +12,6 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  // TODO-APP: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -224,7 +223,6 @@ const walkTreeWithFlightDataPath = (
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
-  // TODO-APP: verify
   if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
@@ -526,7 +524,6 @@ export function reducer(
 
     cache.data = null
 
-    // TODO-APP: ensure flightDataPath does not have "" as first item
     const flightDataPath = flightData[0]
 
     if (flightDataPath.length !== 2) {
