@@ -50,6 +50,7 @@ difference = "2.0"
 rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 criterion = { version = "0.3.5", features = ["tokio"] }
+turbo-malloc = { path = "../turbo-malloc" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 testing = "0.26.0"
 

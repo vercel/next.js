@@ -1,5 +1,8 @@
 #![feature(min_specialization)]
 
+/// Explicit extern crate to use allocator.
+extern crate turbo_malloc;
+
 mod nft_json;
 
 use std::{

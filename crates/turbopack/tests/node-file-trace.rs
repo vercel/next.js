@@ -1,3 +1,6 @@
+/// Explicit extern crate to use allocator.
+extern crate turbo_malloc;
+
 #[cfg(bench_against_node_nft)]
 use std::time::Instant;
 use std::{
@@ -131,9 +134,18 @@ use turbopack_ecmascript::target::CompileTargetVc;
 #[case::vue("integration/vue.js", true)]
 #[case::whatwg_url("integration/whatwg-url.js", true)]
 #[case::when("integration/when.js", true)]
-#[case::ts_package_base("integration/ts-package/index.ts", true)]
-#[case::ts_package_extends("integration/ts-package-extends/index.ts", true)]
-#[case::ts_package_from_js("integration/ts-package-from-js/index.js", true)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_base("integration/ts-package/index.ts", true)
+)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_extends("integration/ts-package-extends/index.ts", true)
+)]
+#[cfg_attr(
+    not(bench_against_node_nft),
+    case::ts_package_from_js("integration/ts-package-from-js/index.js", true)
+)]
 fn test_cases() {}
 
 #[apply(test_cases)]
@@ -299,6 +311,7 @@ fn node_file_trace<B: Backend + 'static>(
                         #[cfg(bench_against_node_nft)]
                         {
                             assert!(output.std_err_is_empty(), "{output}");
+                            println!("{output}");
                         }
                     }
                     Err(err) => {
