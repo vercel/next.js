@@ -7,6 +7,7 @@ pub mod analyzer;
 pub mod chunk;
 pub mod code_gen;
 mod errors;
+pub mod magic_identifier;
 pub(crate) mod parse;
 mod path_visitor;
 pub(crate) mod references;
@@ -26,6 +27,7 @@ use chunk::{
 use code_gen::CodeGenerationReferenceVc;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
+use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::VisitMutWithPath;
 use target::CompileTargetVc;
@@ -177,7 +179,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let mut visitors = Vec::new();
         for code_gen in code_generation {
             for (path, visitor) in code_gen.visitors.iter() {
-                visitors.push((path, visitor));
+                visitors.push((path, &**visitor));
             }
         }
 
@@ -187,12 +189,18 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         if let ParseResult::Ok {
             program,
             source_map,
+            globals,
             ..
         } = &*parsed
         {
             let mut program = program.clone();
 
-            program.visit_mut_with_path(&mut ApplyVisitors::new(visitors), &mut Default::default());
+            GLOBALS.set(&globals, || {
+                program.visit_mut_with_path(
+                    &mut ApplyVisitors::new(visitors),
+                    &mut Default::default(),
+                );
+            });
 
             let mut bytes =
                 format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();

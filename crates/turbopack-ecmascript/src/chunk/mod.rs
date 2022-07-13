@@ -102,7 +102,8 @@ impl ValueToString for EcmascriptChunk {
 async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringVc> {
     let content = content.await?;
     Ok(StringVc::cell(format!(
-        "\n{}: (__turbopack_module__) => {{\n\n{}\n}},\n",
+        "\n{}: ({{ e: __turbopack_exports__, r: __turbopack_require__, i: __turbopack_import__, \
+         s: __turbopack_esm__, m: __turbopack_module__ }}) => {{\n\n{}\n}},\n",
         match &*content.id.await? {
             ModuleId::Number(n) => stringify_number(*n),
             ModuleId::String(s) => stringify_str(s),
@@ -188,21 +189,53 @@ impl Asset for EcmascriptChunk {
         function require(from, id) {
             return getModule(from, id).exports;
         }
-        function importModule(from, id) {
-            return getModule(from, id).namespace;
+        function esm(exports, getters) {
+            Object.defineProperty(exports, "__esModule", { value: true });
+            for(var key in getters) {
+                if(hOP.call(getters, key)) {
+                    Object.defineProperty(exports, key, { get: getters[key] });
+                }
+            }
+        }
+        function createGetter(obj, key) {
+            return () => obj[key];
+        }
+        function interopEsm(raw, ns, allowExportDefault) {
+            var getters = {};
+            for(var key in raw) {
+                getters[key] = createGetter(raw, key);
+            }
+            if(!(allowExportDefault && "default" in getters)) {
+                getters["default"] = () => raw;
+            }
+            esm(ns, getters);
+        }
+        function importModule(from, id, allowExportDefault) {
+            var module = getModule(from, id);
+            var raw = module.exports;
+            if(raw.__esModule) return raw;
+            if(module.interopNamespace) return module.interopNamespace;
+            var ns = module.interopNamespace = {};
+            interopEsm(raw, ns, allowExportDefault);
+            return ns;
         }
         function getModule(from, id) {
             if(hOP.call(cache, id)) {
                 return cache[id];
             }
-            var module = { exports: {}, loaded: false, id, parents: new Set(), children: new Set() };
+            var module = { exports: {}, loaded: false, id, parents: new Set(), children: new Set(), interopNamespace: undefined };
+            cache[id] = module;
             var moduleFactory = modules[id];
             if(typeof moduleFactory != "function") {
                 throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
             }
-            var r = require.bind(null, id);
-            r.cache = cache;
-            moduleFactory.call(module.exports, module.exports, r, importModule.bind(null, id), module)
+            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), m: module, c: cache });
+            module.loaded = true;
+            if(module.interopNamespace) {
+                // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+                interopEsm(module.exports, module.interopNamespace);
+            }
+            return module;
         }
         var runtime = { chunks, modules, cache, getModule };
         function op([id, chunkModules, ...run]) {

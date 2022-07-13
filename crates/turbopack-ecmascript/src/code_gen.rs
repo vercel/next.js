@@ -9,11 +9,12 @@ use crate::chunk::EcmascriptChunkContextVc;
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     #[trace_ignore]
-    pub visitors: Vec<(Vec<AstParentKind>, VisitorFn)>,
+    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
 }
 
-pub type VisitorFn = Box<dyn Send + Sync + Fn() -> Visitor>;
-pub type Visitor = Box<dyn VisitMut + Send + Sync>;
+pub trait VisitorFactory: Send + Sync {
+    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
+}
 
 #[turbo_tasks::value_trait]
 pub trait CodeGenerationReference {

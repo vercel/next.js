@@ -4,22 +4,21 @@ use swc_common::pass::AstKindPath;
 use swc_ecma_visit::{AstParentKind, VisitMut, VisitMutAstPath, VisitMutWith, VisitMutWithPath};
 use swc_ecmascript::ast::*;
 
-pub type AstPath = Vec<AstParentKind>;
+use crate::code_gen::VisitorFactory;
 
-pub type BoxedVisitor = Box<dyn VisitMut + Send + Sync>;
-pub type VisitorFn = Box<dyn Send + Sync + Fn() -> BoxedVisitor>;
+pub type AstPath = Vec<AstParentKind>;
 
 pub struct ApplyVisitors<'a> {
     /// `VisitMut` should be shallow. In other words, it should not visit
     /// children of the node.
-    visitors: HashMap<AstParentKind, Vec<(&'a AstPath, &'a VisitorFn)>>,
+    visitors: HashMap<AstParentKind, Vec<(&'a AstPath, &'a dyn VisitorFactory)>>,
 
     index: usize,
 }
 
 impl<'a> ApplyVisitors<'a> {
-    pub fn new(visitors: Vec<(&'a AstPath, &'a VisitorFn)>) -> Self {
-        let mut map = HashMap::<AstParentKind, Vec<(&'a AstPath, &'a VisitorFn)>>::new();
+    pub fn new(visitors: Vec<(&'a AstPath, &'a dyn VisitorFactory)>) -> Self {
+        let mut map = HashMap::<AstParentKind, Vec<(&'a AstPath, &'a dyn VisitorFactory)>>::new();
         for (path, visitor) in visitors {
             if let Some(span) = path.first() {
                 map.entry(*span).or_default().push((path, visitor));
@@ -33,7 +32,7 @@ impl<'a> ApplyVisitors<'a> {
 
     fn visit_if_required<N>(&mut self, n: &mut N, ast_path: &mut AstKindPath<AstParentKind>)
     where
-        N: VisitMutWith<Box<dyn VisitMut + Send + Sync>>
+        N: for<'aa> VisitMutWith<dyn VisitMut + Send + Sync + 'aa>
             + for<'aa> VisitMutWithPath<ApplyVisitors<'aa>>,
     {
         let mut index = self.index;
@@ -49,7 +48,7 @@ impl<'a> ApplyVisitors<'a> {
                 for (path, visitor) in visitors.iter() {
                     if index == path.len() {
                         if current {
-                            n.visit_mut_with(&mut visitor());
+                            n.visit_mut_with(&mut visitor.create());
                         }
                     } else {
                         debug_assert!(index < path.len());
@@ -120,7 +119,7 @@ mod tests {
     use swc_ecma_visit::{fields::*, AstParentKind, VisitMut, VisitMutWithPath};
     use swc_ecmascript::{ast::*, parser::parse_file_as_module, visit::VisitMutWith};
 
-    use super::{ApplyVisitors, VisitorFn};
+    use super::{ApplyVisitors, VisitorFactory};
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -145,15 +144,21 @@ mod tests {
         to: &'a str,
     }
 
-    impl VisitMut for StrReplacer<'_> {
+    impl VisitorFactory for Box<StrReplacer<'_>> {
+        fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+            box &**self
+        }
+    }
+
+    impl VisitMut for &'_ StrReplacer<'_> {
         fn visit_mut_str(&mut self, s: &mut Str) {
             s.value = s.value.replace(self.from, self.to).into();
             s.raw = None;
         }
     }
 
-    fn replacer(from: &'static str, to: &'static str) -> VisitorFn {
-        box || box StrReplacer { from, to }
+    fn replacer(from: &'static str, to: &'static str) -> impl VisitorFactory {
+        box StrReplacer { from, to }
     }
 
     fn to_js(m: &Module, cm: &Arc<SourceMap>) -> String {

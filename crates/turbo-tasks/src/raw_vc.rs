@@ -55,7 +55,7 @@ impl<T: Any + Send + Sync> std::ops::Deref for RawVcReadResult<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &*self.inner
+        &self.inner
     }
 }
 

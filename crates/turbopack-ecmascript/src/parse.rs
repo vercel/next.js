@@ -28,8 +28,8 @@ use super::ModuleAssetType;
 use crate::analyzer::graph::EvalContext;
 
 #[turbo_tasks::value(shared, serialization: none, eq: manual)]
+#[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
-    #[allow(clippy::large_enum_variant)]
     Ok {
         #[trace_ignore]
         program: Program,

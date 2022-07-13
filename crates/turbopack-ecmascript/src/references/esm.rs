@@ -2,11 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use swc_common::DUMMY_SP;
-use swc_ecma_ast::EmptyStmt;
-use swc_ecma_visit::{
-    swc_ecma_ast::{ModuleItem, Stmt},
-    VisitMut,
-};
+use swc_ecma_ast::{Expr, Ident};
+use swc_ecma_quote::quote;
+use swc_ecma_visit::{swc_ecma_ast::ModuleItem, AstParentKind, VisitMut};
 use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbopack_core::{
     chunk::{
@@ -17,14 +15,15 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc},
     resolve::{parse::RequestVc, ResolveResultVc},
 };
-use swc_ecma_visit::{AstParentKind};
+
 use super::AstPathVc;
 use crate::{
     chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc},
     code_gen::{
         CodeGeneration, CodeGenerationReference, CodeGenerationReferenceVc, CodeGenerationVc,
-        Visitor, VisitorFn,
+        VisitorFactory,
     },
+    magic_identifier,
     resolve::esm_resolve,
 };
 
@@ -90,22 +89,46 @@ impl CodeGenerationReference for EsmAssetReference {
         for asset in assets.await?.iter() {
             if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
                 let id = chunk_context.id(placeable).await?.into_arc();
+                let path = asset.path().to_string().await?;
 
                 struct EsmAssetReferenceVistor {
                     id: Arc<ModuleId>,
+                    path: String,
                 }
 
-                impl VisitMut for EsmAssetReferenceVistor {
+                impl VisitorFactory for Box<EsmAssetReferenceVistor> {
+                    fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+                        box &**self
+                    }
+                }
+
+                impl<'a> VisitMut for &'a EsmAssetReferenceVistor {
                     fn visit_mut_module_item(&mut self, module_item: &mut ModuleItem) {
                         // TODO use id to generation `__turbopack_import__(id)`
-                        *module_item = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                        let stmt = quote!(
+                            "var $name = __turbopack_import__($id);" as Stmt,
+                            name = Ident::new(
+                                magic_identifier::encode(&format!("imported module {}", self.path))
+                                    .into(),
+                                DUMMY_SP
+                            ),
+                            id: Expr = Expr::Lit(match &*self.id {
+                                ModuleId::String(s) => s.clone().into(),
+                                ModuleId::Number(n) => (*n as f64).into(),
+                            })
+                        );
+                        *module_item = ModuleItem::Stmt(stmt);
                     }
                 }
 
                 visitors.push((
-                    path_to(&self.path.await?, |n| matches!(n, AstParentKind::ModuleItem(_))),
-                    (box move || (box EsmAssetReferenceVistor { id: id.clone() }) as Visitor)
-                        as VisitorFn,
+                    path_to(&self.path.await?, |n| {
+                        matches!(n, AstParentKind::ModuleItem(_))
+                    }),
+                    box box EsmAssetReferenceVistor {
+                        id,
+                        path: path.clone(),
+                    } as Box<dyn VisitorFactory>,
                 ))
             }
         }
