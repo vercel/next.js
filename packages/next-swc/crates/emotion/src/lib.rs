@@ -26,6 +26,7 @@ use swc_ecmascript::{
 use swc_trace_macro::swc_trace;
 
 mod hash;
+mod import_map;
 
 static EMOTION_OFFICIAL_LIBRARIES: Lazy<Vec<EmotionModuleConfig>> = Lazy::new(|| {
     vec![
