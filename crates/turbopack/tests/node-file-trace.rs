@@ -1,3 +1,5 @@
+#[cfg(bench_against_node_nft)]
+use std::time::Instant;
 use std::{
     collections::VecDeque,
     fmt::Display,
@@ -177,6 +179,29 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
     );
 }
 
+#[cfg(bench_against_node_nft)]
+#[apply(test_cases)]
+fn bench_against_node_nft(#[case] input: String, #[case] should_succeed: bool) {
+    node_file_trace(
+        input,
+        should_succeed,
+        "memory",
+        1,
+        120,
+        |_| TurboTasks::new(MemoryBackend::new()),
+        |tt| {
+            let b = tt.backend();
+            b.with_all_cached_tasks(|task| {
+                b.with_task(task, |task| {
+                    if task.is_pending() {
+                        println!("PENDING: {task}");
+                    }
+                })
+            });
+        },
+    );
+}
+
 fn node_file_trace<B: Backend + 'static>(
     input: String,
     should_succeed: bool,
@@ -222,12 +247,12 @@ fn node_file_trace<B: Backend + 'static>(
             let input = input.clone();
             let directory = directory.clone();
             let task = async move {
+                #[cfg(bench_against_node_nft)]
+                let before_start = Instant::now();
                 let input_fs: FileSystemVc =
                     DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
                 let input = FileSystemPathVc::new(input_fs, &input);
                 let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
-
-                let original_output = exec_node(tests_root, input.clone());
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
                 let output_dir = FileSystemPathVc::new(output_fs.into(), "");
@@ -242,24 +267,38 @@ fn node_file_trace<B: Backend + 'static>(
 
                 let output_path = rebased.path();
                 emit_with_completion(rebased.into()).await?;
+                #[cfg(bench_against_node_nft)]
+                let duration = before_start.elapsed();
 
+                let original_output = exec_node(tests_root, input.clone());
+                #[cfg(not(bench_against_node_nft))]
                 let output = exec_node(directory.clone(), output_path);
 
+                #[cfg(not(bench_against_node_nft))]
                 let output = assert_output(original_output, output);
+                #[cfg(bench_against_node_nft)]
+                let output = assert_output_performance(duration, original_output).await?;
 
                 Ok(output.await?)
             };
             let handle_result =
                 |result: Result<turbo_tasks::RawVcReadResult<CommandOutput>>| match result {
                     Ok(output) => {
-                        if should_succeed {
-                            assert!(
-                                output.is_empty(),
-                                "emitted files behave differently when executed via \
-                                 node.js\n{output}"
-                            );
-                        } else {
-                            assert!(!output.is_empty(), "test case works now! enable it");
+                        #[cfg(not(bench_against_node_nft))]
+                        {
+                            if should_succeed {
+                                assert!(
+                                    output.is_empty(),
+                                    "emitted files behave differently when executed via \
+                                     node.js\n{output}"
+                                );
+                            } else {
+                                assert!(!output.is_empty(), "test case works now! enable it");
+                            }
+                        }
+                        #[cfg(bench_against_node_nft)]
+                        {
+                            assert!(output.std_err_is_empty(), "{output}");
                         }
                     }
                     Err(err) => {
@@ -292,8 +331,14 @@ struct CommandOutput {
 }
 
 impl CommandOutput {
+    #[cfg(not(bench_against_node_nft))]
     fn is_empty(&self) -> bool {
         self.stderr.is_empty() && self.stdout.is_empty()
+    }
+
+    #[cfg(bench_against_node_nft)]
+    fn std_err_is_empty(&self) -> bool {
+        self.stderr.is_empty()
     }
 }
 
@@ -315,9 +360,9 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     let f = Path::new(&directory).join(&p.path);
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;
-    let typescript = p.path.ends_with(".ts");
 
-    if typescript {
+    #[cfg(not(bench_against_node_nft))]
+    if p.path.ends_with(".ts") {
         let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         ts_node.push("tests");
         ts_node.push("node-file-trace");
@@ -327,8 +372,31 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         ts_node.push("bin.js");
         cmd.arg(&ts_node);
     }
-    cmd.arg(&f);
-    cmd.current_dir(dir);
+
+    #[cfg(bench_against_node_nft)]
+    {
+        let mut node_nft = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        node_nft.push("tests");
+        node_nft.push("node-file-trace");
+        node_nft.push("node_modules");
+        node_nft.push(".bin");
+        node_nft.push("nft");
+        cmd.arg(&node_nft).arg("build");
+    }
+
+    #[cfg(not(bench_against_node_nft))]
+    {
+        cmd.arg(&f);
+        cmd.current_dir(dir);
+    }
+    #[cfg(bench_against_node_nft)]
+    {
+        let mut current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        current_dir.push("tests");
+        current_dir.push("node-file-trace");
+        cmd.arg(&p.path.trim_start_matches("node-file-trace/"));
+        cmd.current_dir(current_dir);
+    }
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
@@ -427,4 +495,25 @@ async fn assert_output(
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: diff(&expected.stderr, &actual.stderr),
     }))
+}
+
+#[cfg(bench_against_node_nft)]
+async fn assert_output_performance(
+    rust_duration: Duration,
+    node_nft_command: CommandOutputVc,
+) -> Result<CommandOutputVc> {
+    let actual_timestamp = Instant::now();
+    let _ = node_nft_command.await?;
+    let node_duration = actual_timestamp.elapsed();
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    if rust_duration > node_duration {
+        stderr = format!(
+            "Rust nft is slower than node nft: {:?} vs {:?}",
+            rust_duration, node_duration
+        );
+    } else {
+        stdout = format!("Rust nft is {:?} faster", node_duration - rust_duration)
+    };
+    Ok(CommandOutputVc::cell(CommandOutput { stdout, stderr }))
 }
