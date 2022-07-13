@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.3-canary.4
+      '@next/eslint-plugin-next': 12.2.3-canary.5
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.3-canary.4
-      '@next/polyfill-module': 12.2.3-canary.4
-      '@next/polyfill-nomodule': 12.2.3-canary.4
-      '@next/react-dev-overlay': 12.2.3-canary.4
-      '@next/react-refresh-utils': 12.2.3-canary.4
-      '@next/swc': 12.2.3-canary.4
+      '@next/env': 12.2.3-canary.5
+      '@next/polyfill-module': 12.2.3-canary.5
+      '@next/polyfill-nomodule': 12.2.3-canary.5
+      '@next/react-dev-overlay': 12.2.3-canary.5
+      '@next/react-refresh-utils': 12.2.3-canary.5
+      '@next/swc': 12.2.3-canary.5
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -7778,7 +7778,7 @@ packages:
       mississippi: 3.0.0
       mkdirp: 0.5.5
       move-concurrently: 1.0.1
-      promise-inflight: 1.0.1_bluebird@3.7.2
+      promise-inflight: 1.0.1
       rimraf: 2.7.1
       ssri: 6.0.1
       unique-filename: 1.1.1
@@ -18303,17 +18303,6 @@ packages:
     peerDependenciesMeta:
       bluebird:
         optional: true
-    dev: true
-
-  /promise-inflight/1.0.1_bluebird@3.7.2:
-    resolution: {integrity: sha512-6zWPyEOFaQBJYcGMHBKTKJ3u6TBsnMFOIZSa6ce1e/ZrrsOlnHRHbabMjLiBYKp+n44X9eUI6VUPaukCXHuG4g==}
-    peerDependencies:
-      bluebird: '*'
-    peerDependenciesMeta:
-      bluebird:
-        optional: true
-    dependencies:
-      bluebird: 3.7.2
     dev: true
 
   /promise-polyfill/6.1.0:
