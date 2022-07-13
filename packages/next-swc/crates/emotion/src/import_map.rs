@@ -14,5 +14,6 @@ pub(crate) struct Config {
     canonical_import: ImportItem,
 }
 
+/// `(packageName, exportName)`
 #[derive(Debug, Deserialize)]
 pub(crate) struct ImportItem(JsWord, JsWord);
