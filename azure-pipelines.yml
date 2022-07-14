@@ -57,7 +57,10 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
           - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
 
           - script: pnpm install && pnpm run build
             condition: eq(variables['isDocsOnly'], 'No')
@@ -92,7 +95,10 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
           - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
 
           - script: pnpm install && pnpm run build
             condition: eq(variables['isDocsOnly'], 'No')

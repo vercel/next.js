@@ -3,7 +3,6 @@ import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
-import { NEXT_CLIENT_SSR_ENTRY_SUFFIX } from '../../../shared/lib/constants'
 
 type Compiler = webpack5.Compiler
 type WebpackPluginInstance = webpack5.WebpackPluginInstance
@@ -21,18 +20,18 @@ function deleteCache(filePath: string) {
   } catch (e) {
     if (isError(e) && e.code !== 'ENOENT') throw e
   }
-  const module = require.cache[filePath]
-  if (module) {
+  const mod = require.cache[filePath]
+  if (mod) {
     // remove the child reference from the originModules
     for (const originModule of originModules) {
       const parent = require.cache[originModule]
       if (parent) {
-        const idx = parent.children.indexOf(module)
+        const idx = parent.children.indexOf(mod)
         if (idx >= 0) parent.children.splice(idx, 1)
       }
     }
     // remove parent references from external modules
-    for (const child of module.children) {
+    for (const child of mod.children) {
       child.parent = null
     }
     delete require.cache[filePath]
@@ -47,8 +46,6 @@ const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   prevAssets: any = null
   hasServerComponents: boolean
-  previousOutputPathsWebpack5: Set<string> = new Set()
-  currentOutputPathsWebpack5: Set<string> = new Set()
 
   constructor(opts: { hasServerComponents: boolean }) {
     this.hasServerComponents = opts.hasServerComponents
@@ -57,30 +54,9 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(
       PLUGIN_NAME,
-      (file, { targetPath, content }) => {
-        this.currentOutputPathsWebpack5.add(targetPath)
+      (_file, { targetPath, content }) => {
         deleteCache(targetPath)
         clearModuleContext(targetPath, content.toString('utf-8'))
-
-        if (
-          this.hasServerComponents &&
-          /^(app|pages)\//.test(file) &&
-          /\.js$/.test(targetPath)
-        ) {
-          // Also clear the potential __sc_client__ cache.
-          // @TODO: Investigate why the client ssr bundle isn't emitted as an asset here.
-          const clientComponentsSSRTarget = targetPath.replace(
-            /\.js$/,
-            NEXT_CLIENT_SSR_ENTRY_SUFFIX + '.js'
-          )
-          if (deleteCache(clientComponentsSSRTarget)) {
-            this.currentOutputPathsWebpack5.add(clientComponentsSSRTarget)
-            clearModuleContext(
-              clientComponentsSSRTarget,
-              content.toString('utf-8')
-            )
-          }
-        }
       }
     )
 
@@ -96,8 +72,10 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
-      const entries = [...compilation.entries.keys()].filter((entry) =>
-        entry.toString().startsWith('pages/')
+      const entries = [...compilation.entries.keys()].filter(
+        (entry) =>
+          entry.toString().startsWith('pages/') ||
+          entry.toString().startsWith('app/')
       )
 
       entries.forEach((page) => {
@@ -108,8 +86,5 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         deleteCache(outputPath)
       })
     })
-
-    this.previousOutputPathsWebpack5 = new Set(this.currentOutputPathsWebpack5)
-    this.currentOutputPathsWebpack5.clear()
   }
 }

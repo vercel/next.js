@@ -34,6 +34,7 @@ use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
 static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
+#[allow(unused)]
 static PACKAGE_VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/package.txt"));
 
 #[contextless_function]
@@ -147,7 +148,24 @@ pub fn teardown_trace_subscriber(cx: CallContext) -> napi::Result<JsUndefined> {
     cx.env.get_undefined()
 }
 
+#[cfg(any(
+    target_arch = "wasm32",
+    all(target_os = "windows", target_arch = "aarch64"),
+    not(all(feature = "sentry_native_tls", feature = "sentry_rustls"))
+))]
+#[js_function(1)]
+pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
+    let guard: Option<usize> = None;
+    let guard_cell = RefCell::new(guard);
+    cx.env.create_external(guard_cell, None)
+}
+
 /// Initialize crash reporter to collect unexpected native next-swc crashes.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(all(target_os = "windows", target_arch = "aarch64")),
+    any(feature = "sentry_native_tls", feature = "sentry_rustls")
+))]
 #[js_function(1)]
 pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
     // Attempts to follow https://nextjs.org/telemetry's debug behavior.
@@ -155,7 +173,6 @@ pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
     // itself as sentry's debug option does not provides full payuload output.
     let debug = env::var("NEXT_TELEMETRY_DEBUG").map_or_else(|_| false, |v| v == "1");
 
-    #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
     let guard = {
         #[cfg(feature = "sentry_native_tls")]
         use _sentry_native_tls::{init, types::Dsn, ClientOptions};
@@ -183,34 +200,42 @@ pub fn init_crash_reporter(cx: CallContext) -> napi::Result<JsExternal> {
         }))
     };
 
-    // aarch64_msvc neither compiles native-tls nor rustls for sentry transport
-    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
-    let guard: Option<usize> = None;
-
     let guard_cell = RefCell::new(guard);
     cx.env.create_external(guard_cell, None)
+}
+
+#[cfg(any(
+    target_arch = "wasm32",
+    all(target_os = "windows", target_arch = "aarch64"),
+    not(all(feature = "sentry_native_tls", feature = "sentry_rustls"))
+))]
+#[js_function(1)]
+pub fn teardown_crash_reporter(cx: CallContext) -> napi::Result<JsUndefined> {
+    cx.env.get_undefined()
 }
 
 /// Trying to drop crash reporter guard if exists. This is the way to hold
 /// guards to not to be dropped immediately after crash reporter is initialized
 /// in napi context.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(all(target_os = "windows", target_arch = "aarch64")),
+    any(feature = "sentry_native_tls", feature = "sentry_rustls")
+))]
 #[js_function(1)]
 pub fn teardown_crash_reporter(cx: CallContext) -> napi::Result<JsUndefined> {
-    #[cfg(not(all(target_os = "windows", target_arch = "aarch64")))]
-    {
-        #[cfg(feature = "sentry_native_tls")]
-        use _sentry_native_tls::ClientInitGuard;
-        #[cfg(feature = "sentry_rustls")]
-        use _sentry_rustls::ClientInitGuard;
+    #[cfg(feature = "sentry_native_tls")]
+    use _sentry_native_tls::ClientInitGuard;
+    #[cfg(feature = "sentry_rustls")]
+    use _sentry_rustls::ClientInitGuard;
 
-        let guard_external = cx.get::<JsExternal>(0)?;
-        let guard_cell = &*cx
-            .env
-            .get_value_external::<RefCell<Option<ClientInitGuard>>>(&guard_external)?;
+    let guard_external = cx.get::<JsExternal>(0)?;
+    let guard_cell = &*cx
+        .env
+        .get_value_external::<RefCell<Option<ClientInitGuard>>>(&guard_external)?;
 
-        if let Some(guard) = guard_cell.take() {
-            drop(guard);
-        }
+    if let Some(guard) = guard_cell.take() {
+        drop(guard);
     }
 
     cx.env.get_undefined()
