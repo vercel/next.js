@@ -3,7 +3,7 @@ import glob from 'glob'
 import index from '@next/eslint-plugin-next'
 
 const getRuleNameFromRulePath = (path) => basename(path, '.js')
-const rulePaths = glob.sync('packages/eslint-plugin-next/lib/rules/*js', {
+const rulePaths = glob.sync('packages/eslint-plugin-next/dist/rules/*js', {
   absolute: true,
 })
 
@@ -15,7 +15,8 @@ describe('@next/eslint-plugin-next index', () => {
   })
 
   rulePaths.forEach((rulePath) => {
-    const rule = require(rulePath)
+    let rule = require(rulePath)
+    rule = rule.default ?? rule
     const ruleName = getRuleNameFromRulePath(rulePath)
     const { recommended = false } = rule.meta.docs
 
