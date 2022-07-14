@@ -76,7 +76,6 @@ const getCacheKey = () => {
 }
 
 const encoder = new TextEncoder()
-const loadedCss: Set<string> = new Set()
 
 let initialServerDataBuffer: string[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
@@ -165,15 +164,14 @@ async function loadCss(cssChunkInfoJson: string) {
   return Promise.resolve()
 }
 
-function createLoadFlightCssStream(callback?: () => Promise<void>) {
-  const cssLoadingPromises: Promise<any>[] = []
+function createLoadFlightCssStream(onFlightCssLoaded: () => void) {
+  const promises: Promise<any>[] = []
+  let cssFlushed = false
+
   const loadCssFromStreamData = (data: string) => {
     if (data.startsWith('CSS')) {
       const cssJson = data.slice(4).trim()
-      if (!loadedCss.has(cssJson)) {
-        loadedCss.add(cssJson)
-        cssLoadingPromises.push(loadCss(cssJson))
-      }
+      promises.push(loadCss(cssJson))
     }
   }
 
@@ -187,6 +185,11 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
             loadCssFromStreamData(buf)
           } else {
             controller.enqueue(new TextEncoder().encode(buf))
+
+            if (!cssFlushed) {
+              cssFlushed = true
+              Promise.all(promises).then(() => onFlightCssLoaded())
+            }
           }
         }
       }
@@ -204,19 +207,13 @@ function createLoadFlightCssStream(callback?: () => Promise<void>) {
     },
   })
 
-  if (process.env.NODE_ENV === 'development') {
-    Promise.all(cssLoadingPromises).then(() => {
-      // TODO: find better timing for css injection
-      setTimeout(() => {
-        callback?.()
-      })
-    })
-  }
-
   return loadCssFromFlight
 }
 
-function useInitialServerResponse(cacheKey: string, onFlightCssLoaded: any) {
+function useInitialServerResponse(
+  cacheKey: string,
+  onFlightCssLoaded: () => void
+) {
   const response = rscCache.get(cacheKey)
   if (response) return response
 
@@ -239,7 +236,7 @@ function ServerRoot({
   onFlightCssLoaded,
 }: {
   cacheKey: string
-  onFlightCssLoaded: any
+  onFlightCssLoaded: () => Promise<void>
 }) {
   React.useEffect(() => {
     rscCache.delete(cacheKey)
