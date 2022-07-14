@@ -18,7 +18,7 @@ describe('correct tsconfig.json defaults', () => {
   })
   afterAll(() => next.destroy())
 
-  it.only('should add `moduleResoution` when generating tsconfig.json', async () => {
+  it('should add `moduleResoution` when generating tsconfig.json', async () => {
     await next.start()
     await next.stop()
 
