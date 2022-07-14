@@ -102,8 +102,10 @@ impl ValueToString for EcmascriptChunk {
 async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringVc> {
     let content = content.await?;
     Ok(StringVc::cell(format!(
-        "\n{}: (({{ e: __turbopack_exports__, r: __turbopack_require__, i: __turbopack_import__, \
-         s: __turbopack_esm__, m: __turbopack_module__ }}) => {{\n\n{}\n}}),\n",
+        // TODO module should __turbopack_module__ instead
+        // TODO exports should __turbopack_exports__ instead
+        "\n{}: (({{ e: exports, r: __turbopack_require__, i: __turbopack_import__, s: \
+         __turbopack_esm__, m: module, p: process }}) => (() => {{\n\n{}\n}})()),\n",
         match &*content.id.await? {
             ModuleId::Number(n) => stringify_number(*n),
             ModuleId::String(s) => stringify_str(s),
@@ -159,16 +161,15 @@ impl Asset for EcmascriptChunk {
             let condition = chunk_ids
                 .into_iter()
                 .map(|id| {
-                    let id = stringify_str(&*id);
+                    let id = stringify_str(&id);
                     format!(" && chunks.has({})", id)
                 })
                 .collect::<Vec<_>>()
                 .join("");
-            let entry_id = stringify_module_id(
-                &*c_context
-                    .id(EcmascriptChunkPlaceableVc::cast_from(this.entry))
-                    .await?,
-            );
+            let module_id = c_context
+                .id(EcmascriptChunkPlaceableVc::cast_from(this.entry))
+                .await?;
+            let entry_id = stringify_module_id(&module_id);
             let _ = write!(
                 code,
                 ", ({{ chunks, getModule }}) => {{
@@ -186,6 +187,8 @@ impl Asset for EcmascriptChunk {
         var runnable = [];
         var modules = {};
         var cache = {};
+        // TODO: temporary solution
+        var process = { env: { NODE_ENV: "development" } };
         var hOP = Object.prototype.hasOwnProperty;
         function require(from, id) {
             return getModule(from, id).exports;
@@ -230,7 +233,7 @@ impl Asset for EcmascriptChunk {
             if(typeof moduleFactory != "function") {
                 throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
             }
-            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), m: module, c: cache });
+            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), m: module, c: cache, p: process });
             module.loaded = true;
             if(module.interopNamespace) {
                 // in case of a circular dependency: cjs1 -> esm2 -> cjs1
