@@ -1,4 +1,7 @@
 import { createNext } from 'e2e-utils'
+import fs from 'fs'
+import { waitFor } from 'next-test-utils'
+import path from 'path'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 describe('correct tsconfig.json defaults', () => {
@@ -18,9 +21,15 @@ describe('correct tsconfig.json defaults', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should add `moduleResoution` when generating tsconfig.json', async () => {
+  it('should add `moduleResoution` when generating tsconfig.json in dev', async () => {
+    const tsconfigPath = path.join(next.testDir, 'tsconfig.json')
+    expect(fs.existsSync(tsconfigPath)).toBeFalse()
+
     await next.start()
+    await waitFor(1000)
     await next.stop()
+
+    expect(fs.existsSync(tsconfigPath)).toBeTrue()
 
     const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
 
