@@ -386,12 +386,12 @@ importers:
 
   packages/eslint-plugin-next:
     specifiers:
-      '@types/eslint': 7.28.0
+      eslint: 7.24.0
       glob: 7.1.7
     dependencies:
       glob: 7.1.7
     devDependencies:
-      '@types/eslint': 7.28.0
+      eslint: 7.24.0
 
   packages/next:
     specifiers:
@@ -6679,14 +6679,6 @@ packages:
       json-schema-traverse: 0.4.1
       uri-js: 4.2.2
 
-  /ajv/8.1.0:
-    resolution: {integrity: sha512-B/Sk2Ix7A36fs/ZkuGLIR86EdjbgR6fsAcbx9lOP/QBSXujDNbVmIS/U4Itz5k8fPFDeVZl/zQ/gJW4Jrq6XjQ==}
-    dependencies:
-      fast-deep-equal: 3.1.3
-      json-schema-traverse: 1.0.0
-      require-from-string: 2.0.2
-      uri-js: 4.2.2
-
   /ajv/8.11.0:
     resolution: {integrity: sha512-wGgprdCvMalC0BztXvitD2hC04YffAvtsUn93JbGXYLAtCUO4xd17mCCZQxUOItiBwZvJScWo8NIvQMQ71rdpg==}
     dependencies:
@@ -6694,7 +6686,6 @@ packages:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
       uri-js: 4.2.2
-    dev: true
 
   /alex/9.1.0:
     resolution: {integrity: sha512-mlNQ0CBGinzZj1pjiXaSLsihjZ4Kzq0U0EjR+DrZ3IQQfM4pf4OtxHI1agBIiEwv0tQUzimjgTk+5t9iHeT7Vw==}
@@ -10459,7 +10450,6 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
-    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -20823,7 +20813,7 @@ packages:
     resolution: {integrity: sha512-s/fitrbVeEyHKFa7mFdkuQMWlH1Wgw/yEXMt5xACT4ZpzWFluehAxRtUUQKPuWhaLAWhFcVx6w3oC8VKaUfPGA==}
     engines: {node: '>=10.0.0'}
     dependencies:
-      ajv: 8.1.0
+      ajv: 8.11.0
       lodash.truncate: 4.4.2
       slice-ansi: 4.0.0
       string-width: 4.2.3
@@ -22058,7 +22048,7 @@ packages:
     requiresBuild: true
 
   /util-deprecate/1.0.2:
-    resolution: {integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=}
+    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
   /util-promisify/2.1.0:
