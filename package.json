@@ -108,7 +108,7 @@
     "@webassemblyjs/wast-printer": "1.11.1",
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",
-    "alex": "9.1.0",
+    "alex": "10.0.0",
     "amphtml-validator": "1.0.35",
     "async-sema": "3.0.1",
     "browserslist": "4.20.2",
