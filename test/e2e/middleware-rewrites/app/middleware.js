@@ -22,6 +22,16 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname === '/rewrite-to-beforefiles-rewrite') {
+    url.pathname = '/beforefiles-rewrite'
+    return NextResponse.rewrite(url)
+  }
+
+  if (url.pathname === '/rewrite-to-afterfiles-rewrite') {
+    url.pathname = '/afterfiles-rewrite'
+    return NextResponse.rewrite(url)
+  }
+
   if (url.pathname.startsWith('/to-blog')) {
     const slug = url.pathname.split('/').pop()
     url.pathname = `/fallback-true-blog/${slug}`
@@ -44,7 +54,9 @@ export async function middleware(request) {
 
   if (url.pathname === '/rewrite-me-to-about') {
     url.pathname = '/about'
-    return NextResponse.rewrite(url)
+    return NextResponse.rewrite(url, {
+      headers: { 'x-rewrite-target': String(url) },
+    })
   }
 
   if (url.pathname === '/rewrite-me-with-a-colon') {
@@ -80,9 +92,9 @@ export async function middleware(request) {
       ? '/about-bypass'
       : '/about'
 
-    const response = NextResponse.rewrite(url)
-    response.headers.set('x-middleware-cache', 'no-cache')
-    return response
+    return NextResponse.rewrite(url, {
+      headers: { 'x-middleware-cache': 'no-cache' },
+    })
   }
 
   if (url.pathname.endsWith('/dynamic-replace')) {
@@ -107,4 +119,6 @@ export async function middleware(request) {
     url.searchParams.set('locale', url.locale)
     return NextResponse.rewrite(url)
   }
+
+  return NextResponse.rewrite(request.nextUrl)
 }

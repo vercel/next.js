@@ -18,7 +18,7 @@ Next.js' production server is also traced for its needed files and output at `.n
 
 To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace which are relative to the `.nft.json` file and then copy them to your deployment location.
 
-## Automatically Copying Traced Files (experimental)
+## Automatically Copying Traced Files
 
 Next.js can automatically create a `standalone` folder which copies only the necessary files for a production deployment including select files in `node_modules`.
 
@@ -26,15 +26,15 @@ To leverage this automatic copying you can enable it in your `next.config.js`:
 
 ```js
 module.exports = {
-  experimental: {
-    outputStandalone: true,
-  },
+  output: 'standalone',
 }
 ```
 
 This will create a folder at `.next/standalone` which can then be deployed on it's own without installing `node_modules`.
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
+
+Note: `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/api-reference/next.config.js/runtime-configuration.md) are being used, the values will be specific to values at build time.
 
 ## Caveats
 

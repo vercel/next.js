@@ -16,9 +16,11 @@ export type PackageJson = {
   [key: string]: unknown
 }
 export class NextInstance {
-  protected files: {
-    [filename: string]: string | FileRef
-  }
+  protected files:
+    | FileRef
+    | {
+        [filename: string]: string | FileRef
+      }
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   protected buildCommand?: string
@@ -35,6 +37,7 @@ export class NextInstance {
   protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
+  public forcedPort?: string
 
   constructor({
     files,
@@ -47,9 +50,11 @@ export class NextInstance {
     packageLockPath,
     env,
   }: {
-    files: {
-      [filename: string]: string | FileRef
-    }
+    files:
+      | FileRef
+      | {
+          [filename: string]: string | FileRef
+        }
     dependencies?: {
       [name: string]: string
     }
@@ -148,15 +153,28 @@ export class NextInstance {
       require('console').log('created next.js install, writing test files')
     }
 
-    for (const filename of Object.keys(this.files)) {
-      const item = this.files[filename]
-      const outputfilename = path.join(this.testDir, filename)
+    if (this.files instanceof FileRef) {
+      // if a FileRef is passed directly to `files` we copy the
+      // entire folder to the test directory
+      const stats = await fs.stat(this.files.fsPath)
 
-      if (typeof item === 'string') {
-        await fs.ensureDir(path.dirname(outputfilename))
-        await fs.writeFile(outputfilename, item)
-      } else {
-        await fs.copy(item.fsPath, outputfilename)
+      if (!stats.isDirectory()) {
+        throw new Error(
+          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+        )
+      }
+      await fs.copy(this.files.fsPath, this.testDir)
+    } else {
+      for (const filename of Object.keys(this.files)) {
+        const item = this.files[filename]
+        const outputFilename = path.join(this.testDir, filename)
+
+        if (typeof item === 'string') {
+          await fs.ensureDir(path.dirname(outputFilename))
+          await fs.writeFile(outputFilename, item)
+        } else {
+          await fs.copy(item.fsPath, outputFilename)
+        }
       }
     }
 

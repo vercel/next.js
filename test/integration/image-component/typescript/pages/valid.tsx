@@ -12,33 +12,33 @@ const Page = () => {
       <p>Valid TS</p>
       <Image
         id="width-and-height-num"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={500}
         height={500}
       />
       <Image
         id="width-and-height-str"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width="500"
         height="500"
       />
       <div style={{ position: 'relative', width: 100, height: 100 }}>
         <Image
           id="layout-fill"
-          src="https://via.placeholder.com/100"
+          src="https://image-optimization-test.vercel.app/test.jpg"
           layout="fill"
         />
       </div>
       <Image
         id="quality-num"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         quality={80}
         width={500}
         height={500}
       />
       <Image
         id="quality-str"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         quality="80"
         width={500}
         height={500}
@@ -51,21 +51,21 @@ const Page = () => {
       />
       <Image
         id="object-fit-cover-position-right"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         layout="fill"
         objectFit="cover"
         objectPosition="right"
       />
       <Image
         id="object-fit-scale-down-position-50px"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         layout="fill"
         objectFit="scale-down"
         objectPosition="50px"
       />
       <Image
         id="placeholder-and-blur-data-url"
-        src="https://via.placeholder.com/500"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={500}
         height={500}
         placeholder="blur"
@@ -81,15 +81,18 @@ const Page = () => {
       <Image id="object-src-with-avif" src={avif} />
       <Image
         id="fill-with-unused-width-height"
-        src="https://via.placeholder.com/200"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         layout="fill"
         width={100}
         height={100}
       />
-      <ImageCard id="image-card" src="https://via.placeholder.com/300" />
+      <ImageCard
+        id="image-card"
+        src="https://image-optimization-test.vercel.app/test.jpg"
+      />
       <DynamicSrcImage
         id="dynamic-src"
-        src="https://via.placeholder.com/400"
+        src="https://image-optimization-test.vercel.app/test.jpg"
         width={400}
         height={400}
       />

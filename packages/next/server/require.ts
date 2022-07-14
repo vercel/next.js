@@ -11,7 +11,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { PageNotFoundError } from '../shared/lib/utils'
+import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 
 export function getPagePath(
   page: string,
@@ -28,9 +28,6 @@ export function getPagePath(
   let rootPathsManifest: undefined | PagesManifest
 
   if (appDirEnabled) {
-    if (page === '/_root') {
-      return join(serverBuildPath, 'root.js')
-    }
     rootPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
   const pagesManifest = require(join(
@@ -90,7 +87,9 @@ export function requirePage(
     appDirEnabled
   )
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(pagePath, 'utf8')
+    return promises.readFile(pagePath, 'utf8').catch((err) => {
+      throw new MissingStaticPage(page, err.message)
+    })
   }
   return require(pagePath)
 }

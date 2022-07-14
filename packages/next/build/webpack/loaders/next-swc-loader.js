@@ -43,6 +43,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     nextConfig,
     jsConfig,
     supportedBrowsers,
+    swcCacheDir,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
@@ -56,6 +57,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     nextConfig,
     jsConfig,
     supportedBrowsers,
+    swcCacheDir,
   })
 
   const programmaticOptions = {

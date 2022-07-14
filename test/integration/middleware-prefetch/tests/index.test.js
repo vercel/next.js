@@ -71,7 +71,11 @@ describe('Middleware Production Prefetch', () => {
       const mapped = hrefs.map((href) =>
         new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
       )
-      assert.deepEqual(mapped, ['/ssg-page.json'])
+      assert.deepEqual(mapped, [
+        '/index.json',
+        '/made-up.json',
+        '/ssg-page-2.json',
+      ])
       return 'yes'
     }, 'yes')
   })

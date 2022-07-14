@@ -18,6 +18,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -45,7 +46,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  MIDDLEWARE_FLIGHT_MANIFEST,
+  FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -53,6 +54,8 @@ import {
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
   MIDDLEWARE_MANIFEST,
+  APP_PATHS_MANIFEST,
+  APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -89,13 +92,9 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage,
-  getUnresolvedModuleFromError,
   copyTracedFiles,
   isReservedPage,
-  isCustomErrorPage,
   isServerComponentPage,
-  isMiddlewareFile,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -107,11 +106,17 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
+import {
+  lockfilePatchPromise,
+  teardownTraceSubscriber,
+  teardownCrashReporter,
+} from './swc'
 import { injectedClientEntries } from './webpack/plugins/client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
+import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -224,6 +229,10 @@ export default async function build(
       )
 
       eventNextPlugins(path.resolve(dir)).then((events) =>
+        telemetry.record(events)
+      )
+
+      eventSwcPlugins(path.resolve(dir), config).then((events) =>
         telemetry.record(events)
       )
 
@@ -379,10 +388,10 @@ export default async function build(
           })
         )
 
-      let mappedappPaths: { [page: string]: string } | undefined
+      let mappedAppPaths: { [page: string]: string } | undefined
 
       if (appPaths && appDir) {
-        mappedappPaths = nextBuildSpan
+        mappedAppPaths = nextBuildSpan
           .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
@@ -421,7 +430,7 @@ export default async function build(
             rootDir: dir,
             rootPaths: mappedRootPaths,
             appDir,
-            appPaths: mappedappPaths,
+            appPaths: mappedAppPaths,
             pageExtensions: config.pageExtensions,
           })
         )
@@ -431,12 +440,6 @@ export default async function build(
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
-
-      if (Object.keys(mappedRootPaths || {}).some(isMiddlewareFile)) {
-        Log.warn(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
-      }
 
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = await fileExists(
@@ -574,21 +577,36 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => ({
-        version: 3,
-        pages404: true,
-        basePath: config.basePath,
-        redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-        headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-        dynamicRoutes: getSortedRoutes(pageKeys)
-          .filter(isDynamicRoute)
-          .map(pageToRoute),
-        staticRoutes: getSortedRoutes(pageKeys)
-          .filter((page) => !isDynamicRoute(page) && !isReservedPage(page))
-          .map(pageToRoute),
-        dataRoutes: [],
-        i18n: config.i18n || undefined,
-      }))
+      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
+        const sortedRoutes = getSortedRoutes([
+          ...pageKeys,
+          ...Object.keys(mappedAppPaths || {}).map((key) =>
+            normalizeAppPath(key)
+          ),
+        ])
+        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+        const staticRoutes: typeof dynamicRoutes = []
+
+        for (const route of sortedRoutes) {
+          if (isDynamicRoute(route)) {
+            dynamicRoutes.push(pageToRoute(route))
+          } else if (!isReservedPage(route)) {
+            staticRoutes.push(pageToRoute(route))
+          }
+        }
+
+        return {
+          version: 3,
+          pages404: true,
+          basePath: config.basePath,
+          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
+          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+          dynamicRoutes,
+          staticRoutes,
+          dataRoutes: [],
+          i18n: config.i18n || undefined,
+        }
+      })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
@@ -682,19 +700,14 @@ export default async function build(
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
             ...(hasServerComponents
               ? [
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    MIDDLEWARE_FLIGHT_MANIFEST + '.json'
-                  ),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
             config.optimizeFonts ? path.join(serverDir, FONT_MANIFEST) : null,
             BUILD_ID_FILE,
+            appDir ? path.join(serverDir, APP_PATHS_MANIFEST) : null,
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -722,6 +735,7 @@ export default async function build(
           runWebpackSpan,
           target,
           appDir,
+          middlewareRegex: entrypoints.middlewareRegex,
         }
 
         const configs = await runWebpackSpan
@@ -880,20 +894,6 @@ export default async function build(
 
         console.error(error)
         console.error()
-
-        const edgeRuntimeErrors = result.stats[2]?.compilation.errors ?? []
-
-        for (const err of edgeRuntimeErrors) {
-          // When using the web runtime, common Node.js native APIs are not available.
-          const moduleName = getUnresolvedModuleFromError(err.message)
-          if (!moduleName) continue
-
-          const e = new Error(
-            getNodeBuiltinModuleNotSupportedInEdgeRuntimeMessage(moduleName)
-          ) as NextError
-          e.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
-          throw e
-        }
 
         if (
           error.indexOf('private-next-pages') > -1 ||
@@ -1086,7 +1086,7 @@ export default async function build(
         )
 
         await Promise.all(
-          pageKeys.map(async (page) => {
+          pageKeys.map((page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
               page,
             })
@@ -1130,7 +1130,7 @@ export default async function build(
               if (
                 !isReservedPage(page) &&
                 // We currently don't support static optimization in the Edge runtime.
-                pageRuntime !== 'edge'
+                pageRuntime !== SERVER_RUNTIME.edge
               ) {
                 try {
                   let isPageStaticSpan =
@@ -1256,10 +1256,7 @@ export default async function build(
                 isHybridAmp,
                 ssgPageRoutes,
                 initialRevalidateSeconds: false,
-                runtime:
-                  !isReservedPage(page) && !isCustomErrorPage(page)
-                    ? pageRuntime
-                    : undefined,
+                runtime: pageRuntime,
                 pageDuration: undefined,
                 ssgPageDurations: undefined,
               })
@@ -1447,7 +1444,7 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = path.parse(dir).root
+            const root = config.experimental.outputFileTracingRoot || dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1457,6 +1454,7 @@ export default async function build(
                 require.resolve(config.experimental.incrementalCacheHandlerPath)
               )
             }
+
             const serverResult = await nodeFileTrace(toTrace, {
               base: root,
               processCwd: dir,
@@ -1639,6 +1637,24 @@ export default async function build(
         'utf8'
       )
 
+      if (appDir) {
+        const appPathsManifest = JSON.parse(
+          await promises.readFile(
+            path.join(distDir, serverDir, APP_PATHS_MANIFEST),
+            'utf8'
+          )
+        )
+        const appPathRoutes: Record<string, string> = {}
+
+        Object.keys(appPathsManifest).forEach((entry) => {
+          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+        })
+        await promises.writeFile(
+          path.join(distDir, APP_PATH_ROUTES_MANIFEST),
+          JSON.stringify(appPathRoutes, null, 2)
+        )
+      }
+
       const middlewareManifest: MiddlewareManifest = JSON.parse(
         await promises.readFile(
           path.join(distDir, serverDir, MIDDLEWARE_MANIFEST),
@@ -1649,7 +1665,7 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         await nextBuildSpan
           .traceChild('copy-traced-files')
           .traceAsyncFn(async () => {
@@ -2206,18 +2222,6 @@ export default async function build(
         )
       }
 
-      await promises.writeFile(
-        path.join(
-          distDir,
-          CLIENT_STATIC_FILES_PATH,
-          buildId,
-          '_middlewareManifest.js'
-        ),
-        `self.__MIDDLEWARE_MANIFEST=${devalue(
-          middlewareManifest.clientInfo
-        )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
-      )
-
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
       ;(images as any).sizes = [...deviceSizes, ...imageSizes]
@@ -2256,7 +2260,7 @@ export default async function build(
         return Promise.reject(err)
       })
 
-      if (config.experimental.outputStandalone) {
+      if (config.output === 'standalone') {
         for (const file of [
           ...requiredServerFiles.files,
           path.join(config.distDir, SERVER_FILES_MANIFEST),
@@ -2352,6 +2356,7 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
+    teardownCrashReporter()
   }
 }
 
@@ -2410,13 +2415,15 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages = new Set<string>([
-    ...Object.entries(prerenderManifest.routes)
-      // Filter out dynamic routes
-      .filter(([, { srcRoute }]) => srcRoute == null)
-      .map(([route]) => normalizeLocalePath(route, locales).pathname),
-    ...Object.keys(prerenderManifest.dynamicRoutes),
-  ])
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
 
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages

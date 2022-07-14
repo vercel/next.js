@@ -68,6 +68,26 @@ describe('Production Usage', () => {
     await killApp(app)
   })
 
+  it('should navigate through history after query update', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.next.router.push("/about?a=b")')
+    await browser.waitForElementByCss('.about-page')
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+
+    await browser.refresh()
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+    await browser.back()
+    await browser.waitForElementByCss('.index-page')
+    await browser.forward()
+    await browser.waitForElementByCss('.about-page')
+    await browser.back()
+    await browser.waitForElementByCss('.index-page')
+    await browser.refresh()
+    await browser.waitForCondition(`!!window.next.router.isReady`)
+    await browser.forward()
+    await browser.waitForElementByCss('.about-page')
+  })
+
   it('should not show target deprecation warning', () => {
     expect(output).not.toContain(
       'The `target` config is deprecated and will be removed in a future version'
@@ -103,6 +123,21 @@ describe('Production Usage', () => {
         file.includes('next/dist/server/send-payload/index.js')
       )
     ).toBe(true)
+    const repoRoot = join(__dirname, '../../../../')
+    expect(
+      serverTrace.files.some((file) => {
+        const fullPath = join(__dirname, '../.next', file)
+        if (!fullPath.startsWith(repoRoot)) {
+          console.error(`Found next-server trace file outside repo root`, {
+            repoRoot,
+            fullPath,
+            file,
+          })
+          return true
+        }
+        return false
+      })
+    ).toBe(false)
     expect(
       serverTrace.files.some((file) =>
         file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')

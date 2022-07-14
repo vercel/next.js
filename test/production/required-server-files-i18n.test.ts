@@ -63,9 +63,7 @@ describe('should set-up next', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          outputStandalone: true,
-        },
+        output: 'standalone',
         async rewrites() {
           return [
             {
@@ -448,7 +446,7 @@ describe('should set-up next', () => {
 
     const html3 = await renderViaHTTP(
       appPort,
-      '/catch-all/[[..rest]]',
+      '/catch-all/[[...rest]]',
       undefined,
       {
         headers: {
@@ -732,7 +730,7 @@ describe('should set-up next', () => {
   })
 
   it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
       headers: {
         'x-matched-path': '/[slug]',
       },

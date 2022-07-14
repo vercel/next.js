@@ -134,23 +134,12 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
         styled_jsx::styled_jsx(cm.clone(), file.name.clone()),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
-            Some(config) => {
-                let config = Rc::new(config.clone());
-                let state: Rc<RefCell<styled_components::State>> = Default::default();
-
-                Either::Left(chain!(
-                    styled_components::analyzer(config.clone(), state.clone()),
-                    styled_components::display_name_and_id(
-                        file.name.clone(),
-                        file.src_hash,
-                        config,
-                        state
-                    )
-                ))
-            }
-            None => {
-                Either::Right(noop())
-            }
+            Some(config) => Either::Left(styled_components::styled_components(
+                file.name.clone(),
+                file.src_hash,
+                config.clone(),
+            )),
+            None => Either::Right(noop()),
         },
         Optional::new(
             next_ssg::next_ssg(eliminated_packages),
@@ -213,8 +202,9 @@ impl TransformOptions {
     pub fn patch(mut self, fm: &SourceFile) -> Self {
         self.swc.swcrc = false;
 
-        let should_enable_commonjs =
-            self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
+        let should_enable_commonjs = self.swc.config.module.is_none()
+            && (fm.src.contains("module.exports") || fm.src.contains("__esModule"))
+            && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
 

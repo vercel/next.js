@@ -31,21 +31,25 @@ export type OriginalStackFrame =
     }
 
 export function getOriginalStackFrames(
-  isServerSide: boolean,
-  frames: StackFrame[]
+  frames: StackFrame[],
+  type: 'server' | 'edge-server' | null,
+  errorMessage: string
 ) {
   return Promise.all(
-    frames.map((frame) => getOriginalStackFrame(isServerSide, frame))
+    frames.map((frame) => getOriginalStackFrame(frame, type, errorMessage))
   )
 }
 
 export function getOriginalStackFrame(
-  isServerSide: boolean,
-  source: StackFrame
+  source: StackFrame,
+  type: 'server' | 'edge-server' | null,
+  errorMessage: string
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
     const params = new URLSearchParams()
-    params.append('isServerSide', String(isServerSide))
+    params.append('isServer', String(type === 'server'))
+    params.append('isEdgeServer', String(type === 'edge-server'))
+    params.append('errorMessage', errorMessage)
     for (const key in source) {
       params.append(key, ((source as any)[key] ?? '').toString())
     }

@@ -79,6 +79,7 @@ let headManager: {
   updateHead: (head: JSX.Element[]) => void
   getIsSsr?: () => boolean
 }
+let initialMatchesMiddleware = false
 
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
@@ -104,6 +105,8 @@ class Container extends React.Component<{
     // - the page was (auto) exported and has a query string or search (hash)
     // - it was auto exported and is a dynamic route (to provide params)
     // - if it is a client-side skeleton (fallback render)
+    // - if middleware matches the current page (may have rewrite params)
+    // - if rewrites in next.config.js match (may have rewrite params)
     if (
       router.isSsr &&
       // We don't update for 404 requests as this can modify
@@ -115,35 +118,42 @@ class Container extends React.Component<{
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||
             location.search ||
-            process.env.__NEXT_HAS_REWRITES)) ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)) ||
         (initialData.props &&
           initialData.props.__N_SSG &&
-          (location.search || process.env.__NEXT_HAS_REWRITES)))
+          (location.search ||
+            process.env.__NEXT_HAS_REWRITES ||
+            initialMatchesMiddleware)))
     ) {
       // update query on mount for exported pages
-      router.replace(
-        router.pathname +
-          '?' +
-          String(
-            assign(
-              urlQueryToSearchParams(router.query),
-              new URLSearchParams(location.search)
-            )
-          ),
-        asPath,
-        {
-          // @ts-ignore
-          // WARNING: `_h` is an internal option for handing Next.js
-          // client-side hydration. Your app should _never_ use this property.
-          // It may change at any time without notice.
-          _h: 1,
-          // Fallback pages must trigger the data fetch, so the transition is
-          // not shallow.
-          // Other pages (strictly updating query) happens shallowly, as data
-          // requirements would already be present.
-          shallow: !initialData.isFallback,
-        }
-      )
+      router
+        .replace(
+          router.pathname +
+            '?' +
+            String(
+              assign(
+                urlQueryToSearchParams(router.query),
+                new URLSearchParams(location.search)
+              )
+            ),
+          asPath,
+          {
+            // @ts-ignore
+            // WARNING: `_h` is an internal option for handing Next.js
+            // client-side hydration. Your app should _never_ use this property.
+            // It may change at any time without notice.
+            _h: 1,
+            // Fallback pages must trigger the data fetch, so the transition is
+            // not shallow.
+            // Other pages (strictly updating query) happens shallowly, as data
+            // requirements would already be present.
+            shallow: !initialData.isFallback && !initialMatchesMiddleware,
+          }
+        )
+        .catch((err) => {
+          if (!err.cancelled) throw err
+        })
     }
   }
 
@@ -349,7 +359,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   if (process.env.NODE_ENV === 'development') {
     const {
-      getNodeError,
+      getServerError,
     } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
@@ -368,15 +378,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-
-          // Errors from the middleware are reported as client-side errors
-          // since the middleware is compiled using the client compiler
-          if (initialData.err && 'middleware' in initialData.err) {
-            throw error
-          }
-
-          const node = getNodeError(error)
-          throw node
+          throw getServerError(error, initialErr!.source)
         })
       }
       // We replaced the server-side error with a client-side error, and should
@@ -419,6 +421,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     isPreview: initialData.isPreview,
     isRsc: initialData.rsc,
   })
+
+  initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
@@ -517,7 +521,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         },
       }
       return Promise.resolve(
-        renderErrorProps.props
+        renderErrorProps.props?.err
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>

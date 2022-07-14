@@ -17,8 +17,6 @@ module.exports = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // limit of 50 domains values
     domains: [],
-    // limit of 50 objects
-    remotePatterns: [],
     // path prefix for Image Optimization API, useful with `loader`
     path: '/_next/image',
     // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
@@ -33,6 +31,17 @@ module.exports = {
     dangerouslyAllowSVG: false,
     // set the Content-Security-Policy header
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // the following are experimental features, and may cause breaking changes
+  },
+  experimental: {
+    images: {
+      // limit of 50 objects
+      remotePatterns: [],
+      // when true, every image will be unoptimized
+      unoptimized: false,
+      // when true, allow `next/future/image` to be imported
+      allowFutureImage: false,
+    },
   },
 }
 ```

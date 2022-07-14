@@ -5,6 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch app-dir development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["run", "debug-react-exp", "dev", "test/e2e/app-dir/app"],
+      "skipFiles": ["<node_internals>/**"],
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
+      "port": 9229,
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
+    },
+    {
       "name": "Launch app development",
       "type": "node",
       "request": "launch",
