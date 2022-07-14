@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromFetch } from './flight-client'
 import {
   AppRouterContext,
   AppTreeContext,
@@ -18,75 +18,20 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-async function loadCss(cssChunkInfoJson: string) {
-  const data = JSON.parse(cssChunkInfoJson)
-  await Promise.all(
-    data.chunks.map((chunkId: string) => {
-      // load css related chunks
-      return (self as any).__next_chunk_load__(chunkId)
-    })
-  )
-  // In development mode, import css in dev when it's wrapped by style loader.
-  // In production mode, css are standalone chunk that doesn't need to be imported.
-  if (data.id) {
-    ;(self as any).__next_require__(data.id)
-  }
-}
-
-const loadCssFromStreamData = (data: string) => {
-  if (data.startsWith('CSS:')) {
-    loadCss(data.slice(4).trim())
-  }
-}
-
-function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
+function fetchFlight(url: URL, flightRouterStateData: string) {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
   searchParams.append('__flight_router_state_tree__', flightRouterStateData)
-
-  const { readable, writable } = new TransformStream()
-
-  // TODO-APP: Refine the buffering code here to make it more correct.
-  let buffer = ''
-  const loadCssFromFlight = new TransformStream({
-    transform(chunk, controller) {
-      const process = (buf: string) => {
-        if (buf) {
-          if (buf.startsWith('CSS:')) {
-            loadCssFromStreamData(buf)
-          } else {
-            controller.enqueue(new TextEncoder().encode(buf))
-          }
-        }
-      }
-
-      const data = new TextDecoder().decode(chunk)
-      buffer += data
-      let index
-      while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index + 1)
-        buffer = buffer.slice(index + 1)
-        process(line)
-      }
-      process(buffer)
-      buffer = ''
-    },
-  })
-
-  fetch(flightUrl.toString()).then((res) => {
-    res.body?.pipeThrough(loadCssFromFlight).pipeTo(writable)
-  })
-
-  return readable
+  return fetch(flightUrl.toString())
 }
 
 export function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState
-): { readRoot: () => FlightData } {
+) {
   const flightRouterStateData = JSON.stringify(flightRouterState)
-  return createFromReadableStream(fetchFlight(url, flightRouterStateData))
+  return createFromFetch(fetchFlight(url, flightRouterStateData))
 }
 
 function ErrorOverlay({
@@ -132,6 +77,8 @@ export default function AppRouter({
       focusRef: { focus: false },
       canonicalUrl: initialCanonicalUrl,
     })
+
+  // console.log(initialTree, tree, cache, children)
 
   useEffect(() => {
     initialParallelRoutes = null!

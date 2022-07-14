@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import ClientComp from './client-comp.client'
 export default function DashboardPage(props) {
   return (
@@ -7,6 +8,10 @@ export default function DashboardPage(props) {
       </p>
       <p className="green">this is green</p>
       <ClientComp />
+      <br />
+      <Link href="/dashboard/index">
+        <a>go to index</a>
+      </Link>
     </>
   )
 }

@@ -1,3 +1,5 @@
+import './style.css'
+
 export async function getServerSideProps() {
   await new Promise((resolve) => setTimeout(resolve, 5000))
   return {
