@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2019"
+    "target": "es2018"
   },
+  "include": ["lib/**/*"],
   "exclude": ["node_modules"]
 }
