@@ -154,7 +154,7 @@
     "lint-staged": "10.1.7",
     "lost": "8.3.1",
     "minimatch": "3.0.4",
-    "moment": "^2.29.3",
+    "moment": "^2.24.0",
     "nanoid": "3.1.30",
     "next": "workspace:*",
     "node-fetch": "2.6.7",

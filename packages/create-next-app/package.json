@@ -30,7 +30,7 @@
   "devDependencies": {
     "@types/async-retry": "1.4.2",
     "@types/cross-spawn": "6.0.0",
-    "@types/node": "^12.20.54",
+    "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",
     "@types/tar": "4.0.3",
