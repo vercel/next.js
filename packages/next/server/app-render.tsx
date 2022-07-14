@@ -264,7 +264,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  loading?: 'loading'
 ]
 
 export type FlightSegmentPath =
@@ -455,7 +456,7 @@ export async function renderToHTML(
   )
   const isPreview = previewData !== false
   const serverContexts: Array<[string, any]> = [
-    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request
+    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
     ['HeadersContext', headers],
     ['CookiesContext', cookies],
     ['PreviewDataContext', previewData],
@@ -476,7 +477,6 @@ export async function renderToHTML(
     treeValue: string
     type: DynamicParamTypesShort
   } | null => {
-    // TODO-APP: use correct matching for dynamic routes to get segment param
     const segmentParam = getSegmentParam(segment)
     if (!segmentParam) {
       return null
@@ -508,7 +508,9 @@ export async function renderToHTML(
   const createFlightRouterStateFromLoaderTree = ([
     segment,
     parallelRoutes,
+    { loading },
   ]: LoaderTree): FlightRouterState => {
+    const hasLoading = Boolean(loading)
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
@@ -528,6 +530,10 @@ export async function renderToHTML(
         },
         {} as FlightRouterState[1]
       )
+    }
+
+    if (hasLoading) {
+      segmentTree[4] = 'loading'
     }
     return segmentTree
   }
@@ -636,7 +642,6 @@ export async function renderToHTML(
     let fetcher: (() => Promise<any>) | null = null
 
     type GetServerSidePropsContext = {
-      // TODO-APP: has to be serializable
       headers: IncomingHttpHeaders
       cookies: NextApiRequestCookies
       layoutSegments: FlightSegmentPath
@@ -662,7 +667,7 @@ export async function renderToHTML(
         headers,
         cookies,
         layoutSegments: segmentPath,
-        // TODO-APP: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
+        // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
         ...(isPage ? { query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -678,7 +683,6 @@ export async function renderToHTML(
     if (layoutOrPageMod.getStaticProps) {
       const getStaticPropsContext = {
         layoutSegments: segmentPath,
-        // TODO-APP: change this to be URLSearchParams instead?
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -825,9 +829,6 @@ export async function renderToHTML(
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
 
-  // TODO-APP: change tree to accommodate this
-  // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
-  // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
   const initialStylesheets: string[] = getCSSInlinedLinkTags(
@@ -945,6 +946,7 @@ export async function renderToHTML(
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
+      initialStylesheets,
     })
   }
 

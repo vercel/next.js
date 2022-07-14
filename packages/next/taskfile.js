@@ -177,6 +177,47 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function compile_config_schema(task, opts) {
+  const { configSchema } = require('./dist/server/config-schema')
+  // eslint-disable-next-line
+  const Ajv = require('ajv')
+  // eslint-disable-next-line
+  const standaloneCode = require('ajv/dist/standalone').default
+  // eslint-disable-next-line
+  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  ajv.addKeyword({
+    keyword: 'isFunction',
+    schemaType: 'boolean',
+    compile() {
+      return (data) => data instanceof Function
+    },
+    code(ctx) {
+      const { data } = ctx
+      ctx.fail(Ajv._`!(${data} instanceof Function)`)
+    },
+    metaSchema: {
+      anyOf: [{ type: 'boolean' }],
+    },
+  })
+
+  const compiled = ajv.compile(configSchema)
+  const validateCode = standaloneCode(ajv, compiled)
+  const preNccFilename = join(__dirname, 'dist', 'next-config-validate.js')
+  await fs.writeFile(preNccFilename, validateCode)
+  await task
+    .source(opts.src || './dist/next-config-validate.js')
+    .ncc({})
+    .target('dist/next-config-validate')
+
+  await fs.unlink(preNccFilename)
+  await fs.rename(
+    join(__dirname, 'dist/next-config-validate/next-config-validate.js'),
+    join(__dirname, 'dist/next-config-validate.js')
+  )
+  await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -1943,7 +1984,7 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
 }
 
 export default async function (task) {
