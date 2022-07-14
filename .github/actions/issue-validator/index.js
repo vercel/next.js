@@ -8699,57 +8699,90 @@
     const t = 'please verify canary'
     const r = 'template: bug'
     const s = 'please add a complete reproduction'
+    const i = !!process.env.DEBUG
     async function run() {
       try {
         const {
           payload: { issue: p, pull_request: d },
-          repo: i,
+          repo: o,
         } = e.context
         if (d || !p?.body) return
-        const { body: o, labels: n, number: l } = p
-        const m = n.some((e) => e.name === t)
-        const u = n.some((e) => e.name === r)
-        if (!process.env.GITHUB_TOKEN) {
-          return a.setFailed('GITHUB_TOKEN is not set')
+        const { body: n, labels: l, number: m } = p
+        const u = l.some((e) => e.name === r)
+        const c = l.some((e) => e.name === t)
+        if (!u || !c) {
+          return a.info(
+            `issue ${m} is ignored, because it is not a bug report or is not manually labeled`
+          )
         }
-        const c = e.getOctokit(process.env.GITHUB_TOKEN).rest
+        if (!process.env.GITHUB_TOKEN) {
+          throw new Error('GITHUB_TOKEN is not set')
+        }
+        const v = e.getOctokit(process.env.GITHUB_TOKEN).rest
         function notifyOnIssue(e, p) {
-          const a = { ...i, issue_number: l }
+          const d = { ...o, issue_number: m }
+          if (i) {
+            a.info('Skipping comment/label because we are in DEBUG mode')
+            a.info(JSON.stringify({ label: e, comment: p }, null, 2))
+            return
+          }
           return Promise.all([
-            c.issues.addLabels({ ...a, labels: [e] }),
-            c.issues.createComment({ ...a, body: p }),
+            v.issues.addLabels({ ...d, labels: [e] }),
+            v.issues.createComment({ ...d, body: p }),
           ])
         }
-        const v = o.includes(
+        const h = n.includes(
           '- [X] I verified that the issue exists in Next.js canary release'
         )
-        if (!v || m) {
-          return await notifyOnIssue(
+        if (!h || c) {
+          await notifyOnIssue(
             t,
             'Please verify your issue reproduces with `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
           )
-        }
-        if (!u) return
-        const h = o
-          .match(/### Link to reproduction\n\n(?<url>.*)\n/)
-          ?.groups?.url.trim()
-        if (!h || !(await (await fetch(h)).ok)) {
-          return await notifyOnIssue(
-            s,
-            'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field.'
+          return a.info(
+            `Commented on issue ${m}, because it was ${
+              c ? 'manually labeled' : 'not verified against canary'
+            }`
           )
         }
-        const g = o.match(
+        const g = n
+          .match(/### Link to reproduction\n\n(?<url>.*)\n/)
+          ?.groups?.url.trim()
+        if (!g || !(await fetch(g)).ok) {
+          await notifyOnIssue(
+            s,
+            'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field. If your project is private, you can invite @balazsorban44 to the repository so the Next.js team can investigate further.'
+          )
+          return a.info(
+            `Commented on issue ${m}, because it the reproduction url (${g}) was not reachable.`
+          )
+        }
+        const w = [
+          'Operating System:',
+          'Binaries:',
+          'Relevant packages:',
+        ].every((e) => n.includes(e))
+        if (!w) {
+          return a.info(
+            'Could not detect `next info` output, skipping as version detection might be unreliable'
+          )
+        }
+        const _ = n.match(
           /Relevant packages:\n      next: (?<version>\d+\.\d+\.\d+)/
         )?.groups?.version
-        if (!g) {
+        a.info(`Reported Next.js version: ${_}`)
+        if (!_) {
           return
         }
-        const { tag_name: w } = await (await c.repos.listReleases(i)).data[0]
-        if (w.includes('canary') && g !== w) {
-          return await notifyOnIssue(
+        const { tag_name: T } = await (await v.repos.listReleases(o)).data[0]
+        a.info(`Last Next.js version, based on GitHub releases: ${T}`)
+        if (T.includes('canary') && _ !== T) {
+          await notifyOnIssue(
             t,
-            `The reported Next.js version did not match the latest \`next@canary\` version (${w}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
+            `The reported Next.js version did not match the latest \`next@canary\` version (${T}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
+          )
+          return a.info(
+            `Commented on issue ${m}, because it was not verified against canary.`
           )
         }
       } catch (e) {
