@@ -197,7 +197,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -236,8 +236,8 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
       const __Request = context.Request
       context.Request = class extends __Request {
-        constructor(input: RequestInfo, init?: RequestInit | undefined) {
-          const url = typeof input === 'string' ? input : input.url
+        constructor(input: RequestInfo | URL, init?: RequestInit | undefined) {
+          const url = input instanceof __Request ? input.url : input
           validateURL(url)
           super(input, init)
         }

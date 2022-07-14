@@ -153,7 +153,7 @@
     "@types/lodash.curry": "4.1.6",
     "@types/lru-cache": "5.1.0",
     "@types/micromatch": "4.0.2",
-    "@types/node-fetch": "2.6.1",
+    "@types/node-fetch": "2.6.2",
     "@types/path-to-regexp": "1.7.0",
     "@types/react": "16.9.17",
     "@types/react-dom": "16.9.4",

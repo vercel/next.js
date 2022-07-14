@@ -204,7 +204,7 @@ importers:
       '@types/trusted-types': 2.0.2
       '@typescript-eslint/eslint-plugin': 4.29.1_gxw5ie7jrmcpfcyjccwwdufp74
       '@typescript-eslint/parser': 4.29.1_zbjbpiuvs4kyto35xydu573wtq
-      '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
+      '@vercel/fetch': 6.1.1_wbqoqouw2iimn65bqgaw3lwmza
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -322,9 +322,9 @@ importers:
 
   packages/create-next-app:
     specifiers:
-      '@types/async-retry': 1.4.2
+      '@types/async-retry': 1.4.4
       '@types/cross-spawn': 6.0.0
-      '@types/node': ^12.6.8
+      '@types/node': ^12.20.54
       '@types/prompts': 2.0.1
       '@types/rimraf': 3.0.0
       '@types/tar': 4.0.3
@@ -342,7 +342,7 @@ importers:
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
     devDependencies:
-      '@types/async-retry': 1.4.2
+      '@types/async-retry': 1.4.4
       '@types/cross-spawn': 6.0.0
       '@types/node': 12.20.54
       '@types/prompts': 2.0.1
@@ -386,12 +386,12 @@ importers:
 
   packages/eslint-plugin-next:
     specifiers:
-      '@types/eslint': 7.28.0
+      '@types/eslint': 8.4.2
       glob: 7.1.7
     dependencies:
       glob: 7.1.7
     devDependencies:
-      '@types/eslint': 7.28.0
+      '@types/eslint': 8.4.2
 
   packages/next:
     specifiers:
@@ -452,7 +452,7 @@ importers:
       '@types/lodash.curry': 4.1.6
       '@types/lru-cache': 5.1.0
       '@types/micromatch': 4.0.2
-      '@types/node-fetch': 2.6.1
+      '@types/node-fetch': 2.6.2
       '@types/path-to-regexp': 1.7.0
       '@types/react': 16.9.17
       '@types/react-dom': 16.9.4
@@ -645,7 +645,7 @@ importers:
       '@types/lodash.curry': 4.1.6
       '@types/lru-cache': 5.1.0
       '@types/micromatch': 4.0.2
-      '@types/node-fetch': 2.6.1
+      '@types/node-fetch': 2.6.2
       '@types/path-to-regexp': 1.7.0
       '@types/react': 16.9.17
       '@types/react-dom': 16.9.4
@@ -5830,8 +5830,8 @@ packages:
     resolution: {integrity: sha512-yMQ6CVgICWtyFNBqJT3zqOc+TnqqEPLo4nKJNPFwcialiylil38Ie6q1ENeFTjvaLOkVim9K5LisHgAKJWidGQ==}
     dev: true
 
-  /@types/async-retry/1.4.2:
-    resolution: {integrity: sha512-GUDuJURF0YiJZ+CBjNQA0+vbP/VHlJbB0sFqkzsV7EcOPRfurVonXpXKAt3w8qIjM1TEzpz6hc6POocPvHOS3w==}
+  /@types/async-retry/1.4.4:
+    resolution: {integrity: sha512-IGT+yESLPYje0MV8MfOpT5V5oH9lAKLwlosQRyq75tYJmntkkWcfEThHLxsgYjGmYXJEY7ZZkYPb4xuW+NA6GA==}
     dependencies:
       '@types/retry': 0.12.2
     dev: true
@@ -5976,13 +5976,6 @@ packages:
     dependencies:
       '@types/eslint': 8.4.2
       '@types/estree': 0.0.51
-    dev: true
-
-  /@types/eslint/7.28.0:
-    resolution: {integrity: sha512-07XlgzX0YJUn4iG1ocY4IX9DzKSmMGUs6ESKlxWhZRaa0fatIWaHWUVapcuGa8r5HFnTqzj+4OCjd5f7EZ/i/A==}
-    dependencies:
-      '@types/estree': 0.0.51
-      '@types/json-schema': 7.0.11
     dev: true
 
   /@types/eslint/8.4.2:
@@ -6224,6 +6217,13 @@ packages:
 
   /@types/node-fetch/2.6.1:
     resolution: {integrity: sha512-oMqjURCaxoSIsHSr1E47QHzbmzNR5rK8McHuNb11BOM9cHcIK3Avy0s/b2JlXHoQGTYS3NsvWzV1M0iK7l0wbA==}
+    dependencies:
+      '@types/node': 17.0.38
+      form-data: 3.0.1
+    dev: true
+
+  /@types/node-fetch/2.6.2:
+    resolution: {integrity: sha512-DHqhlq5jeESLy19TYhLakJ07kNumXWjcDdxXsLUMJZ6ue8VZJj4kLPQVE/2mdHh3xZziNF1xppu5lwmS53HR+A==}
     dependencies:
       '@types/node': 17.0.38
       form-data: 3.0.1
@@ -6716,14 +6716,14 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/fetch/6.1.1_fii5qhbaymjqmfm7e2spxc5z4m:
+  /@vercel/fetch/6.1.1_wbqoqouw2iimn65bqgaw3lwmza:
     resolution: {integrity: sha512-nddCkgpA0aVIqOlzh+qVlzDNcQq0cSnqefM+x6SciGI4GCvVZeaZ7WEowgX8I/HwBAq8Uj5Bdnd+r0+sYsJsig==}
     peerDependencies:
       '@types/node-fetch': '2'
       node-fetch: '2'
     dependencies:
       '@types/async-retry': 1.2.1
-      '@types/node-fetch': 2.6.1
+      '@types/node-fetch': 2.6.2
       '@vercel/fetch-cached-dns': 2.1.0_node-fetch@2.6.7
       '@vercel/fetch-retry': 5.1.3_node-fetch@2.6.7
       agentkeepalive: 3.4.1
