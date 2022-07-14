@@ -60,7 +60,7 @@ pub enum ResolveResult {
     Nested(Vec<AssetReferenceVc>),
     Single(AssetVc, Vec<AssetReferenceVc>),
     Keyed(HashMap<String, AssetVc>, Vec<AssetReferenceVc>),
-    Alternatives(HashSet<AssetVc>, Vec<AssetReferenceVc>),
+    Alternatives(Vec<AssetVc>, Vec<AssetReferenceVc>),
     Special(SpecialType, Vec<AssetReferenceVc>),
     Unresolveable(Vec<AssetReferenceVc>),
 }
@@ -105,7 +105,7 @@ impl ResolveResult {
                 *self = ResolveResult::Unresolveable(list)
             }
             ResolveResult::Single(asset, list) => {
-                *self = ResolveResult::Alternatives(HashSet::from([*asset]), take(list))
+                *self = ResolveResult::Alternatives(vec![*asset], take(list))
             }
             ResolveResult::Keyed(_, list) | ResolveResult::Special(_, list) => {
                 *self = ResolveResult::Unresolveable(take(list));
@@ -123,7 +123,7 @@ impl ResolveResult {
             }
             ResolveResult::Alternatives(assets, list) => match other {
                 ResolveResult::Single(asset, list2) => {
-                    assets.insert(*asset);
+                    assets.push(*asset);
                     list.extend(list2.iter().cloned());
                 }
                 ResolveResult::Alternatives(assets2, list2) => {
@@ -140,7 +140,7 @@ impl ResolveResult {
             ResolveResult::Unresolveable(list) => match other {
                 ResolveResult::Single(asset, list2) => {
                     list.extend(list2.iter().cloned());
-                    *self = ResolveResult::Alternatives([*asset].into_iter().collect(), take(list));
+                    *self = ResolveResult::Alternatives(vec![*asset], take(list));
                 }
                 ResolveResult::Alternatives(assets, list2) => {
                     list.extend(list2.iter().cloned());
@@ -186,9 +186,9 @@ impl ResolveResult {
                 ResolveResult::Keyed(new_map, refs)
             }
             ResolveResult::Alternatives(assets, refs) => {
-                let mut new_assets = HashSet::new();
+                let mut new_assets = Vec::new();
                 for asset in assets.iter() {
-                    new_assets.insert(asset_fn(*asset).await?);
+                    new_assets.push(asset_fn(*asset).await?);
                 }
                 let refs = try_join_all(refs.iter().map(|r| reference_fn(*r))).await?;
                 ResolveResult::Alternatives(new_assets, refs)

@@ -158,7 +158,7 @@ pub async fn resolve_node_pre_gyp_files(
                 }
             }
             return Ok(ResolveResult::Alternatives(
-                assets,
+                assets.into_iter().collect(),
                 vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
             )
             .into());
@@ -236,7 +236,11 @@ pub async fn resolve_node_gyp_build_files(
                     }
                 }
                 if !resolved.is_empty() {
-                    return Ok(ResolveResult::Alternatives(resolved, merged_references).into());
+                    return Ok(ResolveResult::Alternatives(
+                        resolved.into_iter().collect(),
+                        merged_references,
+                    )
+                    .into());
                 }
             }
         }
@@ -331,7 +335,7 @@ pub async fn resolve_node_bindings_files(
         .collect();
 
     Ok(ResolveResult::Alternatives(
-        bindings_try,
+        bindings_try.into_iter().collect(),
         vec![SourceAssetReferenceVc::new(
             SourceAssetVc::new(root_context).into(),
             Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(file_name)]).into(),

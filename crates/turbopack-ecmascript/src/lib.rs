@@ -230,6 +230,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 for visitor in root_visitors {
                     program.visit_mut_with(&mut visitor.create());
                 }
+                program.visit_mut_with(&mut swc_ecma_transforms_base::fixer::fixer(None));
             });
 
             let mut bytes =

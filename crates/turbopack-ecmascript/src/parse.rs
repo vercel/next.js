@@ -16,7 +16,7 @@ use swc_common::{
 };
 use swc_ecma_ast::{EsVersion, Program};
 use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
-use swc_ecma_transforms_base::resolver;
+use swc_ecma_transforms_base::{helpers::Helpers, resolver};
 use swc_ecma_transforms_react::jsx;
 use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::Value;
@@ -202,17 +202,35 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                         false,
                                     ));
 
-                                    parsed_program.visit_mut_with(&mut jsx(
-                                        cm.clone(),
-                                        Some(comments.clone()),
-                                        swc_ecma_transforms_react::Options {
-                                            runtime: Some(
-                                                swc_ecma_transforms_react::Runtime::Automatic,
-                                            ),
-                                            ..Default::default()
+                                    swc_ecma_transforms_base::helpers::HELPERS.set(
+                                        &Helpers::new(true),
+                                        || {
+                                            parsed_program.visit_mut_with(&mut jsx(
+                                                cm.clone(),
+                                                Some(comments.clone()),
+                                                swc_ecma_transforms_react::Options {
+                                                    runtime: Some(
+                                                        swc_ecma_transforms_react::Runtime::Automatic,
+                                                    ),
+                                                    ..Default::default()
+                                                },
+                                                top_level_mark,
+                                            ));
+
+                                            parsed_program.visit_mut_with(
+                                        &mut swc_ecma_transforms_module::common_js(
+                                            unresolved_mark,
+                                            swc_ecma_transforms_module::util::Config {
+                                                allow_top_level_this: true,
+                                                import_interop: Some(swc_ecma_transforms_module::util::ImportInterop::Swc),
+                                                ..Default::default()
+                                            },
+                                            swc_ecma_transforms_base::feature::FeatureFlag::all(),
+                                            Some(comments.clone()),
+                                        ),
+                                    );
                                         },
-                                        top_level_mark,
-                                    ))
+                                    );
                                 });
 
                                 EvalContext::new(&parsed_program, unresolved_mark)
