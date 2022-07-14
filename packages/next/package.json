@@ -166,7 +166,7 @@
     "@types/uuid": "8.3.1",
     "@types/webpack-sources1": "npm:@types/webpack-sources@^0.1.5",
     "@types/ws": "8.2.0",
-    "@vercel/ncc": "0.33.4",
+    "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.20.0",
     "acorn": "8.5.0",
     "ajv": "8.11.0",
