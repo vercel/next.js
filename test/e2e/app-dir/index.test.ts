@@ -427,7 +427,8 @@ describe('app dir', () => {
       }
     })
 
-    it('should allow linking from app page to pages page', async () => {
+    // TODO-APP: should enable when implemented
+    it.skip('should allow linking from app page to pages page', async () => {
       const browser = await webdriver(next.url, '/pages-linking')
 
       try {
@@ -793,7 +794,7 @@ describe('app dir', () => {
       })
 
       describe('useRouter', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-router/server')
           expect(res.status).toBe(500)
@@ -802,7 +803,7 @@ describe('app dir', () => {
       })
 
       describe('useParams', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-params/server')
           expect(res.status).toBe(500)
@@ -811,7 +812,7 @@ describe('app dir', () => {
       })
 
       describe('useSearchParams', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(
             next.url,
@@ -823,7 +824,7 @@ describe('app dir', () => {
       })
 
       describe('usePathname', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/server')
           expect(res.status).toBe(500)
@@ -832,7 +833,7 @@ describe('app dir', () => {
       })
 
       describe('useLayoutSegments', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(
             next.url,
@@ -844,7 +845,7 @@ describe('app dir', () => {
       })
 
       describe('useSelectedLayoutSegment', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(
             next.url,
@@ -860,7 +861,7 @@ describe('app dir', () => {
   describe('client components', () => {
     describe('hooks', () => {
       describe('useCookies', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-cookies/client')
           expect(res.status).toBe(500)
@@ -869,7 +870,7 @@ describe('app dir', () => {
       })
 
       describe('usePreviewData', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(
             next.url,
@@ -881,7 +882,7 @@ describe('app dir', () => {
       })
 
       describe('useHeaders', () => {
-        // TODO: remove skip when implemented
+        // TODO-APP: should enable when implemented
         it.skip('should throw an error when imported', async () => {
           const res = await fetchViaHTTP(next.url, '/hooks/use-headers/client')
           expect(res.status).toBe(500)
