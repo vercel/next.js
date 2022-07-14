@@ -1,6 +1,8 @@
+import type { Rule } from 'eslint'
+
 const url = 'https://nextjs.org/docs/messages/no-img-element'
 
-module.exports = {
+const rule: Rule.RuleModule = {
   meta: {
     docs: {
       description: 'Prevent usage of `<img>` element to prevent layout shift.',
@@ -11,7 +13,7 @@ module.exports = {
     fixable: 'code',
   },
 
-  create: function (context) {
+  create(context) {
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'img') {
@@ -22,13 +24,7 @@ module.exports = {
           return
         }
 
-        if (
-          node.parent &&
-          node.parent.openingElement &&
-          node.parent.parent.openingElement &&
-          node.parent.parent.openingElement.name &&
-          node.parent.parent.openingElement.name.name === 'picture'
-        ) {
+        if (node.parent?.parent?.openingElement?.name?.name === 'picture') {
           return
         }
 
@@ -40,3 +36,5 @@ module.exports = {
     }
   },
 }
+
+export default rule
