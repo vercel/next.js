@@ -80,7 +80,7 @@ impl NativeFunction {
 
 impl PartialEq for &'static NativeFunction {
     fn eq(&self, other: &Self) -> bool {
-        (*self as *const NativeFunction) == (*other as *const NativeFunction)
+        std::ptr::eq(*self, *other)
     }
 }
 

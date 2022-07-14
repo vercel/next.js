@@ -118,7 +118,7 @@ impl EvalContext {
         match prop {
             PropName::Ident(ident) => ident.sym.clone().into(),
             PropName::Str(str) => str.value.clone().into(),
-            PropName::Num(num) => num.value.clone().into(),
+            PropName::Num(num) => num.value.into(),
             PropName::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
             PropName::BigInt(bigint) => bigint.value.clone().into(),
         }
@@ -149,7 +149,7 @@ impl EvalContext {
                 let idx = idx / 2;
                 let e = &e.exprs[idx];
 
-                values.push(self.eval(&e));
+                values.push(self.eval(e));
             }
         }
 
@@ -157,28 +157,28 @@ impl EvalContext {
             return values.into_iter().next().unwrap();
         }
 
-        return JsValue::concat(values);
+        JsValue::concat(values)
     }
 
     pub fn eval(&self, e: &Expr) -> JsValue {
         match e {
-            Expr::Lit(e) => return JsValue::Constant(e.clone().into()),
+            Expr::Lit(e) => JsValue::Constant(e.clone().into()),
             Expr::Ident(i) => {
                 let id = i.to_id();
                 if let Some(imported) = self.imports.get_import(&id) {
                     return imported;
                 }
-                if is_unresolved(&i, self.unresolved_mark) {
+                if is_unresolved(i, self.unresolved_mark) {
                     match &*i.sym {
-                        "require" => return JsValue::FreeVar(FreeVarKind::Require),
-                        "__dirname" => return JsValue::FreeVar(FreeVarKind::Dirname),
-                        "__filename" => return JsValue::FreeVar(FreeVarKind::Filename),
-                        "process" => return JsValue::FreeVar(FreeVarKind::NodeProcess),
-                        "Object" => return JsValue::FreeVar(FreeVarKind::Object),
+                        "require" => JsValue::FreeVar(FreeVarKind::Require),
+                        "__dirname" => JsValue::FreeVar(FreeVarKind::Dirname),
+                        "__filename" => JsValue::FreeVar(FreeVarKind::Filename),
+                        "process" => JsValue::FreeVar(FreeVarKind::NodeProcess),
+                        "Object" => JsValue::FreeVar(FreeVarKind::Object),
                         _ => JsValue::FreeVar(FreeVarKind::Other(i.sym.clone())),
                     }
                 } else {
-                    return JsValue::Variable(id);
+                    JsValue::Variable(id)
                 }
             }
 
@@ -191,13 +191,13 @@ impl EvalContext {
                 let l = self.eval(left);
                 let r = self.eval(right);
 
-                return match (l, r) {
+                match (l, r) {
                     (JsValue::Add(c, l), r) => JsValue::Add(
                         c + r.total_nodes(),
                         l.into_iter().chain(iter::once(r)).collect(),
                     ),
                     (l, r) => JsValue::add(vec![l, r]),
-                };
+                }
             }
 
             Expr::Bin(BinExpr {
@@ -213,7 +213,7 @@ impl EvalContext {
                 ..
             }) => JsValue::alternatives(vec![self.eval(cons), self.eval(alt)]),
 
-            Expr::Tpl(e) => return self.eval_tpl(e, false),
+            Expr::Tpl(e) => self.eval_tpl(e, false),
 
             Expr::TaggedTpl(TaggedTpl {
                 tag:
@@ -227,35 +227,33 @@ impl EvalContext {
             }) => {
                 if &*tag_obj.sym == "String"
                     && &*tag_prop.sym == "raw"
-                    && is_unresolved(&tag_obj, self.unresolved_mark)
+                    && is_unresolved(tag_obj, self.unresolved_mark)
                 {
-                    return self.eval_tpl(tpl, true);
+                    self.eval_tpl(tpl, true)
                 } else {
-                    return JsValue::Unknown(None, "tagged template literal is not supported yet");
+                    JsValue::Unknown(None, "tagged template literal is not supported yet")
                 }
             }
 
             Expr::Fn(expr) => {
                 if let Some(ident) = &expr.ident {
-                    return JsValue::Variable(ident.to_id());
+                    JsValue::Variable(ident.to_id())
                 } else {
-                    return JsValue::Variable((
+                    JsValue::Variable((
                         format!("*anonymous function {}*", expr.function.span.lo.0).into(),
                         SyntaxContext::empty(),
-                    ));
+                    ))
                 }
             }
-            Expr::Arrow(expr) => {
-                return JsValue::Variable((
-                    format!("*arrow function {}*", expr.span.lo.0).into(),
-                    SyntaxContext::empty(),
-                ));
-            }
-            Expr::New(..) => return JsValue::Unknown(None, "new expression are not supported"),
+            Expr::Arrow(expr) => JsValue::Variable((
+                format!("*arrow function {}*", expr.span.lo.0).into(),
+                SyntaxContext::empty(),
+            )),
+            Expr::New(..) => JsValue::Unknown(None, "new expression are not supported"),
 
             Expr::Seq(e) => {
                 if let Some(e) = e.exprs.last() {
-                    return self.eval(e);
+                    self.eval(e)
                 } else {
                     unreachable!()
                 }
@@ -266,8 +264,8 @@ impl EvalContext {
                 prop: MemberProp::Ident(prop),
                 ..
             }) => {
-                let obj = self.eval(&obj);
-                return JsValue::member(box obj, box prop.sym.clone().into());
+                let obj = self.eval(obj);
+                JsValue::member(box obj, box prop.sym.clone().into())
             }
 
             Expr::Member(MemberExpr {
@@ -275,9 +273,9 @@ impl EvalContext {
                 prop: MemberProp::Computed(computed),
                 ..
             }) => {
-                let obj = self.eval(&obj);
+                let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
-                return JsValue::member(box obj, box prop);
+                JsValue::member(box obj, box prop)
             }
 
             Expr::Call(CallExpr {
@@ -292,7 +290,7 @@ impl EvalContext {
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let obj = box self.eval(&obj);
+                    let obj = box self.eval(obj);
                     let prop = box match prop {
                         // TODO avoid clone
                         MemberProp::Ident(i) => i.sym.clone().into(),
@@ -302,13 +300,13 @@ impl EvalContext {
                                 "private names in function calls is not supported",
                             );
                         }
-                        MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(&expr),
+                        MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
                     };
-                    return JsValue::member_call(obj, prop, args);
+                    JsValue::member_call(obj, prop, args)
                 } else {
-                    let callee = box self.eval(&callee);
+                    let callee = box self.eval(callee);
 
-                    return JsValue::call(callee, args);
+                    JsValue::call(callee, args)
                 }
             }
 
@@ -325,7 +323,7 @@ impl EvalContext {
 
                 let callee = box JsValue::FreeVar(FreeVarKind::Import);
 
-                return JsValue::call(callee, args);
+                JsValue::call(callee, args)
             }
 
             Expr::Array(arr) => {
@@ -341,7 +339,7 @@ impl EvalContext {
                         _ => JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))),
                     })
                     .collect();
-                return JsValue::array(arr);
+                JsValue::array(arr)
             }
 
             Expr::Object(obj) => {
@@ -848,7 +846,7 @@ impl VisitAstPath for Analyzer<'_> {
             }
             BlockStmtOrExpr::Expr(inner_expr) => {
                 expr.visit_children_with_path(self, ast_path);
-                let return_value = self.eval_context.eval(&*inner_expr);
+                let return_value = self.eval_context.eval(&**inner_expr);
 
                 JsValue::function(box return_value)
             }
@@ -1147,7 +1145,7 @@ fn extract_var_from_umd_factory(callee: &Expr, args: &[ExprOrSpread]) -> Option<
                     ..
                 }) = args.first().and_then(|arg| arg.expr.as_fn_expr())
                 {
-                    if params.len() > 0 {
+                    if !params.is_empty() {
                         if let Pat::Ident(param) = &params[0].pat {
                             if &*param.id.sym == "require" {
                                 return Some(param.to_id());

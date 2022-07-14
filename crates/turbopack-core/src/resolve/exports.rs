@@ -34,13 +34,13 @@ impl WildcardReplacable for ExportsValue {
                     .collect::<Result<Vec<_>>>()?,
             ),
             ExportsValue::Result(v) => {
-                if !v.contains("*") {
+                if !v.contains('*') {
                     bail!(
                         "exports field value need to contain a wildcard (*) when the key contains \
                          one"
                     );
                 }
-                ExportsValue::Result(v.replace("*", value))
+                ExportsValue::Result(v.replace('*', value))
             }
             ExportsValue::Excluded => ExportsValue::Excluded,
         })
@@ -59,7 +59,7 @@ impl WildcardReplacable for ExportsValue {
                     .collect::<Result<Vec<_>>>()?,
             ),
             ExportsValue::Result(v) => {
-                if !v.ends_with("/") {
+                if !v.ends_with('/') {
                     bail!("exports field value need ends with '/' when the key ends with it");
                 }
                 ExportsValue::Result(v.to_string() + value)
@@ -93,7 +93,7 @@ impl ExportsValue {
                         return true;
                     }
                 }
-                return false;
+                false
             }
             ExportsValue::Conditional(list) => {
                 for (condition, value) in list {
@@ -103,7 +103,7 @@ impl ExportsValue {
                         condition_overrides
                             .get(condition.as_str())
                             .or_else(|| conditions.get(condition))
-                            .unwrap_or_else(|| unspecified_condition)
+                            .unwrap_or(unspecified_condition)
                     };
                     match condition_value {
                         ConditionValue::Set => {
@@ -132,15 +132,13 @@ impl ExportsValue {
                         }
                     }
                 }
-                return false;
+                false
             }
             ExportsValue::Result(r) => {
                 target.push(r);
-                return true;
+                true
             }
-            ExportsValue::Excluded => {
-                return true;
-            }
+            ExportsValue::Excluded => true,
         }
     }
 }
@@ -161,7 +159,7 @@ impl TryFrom<&JsonValue> for ExportsValue {
             JsonValue::Object(o) => Ok(ExportsValue::Conditional(
                 o.iter()
                     .map(|(key, value)| {
-                        if key.starts_with(".") || key.starts_with("#") {
+                        if key.starts_with('.') || key.starts_with('#') {
                             bail!(
                                 "invalid key \"{}\" in an conditions object (Did you want to \
                                  place this request on higher level?)",
@@ -174,7 +172,7 @@ impl TryFrom<&JsonValue> for ExportsValue {
             )),
             JsonValue::Array(a) => Ok(ExportsValue::Alternatives(
                 a.iter()
-                    .map(|value| Ok(value.try_into()?))
+                    .map(|value| value.try_into())
                     .collect::<Result<Vec<_>>>()?,
             )),
         }

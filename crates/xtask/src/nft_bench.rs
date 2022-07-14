@@ -53,5 +53,5 @@ pub fn show_result() {
             .with(Modify::new(Cell(i + 1, 1)).with(Format::new(|s| s.red().to_string())))
             .with(Modify::new(Cell(i + 1, 2)).with(Format::new(|s| s.green().to_string())));
     }
-    println!("{}", table.with(Style::modern()).to_string());
+    println!("{}", table.with(Style::modern()));
 }

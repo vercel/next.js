@@ -40,7 +40,7 @@ impl<T> PrefixTree<T> {
     }
 
     pub fn lookup<'a>(&'a self, request: &'a str) -> PrefixTreeIterator<'a, T> {
-        let request_parts = request.split("/").collect::<Vec<_>>();
+        let request_parts = request.split('/').collect::<Vec<_>>();
         let mut current = self;
         let mut stack = Vec::new();
         for part in request_parts.iter() {
@@ -69,7 +69,7 @@ impl<T> PrefixTree<T> {
     }
 
     pub fn insert(&mut self, request: &str, value: T) -> Result<()> {
-        let mut split = request.split("/");
+        let mut split = request.split('/');
         let mut last_part = split.next().unwrap();
         if last_part.is_empty() {
             bail!("empty request key is not valid");
@@ -177,18 +177,16 @@ impl<'a, T: Clone + WildcardReplacable> Iterator for PrefixTreeIterator<'a, T> {
                 if let Some(value) = &entry.direct_mapping {
                     return Some(Ok(Cow::Borrowed(value)));
                 }
-            } else {
-                if let Some((value, wildcard)) = &entry.wildcard_mapping {
-                    let remaining = self.request_parts[i..].join("/");
-                    return Some(
-                        (if *wildcard {
-                            value.replace_wildcard(&remaining)
-                        } else {
-                            value.append_to_folder(&remaining)
-                        })
-                        .map(|v| Cow::Owned(v)),
-                    );
-                }
+            } else if let Some((value, wildcard)) = &entry.wildcard_mapping {
+                let remaining = self.request_parts[i..].join("/");
+                return Some(
+                    (if *wildcard {
+                        value.replace_wildcard(&remaining)
+                    } else {
+                        value.append_to_folder(&remaining)
+                    })
+                    .map(|v| Cow::Owned(v)),
+                );
             }
         }
         None

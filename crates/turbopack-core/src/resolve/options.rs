@@ -77,7 +77,7 @@ impl ImportMapping {
         } else {
             ImportMapping::Alternatives(
                 list.into_iter()
-                    .map(|s| ImportMapping::Alias(s, context.clone()))
+                    .map(|s| ImportMapping::Alias(s, context))
                     .collect(),
             )
         }
@@ -90,15 +90,15 @@ impl WildcardReplacable for ImportMapping {
             ImportMapping::External(name) => {
                 if let Some(name) = name {
                     Ok(ImportMapping::External(Some(
-                        name.clone().replace("*", value),
+                        name.clone().replace('*', value),
                     )))
                 } else {
                     Ok(ImportMapping::External(None))
                 }
             }
             ImportMapping::Alias(name, context) => Ok(ImportMapping::Alias(
-                name.clone().replace("*", value),
-                context.clone(),
+                name.clone().replace('*', value),
+                *context,
             )),
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
             ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
@@ -111,7 +111,7 @@ impl WildcardReplacable for ImportMapping {
 
     fn append_to_folder(&self, value: &str) -> Result<Self> {
         fn add(name: &str, value: &str) -> String {
-            if !name.ends_with("/") {
+            if !name.ends_with('/') {
                 format!("{name}{value}")
             } else {
                 name.to_string()
@@ -126,7 +126,7 @@ impl WildcardReplacable for ImportMapping {
                 }
             }
             ImportMapping::Alias(name, context) => {
-                Ok(ImportMapping::Alias(add(name, value), context.clone()))
+                Ok(ImportMapping::Alias(add(name, value), *context))
             }
             ImportMapping::Ignore | ImportMapping::Empty => Ok(self.clone()),
             ImportMapping::Alternatives(list) => Ok(ImportMapping::Alternatives(
@@ -181,11 +181,11 @@ fn import_mapping_to_result(mapping: &ImportMapping) -> ImportMapResult {
         ImportMapping::Alias(name, context) => {
             let request = RequestVc::parse(Value::new(name.to_string().into()));
 
-            ImportMapResult::Alias(request, context.clone())
+            ImportMapResult::Alias(request, *context)
         }
-        ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
-            list.iter().map(|e| import_mapping_to_result(e)).collect(),
-        ),
+        ImportMapping::Alternatives(list) => {
+            ImportMapResult::Alternatives(list.iter().map(import_mapping_to_result).collect())
+        }
     }
 }
 
@@ -206,7 +206,7 @@ impl ImportMapVc {
             };
             for (glob, mapping) in this.by_glob.iter() {
                 if glob.execute(request_string_without_slash) {
-                    return Ok(import_mapping_to_result(&mapping).into());
+                    return Ok(import_mapping_to_result(mapping).into());
                 }
             }
         }
@@ -224,7 +224,7 @@ impl ResolvedMapVc {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(&mapping).into());
+                    return Ok(import_mapping_to_result(mapping).into());
                 }
             }
         }

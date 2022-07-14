@@ -36,7 +36,7 @@ use turbopack_core::{
 
 use self::{
     cjs::CjsAssetReferenceVc,
-    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExportVc, EsmExports, EsmExportsVc},
+    esm::{EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExportVc, EsmExports},
     node::{DirAssetReferenceVc, PackageJsonReferenceVc},
     raw::SourceAssetReferenceVc,
     typescript::{
@@ -184,7 +184,7 @@ pub(crate) async fn analyze_ecmascript_module(
             let (var_graph, webpack_runtime, webpack_entry, webpack_chunks, esm_exports) = HANDLER
                 .set(&handler, || {
                     GLOBALS.set(globals, || {
-                        let var_graph = create_graph(&program, eval_context);
+                        let var_graph = create_graph(program, eval_context);
 
                         // TODO migrate to effects
                         let mut visitor =
@@ -297,8 +297,8 @@ pub(crate) async fn analyze_ecmascript_module(
                 target: CompileTargetVc,
                 node_native_bindings: bool,
             ) -> Result<()> {
-                fn explain_args(args: &Vec<JsValue>) -> (String, String) {
-                    JsValue::explain_args(&args, 10, 2)
+                fn explain_args(args: &[JsValue]) -> (String, String) {
+                    JsValue::explain_args(args, 10, 2)
                 }
                 let linked_args = || try_join_all(args.iter().map(|arg| link_value(arg.clone())));
                 match func {
@@ -461,7 +461,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
                         let args = linked_args().await?;
-                        if args.len() >= 1 {
+                        if !args.is_empty() {
                             let pat = js_value_to_pattern(&args[0]);
                             if !pat.has_constant_parts() {
                                 let (args, hints) = explain_args(&args);
@@ -538,7 +538,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         name,
                     )) => {
                         let args = linked_args().await?;
-                        if args.len() >= 1 {
+                        if !args.is_empty() {
                             let mut show_dynamic_warning = false;
                             let pat = js_value_to_pattern(&args[0]);
                             if pat.is_match("node") && args.len() >= 2 {
@@ -585,7 +585,7 @@ pub(crate) async fn analyze_ecmascript_module(
                         )
                     }
                     JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork) => {
-                        if args.len() >= 1 {
+                        if !args.is_empty() {
                             let first_arg = link_value(args[0].clone()).await?;
                             let pat = js_value_to_pattern(&first_arg);
                             if !pat.has_constant_parts() {
@@ -729,7 +729,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 linked_args.get(0)
                             {
                                 let pkg_or_dir = linked_args.get(1).unwrap();
-                                let pat = js_value_to_pattern(&pkg_or_dir);
+                                let pat = js_value_to_pattern(pkg_or_dir);
                                 if !pat.has_constant_parts() {
                                     let (args, hints) = explain_args(&linked_args);
                                     handler.span_warn_with_code(
@@ -778,7 +778,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                             pkg_or_dir
                                         {
                                             if pkg != "html" {
-                                                let pat = js_value_to_pattern(&pkg_or_dir);
+                                                let pat = js_value_to_pattern(pkg_or_dir);
                                                 references.push(
                                                     CjsAssetReferenceVc::new(
                                                         context,
@@ -794,7 +794,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 }
                             }
                         }
-                        let (args, hints) = explain_args(&args);
+                        let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -829,7 +829,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 .push(DirAssetReferenceVc::new(source, abs_pattern.into()).into());
                             return Ok(());
                         }
-                        let (args, hints) = explain_args(&args);
+                        let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -854,7 +854,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 return Ok(());
                             }
                         }
-                        let (args, hints) = explain_args(&args);
+                        let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -907,7 +907,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 return Ok(());
                             }
                         }
-                        let (args, hints) = explain_args(&args);
+                        let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -949,11 +949,11 @@ pub(crate) async fn analyze_ecmascript_module(
                             &handler,
                             source,
                             context,
-                            &ast_path,
+                            ast_path,
                             *span,
                             &func,
                             &JsValue::Unknown(None, "no this provided"),
-                            &args,
+                            args,
                             &link_value,
                             is_typescript,
                             &mut references,
@@ -982,11 +982,11 @@ pub(crate) async fn analyze_ecmascript_module(
                             &handler,
                             source,
                             context,
-                            &ast_path,
+                            ast_path,
                             *span,
                             &func,
                             &obj,
-                            &args,
+                            args,
                             &link_value,
                             is_typescript,
                             &mut references,
@@ -1155,12 +1155,10 @@ impl StaticAnalyser {
         match prop {
             MemberProp::Ident(ident) => Some(ident.sym.to_string()),
             MemberProp::PrivateName(_) => None,
-            MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                match self.evaluate_expr(&**expr) {
-                    StaticExpr::String(str) => Some(str),
-                    _ => None,
-                }
-            }
+            MemberProp::Computed(ComputedPropName { expr, .. }) => match self.evaluate_expr(expr) {
+                StaticExpr::String(str) => Some(str),
+                _ => None,
+            },
         }
     }
 
@@ -1462,12 +1460,10 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                             if let Some(ident) = expr.as_ident() {
                                 if &*ident.sym == "require" {
                                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
-                                        if let Some(lit) = expr.as_lit() {
-                                            if let Lit::Str(str) = lit {
-                                                self.webpack_runtime =
-                                                    Some((str.value.to_string(), call.span));
-                                                return;
-                                            }
+                                        if let Some(Lit::Str(str)) = expr.as_lit() {
+                                            self.webpack_runtime =
+                                                Some((str.value.to_string(), call.span));
+                                            return;
                                         }
                                     }
                                 }
@@ -1485,9 +1481,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         call: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        match &call.callee {
-            Callee::Expr(expr) => match self.old_analyser.evaluate_expr(&expr) {
-                StaticExpr::FreeVar(var) => match &var[..] {
+        if let Callee::Expr(expr) = &call.callee {
+            if let StaticExpr::FreeVar(var) = self.old_analyser.evaluate_expr(expr) {
+                match &var[..] {
                     [webpack_require, property]
                         if webpack_require == "__webpack_require__" && property == "C" =>
                     {
@@ -1502,8 +1498,8 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                         }, _] = &call.args[..]
                         {
                             if let Some(array) = chunk_ids.as_array() {
-                                for elem in array.elems.iter() {
-                                    if let Some(ExprOrSpread { spread: None, expr }) = elem {
+                                for elem in array.elems.iter().flatten() {
+                                    if let ExprOrSpread { spread: None, expr } = elem {
                                         if let Some(lit) = expr.as_lit() {
                                             self.webpack_chunks.push(lit.clone());
                                         }
@@ -1513,10 +1509,8 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                         }
                     }
                     _ => {}
-                },
-                _ => {}
-            },
-            _ => {}
+                }
+            }
         }
         call.visit_children_with_path(self, ast_path);
     }

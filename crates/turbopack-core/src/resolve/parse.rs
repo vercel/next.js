@@ -53,31 +53,29 @@ impl Request {
             Request::Raw {
                 path: Pattern::Constant(path),
                 ..
-            } => format!("{path}"),
+            } => path.to_string(),
             Request::Relative {
                 path: Pattern::Constant(path),
                 ..
-            } => {
-                format!("{path}")
-            }
+            } => path.to_string(),
             Request::Module {
                 module,
                 path: Pattern::Constant(path),
             } => format!("{module}{path}"),
             Request::ServerRelative {
                 path: Pattern::Constant(path),
-            } => format!("{path}"),
+            } => path.to_string(),
             Request::Windows {
                 path: Pattern::Constant(path),
-            } => format!("{path}"),
-            Request::Empty => format!(""),
+            } => path.to_string(),
+            Request::Empty => "".to_string(),
             Request::PackageInternal {
                 path: Pattern::Constant(path),
-            } => format!("{path}"),
+            } => path.to_string(),
             Request::Uri { protocol, remainer } => format!("{protocol}{remainer}"),
             Request::Unknown {
                 path: Pattern::Constant(path),
-            } => format!("{path}"),
+            } => path.to_string(),
             _ => return None,
         })
     }
@@ -89,9 +87,9 @@ impl Request {
             Pattern::Constant(ref r) => {
                 if r.is_empty() {
                     Request::Empty
-                } else if r.starts_with("/") {
+                } else if r.starts_with('/') {
                     Request::ServerRelative { path: request }
-                } else if r.starts_with("#") {
+                } else if r.starts_with('#') {
                     Request::PackageInternal { path: request }
                 } else if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
                     Request::Relative {
@@ -106,10 +104,10 @@ impl Request {
                         static ref MODULE_PATH: Regex =
                             Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
                     }
-                    if WINDOWS_PATH.is_match(&r) {
+                    if WINDOWS_PATH.is_match(r) {
                         return Request::Windows { path: request };
                     }
-                    if let Some(caps) = URI_PATH.captures(&r) {
+                    if let Some(caps) = URI_PATH.captures(r) {
                         if let (Some(protocol), Some(remainer)) = (caps.get(1), caps.get(2)) {
                             // TODO data uri
                             return Request::Uri {
@@ -118,7 +116,7 @@ impl Request {
                             };
                         }
                     }
-                    if let Some(caps) = MODULE_PATH.captures(&r) {
+                    if let Some(caps) = MODULE_PATH.captures(r) {
                         if let (Some(module), Some(path)) = (caps.get(1), caps.get(2)) {
                             return Request::Module {
                                 module: module.as_str().to_string(),
@@ -250,20 +248,19 @@ impl ValueToString for Request {
             }
             Request::ServerRelative { path } => format!("server relative {path}"),
             Request::Windows { path } => format!("windows {path}"),
-            Request::Empty => format!("empty"),
+            Request::Empty => "empty".to_string(),
             Request::PackageInternal { path } => format!("package internal {path}"),
             Request::Uri { protocol, remainer } => format!("uri \"{protocol}\" \"{remainer}\""),
             Request::Unknown { path } => format!("unknown {path}"),
-            Request::Dynamic => format!("dynamic"),
-            Request::Alternatives { requests } => format!(
-                "{}",
+            Request::Dynamic => "dynamic".to_string(),
+            Request::Alternatives { requests } => {
                 try_join_all(requests.iter().map(|i| i.to_string().into_future()))
                     .await?
                     .into_iter()
                     .map(|r| r.clone())
                     .collect::<Vec<_>>()
                     .join(" or ")
-            ),
+            }
         }))
     }
 }

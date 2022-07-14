@@ -112,7 +112,7 @@ impl AssetReference for WebpackEntryAssetReference {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!("webpack entry")))
+        Ok(StringVc::cell("webpack entry".to_string()))
     }
 }
 

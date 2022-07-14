@@ -226,6 +226,8 @@ impl SharedValue {
 }
 
 impl PartialEq for SharedValue {
+    // this breaks without the ref
+    #[allow(clippy::op_ref)]
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0 && &self.1 == &other.1
     }
@@ -467,10 +469,7 @@ impl TaskInput {
     }
 
     pub fn is_nothing(&self) -> bool {
-        match self {
-            TaskInput::Nothing => true,
-            _ => false,
-        }
+        matches!(self, TaskInput::Nothing)
     }
 }
 
@@ -626,7 +625,7 @@ impl<'a> FromTaskInput<'a> for &'a str {
 
     fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
         match value {
-            TaskInput::String(str) => Ok(&str),
+            TaskInput::String(str) => Ok(str),
             _ => Err(anyhow!("invalid task input type, expected string")),
         }
     }

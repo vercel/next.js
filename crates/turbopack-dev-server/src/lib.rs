@@ -142,7 +142,7 @@ impl DevServerVc {
                             let uri = request.uri();
                             let path = uri.path();
                             let mut asset_path = path[1..].to_string();
-                            if asset_path == "" || asset_path.ends_with("/") {
+                            if asset_path.is_empty() || asset_path.ends_with('/') {
                                 asset_path += "index.html";
                             }
                             if let FindAssetResult::Found(asset) = &*self

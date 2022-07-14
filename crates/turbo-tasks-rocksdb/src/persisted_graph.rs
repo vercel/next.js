@@ -130,7 +130,7 @@ impl RocksDbPersistedGraph {
     fn get_task_type(&self, ty: &PersistentTaskType) -> Result<Option<usize>> {
         let db = &self.database;
         let ty_bytes = task_type_to_bytes(ty)?;
-        Ok(db.cache.get(&ty_bytes)?)
+        db.cache.get(&ty_bytes)
     }
 
     fn get_or_create_task_type(&self, ty: &PersistentTaskType) -> Result<usize> {
@@ -165,10 +165,9 @@ impl RocksDbPersistedGraph {
 
     fn lookup_task_type(&self, id: usize) -> Result<PersistentTaskType> {
         let db = &self.database;
-        Ok(db
-            .task_type
+        db.task_type
             .get(&id)?
-            .ok_or_else(|| anyhow!("Invalid task id {}", id))?)
+            .ok_or_else(|| anyhow!("Invalid task id {}", id))
     }
 
     fn get_active(&self, db_task: usize) -> Result<bool> {
@@ -273,7 +272,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
         self.stats.lookups.fetch_add(1, Ordering::Relaxed);
         self.with_read_only_task_id_mapping(api, || {
             let db = &self.database;
-            if let Some(db_task) = db.cache.get(&task_type_to_bytes(&task_type)?)? {
+            if let Some(db_task) = db.cache.get(&task_type_to_bytes(task_type)?)? {
                 let task = PgApiMapping::new(self, api).backward(db_task);
                 if let Some(TaskState {
                     internal: Some(_), ..
@@ -296,7 +295,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
             let db = &self.database;
             let db_result = db
                 .cache
-                .get_prefix(&task_type_to_bytes(&partial_task_type)?, 1000)?;
+                .get_prefix(&task_type_to_bytes(partial_task_type)?, 1000)?;
             let mapping = PgApiMapping::new(self, api);
             for db_task in db_result.0 {
                 mapping.backward(db_task);
@@ -801,7 +800,7 @@ impl PersistedGraph for RocksDbPersistedGraph {
         })
     }
 
-    fn stop(&self, api: &dyn PersistedGraphApi) -> Result<()> {
+    fn stop(&self, _api: &dyn PersistedGraphApi) -> Result<()> {
         println!("{:#?}", self.stats);
         // self.with_task_id_mapping(api, || {
         //     self.print_db(api)?;

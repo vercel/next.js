@@ -140,17 +140,18 @@ pub async fn resolve_node_pre_gyp_files(
                         assets.insert(SourceAssetVc::new(*dylib).into());
                     }
                 }
-                assets.insert(SourceAssetVc::new(resolved_file_vc.into()).into());
+                assets.insert(SourceAssetVc::new(resolved_file_vc).into());
             }
-            for (_, entry) in &config_path
+            for entry in config_path
                 .path()
                 .parent()
                 // TODO
                 // read the dependencies path from `bindings.gyp`
                 .join("deps/lib")
-                .read_glob(GlobVc::new(format!("*").as_str()), false)
+                .read_glob(GlobVc::new("*".to_string().as_str()), false)
                 .await?
                 .results
+                .values()
             {
                 if let DirectoryEntry::File(dylib) = entry {
                     assets.insert(SourceAssetVc::new(*dylib).into());
@@ -230,7 +231,7 @@ pub async fn resolve_node_gyp_build_files(
                     )
                     .await?;
                     if let ResolveResult::Single(file, references) = &*resolved_prebuilt_file {
-                        resolved.insert(SourceAssetVc::new(file.path().into()).into());
+                        resolved.insert(SourceAssetVc::new(file.path()).into());
                         merged_references.extend_from_slice(references);
                     }
                 }

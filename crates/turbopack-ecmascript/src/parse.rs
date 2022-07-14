@@ -89,10 +89,10 @@ impl Display for Buffer {
                 let (first, rem) = lines.split_at(250);
                 let (_, last) = rem.split_at(rem.len() - 250);
                 lines = first
-                    .into_iter()
+                    .iter()
                     .chain(&["...".to_string()])
-                    .chain(last.into_iter())
-                    .map(|s| s.clone())
+                    .chain(last.iter())
+                    .cloned()
                     .collect();
             }
             let str = lines.concat();
@@ -218,7 +218,7 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                 trailing_comments: take(Rc::make_mut(&mut trailing)).into_inner(),
                                 eval_context,
                                 globals,
-                                source_map: cm.clone(),
+                                source_map: cm,
                             }
                             .into()
                         }

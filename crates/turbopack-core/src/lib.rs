@@ -1,5 +1,6 @@
 #![feature(min_specialization)]
 #![feature(option_get_or_insert_default)]
+#![feature(into_future)]
 
 pub mod asset;
 pub mod chunk;

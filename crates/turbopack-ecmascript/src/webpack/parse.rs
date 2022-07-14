@@ -132,7 +132,7 @@ fn get_javascript_chunk_filename(stmts: &Vec<Stmt>, eval_context: &EvalContext) 
         if let Some(stmts) = get_fn_body(expr) {
             if let Some(ret) = stmts.iter().find_map(|stmt| stmt.as_return_stmt()) {
                 if let Some(expr) = &ret.arg {
-                    return Some(eval_context.eval(&expr));
+                    return Some(eval_context.eval(expr));
                 }
             }
         }

@@ -118,7 +118,7 @@ impl AggregatedGraphVc {
 pub async fn aggregate(asset: AssetVc) -> Result<AggregatedGraphVc> {
     let mut current = AggregatedGraphVc::leaf(asset);
     loop {
-        if current.references().await?.set.len() == 0 {
+        if current.references().await?.set.is_empty() {
             return Ok(current);
         }
         current = aggregate_more(current);

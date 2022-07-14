@@ -24,10 +24,10 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Undefined => "undefined".to_string(),
         }),
         JsValue::Alternatives(_, alts) => {
-            Pattern::Alternatives(alts.iter().map(|alt| js_value_to_pattern(alt)).collect())
+            Pattern::Alternatives(alts.iter().map(js_value_to_pattern).collect())
         }
         JsValue::Concat(_, parts) => {
-            Pattern::Concatenation(parts.iter().map(|alt| js_value_to_pattern(alt)).collect())
+            Pattern::Concatenation(parts.iter().map(js_value_to_pattern).collect())
         }
         JsValue::Add(..) => {
             // TODO do we need to handle that here

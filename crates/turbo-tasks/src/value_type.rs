@@ -60,7 +60,7 @@ impl Eq for ValueType {}
 
 impl PartialEq for ValueType {
     fn eq(&self, other: &Self) -> bool {
-        (self as *const ValueType) == (other as *const ValueType)
+        std::ptr::eq(self, other)
     }
 }
 
@@ -144,7 +144,7 @@ impl ValueType {
         arc: &'a Arc<dyn MagicAny>,
     ) -> Option<&'a dyn erased_serde::Serialize> {
         if let Some(s) = self.magic_serialization {
-            let r: &dyn MagicAny = &**arc;
+            let r: &dyn MagicAny = arc;
             Some((s.0)(r))
         } else {
             None
@@ -211,7 +211,7 @@ impl Eq for TraitType {}
 
 impl PartialEq for TraitType {
     fn eq(&self, other: &Self) -> bool {
-        (self as *const TraitType) == (other as *const TraitType)
+        std::ptr::eq(self, other)
     }
 }
 

@@ -45,7 +45,7 @@ async fn main() {
                 GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
             );
             let module = context.process(source.into());
-            let rebased = RebasedAssetVc::new(module.into(), input, output);
+            let rebased = RebasedAssetVc::new(module, input, output);
             emit(rebased.into());
 
             Ok(NothingVc::new().into())

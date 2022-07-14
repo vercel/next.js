@@ -1,6 +1,7 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
+#![feature(into_future)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
@@ -214,7 +215,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         {
             let mut program = program.clone();
 
-            GLOBALS.set(&globals, || {
+            GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
                     program.visit_mut_with_path(
                         &mut ApplyVisitors::new(visitors),

@@ -80,7 +80,7 @@ impl TurboTasksApi for VcStorage {
         _task: TaskId,
         index: usize,
     ) -> Result<Result<CellContent, EventListener>> {
-        self.read_current_task_cell(index).map(|c| Ok(c))
+        self.read_current_task_cell(index).map(Ok)
     }
 
     unsafe fn try_read_task_cell_untracked(

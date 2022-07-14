@@ -23,7 +23,7 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     async fn as_chunk_path(&self, path: FileSystemPathVc) -> Result<FileSystemPathVc> {
         fn clean(s: &str) -> String {
-            s.replace("/", "_")
+            s.replace('/', "_")
         }
         let name = if let Some(inner) = self.context_path.await?.get_path_to(&*path.await?) {
             clean(inner)

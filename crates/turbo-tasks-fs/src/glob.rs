@@ -117,7 +117,7 @@ impl GlobPart {
         }
     }
 
-    fn parse<'a>(input: &'a str, inside_of_braces: bool) -> Result<(GlobPart, &'a str)> {
+    fn parse(input: &str, inside_of_braces: bool) -> Result<(GlobPart, &str)> {
         debug_assert!(!input.is_empty());
         let two_chars = {
             let mut chars = input.chars();
@@ -249,7 +249,7 @@ impl TryFrom<&str> for Glob {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Glob::parse(&value)
+        Glob::parse(value)
     }
 }
 

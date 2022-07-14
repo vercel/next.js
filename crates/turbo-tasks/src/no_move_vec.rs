@@ -33,6 +33,12 @@ fn get_index_in_bucket<const INITIAL_CAPACITY_BITS: u32>(idx: usize, bucket_inde
     }
 }
 
+impl<T, const INITIAL_CAPACITY_BITS: u32> Default for NoMoveVec<T, INITIAL_CAPACITY_BITS> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
     pub fn new() -> Self {
         let mut buckets = [null_mut(); BUCKETS];

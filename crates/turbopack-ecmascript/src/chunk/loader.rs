@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
@@ -51,7 +53,7 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
         for chunk in chunks.iter() {
             let asset: AssetVc = (*chunk).into();
             let path = asset.path().await?;
-            code += &format!("\nconsole.log(\"/{}\");", path.path);
+            let _ = write!(code, "\nconsole.log(\"/{}\");", path.path);
         }
         Ok(EcmascriptChunkItemContent {
             inner_code: code,

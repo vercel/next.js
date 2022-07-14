@@ -74,6 +74,12 @@ pub struct Stats {
     tasks: HashMap<TaskType, TaskStats>,
 }
 
+impl Default for Stats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Stats {
     pub fn new() -> Self {
         Self {
@@ -124,7 +130,7 @@ impl Stats {
             .collect();
 
         for stats in self.tasks.values_mut() {
-            fn merge_refs<'a>(
+            fn merge_refs(
                 refs: HashMap<(ReferenceType, TaskType), ReferenceStats>,
                 merged: &HashMap<TaskType, TaskStats>,
             ) -> HashMap<(ReferenceType, TaskType), ReferenceStats> {
@@ -225,9 +231,7 @@ impl Stats {
         ) -> GroupTree {
             let inner = &children[&ty];
             let inner_with_children = inner.iter().filter(|c| children.contains_key(&Some(*c)));
-            let leafs = inner
-                .into_iter()
-                .filter(|c| !children.contains_key(&Some(*c)));
+            let leafs = inner.iter().filter(|c| !children.contains_key(&Some(*c)));
             let task_types: Vec<_> = leafs.map(|&ty| (ty.clone(), tasks[ty].clone())).collect();
             GroupTree {
                 primary: ty.map(|ty| (ty.clone(), tasks[ty].clone())),

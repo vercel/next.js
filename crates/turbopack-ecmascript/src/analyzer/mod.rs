@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
     future::Future,
     hash::{Hash, Hasher},
-    mem::{self, take},
+    mem::take,
     pin::Pin,
     sync::Arc,
 };
@@ -39,7 +39,7 @@ impl Default for ObjectPart {
 pub struct ConstantNumber(pub f64);
 
 fn integer_decode(val: f64) -> (u64, i16, i8) {
-    let bits: u64 = unsafe { mem::transmute(val) };
+    let bits: u64 = val.to_bits();
     let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
     let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
     let mantissa = if exponent == 0 {
@@ -183,13 +183,13 @@ impl From<&'_ str> for JsValue {
 
 impl From<JsWord> for JsValue {
     fn from(v: JsWord) -> Self {
-        ConstantValue::Str(v.into()).into()
+        ConstantValue::Str(v).into()
     }
 }
 
 impl From<BigInt> for JsValue {
     fn from(v: BigInt) -> Self {
-        ConstantValue::BigInt(v.into()).into()
+        ConstantValue::BigInt(v).into()
     }
 }
 
@@ -356,7 +356,7 @@ fn pretty_join(
     }
 }
 
-fn total_nodes(vec: &Vec<JsValue>) -> usize {
+fn total_nodes(vec: &[JsValue]) -> usize {
     vec.iter().map(|v| v.total_nodes()).sum::<usize>()
 }
 
@@ -450,7 +450,7 @@ impl JsValue {
             | JsValue::Alternatives(c, list)
             | JsValue::Concat(c, list)
             | JsValue::Add(c, list) => {
-                *c = 1 + total_nodes(&list);
+                *c = 1 + total_nodes(list);
             }
 
             JsValue::Object(c, props) => {
@@ -463,10 +463,10 @@ impl JsValue {
                     .sum::<usize>();
             }
             JsValue::Call(c, f, list) => {
-                *c = 1 + f.total_nodes() + total_nodes(&list);
+                *c = 1 + f.total_nodes() + total_nodes(list);
             }
             JsValue::MemberCall(c, o, m, list) => {
-                *c = 1 + o.total_nodes() + m.total_nodes() + total_nodes(&list);
+                *c = 1 + o.total_nodes() + m.total_nodes() + total_nodes(list);
             }
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
@@ -482,7 +482,7 @@ impl JsValue {
             a.total_nodes().cmp(&b.total_nodes())
         }
         fn make_max_unknown<'a>(iter: impl Iterator<Item = &'a mut JsValue>) {
-            if let Some(item) = iter.max_by(|a, b| cmp_nodes(*a, *b)) {
+            if let Some(item) = iter.max_by(|a, b| cmp_nodes(a, b)) {
                 item.make_unknown_without_content("node limit reached");
             }
         }
@@ -532,11 +532,7 @@ impl JsValue {
         }
     }
 
-    pub fn explain_args(
-        args: &Vec<JsValue>,
-        depth: usize,
-        unknown_depth: usize,
-    ) -> (String, String) {
+    pub fn explain_args(args: &[JsValue], depth: usize, unknown_depth: usize) -> (String, String) {
         let mut hints = Vec::new();
         let args = args
             .iter()
@@ -575,9 +571,9 @@ impl JsValue {
             return "...".to_string();
         }
         // let i = hints.len();
-        let explainer = self.explain_internal(hints, indent_depth, depth - 1, unknown_depth);
+
         // if explainer.len() < 100 {
-        return explainer;
+        self.explain_internal(hints, indent_depth, depth - 1, unknown_depth)
         // }
         // hints.truncate(i);
         // hints.push(String::new());
@@ -767,7 +763,7 @@ impl JsValue {
             }
             JsValue::Unknown(inner, explainer) => {
                 if unknown_depth == 0 || explainer.is_empty() {
-                    format!("???")
+                    "???".to_string()
                 } else if let Some(inner) = inner {
                     let i = hints.len();
                     hints.push(String::new());
@@ -839,15 +835,15 @@ impl JsValue {
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
                    WellKnownFunctionKind::ObjectAssign => (
-                        format!("Object.assign"),
+                        "Object.assign".to_string(),
                         "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
                     ),
                       WellKnownFunctionKind::PathJoin => (
-                        format!("path.join"),
+                        "path.join".to_string(),
                         "The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths",
                     ),
                     WellKnownFunctionKind::PathDirname => (
-                        format!("path.dirname"),
+                        "path.dirname".to_string(),
                         "The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath",
                     ),
                     WellKnownFunctionKind::PathResolve(cwd) => (
@@ -855,17 +851,17 @@ impl JsValue {
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
                     WellKnownFunctionKind::Import => (
-                        format!("import"),
+                        "import".to_string(),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
-                    WellKnownFunctionKind::Require => (format!("require"), "The require method from CommonJS"),
-                    WellKnownFunctionKind::RequireResolve => (format!("require.resolve"), "The require.resolve method from CommonJS"),
+                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
                     WellKnownFunctionKind::PathToFileUrl => (
-                        format!("url.pathToFileURL"),
+                        "url.pathToFileURL".to_string(),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
                     ),
                     WellKnownFunctionKind::ChildProcessSpawnMethod(name) => (
@@ -873,55 +869,55 @@ impl JsValue {
                         "A process spawning method from the Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
                     WellKnownFunctionKind::ChildProcessFork => (
-                        format!("child_process.fork"),
+                        "child_process.fork".to_string(),
                         "The Node.js child_process.fork method: https://nodejs.org/api/child_process.html#child_processforkmodulepath-args-options",
                     ),
                     WellKnownFunctionKind::OsArch => (
-                        format!("os.arch"),
+                        "os.arch".to_string(),
                         "The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch",
                     ),
                     WellKnownFunctionKind::OsPlatform => (
-                        format!("os.process"),
+                        "os.process".to_string(),
                         "The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process",
                     ),
                     WellKnownFunctionKind::OsEndianness => (
-                        format!("os.endianness"),
+                        "os.endianness".to_string(),
                         "The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness",
                     ),
                     WellKnownFunctionKind::NodePreGypFind => (
-                        format!("find"),
+                        "find".to_string(),
                         "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
                     ),
                     WellKnownFunctionKind::NodeGypBuild => (
-                        format!("node-gyp-build"),
+                        "node-gyp-build".to_string(),
                         "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
                     ),
                     WellKnownFunctionKind::NodeBindings => (
-                        format!("bindings"),
+                        "bindings".to_string(),
                         "The Node.js bindings module: https://github.com/TooTallNate/node-bindings"
                     ),
                     WellKnownFunctionKind::NodeExpress => (
-                        format!("express"),
+                        "express".to_string(),
                         "require('express')() : https://github.com/expressjs/express"
                     ),
                     WellKnownFunctionKind::NodeExpressSet => (
-                        format!("set"),
+                        "set".to_string(),
                         "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalize => (
-                      format!("SetRootDir"),
+                      "SetRootDir".to_string(),
                       "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
-                      format!("SetRootDir"),
+                      "SetRootDir".to_string(),
                       "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
                     ),
                     WellKnownFunctionKind::NodeResolveFrom => (
-                      format!("resolveFrom"),
+                      "resolveFrom".to_string(),
                       "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
                     ),
                     WellKnownFunctionKind::NodeProtobufLoad => (
-                      format!("load/loadSync"),
+                      "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
                 };
@@ -945,7 +941,7 @@ impl JsValue {
                         )
                     )
                 } else {
-                    format!("(...) => ...")
+                    "(...) => ...".to_string()
                 }
             }
         }
@@ -953,7 +949,7 @@ impl JsValue {
 
     pub fn as_str(&self) -> Option<&str> {
         if let JsValue::Constant(ConstantValue::Str(str)) = self {
-            Some(&*str)
+            Some(&**str)
         } else {
             None
         }
@@ -961,7 +957,7 @@ impl JsValue {
 
     pub fn as_word(&self) -> Option<&JsWord> {
         if let JsValue::Constant(ConstantValue::Str(str)) = self {
-            Some(&str)
+            Some(str)
         } else {
             None
         }
@@ -1236,7 +1232,7 @@ impl JsValue {
         condition: impl Fn(&JsValue) -> bool,
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
-        if condition(&self) {
+        if condition(self) {
             let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
             if visitor(self) {
                 true
@@ -1576,10 +1572,7 @@ impl JsValue {
             }
             JsValue::Concat(_, v) => {
                 // Remove empty strings
-                v.retain(|v| match v {
-                    JsValue::Constant(ConstantValue::Str(js_word!(""))) => false,
-                    _ => true,
-                });
+                v.retain(|v| !matches!(v, JsValue::Constant(ConstantValue::Str(js_word!("")))));
 
                 // TODO(kdy1): Remove duplicate
                 let mut new = vec![];
@@ -1619,7 +1612,7 @@ impl JsValue {
                             )],
                         };
                         concat.push(item);
-                        while let Some(item) = iter.next() {
+                        for item in iter.by_ref() {
                             concat.push(item);
                         }
                         *self = JsValue::Concat(
@@ -1955,7 +1948,7 @@ mod tests {
                     None,
                     &mut vec![],
                 )
-                .map_err(|err| err.into_diagnostic(&handler).emit())?;
+                .map_err(|err| err.into_diagnostic(handler).emit())?;
 
                 let unresolved_mark = Mark::new();
                 let top_level_mark = Mark::new();

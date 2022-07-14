@@ -157,11 +157,7 @@ impl ResolveResult {
     }
 
     pub fn is_unresolveable(&self) -> bool {
-        if let ResolveResult::Unresolveable(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, ResolveResult::Unresolveable(_))
     }
 
     pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, mut reference_fn: R) -> Result<Self>
@@ -263,13 +259,10 @@ impl ResolveResultVc {
 }
 
 async fn exists(fs_path: FileSystemPathVc) -> Result<bool> {
-    Ok(
-        if let FileSystemEntryType::File = &*fs_path.get_type().await? {
-            true
-        } else {
-            false
-        },
-    )
+    Ok(matches!(
+        &*fs_path.get_type().await?,
+        FileSystemEntryType::File
+    ))
 }
 
 async fn dir_exists(fs_path: FileSystemPathVc) -> Result<bool> {
@@ -359,7 +352,7 @@ async fn find_package(
                 let mut context_value = context.await?;
                 while context_value.is_inside(&*root.await?) {
                     for name in names.iter() {
-                        if let Some(nested_path) = join_path(&context_value.path, &name) {
+                        if let Some(nested_path) = join_path(&context_value.path, name) {
                             if let Some(new_path) = join_path(&nested_path, &package_name) {
                                 let fs_path =
                                     FileSystemPathVc::new_normalized(context_value.fs, nested_path);
@@ -439,7 +432,7 @@ pub async fn resolve_raw(
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
-                pat.to_string(),
+                pat,
                 context.to_string().await?,
                 matches.len()
             );
@@ -465,19 +458,15 @@ pub async fn resolve(
         options: ResolveOptionsVc,
     ) -> ResolveResultVc {
         match result {
-            ImportMapResult::Result(result) => {
-                return *result;
-            }
+            ImportMapResult::Result(result) => *result,
             ImportMapResult::Alias(request, alias_context) => {
-                return resolve(alias_context.unwrap_or(context), *request, options);
+                resolve(alias_context.unwrap_or(context), *request, options)
             }
-            ImportMapResult::Alternatives(list) => {
-                return ResolveResultVc::alternatives(
-                    list.iter()
-                        .map(|r| resolve_import_map_result(r, context, options))
-                        .collect(),
-                )
-            }
+            ImportMapResult::Alternatives(list) => ResolveResultVc::alternatives(
+                list.iter()
+                    .map(|r| resolve_import_map_result(r, context, options))
+                    .collect(),
+            ),
             ImportMapResult::NoEntry => unreachable!(),
         }
     }
@@ -496,7 +485,7 @@ pub async fn resolve(
                 ));
             }
         }
-        return Ok(ResolveResult::Single(SourceAssetVc::new(fs_path).into(), Vec::new()).into());
+        Ok(ResolveResult::Single(SourceAssetVc::new(fs_path).into(), Vec::new()).into())
     }
 
     fn handle_exports_field(
@@ -538,7 +527,7 @@ pub async fn resolve(
         let resolved = merge_results(resolved_results);
         let resolved =
             resolved.add_reference(AffectingResolvingAssetReferenceVc::new(package_json).into());
-        return Ok(resolved);
+        Ok(resolved)
     }
 
     async fn resolve_into_folder(
@@ -551,7 +540,7 @@ pub async fn resolve(
             match resolve_into_package {
                 ResolveIntoPackage::Default(req) => {
                     let str = "./".to_string()
-                        + &normalize_path(&req).ok_or_else(|| {
+                        + &normalize_path(req).ok_or_else(|| {
                             anyhow!(
                                 "ResolveIntoPackage::Default can't be used with a request that \
                                  escapes the current directory"
@@ -565,7 +554,7 @@ pub async fn resolve(
                         if let FileJsonContent::Content(package_json) = &*package_json.await? {
                             if let Some(field_value) = package_json[name].as_str() {
                                 let request = RequestVc::parse(Value::new(
-                                    normalize_request(&field_value).into(),
+                                    normalize_request(field_value).into(),
                                 ));
 
                                 let result = resolve(package_path, request, options).await?;
@@ -668,8 +657,7 @@ pub async fn resolve(
             path,
             force_in_context,
         } => {
-            let mut patterns = Vec::new();
-            patterns.push(path.clone());
+            let mut patterns = vec![path.clone()];
             for ext in options_value.extensions.iter() {
                 let mut path = path.clone();
                 path.push(ext.clone().into());
@@ -727,17 +715,17 @@ pub async fn resolve(
                                 } => {
                                     if let Some((package_json, package_json_path)) = package_json {
                                         if let ExportsFieldResult::Some(exports_field) =
-                                            &*exports_field(package_json, &field).await?
+                                            &*exports_field(package_json, field).await?
                                         {
                                             if let Some(path) = path.clone().into_string() {
                                                 results.push(handle_exports_field(
                                                     package_path,
                                                     package_json_path,
                                                     options,
-                                                    &exports_field,
+                                                    exports_field,
                                                     &format!(".{path}"),
-                                                    &conditions,
-                                                    &unspecified_conditions,
+                                                    conditions,
+                                                    unspecified_conditions,
                                                 )?);
                                             } else {
                                                 todo!(
