@@ -3,7 +3,6 @@ import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
-import { NEXT_CLIENT_SSR_ENTRY_SUFFIX } from '../../../shared/lib/constants'
 
 type Compiler = webpack5.Compiler
 type WebpackPluginInstance = webpack5.WebpackPluginInstance
