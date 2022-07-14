@@ -358,7 +358,7 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
 ### SWC Trace profiling
 
