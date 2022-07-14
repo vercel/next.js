@@ -1,6 +1,7 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
+#![feature(into_future)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
