@@ -256,11 +256,11 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {stylesheets
+      {/* {stylesheets
         ? stylesheets.map((href) => (
             <link rel="stylesheet" href={`/_next/${href}`} key={href} />
           ))
-        : null}
+        : null} */}
       {preservedSegments.map((preservedSegment) => {
         return (
           <LoadingBoundary loading={loading} key={preservedSegment}>

@@ -945,6 +945,7 @@ export async function renderToHTML(
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
+      initialStylesheets,
     })
   }
 
