@@ -130,15 +130,13 @@ impl Parse for IntoMode {
             "none" => Ok(IntoMode::None),
             "new" => Ok(IntoMode::New),
             "shared" => Ok(IntoMode::Shared),
-            _ => {
-                return Err(Error::new_spanned(
-                    &ident,
-                    format!(
-                        "unexpected {}, expected \"none\", \"new\", \"shared\"",
-                        ident.to_string()
-                    ),
-                ))
-            }
+            _ => Err(Error::new_spanned(
+                &ident,
+                format!(
+                    "unexpected {}, expected \"none\", \"new\", \"shared\"",
+                    ident
+                ),
+            )),
         }
     }
 }
@@ -160,16 +158,14 @@ impl Parse for SerializationMode {
             "auto_for_input" => Ok(SerializationMode::AutoForInput),
             "custom" => Ok(SerializationMode::Custom),
             "custom_for_input" => Ok(SerializationMode::CustomForInput),
-            _ => {
-                return Err(Error::new_spanned(
-                    &ident,
-                    format!(
-                        "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \
-                         \"custom\", \"custom_for_input\"",
-                        ident.to_string()
-                    ),
-                ))
-            }
+            _ => Err(Error::new_spanned(
+                &ident,
+                format!(
+                    "unexpected {}, expected \"none\", \"auto\", \"auto_for_input\", \"custom\", \
+                     \"custom_for_input\"",
+                    ident
+                ),
+            )),
         }
     }
 }
@@ -224,7 +220,7 @@ impl Parse for ValueArguments {
                     } else {
                         return Err(Error::new_spanned(
                             &ident,
-                            format!("unexpected {}, expected \"manual\"", ident.to_string()),
+                            format!("unexpected {}, expected \"manual\"", ident),
                         ));
                     };
                 }
@@ -295,14 +291,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
-    let ref_ident = get_ref_ident(&ident);
-    let value_type_ident = get_value_type_ident(&ident);
-    let value_type_id_ident = get_value_type_id_ident(&ident);
-    let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(&ident)).collect();
-    let as_trait_methods: Vec<_> = traits
-        .iter()
-        .map(|ident| get_as_super_ident(&ident))
-        .collect();
+    let ref_ident = get_ref_ident(ident);
+    let value_type_ident = get_value_type_ident(ident);
+    let value_type_id_ident = get_value_type_id_ident(ident);
+    let trait_refs: Vec<_> = traits.iter().map(|ident| get_ref_ident(ident)).collect();
+    let as_trait_methods: Vec<_> = traits.iter().map(get_as_super_ident).collect();
 
     let mut inner_type = None;
     if transparent {
@@ -405,7 +398,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let trait_registrations: Vec<_> = traits
         .iter()
         .map(|trait_ident| {
-            let register = get_register_trait_methods_ident(trait_ident, &ident);
+            let register = get_register_trait_methods_ident(trait_ident, ident);
             quote! {
                 #register(&mut value_type);
             }
@@ -662,9 +655,9 @@ impl Parse for Constructor {
                             Constructor::KeyAndCompare(key_expr, compare_name)
                         }
                         _ => {
-                            return Err(content.error(format!(
-                                "\"compare\" can't be combined with previous values"
-                            )));
+                            return Err(content.error(
+                                r#""compare" can't be combined with previous values"#.to_string(),
+                            ));
                         }
                     }
                 }
@@ -681,9 +674,9 @@ impl Parse for Constructor {
                             Constructor::KeyAndCompareEnum(key_expr, compare_name)
                         }
                         _ => {
-                            return Err(content.error(format!(
-                                "\"compare\" can't be combined with previous values"
-                            )));
+                            return Err(content.error(
+                                r#""compare" can't be combined with previous values"#.to_string(),
+                            ));
                         }
                     }
                 }

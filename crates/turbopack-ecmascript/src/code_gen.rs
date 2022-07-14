@@ -28,9 +28,29 @@ pub trait CodeGenerateable {
 #[turbo_tasks::value(transparent)]
 pub struct CodeGenerateables(Vec<CodeGenerateableVc>);
 
+pub fn path_to(
+    path: &[AstParentKind],
+    f: impl FnMut(&AstParentKind) -> bool,
+) -> Vec<AstParentKind> {
+    if let Some(pos) = path.iter().rev().position(f) {
+        let index = path.len() - pos - 1;
+        path[..index].to_vec()
+    } else {
+        path.to_vec()
+    }
+}
+
 #[macro_export]
 macro_rules! create_visitor {
-    ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
+    (exact $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
+        $crate::create_visitor!(__ $ast_path.to_vec(), $name($arg: &mut $ty) $b)
+    };
+    ($ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {
+        $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
+            matches!(n, swc_ecma_visit::AstParentKind::$ty(_))
+        }), $name($arg: &mut $ty) $b)
+    };
+    (__ $ast_path:expr, $name:ident($arg:ident: &mut $ty:ident) $b:block) => {{
         struct Visitor<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> {
             $name: T,
         }
@@ -38,7 +58,7 @@ macro_rules! create_visitor {
         impl<T: Fn(&mut swc_ecma_ast::$ty) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn swc_ecma_visit::VisitMut + Send + Sync + 'a> {
                 box &**self
             }
         }
@@ -52,9 +72,7 @@ macro_rules! create_visitor {
         }
 
         (
-            path_to(&$ast_path, |n| {
-                matches!(n, swc_ecma_visit::AstParentKind::$ty(_))
-            }),
+            $ast_path,
             box box Visitor {
                 $name: move |$arg: &mut swc_ecma_ast::$ty| $b,
             } as Box<dyn $crate::code_gen::VisitorFactory>,

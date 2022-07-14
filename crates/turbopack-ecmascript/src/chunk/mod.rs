@@ -193,7 +193,7 @@ impl Asset for EcmascriptChunk {
             Object.defineProperty(exports, "__esModule", { value: true });
             for(var key in getters) {
                 if(hOP.call(getters, key)) {
-                    Object.defineProperty(exports, key, { get: getters[key] });
+                    Object.defineProperty(exports, key, { get: getters[key], enumerable: true, });
                 }
             }
         }

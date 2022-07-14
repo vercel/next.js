@@ -8,7 +8,7 @@ use swc_ecma_ast::{
     PropOrSpread, Script, Stmt, Str,
 };
 use swc_ecma_quote::quote;
-use swc_ecma_visit::{AstParentKind, VisitMut};
+use swc_ecma_visit::VisitMut;
 use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbopack_core::{
     chunk::{
@@ -70,11 +70,6 @@ impl ChunkableAssetReference for EsmAssetReference {
     fn is_chunkable(&self) -> BoolVc {
         BoolVc::cell(true)
     }
-}
-
-fn path_to(path: &[AstParentKind], f: impl FnMut(&AstParentKind) -> bool) -> Vec<AstParentKind> {
-    let index = path.len() - path.iter().rev().position(f).unwrap() - 1;
-    path[..index].to_vec()
 }
 
 #[turbo_tasks::value_impl]
