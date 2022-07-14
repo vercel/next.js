@@ -12,12 +12,20 @@ pub fn generate_register() {
     println!("cargo:rerun-if-changed=build.rs");
 
     let crate_dir = current_dir().unwrap();
+    let workspace_dir = env::var_os("CARGO_WORKSPACE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| crate_dir.clone());
     let crate_name = env::var("CARGO_PKG_NAME").unwrap();
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let src_dir = crate_dir.join("src");
     let examples_dir = crate_dir.join("examples");
     let tests_dir = crate_dir.join("tests");
+    let cargo_lock_path = workspace_dir.join("Cargo.lock");
+
+    // TODO: use (ask @sokra)
+    let _lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
+
     let mut entries = Vec::new();
 
     let lib_entry = src_dir.join("lib.rs");
