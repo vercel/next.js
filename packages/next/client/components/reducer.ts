@@ -298,10 +298,20 @@ const walkTreeWithFlightDataPath = (
   return tree
 }
 
+type PushRef = {
+  pendingPush: boolean
+  mpaNavigation: boolean
+}
+
+type FocusRef = {
+  focus: boolean
+}
+
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
-  pushRef: { pendingPush: boolean; mpaNavigation: boolean }
+  pushRef: PushRef
+  focusRef: FocusRef
   canonicalUrl: string
 }
 
@@ -349,6 +359,7 @@ export function reducer(
     return {
       canonicalUrl: href,
       pushRef: state.pushRef,
+      focusRef: state.focusRef,
       cache: state.cache,
       tree: tree,
     }
@@ -377,6 +388,7 @@ export function reducer(
       return {
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
         cache: state.cache,
         tree: optimisticTree,
       }
@@ -393,6 +405,7 @@ export function reducer(
         return {
           canonicalUrl: href,
           pushRef: { pendingPush, mpaNavigation: false },
+          focusRef: { focus: true },
           cache: cache,
           tree: mutable.patchedTree,
         }
@@ -430,6 +443,7 @@ export function reducer(
           return {
             canonicalUrl: href,
             pushRef: { pendingPush, mpaNavigation: false },
+            focusRef: { focus: true },
             cache: cache,
             tree: optimisticTree,
           }
@@ -446,6 +460,7 @@ export function reducer(
         return {
           canonicalUrl: flightData,
           pushRef: { pendingPush: true, mpaNavigation: true },
+          focusRef: { focus: false },
           cache: state.cache,
           tree: state.tree,
         }
@@ -474,6 +489,7 @@ export function reducer(
       return {
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
         cache: cache,
         tree: newTree,
       }
@@ -490,6 +506,7 @@ export function reducer(
       return {
         canonicalUrl: state.canonicalUrl,
         pushRef: state.pushRef,
+        focusRef: state.focusRef,
         tree: state.tree,
         cache: state.cache,
       }
@@ -500,6 +517,7 @@ export function reducer(
       return {
         canonicalUrl: flightData,
         pushRef: { pendingPush: true, mpaNavigation: true },
+        focusRef: { focus: false },
         cache: state.cache,
         tree: state.tree,
       }
@@ -525,6 +543,7 @@ export function reducer(
     return {
       canonicalUrl: state.canonicalUrl,
       pushRef: state.pushRef,
+      focusRef: state.focusRef,
       tree: newTree,
       cache: cache,
     }
@@ -546,6 +565,7 @@ export function reducer(
       return {
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
         cache: cache,
         tree: mutable.patchedTree,
       }
@@ -566,6 +586,7 @@ export function reducer(
       return {
         canonicalUrl: flightData,
         pushRef: { pendingPush: true, mpaNavigation: true },
+        focusRef: { focus: false },
         cache: state.cache,
         tree: state.tree,
       }
@@ -597,6 +618,8 @@ export function reducer(
     return {
       canonicalUrl: href,
       pushRef: { pendingPush, mpaNavigation: false },
+      // TODO-APP: Revisit if this needs to be true in certain cases
+      focusRef: { focus: false },
       cache: cache,
       tree: newTree,
     }
