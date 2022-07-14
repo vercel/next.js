@@ -200,6 +200,18 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                         top_level_mark,
                                         false,
                                     ));
+
+                                    parsed_program.visit_mut_with(&mut jsx(
+                                        cm.clone(),
+                                        comments.clone(),
+                                        swc_ecma_transforms_react::Options {
+                                            runtime: Some(
+                                                swc_ecma_transforms_react::Runtime::Automatic,
+                                            ),
+                                            ..Default::default()
+                                        },
+                                        top_level_mark,
+                                    ))
                                 });
 
                                 EvalContext::new(&parsed_program, unresolved_mark)
