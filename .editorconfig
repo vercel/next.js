@@ -13,3 +13,6 @@ max_line_length = 120
 
 [{*.markdown,*.md}]
 max_line_length = 80
+
+[{*.yml,*.yaml}]
+indent_size = 2
