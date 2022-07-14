@@ -245,12 +245,10 @@ impl EvalContext {
                     ))
                 }
             }
-            Expr::Arrow(expr) => {
-                JsValue::Variable((
-                    format!("*arrow function {}*", expr.span.lo.0).into(),
-                    SyntaxContext::empty(),
-                ))
-            }
+            Expr::Arrow(expr) => JsValue::Variable((
+                format!("*arrow function {}*", expr.span.lo.0).into(),
+                SyntaxContext::empty(),
+            )),
             Expr::New(..) => JsValue::Unknown(None, "new expression are not supported"),
 
             Expr::Seq(e) => {

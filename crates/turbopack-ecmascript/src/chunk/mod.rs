@@ -1,7 +1,6 @@
 pub mod loader;
 
-use std::fmt::Write;
-use std::future::IntoFuture;
+use std::{fmt::Write, future::IntoFuture};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
@@ -170,7 +169,8 @@ impl Asset for EcmascriptChunk {
                     .id(EcmascriptChunkPlaceableVc::cast_from(this.entry))
                     .await?,
             );
-            let _ = write!(code,
+            let _ = write!(
+                code,
                 ", ({{ chunks, getModule }}) => {{
     if(!(true{condition})) return true;
     getModule(0, {entry_id})

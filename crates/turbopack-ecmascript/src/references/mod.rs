@@ -1155,12 +1155,10 @@ impl StaticAnalyser {
         match prop {
             MemberProp::Ident(ident) => Some(ident.sym.to_string()),
             MemberProp::PrivateName(_) => None,
-            MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                match self.evaluate_expr(expr) {
-                    StaticExpr::String(str) => Some(str),
-                    _ => None,
-                }
-            }
+            MemberProp::Computed(ComputedPropName { expr, .. }) => match self.evaluate_expr(expr) {
+                StaticExpr::String(str) => Some(str),
+                _ => None,
+            },
         }
     }
 

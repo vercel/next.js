@@ -998,25 +998,25 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                     );
                     quote! { std::convert::From::<turbo_tasks::RawVc>::from(result) }
                 };
-                    let custom_self_type = if let Some(FnArg::Typed(PatType {
-                        pat: box Pat::Ident(PatIdent { ident, .. }),
-                        ..
-                    })) = sig.inputs.first()
-                    {
-                        ident == "self_vc"
-                    } else {
-                        false
-                    };
-                    if custom_self_type {
-                        let external_self = external_sig.inputs.first_mut().unwrap();
-                        *external_self = FnArg::Receiver(Receiver {
-                            attrs: Vec::new(),
-                            reference: Some((Token![&](Span::call_site()), None)),
-                            mutability: None,
-                            self_token: Token![self](Span::call_site()),
-                        });
-                        input_raw_vc_arguments[0] = quote! { self.into() };
-                    }
+                let custom_self_type = if let Some(FnArg::Typed(PatType {
+                    pat: box Pat::Ident(PatIdent { ident, .. }),
+                    ..
+                })) = sig.inputs.first()
+                {
+                    ident == "self_vc"
+                } else {
+                    false
+                };
+                if custom_self_type {
+                    let external_self = external_sig.inputs.first_mut().unwrap();
+                    *external_self = FnArg::Receiver(Receiver {
+                        attrs: Vec::new(),
+                        reference: Some((Token![&](Span::call_site()), None)),
+                        mutability: None,
+                        self_token: Token![self](Span::call_site()),
+                    });
+                    input_raw_vc_arguments[0] = quote! { self.into() };
+                }
 
                 functions.push(quote! {
                     impl #vc_ident {
