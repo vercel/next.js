@@ -235,7 +235,7 @@ export default function OuterLayoutRouter({
   childProp: ChildProp
   loading: React.ReactNode | undefined
 }) {
-  const { childNodes, tree, url, stylesheets } = useContext(AppTreeContext)
+  const { childNodes, tree, url } = useContext(AppTreeContext)
 
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
   if (!childNodesForParallelRouter) {
