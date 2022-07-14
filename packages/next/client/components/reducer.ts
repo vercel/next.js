@@ -12,7 +12,6 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  // TODO: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -149,6 +148,43 @@ const fillCacheWithDataProperty = (
   )
 }
 
+const canOptimisticallyRender = (
+  segments: string[],
+  flightRouterState: FlightRouterState
+): boolean => {
+  const segment = segments[0]
+  const isLastSegment = segments.length === 1
+
+  const [existingSegment, existingParallelRoutes, , , loadingMarker] =
+    flightRouterState
+
+  const hasLoading = loadingMarker === 'loading'
+
+  // If the tree path holds at least one loading.js it will be optimistic
+  if (hasLoading) {
+    return true
+  }
+
+  // Above already catches the last segment case where `hasLoading` is true, so in this case it would always be `false`.
+  if (isLastSegment) {
+    return false
+  }
+
+  // If the segments mismatch we can't resolve deeper into the tree
+  const segmentMatches = matchSegment(existingSegment, segment)
+
+  // If the existingParallelRoutes does not have a `children` parallelRouteKey we can't resolve deeper into the tree
+  if (!segmentMatches || !existingParallelRoutes.children) {
+    return hasLoading
+  }
+
+  // Resolve deeper in the tree as the current level did not have a loading marker
+  return canOptimisticallyRender(
+    segments.slice(1),
+    existingParallelRoutes.children
+  )
+}
+
 const createOptimisticTree = (
   segments: string[],
   flightRouterState: FlightRouterState | null,
@@ -163,11 +199,12 @@ const createOptimisticTree = (
   const segment = segments[0]
   const isLastSegment = segments.length === 1
 
-  const shouldRefetchThisLevel =
-    !flightRouterState || segment !== flightRouterState[0]
+  const segmentMatches =
+    existingSegment !== null && matchSegment(existingSegment, segment)
+  const shouldRefetchThisLevel = !flightRouterState || !segmentMatches
 
   let parallelRoutes: FlightRouterState[1] = {}
-  if (existingSegment !== null && matchSegment(existingSegment, segment)) {
+  if (existingSegment !== null && segmentMatches) {
     parallelRoutes = existingParallelRoutes
   }
 
@@ -200,6 +237,11 @@ const createOptimisticTree = (
     result[2] = href
   }
 
+  // Copy the loading flag from existing tree
+  if (flightRouterState && flightRouterState[4]) {
+    result[4] = flightRouterState[4]
+  }
+
   return result
 }
 
@@ -215,7 +257,7 @@ const walkTreeWithFlightDataPath = (
     const tree: FlightRouterState = [...treePatch]
 
     if (url) {
-      tree.push(url)
+      tree[2] = url
     }
 
     return tree
@@ -224,7 +266,6 @@ const walkTreeWithFlightDataPath = (
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
-  // TODO: verify
   if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
@@ -246,7 +287,12 @@ const walkTreeWithFlightDataPath = (
   ]
 
   if (url) {
-    tree.push(url)
+    tree[2] = url
+  }
+
+  // Copy loading flag
+  if (flightSegmentPath[4]) {
+    tree[4] = flightSegmentPath[4]
   }
 
   return tree
@@ -315,7 +361,7 @@ export function reducer(
     const href = url.pathname + url.search + url.hash
 
     const segments = pathname.split('/')
-    // TODO: figure out something better for index pages
+    // TODO-APP: figure out something better for index pages
     segments.push('')
 
     // In case of soft push data fetching happens in layout-router if a segment is missing
@@ -352,8 +398,8 @@ export function reducer(
         }
       }
 
-      // TODO: flag on the tree of which part of the tree for if there is a loading boundary
-      const isOptimistic = false
+      // TODO-APP: flag on the tree of which part of the tree for if there is a loading boundary
+      const isOptimistic = canOptimisticallyRender(segments, state.tree)
 
       if (isOptimistic) {
         // Build optimistic tree
@@ -367,7 +413,8 @@ export function reducer(
         )
 
         // Fill in the cache with blank that holds the `data` field.
-        // TODO: segments.slice(1) strips '', we can get rid of '' altogether.
+        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+        cache.subTreeData = state.cache.subTreeData
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
@@ -406,13 +453,13 @@ export function reducer(
 
       cache.data = null
 
-      // TODO: ensure flightDataPath does not have "" as first item
+      // TODO-APP: ensure flightDataPath does not have "" as first item
       const flightDataPath = flightData[0]
 
       const [treePatch] = flightDataPath.slice(-2)
       const treePath = flightDataPath.slice(0, -3)
       const newTree = walkTreeWithFlightDataPath(
-        // TODO: remove ''
+        // TODO-APP: remove ''
         ['', ...treePath],
         state.tree,
         treePatch
@@ -438,7 +485,7 @@ export function reducer(
   if (action.type === 'server-patch') {
     const { flightData, previousTree, cache } = action.payload
     if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
-      // TODO: Handle tree mismatch
+      // TODO-APP: Handle tree mismatch
       console.log('TREE MISMATCH')
       return {
         canonicalUrl: state.canonicalUrl,
@@ -458,7 +505,7 @@ export function reducer(
       }
     }
 
-    // TODO: flightData could hold multiple paths
+    // TODO-APP: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
     // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
@@ -466,7 +513,7 @@ export function reducer(
     const [treePatch] = flightDataPath.slice(-2)
 
     const newTree = walkTreeWithFlightDataPath(
-      // TODO: remove ''
+      // TODO-APP: remove ''
       ['', ...treePath],
       state.tree,
       treePatch
@@ -526,18 +573,17 @@ export function reducer(
 
     cache.data = null
 
-    // TODO: ensure flightDataPath does not have "" as first item
     const flightDataPath = flightData[0]
 
     if (flightDataPath.length !== 2) {
-      // TODO: handle this case better
+      // TODO-APP: handle this case better
       console.log('RELOAD FAILED')
       return state
     }
 
     const [treePatch, subTreeData] = flightDataPath.slice(-2)
     const newTree = walkTreeWithFlightDataPath(
-      // TODO: remove ''
+      // TODO-APP: remove ''
       [''],
       state.tree,
       treePatch

@@ -64,11 +64,24 @@ describe('app dir', () => {
   it('should serve /index as separate page', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/index')
     expect(html).toContain('hello from app/dashboard/index')
+    // should load chunks generated via async import correctly
+    expect(html).toContain('hello from lazy')
   })
 
-  it('should load chunks generated via async import correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard/index')
-    expect(html).toContain('hello from lazy')
+  // TODO-APP: handle css modules fouc in dev
+  it.skip('should handle css imports in next/dynamic correctly', async () => {
+    const browser = await webdriver(next.url, '/dashboard/index')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-dynamic')).color`
+      )
+    ).toBe('rgb(0, 0, 255)')
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-lazy')).color`
+      )
+    ).toBe('rgb(128, 0, 128)')
   })
 
   it('should include layouts when no direct parent layout', async () => {
@@ -393,48 +406,86 @@ describe('app dir', () => {
   })
 
   describe('css support', () => {
-    it('should support css modules inside client layouts', async () => {
-      const browser = await webdriver(next.url, '/client-nested')
+    describe('server layouts', () => {
+      it('should support global css inside server layouts', async () => {
+        const browser = await webdriver(next.url, '/dashboard')
 
-      // Should render h1 in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('h1')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+        // Should body text in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.p')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // Should inject global css for .green selectors
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.green')).color`
+          )
+        ).toBe('rgb(0, 128, 0)')
+      })
+
+      it('should support css modules inside server layouts', async () => {
+        const browser = await webdriver(next.url, '/css/css-nested')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#server-cssm')).color`
+          )
+        ).toBe('rgb(0, 128, 0)')
+      })
     })
 
-    it('should support css modules inside client pages', async () => {
-      const browser = await webdriver(next.url, '/client-component-route')
-
-      // Should render p in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('p')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+    describe.skip('server pages', () => {
+      it('should support global css inside server pages', async () => {})
+      it('should support css modules inside server pages', async () => {})
     })
 
-    it('should support global css inside client layouts', async () => {
-      const browser = await webdriver(next.url, '/client-nested')
+    describe('client layouts', () => {
+      it('should support css modules inside client layouts', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
 
-      // Should render button in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('button')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+        // Should render h1 in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should support global css inside client layouts', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
+
+        // Should render button in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('button')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
     })
 
-    it('should support global css inside client pages', async () => {
-      const browser = await webdriver(next.url, '/client-component-route')
+    describe('client pages', () => {
+      it('should support css modules inside client pages', async () => {
+        const browser = await webdriver(next.url, '/client-component-route')
 
-      // Should render `b` in blue
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('b')).color`
-        )
-      ).toBe('rgb(0, 0, 255)')
+        // Should render p in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('p')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should support global css inside client pages', async () => {
+        const browser = await webdriver(next.url, '/client-component-route')
+
+        // Should render `b` in blue
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('b')).color`
+          )
+        ).toBe('rgb(0, 0, 255)')
+      })
     })
   })
 })

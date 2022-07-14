@@ -21,12 +21,12 @@ export function useSearchParam(key: string) {
   return params[key]
 }
 
-// TODO: Move the other router context over to this one
+// TODO-APP: Move the other router context over to this one
 export function useRouter() {
   return useContext(AppRouterContext)
 }
 
-// TODO: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
+// TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
 // export function useParams() {
 //   return useContext(ParamsContext)
 // }
@@ -35,7 +35,7 @@ export function usePathname() {
   return useContext(PathnameContext)
 }
 
-// TODO: define what should be provided through context.
+// TODO-APP: define what should be provided through context.
 // export function useLayoutSegments() {
 //   return useContext(LayoutSegmentsContext)
 // }
