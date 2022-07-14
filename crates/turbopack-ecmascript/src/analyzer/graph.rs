@@ -690,27 +690,30 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         ast_path.with(
             AstParentNodeRef::AssignExpr(n, AssignExprField::Left),
-            |ast_path| {
-                match &n.left {
-                    PatOrExpr::Expr(expr) => {
-                        ast_path.with(
-                            AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr),
-                            |ast_path| {
-                                self.visit_expr(expr, ast_path);
-                            },
-                        );
-                    }
-                    PatOrExpr::Pat(pat) => {
-                        ast_path.with(
-                            AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat),
-                            |ast_path| {
-                                self.current_value = Some(self.eval_context.eval(&n.right));
-                                self.visit_pat(pat, ast_path);
-                                self.current_value = None;
-                            },
-                        );
-                    }
+            |ast_path| match &n.left {
+                PatOrExpr::Expr(expr) => {
+                    ast_path.with(
+                        AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr),
+                        |ast_path| {
+                            self.visit_expr(expr, ast_path);
+                        },
+                    );
                 }
+                PatOrExpr::Pat(pat) => {
+                    ast_path.with(
+                        AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat),
+                        |ast_path| {
+                            self.current_value = Some(self.eval_context.eval(&n.right));
+                            self.visit_pat(pat, ast_path);
+                            self.current_value = None;
+                        },
+                    );
+                }
+            },
+        );
+        ast_path.with(
+            AstParentNodeRef::AssignExpr(n, AssignExprField::Right),
+            |ast_path| {
                 self.visit_expr(&n.right, ast_path);
             },
         );
