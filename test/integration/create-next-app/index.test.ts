@@ -1,8 +1,6 @@
 /* eslint-env jest */
-import { execSync } from 'child_process'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { killApp, launchApp, findPort, waitFor } from 'next-test-utils'
 import os from 'os'
 import path from 'path'
 
@@ -481,40 +479,6 @@ describe('create next app', () => {
 
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
-      )
-    })
-  })
-
-  it('should add `moduleResoution` when generating tsconfig.json', async () => {
-    await usingTempDir(async (cwd) => {
-      const projectName = 'tsconfig-generation'
-      const res = await run([projectName], { cwd })
-      expect(res.exitCode).toBe(0)
-
-      const tsconfigPath = path.join(cwd, projectName, 'tsconfig.json')
-      expect(fs.existsSync(tsconfigPath)).toBeFalse()
-
-      await execSync('pnpm add -D typescript @types/react', {
-        cwd: path.join(cwd, projectName),
-      })
-
-      const indexPath = path.join(cwd, projectName, 'pages', 'index.js')
-      await fs.rename(indexPath, indexPath.replace('.js', '.tsx'))
-
-      const appPort = await findPort()
-      const app = await launchApp(path.join(cwd, projectName), appPort)
-      await killApp(app)
-
-      expect(fs.existsSync(tsconfigPath)).toBeTrue()
-
-      const tsconfig = JSON.parse(
-        await fs.readFile(path.join(cwd, projectName, 'tsconfig.json'), 'utf8')
-      )
-
-      expect(tsconfig.compilerOptions).toEqual(
-        expect.objectContaining({
-          moduleResolution: 'node',
-        })
       )
     })
   })
