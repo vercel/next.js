@@ -193,10 +193,7 @@ describe('app dir - react server components', () => {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
-    const linkText = getNodeBySelector(
-      linkHTML,
-      'body > div > a[href="/root"]'
-    ).text()
+    const linkText = getNodeBySelector(linkHTML, 'body a[href="/root"]').text()
 
     expect(linkText).toContain('home')
 

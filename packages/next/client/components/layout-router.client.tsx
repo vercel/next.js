@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useRef } from 'react'
 import type { ChildProp } from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
@@ -61,8 +61,20 @@ export function InnerLayoutRouter({
   isActive: boolean
   path: string
 }) {
-  const { changeByServerResponse, tree: fullTree } =
-    useContext(FullAppTreeContext)
+  const {
+    changeByServerResponse,
+    tree: fullTree,
+    focusRef,
+  } = useContext(FullAppTreeContext)
+  const focusAndScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (focusRef.focus && focusAndScrollRef.current) {
+      focusRef.focus = false
+      focusAndScrollRef.current.focus()
+      focusAndScrollRef.current.scrollIntoView()
+    }
+  }, [focusRef])
 
   let childNode = childNodes.get(path)
 
@@ -197,16 +209,18 @@ export function InnerLayoutRouter({
   }
 
   return (
-    <AppTreeContext.Provider
-      value={{
-        tree: tree[1][parallelRouterKey],
-        childNodes: childNode.parallelRoutes,
-        // TODO-APP: overriding of url for parallel routes
-        url: url,
-      }}
-    >
-      {childNode.subTreeData}
-    </AppTreeContext.Provider>
+    <div ref={focusAndScrollRef}>
+      <AppTreeContext.Provider
+        value={{
+          tree: tree[1][parallelRouterKey],
+          childNodes: childNode.parallelRoutes,
+          // TODO-APP: overriding of url for parallel routes
+          url: url,
+        }}
+      >
+        {childNode.subTreeData}
+      </AppTreeContext.Provider>
+    </div>
   )
 }
 
