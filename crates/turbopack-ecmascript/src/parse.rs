@@ -17,6 +17,7 @@ use swc_common::{
 use swc_ecma_ast::{EsVersion, Program};
 use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
 use swc_ecma_transforms_base::resolver;
+use swc_ecma_transforms_react::jsx;
 use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
@@ -203,7 +204,7 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
 
                                     parsed_program.visit_mut_with(&mut jsx(
                                         cm.clone(),
-                                        comments.clone(),
+                                        Some(comments.clone()),
                                         swc_ecma_transforms_react::Options {
                                             runtime: Some(
                                                 swc_ecma_transforms_react::Runtime::Automatic,
