@@ -651,7 +651,7 @@ export async function renderToHTML(
     }
 
     type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      query: URLSearchParams
+      searchParams: URLSearchParams
       pathname: string
     }
 
@@ -668,7 +668,7 @@ export async function renderToHTML(
         cookies,
         layoutSegments: segmentPath,
         // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
-        ...(isPage ? { query, pathname } : {}),
+        ...(isPage ? { searchParams: query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
           ? { preview: true, previewData: previewData }
@@ -729,7 +729,7 @@ export async function renderToHTML(
             // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
             params={currentParams}
             // Query is only provided to page
-            {...(isPage ? { query } : {})}
+            {...(isPage ? { searchParams: query } : {})}
           />
         )
       },
