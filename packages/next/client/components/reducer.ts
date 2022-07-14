@@ -303,7 +303,7 @@ type PushRef = {
   mpaNavigation: boolean
 }
 
-type FocusRef = {
+export type FocusRef = {
   focus: boolean
 }
 
