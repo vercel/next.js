@@ -114,18 +114,24 @@ const resolveAdminKey = () => {
   })
 }
 
-const importSchema = (adminKey) =>
-  streamToPromise(
-    fs.createReadStream('./schema.gql').pipe(
-      request.post({
-        model: 'merge',
-        uri: 'https://graphql.fauna.com/import',
-        headers: {
-          Authorization: `Bearer ${adminKey}`,
-        },
-      })
-    )
-  ).then(String)
+const resolveDbDomain = () => {
+    return process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com'
+}
+
+const importSchema = (adminKey) => {
+    domain = resolveDbDomain().replace("db", "graphql")
+    return streamToPromise(
+        fs.createReadStream('./schema.gql').pipe(
+            request.post({
+                model: 'merge',
+                uri: `https://${domain}/import`,
+                headers: {
+                    Authorization: `Bearer ${adminKey}`,
+                },
+            })
+        )
+    ).then(String)
+}
 
 const findImportError = (msg) => {
   switch (true) {
@@ -143,7 +149,7 @@ const main = async () => {
 
   const client = new Client({
     secret: adminKey,
-    domain: process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com',
+    domain: resolveDbDomain(),
   })
 
   if (await isDatabasePrepared({ client })) {
