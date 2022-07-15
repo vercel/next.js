@@ -6,17 +6,18 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkItem, ChunkItemVc, ChunkingContextVc},
+    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
-    reference::AssetReferencesVc,
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    resolve::{ResolveResult, ResolveResultVc},
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
     EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-    EcmascriptChunkPlaceableVc,
+    EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
 };
 
-#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ValueToString)]
+#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -34,18 +35,8 @@ impl ModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<FileSystemPathVc> {
-        let mut hasher = md4::Md4::new();
-        hasher.update(match *self.source.content().await? {
-            FileContent::Content(ref file) => file.content(),
-            _ => todo!("not implemented"),
-        });
-        let result = hasher.finalize();
-        let parent_path = self.source.path().parent().await?;
-        Ok(FileSystemPathVc::new(
-            parent_path.fs,
-            &format!("{}/{:x}", parent_path.path, result),
-        ))
+    fn path(&self) -> FileSystemPathVc {
+        self.source.path()
     }
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
@@ -58,14 +49,29 @@ impl Asset for ModuleAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl ChunkableAsset for ModuleAsset {
+    #[turbo_tasks::function]
+    fn as_chunk(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
+        EcmascriptChunkVc::new(context, self_vc.into()).into()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
-        ModuleChunkItemVc::cell(ModuleChunkItem {
+    async fn as_chunk_item(
+        self_vc: ModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> Result<EcmascriptChunkItemVc> {
+        Ok(ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
+            static_asset: StaticAssetVc::cell(StaticAsset {
+                context,
+                source: self_vc.await?.source,
+            }),
         })
-        .into()
+        .into())
     }
 }
 
@@ -80,14 +86,81 @@ impl ValueToString for ModuleAsset {
     }
 }
 
+#[turbo_tasks::value(Asset)]
+struct StaticAsset {
+    context: ChunkingContextVc,
+    source: AssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for StaticAsset {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Result<FileSystemPathVc> {
+        let (source_path, content) =
+            futures::try_join!(async { self.source.path().await }, async {
+                self.source.content().await
+            })?;
+        let content_hash = turbopack_hash::hash_md4(match *content {
+            FileContent::Content(ref file) => file.content(),
+            _ => todo!("not implemented"),
+        });
+        let content_hash_b16 = turbopack_hash::encode_base16(&content_hash);
+        let asset_path = match source_path.extension() {
+            Some(ext) => format!("{hash}.{ext}", hash = content_hash_b16, ext = ext),
+            None => content_hash_b16,
+        };
+        Ok(self.context.asset_path(&asset_path))
+    }
+
+    #[turbo_tasks::function]
+    fn content(&self) -> FileContentVc {
+        self.source.content()
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
+    }
+}
+
+#[turbo_tasks::value(AssetReference)]
+struct StaticAssetReference {
+    static_asset: StaticAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for StaticAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<ResolveResultVc> {
+        Ok(ResolveResult::Single(self.static_asset.into(), Vec::new()).into())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "static(url) {}",
+            self.static_asset.path().await?,
+        )))
+    }
+}
+
 #[turbo_tasks::value(ChunkItem, EcmascriptChunkItem)]
 struct ModuleChunkItem {
     module: ModuleAssetVc,
     context: ChunkingContextVc,
+    static_asset: StaticAssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {}
+impl ChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::cell(vec![StaticAssetReferenceVc::cell(StaticAssetReference {
+            static_asset: self.static_asset,
+        })
+        .into()])
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
@@ -106,8 +179,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         // __turbopack_xxx__
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "console.log(\"todo {}\");",
-                self.module.path().to_string().await?
+                "__turbopack_module__.exports = \"{path}\";",
+                path = self.static_asset.path().await?
             ),
             id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
         }

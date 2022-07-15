@@ -550,6 +550,10 @@ impl FileSystemPath {
         }
         Some(result.join("/"))
     }
+
+    pub fn extension(&self) -> Option<&str> {
+        self.path.rsplit('.').next()
+    }
 }
 
 #[turbo_tasks::value(transparent)]
