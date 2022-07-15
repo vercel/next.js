@@ -128,32 +128,11 @@ export function createFromReadableStream(
   const response = originalCreateFromReadableStream(
     readable.pipeThrough(cssTransform)
   )
-  const injectCSS = () => {
-    // for (const { id, chunks } of CSSResources) {
-    //   if (id) {
-    //     console.log(id)
-    //     __webpack_require__(id)
-    //     // TODO-APP: Refresh style module.
-    //     // console.log(mod)
-    //   } else {
-    //     for (const chunk of chunks) {
-    //       const href = '/_next/' + chunk
-    //       const existingTag = document.querySelector(`link[href="${href}"]`)
-    //       if (!existingTag) {
-    //         const link = document.createElement('link')
-    //         link.rel = 'stylesheet'
-    //         link.href = href
-    //         document.head.appendChild(link)
-    //       }
-    //     }
-    //   }
-    // }
-  }
 
   const originalReadRoot = response.readRoot
   response.readRoot = () => {
     const root = originalReadRoot.call(response)
-    root._injectCSS = injectCSS
+    root._css = CSSResources
     return root
   }
   return response

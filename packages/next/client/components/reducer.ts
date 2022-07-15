@@ -479,6 +479,8 @@ export function reducer(
         state.tree,
         treePatch
       )
+      // @ts-ignore
+      newTree._css = flightData._css
 
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
@@ -536,6 +538,8 @@ export function reducer(
       state.tree,
       treePatch
     )
+    // @ts-ignore
+    newTree._css = flightData._css
 
     cache.subTreeData = state.cache.subTreeData
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
@@ -609,6 +613,8 @@ export function reducer(
       state.tree,
       treePatch
     )
+    // @ts-ignore
+    newTree._css = flightData._css
 
     mutable.previousTree = state.tree
     mutable.patchedTree = newTree

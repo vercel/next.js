@@ -10,7 +10,11 @@ export default function DashboardPage(props) {
       <ClientComp />
       <br />
       <Link href="/dashboard/index">
-        <a>go to index</a>
+        <a>go to /dashboard/index</a>
+      </Link>
+      <br />
+      <Link href="/slow-page-with-loading">
+        <a>go to /slow-page-with-loading</a>
       </Link>
     </>
   )

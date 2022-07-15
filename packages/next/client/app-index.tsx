@@ -53,6 +53,10 @@ self.__next_require__ = __webpack_require__
     return preloadCSSResourcePromise
   }
 
+  if (chunk.startsWith('__CSS__:')) {
+    chunk = chunk.slice('__CSS__:'.length)
+  }
+
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 

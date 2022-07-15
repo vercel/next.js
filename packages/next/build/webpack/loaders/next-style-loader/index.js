@@ -274,7 +274,13 @@ var update = api(content, options);
 
 ${hmrCode}
 
-${esModule ? 'export default' : 'module.exports ='} content.locals || {};`
+${esModule ? 'export default' : 'module.exports ='} content.locals || {};
+${
+  esModule ? 'export const _refresh' : 'module.exports._refresh'
+} = function () {
+  update();
+  update(content);
+};`
       }
     }
   })

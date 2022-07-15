@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react'
+// @ts-ignore
+import React, { useEffect, useInsertionEffect } from 'react'
 import { createFromFetch } from './flight-client'
 import {
   AppRouterContext,
@@ -78,7 +79,37 @@ export default function AppRouter({
       canonicalUrl: initialCanonicalUrl,
     })
 
-  // console.log(initialTree, tree, cache, children)
+  useInsertionEffect(() => {
+    const CSSResources = (tree as any)._css as {
+      id?: string
+      chunks: string[]
+    }[]
+    if (CSSResources) {
+      for (const { id, chunks } of CSSResources) {
+        if (id) {
+          // Refresh style module if the module is loaded but the
+          // style tag was removed after the new route render.
+          const shouldRefresh = !!__webpack_require__.c[id]
+          const mod = __webpack_require__(id)
+
+          if (shouldRefresh) {
+            mod?._refresh()
+          }
+        } else {
+          for (const chunk of chunks) {
+            const href = '/_next/' + chunk
+            const existingTag = document.querySelector(`link[href="${href}"]`)
+            if (!existingTag) {
+              const link = document.createElement('link')
+              link.rel = 'stylesheet'
+              link.href = href
+              document.head.appendChild(link)
+            }
+          }
+        }
+      }
+    }
+  }, [tree])
 
   useEffect(() => {
     initialParallelRoutes = null!
