@@ -75,10 +75,23 @@ export class ClientEntryPlugin {
         const clientComponentImports: string[] = []
 
         function filterClientComponents(dependency: any) {
-          const module = compilation.moduleGraph.getResolvedModule(dependency)
-          if (!module) return
+          const mod = compilation.moduleGraph.getResolvedModule(dependency)
+          if (!mod) return
 
-          const modRequest = module.userRequest
+          // Keep client imports as simple
+          // js module: -> raw request, e.g. next/head
+          // client js: -> relative imports
+          // TODO-APP: applied loaders for css
+          // *.css (with loaders applied): -> relative css imports
+
+          const { relativePath } = mod.resourceResolveData || {}
+          const modRequest =
+            mod.rawRequest &&
+            !mod.rawRequest.startsWith('.') &&
+            !mod.rawRequest.startsWith('/')
+              ? mod.rawRequest
+              : relativePath || mod.userRequest
+
           if (visited.has(modRequest)) return
           visited.add(modRequest)
 
@@ -90,7 +103,7 @@ export class ClientEntryPlugin {
           }
 
           compilation.moduleGraph
-            .getOutgoingConnections(module)
+            .getOutgoingConnections(mod)
             .forEach((connection: any) => {
               filterClientComponents(connection.dependency)
             })
