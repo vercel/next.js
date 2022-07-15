@@ -56,7 +56,7 @@ const stytchProps: StytchProps = {
         })
       } else {
         console.warn("The user is not found. Data: ", data);
-       }
+      }
     },
     onSuccess: (data) => console.log(data),
     onError: (data) => console.log(data),
