@@ -79,18 +79,15 @@ export class ClientEntryPlugin {
           if (!mod) return
 
           // Keep client imports as simple
-          // js module: -> raw request, e.g. next/head
-          // client js: -> relative imports
-          // TODO-APP: applied loaders for css
-          // *.css (with loaders applied): -> relative css imports
+          // native or installed js module: -> raw request, e.g. next/head
+          // client js or css: -> user request
           const rawRequest = mod.rawRequest || ''
-          const { relativePath } = mod.resourceResolveData || {}
           const modRequest =
             !rawRequest.endsWith('.css') &&
             !rawRequest.startsWith('.') &&
             !rawRequest.startsWith('/')
               ? rawRequest
-              : relativePath || mod.userRequest
+              : mod.userRequest
 
           if (visited.has(modRequest)) return
           visited.add(modRequest)
