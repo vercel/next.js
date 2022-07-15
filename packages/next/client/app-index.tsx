@@ -11,69 +11,6 @@ import { createFromReadableStream } from './components/flight-client'
 // Override chunk URL mapping in the webpack runtime
 // https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
 
-declare global {
-  const __webpack_require__: any
-}
-
-// eslint-disable-next-line no-undef
-const getChunkScriptFilename = __webpack_require__.u
-const chunkFilenameMap: any = {}
-
-// eslint-disable-next-line no-undef
-__webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
-}
-
-// Ignore the module ID transform in client.
-// eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_require__ = __webpack_require__
-
-// eslint-disable-next-line no-undef
-;(self as any).__next_chunk_load__ = (chunk: string) => {
-  if (!chunk) return Promise.resolve()
-
-  if (chunk.endsWith('.css')) {
-    const chunkFileName = chunk.startsWith('__CSS__:')
-      ? chunk.slice('__CSS__:'.length).split(':')[0]
-      : chunk
-    const chunkFilePath = `/_next/${chunkFileName}`
-
-    let resolve: () => void
-    const preloadCSSResourcePromise = new Promise<void>(
-      (res) => (resolve = res)
-    )
-
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.as = 'style'
-    link.href = chunkFilePath
-    link.onload = () => resolve()
-    document.head.appendChild(link)
-    return preloadCSSResourcePromise
-  }
-
-  if (chunk.startsWith('__CSS__:')) {
-    chunk = chunk.slice('__CSS__:'.length)
-  }
-
-  const [chunkId, chunkFileName] = chunk.split(':')
-  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
-
-  // @ts-ignore
-  // eslint-disable-next-line no-undef
-  const promise = __webpack_chunk_load__(chunkId)
-  const callbacks = (self as any).__next_css_callback__[chunk]
-  if (callbacks) {
-    return promise.then((res: any) => {
-      callbacks.forEach((callback: () => void) => callback())
-      return res
-    })
-  }
-
-  return promise
-}
-
 export const version = process.env.__NEXT_VERSION
 
 const appElement: HTMLElement | Document | null = document
@@ -199,8 +136,7 @@ function ServerRoot({
     rscCache.delete(cacheKey)
   })
   const response = useInitialServerResponse(cacheKey, onFlightCssLoaded)
-  const root = response.readRoot()
-  return root
+  return response.readRoot()
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {

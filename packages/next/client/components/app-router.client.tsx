@@ -1,5 +1,4 @@
-// @ts-ignore
-import React, { useEffect, useInsertionEffect } from 'react'
+import React, { useEffect } from 'react'
 import { createFromFetch } from './flight-client'
 import {
   AppRouterContext,
@@ -18,6 +17,7 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
+import { useStyleInsertionEffect } from './use-style-insertion-effect'
 
 function fetchFlight(url: URL, flightRouterStateData: string) {
   const flightUrl = new URL(url)
@@ -56,12 +56,17 @@ export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
   initialStylesheets,
+  initialCSSResources,
   children,
   hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
   initialStylesheets: string[]
+  initialCSSResources: {
+    id?: string
+    chunks: string[]
+  }[]
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
@@ -79,37 +84,8 @@ export default function AppRouter({
       canonicalUrl: initialCanonicalUrl,
     })
 
-  useInsertionEffect(() => {
-    const CSSResources = (tree as any)._css as {
-      id?: string
-      chunks: string[]
-    }[]
-    if (CSSResources) {
-      for (const { id, chunks } of CSSResources) {
-        if (id) {
-          // Refresh style module if the module is loaded but the
-          // style tag was removed after the new route render.
-          const shouldRefresh = !!__webpack_require__.c[id]
-          const mod = __webpack_require__(id)
-
-          if (shouldRefresh) {
-            mod?._refresh()
-          }
-        } else {
-          for (const chunk of chunks) {
-            const href = '/_next/' + chunk
-            const existingTag = document.querySelector(`link[href="${href}"]`)
-            if (!existingTag) {
-              const link = document.createElement('link')
-              link.rel = 'stylesheet'
-              link.href = href
-              document.head.appendChild(link)
-            }
-          }
-        }
-      }
-    }
-  }, [tree])
+  ;(initialTree as any)._css = initialCSSResources
+  useStyleInsertionEffect(tree)
 
   useEffect(() => {
     initialParallelRoutes = null!

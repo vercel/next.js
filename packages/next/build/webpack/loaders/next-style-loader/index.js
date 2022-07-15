@@ -280,7 +280,12 @@ ${
 } = function () {
   update();
   update(content);
-};`
+};
+${esModule ? 'export const _remove' : 'module.exports._remove'} = function () {
+  refs = 0
+  update();
+};
+`
       }
     }
   })

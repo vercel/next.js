@@ -378,6 +378,36 @@ function getCssFlightData(
   return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
+function getCssFlightRawData(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev: boolean
+): {
+  id?: string
+  chunks: string[]
+}[] {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  const cssFiles = importedServerCSSFiles.map(
+    (css) => serverComponentManifest[css].default
+  )
+
+  if (dev) {
+    // Keep `id` in dev mode css flight to require the css module
+    return cssFiles
+  }
+
+  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
+  // we use a set here to dedupe the css chunks in production.
+  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
+    res.add(...css.chunks)
+    return res
+  }, new Set())
+
+  return [{ chunks: [...cssSet] }]
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -535,6 +565,7 @@ export async function renderToHTML(
     if (hasLoading) {
       segmentTree[4] = 'loading'
     }
+
     return segmentTree
   }
 
@@ -837,6 +868,12 @@ export async function renderToHTML(
     dev
   )
 
+  const initialCSSResources = getCssFlightRawData(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
+
   const { Component: ComponentTree } = createComponentTree({
     createSegmentPath: (child) => child,
     tree,
@@ -863,6 +900,7 @@ export async function renderToHTML(
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
             initialStylesheets={initialStylesheets}
+            initialCSSResources={initialCSSResources}
           >
             <ComponentTree />
           </AppRouter>

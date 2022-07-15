@@ -242,6 +242,8 @@ const createOptimisticTree = (
     result[4] = flightRouterState[4]
   }
 
+  ;(result as any)._css = (flightRouterState as any)?._css
+
   return result
 }
 
@@ -259,6 +261,9 @@ const walkTreeWithFlightDataPath = (
     if (url) {
       tree[2] = url
     }
+
+    // @ts-ignore
+    tree._css = treePatch._css
 
     return tree
   }
@@ -294,6 +299,9 @@ const walkTreeWithFlightDataPath = (
   if (flightSegmentPath[4]) {
     tree[4] = flightSegmentPath[4]
   }
+
+  // @ts-ignore
+  tree._css = flightRouterState._css
 
   return tree
 }
