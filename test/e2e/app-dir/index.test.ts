@@ -6,6 +6,8 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('app dir', () => {
+  const isDev = (global as any).isNextDev
+
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
@@ -211,30 +213,34 @@ describe('app dir', () => {
     expect(html).toContain('hello from app/dashboard')
   })
 
-  it('should not rerender layout when navigating between routes in the same layout', async () => {
-    const browser = await webdriver(next.url, '/same-layout/first')
+  // TODO-APP: Enable in development
+  ;(isDev ? it.skip : it)(
+    'should not rerender layout when navigating between routes in the same layout',
+    async () => {
+      const browser = await webdriver(next.url, '/same-layout/first')
 
-    try {
-      // Get the render id from the dom and click the first link.
-      const firstRenderID = await browser.elementById('render-id').text()
-      await browser.elementById('link').click()
-      await browser.waitForElementByCss('#second-page')
+      try {
+        // Get the render id from the dom and click the first link.
+        const firstRenderID = await browser.elementById('render-id').text()
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#second-page')
 
-      // Get the render id from the dom again, it should be the same!
-      const secondRenderID = await browser.elementById('render-id').text()
-      expect(secondRenderID).toBe(firstRenderID)
+        // Get the render id from the dom again, it should be the same!
+        const secondRenderID = await browser.elementById('render-id').text()
+        expect(secondRenderID).toBe(firstRenderID)
 
-      // Navigate back to the first page again by clicking the link.
-      await browser.elementById('link').click()
-      await browser.waitForElementByCss('#first-page')
+        // Navigate back to the first page again by clicking the link.
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#first-page')
 
-      // Get the render id from the dom again, it should be the same!
-      const thirdRenderID = await browser.elementById('render-id').text()
-      expect(thirdRenderID).toBe(firstRenderID)
-    } finally {
-      await browser.close()
+        // Get the render id from the dom again, it should be the same!
+        const thirdRenderID = await browser.elementById('render-id').text()
+        expect(thirdRenderID).toBe(firstRenderID)
+      } finally {
+        await browser.close()
+      }
     }
-  })
+  )
 
   describe('<Link />', () => {
     it('should hard push', async () => {
@@ -954,7 +960,11 @@ describe('app dir', () => {
         '/client-with-errors/get-static-props'
       )
       expect(res.status).toBe(500)
-      expect(await res.text()).toContain('Internal Server Error')
+      expect(await res.text()).toContain(
+        isDev
+          ? 'getStaticProps is not supported on Client Components'
+          : 'Internal Server Error'
+      )
     })
 
     it('should throw an error when getServerSideProps is used', async () => {
@@ -963,7 +973,11 @@ describe('app dir', () => {
         '/client-with-errors/get-server-side-props'
       )
       expect(res.status).toBe(500)
-      expect(await res.text()).toContain('Internal Server Error')
+      expect(await res.text()).toContain(
+        isDev
+          ? 'getServerSideProps is not supported on Client Components'
+          : 'Internal Server Error'
+      )
     })
   })
 
