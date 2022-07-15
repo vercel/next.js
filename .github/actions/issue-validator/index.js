@@ -8708,11 +8708,14 @@
         } = e.context
         if (d || !p?.body) return
         const { body: n, labels: l, number: m } = p
+        a.info(
+          `Validating issue ${m}:\n  Label(s): ${l.join(', ')}\n  Body: ${n}`
+        )
         const u = l.some((e) => e.name === r)
         const c = l.some((e) => e.name === t)
         if (!u || !c) {
           return a.info(
-            `issue ${m} is ignored, because it is not a bug report or is not manually labeled`
+            'Issue is ignored, because it is not a bug report or is not manually labeled'
           )
         }
         if (!process.env.GITHUB_TOKEN) {
@@ -8740,7 +8743,7 @@
             'Please verify your issue reproduces with `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
           )
           return a.info(
-            `Commented on issue ${m}, because it was ${
+            `Commented on issue, because it was ${
               c ? 'manually labeled' : 'not verified against canary'
             }`
           )
@@ -8754,7 +8757,7 @@
             'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field. If your project is private, you can invite @balazsorban44 to the repository so the Next.js team can investigate further.'
           )
           return a.info(
-            `Commented on issue ${m}, because it the reproduction url (${g}) was not reachable.`
+            `Commented on issue, because the reproduction url (${g}) was not reachable`
           )
         }
         const w = [
@@ -8782,7 +8785,7 @@
             `The reported Next.js version did not match the latest \`next@canary\` version (${T}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
           )
           return a.info(
-            `Commented on issue ${m}, because it was not verified against canary.`
+            `Commented on issue, because it was not verified against canary`
           )
         }
       } catch (e) {
