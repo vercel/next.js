@@ -655,6 +655,17 @@ export async function renderToHTML(
       pathname: string
     }
 
+    type GetStaticPropsContext = {
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type GetStaticPropContextPage = GetStaticPropsContext & {
+      pathname: string
+    }
+
     // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
     if (layoutOrPageMod.getServerSideProps) {
       // TODO-APP: recommendation for i18n
@@ -681,7 +692,9 @@ export async function renderToHTML(
     }
     // TODO-APP: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext = {
+      const getStaticPropsContext:
+        | GetStaticPropsContext
+        | GetStaticPropContextPage = {
         layoutSegments: segmentPath,
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
