@@ -119,7 +119,7 @@ const resolveDbDomain = () => {
 }
 
 const importSchema = (adminKey) => {
-  domain = resolveDbDomain().replace('db', 'graphql')
+  let domain = resolveDbDomain().replace('db', 'graphql')
   return streamToPromise(
     fs.createReadStream('./schema.gql').pipe(
       request.post({
