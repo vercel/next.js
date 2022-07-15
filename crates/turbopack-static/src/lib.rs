@@ -11,13 +11,20 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
+use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc};
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
     EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
     EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
 };
 
-#[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
+#[turbo_tasks::value(
+    Asset,
+    EcmascriptChunkPlaceable,
+    ChunkableAsset,
+    CssEmbeddable,
+    ValueToString
+)]
 #[derive(Clone)]
 pub struct ModuleAsset {
     pub source: AssetVc,
@@ -29,6 +36,17 @@ impl ModuleAssetVc {
     #[turbo_tasks::function]
     pub fn new(source: AssetVc, context: AssetContextVc) -> Self {
         Self::cell(ModuleAsset { source, context })
+    }
+
+    #[turbo_tasks::function]
+    async fn static_asset(
+        self_vc: ModuleAssetVc,
+        context: ChunkingContextVc,
+    ) -> Result<StaticAssetVc> {
+        Ok(StaticAssetVc::cell(StaticAsset {
+            context,
+            source: self_vc.await?.source,
+        }))
     }
 }
 
@@ -59,19 +77,24 @@ impl ChunkableAsset for ModuleAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for ModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self_vc: ModuleAssetVc,
-        context: ChunkingContextVc,
-    ) -> Result<EcmascriptChunkItemVc> {
-        Ok(ModuleChunkItemVc::cell(ModuleChunkItem {
+    fn as_chunk_item(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> EcmascriptChunkItemVc {
+        ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
-            static_asset: StaticAssetVc::cell(StaticAsset {
-                context,
-                source: self_vc.await?.source,
-            }),
+            static_asset: self_vc.static_asset(context),
         })
-        .into())
+        .into()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CssEmbeddable for ModuleAsset {
+    #[turbo_tasks::function]
+    fn as_css_embed(self_vc: ModuleAssetVc, context: ChunkingContextVc) -> CssEmbedVc {
+        StaticCssEmbedVc::cell(StaticCssEmbed {
+            static_asset: self_vc.static_asset(context),
+        })
+        .into()
     }
 }
 
@@ -185,6 +208,22 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
         }
         .into())
+    }
+}
+
+#[turbo_tasks::value(CssEmbed)]
+struct StaticCssEmbed {
+    static_asset: StaticAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl CssEmbed for StaticCssEmbed {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::cell(vec![StaticAssetReferenceVc::cell(StaticAssetReference {
+            static_asset: self.static_asset,
+        })
+        .into()])
     }
 }
 

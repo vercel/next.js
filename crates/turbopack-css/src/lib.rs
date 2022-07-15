@@ -11,6 +11,7 @@ use turbopack_core::{
 };
 
 pub mod chunk;
+pub mod embed;
 pub(crate) mod parse;
 pub(crate) mod references;
 
