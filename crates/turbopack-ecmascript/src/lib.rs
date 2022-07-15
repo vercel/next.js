@@ -2,6 +2,7 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(into_future)]
+#![feature(iter_intersperse)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
@@ -29,6 +30,7 @@ use parse::{parse, ParseResult};
 pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
+use swc_ecma_ast::Program;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
 use target::CompileTargetVc;
@@ -44,7 +46,7 @@ use turbopack_core::{
 };
 
 use self::{
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc},
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions},
     references::{AnalyseEcmascriptModuleResult, AnalyseEcmascriptModuleResultVc},
 };
 use crate::{
@@ -252,17 +254,24 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
             emitter.emit_program(&program)?;
 
-            // TODO SWC magic to apply all visitors from the interval tree
-            // to the "program" and generate code for that.
             Ok(EcmascriptChunkItemContent {
                 inner_code: String::from_utf8(bytes)?,
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+                options: EcmascriptChunkItemOptions {
+                    // TODO disable that for ESM
+                    module: true,
+                    exports: true,
+                    ..Default::default()
+                },
             }
             .into())
         } else {
             Ok(EcmascriptChunkItemContent {
                 inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+                options: EcmascriptChunkItemOptions {
+                    ..Default::default()
+                },
             }
             .into())
         }

@@ -10,7 +10,7 @@ use turbopack_core::{
 
 use super::{
     EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-    EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
+    EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
 };
 
 #[turbo_tasks::value(ChunkItem, ValueToString, EcmascriptChunkItem)]
@@ -64,6 +64,9 @@ impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: code,
             id: chunk_context.helper_id("chunk loader", Some(self.asset.as_asset())),
+            options: EcmascriptChunkItemOptions {
+                ..Default::default()
+            },
         }
         .into())
     }

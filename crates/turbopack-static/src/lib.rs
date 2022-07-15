@@ -14,8 +14,8 @@ use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc}
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-        EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+        EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
     },
     utils::stringify_str,
 };
@@ -193,19 +193,15 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<EcmascriptChunkItemContentVc> {
-        // TODO: code generation
-        // Some(placeable) =
-        //   EcmascriptChunkPlaceableVc::resolve_from(resolved_asset).await?
-        // let id = context.id(placeable)
-        // generate:
-        // __turbopack_require__({id}) => exports / esm namespace object
-        // __turbopack_xxx__
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_module__.exports = {path};",
+                "__turbopack_export_value__({path});",
                 path = stringify_str(&self.static_asset.path().await?.to_string())
             ),
             id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+            options: EcmascriptChunkItemOptions {
+                ..Default::default()
+            },
         }
         .into())
     }

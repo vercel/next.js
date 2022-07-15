@@ -3,7 +3,8 @@ pub mod loader;
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -16,7 +17,7 @@ use turbopack_core::{
 };
 
 use self::loader::ChunkGroupLoaderChunkItemVc;
-use crate::utils::{stringify_module_id, stringify_number, stringify_str};
+use crate::utils::{stringify_module_id, stringify_number, stringify_str, FormatIter};
 
 #[turbo_tasks::value(Chunk, Asset, ValueToString)]
 pub struct EcmascriptChunk {
@@ -101,16 +102,26 @@ impl ValueToString for EcmascriptChunk {
 #[turbo_tasks::function]
 async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringVc> {
     let content = content.await?;
+    let mut args = vec![
+        "r: __turbopack_require__",
+        "i: __turbopack_import__",
+        "s: __turbopack_esm__",
+        "v: __turbopack_export_value__",
+        "p: process",
+    ];
+    if content.options.module {
+        args.push("m: module");
+    }
+    if content.options.exports {
+        args.push("e: exports");
+    }
     Ok(StringVc::cell(format!(
-        // TODO module should __turbopack_module__ instead
-        // TODO exports should __turbopack_exports__ instead
-        "\n{}: (({{ e: exports, r: __turbopack_require__, i: __turbopack_import__, s: \
-         __turbopack_esm__, m: module, p: process, w: _interop_require_default }}) => (() => \
-         {{\n\n{}\n}})()),\n",
+        "\n{}: (({{ {} }}) => (() => {{\n\n{}\n}})()),\n",
         match &*content.id.await? {
             ModuleId::Number(n) => stringify_number(*n),
             ModuleId::String(s) => stringify_str(s),
         },
+        FormatIter(|| args.iter().copied().intersperse(", ")),
         content.inner_code
     )))
 }
@@ -199,6 +210,9 @@ impl Asset for EcmascriptChunk {
                 }
             }
         }
+        function exportValue(module, value) {
+            module.exports = value;
+        }
         function createGetter(obj, key) {
             return () => obj[key];
         }
@@ -211,12 +225,6 @@ impl Asset for EcmascriptChunk {
                 getters["default"] = () => raw;
             }
             esm(ns, getters);
-        }
-        function _interop_require_default(raw) {
-            if(raw && raw.__esModule) return raw;
-            var ns = {};
-            interopEsm(raw, ns, true);
-            return ns;
         }
         function importModule(from, id, allowExportDefault) {
             var module = getModule(from, id);
@@ -237,7 +245,7 @@ impl Asset for EcmascriptChunk {
             if(typeof moduleFactory != "function") {
                 throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
             }
-            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), m: module, c: cache, p: process, w: _interop_require_default });
+            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports) s: exportValue.bind(null, module), m: module, c: cache, p: process });
             module.loaded = true;
             if(module.interopNamespace) {
                 // in case of a circular dependency: cjs1 -> esm2 -> cjs1
@@ -314,6 +322,13 @@ pub trait EcmascriptChunkPlaceable: ValueToString {
 pub struct EcmascriptChunkItemContent {
     pub inner_code: String,
     pub id: ModuleIdVc,
+    pub options: EcmascriptChunkItemOptions,
+}
+
+#[derive(PartialEq, Eq, Default, Clone, Serialize, Deserialize, TraceRawVcs)]
+pub struct EcmascriptChunkItemOptions {
+    pub module: bool,
+    pub exports: bool,
 }
 
 #[turbo_tasks::value_trait]
