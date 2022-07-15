@@ -42,6 +42,17 @@ function createInfinitePromise() {
   return infinitePromise
 }
 
+function isInViewport(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <=
+      (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  )
+}
+
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -72,7 +83,10 @@ export function InnerLayoutRouter({
     if (focusRef.focus && focusAndScrollRef.current) {
       focusRef.focus = false
       focusAndScrollRef.current.focus()
-      focusAndScrollRef.current.scrollIntoView()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!isInViewport(focusAndScrollRef.current)) {
+        focusAndScrollRef.current.scrollIntoView()
+      }
     }
   }, [focusRef])
 
