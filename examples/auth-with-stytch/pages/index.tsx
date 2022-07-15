@@ -49,13 +49,16 @@ const stytchProps: StytchProps = {
   publicToken: process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '',
   callbacks: {
     onEvent: (data: { eventData: { userId: any; email: any } }) => {
-      if (data.eventData.userId != undefined && data.eventData.userId != null) {
+      if (
+        data.eventData.userId !== undefined &&
+        data.eventData.userId != null
+      ) {
         console.log({
           userId: data.eventData.userId,
           email: data.eventData.email,
         })
       } else {
-        console.warn("The user is not found. Data: ", data);
+        console.warn('The user is not found. Data: ', data)
       }
     },
     onSuccess: (data) => console.log(data),
