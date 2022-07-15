@@ -42,15 +42,9 @@ function createInfinitePromise() {
   return infinitePromise
 }
 
-function isInViewport(element: HTMLElement) {
+function topOfElementInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
-  return (
-    rect.top >= 0 &&
-    rect.left >= 0 &&
-    rect.bottom <=
-      (window.innerHeight || document.documentElement.clientHeight) &&
-    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-  )
+  return rect.top >= 0
 }
 
 export function InnerLayoutRouter({
@@ -84,7 +78,7 @@ export function InnerLayoutRouter({
       focusRef.focus = false
       focusAndScrollRef.current.focus()
       // Only scroll into viewport when the layout is not visible currently.
-      if (!isInViewport(focusAndScrollRef.current)) {
+      if (!topOfElementInViewport(focusAndScrollRef.current)) {
         focusAndScrollRef.current.scrollIntoView()
       }
     }
