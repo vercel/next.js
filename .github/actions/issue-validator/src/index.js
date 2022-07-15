@@ -6,31 +6,48 @@ const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'
 const addReproductionLabel = 'please add a complete reproduction'
 const debug = !!process.env.DEBUG
+const json = (o) => JSON.stringify(o, null, 2)
+
+/**
+ * @typedef {{
+ *  id :number
+ *  node_id :string
+ *  url :string
+ *  name :string
+ *  description :string
+ *  color :string
+ *  default :boolean
+ * }} Label
+ */
 
 async function run() {
   try {
-    const {
-      payload: { issue, pull_request },
-      repo,
-    } = github.context
+    const { payload, repo } = github.context
+    const { issue, pull_request } = payload
 
     if (pull_request || !issue?.body) return
 
-    const { body, labels, number: issueNumber } = issue
+    /** @type {Label} */
+    const newLabel = payload.label
+    const { body, number: issueNumber } = issue
+    /** @type {Label[]} */
+    const labels = issue.labels
 
     core.info(
       `Validating issue ${issueNumber}:
-  Label(s): ${labels.join(', ')}
+  Labels:
+    New: ${json(newLabel)}
+    All: ${json(labels)}
   Body: ${body}`
     )
 
-    const isBugReport = labels.some((label) => label.name === bugReportLabel)
+    const isBugReport = newLabel.name === bugReportLabel
 
     const isManuallyLabeled = labels.some(
       (label) => label.name === verifyCanaryLabel
     )
 
-    if (!isBugReport || !isManuallyLabeled) {
+    if (!isBugReport && !isManuallyLabeled) {
       return core.info(
         'Issue is ignored, because it is not a bug report or is not manually labeled'
       )
@@ -51,7 +68,7 @@ async function run() {
 
       if (debug) {
         core.info('Skipping comment/label because we are in DEBUG mode')
-        core.info(JSON.stringify({ label, comment }, null, 2))
+        core.info(json({ label, comment }))
         return
       }
 
