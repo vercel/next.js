@@ -53,7 +53,7 @@ use super::{
         WellKnownObjectKind,
     },
     errors,
-    parse::{parse, Buffer, ParseResult},
+    parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     target::CompileTargetVc,
@@ -80,6 +80,7 @@ pub(crate) async fn analyze_ecmascript_module(
     source: AssetVc,
     context: AssetContextVc,
     ty: Value<ModuleAssetType>,
+    transforms: EcmascriptInputTransformsVc,
     target: CompileTargetVc,
     node_native_bindings: bool,
 ) -> Result<AnalyseEcmascriptModuleResultVc> {
@@ -87,16 +88,18 @@ pub(crate) async fn analyze_ecmascript_module(
     let mut code_gen = Vec::new();
     let path = source.path();
 
+    let is_typescript = match &*ty {
+        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
+        ModuleAssetType::Ecmascript => false,
+    };
+
+    let parsed = parse(source, ty, transforms);
+
     match &*find_context_file(path.parent(), "package.json").await? {
         FindContextFileResult::Found(package_json) => {
             references.push(PackageJsonReferenceVc::new(*package_json).into());
         }
         FindContextFileResult::NotFound => {}
-    };
-
-    let is_typescript = match &*ty {
-        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
-        ModuleAssetType::Ecmascript => false,
     };
 
     if is_typescript {
@@ -110,7 +113,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
     special_cases(&path.await?.path, &mut references);
 
-    let parsed = parse(source, ty).await?;
+    let parsed = parsed.await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -205,7 +208,7 @@ pub(crate) async fn analyze_ecmascript_module(
             // Check if it was a webpack entry
             if let Some((request, span)) = webpack_runtime {
                 let request = RequestVc::parse(Value::new(request.into()));
-                let runtime = resolve_as_webpack_runtime(context, request);
+                let runtime = resolve_as_webpack_runtime(context, request, transforms);
                 match &*runtime.await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
@@ -214,17 +217,26 @@ pub(crate) async fn analyze_ecmascript_module(
                                 context,
                                 request,
                                 runtime,
+                                transforms,
                             }
                             .into(),
                         );
                         if webpack_entry {
-                            references.push(WebpackEntryAssetReference { source, runtime }.into());
+                            references.push(
+                                WebpackEntryAssetReference {
+                                    source,
+                                    runtime,
+                                    transforms,
+                                }
+                                .into(),
+                            );
                         }
                         for chunk in webpack_chunks {
                             references.push(
                                 WebpackChunkAssetReference {
                                     chunk_id: chunk,
                                     runtime,
+                                    transforms,
                                 }
                                 .into(),
                             );
@@ -1520,6 +1532,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 async fn resolve_as_webpack_runtime(
     context: AssetContextVc,
     request: RequestVc,
+    transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
     let options = context.resolve_options();
 
@@ -1528,7 +1541,7 @@ async fn resolve_as_webpack_runtime(
     let resolved = resolve(context.context_path(), request, options);
 
     if let ResolveResult::Single(source, _) = &*resolved.await? {
-        Ok(webpack_runtime(*source))
+        Ok(webpack_runtime(*source, transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::{FileSystemPath, FileSystemPathVc};
+use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 
 #[turbo_tasks::function]
 pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
@@ -12,6 +13,11 @@ pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
 
 #[turbo_tasks::function]
 pub async fn the_module_options() -> ModuleOptionsVc {
+    let app_transforms = EcmascriptInputTransformsVc::cell(vec![
+        EcmascriptInputTransform::JSX,
+        EcmascriptInputTransform::CommonJs,
+    ]);
+    let no_transforms = EcmascriptInputTransformsVc::cell(Vec::new());
     ModuleOptionsVc::cell(ModuleOptions {
         rules: vec![
             ModuleRule::new(
@@ -24,24 +30,59 @@ pub async fn the_module_options() -> ModuleOptionsVc {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    app_transforms,
+                ))],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::all(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    no_transforms,
+                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    app_transforms,
+                ))],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::all(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    no_transforms,
+                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    app_transforms,
+                ))],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::all(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
+                    ModuleRuleCondition::ResourcePathInDirectory("node_modules".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    no_transforms,
+                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript(
+                    no_transforms,
+                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(
-                    ModuleType::TypescriptDeclaration,
+                    ModuleType::TypescriptDeclaration(no_transforms),
                 )],
             ),
             ModuleRule::new(
@@ -54,7 +95,9 @@ pub async fn the_module_options() -> ModuleOptionsVc {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathHasNoExtension,
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
+                    no_transforms,
+                ))],
             ),
         ],
     })
@@ -94,6 +137,7 @@ pub enum ModuleRuleCondition {
     Any(Vec<ModuleRuleCondition>),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
+    ResourcePathInDirectory(String),
     ResourcePathRegex(
         #[trace_ignore]
         #[serde(with = "serde_regex")]
@@ -126,6 +170,9 @@ impl ModuleRuleCondition {
                     true
                 }
             }
+            ModuleRuleCondition::ResourcePathInDirectory(dir) => {
+                path.path.starts_with(&format!("{dir}/")) || path.path.contains(&format!("/{dir}/"))
+            }
             _ => todo!("not implemented yet"),
         }
     }
@@ -137,11 +184,12 @@ pub enum ModuleRuleEffect {
     Custom,
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize)]
+#[turbo_tasks::value(serialization: auto_for_input)]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
-    Ecmascript,
-    Typescript,
-    TypescriptDeclaration,
+    Ecmascript(EcmascriptInputTransformsVc),
+    Typescript(EcmascriptInputTransformsVc),
+    TypescriptDeclaration(EcmascriptInputTransformsVc),
     Json,
     Raw,
     Css,

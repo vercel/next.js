@@ -26,6 +26,7 @@ use chunk::{
 };
 use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult};
+pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
@@ -65,6 +66,7 @@ pub struct ModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
+    pub transforms: EcmascriptInputTransformsVc,
     pub target: CompileTargetVc,
     pub node_native_bindings: bool,
 }
@@ -76,6 +78,7 @@ impl ModuleAssetVc {
         source: AssetVc,
         context: AssetContextVc,
         ty: Value<ModuleAssetType>,
+        transforms: EcmascriptInputTransformsVc,
         target: CompileTargetVc,
         node_native_bindings: bool,
     ) -> Self {
@@ -83,6 +86,7 @@ impl ModuleAssetVc {
             source,
             context,
             ty: ty.into_value(),
+            transforms,
             target,
             node_native_bindings,
         })
@@ -100,6 +104,7 @@ impl ModuleAssetVc {
             this.source,
             this.context,
             Value::new(this.ty),
+            this.transforms,
             this.target,
             this.node_native_bindings,
         ))
@@ -209,7 +214,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         }
 
         let module = self.module.await?;
-        let parsed = parse(module.source, Value::new(module.ty)).await?;
+        let parsed = parse(module.source, Value::new(module.ty), module.transforms).await?;
 
         if let ParseResult::Ok {
             program,

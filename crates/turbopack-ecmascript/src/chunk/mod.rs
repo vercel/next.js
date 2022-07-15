@@ -1,9 +1,9 @@
 pub mod loader;
 
-use std::{fmt::Write, future::IntoFuture};
+use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
