@@ -200,14 +200,6 @@ function ServerRoot({
   })
   const response = useInitialServerResponse(cacheKey, onFlightCssLoaded)
   const root = response.readRoot()
-
-  // console.log(root._injectCSS)
-
-  // // TODO-APP: Ensure React 18 is installed.
-  // ;(React as any).useInsertionEffect(() => {
-  //   root._injectCSS?.()
-  // }, [root._injectCSS])
-
   return root
 }
 
