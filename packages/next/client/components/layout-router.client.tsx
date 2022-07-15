@@ -42,6 +42,11 @@ function createInfinitePromise() {
   return infinitePromise
 }
 
+function topOfElementInViewport(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  return rect.top >= 0
+}
+
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -72,7 +77,10 @@ export function InnerLayoutRouter({
     if (focusRef.focus && focusAndScrollRef.current) {
       focusRef.focus = false
       focusAndScrollRef.current.focus()
-      focusAndScrollRef.current.scrollIntoView()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!topOfElementInViewport(focusAndScrollRef.current)) {
+        focusAndScrollRef.current.scrollIntoView()
+      }
     }
   }, [focusRef])
 
