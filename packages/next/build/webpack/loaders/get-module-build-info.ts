@@ -13,6 +13,7 @@ export function getModuleBuildInfo(webpackModule: webpack5.Module) {
     nextWasmMiddlewareBinding?: WasmBinding
     usingIndirectEval?: boolean | Set<string>
     route?: RouteMeta
+    importLocByPath?: Map<string, any>
   }
 }
 

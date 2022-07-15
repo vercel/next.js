@@ -707,6 +707,14 @@
         {
           "title": "middleware-dynamic-wasm-compilation",
           "path": "/errors/middleware-dynamic-wasm-compilation.md"
+        },
+        {
+          "title": "node-module-in-edge-runtime",
+          "path": "/errors/node-module-in-edge-runtime.md"
+        },
+        {
+          "title": "invalid-next-config",
+          "path": "/errors/invalid-next-config.md"
         }
       ]
     }
