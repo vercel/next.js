@@ -651,7 +651,18 @@ export async function renderToHTML(
     }
 
     type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      query: URLSearchParams
+      searchParams: URLSearchParams
+      pathname: string
+    }
+
+    type GetStaticPropsContext = {
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type GetStaticPropContextPage = GetStaticPropsContext & {
       pathname: string
     }
 
@@ -668,7 +679,7 @@ export async function renderToHTML(
         cookies,
         layoutSegments: segmentPath,
         // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
-        ...(isPage ? { query, pathname } : {}),
+        ...(isPage ? { searchParams: query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
           ? { preview: true, previewData: previewData }
@@ -681,7 +692,9 @@ export async function renderToHTML(
     }
     // TODO-APP: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext = {
+      const getStaticPropsContext:
+        | GetStaticPropsContext
+        | GetStaticPropContextPage = {
         layoutSegments: segmentPath,
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
@@ -729,7 +742,7 @@ export async function renderToHTML(
             // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
             params={currentParams}
             // Query is only provided to page
-            {...(isPage ? { query } : {})}
+            {...(isPage ? { searchParams: query } : {})}
           />
         )
       },
