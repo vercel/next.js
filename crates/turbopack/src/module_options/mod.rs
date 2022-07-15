@@ -104,14 +104,6 @@ pub enum ModuleRuleCondition {
 }
 
 impl ModuleRuleCondition {
-    pub fn and(self, other: ModuleRuleCondition) -> ModuleRuleCondition {
-        ModuleRuleCondition::And(Box::new(self), Box::new(other))
-    }
-
-    pub fn or(self, other: ModuleRuleCondition) -> ModuleRuleCondition {
-        ModuleRuleCondition::Or(Box::new(self), Box::new(other))
-    }
-
     pub fn all(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
         ModuleRuleCondition::All(conditions)
     }
@@ -122,8 +114,6 @@ impl ModuleRuleCondition {
 
     pub fn matches(&self, path: &FileSystemPath) -> bool {
         match self {
-            ModuleRuleCondition::And(c1, c2) => c1.matches(path) && c2.matches(path),
-            ModuleRuleCondition::Or(c1, c2) => c1.matches(path) || c2.matches(path),
             ModuleRuleCondition::All(conditions) => conditions.iter().all(|c| c.matches(path)),
             ModuleRuleCondition::Any(conditions) => conditions.iter().any(|c| c.matches(path)),
             ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
