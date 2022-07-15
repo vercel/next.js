@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.3-canary.10
+      '@next/eslint-plugin-next': 12.2.3-canary.11
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.3-canary.10
-      '@next/polyfill-module': 12.2.3-canary.10
-      '@next/polyfill-nomodule': 12.2.3-canary.10
-      '@next/react-dev-overlay': 12.2.3-canary.10
-      '@next/react-refresh-utils': 12.2.3-canary.10
-      '@next/swc': 12.2.3-canary.10
+      '@next/env': 12.2.3-canary.11
+      '@next/polyfill-module': 12.2.3-canary.11
+      '@next/polyfill-nomodule': 12.2.3-canary.11
+      '@next/react-dev-overlay': 12.2.3-canary.11
+      '@next/react-refresh-utils': 12.2.3-canary.11
+      '@next/swc': 12.2.3-canary.11
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
