@@ -83,13 +83,13 @@ export class ClientEntryPlugin {
           // client js: -> relative imports
           // TODO-APP: applied loaders for css
           // *.css (with loaders applied): -> relative css imports
-
+          const rawRequest = mod.rawRequest || ''
           const { relativePath } = mod.resourceResolveData || {}
           const modRequest =
-            mod.rawRequest &&
-            !mod.rawRequest.startsWith('.') &&
-            !mod.rawRequest.startsWith('/')
-              ? mod.rawRequest
+            !rawRequest.endsWith('.css') &&
+            !rawRequest.startsWith('.') &&
+            !rawRequest.startsWith('/')
+              ? rawRequest
               : relativePath || mod.userRequest
 
           if (visited.has(modRequest)) return
