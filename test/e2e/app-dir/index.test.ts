@@ -95,8 +95,7 @@ describe('app dir', () => {
     expect($('p').text()).toBe('hello from app/dashboard/integrations')
   })
 
-  // TODO: handle new root layout
-  it.skip('should not include parent when not in parent directory with route in directory', async () => {
+  it('should not include parent when not in parent directory with route in directory', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/hello')
     const $ = cheerio.load(html)
 
@@ -122,6 +121,9 @@ describe('app dir', () => {
     // is used instead
     expect($('html').hasClass('this-is-another-document-html')).toBeTruthy()
     expect($('body').hasClass('this-is-another-document-body')).toBeTruthy()
+
+    expect(html).not.toContain('this-is-the-document-html')
+    expect(html).not.toContain('this-is-the-document-body')
 
     // Should not be nested in dashboard
     expect($('h1').text()).toBeFalsy()
