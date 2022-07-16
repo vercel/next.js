@@ -42,7 +42,7 @@ export function runTests(example = '') {
             prev.push(`${cur}@${dependencies[cur]}`)
             return prev
           }, [] as string[])
-          return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
+          return `yarn set version 4.0.0-rc.13 && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
             ' '
           )}`
         },
