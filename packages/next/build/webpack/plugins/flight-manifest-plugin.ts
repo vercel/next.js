@@ -79,6 +79,12 @@ export class FlightManifestPlugin {
         id: string | number,
         mod: any
       ) {
+        // if appDir is enabled we shouldn't process chunks from
+        // the pages dir
+        if (chunk.name?.startsWith('pages/') && appDir) {
+          return
+        }
+
         const isCSSModule =
           mod.type === 'css/mini-extract' ||
           (mod.loaders &&
