@@ -1,4 +1,4 @@
-import { css, Global, keyframes } from '@emotion/react'
+import { css, Global, keyframes, Keyframes } from '@emotion/react'
 import styled from '@emotion/styled'
 
 export const globalStyles = (
@@ -71,7 +71,7 @@ export const ComponentSelectorsExtended = styled.div`
   box-shadow: -5px -5px 0 0 green;
 `
 
-export const Animated = styled.div`
+export const Animated = styled.div<{ animation: Keyframes }>`
   ${basicStyles};
   ${hoverStyles};
   & code {
