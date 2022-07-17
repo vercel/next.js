@@ -109,12 +109,12 @@ impl MemoryBackend {
         id
     }
 
-    pub fn create_new_active_scope(&self) -> TaskScopeId {
+    pub fn create_new_active_scope(&self, tasks: usize, unfinished: usize) -> TaskScopeId {
         let id = self.scope_id_factory.get();
         // SAFETY: This is a fresh id
         unsafe {
             self.memory_task_scopes
-                .insert(*id, TaskScope::new_active(id));
+                .insert(*id, TaskScope::new_active(id, tasks, unfinished));
         }
         id
     }
@@ -430,7 +430,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
-        let scope = self.create_new_active_scope();
+        let scope = self.create_new_active_scope(1, 1);
         let task = match task_type {
             TransientTaskType::Root(f) => Task::new_root(id, scope, move || f() as _),
             TransientTaskType::Once(f) => Task::new_once(id, scope, f),

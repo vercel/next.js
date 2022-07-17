@@ -231,10 +231,10 @@ impl TaskScope {
         }
     }
 
-    pub fn new_active(id: TaskScopeId) -> Self {
+    pub fn new_active(id: TaskScopeId, tasks: usize, unfinished: usize) -> Self {
         Self {
-            tasks: AtomicUsize::new(0),
-            unfinished_tasks: AtomicUsize::new(0),
+            tasks: AtomicUsize::new(tasks),
+            unfinished_tasks: AtomicUsize::new(unfinished),
             event: Event::new(),
             last_task_finish_generation: AtomicUsize::new(0),
             state: Mutex::new(TaskScopeState {
