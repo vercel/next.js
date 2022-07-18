@@ -171,13 +171,17 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec>;
-    #[must_use]
+    fn task_execution_result(
+        &self,
+        task: TaskId,
+        result: Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    );
     fn task_execution_completed(
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
         duration: Duration,
-        result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
     fn run_backend_job<'a>(

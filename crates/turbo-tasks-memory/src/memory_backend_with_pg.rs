@@ -1054,12 +1054,40 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         })
     }
 
+    fn task_execution_result(
+        &self,
+        task: TaskId,
+        result: Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
+        let TaskState { ref mut memory, .. } = *state;
+        let mem_state = memory.as_mut().unwrap();
+        let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
+            old != new
+        } else {
+            true
+        };
+        let dependent = if output_change {
+            mem_state.has_changes = true;
+            mem_state.output = Some(result.map_err(SharedError::new));
+            take(&mut mem_state.output_dependent)
+        } else {
+            HashSet::new()
+        };
+
+        drop(state);
+
+        if !dependent.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&dependent);
+        }
+    }
+
     fn task_execution_completed(
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
         duration: Duration,
-        result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_running_tasks")]
@@ -1085,18 +1113,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         *scheduled = false;
         mem_state.event.notify(usize::MAX);
         mem_state.event_cells.notify(usize::MAX);
-        let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
-            old != new
-        } else {
-            true
-        };
-        let dependent = if output_change {
-            mem_state.has_changes = true;
-            mem_state.output = Some(result.map_err(SharedError::new));
-            take(&mut mem_state.output_dependent)
-        } else {
-            HashSet::new()
-        };
         mem_state.need_persist = true;
         let has_changes = mem_state.has_changes;
         let is_persisted = persisted.is_some();
@@ -1105,10 +1121,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             .map(|p| p.clean != Some(true))
             .unwrap_or_default();
         drop(state);
-
-        if !dependent.is_empty() {
-            turbo_tasks.schedule_notify_tasks_set(&dependent);
-        }
 
         if let TaskType::Persistent(_) = task_info.task_type {
             if has_changes
