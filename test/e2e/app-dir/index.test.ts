@@ -23,6 +23,7 @@ describe('app dir', () => {
     next = await createNext({
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
+        styles: new FileRef(path.join(__dirname, 'app/styles')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
         app: new FileRef(path.join(__dirname, 'app/app')),
         'next.config.js': new FileRef(
