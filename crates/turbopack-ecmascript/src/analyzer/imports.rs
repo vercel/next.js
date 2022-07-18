@@ -31,6 +31,16 @@ impl ImportMap {
         None
     }
 
+    pub fn get_binding(&self, id: &Id) -> Option<(String, Option<String>)> {
+        if let Some((i_src, i_sym)) = self.imports.get(id) {
+            return Some((i_src.to_string(), Some(i_sym.to_string())));
+        }
+        if let Some(i_src) = self.namespace_imports.get(id) {
+            return Some((i_src.to_string(), None));
+        }
+        None
+    }
+
     /// Analyze ES import
     pub(super) fn analyze(m: &Program) -> Self {
         let mut data = ImportMap::default();

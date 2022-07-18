@@ -534,7 +534,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         /// This is useful when storing the reference somewhere or when comparing it with other references.
         ///
         /// A reference is equal to another reference with it points to the same thing. No resolving is applied on comparision.
-        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
+        #[derive(Clone, Copy, Debug, std::cmp::PartialOrd, std::cmp::Ord, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }
@@ -836,7 +836,7 @@ pub fn value_trait(_args: TokenStream, input: TokenStream) -> TokenStream {
             pub(crate) static ref #trait_type_id_ident: turbo_tasks::TraitTypeId = turbo_tasks::registry::get_trait_type_id(&#trait_type_ident);
         }
 
-        #[derive(Clone, Copy, Debug, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
+        #[derive(Clone, Copy, Debug, std::cmp::PartialOrd, std::cmp::Ord, std::hash::Hash, std::cmp::Eq, std::cmp::PartialEq, serde::Serialize, serde::Deserialize)]
         #vis struct #ref_ident {
             node: turbo_tasks::RawVc,
         }

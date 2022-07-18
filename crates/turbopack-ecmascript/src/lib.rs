@@ -2,6 +2,7 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(into_future)]
+#![feature(iter_intersperse)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;
@@ -26,8 +27,10 @@ use chunk::{
 };
 use code_gen::CodeGenerateableVc;
 use parse::{parse, ParseResult};
+pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
+use swc_ecma_ast::Program;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
 use target::CompileTargetVc;
@@ -43,7 +46,7 @@ use turbopack_core::{
 };
 
 use self::{
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc},
+    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions},
     references::{AnalyseEcmascriptModuleResult, AnalyseEcmascriptModuleResultVc},
 };
 use crate::{
@@ -65,6 +68,7 @@ pub struct ModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
     pub ty: ModuleAssetType,
+    pub transforms: EcmascriptInputTransformsVc,
     pub target: CompileTargetVc,
     pub node_native_bindings: bool,
 }
@@ -76,6 +80,7 @@ impl ModuleAssetVc {
         source: AssetVc,
         context: AssetContextVc,
         ty: Value<ModuleAssetType>,
+        transforms: EcmascriptInputTransformsVc,
         target: CompileTargetVc,
         node_native_bindings: bool,
     ) -> Self {
@@ -83,6 +88,7 @@ impl ModuleAssetVc {
             source,
             context,
             ty: ty.into_value(),
+            transforms,
             target,
             node_native_bindings,
         })
@@ -100,6 +106,7 @@ impl ModuleAssetVc {
             this.source,
             this.context,
             Value::new(this.ty),
+            this.transforms,
             this.target,
             this.node_native_bindings,
         ))
@@ -209,7 +216,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         }
 
         let module = self.module.await?;
-        let parsed = parse(module.source, Value::new(module.ty)).await?;
+        let parsed = parse(module.source, Value::new(module.ty), module.transforms).await?;
 
         if let ParseResult::Ok {
             program,
@@ -230,6 +237,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 for visitor in root_visitors {
                     program.visit_mut_with(&mut visitor.create());
                 }
+                program.visit_mut_with(&mut swc_ecma_transforms_base::fixer::fixer(None));
             });
 
             let mut bytes =
@@ -246,17 +254,24 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 
             emitter.emit_program(&program)?;
 
-            // TODO SWC magic to apply all visitors from the interval tree
-            // to the "program" and generate code for that.
             Ok(EcmascriptChunkItemContent {
                 inner_code: String::from_utf8(bytes)?,
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+                options: EcmascriptChunkItemOptions {
+                    // TODO disable that for ESM
+                    module: true,
+                    exports: true,
+                    ..Default::default()
+                },
             }
             .into())
         } else {
             Ok(EcmascriptChunkItemContent {
                 inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
                 id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
+                options: EcmascriptChunkItemOptions {
+                    ..Default::default()
+                },
             }
             .into())
         }

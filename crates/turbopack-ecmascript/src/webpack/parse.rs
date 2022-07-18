@@ -13,7 +13,7 @@ use turbopack_core::asset::AssetVc;
 
 use crate::{
     analyzer::{graph::EvalContext, JsValue},
-    parse::{parse, ParseResult},
+    parse::{parse, EcmascriptInputTransformsVc, ParseResult},
     utils::unparen,
     ModuleAssetType,
 };
@@ -177,8 +177,11 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 }
 
 #[turbo_tasks::function]
-pub async fn webpack_runtime(asset: AssetVc) -> Result<WebpackRuntimeVc> {
-    let parsed = parse(asset, Value::new(ModuleAssetType::Ecmascript)).await?;
+pub async fn webpack_runtime(
+    asset: AssetVc,
+    transforms: EcmascriptInputTransformsVc,
+) -> Result<WebpackRuntimeVc> {
+    let parsed = parse(asset, Value::new(ModuleAssetType::Ecmascript), transforms).await?;
     match &*parsed {
         ParseResult::Ok {
             program,

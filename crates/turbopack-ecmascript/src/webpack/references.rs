@@ -10,7 +10,7 @@ use turbopack_core::{
 
 use super::{parse::WebpackRuntimeVc, WebpackChunkAssetReference};
 use crate::{
-    parse::{parse, Buffer, ParseResult},
+    parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
     ModuleAssetType,
 };
 
@@ -18,8 +18,9 @@ use crate::{
 pub async fn module_references(
     source: AssetVc,
     runtime: WebpackRuntimeVc,
+    transforms: EcmascriptInputTransformsVc,
 ) -> Result<AssetReferencesVc> {
-    let parsed = parse(source, Value::new(ModuleAssetType::Ecmascript)).await?;
+    let parsed = parse(source, Value::new(ModuleAssetType::Ecmascript), transforms).await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -30,6 +31,7 @@ pub async fn module_references(
             let mut visitor = AssetReferencesVisitor {
                 references: &mut references,
                 runtime,
+                transforms,
             };
             let buf = Buffer::new();
             let handler =
@@ -50,6 +52,7 @@ pub async fn module_references(
 struct AssetReferencesVisitor<'a> {
     runtime: WebpackRuntimeVc,
     references: &'a mut Vec<AssetReferenceVc>,
+    transforms: EcmascriptInputTransformsVc,
 }
 
 impl<'a> Visit for AssetReferencesVisitor<'a> {
@@ -63,6 +66,7 @@ impl<'a> Visit for AssetReferencesVisitor<'a> {
                                 WebpackChunkAssetReference {
                                     chunk_id: lit.clone(),
                                     runtime: self.runtime,
+                                    transforms: self.transforms,
                                 }
                                 .into(),
                             );

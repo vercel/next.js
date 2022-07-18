@@ -65,7 +65,7 @@ impl AssetReference for DirAssetReference {
         let context_path = self.source.path().await?;
         // ignore path.join in `node-gyp`, it will includes too many files
         if context_path.path.contains("node_modules/node-gyp") {
-            return Ok(ResolveResult::Alternatives(HashSet::default(), vec![]).into());
+            return Ok(ResolveResult::Alternatives(Vec::new(), vec![]).into());
         }
         let context = self.source.path().parent();
         let pat = self.path.await?;
@@ -111,7 +111,7 @@ impl AssetReference for DirAssetReference {
             }
             _ => {}
         }
-        Ok(ResolveResult::Alternatives(result, vec![]).into())
+        Ok(ResolveResult::Alternatives(result.into_iter().collect(), vec![]).into())
     }
 
     #[turbo_tasks::function]

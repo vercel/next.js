@@ -16,7 +16,8 @@ use swc_common::{
 };
 use swc_ecma_ast::{EsVersion, Program};
 use swc_ecma_parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig};
-use swc_ecma_transforms_base::resolver;
+use swc_ecma_transforms_base::{helpers::Helpers, resolver};
+use swc_ecma_transforms_react::jsx;
 use swc_ecma_visit::VisitMutWith;
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileContent;
@@ -24,6 +25,18 @@ use turbopack_core::asset::AssetVc;
 
 use super::ModuleAssetType;
 use crate::analyzer::graph::EvalContext;
+
+#[turbo_tasks::value(serialization: auto_for_input)]
+#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+pub enum EcmascriptInputTransform {
+    JSX,
+    CommonJs,
+    Custom,
+}
+
+#[turbo_tasks::value(transparent, serialization: auto_for_input)]
+#[derive(PartialOrd, Ord, Hash, Debug, Clone)]
+pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value(shared, serialization: none, eq: manual)]
 #[allow(clippy::large_enum_variant)]
@@ -115,10 +128,15 @@ impl Write for Buffer {
 }
 
 #[turbo_tasks::function]
-pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseResultVc> {
+pub async fn parse(
+    source: AssetVc,
+    ty: Value<ModuleAssetType>,
+    transforms: EcmascriptInputTransformsVc,
+) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = source.path().to_string().await?.clone();
     let ty = ty.into_value();
+    let transforms = transforms.await?;
     Ok(match &*content.await? {
         FileContent::NotFound => ParseResult::NotFound.into(),
         FileContent::Content(file) => {
@@ -200,6 +218,44 @@ pub async fn parse(source: AssetVc, ty: Value<ModuleAssetType>) -> Result<ParseR
                                         top_level_mark,
                                         false,
                                     ));
+
+                                    swc_ecma_transforms_base::helpers::HELPERS.set(
+                                        &Helpers::new(true),
+                                        || {
+                                            for transform in transforms.iter() {
+                                                match transform {
+                                                    EcmascriptInputTransform::JSX => {
+                                                        parsed_program.visit_mut_with(&mut jsx(
+                                                            cm.clone(),
+                                                            Some(comments.clone()),
+                                                            swc_ecma_transforms_react::Options {
+                                                                runtime: Some(
+                                                                    swc_ecma_transforms_react::Runtime::Automatic,
+                                                                ),
+                                                                ..Default::default()
+                                                            },
+                                                            top_level_mark,
+                                                        ));
+                                                    }
+                                                    EcmascriptInputTransform::CommonJs => {
+                                                        parsed_program.visit_mut_with(
+                                                            &mut swc_ecma_transforms_module::common_js(
+                                                                unresolved_mark,
+                                                                swc_ecma_transforms_module::util::Config {
+                                                                    allow_top_level_this: true,
+                                                                    import_interop: Some(swc_ecma_transforms_module::util::ImportInterop::Swc),
+                                                                    ..Default::default()
+                                                                },
+                                                                swc_ecma_transforms_base::feature::FeatureFlag::all(),
+                                                                Some(comments.clone()),
+                                                            ),
+                                                        );
+                                                    },
+                                                    EcmascriptInputTransform::Custom => todo!()
+                                                }
+                                            }
+                                        },
+                                    );
                                 });
 
                                 EvalContext::new(&parsed_program, unresolved_mark)

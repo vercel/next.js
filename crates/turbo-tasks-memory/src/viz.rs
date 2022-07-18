@@ -355,7 +355,7 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
 fn as_color(n: u8) -> String {
     // interpolate #fff -> #ff0 -> #f00
     if n >= 64 {
-        format!("#ff{:0>2x}00", u8::MAX - (n - 64) * 4 / 3)
+        format!("#ff{:0>2x}00", u8::MAX - ((n as u32 - 64) * 4 / 3) as u8)
     } else {
         format!("#ffff{:0>2x}", u8::MAX - n * 4)
     }

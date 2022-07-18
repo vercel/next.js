@@ -39,7 +39,8 @@ impl Asset for DevHtmlAsset {
         }
 
         let html = format!(
-            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n</body>\n</html>",
+            "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n<div \
+             id=root></div>\n{}\n</body>\n</html>",
             stylesheets.join("\n"),
             scripts.join("\n"),
         );

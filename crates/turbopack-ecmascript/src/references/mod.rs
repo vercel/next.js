@@ -7,6 +7,7 @@ pub mod typescript;
 use std::{
     collections::{BTreeMap, HashMap},
     future::Future,
+    mem::take,
     pin::Pin,
     sync::{Arc, Mutex},
 };
@@ -53,7 +54,7 @@ use super::{
         WellKnownObjectKind,
     },
     errors,
-    parse::{parse, Buffer, ParseResult},
+    parse::{parse, Buffer, EcmascriptInputTransformsVc, ParseResult},
     resolve::{apply_cjs_specific_options, cjs_resolve},
     special_cases::special_cases,
     target::CompileTargetVc,
@@ -67,7 +68,7 @@ use super::{
 use crate::{
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
     magic_identifier,
-    references::cjs::CjsRequireAssetReferenceVc,
+    references::{cjs::CjsRequireAssetReferenceVc, esm::EsmBinding},
 };
 #[turbo_tasks::value]
 pub struct AnalyseEcmascriptModuleResult {
@@ -80,6 +81,7 @@ pub(crate) async fn analyze_ecmascript_module(
     source: AssetVc,
     context: AssetContextVc,
     ty: Value<ModuleAssetType>,
+    transforms: EcmascriptInputTransformsVc,
     target: CompileTargetVc,
     node_native_bindings: bool,
 ) -> Result<AnalyseEcmascriptModuleResultVc> {
@@ -87,16 +89,20 @@ pub(crate) async fn analyze_ecmascript_module(
     let mut code_gen = Vec::new();
     let path = source.path();
 
+    let mut import_references = HashMap::new();
+
+    let is_typescript = match &*ty {
+        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
+        ModuleAssetType::Ecmascript => false,
+    };
+
+    let parsed = parse(source, ty, transforms);
+
     match &*find_context_file(path.parent(), "package.json").await? {
         FindContextFileResult::Found(package_json) => {
             references.push(PackageJsonReferenceVc::new(*package_json).into());
         }
         FindContextFileResult::NotFound => {}
-    };
-
-    let is_typescript = match &*ty {
-        ModuleAssetType::Typescript | ModuleAssetType::TypescriptDeclaration => true,
-        ModuleAssetType::Ecmascript => false,
     };
 
     if is_typescript {
@@ -110,7 +116,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
     special_cases(&path.await?.path, &mut references);
 
-    let parsed = parse(source, ty).await?;
+    let parsed = parsed.await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -181,14 +187,18 @@ pub(crate) async fn analyze_ecmascript_module(
             let buf = Buffer::new();
             let handler =
                 Handler::with_emitter_writer(Box::new(buf.clone()), Some(source_map.clone()));
-            let (var_graph, webpack_runtime, webpack_entry, webpack_chunks, esm_exports) = HANDLER
-                .set(&handler, || {
+            let (mut var_graph, webpack_runtime, webpack_entry, webpack_chunks, esm_exports) =
+                HANDLER.set(&handler, || {
                     GLOBALS.set(globals, || {
                         let var_graph = create_graph(program, eval_context);
 
                         // TODO migrate to effects
-                        let mut visitor =
-                            AssetReferencesVisitor::new(context, &mut references, &mut code_gen);
+                        let mut visitor = AssetReferencesVisitor::new(
+                            context,
+                            &mut import_references,
+                            &mut references,
+                            &mut code_gen,
+                        );
                         program.visit_with_path(&mut visitor, &mut Default::default());
 
                         (
@@ -205,7 +215,7 @@ pub(crate) async fn analyze_ecmascript_module(
             // Check if it was a webpack entry
             if let Some((request, span)) = webpack_runtime {
                 let request = RequestVc::parse(Value::new(request.into()));
-                let runtime = resolve_as_webpack_runtime(context, request);
+                let runtime = resolve_as_webpack_runtime(context, request, transforms);
                 match &*runtime.await? {
                     WebpackRuntime::Webpack5 { .. } => {
                         ignore_effect_span = Some(span);
@@ -214,17 +224,26 @@ pub(crate) async fn analyze_ecmascript_module(
                                 context,
                                 request,
                                 runtime,
+                                transforms,
                             }
                             .into(),
                         );
                         if webpack_entry {
-                            references.push(WebpackEntryAssetReference { source, runtime }.into());
+                            references.push(
+                                WebpackEntryAssetReference {
+                                    source,
+                                    runtime,
+                                    transforms,
+                                }
+                                .into(),
+                            );
                         }
                         for chunk in webpack_chunks {
                             references.push(
                                 WebpackChunkAssetReference {
                                     chunk_id: chunk,
                                     runtime,
+                                    transforms,
                                 }
                                 .into(),
                             );
@@ -253,9 +272,9 @@ pub(crate) async fn analyze_ecmascript_module(
                 context: AssetContextVc,
                 ast_path: &'a Vec<AstParentKind>,
                 span: Span,
-                func: &'a JsValue,
-                this: &'a JsValue,
-                args: &'a Vec<JsValue>,
+                func: JsValue,
+                this: JsValue,
+                args: Vec<JsValue>,
                 link_value: &'a F,
                 is_typescript: bool,
                 references: &'a mut Vec<AssetReferenceVc>,
@@ -288,9 +307,9 @@ pub(crate) async fn analyze_ecmascript_module(
                 context: AssetContextVc,
                 ast_path: &Vec<AstParentKind>,
                 span: Span,
-                func: &JsValue,
-                this: &JsValue,
-                args: &Vec<JsValue>,
+                func: JsValue,
+                this: JsValue,
+                args: Vec<JsValue>,
                 link_value: &F,
                 is_typescript: bool,
                 references: &mut Vec<AssetReferenceVc>,
@@ -311,8 +330,8 @@ pub(crate) async fn analyze_ecmascript_module(
                                 ast_path,
                                 span,
                                 alt,
-                                this,
-                                args,
+                                this.clone(),
+                                args.clone(),
                                 link_value,
                                 is_typescript,
                                 references,
@@ -323,15 +342,11 @@ pub(crate) async fn analyze_ecmascript_module(
                         }
                     }
                     JsValue::Member(_, obj, props) => {
-                        if let JsValue::Array(..) = &**obj {
+                        if let JsValue::Array(..) = *obj {
                             let args = linked_args().await?;
-                            let linked_array = link_value(JsValue::MemberCall(
-                                args.len(),
-                                obj.clone(),
-                                props.clone(),
-                                args,
-                            ))
-                            .await?;
+                            let linked_array =
+                                link_value(JsValue::MemberCall(args.len(), obj, props, args))
+                                    .await?;
                             if let JsValue::Array(_, elements) = linked_array {
                                 for ele in elements {
                                     if let JsValue::Call(_, callee, args) = ele {
@@ -341,9 +356,9 @@ pub(crate) async fn analyze_ecmascript_module(
                                             context,
                                             ast_path,
                                             span,
-                                            &callee,
-                                            this,
-                                            &args,
+                                            *callee,
+                                            JsValue::Unknown(None, "no this provided"),
+                                            args,
                                             link_value,
                                             is_typescript,
                                             references,
@@ -794,7 +809,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 }
                             }
                         }
-                        let (args, hints) = explain_args(args);
+                        let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -829,7 +844,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 .push(DirAssetReferenceVc::new(source, abs_pattern.into()).into());
                             return Ok(());
                         }
-                        let (args, hints) = explain_args(args);
+                        let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -854,7 +869,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 return Ok(());
                             }
                         }
-                        let (args, hints) = explain_args(args);
+                        let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -907,7 +922,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                 return Ok(());
                             }
                         }
-                        let (args, hints) = explain_args(args);
+                        let (args, hints) = explain_args(&args);
                         handler.span_warn_with_code(
                             span,
                             &format!(
@@ -928,9 +943,10 @@ pub(crate) async fn analyze_ecmascript_module(
             let cache = Mutex::new(LinkCache::new());
             let linker =
                 |value| value_visitor(source, context, value, target, node_native_bindings);
+            let effects = take(&mut var_graph.effects);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
 
-            for effect in var_graph.effects.iter() {
+            for effect in effects.into_iter() {
                 match effect {
                     Effect::Call {
                         func,
@@ -939,20 +955,20 @@ pub(crate) async fn analyze_ecmascript_module(
                         span,
                     } => {
                         if let Some(ignored) = &ignore_effect_span {
-                            if ignored == span {
+                            if *ignored == span {
                                 continue;
                             }
                         }
-                        let func = link_value(func.clone()).await?;
+                        let func = link_value(func).await?;
 
                         handle_call(
                             &handler,
                             source,
                             context,
-                            ast_path,
-                            *span,
-                            &func,
-                            &JsValue::Unknown(None, "no this provided"),
+                            &ast_path,
+                            span,
+                            func,
+                            JsValue::Unknown(None, "no this provided"),
                             args,
                             &link_value,
                             is_typescript,
@@ -970,22 +986,21 @@ pub(crate) async fn analyze_ecmascript_module(
                         span,
                     } => {
                         if let Some(ignored) = &ignore_effect_span {
-                            if ignored == span {
+                            if *ignored == span {
                                 continue;
                             }
                         }
-                        let obj = link_value(obj.clone()).await?;
-                        let func =
-                            link_value(JsValue::member(box obj.clone(), box prop.clone())).await?;
+                        let obj = link_value(obj).await?;
+                        let func = link_value(JsValue::member(box obj.clone(), box prop)).await?;
 
                         handle_call(
                             &handler,
                             source,
                             context,
-                            ast_path,
-                            *span,
-                            &func,
-                            &obj,
+                            &ast_path,
+                            span,
+                            func,
+                            obj,
                             args,
                             &link_value,
                             is_typescript,
@@ -994,6 +1009,23 @@ pub(crate) async fn analyze_ecmascript_module(
                             node_native_bindings,
                         )
                         .await?;
+                    }
+                    Effect::ImportedBinding {
+                        request,
+                        export,
+                        ast_path,
+                        span,
+                    } => {
+                        if let Some(r) = import_references.get(&request) {
+                            code_gen.push(
+                                EsmBinding {
+                                    reference: *r,
+                                    export,
+                                    ast_path: AstPathVc::cell(ast_path),
+                                }
+                                .into(),
+                            );
+                        }
                     }
                 }
             }
@@ -1145,6 +1177,7 @@ enum StaticExpr {
     Unknown,
 }
 
+// TODO get rid of that
 #[derive(Default)]
 struct StaticAnalyser {
     imports: HashMap<String, (String, Vec<String>)>,
@@ -1199,6 +1232,7 @@ impl StaticAnalyser {
 struct AssetReferencesVisitor<'a> {
     context: AssetContextVc,
     old_analyser: StaticAnalyser,
+    import_references: &'a mut HashMap<String, EsmAssetReferenceVc>,
     references: &'a mut Vec<AssetReferenceVc>,
     code_gen: &'a mut Vec<CodeGenerateableVc>,
     pub esm_exports: BTreeMap<String, String>,
@@ -1209,12 +1243,14 @@ struct AssetReferencesVisitor<'a> {
 impl<'a> AssetReferencesVisitor<'a> {
     fn new(
         context: AssetContextVc,
+        import_references: &'a mut HashMap<String, EsmAssetReferenceVc>,
         references: &'a mut Vec<AssetReferenceVc>,
         code_gen: &'a mut Vec<CodeGenerateableVc>,
     ) -> Self {
         Self {
             context,
             old_analyser: StaticAnalyser::default(),
+            import_references,
             references,
             code_gen,
             esm_exports: BTreeMap::new(),
@@ -1286,15 +1322,16 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let src = export.src.value.to_string();
-        self.references.push(
+        if !self.import_references.contains_key(&src) {
             // TODO create a separate AssetReference for this
-            EsmAssetReferenceVc::new(
+            let r = EsmAssetReferenceVc::new(
                 self.context,
-                RequestVc::parse(Value::new(src.into())),
+                RequestVc::parse(Value::new(src.clone().into())),
                 AstPathVc::cell(as_parent_path(ast_path)),
-            )
-            .into(),
-        );
+            );
+            self.import_references.insert(src, r);
+            self.references.push(r.into());
+        }
         self.code_gen
             .push(EsmExportVc::new(AstPathVc::cell(as_parent_path(ast_path))).into());
         export.visit_children_with_path(self, ast_path);
@@ -1306,15 +1343,16 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
     ) {
         if let Some(src) = &export.src {
             let src = src.value.to_string();
-            self.references.push(
+            if !self.import_references.contains_key(&src) {
                 // TODO create a separate AssetReference for this
-                EsmAssetReferenceVc::new(
+                let r = EsmAssetReferenceVc::new(
                     self.context,
-                    RequestVc::parse(Value::new(src.into())),
+                    RequestVc::parse(Value::new(src.clone().into())),
                     AstPathVc::cell(as_parent_path(ast_path)),
-                )
-                .into(),
-            );
+                );
+                self.import_references.insert(src, r);
+                self.references.push(r.into());
+            }
         } else {
             for spec in export.specifiers.iter() {
                 fn to_string(name: &ModuleExportName) -> String {
@@ -1403,14 +1441,6 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let src = import.src.value.to_string();
-        self.references.push(
-            EsmAssetReferenceVc::new(
-                self.context,
-                RequestVc::parse(Value::new(src.clone().into())),
-                AstPathVc::cell(as_parent_path(ast_path)),
-            )
-            .into(),
-        );
         import.visit_children_with_path(self, ast_path);
         if import.type_only {
             return;
@@ -1444,6 +1474,15 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                         .insert(namespace.local.sym.to_string(), (src.clone(), Vec::new()));
                 }
             }
+        }
+        if !self.import_references.contains_key(&src) {
+            let r = EsmAssetReferenceVc::new(
+                self.context,
+                RequestVc::parse(Value::new(src.clone().into())),
+                AstPathVc::cell(as_parent_path(ast_path)),
+            );
+            self.import_references.insert(src, r);
+            self.references.push(r.into());
         }
     }
 
@@ -1520,6 +1559,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 async fn resolve_as_webpack_runtime(
     context: AssetContextVc,
     request: RequestVc,
+    transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
     let options = context.resolve_options();
 
@@ -1528,7 +1568,7 @@ async fn resolve_as_webpack_runtime(
     let resolved = resolve(context.context_path(), request, options);
 
     if let ResolveResult::Single(source, _) = &*resolved.await? {
-        Ok(webpack_runtime(*source))
+        Ok(webpack_runtime(*source, transforms))
     } else {
         Ok(WebpackRuntime::None.into())
     }

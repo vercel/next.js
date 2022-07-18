@@ -16,9 +16,7 @@ use std::{
 use anyhow::Result;
 use ecmascript::{target::CompileTargetVc, typescript::resolve::TypescriptTypesAssetReferenceVc};
 use graph::{aggregate, AggregatedGraphNodeContent, AggregatedGraphVc};
-use module_options::{
-    module_options, ModuleRuleCondition, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType,
-};
+use module_options::{module_options, ModuleRuleEffect, ModuleRuleEffectKey, ModuleType};
 use resolve::{resolve_options, typescript_resolve_options};
 use turbo_tasks::{primitives::BoolVc, CompletionVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
@@ -106,35 +104,41 @@ async fn module_(source: AssetVc, graph_options: GraphOptionsVc) -> Result<Asset
                 if let ModuleRuleEffect::ModuleType(ty) = e {
                     ty
                 } else {
-                    &ModuleType::Ecmascript
+                    unreachable!()
                 }
             })
             .unwrap_or_else(|| &ModuleType::Raw)
         {
-            ModuleType::Ecmascript => turbopack_ecmascript::ModuleAssetVc::new(
+            ModuleType::Ecmascript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), graph_options).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Ecmascript),
+                *transforms,
                 graph_options.compile_target(),
                 *graph_options.node_native_bindings().await?,
             )
             .into(),
-            ModuleType::Typescript => turbopack_ecmascript::ModuleAssetVc::new(
+            ModuleType::Typescript(transforms) => turbopack_ecmascript::ModuleAssetVc::new(
                 source,
                 ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
                 Value::new(turbopack_ecmascript::ModuleAssetType::Typescript),
+                *transforms,
                 graph_options.compile_target(),
                 *graph_options.node_native_bindings().await?,
             )
             .into(),
-            ModuleType::TypescriptDeclaration => turbopack_ecmascript::ModuleAssetVc::new(
-                source,
-                ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript()).into(),
-                Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
-                graph_options.compile_target(),
-                *graph_options.node_native_bindings().await?,
-            )
-            .into(),
+            ModuleType::TypescriptDeclaration(transforms) => {
+                turbopack_ecmascript::ModuleAssetVc::new(
+                    source,
+                    ModuleAssetContextVc::new(path.parent(), graph_options.with_typescript())
+                        .into(),
+                    Value::new(turbopack_ecmascript::ModuleAssetType::TypescriptDeclaration),
+                    *transforms,
+                    graph_options.compile_target(),
+                    *graph_options.node_native_bindings().await?,
+                )
+                .into()
+            }
             ModuleType::Json => json::ModuleAssetVc::new(source).into(),
             ModuleType::Raw => source,
             ModuleType::Css => turbopack_css::ModuleAssetVc::new(

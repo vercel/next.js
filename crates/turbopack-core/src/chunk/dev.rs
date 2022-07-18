@@ -15,7 +15,9 @@ pub struct DevChunkingContext {
     /// This path get striped off of path before creating a name out of it
     pub context_path: FileSystemPathVc,
     /// Chunks are placed at this path
-    pub root_path: FileSystemPathVc,
+    pub chunk_root_path: FileSystemPathVc,
+    /// Static assets are placed at this path
+    pub asset_root_path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -30,7 +32,7 @@ impl ChunkingContext for DevChunkingContext {
         } else {
             clean(&*path.to_string().await?)
         };
-        Ok(self.root_path.join(&name))
+        Ok(self.chunk_root_path.join(&name))
     }
 
     #[turbo_tasks::function]
@@ -49,6 +51,6 @@ impl ChunkingContext for DevChunkingContext {
 
     #[turbo_tasks::function]
     fn asset_path(&self, path: &str) -> FileSystemPathVc {
-        self.root_path.join(&path)
+        self.asset_root_path.join(&path)
     }
 }

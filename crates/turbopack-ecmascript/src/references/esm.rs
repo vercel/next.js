@@ -3,14 +3,18 @@ use std::{collections::BTreeMap, mem::replace};
 use anyhow::Result;
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{
-    ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl,
-    Ident, KeyValueProp, Module, ModuleDecl, ModuleItem, ObjectLit, Program, Prop, PropName,
-    PropOrSpread, Script, Stmt, Str,
+    ClassDecl, ComputedPropName, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl,
+    ExportDefaultExpr, Expr, FnDecl, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module,
+    ModuleDecl, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
 };
 use swc_ecma_quote::quote;
-use swc_ecma_visit::VisitMut;
+use swc_ecma_visit::{
+    fields::{ExprField, PropField},
+    VisitMut,
+};
 use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbopack_core::{
+    asset::Asset,
     chunk::{
         AsyncLoadableReference, AsyncLoadableReferenceVc, ChunkableAssetReference,
         ChunkableAssetReferenceVc, ChunkingContextVc, ModuleId,
@@ -27,6 +31,19 @@ use crate::{
     create_visitor, magic_identifier,
     resolve::esm_resolve,
 };
+#[turbo_tasks::value]
+pub enum ReferencedAsset {
+    Some(EcmascriptChunkPlaceableVc),
+    None,
+}
+
+async fn get_ident(asset: EcmascriptChunkPlaceableVc) -> Result<String> {
+    let path = asset.path().to_string().await?;
+    Ok(magic_identifier::encode(&format!(
+        "imported module {}",
+        path
+    )))
+}
 
 #[turbo_tasks::value(AssetReference, ChunkableAssetReference, CodeGenerateable)]
 #[derive(Hash, Debug)]
@@ -38,6 +55,18 @@ pub struct EsmAssetReference {
 
 #[turbo_tasks::value_impl]
 impl EsmAssetReferenceVc {
+    #[turbo_tasks::function]
+    async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
+        let this = self.await?;
+        let assets = esm_resolve(this.request, this.context).primary_assets();
+        for asset in assets.await?.iter() {
+            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+                return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
+            }
+        }
+        Ok(ReferencedAssetVc::cell(ReferencedAsset::None))
+    }
+
     #[turbo_tasks::function]
     pub fn new(context: AssetContextVc, request: RequestVc, path: AstPathVc) -> Self {
         Self::cell(EsmAssetReference {
@@ -76,34 +105,34 @@ impl ChunkableAssetReference for EsmAssetReference {
 impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        &self,
+        self_vc: EsmAssetReferenceVc,
         chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let assets = esm_resolve(self.request, self.context).primary_assets();
+        let this = self_vc.await?;
         let mut visitors = Vec::new();
-        for asset in assets.await?.iter() {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                let id = chunk_context.id(placeable).await?;
-                let path = asset.path().to_string().await?;
 
-                visitors.push(create_visitor!((&self.path.await?), visit_mut_module_item(module_item: &mut ModuleItem) {
-                    let stmt = quote!(
-                        "var $name = __turbopack_import__($id);" as Stmt,
-                        name = Ident::new(
-                            magic_identifier::encode(&format!("imported module {}", path))
-                                .into(),
-                            DUMMY_SP
-                        ),
-                        id: Expr = Expr::Lit(match &*id {
-                            ModuleId::String(s) => s.clone().into(),
-                            ModuleId::Number(n) => (*n as f64).into(),
-                        })
-                    );
-                    *module_item = ModuleItem::Stmt(stmt);
-                }));
-            }
+        if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset().await? {
+            let ident = get_ident(*asset).await?;
+            let id = chunk_context.id(*asset).await?;
+            visitors.push(create_visitor!((&this.path.await?), visit_mut_module_item(module_item: &mut ModuleItem) {
+                let stmt = quote!(
+                    "var $name = __turbopack_import__($id);" as Stmt,
+                    name = Ident::new(ident.clone().into(), DUMMY_SP),
+                    id: Expr = Expr::Lit(match &*id {
+                        ModuleId::String(s) => s.clone().into(),
+                        ModuleId::Number(n) => (*n as f64).into(),
+                    })
+                );
+                *module_item = ModuleItem::Stmt(stmt);
+            }));
+        } else {
+            visitors.push(create_visitor!((&this.path.await?), visit_mut_module_item(module_item: &mut ModuleItem) {
+                let stmt = quote!(";" as Stmt);
+                *module_item = ModuleItem::Stmt(stmt);
+            }));
         }
+
         Ok(CodeGeneration { visitors }.into())
     }
 }
@@ -186,8 +215,8 @@ impl CodeGenerateable for EsmExports {
         _chunk_context: EcmascriptChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
-        let mut visitors = Vec::new();
         let this = self_vc.await?;
+        let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
             let getters = Expr::Object(ObjectLit {
@@ -299,6 +328,90 @@ impl CodeGenerateable for EsmExport {
                 }
             }),
         );
+
+        Ok(CodeGeneration { visitors }.into())
+    }
+}
+
+#[turbo_tasks::value(shared, CodeGenerateable)]
+#[derive(Hash, Debug)]
+pub struct EsmBinding {
+    pub reference: EsmAssetReferenceVc,
+    pub export: Option<String>,
+    pub ast_path: AstPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl CodeGenerateable for EsmBinding {
+    #[turbo_tasks::function]
+    async fn code_generation(
+        self_vc: EsmBindingVc,
+        chunk_context: EcmascriptChunkContextVc,
+        _context: ChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
+        let this = self_vc.await?;
+        let mut visitors = Vec::new();
+        let imported_module = this.reference.get_referenced_asset();
+
+        fn make_expr(imported_module: Option<&str>, export: Option<&str>) -> Expr {
+            if let Some(imported_module) = imported_module {
+                if let Some(export) = export {
+                    Expr::Member(MemberExpr {
+                        span: DUMMY_SP,
+                        obj: box Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP)),
+                        prop: MemberProp::Computed(ComputedPropName {
+                            span: DUMMY_SP,
+                            expr: box Expr::Lit(Lit::Str(Str {
+                                span: DUMMY_SP,
+                                value: export.into(),
+                                raw: None,
+                            })),
+                        }),
+                    })
+                } else {
+                    Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))
+                }
+            } else {
+                Expr::Ident(Ident::new("undefined".into(), DUMMY_SP))
+            }
+        }
+
+        let mut ast_path = this.ast_path.await?.clone();
+        let imported_module =
+            if let ReferencedAsset::Some(imported_module) = &*imported_module.await? {
+                Some(get_ident(*imported_module).await?)
+            } else {
+                None
+            };
+
+        loop {
+            match ast_path.last() {
+                Some(swc_ecma_visit::AstParentKind::Expr(ExprField::Ident)) => {
+                    ast_path.pop();
+                    visitors.push(
+                        create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
+                            *expr = make_expr(imported_module.as_deref(), this.export.as_deref());
+                        }),
+                    );
+                    break;
+                }
+                Some(swc_ecma_visit::AstParentKind::Prop(PropField::Shorthand)) => {
+                    ast_path.pop();
+                    visitors.push(
+                        create_visitor!(ast_path, visit_mut_prop(prop: &mut Prop) {
+                            if let Prop::Shorthand(ident) = prop {
+                                *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_module.as_deref(), this.export.as_deref())});
+                            }
+                        }),
+                    );
+                    break;
+                }
+                Some(_) => {
+                    ast_path.pop();
+                }
+                None => break,
+            }
+        }
 
         Ok(CodeGeneration { visitors }.into())
     }

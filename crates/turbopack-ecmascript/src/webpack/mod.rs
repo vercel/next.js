@@ -15,6 +15,7 @@ use self::{
     references::module_references,
 };
 use super::resolve::apply_cjs_specific_options;
+use crate::parse::EcmascriptInputTransformsVc;
 
 pub mod parse;
 pub(crate) mod references;
@@ -23,13 +24,22 @@ pub(crate) mod references;
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
+    pub transforms: EcmascriptInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleAssetVc {
     #[turbo_tasks::function]
-    pub fn new(source: AssetVc, runtime: WebpackRuntimeVc) -> Self {
-        Self::cell(ModuleAsset { source, runtime })
+    pub fn new(
+        source: AssetVc,
+        runtime: WebpackRuntimeVc,
+        transforms: EcmascriptInputTransformsVc,
+    ) -> Self {
+        Self::cell(ModuleAsset {
+            source,
+            runtime,
+            transforms,
+        })
     }
 }
 
@@ -45,7 +55,7 @@ impl Asset for ModuleAsset {
     }
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        module_references(self.source, self.runtime)
+        module_references(self.source, self.runtime, self.transforms)
     }
 }
 
@@ -54,6 +64,7 @@ pub struct WebpackChunkAssetReference {
     #[trace_ignore]
     pub chunk_id: Lit,
     pub runtime: WebpackRuntimeVc,
+    pub transforms: EcmascriptInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -75,8 +86,11 @@ impl AssetReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{}.js", chunk_id);
                 let source = SourceAssetVc::new(context_path.join(&filename)).into();
 
-                ResolveResult::Single(ModuleAssetVc::new(source, self.runtime).into(), Vec::new())
-                    .into()
+                ResolveResult::Single(
+                    ModuleAssetVc::new(source, self.runtime, self.transforms).into(),
+                    Vec::new(),
+                )
+                .into()
             }
             WebpackRuntime::None => ResolveResult::unresolveable().into(),
         })
@@ -97,6 +111,7 @@ impl AssetReference for WebpackChunkAssetReference {
 pub struct WebpackEntryAssetReference {
     pub source: AssetVc,
     pub runtime: WebpackRuntimeVc,
+    pub transforms: EcmascriptInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -104,7 +119,7 @@ impl AssetReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
         ResolveResult::Single(
-            ModuleAssetVc::new(self.source, self.runtime).into(),
+            ModuleAssetVc::new(self.source, self.runtime, self.transforms).into(),
             Vec::new(),
         )
         .into()
@@ -121,6 +136,7 @@ pub struct WebpackRuntimeAssetReference {
     pub context: AssetContextVc,
     pub request: RequestVc,
     pub runtime: WebpackRuntimeVc,
+    pub transforms: EcmascriptInputTransformsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -135,7 +151,7 @@ impl AssetReference for WebpackRuntimeAssetReference {
 
         if let ResolveResult::Single(source, ref refs) = *resolved.await? {
             return Ok(ResolveResult::Single(
-                ModuleAssetVc::new(source, self.runtime).into(),
+                ModuleAssetVc::new(source, self.runtime, self.transforms).into(),
                 refs.clone(),
             )
             .into());
