@@ -245,7 +245,7 @@ impl Asset for EcmascriptChunk {
             if(typeof moduleFactory != "function") {
                 throw new Error(`Module ${id} was imported from module ${from}, but the module factory is not available`);
             }
-            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports) s: exportValue.bind(null, module), m: module, c: cache, p: process });
+            moduleFactory.call(module.exports, { e: module.exports, r: require.bind(null, id), i: importModule.bind(null, id), s: esm.bind(null, module.exports), v: exportValue.bind(null, module), m: module, c: cache, p: process });
             module.loaded = true;
             if(module.interopNamespace) {
                 // in case of a circular dependency: cjs1 -> esm2 -> cjs1
