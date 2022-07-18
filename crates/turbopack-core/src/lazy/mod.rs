@@ -2,7 +2,7 @@ use std::{mem::replace, sync::Mutex};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator};
+use turbo_tasks::{get_invalidator, trace::TraceRawVcs, Invalidator, NothingVc};
 use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 
 use crate::{
@@ -44,14 +44,23 @@ impl Eq for LazyAsset {}
 impl LazyAssetVc {
     #[turbo_tasks::function]
     pub fn new(asset: AssetVc) -> Self {
-        // prefetch
-        asset.path();
-        asset.content();
-        // create vc
-        Self::cell(LazyAsset {
+        let vc = Self::cell(LazyAsset {
             asset,
             state: Mutex::new(LazyAssetState::Idle),
-        })
+        });
+        vc.prefetch();
+        vc
+    }
+
+    #[turbo_tasks::function]
+    async fn prefetch(self) -> Result<NothingVc> {
+        let this = self.await?;
+        let p = this.asset.path();
+        let c = this.asset.content();
+        p.await?;
+        c.await?;
+        this.asset.references();
+        Ok(NothingVc::new())
     }
 }
 
