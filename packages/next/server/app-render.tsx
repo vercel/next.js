@@ -148,13 +148,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          writer.write(
-            encodeText(
-              `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                JSON.stringify([1, id, responsePartial])
-              )})</script>`
-            )
-          )
+          const scripts = `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([1, id, responsePartial])
+          )})</script>`
+
+          writer.write(encodeText(scripts))
           process()
         }
       })
@@ -178,7 +176,8 @@ function createServerComponentRenderer(
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<[ServerContextName: string, JSONValue: any]>
-  }
+  },
+  dev: boolean
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -192,7 +191,11 @@ function createServerComponentRenderer(
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
 
-  const cssFlightData = getCssFlightData(ComponentMod, serverComponentManifest)
+  const cssFlightData = getCssFlightData(
+    ComponentMod,
+    serverComponentManifest,
+    dev
+  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -261,7 +264,8 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  loading?: 'loading'
 ]
 
 export type FlightSegmentPath =
@@ -326,8 +330,11 @@ function getSegmentParam(segment: string): {
 
 function getCSSInlinedLinkTags(
   ComponentMod: any,
-  serverComponentManifest: any
+  serverComponentManifest: any,
+  dev: boolean
 ) {
+  if (dev) return []
+
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
@@ -344,25 +351,31 @@ function getCSSInlinedLinkTags(
   )
 }
 
-function getCssFlightData(ComponentMod: any, serverComponentManifest: any) {
+function getCssFlightData(
+  ComponentMod: any,
+  serverComponentManifest: any,
+  dev: boolean
+) {
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
   const cssFiles = importedServerCSSFiles.map(
     (css) => serverComponentManifest[css].default
   )
-  if (process.env.NODE_ENV === 'development') {
+
+  if (dev) {
+    // Keep `id` in dev mode css flight to require the css module
     return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
   }
 
   // Multiple css chunks could be merged into one by mini-css-extract-plugin,
   // we use a set here to dedupe the css chunks in production.
-  const cssSet = cssFiles.reduce((res, css) => {
+  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
     res.add(...css.chunks)
     return res
   }, new Set())
 
-  return `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n`
+  return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
 export async function renderToHTML(
@@ -373,6 +386,13 @@ export async function renderToHTML(
   renderOpts: RenderOpts,
   isPagesDir: boolean
 ): Promise<RenderResult | null> {
+  // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
+  if (typeof React.createServerContext === 'undefined') {
+    throw new Error(
+      '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+    )
+  }
+
   // don't modify original query object
   query = Object.assign({}, query)
 
@@ -383,6 +403,7 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
   } = renderOpts
+  const dev = !!renderOpts.dev
 
   const isFlight = query.__flight__ !== undefined
 
@@ -435,7 +456,7 @@ export async function renderToHTML(
   )
   const isPreview = previewData !== false
   const serverContexts: Array<[string, any]> = [
-    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request
+    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
     ['HeadersContext', headers],
     ['CookiesContext', cookies],
     ['PreviewDataContext', previewData],
@@ -456,7 +477,6 @@ export async function renderToHTML(
     treeValue: string
     type: DynamicParamTypesShort
   } | null => {
-    // TODO-APP: use correct matching for dynamic routes to get segment param
     const segmentParam = getSegmentParam(segment)
     if (!segmentParam) {
       return null
@@ -488,7 +508,9 @@ export async function renderToHTML(
   const createFlightRouterStateFromLoaderTree = ([
     segment,
     parallelRoutes,
+    { loading },
   ]: LoaderTree): FlightRouterState => {
+    const hasLoading = Boolean(loading)
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
@@ -508,6 +530,10 @@ export async function renderToHTML(
         },
         {} as FlightRouterState[1]
       )
+    }
+
+    if (hasLoading) {
+      segmentTree[4] = 'loading'
     }
     return segmentTree
   }
@@ -616,7 +642,6 @@ export async function renderToHTML(
     let fetcher: (() => Promise<any>) | null = null
 
     type GetServerSidePropsContext = {
-      // TODO-APP: has to be serializable
       headers: IncomingHttpHeaders
       cookies: NextApiRequestCookies
       layoutSegments: FlightSegmentPath
@@ -626,7 +651,18 @@ export async function renderToHTML(
     }
 
     type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      query: URLSearchParams
+      searchParams: URLSearchParams
+      pathname: string
+    }
+
+    type GetStaticPropsContext = {
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type GetStaticPropContextPage = GetStaticPropsContext & {
       pathname: string
     }
 
@@ -642,8 +678,8 @@ export async function renderToHTML(
         headers,
         cookies,
         layoutSegments: segmentPath,
-        // TODO-APP: Currently query holds params and pathname is not the actual pathname, it holds the dynamic parameter
-        ...(isPage ? { query, pathname } : {}),
+        // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
+        ...(isPage ? { searchParams: query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
           ? { preview: true, previewData: previewData }
@@ -656,9 +692,10 @@ export async function renderToHTML(
     }
     // TODO-APP: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext = {
+      const getStaticPropsContext:
+        | GetStaticPropsContext
+        | GetStaticPropContextPage = {
         layoutSegments: segmentPath,
-        // TODO-APP: change this to be URLSearchParams instead?
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -705,7 +742,7 @@ export async function renderToHTML(
             // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
             params={currentParams}
             // Query is only provided to page
-            {...(isPage ? { query } : {})}
+            {...(isPage ? { searchParams: query } : {})}
           />
         )
       },
@@ -781,7 +818,8 @@ export async function renderToHTML(
 
     const cssFlightData = getCssFlightData(
       ComponentMod,
-      serverComponentManifest
+      serverComponentManifest,
+      dev
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
@@ -791,7 +829,9 @@ export async function renderToHTML(
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest)
+      renderToReadableStream(flightData, serverComponentManifest, {
+        context: serverContexts,
+      })
         .pipeThrough(createPrefixStream(cssFlightData))
         .pipeThrough(createBufferedTransformStream())
     )
@@ -802,14 +842,12 @@ export async function renderToHTML(
   // TODO-APP: validate req.url as it gets passed to render.
   const initialCanonicalUrl = req.url!
 
-  // TODO-APP: change tree to accommodate this
-  // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
-  // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
-  const initialStylesheets = getCSSInlinedLinkTags(
+  const initialStylesheets: string[] = getCSSInlinedLinkTags(
     ComponentMod,
-    serverComponentManifest
+    serverComponentManifest,
+    dev
   )
 
   const { Component: ComponentTree } = createComponentTree({
@@ -866,7 +904,8 @@ export async function renderToHTML(
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
-    }
+    },
+    dev
   )
 
   const jsxStyleRegistry = createStyleRegistry()
@@ -916,9 +955,11 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
+      dev,
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
+      initialStylesheets,
     })
   }
 

@@ -3,10 +3,12 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import {
   AppRouterContext,
   AppTreeContext,
-  CacheNode,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type {
+  CacheNode,
+  AppRouterInstance,
+} from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 import {
@@ -49,26 +51,26 @@ function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   let buffer = ''
   const loadCssFromFlight = new TransformStream({
     transform(chunk, controller) {
+      const process = (buf: string) => {
+        if (buf) {
+          if (buf.startsWith('CSS:')) {
+            loadCssFromStreamData(buf)
+          } else {
+            controller.enqueue(new TextEncoder().encode(buf))
+          }
+        }
+      }
+
       const data = new TextDecoder().decode(chunk)
       buffer += data
       let index
       while ((index = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, index + 1)
         buffer = buffer.slice(index + 1)
-
-        if (line.startsWith('CSS:')) {
-          loadCssFromStreamData(line)
-        } else {
-          controller.enqueue(new TextEncoder().encode(line))
-        }
+        process(line)
       }
-      if (buffer && !buffer.startsWith('CSS:')) {
-        controller.enqueue(new TextEncoder().encode(buffer))
-        buffer = ''
-      }
-    },
-    flush() {
-      loadCssFromStreamData(buffer)
+      process(buffer)
+      buffer = ''
     },
   })
 
@@ -117,19 +119,19 @@ export default function AppRouter({
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
-    typeof reducer
-  >(reducer, {
-    tree: initialTree,
-    cache: {
-      data: null,
-      subTreeData: children,
-      parallelRoutes:
-        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-    },
-    pushRef: { pendingPush: false, mpaNavigation: false },
-    canonicalUrl: initialCanonicalUrl,
-  })
+  const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
+    React.useReducer<typeof reducer>(reducer, {
+      tree: initialTree,
+      cache: {
+        data: null,
+        subTreeData: children,
+        parallelRoutes:
+          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      },
+      pushRef: { pendingPush: false, mpaNavigation: false },
+      focusRef: { focus: false },
+      canonicalUrl: initialCanonicalUrl,
+    })
 
   useEffect(() => {
     initialParallelRoutes = null!
@@ -302,6 +304,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
+            focusRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>

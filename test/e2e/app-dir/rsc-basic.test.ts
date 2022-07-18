@@ -193,10 +193,7 @@ describe('app dir - react server components', () => {
 
   it('should support next/link in server components', async () => {
     const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
-    const linkText = getNodeBySelector(
-      linkHTML,
-      'body > div > a[href="/root"]'
-    ).text()
+    const linkText = getNodeBySelector(linkHTML, 'body a[href="/root"]').text()
 
     expect(linkText).toContain('home')
 
@@ -361,9 +358,13 @@ describe('app dir - react server components', () => {
         expect(gotInlinedData).toBe(true)
       }
     )
+  })
 
+  it('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
-    const browser = await webdriver(next.url, '/partial-hydration')
+    const browser = await webdriver(next.url, '/partial-hydration', {
+      waitHydration: false,
+    })
     const content = await browser.eval(`window.document.body.innerText`)
     expect(content).toContain('next_streaming_data')
 
