@@ -22,7 +22,13 @@ module.exports = {
           return
         }
 
-        if (node.parent?.parent?.openingElement?.name?.name === 'picture') {
+        if (
+          node.parent &&
+          node.parent.openingElement &&
+          node.parent.parent.openingElement &&
+          node.parent.parent.openingElement.name &&
+          node.parent.parent.openingElement.name.name === 'picture'
+        ) {
           return
         }
 

@@ -177,6 +177,47 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function compile_config_schema(task, opts) {
+  const { configSchema } = require('./dist/server/config-schema')
+  // eslint-disable-next-line
+  const Ajv = require('ajv')
+  // eslint-disable-next-line
+  const standaloneCode = require('ajv/dist/standalone').default
+  // eslint-disable-next-line
+  const ajv = new Ajv({ code: { source: true }, allErrors: true })
+  ajv.addKeyword({
+    keyword: 'isFunction',
+    schemaType: 'boolean',
+    compile() {
+      return (data) => data instanceof Function
+    },
+    code(ctx) {
+      const { data } = ctx
+      ctx.fail(Ajv._`!(${data} instanceof Function)`)
+    },
+    metaSchema: {
+      anyOf: [{ type: 'boolean' }],
+    },
+  })
+
+  const compiled = ajv.compile(configSchema)
+  const validateCode = standaloneCode(ajv, compiled)
+  const preNccFilename = join(__dirname, 'dist', 'next-config-validate.js')
+  await fs.writeFile(preNccFilename, validateCode)
+  await task
+    .source(opts.src || './dist/next-config-validate.js')
+    .ncc({})
+    .target('dist/next-config-validate')
+
+  await fs.unlink(preNccFilename)
+  await fs.rename(
+    join(__dirname, 'dist/next-config-validate/next-config-validate.js'),
+    join(__dirname, 'dist/next-config-validate.js')
+  )
+  await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
+}
+
+// eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
   await task
@@ -436,15 +477,6 @@ export async function ncc_cssnano_simple(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
     .ncc({ packageName: 'cssnano-simple', externals })
     .target('compiled/cssnano-simple')
-}
-
-// eslint-disable-next-line camelcase
-externals['etag'] = 'next/dist/compiled/etag'
-export async function ncc_etag(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('etag')))
-    .ncc({ packageName: 'etag', externals })
-    .target('compiled/etag')
 }
 
 // eslint-disable-next-line camelcase
@@ -1697,7 +1729,6 @@ export async function ncc(task, opts) {
         'ncc_watchpack',
         'ncc_chalk',
         'ncc_napirs_triples',
-        'ncc_etag',
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',
@@ -1953,7 +1984,7 @@ export async function trace(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'compile_config_schema'], opts)
 }
 
 export default async function (task) {
@@ -1982,6 +2013,11 @@ export default async function (task) {
     opts
   )
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
+  await task.watch(
+    '../react-dev-overlay/dist/**/*.js',
+    'ncc_next__react_dev_overlay',
+    opts
+  )
 }
 
 export async function shared(task, opts) {

@@ -84,7 +84,7 @@ The following static methods are available on the `NextResponse` class directly:
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
 
-The use the methods above, **you must return the `NextResponse` object** returned. `NextResponse` can be imported from `next/server`:
+To use the methods above, **you must return the `NextResponse` object** returned. `NextResponse` can be imported from `next/server`:
 
 ```typescript
 import { NextResponse } from 'next/server'

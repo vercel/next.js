@@ -22,6 +22,7 @@ type Options = {
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export const injectedClientEntries = new Map()
+const regexCSS = /\.css$/
 
 export class ClientEntryPlugin {
   dev: boolean = false
@@ -74,18 +75,32 @@ export class ClientEntryPlugin {
         const clientComponentImports: string[] = []
 
         function filterClientComponents(dependency: any) {
-          const module = compilation.moduleGraph.getResolvedModule(dependency)
-          if (!module) return
+          const mod = compilation.moduleGraph.getResolvedModule(dependency)
+          if (!mod) return
 
-          if (visited.has(module.userRequest)) return
-          visited.add(module.userRequest)
+          // Keep client imports as simple
+          // native or installed js module: -> raw request, e.g. next/head
+          // client js or css: -> user request
+          const rawRequest = mod.rawRequest || ''
+          const modRequest =
+            !rawRequest.endsWith('.css') &&
+            !rawRequest.startsWith('.') &&
+            !rawRequest.startsWith('/')
+              ? rawRequest
+              : mod.resourceResolveData?.path
 
-          if (clientComponentRegex.test(module.userRequest)) {
-            clientComponentImports.push(module.userRequest)
+          if (!modRequest || visited.has(modRequest)) return
+          visited.add(modRequest)
+
+          if (
+            clientComponentRegex.test(modRequest) ||
+            regexCSS.test(modRequest)
+          ) {
+            clientComponentImports.push(modRequest)
           }
 
           compilation.moduleGraph
-            .getOutgoingConnections(module)
+            .getOutgoingConnections(mod)
             .forEach((connection: any) => {
               filterClientComponents(connection.dependency)
             })
@@ -110,7 +125,7 @@ export class ClientEntryPlugin {
               isDev: this.dev,
             })
 
-        const clientLoader = `next-flight-client-entry-loader?${stringify({
+        const loaderOptions = {
           modules: clientComponentImports,
           runtime: this.isEdgeServer
             ? SERVER_RUNTIME.edge
@@ -118,9 +133,16 @@ export class ClientEntryPlugin {
           ssr: pageStaticInfo.ssr,
           // Adding name here to make the entry key unique.
           name,
+        }
+        const clientLoader = `next-flight-client-entry-loader?${stringify(
+          loaderOptions
+        )}!`
+        const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
+          ...loaderOptions,
+          server: true,
         })}!`
 
-        const bundlePath = 'pages' + normalizePagePath(routeInfo.page)
+        const bundlePath = 'app' + normalizePagePath(routeInfo.page)
 
         // Inject the entry to the client compiler.
         if (this.dev) {
@@ -149,13 +171,12 @@ export class ClientEntryPlugin {
           )
         }
 
-        // Inject the entry to the server compiler.
+        // Inject the entry to the server compiler (__sc_client__).
         const clientComponentEntryDep = (
           webpack as any
-        ).EntryPlugin.createDependency(
-          clientLoader,
-          name + NEXT_CLIENT_SSR_ENTRY_SUFFIX
-        )
+        ).EntryPlugin.createDependency(clientSSRLoader, {
+          name: name + NEXT_CLIENT_SSR_ENTRY_SUFFIX,
+        })
         promises.push(
           new Promise<void>((res, rej) => {
             compilation.addEntry(
