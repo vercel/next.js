@@ -946,7 +946,7 @@ export default class HotReloader {
 
     // trigger invalidation to ensure any previous callbacks
     // are handled in the on-demand-entry-handler
-    getInvalidator().invalidate()
+    getInvalidator()?.invalidate()
   }
 
   public async stop(): Promise<void> {

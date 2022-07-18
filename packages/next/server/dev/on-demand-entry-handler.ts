@@ -460,19 +460,19 @@ class Invalidator {
     this.building = true
 
     if (!keys || keys.length === 0) {
-      this.multiCompiler.compilers[0].watching.invalidate()
-      this.multiCompiler.compilers[1].watching.invalidate()
-      this.multiCompiler.compilers[2].watching.invalidate()
+      this.multiCompiler.compilers[0].watching?.invalidate()
+      this.multiCompiler.compilers[1].watching?.invalidate()
+      this.multiCompiler.compilers[2].watching?.invalidate()
       return
     }
 
     for (const key of keys) {
       if (key === 'client') {
-        this.multiCompiler.compilers[0].watching.invalidate()
+        this.multiCompiler.compilers[0].watching?.invalidate()
       } else if (key === 'server') {
-        this.multiCompiler.compilers[1].watching.invalidate()
+        this.multiCompiler.compilers[1].watching?.invalidate()
       } else if (key === 'edgeServer') {
-        this.multiCompiler.compilers[2].watching.invalidate()
+        this.multiCompiler.compilers[2].watching?.invalidate()
       }
     }
   }
