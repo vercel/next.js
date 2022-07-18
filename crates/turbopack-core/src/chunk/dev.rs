@@ -48,7 +48,7 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_path(&self, path: &str) -> Result<FileSystemPathVc> {
-        Ok(self.root_path.join(&path))
+    fn asset_path(&self, path: &str) -> FileSystemPathVc {
+        self.root_path.join(&path)
     }
 }

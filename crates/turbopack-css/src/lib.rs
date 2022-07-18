@@ -95,7 +95,7 @@ struct ModuleChunkItem {
 impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
+        self.module.references()
     }
 }
 

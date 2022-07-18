@@ -119,10 +119,8 @@ struct StaticAsset {
 impl Asset for StaticAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<FileSystemPathVc> {
-        let (source_path, content) =
-            futures::try_join!(async { self.source.path().await }, async {
-                self.source.content().await
-            })?;
+        let source_path = self.source.path();
+        let content = self.source.content();
         let content_hash = turbopack_hash::hash_md4(match *content {
             FileContent::Content(ref file) => file.content(),
             _ => todo!("not implemented"),

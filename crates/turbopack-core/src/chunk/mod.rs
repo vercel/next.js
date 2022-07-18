@@ -316,7 +316,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
     ));
     chunk_items.push(chunk_item);
     processed_assets.insert(entry);
-    queue.push_back(ChunkContentWorkItem::AssetReferences(entry.references()));
 
     'outer: while let Some(item) = queue.pop_front() {
         match item {
