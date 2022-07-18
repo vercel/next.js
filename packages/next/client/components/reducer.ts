@@ -154,27 +154,28 @@ const canOptimisticallyRender = (
 ): boolean => {
   const segment = segments[0]
   const isLastSegment = segments.length === 1
-
   const [existingSegment, existingParallelRoutes, , , loadingMarker] =
     flightRouterState
+  // If the segments mismatch we can't resolve deeper into the tree
+  const segmentMatches = matchSegment(existingSegment, segment)
+
+  // If the segment mismatches we can't assume this level has loading
+  if (!segmentMatches) {
+    return false
+  }
 
   const hasLoading = loadingMarker === 'loading'
-
   // If the tree path holds at least one loading.js it will be optimistic
   if (hasLoading) {
     return true
   }
-
   // Above already catches the last segment case where `hasLoading` is true, so in this case it would always be `false`.
   if (isLastSegment) {
     return false
   }
 
-  // If the segments mismatch we can't resolve deeper into the tree
-  const segmentMatches = matchSegment(existingSegment, segment)
-
   // If the existingParallelRoutes does not have a `children` parallelRouteKey we can't resolve deeper into the tree
-  if (!segmentMatches || !existingParallelRoutes.children) {
+  if (!existingParallelRoutes.children) {
     return hasLoading
   }
 
@@ -188,9 +189,9 @@ const canOptimisticallyRender = (
 const createOptimisticTree = (
   segments: string[],
   flightRouterState: FlightRouterState | null,
-  isFirstSegment: boolean,
+  _isFirstSegment: boolean,
   parentRefetch: boolean,
-  href?: string
+  _href?: string
 ): FlightRouterState => {
   const [existingSegment, existingParallelRoutes] = flightRouterState || [
     null,
@@ -232,10 +233,11 @@ const createOptimisticTree = (
     result[3] = 'refetch'
   }
 
+  // TODO-APP: Revisit
   // Add url into the tree
-  if (isFirstSegment) {
-    result[2] = href
-  }
+  // if (isFirstSegment) {
+  //   result[2] = href
+  // }
 
   // Copy the loading flag from existing tree
   if (flightRouterState && flightRouterState[4]) {
@@ -250,15 +252,16 @@ const walkTreeWithFlightDataPath = (
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
 ): FlightRouterState => {
-  const [segment, parallelRoutes, url] = flightRouterState
+  const [segment, parallelRoutes /* , url */] = flightRouterState
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
     const tree: FlightRouterState = [...treePatch]
 
-    if (url) {
-      tree[2] = url
-    }
+    // TODO-APP: revisit
+    // if (url) {
+    //   tree[2] = url
+    // }
 
     return tree
   }
@@ -286,13 +289,14 @@ const walkTreeWithFlightDataPath = (
     },
   ]
 
-  if (url) {
-    tree[2] = url
-  }
+  // TODO-APP: Revisit
+  // if (url) {
+  //   tree[2] = url
+  // }
 
   // Copy loading flag
-  if (flightSegmentPath[4]) {
-    tree[4] = flightSegmentPath[4]
+  if (flightRouterState[4]) {
+    tree[4] = flightRouterState[4]
   }
 
   return tree

@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.3-canary.8
+      '@next/eslint-plugin-next': 12.2.3-canary.13
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -420,12 +420,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.3-canary.8
-      '@next/polyfill-module': 12.2.3-canary.8
-      '@next/polyfill-nomodule': 12.2.3-canary.8
-      '@next/react-dev-overlay': 12.2.3-canary.8
-      '@next/react-refresh-utils': 12.2.3-canary.8
-      '@next/swc': 12.2.3-canary.8
+      '@next/env': 12.2.3-canary.13
+      '@next/polyfill-module': 12.2.3-canary.13
+      '@next/polyfill-nomodule': 12.2.3-canary.13
+      '@next/react-dev-overlay': 12.2.3-canary.13
+      '@next/react-refresh-utils': 12.2.3-canary.13
+      '@next/swc': 12.2.3-canary.13
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -444,7 +444,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -498,7 +497,6 @@ importers:
       devalue: 2.0.1
       domain-browser: 4.19.0
       edge-runtime: 1.1.0-beta.11
-      etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -637,7 +635,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -690,7 +687,6 @@ importers:
       devalue: 2.0.1
       domain-browser: 4.19.0
       edge-runtime: 1.1.0-beta.11
-      etag: 1.8.1
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -5573,12 +5569,6 @@ packages:
 
   /@types/estree/0.0.51:
     resolution: {integrity: sha512-CuPgU6f3eT/XgKKPqKd/gLZV1Xmvf1a2R5POBOGQa6uv82xpls89HU5zKeVoyR8XzHd1RGNOlQlvUe3CFkjWNQ==}
-    dev: true
-
-  /@types/etag/1.8.0:
-    resolution: {integrity: sha512-EdSN0x+Y0/lBv7YAb8IU4Jgm6DWM+Bqtz7o5qozl96fzaqdqbdfHS5qjdpFeIv7xQ8jSLyjMMNShgYtMajEHyQ==}
-    dependencies:
-      '@types/node': 17.0.21
     dev: true
 
   /@types/events/3.0.0:
@@ -22058,7 +22048,7 @@ packages:
     requiresBuild: true
 
   /util-deprecate/1.0.2:
-    resolution: {integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=}
+    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
   /util-promisify/2.1.0:

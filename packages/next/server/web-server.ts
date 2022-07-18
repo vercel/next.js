@@ -9,7 +9,8 @@ import type { Options } from './base-server'
 
 import BaseServer from './base-server'
 import { renderToHTML } from './render'
-import { byteLength, generateETag } from './api-utils/web'
+import { byteLength } from './api-utils/web'
+import { generateETag } from './lib/etag'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -183,7 +184,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       const payload = await options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
       if (options.generateEtags) {
-        res.setHeader('ETag', await generateETag(payload))
+        res.setHeader('ETag', generateETag(payload))
       }
       res.body(payload)
     }
