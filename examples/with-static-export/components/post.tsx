@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import { PostData } from '../types/postdata'
 
-export default function Post({ title, body, id }) {
+export default function Post({ id, title, body }: PostData) {
   return (
     <article>
       <h2>{title}</h2>

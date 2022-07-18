@@ -20,6 +20,7 @@
 *.pem
 
 # debug
+.pnpm*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -32,3 +33,10 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# typescript
+*.tsbuildinfo
+
+# cache
+.swc/
+
