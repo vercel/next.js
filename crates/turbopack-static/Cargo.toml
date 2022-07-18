@@ -22,7 +22,6 @@ turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 
 serde = "1.0.136"
 md4 = "0.10.1"
-futures = "0.3.21"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

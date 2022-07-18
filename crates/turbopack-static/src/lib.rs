@@ -121,12 +121,12 @@ impl Asset for StaticAsset {
     async fn path(&self) -> Result<FileSystemPathVc> {
         let source_path = self.source.path();
         let content = self.source.content();
-        let content_hash = turbopack_hash::hash_md4(match *content {
+        let content_hash = turbopack_hash::hash_md4(match *content.await? {
             FileContent::Content(ref file) => file.content(),
             _ => todo!("not implemented"),
         });
         let content_hash_b16 = turbopack_hash::encode_base16(&content_hash);
-        let asset_path = match source_path.extension() {
+        let asset_path = match source_path.await?.extension() {
             Some(ext) => format!("{hash}.{ext}", hash = content_hash_b16, ext = ext),
             None => content_hash_b16,
         };
