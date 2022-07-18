@@ -127,6 +127,10 @@ export const entries: {
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
 
+const doneCallbacks: EventEmitter | null = new EventEmitter()
+const lastClientAccessPages = ['']
+const lastServerAccessPagesForAppDir = ['']
+
 export function onDemandEntryHandler({
   maxInactiveAge,
   multiCompiler,
@@ -145,9 +149,6 @@ export function onDemandEntryHandler({
   appDir?: string
 }) {
   invalidator = new Invalidator(multiCompiler)
-  const doneCallbacks: EventEmitter | null = new EventEmitter()
-  const lastClientAccessPages = ['']
-  const lastServerAccessPagesForAppDir = ['']
 
   const startBuilding = (_compilation: webpack.Compilation) => {
     invalidator.startBuilding()

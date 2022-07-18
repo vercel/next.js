@@ -29,6 +29,7 @@ import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
   entries,
+  getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -922,12 +923,6 @@ export default class HotReloader {
       )
     })
 
-    // clear previous entries from on-demand-entry-handler
-    // so we have a fresh start from any previous instances
-    for (const key of Object.keys(entries)) {
-      delete entries[key]
-    }
-
     this.onDemandEntries = onDemandEntryHandler({
       multiCompiler,
       pagesDir: this.pagesDir,
@@ -948,6 +943,10 @@ export default class HotReloader {
         edgeServerStats: () => this.edgeServerStats,
       }),
     ]
+
+    // trigger invalidation to ensure any previous callbacks
+    // are handled in the on-demand-entry-handler
+    getInvalidator().invalidate()
   }
 
   public async stop(): Promise<void> {
