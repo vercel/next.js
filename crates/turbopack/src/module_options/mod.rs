@@ -84,8 +84,13 @@ pub async fn the_module_options() -> ModuleOptionsVc {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::any(vec![
-                    ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".ico".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".svg".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
                 ]),
