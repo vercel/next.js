@@ -6,6 +6,8 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
 describe('app dir', () => {
+  const isDev = (global as any).isNextDev
+
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
@@ -64,11 +66,24 @@ describe('app dir', () => {
   it('should serve /index as separate page', async () => {
     const html = await renderViaHTTP(next.url, '/dashboard/index')
     expect(html).toContain('hello from app/dashboard/index')
+    // should load chunks generated via async import correctly
+    expect(html).toContain('hello from lazy')
   })
 
-  it('should load chunks generated via async import correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/dashboard/index')
-    expect(html).toContain('hello from lazy')
+  // TODO-APP: handle css modules fouc in dev
+  it.skip('should handle css imports in next/dynamic correctly', async () => {
+    const browser = await webdriver(next.url, '/dashboard/index')
+
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-dynamic')).color`
+      )
+    ).toBe('rgb(0, 0, 255)')
+    expect(
+      await browser.eval(
+        `window.getComputedStyle(document.querySelector('#css-text-lazy')).color`
+      )
+    ).toBe('rgb(128, 0, 128)')
   })
 
   it('should include layouts when no direct parent layout', async () => {
@@ -193,6 +208,251 @@ describe('app dir', () => {
     expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
   })
 
+  it('should support rewrites', async () => {
+    const html = await renderViaHTTP(next.url, '/rewritten-to-dashboard')
+    expect(html).toContain('hello from app/dashboard')
+  })
+
+  // TODO-APP: Enable in development
+  ;(isDev ? it.skip : it)(
+    'should not rerender layout when navigating between routes in the same layout',
+    async () => {
+      const browser = await webdriver(next.url, '/same-layout/first')
+
+      try {
+        // Get the render id from the dom and click the first link.
+        const firstRenderID = await browser.elementById('render-id').text()
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#second-page')
+
+        // Get the render id from the dom again, it should be the same!
+        const secondRenderID = await browser.elementById('render-id').text()
+        expect(secondRenderID).toBe(firstRenderID)
+
+        // Navigate back to the first page again by clicking the link.
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#first-page')
+
+        // Get the render id from the dom again, it should be the same!
+        const thirdRenderID = await browser.elementById('render-id').text()
+        expect(thirdRenderID).toBe(firstRenderID)
+      } finally {
+        await browser.close()
+      }
+    }
+  )
+
+  describe('<Link />', () => {
+    // TODO-APP: fix development test
+    it.skip('should hard push', async () => {
+      const browser = await webdriver(next.url, '/link-hard-push')
+
+      try {
+        // Click the link on the page, and verify that the history entry was
+        // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(3)
+
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
+
+        // Get the id again, and compare, they should not be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).not.toBe(firstID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    // TODO-APP: fix development test
+    it.skip('should hard replace', async () => {
+      const browser = await webdriver(next.url, '/link-hard-replace')
+
+      try {
+        // Get the render ID so we can compare it.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Click the link on the page, and verify that the history entry was NOT
+        // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementById('self-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Get the date again, and compare, they should not be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).not.toBe(firstID)
+
+        // Navigate to the subpage, verify that the history entry was NOT added.
+        await browser.elementById('subpage-link').click()
+        await browser.waitForElementByCss('#back-link')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Navigate back again, verify that the history entry was NOT added.
+        await browser.elementById('back-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Get the date again, and compare, they should not be the same.
+        const thirdID = await browser.elementById('render-id').text()
+        expect(thirdID).not.toBe(secondID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should soft push', async () => {
+      const browser = await webdriver(next.url, '/link-soft-push')
+
+      try {
+        // Click the link on the page, and verify that the history entry was
+        // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(3)
+
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Go back, and redo the navigation by clicking the link.
+        await browser.back()
+        await browser.elementById('link').click()
+
+        // Get the date again, and compare, they should be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should soft replace', async () => {
+      const browser = await webdriver(next.url, '/link-soft-replace')
+
+      try {
+        // Get the render ID so we can compare it.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Click the link on the page, and verify that the history entry was NOT
+        // added.
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementById('self-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Get the id on the rendered page.
+        const secondID = await browser.elementById('render-id').text()
+        expect(secondID).toBe(firstID)
+
+        // Navigate to the subpage, verify that the history entry was NOT added.
+        await browser.elementById('subpage-link').click()
+        await browser.waitForElementByCss('#back-link')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Navigate back again, verify that the history entry was NOT added.
+        await browser.elementById('back-link').click()
+        await browser.waitForElementByCss('#render-id')
+        expect(await browser.eval('window.history.length')).toBe(2)
+
+        // Get the date again, and compare, they should be the same.
+        const thirdID = await browser.elementById('render-id').text()
+        expect(thirdID).toBe(firstID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should be soft for back navigation', async () => {
+      const browser = await webdriver(next.url, '/with-id')
+
+      try {
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Click the link, and go back.
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-navigation')
+        await browser.back()
+
+        // Get the date again, and compare, they should be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should be soft for forward navigation', async () => {
+      const browser = await webdriver(next.url, '/with-id')
+
+      try {
+        // Click the link.
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-navigation')
+
+        // Get the id on the rendered page.
+        const firstID = await browser.elementById('render-id').text()
+
+        // Go back, then forward.
+        await browser.back()
+        await browser.forward()
+
+        // Get the date again, and compare, they should be the same.
+        const secondID = await browser.elementById('render-id').text()
+        expect(firstID).toBe(secondID)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should respect rewrites', async () => {
+      const browser = await webdriver(next.url, '/rewrites')
+
+      try {
+        // Click the link.
+        await browser.elementById('link').click()
+        await browser.waitForElementByCss('#from-dashboard')
+
+        // Check to see that we were rewritten and not redirected.
+        const pathname = await browser.eval('window.location.pathname')
+        expect(pathname).toBe('/rewritten-to-dashboard')
+
+        // Check to see that the page we navigated to is in fact the dashboard.
+        const html = await browser.eval(
+          'window.document.documentElement.innerText'
+        )
+        expect(html).toContain('hello from app/dashboard')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    // TODO-APP: should enable when implemented
+    it.skip('should allow linking from app page to pages page', async () => {
+      const browser = await webdriver(next.url, '/pages-linking')
+
+      try {
+        // Click the link.
+        await browser.elementById('app-link').click()
+        await browser.waitForElementByCss('#pages-link')
+
+        // Click the other link.
+        await browser.elementById('pages-link').click()
+        await browser.waitForElementByCss('#app-link')
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+
   describe('server components', () => {
     // TODO: why is this not servable but /dashboard+rootonly/hello.server.js
     // should be? Seems like they both either should be servable or not
@@ -259,6 +519,39 @@ describe('app dir', () => {
         expect($('#id-page-params').text()).toBe(
           '{"category":"books","id":"hello-world"}'
         )
+      })
+    })
+
+    describe('catch-all routes', () => {
+      it('should handle optional segments', async () => {
+        const params = ['this', 'is', 'a', 'test']
+        const route = params.join('/')
+        const html = await renderViaHTTP(
+          next.url,
+          `/optional-catch-all/${route}`
+        )
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe(route)
+      })
+
+      it('should handle optional segments root', async () => {
+        const html = await renderViaHTTP(next.url, `/optional-catch-all`)
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe('')
+      })
+
+      it('should handle required segments', async () => {
+        const params = ['this', 'is', 'a', 'test']
+        const route = params.join('/')
+        const html = await renderViaHTTP(next.url, `/catch-all/${route}`)
+        const $ = cheerio.load(html)
+        expect($('#text').attr('data-params')).toBe(route)
+      })
+
+      it('should handle required segments root as not found', async () => {
+        const res = await fetchViaHTTP(next.url, `/catch-all`)
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
       })
     })
 
@@ -390,51 +683,387 @@ describe('app dir', () => {
         )
       })
     })
+
+    describe('hooks', () => {
+      describe('useCookies', () => {
+        it('should retrive cookies in a server component', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-cookies')
+
+          try {
+            await browser.waitForElementByCss('#does-not-have-cookie')
+            browser.addCookie({ name: 'use-cookies', value: 'value' })
+            browser.refresh()
+
+            await browser.waitForElementByCss('#has-cookie')
+            browser.deleteCookies()
+            browser.refresh()
+
+            await browser.waitForElementByCss('#does-not-have-cookie')
+          } finally {
+            await browser.close()
+          }
+        })
+
+        it('should access cookies on <Link /> navigation', async () => {
+          const browser = await webdriver(next.url, '/navigation')
+
+          try {
+            // Click the cookies link to verify it can't see the cookie that's
+            // not there.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#does-not-have-cookie')
+
+            // Go back and add the cookies.
+            await browser.back()
+            await browser.waitForElementByCss('#from-navigation')
+            browser.addCookie({ name: 'use-cookies', value: 'value' })
+
+            // Click the cookies link again to see that the cookie can be picked
+            // up again.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#has-cookie')
+
+            // Go back and remove the cookies.
+            await browser.back()
+            await browser.waitForElementByCss('#from-navigation')
+            browser.deleteCookies()
+
+            // Verify for the last time that after clicking the cookie link
+            // again, there are no cookies.
+            await browser.elementById('use-cookies').click()
+            await browser.waitForElementByCss('#does-not-have-cookie')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+
+      describe('useHeaders', () => {
+        it('should have access to incoming headers in a server component', async () => {
+          // Check to see that we can't see the header when it's not present.
+          let html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-headers',
+            {},
+            { headers: {} }
+          )
+          let $ = cheerio.load(html)
+          expect($('#does-not-have-header').length).toBe(1)
+          expect($('#has-header').length).toBe(0)
+
+          // Check to see that we can see the header when it's present.
+          html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-headers',
+            {},
+            { headers: { 'x-use-headers': 'value' } }
+          )
+          $ = cheerio.load(html)
+          expect($('#has-header').length).toBe(1)
+          expect($('#does-not-have-header').length).toBe(0)
+        })
+
+        it('should access headers on <Link /> navigation', async () => {
+          const browser = await webdriver(next.url, '/navigation')
+
+          try {
+            await browser.elementById('use-headers').click()
+            await browser.waitForElementByCss('#has-referer')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+
+      describe('usePreviewData', () => {
+        it('should return no preview data when there is none', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-preview-data')
+
+          try {
+            await browser.waitForElementByCss('#does-not-have-preview-data')
+          } finally {
+            await browser.close()
+          }
+        })
+
+        it('should return preview data when there is some', async () => {
+          const browser = await webdriver(next.url, '/api/preview')
+
+          try {
+            await browser.loadPage(next.url + '/hooks/use-preview-data', {
+              disableCache: false,
+              beforePageLoad: null,
+            })
+            await browser.waitForElementByCss('#has-preview-data')
+          } finally {
+            await browser.close()
+          }
+        })
+      })
+
+      describe('useRouter', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-router/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useParams', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-params/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useSearchParams', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('usePathname', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/server')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useLayoutSegments', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-layout-segments/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useSelectedLayoutSegment', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-selected-layout-segment/server'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+    })
+  })
+
+  describe('client components', () => {
+    describe('hooks', () => {
+      describe('useCookies', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-cookies/client')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('usePreviewData', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-preview-data/client'
+          )
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('useHeaders', () => {
+        // TODO-APP: should enable when implemented
+        it.skip('should throw an error when imported', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-headers/client')
+          expect(res.status).toBe(500)
+          expect(await res.text()).toContain('Internal Server Error')
+        })
+      })
+
+      describe('usePathname', () => {
+        it('should have the correct pathname', async () => {
+          const html = await renderViaHTTP(next.url, '/hooks/use-pathname')
+          const $ = cheerio.load(html)
+          expect($('#pathname').attr('data-pathname')).toBe(
+            '/hooks/use-pathname'
+          )
+        })
+      })
+
+      describe('useSearchParams', () => {
+        it('should have the correct search params', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/hooks/use-search-params?first=value&second=other%20value&third'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params')
+          expect(el.attr('data-param-first')).toBe('value')
+          expect(el.attr('data-param-second')).toBe('other value')
+          expect(el.attr('data-param-third')).toBe('')
+          expect(el.attr('data-param-not-real')).toBe('N/A')
+        })
+      })
+
+      describe('useRouter', () => {
+        it('should allow access to the router', async () => {
+          const browser = await webdriver(next.url, '/hooks/use-router')
+
+          try {
+            // Wait for the page to load, click the button (which uses a method
+            // on the router) and then wait for the correct page to load.
+            await browser.waitForElementByCss('#router')
+            await browser.elementById('button-push').click()
+            await browser.waitForElementByCss('#router-sub-page')
+
+            // Go back (confirming we did do a hard push), and wait for the
+            // correct previous page.
+            await browser.back()
+            await browser.waitForElementByCss('#router')
+          } finally {
+            await browser.close()
+          }
+        })
+
+        it('should have consistent query and params handling', async () => {
+          const html = await renderViaHTTP(
+            next.url,
+            '/param-and-query/params?slug=query'
+          )
+          const $ = cheerio.load(html)
+          const el = $('#params-and-query')
+          expect(el.attr('data-params')).toBe('params')
+          expect(el.attr('data-query')).toBe('query')
+        })
+      })
+    })
+
+    it('should throw an error when getStaticProps is used', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/client-with-errors/get-static-props'
+      )
+      expect(res.status).toBe(500)
+      expect(await res.text()).toContain(
+        isDev
+          ? 'getStaticProps is not supported on Client Components'
+          : 'Internal Server Error'
+      )
+    })
+
+    it('should throw an error when getServerSideProps is used', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/client-with-errors/get-server-side-props'
+      )
+      expect(res.status).toBe(500)
+      expect(await res.text()).toContain(
+        isDev
+          ? 'getServerSideProps is not supported on Client Components'
+          : 'Internal Server Error'
+      )
+    })
   })
 
   describe('css support', () => {
-    it('should support css modules inside client layouts', async () => {
-      const browser = await webdriver(next.url, '/client-nested')
+    describe('server layouts', () => {
+      it('should support global css inside server layouts', async () => {
+        const browser = await webdriver(next.url, '/dashboard')
 
-      // Should render h1 in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('h1')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+        // Should body text in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.p')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // Should inject global css for .green selectors
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('.green')).color`
+          )
+        ).toBe('rgb(0, 128, 0)')
+      })
+
+      it('should support css modules inside server layouts', async () => {
+        const browser = await webdriver(next.url, '/css/css-nested')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#server-cssm')).color`
+          )
+        ).toBe('rgb(0, 128, 0)')
+      })
     })
 
-    it('should support css modules inside client pages', async () => {
-      const browser = await webdriver(next.url, '/client-component-route')
-
-      // Should render p in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('p')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+    describe.skip('server pages', () => {
+      it('should support global css inside server pages', async () => {})
+      it('should support css modules inside server pages', async () => {})
     })
 
-    it('should support global css inside client layouts', async () => {
-      const browser = await webdriver(next.url, '/client-nested')
+    describe('client layouts', () => {
+      it('should support css modules inside client layouts', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
 
-      // Should render button in red
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('button')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
+        // Should render h1 in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should support global css inside client layouts', async () => {
+        const browser = await webdriver(next.url, '/client-nested')
+
+        // Should render button in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('button')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
     })
 
-    it('should support global css inside client pages', async () => {
-      const browser = await webdriver(next.url, '/client-component-route')
+    describe('client pages', () => {
+      it('should support css modules inside client pages', async () => {
+        const browser = await webdriver(next.url, '/client-component-route')
 
-      // Should render `b` in blue
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('b')).color`
-        )
-      ).toBe('rgb(0, 0, 255)')
+        // Should render p in red
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('p')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should support global css inside client pages', async () => {
+        const browser = await webdriver(next.url, '/client-component-route')
+
+        // Should render `b` in blue
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('b')).color`
+          )
+        ).toBe('rgb(0, 0, 255)')
+      })
     })
   })
 })

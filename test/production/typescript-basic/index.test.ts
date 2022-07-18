@@ -10,6 +10,7 @@ describe('TypeScript basic', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app')),
       dependencies: {
+        '@next/bundle-analyzer': 'canary',
         typescript: 'latest',
         '@types/node': 'latest',
         '@types/react': 'latest',

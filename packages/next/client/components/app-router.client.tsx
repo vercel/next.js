@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   AppTreeContext,
-  CacheNode,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type {
+  CacheNode,
+  AppRouterInstance,
+} from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 import {
@@ -16,16 +18,67 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-function fetchFlight(
-  url: URL,
-  flightRouterStateData: string
-): Promise<Response> {
+async function loadCss(cssChunkInfoJson: string) {
+  const data = JSON.parse(cssChunkInfoJson)
+  await Promise.all(
+    data.chunks.map((chunkId: string) => {
+      // load css related chunks
+      return (self as any).__next_chunk_load__(chunkId)
+    })
+  )
+  // In development mode, import css in dev when it's wrapped by style loader.
+  // In production mode, css are standalone chunk that doesn't need to be imported.
+  if (data.id) {
+    ;(self as any).__next_require__(data.id)
+  }
+}
+
+const loadCssFromStreamData = (data: string) => {
+  if (data.startsWith('CSS:')) {
+    loadCss(data.slice(4).trim())
+  }
+}
+
+function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
   searchParams.append('__flight_router_state_tree__', flightRouterStateData)
 
-  return fetch(flightUrl.toString())
+  const { readable, writable } = new TransformStream()
+
+  // TODO-APP: Refine the buffering code here to make it more correct.
+  let buffer = ''
+  const loadCssFromFlight = new TransformStream({
+    transform(chunk, controller) {
+      const process = (buf: string) => {
+        if (buf) {
+          if (buf.startsWith('CSS:')) {
+            loadCssFromStreamData(buf)
+          } else {
+            controller.enqueue(new TextEncoder().encode(buf))
+          }
+        }
+      }
+
+      const data = new TextDecoder().decode(chunk)
+      buffer += data
+      let index
+      while ((index = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, index + 1)
+        buffer = buffer.slice(index + 1)
+        process(line)
+      }
+      process(buffer)
+      buffer = ''
+    },
+  })
+
+  fetch(flightUrl.toString()).then((res) => {
+    res.body?.pipeThrough(loadCssFromFlight).pipeTo(writable)
+  })
+
+  return readable
 }
 
 export function fetchServerResponse(
@@ -33,46 +86,55 @@ export function fetchServerResponse(
   flightRouterState: FlightRouterState
 ): { readRoot: () => FlightData } {
   const flightRouterStateData = JSON.stringify(flightRouterState)
-  return createFromFetch(fetchFlight(url, flightRouterStateData))
+  return createFromReadableStream(fetchFlight(url, flightRouterStateData))
 }
 
-// TODO: move this back into AppRouter
-let initialCache: CacheNode =
-  typeof window === 'undefined'
-    ? null!
-    : {
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      }
+function ErrorOverlay({
+  children,
+}: React.PropsWithChildren<{}>): React.ReactElement {
+  if (process.env.NODE_ENV === 'production') {
+    return <>{children}</>
+  } else {
+    const {
+      ReactDevOverlay,
+    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
+  }
+}
+
+// TODO-APP: move this back into AppRouter
+let initialParallelRoutes: CacheNode['parallelRoutes'] =
+  typeof window === 'undefined' ? null! : new Map()
 
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
+  initialStylesheets,
   children,
+  hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
+  initialStylesheets: string[]
   children: React.ReactNode
+  hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
-    typeof reducer
-  >(reducer, {
-    tree: initialTree,
-    cache:
-      typeof window === 'undefined'
-        ? {
-            data: null,
-            subTreeData: null,
-            parallelRoutes: new Map(),
-          }
-        : initialCache,
-    pushRef: { pendingPush: false, mpaNavigation: false },
-    canonicalUrl: initialCanonicalUrl,
-  })
+  const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
+    React.useReducer<typeof reducer>(reducer, {
+      tree: initialTree,
+      cache: {
+        data: null,
+        subTreeData: children,
+        parallelRoutes:
+          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      },
+      pushRef: { pendingPush: false, mpaNavigation: false },
+      focusRef: { focus: false },
+      canonicalUrl: initialCanonicalUrl,
+    })
 
   useEffect(() => {
-    initialCache = null!
+    initialParallelRoutes = null!
   }, [])
 
   const { query, pathname } = React.useMemo(() => {
@@ -129,7 +191,7 @@ export default function AppRouter({
     }
 
     const routerInstance: AppRouterInstance = {
-      // TODO: implement prefetching of loading / flight
+      // TODO-APP: implement prefetching of loading / flight
       prefetch: (_href) => Promise.resolve(),
       replace: (href) => {
         // @ts-ignore startTransition exists
@@ -153,6 +215,24 @@ export default function AppRouter({
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'hard', 'push')
+        })
+      },
+      reload: () => {
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: 'reload',
+            payload: {
+              // TODO-APP: revisit if this needs to be passed.
+              url: new URL(window.location.href),
+              cache: {
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
+              mutable: {},
+            },
+          })
         })
       },
     }
@@ -186,11 +266,11 @@ export default function AppRouter({
 
   const onPopState = React.useCallback(({ state }: PopStateEvent) => {
     if (!state) {
-      // TODO: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+      // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
       return
     }
 
-    // TODO: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
+    // TODO-APP: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
     // It reloads the page in this case but we might have to revisit this as the old router ignores it.
     if (!state.__NA) {
       window.location.reload()
@@ -198,7 +278,7 @@ export default function AppRouter({
     }
 
     // @ts-ignore useTransition exists
-    // TODO: Ideally the back button should not use startTransition as it should apply the updates synchronously
+    // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
     // Without startTransition works if the cache is there for this path
     React.startTransition(() => {
       dispatch({
@@ -217,7 +297,6 @@ export default function AppRouter({
       window.removeEventListener('popstate', onPopState)
     }
   }, [onPopState])
-
   return (
     <PathnameContext.Provider value={pathname}>
       <QueryContext.Provider value={query}>
@@ -225,6 +304,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
+            focusRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
@@ -235,9 +315,11 @@ export default function AppRouter({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
+                stylesheets: initialStylesheets,
               }}
             >
-              {children}
+              <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>
+              {hotReloader}
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </FullAppTreeContext.Provider>
