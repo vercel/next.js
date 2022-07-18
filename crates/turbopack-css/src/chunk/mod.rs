@@ -1,7 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -143,13 +143,14 @@ impl Asset for CssChunk {
             .as_chunk_item(this.context)
             .content(c_context, this.context);
 
-        let mut map = HashMap::new();
-        for chunk_item in content.chunk_items.iter() {
+        let entries = try_join_all(content.chunk_items.iter().map(|chunk_item| async {
             let chunk_item: &CssChunkItemVc = chunk_item;
             let content_vc = chunk_item.content(c_context, this.context);
             let content: &CssChunkItemContent = &*content_vc.await?;
-            map.insert(content.id.await?.clone(), content_vc);
-        }
+            Ok((content.id.await?.clone(), content_vc)) as Result<_>
+        }))
+        .await?;
+        let map = entries.into_iter().collect::<HashMap<_, _>>();
 
         let path = self_vc.path();
         let chunk_id = path.to_string();
