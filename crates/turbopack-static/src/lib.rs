@@ -1,7 +1,6 @@
 #![feature(min_specialization)]
 
-use anyhow::Result;
-use md4::Digest;
+use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
@@ -12,10 +11,13 @@ use turbopack_core::{
     resolve::{ResolveResult, ResolveResultVc},
 };
 use turbopack_css::embed::{CssEmbed, CssEmbedVc, CssEmbeddable, CssEmbeddableVc};
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
-    EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
-    EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
+        EcmascriptChunkItemContentVc, EcmascriptChunkItemVc, EcmascriptChunkPlaceable,
+        EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    },
+    utils::stringify_str,
 };
 
 #[turbo_tasks::value(
@@ -123,7 +125,7 @@ impl Asset for StaticAsset {
         let content = self.source.content();
         let content_hash = turbopack_hash::hash_md4(match *content.await? {
             FileContent::Content(ref file) => file.content(),
-            _ => todo!("not implemented"),
+            _ => return Err(anyhow!("StaticAsset::path: unsupported file content")),
         });
         let content_hash_b16 = turbopack_hash::encode_base16(&content_hash);
         let asset_path = match source_path.await?.extension() {
@@ -200,8 +202,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         // __turbopack_xxx__
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_module__.exports = \"{path}\";",
-                path = self.static_asset.path().await?
+                "__turbopack_module__.exports = {path};",
+                path = stringify_str(&self.static_asset.path().await?.to_string())
             ),
             id: chunk_context.id(EcmascriptChunkPlaceableVc::cast_from(self.module)),
         }
