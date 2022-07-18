@@ -3,10 +3,12 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import {
   AppRouterContext,
   AppTreeContext,
-  CacheNode,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type {
+  CacheNode,
+  AppRouterInstance,
+} from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 import {
@@ -117,19 +119,19 @@ export default function AppRouter({
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
-    typeof reducer
-  >(reducer, {
-    tree: initialTree,
-    cache: {
-      data: null,
-      subTreeData: children,
-      parallelRoutes:
-        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-    },
-    pushRef: { pendingPush: false, mpaNavigation: false },
-    canonicalUrl: initialCanonicalUrl,
-  })
+  const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
+    React.useReducer<typeof reducer>(reducer, {
+      tree: initialTree,
+      cache: {
+        data: null,
+        subTreeData: children,
+        parallelRoutes:
+          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      },
+      pushRef: { pendingPush: false, mpaNavigation: false },
+      focusRef: { focus: false },
+      canonicalUrl: initialCanonicalUrl,
+    })
 
   useEffect(() => {
     initialParallelRoutes = null!
@@ -302,6 +304,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
+            focusRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
