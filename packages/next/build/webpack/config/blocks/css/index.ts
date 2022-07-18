@@ -368,9 +368,13 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: {
-                or: [
-                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                  regexClientEntry,
+                and: [
+                  {
+                    or: [
+                      { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
+                      regexClientEntry,
+                    ],
+                  },
                 ],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
