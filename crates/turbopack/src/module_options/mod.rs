@@ -90,8 +90,6 @@ impl ModuleRule {
 
 #[derive(TraceRawVcs, Serialize, Deserialize)]
 pub enum ModuleRuleCondition {
-    And(Box<ModuleRuleCondition>, Box<ModuleRuleCondition>),
-    Or(Box<ModuleRuleCondition>, Box<ModuleRuleCondition>),
     All(Vec<ModuleRuleCondition>),
     Any(Vec<ModuleRuleCondition>),
     ResourcePathHasNoExtension,
