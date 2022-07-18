@@ -224,11 +224,7 @@ export function onDemandEntryHandler({
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
 
   setInterval(function () {
-    disposeInactiveEntries(
-      lastClientAccessPages,
-      lastServerAccessPagesForAppDir,
-      maxInactiveAge
-    )
+    disposeInactiveEntries(maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
 
   function handleAppDirPing(
@@ -398,11 +394,7 @@ export function onDemandEntryHandler({
   }
 }
 
-function disposeInactiveEntries(
-  lastClientAccessPages: string[],
-  lastServerAccessPagesForAppDir: string[],
-  maxInactiveAge: number
-) {
+function disposeInactiveEntries(maxInactiveAge: number) {
   Object.keys(entries).forEach((page) => {
     const { lastActiveTime, status, dispose, bundlePath } = entries[page]
 
