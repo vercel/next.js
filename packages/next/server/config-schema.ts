@@ -335,6 +335,9 @@ const configSchema = {
         optimizeCss: {
           type: 'boolean',
         },
+        optimisticClientCache: {
+          type: 'boolean',
+        },
         outputFileTracingRoot: {
           minLength: 1,
           type: 'string',

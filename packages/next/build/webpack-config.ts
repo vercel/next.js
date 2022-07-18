@@ -1525,6 +1525,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
           config.experimental.newNextLinkBehavior
         ),
+        'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
+          config.experimental.optimisticClientCache
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(isClient),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
