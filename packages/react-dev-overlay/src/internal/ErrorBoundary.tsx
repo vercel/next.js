@@ -12,6 +12,11 @@ class ErrorBoundary extends React.PureComponent<
   ErrorBoundaryState
 > {
   state = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
   componentDidCatch(
     error: Error,
     // Loosely typed because it depends on the React version and was
