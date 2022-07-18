@@ -87,7 +87,8 @@ export class ClientEntryPlugin {
             !rawRequest.startsWith('.') &&
             !rawRequest.startsWith('/')
               ? rawRequest
-              : mod.userRequest
+              : // resourceResolveData.path doesn't contain the loader queries
+                mod.resourceResolveData?.path || mod.userRequest
 
           if (visited.has(modRequest)) return
           visited.add(modRequest)
