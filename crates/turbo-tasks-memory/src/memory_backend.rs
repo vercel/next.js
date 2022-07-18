@@ -244,16 +244,25 @@ impl Backend for MemoryBackend {
         })
     }
 
+    fn task_execution_result(
+        &self,
+        task: TaskId,
+        result: anyhow::Result<RawVc>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.with_task(task, |task| {
+            task.execution_result(result, turbo_tasks);
+        })
+    }
+
     fn task_execution_completed(
         &self,
         task: TaskId,
         cell_mappings: Option<CellMappings>,
         duration: Duration,
-        result: anyhow::Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         self.with_task(task, |task| {
-            task.execution_result(result, turbo_tasks);
             task.execution_completed(cell_mappings, duration, self, turbo_tasks)
         })
     }

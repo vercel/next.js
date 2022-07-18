@@ -338,14 +338,14 @@ impl<B: Backend> TurboTasks<B> {
                                         duration.as_millis()
                                     )
                                 }
+                                this.backend.task_execution_result(task_id, result, &*this);
+                                this.notify_scheduled_tasks_internal();
                                 let reexecute = this.backend.task_execution_completed(
                                     task_id,
                                     cell_mappings,
                                     duration,
-                                    result,
                                     &*this,
                                 );
-                                this.notify_scheduled_tasks_internal();
                                 if !reexecute {
                                     break;
                                 }
