@@ -339,7 +339,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 // and fallback to an external reference completely
                 // The cancellation is at these "continue 'outer;" lines
                 let mut inner_chunk_items = Vec::new();
-                let mut inner_assets = Vec::new();
                 let mut inner_chunks = Vec::new();
                 let mut inner_chunk_groups = Vec::new();
                 for asset in item
@@ -382,7 +381,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         // chunk item, chunk or other asset?
                         if let Some(chunk_item) = I::from_asset(context, *asset).await? {
                             inner_chunk_items.push(chunk_item);
-                            inner_assets.push(*asset);
                             continue;
                         }
                     }
@@ -402,9 +400,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         chunk_item.references(),
                     ));
                     chunk_items.push(chunk_item);
-                }
-                for asset in inner_assets {
-                    queue.push_back(ChunkContentWorkItem::AssetReferences(asset.references()));
                 }
                 for chunk in inner_chunks {
                     chunks.push(chunk);
