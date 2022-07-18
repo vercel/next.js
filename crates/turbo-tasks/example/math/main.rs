@@ -46,7 +46,7 @@ fn main() {
             let tt = tt.clone();
             async move {
                 tt.wait_done().await;
-                println!("done in {} ms", start.elapsed().as_millis());
+                println!("done in {}", FormatDuration(start.elapsed()));
 
                 for task in tt.cached_tasks_iter() {
                     task.reset_executions();
@@ -54,11 +54,7 @@ fn main() {
 
                 loop {
                     let (elapsed, count) = tt.wait_next_done().await;
-                    if elapsed.as_millis() >= 10 {
-                        println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-                    } else {
-                        println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-                    }
+                    println!("updated {} tasks in {}", count, FormatDuration(elapsed));
                 }
             }
         })

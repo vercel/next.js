@@ -1919,6 +1919,7 @@ mod tests {
     use swc_ecma_transforms_base::resolver;
     use swc_ecma_visit::VisitMutWith;
     use testing::NormalizedOutput;
+    use turbo_tasks::util::FormatDuration;
 
     use super::{
         graph::{create_graph, EvalContext},
@@ -2024,24 +2025,32 @@ mod tests {
                         ))
                         .await
                         .unwrap();
-                        let time = start.elapsed().as_millis();
-                        if time > 1 {
-                            println!("linking {} {id} took {} ms", input.display(), time);
+                        let time = start.elapsed();
+                        if time.as_millis() > 1 {
+                            println!(
+                                "linking {} {id} took {}",
+                                input.display(),
+                                FormatDuration(time)
+                            );
                         }
                         res.normalize();
 
                         resolved.push((id.clone(), res));
                     }
-                    let time = start.elapsed().as_millis();
-                    if time > 1 {
-                        println!("linking {} took {} ms", input.display(), time);
+                    let time = start.elapsed();
+                    if time.as_millis() > 1 {
+                        println!("linking {} took {}", input.display(), FormatDuration(time));
                     }
 
                     let start = Instant::now();
-                    let time = start.elapsed().as_millis();
+                    let time = start.elapsed();
                     let explainer = explain_all(&resolved);
-                    if time > 1 {
-                        println!("explaining {} took {} ms", input.display(), time);
+                    if time.as_millis() > 1 {
+                        println!(
+                            "explaining {} took {}",
+                            input.display(),
+                            FormatDuration(time)
+                        );
                     }
 
                     NormalizedOutput::from(explainer)

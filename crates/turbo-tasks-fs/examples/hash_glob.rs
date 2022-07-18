@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, env::current_dir, time::Instant};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_tasks::{primitives::StringVc, NothingVc, TurboTasks};
+use turbo_tasks::{primitives::StringVc, util::FormatDuration, NothingVc, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, register, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc,
     FileSystemVc, ReadGlobResultVc,
@@ -38,15 +38,11 @@ async fn main() {
         })
     });
     tt.wait_done().await;
-    println!("done in {} ms", start.elapsed().as_millis());
+    println!("done in {}", FormatDuration(start.elapsed()));
 
     loop {
         let (elapsed, count) = tt.wait_next_done().await;
-        if elapsed.as_millis() >= 10 {
-            println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-        } else {
-            println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-        }
+        println!("updated {} tasks in {}", count, FormatDuration(elapsed));
     }
 }
 

@@ -28,6 +28,7 @@ use crate::{
     task_input::{SharedReference, SharedValue, TaskInput},
     timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
+    util::FormatDuration,
     Nothing, NothingVc, TaskId, Typed, TypedForInput, ValueTypeId,
 };
 
@@ -333,9 +334,9 @@ impl<B: Backend> TurboTasks<B> {
                                 }
                                 if duration.as_millis() > 1000 {
                                     println!(
-                                        "{} took {} ms",
+                                        "{} took {}",
                                         this.backend.get_task_description(task_id),
-                                        duration.as_millis()
+                                        FormatDuration(duration)
                                     )
                                 }
                                 this.backend.task_execution_result(task_id, result, &*this);

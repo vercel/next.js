@@ -9,7 +9,7 @@ use std::{
 };
 
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{NothingVc, TurboTasks};
+use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{
     stats::Stats,
@@ -55,15 +55,11 @@ async fn main() {
         let tt = tt.clone();
         async move {
             tt.wait_done().await;
-            println!("done in {} ms", start.elapsed().as_millis());
+            println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {
                 let (elapsed, count) = tt.wait_next_done().await;
-                if elapsed.as_millis() >= 10 {
-                    println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-                } else {
-                    println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-                }
+                println!("updated {} tasks in {}", count, FormatDuration(elapsed));
             }
         }
     })

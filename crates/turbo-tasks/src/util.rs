@@ -1,4 +1,4 @@
-use std::{fmt::Display, future::Future, pin::Pin, sync::Arc, task::Poll};
+use std::{fmt::Display, future::Future, pin::Pin, sync::Arc, task::Poll, time::Duration};
 
 use anyhow::Error;
 
@@ -143,5 +143,21 @@ impl<T: Unpin, E: Unpin, F: Future<Output = Result<T, E>> + Unpin> Future for Tr
         } else {
             Poll::Pending
         }
+    }
+}
+
+pub struct FormatDuration(pub Duration);
+
+impl Display for FormatDuration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = self.0.as_secs();
+        if s > 10 {
+            return write!(f, "{}s", s);
+        }
+        let ms = self.0.as_millis();
+        if ms > 10 {
+            return write!(f, "{}ms", ms);
+        }
+        write!(f, "{}ms", (self.0.as_micros() as f32) / 1000.0)
     }
 }
