@@ -183,8 +183,11 @@ describe('Prerender prefetch', () => {
         })
 
         await check(async () => {
-          return requests.some((url) => url.includes('/blog/first')) &&
-            requests.some((url) => url.includes('/blog/second'))
+          const cacheKeys = await browser.eval(
+            'Object.keys(window.next.router.sdc)'
+          )
+          return cacheKeys.some((url) => url.includes('/blog/first')) &&
+            cacheKeys.some((url) => url.includes('/blog/second'))
             ? 'success'
             : JSON.stringify(requests, null, 2)
         }, 'success')
