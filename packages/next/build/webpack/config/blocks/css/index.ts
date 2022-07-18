@@ -22,7 +22,7 @@ const regexCssModules = /\.module\.css$/
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 // Also match the virtual client entry which doesn't have file path
-const clientEntryMatcher = (file: string) => !file
+const regexClientEntry = /^$/
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
@@ -215,13 +215,12 @@ export const css = curry(async function css(
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
           issuer: {
-            or: [
+            and: [
               {
-                and: [ctx.rootDirectory],
-                not: [/node_modules/],
+                or: [ctx.rootDirectory, regexClientEntry],
               },
-              clientEntryMatcher,
             ],
+            not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
         }),
@@ -371,7 +370,7 @@ export const css = curry(async function css(
               issuer: {
                 or: [
                   { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                  clientEntryMatcher,
+                  regexClientEntry,
                 ],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
@@ -386,10 +385,8 @@ export const css = curry(async function css(
               sideEffects: false,
               test: regexCssModules,
               issuer: {
-                or: [
-                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                  clientEntryMatcher,
-                ],
+                and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/],
+                or: [regexClientEntry],
               },
               use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
             }),
@@ -429,12 +426,8 @@ export const css = curry(async function css(
             ? {
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
-                or: [
-                  {
-                    and: [ctx.rootDirectory],
-                    not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
-                  },
-                ],
+                and: [ctx.rootDirectory],
+                not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
               }
             : undefined,
           use: {
