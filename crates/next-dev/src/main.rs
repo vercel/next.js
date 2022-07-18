@@ -65,7 +65,7 @@ async fn main() {
         .run_once(async move {
             let disk_fs = DiskFileSystemVc::new("project".to_string(), dir);
             let fs = disk_fs.into();
-            let root = FileSystemPathVc::new(fs, "src");
+            let root = FileSystemPathVc::new(fs, "");
             let source_asset = SourceAssetVc::new(FileSystemPathVc::new(fs, "src/index.js")).into();
             let context: AssetContextVc = ModuleAssetContextVc::new(
                 root,
@@ -76,7 +76,8 @@ async fn main() {
             let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
             let chunking_context: DevChunkingContextVc = DevChunkingContext {
                 context_path: root,
-                root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
+                chunk_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/chunks"),
+                asset_root_path: FileSystemPathVc::new(dev_server_fs, "/_next/static"),
             }
             .into();
             let entry_asset =
