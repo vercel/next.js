@@ -147,7 +147,7 @@ describe('Switchable runtime', () => {
                   'server/edge-runtime-webpack.js',
                   'server/pages/api/edge.js',
                 ],
-                name: 'pages/api/hello',
+                name: 'pages/api/edge',
                 page: '/api/edge',
                 regexp: '^/api/edge$',
                 wasm: [],
