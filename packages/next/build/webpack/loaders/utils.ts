@@ -1,6 +1,14 @@
 export const defaultJsFileExtensions = ['js', 'mjs', 'jsx', 'ts', 'tsx']
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
-const nextClientComponents = ['link', 'image', 'head', 'script']
+const nextClientComponents = [
+  'link',
+  'image',
+  // TODO-APP: check if this affects the regex
+  'future/image',
+  'head',
+  'script',
+  'dynamic',
+]
 
 const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
   `[\\\\/]next[\\\\/](${nextClientComponents.join('|')})\\.js$`
