@@ -153,10 +153,15 @@ impl DevServerVc {
                                 if let FileContent::Content(content) =
                                     &*asset.content().strongly_consistent().await?
                                 {
+                                    let mime =
+                                        mime_guess::from_path(asset_path).first_or_octet_stream();
+                                    let bytes = content.content().to_vec();
                                     tx.send(
                                         Response::builder()
                                             .status(200)
-                                            .body(Body::from(content.content().to_vec()))?,
+                                            .header("Content-Type", mime.to_string())
+                                            .header("Content-Length", bytes.len().to_string())
+                                            .body(Body::from(bytes))?,
                                     )
                                     .map_err(|_| anyhow!("receiver dropped"))?;
                                     println!("[200] {} ({}ms)", path, start.elapsed().as_millis());
