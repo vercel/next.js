@@ -229,25 +229,16 @@ export async function ncc_acorn(task, opts) {
 // eslint-disable-next-line camelcase
 externals['@edge-runtime/primitives'] =
   'next/dist/compiled/@edge-runtime/primitives'
-
-export async function ncc_edge_runtime_primitives() {
+export async function ncc_edge_runtime_primitives(task, opts) {
   // `@edge-runtime/primitives` is precompiled and pre-bundled
   // so we vendor the package as it is.
-  const dest = 'compiled/@edge-runtime/primitives'
-  const pkg = await fs.readJson(
-    require.resolve('@edge-runtime/primitives/package.json')
-  )
-  await fs.remove(dest)
-  await fs.outputJson(join(dest, 'package.json'), {
-    name: '@edge-runtime/primitives',
-    version: pkg.version,
-    main: './index.js',
-    license: pkg.license,
-  })
-  await fs.copy(
-    require.resolve('@edge-runtime/primitives'),
-    join(dest, 'index.js')
-  )
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@edge-runtime/primitives'))
+    )
+    .ncc({ packageName: '@edge-runtime/primitives', externals })
+    .target('compiled/@edge-runtime/primitives')
 }
 
 // eslint-disable-next-line camelcase

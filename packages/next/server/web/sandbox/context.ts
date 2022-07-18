@@ -1,4 +1,3 @@
-import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
@@ -14,7 +13,7 @@ const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
 
 interface ModuleContext {
-  runtime: EdgeRuntime<Primitives>
+  runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
 }
@@ -68,7 +67,12 @@ function getModuleContextShared(options: ModuleContextOptions) {
  * with a function that allows to run some code from a given
  * filepath within the context.
  */
-export async function getModuleContext(options: ModuleContextOptions) {
+export async function getModuleContext(options: ModuleContextOptions): Promise<{
+  evaluateInContext: (filepath: string) => void
+  runtime: EdgeRuntime
+  paths: Map<string, string>
+  warnedEvals: Set<string>
+}> {
   let moduleContext = options.useCache
     ? moduleContexts.get(options.moduleName)
     : await getModuleContextShared(options)
@@ -197,7 +201,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = (input, init = {}) => {
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -236,10 +240,13 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
       const __Request = context.Request
       context.Request = class extends __Request {
-        constructor(input: RequestInfo, init?: RequestInit | undefined) {
-          const url = typeof input === 'string' ? input : input.url
+        constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
+          const url =
+            typeof input !== 'string' && 'url' in input
+              ? input.url
+              : String(input)
           validateURL(url)
-          super(input, init)
+          super(url, init)
         }
       }
 
@@ -321,7 +328,7 @@ function createProcessPolyfill(
 const warnedAlready = new Set<string>()
 
 function addStub(
-  context: Primitives,
+  context: EdgeRuntime['context'],
   name: string,
   contextOptions: Pick<ModuleContextOptions, 'onWarning'>
 ) {

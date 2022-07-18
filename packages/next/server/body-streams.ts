@@ -1,4 +1,4 @@
-import Primitives from 'next/dist/compiled/@edge-runtime/primitives'
+import { TransformStream } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { IncomingMessage } from 'http'
 import { Readable } from 'stream'
 
@@ -8,7 +8,7 @@ type BodyStream = ReadableStream<Uint8Array>
  * Creates a ReadableStream from a Node.js HTTP request
  */
 export function requestToBodyStream(request: IncomingMessage): BodyStream {
-  const transform = new Primitives.TransformStream<Uint8Array, Uint8Array>({
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
     start(controller) {
       request.on('data', (chunk) => controller.enqueue(chunk))
       request.on('end', () => controller.terminate())
