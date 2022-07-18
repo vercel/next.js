@@ -26,6 +26,13 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
+    ImportedBinding {
+        request: String,
+        export: Option<String>,
+        // TODO asserts, etc.
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+    },
 }
 
 impl Effect {
@@ -55,6 +62,12 @@ impl Effect {
                     arg.normalize();
                 }
             }
+            Effect::ImportedBinding {
+                request: _,
+                export: _,
+                ast_path: _,
+                span: _,
+            } => {}
         }
     }
 }
@@ -1007,6 +1020,21 @@ impl VisitAstPath for Analyzer<'_> {
                 .unwrap_or(JsValue::FreeVar(FreeVarKind::Other(js_word!("undefined"))));
 
             values.push(return_value);
+        }
+    }
+
+    fn visit_ident<'ast: 'r, 'r>(
+        &mut self,
+        ident: &'ast Ident,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if let Some((request, export)) = self.eval_context.imports.get_binding(&ident.to_id()) {
+            self.data.effects.push(Effect::ImportedBinding {
+                request,
+                export,
+                ast_path: as_parent_path(ast_path),
+                span: ident.span(),
+            })
         }
     }
 }

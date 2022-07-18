@@ -314,7 +314,7 @@ impl EcmascriptChunkContextVc {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ValueToString {
+pub trait EcmascriptChunkPlaceable: Asset + ValueToString {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc;
 }
 

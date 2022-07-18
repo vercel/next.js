@@ -13,10 +13,7 @@ pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
 
 #[turbo_tasks::function]
 pub async fn the_module_options() -> ModuleOptionsVc {
-    let app_transforms = EcmascriptInputTransformsVc::cell(vec![
-        EcmascriptInputTransform::JSX,
-        EcmascriptInputTransform::CommonJs,
-    ]);
+    let app_transforms = EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::JSX]);
     let no_transforms = EcmascriptInputTransformsVc::cell(Vec::new());
     ModuleOptionsVc::cell(ModuleOptions {
         rules: vec![
