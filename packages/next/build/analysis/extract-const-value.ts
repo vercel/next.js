@@ -11,6 +11,7 @@ import type {
   ObjectExpression,
   RegExpLiteral,
   StringLiteral,
+  TemplateLiteral,
   VariableDeclaration,
 } from '@swc/core'
 
@@ -124,6 +125,10 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
   return node.type === 'RegExpLiteral'
 }
 
+function isTemplateLiteral(node: Node): node is TemplateLiteral {
+  return node.type === 'TemplateLiteral'
+}
+
 class UnsupportedValueError extends Error {}
 class NoSuchDeclarationError extends Error {}
 
@@ -191,6 +196,33 @@ function extractValue(node: Node): any {
     }
 
     return obj
+  } else if (isTemplateLiteral(node)) {
+    // e.g. `abc`
+    if (node.expressions.length !== 0) {
+      // TODO: should we add support for `${'e'}d${'g'}'e'`?
+      throw new UnsupportedValueError()
+    }
+
+    // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
+    // Because when parsing TemplateLiteral, the parser yields the first quasi,
+    // then the first expression, then the next quasi, then the next expression, etc.,
+    // until the last quasi.
+    // Thus if there is no expression, the parser ends at the frst and also last quasis
+    const firstQuasis = node.quasis[0]
+
+    // A "cooked" interpretation where backslashes have special meaning, while a
+    // "raw" interpretation where backslashes do not have special meaning
+    // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
+    const { cooked } = firstQuasis
+
+    // FIXME: The type definition of "cooked" and "raw" (from swc) are outdated.
+    // Both of them should be string | null | undefined, not StringLiteral.
+    // It is a temporary type guard to make TypeScript happy.
+    // https://github.com/swc-project/swc/issues/4501
+    if (cooked == null || typeof cooked === 'string') {
+      return cooked
+    }
+    return extractValue(cooked)
   } else {
     throw new UnsupportedValueError()
   }

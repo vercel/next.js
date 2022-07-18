@@ -115,10 +115,14 @@ describe('Switchable runtime', () => {
         )
       })
 
-      it('should build /api/hello as an api route with edge runtime', async () => {
-        const response = await fetchViaHTTP(context.appPort, '/api/hello')
-        const text = await response.text()
+      it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
+        let response = await fetchViaHTTP(context.appPort, '/api/hello')
+        let text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+        response = await fetchViaHTTP(context.appPort, '/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
           const manifest = await readJson(
@@ -135,6 +139,17 @@ describe('Switchable runtime', () => {
                 name: 'pages/api/hello',
                 page: '/api/hello',
                 regexp: '^/api/hello$',
+                wasm: [],
+              },
+              '/api/edge': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/edge.js',
+                ],
+                name: 'pages/api/hello',
+                page: '/api/edge',
+                regexp: '^/api/edge$',
                 wasm: [],
               },
             },
@@ -235,10 +250,14 @@ describe('Switchable runtime', () => {
         })
       })
 
-      it('should build /api/hello as an api route with edge runtime', async () => {
-        const response = await fetchViaHTTP(context.appPort, '/api/hello')
-        const text = await response.text()
+      it('should build /api/hello and /api/edge as an api route with edge runtime', async () => {
+        let response = await fetchViaHTTP(context.appPort, '/api/hello')
+        let text = await response.text()
         expect(text).toMatch(/Hello from .+\/api\/hello/)
+
+        response = await fetchViaHTTP(context.appPort, '/api/edge')
+        text = await response.text()
+        expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
           const manifest = await readJson(
@@ -255,6 +274,17 @@ describe('Switchable runtime', () => {
                 name: 'pages/api/hello',
                 page: '/api/hello',
                 regexp: '^/api/hello$',
+                wasm: [],
+              },
+              '/api/edge': {
+                env: [],
+                files: [
+                  'server/edge-runtime-webpack.js',
+                  'server/pages/api/edge.js',
+                ],
+                name: 'pages/api/edge',
+                page: '/api/edge',
+                regexp: '^/api/edge$',
                 wasm: [],
               },
             },
