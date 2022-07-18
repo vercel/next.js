@@ -137,23 +137,28 @@ async function loadWasm(importPath = '') {
         bindings = await bindings.default()
       }
       Log.info('Using experimental wasm build of next-swc')
+
+      // Note wasm binary does not support async intefaces yet, all async
+      // interface coereces to sync interfaces.
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return bindings.transformSync(src.toString(), options)
+          return Promise.resolve(
+            bindings.transformSync(src.toString(), options)
+          )
         },
         transformSync(src, options) {
           return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return bindings.minifySync(src.toString(), options)
+          return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         minifySync(src, options) {
           return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          return Promise.resolve(astStr)
         },
         parseSync(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
