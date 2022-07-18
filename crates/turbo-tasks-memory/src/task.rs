@@ -332,6 +332,8 @@ impl Task {
     #[cfg(feature = "report_expensive")]
     fn clear_dependencies(&self, backend: &MemoryBackend) {
         use std::time::Instant;
+
+        use turbo_tasks::util::FormatDuration;
         let start = Instant::now();
         let mut execution_data = self.execution_data.lock().unwrap();
         let dependencies = take(&mut execution_data.dependencies);
@@ -343,18 +345,11 @@ impl Task {
             Task::remove_dependent_task(dep, self.id, backend);
         }
         let elapsed = start.elapsed();
-        if elapsed.as_millis() >= 100 {
+        if elapsed.as_millis() >= 10 || count > 10000 {
             println!(
-                "clear_dependencies({}) took {} ms: {:?}",
+                "clear_dependencies({}) took {}: {:?}",
                 count,
-                elapsed.as_millis(),
-                self
-            );
-        } else if elapsed.as_millis() >= 10 || count > 10000 {
-            println!(
-                "clear_dependencies({}) took {} µs: {:?}",
-                count,
-                elapsed.as_micros(),
+                FormatDuration(elapsed),
                 self
             );
         }
@@ -758,16 +753,10 @@ impl Task {
             let start = Instant::now();
             drop(self.make_root_scoped_internal(state, backend, turbo_tasks));
             let elapsed = start.elapsed();
-            if elapsed.as_millis() >= 100 {
+            if elapsed.as_millis() >= 10 {
                 println!(
-                    "make_root_scoped took {} ms: {:?}",
-                    elapsed.as_millis(),
-                    self
-                );
-            } else if elapsed.as_millis() >= 10 {
-                println!(
-                    "make_root_scoped took {} µs: {:?}",
-                    elapsed.as_micros(),
+                    "make_root_scoped took {}: {:?}",
+                    FormatDuration(elapsed),
                     self
                 );
             }
@@ -1056,16 +1045,10 @@ impl Task {
                         let start = Instant::now();
                         child.add_to_scope_internal(scope, false, backend, turbo_tasks);
                         let elapsed = start.elapsed();
-                        if elapsed.as_millis() >= 100 {
+                        if elapsed.as_millis() >= 10 {
                             println!(
-                                "add_to_scope {scope} took {} ms: {:?}",
-                                elapsed.as_millis(),
-                                child
-                            );
-                        } else if elapsed.as_millis() >= 10 {
-                            println!(
-                                "add_to_scope {scope} took {} µs: {:?}",
-                                elapsed.as_micros(),
+                                "add_to_scope {scope} took {}: {:?}",
+                                FormatDuration(elapsed),
                                 child
                             );
                         }
@@ -1093,16 +1076,10 @@ impl Task {
                     let start = Instant::now();
                     let result = self.make_root_scoped_internal(state, backend, turbo_tasks);
                     let elapsed = start.elapsed();
-                    if elapsed.as_millis() >= 100 {
+                    if elapsed.as_millis() >= 10 {
                         println!(
-                            "make_root_scoped took {} ms: {:?}",
-                            elapsed.as_millis(),
-                            self
-                        );
-                    } else if elapsed.as_millis() >= 10 {
-                        println!(
-                            "make_root_scoped took {} µs: {:?}",
-                            elapsed.as_micros(),
+                            "make_root_scoped took {}: {:?}",
+                            FormatDuration(elapsed),
                             self
                         );
                     }

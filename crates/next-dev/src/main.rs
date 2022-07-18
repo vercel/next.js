@@ -5,7 +5,7 @@ use std::{env::current_dir, future::join, net::IpAddr, path::PathBuf, sync::Arc,
 
 use anyhow::anyhow;
 use clap::Parser;
-use turbo_tasks::{TransientValue, TurboTasks};
+use turbo_tasks::{util::FormatDuration, TransientValue, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc};
 use turbo_tasks_memory::{stats::Stats, viz, MemoryBackend};
 use turbopack::{
@@ -132,7 +132,7 @@ async fn main() {
     join! {
         async move {
             tt_clone.wait_done().await;
-            println!("initial request prepared in {} ms", start.elapsed().as_millis());
+            println!("initial request prepared in {}", FormatDuration(start.elapsed()));
         },
         async {
             server.future.await.unwrap()

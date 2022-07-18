@@ -18,7 +18,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
-use turbo_tasks::{backend::Backend, NothingVc, TaskId, TurboTasks};
+use turbo_tasks::{backend::Backend, util::FormatDuration, NothingVc, TaskId, TurboTasks};
 use turbo_tasks_fs::{
     glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemPathVc, FileSystemVc,
     ReadGlobResultVc,
@@ -232,7 +232,7 @@ async fn main() {
                 );
                 let tt = TurboTasks::new(backend);
                 let elapsed = start.elapsed();
-                println!("restored cache {} ms", elapsed.as_millis());
+                println!("restored cache {}", FormatDuration(elapsed));
                 tt
             },
             |tt, _, duration| async move {
@@ -241,7 +241,7 @@ async fn main() {
                     tt.wait_background_done().await;
                     tt.stop_and_wait().await;
                     let elapsed = start.elapsed();
-                    println!("flushed cache {} ms", elapsed.as_millis());
+                    println!("flushed cache {}", FormatDuration(elapsed));
                 } else {
                     let background_timeout =
                         std::cmp::max(duration / 5, Duration::from_millis(100));
@@ -251,15 +251,15 @@ async fn main() {
                     tt.stop_and_wait().await;
                     let elapsed = start.elapsed();
                     if timed_out {
-                        println!("flushed cache partially {} ms", elapsed.as_millis());
+                        println!("flushed cache partially {}", FormatDuration(elapsed));
                     } else {
-                        println!("flushed cache completely {} ms", elapsed.as_millis());
+                        println!("flushed cache completely {}", FormatDuration(elapsed));
                     }
                 }
                 start = Instant::now();
                 drop(tt);
                 let elapsed = start.elapsed();
-                println!("writing cache {} ms", elapsed.as_millis());
+                println!("writing cache {}", FormatDuration(elapsed));
             },
         )
         .await;
@@ -306,23 +306,19 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
         if watch {
             tt.wait_done().await;
-            println!("done in {} ms", start.elapsed().as_millis());
+            println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {
                 let (elapsed, count) = tt.wait_next_done().await;
-                if elapsed.as_millis() >= 10 {
-                    println!("updated {} tasks in {} ms", count, elapsed.as_millis());
-                } else {
-                    println!("updated {} tasks in {} µs", count, elapsed.as_micros());
-                }
+                println!("updated {} tasks in {}", count, FormatDuration(elapsed));
             }
         } else {
             tt.wait_done().await;
             let dur = start.elapsed();
-            println!("done in {} ms", dur.as_millis());
+            println!("done in {}", FormatDuration(dur));
             final_finish(tt, root_task, dur).await;
             let dur = start.elapsed();
-            println!("all done in {} ms", dur.as_millis());
+            println!("all done in {}", FormatDuration(dur));
         }
     };
 

@@ -17,7 +17,7 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
-use turbo_tasks::{trace::TraceRawVcs, TransientValue};
+use turbo_tasks::{trace::TraceRawVcs, util::FormatDuration, TransientValue};
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -164,19 +164,23 @@ impl DevServerVc {
                                             .body(Body::from(bytes))?,
                                     )
                                     .map_err(|_| anyhow!("receiver dropped"))?;
-                                    println!("[200] {} ({}ms)", path, start.elapsed().as_millis());
+                                    println!(
+                                        "[200] {} ({})",
+                                        path,
+                                        FormatDuration(start.elapsed())
+                                    );
                                     return Ok(());
                                 }
                             }
                             if let Some(content) = fallback_handler(path) {
                                 tx.send(Response::builder().status(200).body(Body::from(content))?)
                                     .map_err(|_| anyhow!("receiver dropped"))?;
-                                println!("[200] {} ({}ms)", path, start.elapsed().as_millis());
+                                println!("[200] {} ({})", path, FormatDuration(start.elapsed()));
                                 return Ok(());
                             }
                             tx.send(Response::builder().status(404).body(Body::empty())?)
                                 .map_err(|_| anyhow!("receiver dropped"))?;
-                            println!("[404] {} ({}ms)", path, start.elapsed().as_millis());
+                            println!("[404] {} ({})", path, FormatDuration(start.elapsed()));
                             Ok(())
                         }));
                         loop {

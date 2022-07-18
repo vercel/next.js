@@ -128,7 +128,7 @@ impl RocksDbBackend {
             let start = Instant::now();
             let db = Database::open(&self.path);
             let elapsed = start.elapsed();
-            println!("opening cache {} ms", elapsed.as_millis());
+            println!("opening cache {}", FormatDuration(elapsed));
             db
         })?;
 
