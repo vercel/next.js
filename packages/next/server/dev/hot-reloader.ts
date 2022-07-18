@@ -922,6 +922,8 @@ export default class HotReloader {
       )
     })
 
+    // clear previous entries from on-demand-entry-handler
+    // so we have a fresh start from any previous instances
     for (const key of Object.keys(entries)) {
       delete entries[key]
     }
