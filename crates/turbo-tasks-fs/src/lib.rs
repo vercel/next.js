@@ -789,6 +789,7 @@ pub enum FileContent {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Clone)]
 pub struct File {
     meta: FileMeta,
     content: Vec<u8>,
@@ -845,8 +846,8 @@ impl AsRef<[u8]> for File {
     }
 }
 
-#[derive(Default, Debug)]
 #[turbo_tasks::value(shared)]
+#[derive(Default, Debug, Clone)]
 pub struct FileMeta {
     permissions: Permissions,
 }
