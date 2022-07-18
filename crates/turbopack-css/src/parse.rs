@@ -6,10 +6,8 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use swc_common::{errors::Handler, sync::Lrc, FileName, SourceMap};
-use swc_css::{
-    ast::Stylesheet,
-    parser::{parse_file, parser::ParserConfig},
-};
+use swc_css_ast::Stylesheet;
+use swc_css_parser::{parse_file, parser::ParserConfig};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::asset::AssetVc;
 

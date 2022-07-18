@@ -1,8 +1,10 @@
 #![feature(min_specialization)]
 
 use anyhow::Result;
+use swc_css_ast::{AtRule, AtRulePrelude, Rule};
+use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
@@ -17,10 +19,11 @@ pub(crate) mod references;
 
 use crate::{
     chunk::{
-        CssChunkContextVc, CssChunkItem, CssChunkItemVc, CssChunkPlaceable, CssChunkPlaceableVc,
-        CssChunkVc,
+        CssChunkContextVc, CssChunkItem, CssChunkItemContent, CssChunkItemContentVc,
+        CssChunkItemVc, CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc,
     },
-    references::module_references,
+    parse::{parse, ParseResult},
+    references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
 };
 
 #[turbo_tasks::value(Asset, CssChunkPlaceable, ChunkableAsset, ValueToString)]
@@ -44,13 +47,15 @@ impl Asset for ModuleAsset {
     fn path(&self) -> FileSystemPathVc {
         self.source.path()
     }
+
     #[turbo_tasks::function]
     fn content(&self) -> FileContentVc {
         self.source.content()
     }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
-        Ok(module_references(self.source, self.context))
+        Ok(analyze_css_stylesheet(self.source, self.context))
     }
 }
 
@@ -104,18 +109,73 @@ impl CssChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        _chunk_content: CssChunkContextVc,
+        chunk_context: CssChunkContextVc,
         _context: ChunkingContextVc,
-    ) -> Result<StringVc> {
-        // TODO: code generation & remove imports
-        Ok(StringVc::cell(format!(
-            "/* {} */\n{}",
-            self.module.path().to_string().await?,
-            match &*self.module.content().await? {
-                FileContent::NotFound => "/* File not Found? */".to_string(),
-                FileContent::Content(file) => String::from_utf8(file.content().to_vec())?,
+    ) -> Result<CssChunkItemContentVc> {
+        let references = self.module.references();
+        let mut imports = vec![];
+
+        for reference in &*references.await? {
+            if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
+                for asset in &*import.resolve_reference().primary_assets().await? {
+                    if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                        let imported_id = chunk_context.id(placeable);
+                        imports.push(imported_id);
+                    }
+                }
             }
-        )))
+        }
+
+        let module = self.module.await?;
+        let parsed = parse(module.source).await?;
+
+        if let ParseResult::Ok {
+            stylesheet,
+            source_map: _,
+            ..
+        } = &*parsed
+        {
+            let mut stylesheet = stylesheet.clone();
+
+            // remove imports
+            stylesheet.rules = stylesheet
+                .rules
+                .into_iter()
+                .filter(|r| {
+                    !matches!(
+                        r,
+                        &Rule::AtRule(AtRule {
+                            prelude: Some(AtRulePrelude::ImportPrelude(_)),
+                            ..
+                        })
+                    )
+                })
+                .collect();
+
+            let mut code_string = format!("/* {} */\n", self.module.path().to_string().await?);
+
+            // TODO: pass sourcemap somehow?
+            let mut code_gen = CodeGenerator::new(
+                BasicCssWriter::new(&mut code_string, None, Default::default()),
+                Default::default(),
+            );
+
+            code_gen.emit(&stylesheet)?;
+
+            Ok(CssChunkItemContent {
+                inner_code: code_string,
+                id: chunk_context.id(CssChunkPlaceableVc::cast_from(self.module)),
+                imports,
+            }
+            .into())
+        } else {
+            Ok(CssChunkItemContent {
+                inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
+                id: chunk_context.id(CssChunkPlaceableVc::cast_from(self.module)),
+                imports: vec![],
+            }
+            .into())
+        }
     }
 }
 

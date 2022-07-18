@@ -17,7 +17,7 @@ use crate::{
 
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub enum ModuleId {
     Number(u32),
     String(String),
@@ -25,7 +25,7 @@ pub enum ModuleId {
 
 /// A chunk id, which can be a number or string
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub enum ChunkId {
     Number(u32),
     String(String),
@@ -248,7 +248,7 @@ pub trait FromChunkableAsset: ChunkItem + Sized {
     ) -> Result<Option<Self>>;
 }
 
-pub async fn chunk_content_splitted<I: FromChunkableAsset>(
+pub async fn chunk_content_split<I: FromChunkableAsset>(
     context: ChunkingContextVc,
     entry: AssetVc,
 ) -> Result<ChunkContentResult<I>> {
@@ -394,19 +394,18 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         continue 'outer;
                     }
                 }
+
                 let prev_chunk_items = chunk_items.len();
+
                 for chunk_item in inner_chunk_items {
                     queue.push_back(ChunkContentWorkItem::AssetReferences(
                         chunk_item.references(),
                     ));
                     chunk_items.push(chunk_item);
                 }
-                for chunk in inner_chunks {
-                    chunks.push(chunk);
-                }
-                for chunk_group in inner_chunk_groups {
-                    async_chunk_groups.push(chunk_group);
-                }
+                chunks.extend(inner_chunks);
+                async_chunk_groups.extend(inner_chunk_groups);
+
                 let chunk_items_count = chunk_items.len();
                 if prev_chunk_items != chunk_items_count
                     && chunk_items_count > 5000

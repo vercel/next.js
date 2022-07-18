@@ -9,7 +9,7 @@ use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        chunk_content, chunk_content_splitted, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
+        chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
         FromChunkableAsset, ModuleId, ModuleIdVc,
     },
@@ -79,7 +79,7 @@ async fn ecmascript_chunk_content(
     let res = if let Some(res) = chunk_content::<EcmascriptChunkItemVc>(context, entry).await? {
         res
     } else {
-        chunk_content_splitted::<EcmascriptChunkItemVc>(context, entry).await?
+        chunk_content_split::<EcmascriptChunkItemVc>(context, entry).await?
     };
 
     Ok(EcmascriptChunkContentResultVc::cell(res.into()))
