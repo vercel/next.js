@@ -1,6 +1,9 @@
 import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
-import { tryToExtractExportedConstValue } from './extract-const-value'
+import {
+  extractExportedConstValue,
+  UnsupportedValueError,
+} from './extract-const-value'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
@@ -32,13 +35,28 @@ export async function getPageStaticInfo(params: {
   isDev?: boolean
   page?: string
 }): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig } = params
+  const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
-    const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
+
+    // default / failsafe value for config
+    let config: any = {}
+    try {
+      config = extractExportedConstValue(swcAST, 'config')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        // `export config` is found, but can't extract its value
+        Log.warn(
+          `You have exported a \`config\` field in "${
+            page || pageFilePath
+          }" that Next.js can't recognize, so it will be ignored`
+        )
+      }
+      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    }
 
     if (
       typeof config.runtime !== 'string' &&

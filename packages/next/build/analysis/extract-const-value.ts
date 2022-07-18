@@ -129,8 +129,8 @@ function isTemplateLiteral(node: Node): node is TemplateLiteral {
   return node.type === 'TemplateLiteral'
 }
 
-class UnsupportedValueError extends Error {}
-class NoSuchDeclarationError extends Error {}
+export class UnsupportedValueError extends Error {}
+export class NoSuchDeclarationError extends Error {}
 
 function extractValue(node: Node): any {
   if (isNullLiteral(node)) {
