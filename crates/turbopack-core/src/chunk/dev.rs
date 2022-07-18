@@ -46,4 +46,9 @@ impl ChunkingContext for DevChunkingContext {
 
         Ok(BoolVc::cell(false))
     }
+
+    #[turbo_tasks::function]
+    fn asset_path(&self, path: &str) -> FileSystemPathVc {
+        self.root_path.join(&path)
+    }
 }

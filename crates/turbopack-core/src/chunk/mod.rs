@@ -37,6 +37,8 @@ pub trait ChunkingContext {
     fn as_chunk_path(&self, path: FileSystemPathVc) -> FileSystemPathVc;
 
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
+
+    fn asset_path(&self, path: &str) -> FileSystemPathVc;
 }
 
 /// An [Asset] that can be converted into a [Chunk].
@@ -238,7 +240,7 @@ pub struct ChunkContentResult<I> {
 }
 
 #[async_trait::async_trait]
-pub trait FromChunkableAsset: Sized {
+pub trait FromChunkableAsset: ChunkItem + Sized {
     async fn from_asset(context: ChunkingContextVc, asset: AssetVc) -> Result<Option<Self>>;
     async fn from_async_asset(
         context: ChunkingContextVc,
@@ -308,9 +310,12 @@ pub async fn chunk_content<I: FromChunkableAsset>(
     let mut external_asset_references = Vec::new();
     let mut queue = VecDeque::new();
 
-    chunk_items.push(I::from_asset(context, entry).await?.unwrap());
+    let chunk_item = I::from_asset(context, entry).await?.unwrap();
+    queue.push_back(ChunkContentWorkItem::AssetReferences(
+        chunk_item.references(),
+    ));
+    chunk_items.push(chunk_item);
     processed_assets.insert(entry);
-    queue.push_back(ChunkContentWorkItem::AssetReferences(entry.references()));
 
     'outer: while let Some(item) = queue.pop_front() {
         match item {
@@ -334,7 +339,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 // and fallback to an external reference completely
                 // The cancellation is at these "continue 'outer;" lines
                 let mut inner_chunk_items = Vec::new();
-                let mut inner_assets = Vec::new();
                 let mut inner_chunks = Vec::new();
                 let mut inner_chunk_groups = Vec::new();
                 for asset in item
@@ -345,7 +349,7 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                     let asset: &AssetVc = asset;
 
                     let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
-                        Some(chunkabe_asset) => chunkabe_asset,
+                        Some(chunkable_asset) => chunkable_asset,
                         _ => {
                             external_asset_references.push(r);
                             continue 'outer;
@@ -377,7 +381,6 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                         // chunk item, chunk or other asset?
                         if let Some(chunk_item) = I::from_asset(context, *asset).await? {
                             inner_chunk_items.push(chunk_item);
-                            inner_assets.push(*asset);
                             continue;
                         }
                     }
@@ -393,10 +396,10 @@ pub async fn chunk_content<I: FromChunkableAsset>(
                 }
                 let prev_chunk_items = chunk_items.len();
                 for chunk_item in inner_chunk_items {
+                    queue.push_back(ChunkContentWorkItem::AssetReferences(
+                        chunk_item.references(),
+                    ));
                     chunk_items.push(chunk_item);
-                }
-                for asset in inner_assets {
-                    queue.push_back(ChunkContentWorkItem::AssetReferences(asset.references()));
                 }
                 for chunk in inner_chunks {
                     chunks.push(chunk);
@@ -426,7 +429,13 @@ pub async fn chunk_content<I: FromChunkableAsset>(
 }
 
 #[turbo_tasks::value_trait]
-pub trait ChunkItem {}
+pub trait ChunkItem {
+    /// A [ChunkItem] can describe different `references` than its original
+    /// [Asset].
+    /// TODO(alexkirsz) This should have a default impl that returns empty
+    /// references.
+    fn references(&self) -> AssetReferencesVc;
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItems(Vec<ChunkItemVc>);

@@ -160,7 +160,12 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {}
+impl ChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        self.module.references()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {

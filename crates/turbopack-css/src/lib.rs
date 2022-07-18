@@ -11,6 +11,7 @@ use turbopack_core::{
 };
 
 pub mod chunk;
+pub mod embed;
 pub(crate) mod parse;
 pub(crate) mod references;
 
@@ -91,7 +92,12 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ModuleChunkItem {}
+impl ChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        self.module.references()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl CssChunkItem for ModuleChunkItem {

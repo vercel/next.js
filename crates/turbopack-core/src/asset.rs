@@ -28,6 +28,6 @@ pub trait Asset {
     /// The content of the [Asset].
     fn content(&self) -> FileContentVc;
 
-    /// Other things (most likely [Asset]s) references from this [Asset].
+    /// Other things (most likely [Asset]s) referenced from this [Asset].
     fn references(&self) -> AssetReferencesVc;
 }

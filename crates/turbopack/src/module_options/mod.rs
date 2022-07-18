@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystemPath, FileSystemPathVc};
 
 #[turbo_tasks::function]
 pub async fn module_options(_context: FileSystemPathVc) -> ModuleOptionsVc {
@@ -15,47 +15,45 @@ pub async fn the_module_options() -> ModuleOptionsVc {
     ModuleOptionsVc::cell(ModuleOptions {
         rules: vec![
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(
-                    ".json".to_string(),
-                )],
+                ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(
-                    ".css".to_string(),
-                )],
+                ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Css)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(".js".to_string())],
+                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(
-                    ".mjs".to_string(),
-                )],
+                ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(
-                    ".cjs".to_string(),
-                )],
+                ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string())],
+                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript)],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathEndsWith(
-                    ".d.ts".to_string(),
-                )],
+                ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()),
                 vec![ModuleRuleEffect::ModuleType(
                     ModuleType::TypescriptDeclaration,
                 )],
             ),
             ModuleRule::new(
-                vec![ModuleRuleCondition::ResourcePathHasNoExtension],
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::ResourcePathHasNoExtension,
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript)],
             ),
         ],
@@ -69,21 +67,31 @@ pub struct ModuleOptions {
 
 #[derive(TraceRawVcs, Serialize, Deserialize)]
 pub struct ModuleRule {
-    pub conditions: Vec<ModuleRuleCondition>,
-    pub effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
+    condition: ModuleRuleCondition,
+    effects: HashMap<ModuleRuleEffectKey, ModuleRuleEffect>,
 }
 
 impl ModuleRule {
-    pub fn new(conditions: Vec<ModuleRuleCondition>, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
-            conditions,
+            condition,
             effects: effects.into_iter().map(|e| (e.key(), e)).collect(),
         }
+    }
+
+    pub fn matches(&self, path: &FileSystemPath) -> bool {
+        self.condition.matches(path)
+    }
+
+    pub fn effects(&self) -> impl Iterator<Item = (&ModuleRuleEffectKey, &ModuleRuleEffect)> {
+        self.effects.iter()
     }
 }
 
 #[derive(TraceRawVcs, Serialize, Deserialize)]
 pub enum ModuleRuleCondition {
+    All(Vec<ModuleRuleCondition>),
+    Any(Vec<ModuleRuleCondition>),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathRegex(
@@ -91,6 +99,36 @@ pub enum ModuleRuleCondition {
         #[serde(with = "serde_regex")]
         Regex,
     ),
+}
+
+impl ModuleRuleCondition {
+    pub fn all(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
+        ModuleRuleCondition::All(conditions)
+    }
+
+    pub fn any(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
+        ModuleRuleCondition::Any(conditions)
+    }
+
+    pub fn matches(&self, path: &FileSystemPath) -> bool {
+        match self {
+            ModuleRuleCondition::All(conditions) => conditions.iter().all(|c| c.matches(path)),
+            ModuleRuleCondition::Any(conditions) => conditions.iter().any(|c| c.matches(path)),
+            ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
+            ModuleRuleCondition::ResourcePathHasNoExtension => {
+                if let Some(i) = path.path.rfind('.') {
+                    if let Some(j) = path.path.rfind('/') {
+                        j > i
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+            }
+            _ => todo!("not implemented yet"),
+        }
+    }
 }
 
 #[derive(TraceRawVcs, Serialize, Deserialize)]
@@ -107,6 +145,7 @@ pub enum ModuleType {
     Json,
     Raw,
     Css,
+    Static,
     // TODO allow custom function when we support function pointers
     Custom(u8),
 }

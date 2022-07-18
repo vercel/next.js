@@ -5,6 +5,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc},
+    reference::AssetReferencesVc,
 };
 
 use super::{
@@ -37,7 +38,12 @@ impl ValueToString for ChunkGroupLoaderChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ChunkGroupLoaderChunkItem {}
+impl ChunkItem for ChunkGroupLoaderChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupLoaderChunkItem {
