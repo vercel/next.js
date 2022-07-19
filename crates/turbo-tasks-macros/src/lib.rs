@@ -976,7 +976,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(
                     // use const string
-                    quote! { stringify!(#vc_ident::#ident) },
+                    quote! { format!(concat!("{}::", stringify!(#ident)), std::any::type_name::<#vc_ident>()) },
                     quote! { #vc_ident::#inline_ident },
                     &function_ident,
                     &function_id_ident,
@@ -1373,7 +1373,7 @@ fn gen_native_function_code(
                 input_extraction.push(quote! {
                     let __self = __iter
                         .next()
-                        .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() self argument missing")))?;
+                        .ok_or_else(|| anyhow::anyhow!("{}() self argument missing", #name_code))?;
                 });
                 input_convert.push(quote! {
                     let __self: #self_ref_type = turbo_tasks::FromTaskInput::try_from(__self)?;
@@ -1402,7 +1402,7 @@ fn gen_native_function_code(
                 input_extraction.push(quote! {
                     let #pat = __iter
                         .next()
-                        .ok_or_else(|| anyhow::anyhow!(concat!(#name_code, "() argument ", stringify!(#index), " (", stringify!(#pat), ") missing")))?;
+                        .ok_or_else(|| anyhow::anyhow!(concat!("{}() argument ", stringify!(#index), " (", stringify!(#pat), ") missing"), #name_code))?;
                 });
                 input_final.push(quote! {});
                 if let Type::Reference(TypeReference {
@@ -1468,11 +1468,11 @@ fn gen_native_function_code(
     (
         quote! {
             turbo_tasks::lazy_static! {
-                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_string(), |inputs| {
+                pub(crate) static ref #function_ident: turbo_tasks::NativeFunction = turbo_tasks::NativeFunction::new(#name_code.to_owned(), |inputs| {
                     let mut __iter = inputs.iter();
                     #(#input_extraction)*
                     if __iter.next().is_some() {
-                        return Err(anyhow::anyhow!(concat!(#name_code, "() called with too many arguments")));
+                        return Err(anyhow::anyhow!("{}() called with too many arguments", #name_code));
                     }
                     #(#input_convert)*
                     Ok(Box::new(move || {

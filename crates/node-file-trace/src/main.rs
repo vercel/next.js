@@ -279,8 +279,8 @@ async fn main() {
                 stats.add_id(b, root_task);
                 // stats.merge_resolve();
                 let tree = stats.treeify();
-                let graph = viz::visualize_stats_tree(tree);
-                fs::write("graph.html", viz::wrap_html(&graph)).unwrap();
+                let graph = viz::graph::visualize_stats_tree(tree);
+                fs::write("graph.html", viz::graph::wrap_html(&graph)).unwrap();
                 println!("graph.html written");
             }
             // Dropping is slow, so just forget it...

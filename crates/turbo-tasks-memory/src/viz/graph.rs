@@ -1,62 +1,29 @@
-use std::{
-    cmp::max,
-    collections::HashMap,
-    fmt::{Debug, Write},
-    ops::{Div, Mul},
-    time::Duration,
-};
-
-use crate::stats::{GroupTree, ReferenceStats, ReferenceType, TaskStats, TaskType};
-
-fn escape(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('\"', "\\\"")
-        .replace('\n', "\\n")
-}
-
-fn escape_html(s: &str) -> String {
-    s.replace('>', "&gt;").replace('<', "&lt;")
-}
+use super::*;
 
 pub fn wrap_html(graph: &str) -> String {
-    format!("
+    format!(
+        r#"
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset=\"utf-8\">
-  <title>Graph</title>
+<meta charset="utf-8">
+<title>turbo-tasks graph</title>
 </head>
 <body>
-  <script src=\"https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/index.min.js\"></script><script \
-      src=\"https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js\"></script><script>
-      var wasmBinaryFile = \"https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphvizlib.wasm\";
-      var hpccWasm = window[\"@hpcc-js/wasm\"];
+  <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/index.min.js"></script><script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script><script>
+      var wasmBinaryFile = "https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphvizlib.wasm";
+      var hpccWasm = window["@hpcc-js/wasm"];
       const dot = `{}`;
-      hpccWasm.graphviz.layout(dot, \"svg\", \"dot\").then(svg => {{
-          const div = document.createElement(\"div\");
+      hpccWasm.graphviz.layout(dot, "svg", "dot").then(svg => {{
+          const div = document.createElement("div");
           div.innerHTML = svg;
           document.body.appendChild(div)
       }}).catch(err => console.error(err.message));
   </script>
 </body>
-</html>",
-        escape(graph)
+</html>"#,
+        escape_in_template_str(graph)
     )
-}
-
-fn get_id<'a>(ty: &'a TaskType, ids: &mut HashMap<&'a TaskType, usize>) -> usize {
-    let len = ids.len();
-    *ids.entry(ty).or_insert(len)
-}
-
-struct MaxValues {
-    pub total_duration: Duration,
-    pub avg_duration: Duration,
-    pub count: usize,
-    pub updates: usize,
-    pub roots: usize,
-    /// stores as scopes * 100
-    pub scopes: usize,
 }
 
 pub fn visualize_stats_tree(root: GroupTree) -> String {
@@ -79,63 +46,6 @@ pub fn visualize_stats_tree(root: GroupTree) -> String {
     out += &edges;
     out += "\n}";
     out
-}
-
-fn get_max_values(node: &GroupTree) -> MaxValues {
-    let mut max_duration = Duration::ZERO;
-    let mut max_avg_duration = Duration::ZERO;
-    let mut max_count = 0;
-    let mut max_updates = 0;
-    let mut max_roots = 0;
-    let mut max_scopes = 0;
-    for (_, ref s) in node.task_types.iter().chain(node.primary.iter()) {
-        max_duration = max(max_duration, s.total_duration);
-        max_avg_duration = max(max_avg_duration, s.total_duration / s.executions as u32);
-        max_count = max(max_count, s.count);
-        max_updates = max(max_updates, s.executions - s.count);
-        max_roots = max(max_roots, s.roots);
-        max_scopes = max(max_scopes, 100 * s.scopes / s.count);
-    }
-    for child in node.children.iter() {
-        let MaxValues {
-            total_duration,
-            avg_duration,
-            count,
-            updates,
-            roots,
-            scopes,
-        } = get_max_values(child);
-        max_duration = max(max_duration, total_duration);
-        max_avg_duration = max(max_avg_duration, avg_duration);
-        max_count = max(max_count, count);
-        max_updates = max(max_updates, updates);
-        max_roots = max(max_roots, roots);
-        max_scopes = max(max_scopes, scopes);
-    }
-    MaxValues {
-        total_duration: max_duration,
-        avg_duration: max_avg_duration,
-        count: max_count,
-        updates: max_updates,
-        roots: max_roots,
-        scopes: max_scopes,
-    }
-}
-
-fn compute_depths<'a>(
-    node: &'a GroupTree,
-    depth: usize,
-    output: &mut HashMap<&'a TaskType, usize>,
-) {
-    if let Some((ty, _)) = &node.primary {
-        output.insert(ty, depth);
-    }
-    for (ty, _) in node.task_types.iter() {
-        output.insert(ty, depth);
-    }
-    for child in node.children.iter() {
-        compute_depths(child, depth + 1, output);
-    }
 }
 
 fn visualize_stats_tree_internal<'a>(
@@ -251,7 +161,7 @@ fn visualize_stats_references_internal<'a>(
             writeln!(
                 output,
                 "far_tasks_{source_id} [label=\"{}\", style=dashed]",
-                escape(
+                escape_in_template_str(
                     &far_types
                         .iter()
                         .map(|(ty, label)| format!("{label} {ty}"))
@@ -270,30 +180,6 @@ fn visualize_stats_references_internal<'a>(
 }
 
 fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> String {
-    fn as_frac<
-        T: From<u8>
-            + TryInto<u8>
-            + Mul<T, Output = T>
-            + Div<T, Output = T>
-            + PartialEq<T>
-            + Ord
-            + Copy,
-    >(
-        current: T,
-        total: T,
-    ) -> u8
-    where
-        <T as TryInto<u8>>::Error: Debug,
-    {
-        let min: T = u8::MIN.into();
-        let max: T = u8::MAX.into();
-        let result = if total == min {
-            min
-        } else {
-            max * current / total
-        };
-        result.clamp(min, max).try_into().unwrap()
-    }
     let total = as_frac(
         stats.total_duration.as_millis(),
         max_values.total_duration.as_millis(),
@@ -303,17 +189,16 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
         max_values.avg_duration.as_micros(),
     );
     let count = as_frac(stats.count, max_values.count);
-    let updates = as_frac(stats.executions - stats.count, max_values.updates);
+    let updates = as_frac(
+        stats.executions.saturating_sub(stats.count),
+        max_values.updates,
+    );
     let roots = as_frac(stats.roots, max_values.roots);
     let max_scopes = max_values.scopes.saturating_sub(100);
-    let scopes = if max_scopes == 0 {
-        0
-    } else {
-        as_frac(
-            (100 * stats.scopes / stats.count).saturating_sub(100),
-            max_scopes,
-        )
-    };
+    let scopes = as_frac(
+        (100 * stats.scopes / stats.count).saturating_sub(100),
+        max_scopes,
+    );
 
     format!(
         "<
@@ -350,21 +235,4 @@ fn get_task_label(ty: &TaskType, stats: &TaskStats, max_values: &MaxValues) -> S
         as_color(scopes),
         (100 * stats.scopes / stats.count) as f32 / 100.0
     )
-}
-
-fn as_color(n: u8) -> String {
-    // interpolate #fff -> #ff0 -> #f00
-    if n >= 64 {
-        format!("#ff{:0>2x}00", u8::MAX - ((n as u32 - 64) * 4 / 3) as u8)
-    } else {
-        format!("#ffff{:0>2x}", u8::MAX - n * 4)
-    }
-}
-
-fn get_child_label(_ty: &ReferenceType, stats: &ReferenceStats, source_count: usize) -> String {
-    if stats.count == source_count {
-        "".to_string()
-    } else {
-        format!("{}", stats.count)
-    }
 }

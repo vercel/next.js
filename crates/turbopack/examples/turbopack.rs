@@ -13,7 +13,7 @@ use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::{
     stats::Stats,
-    viz::{visualize_stats_tree, wrap_html},
+    viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
 use turbopack::{emit, rebase::RebasedAssetVc, register, GraphOptionsVc};

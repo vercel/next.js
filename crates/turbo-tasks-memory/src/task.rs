@@ -148,6 +148,7 @@ struct TaskState {
     // Stats:
     executions: u32,
     total_duration: Duration,
+    last_duration: Duration,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -448,6 +449,7 @@ impl Task {
         {
             let mut state = self.state.write().unwrap();
             state.total_duration += duration;
+            state.last_duration = duration;
             match state.state_type {
                 InProgress => {
                     state.state_type = Done;
@@ -950,10 +952,11 @@ impl Task {
         state.state_type != TaskStateType::Done
     }
 
-    pub fn get_stats_info(&self) -> (Duration, u32, bool, usize) {
+    pub fn get_stats_info(&self) -> (Duration, Duration, u32, bool, usize) {
         let state = self.state.read().unwrap();
         (
             state.total_duration,
+            state.last_duration,
             state.executions,
             matches!(state.scopes, TaskScopes::Root(_)),
             match state.scopes {

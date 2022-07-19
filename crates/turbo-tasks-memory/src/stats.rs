@@ -1,5 +1,5 @@
 use std::{
-    cmp,
+    cmp::{self, max},
     collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
     fmt::Display,
     mem::take,
@@ -29,7 +29,7 @@ impl Display for TaskType {
                 write!(f, "resolve {}", registry::get_function(*nf).name)
             }
             TaskType::ResolveTrait(t, n) => {
-                write!(f, "resolve trait {} :: {}", registry::get_trait(*t).name, n)
+                write!(f, "resolve trait {}::{}", registry::get_trait(*t).name, n)
             }
         }
     }
@@ -54,6 +54,9 @@ pub struct TaskStats {
     pub roots: usize,
     pub scopes: usize,
     pub total_duration: Duration,
+    pub total_current_duration: Duration,
+    pub total_update_duration: Duration,
+    pub max_duration: Duration,
     pub references: HashMap<(ReferenceType, TaskType), ReferenceStats>,
 }
 
@@ -65,6 +68,9 @@ impl Default for TaskStats {
             roots: 0,
             scopes: 0,
             total_duration: Duration::ZERO,
+            total_current_duration: Duration::ZERO,
+            total_update_duration: Duration::ZERO,
+            max_duration: Duration::ZERO,
             references: Default::default(),
         }
     }
@@ -91,8 +97,13 @@ impl Stats {
         let ty = task.get_stats_type();
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
-        let (duration, executions, root, scopes) = task.get_stats_info();
+        let (duration, last_duration, executions, root, scopes) = task.get_stats_info();
         stats.total_duration += duration;
+        stats.total_current_duration += last_duration;
+        if executions > 1 {
+            stats.total_update_duration += last_duration;
+        }
+        stats.max_duration = max(stats.max_duration, duration);
         stats.executions += executions as usize;
         if root {
             stats.roots += 1;
