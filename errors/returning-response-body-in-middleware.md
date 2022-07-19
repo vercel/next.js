@@ -1,86 +1,65 @@
-# Returning response body in middleware
+# Returning response body in Middleware
 
 #### Why This Error Occurred
 
-Your [`middleware`](https://nextjs.org/docs/advanced-features/middleware) function returns a response body, which is not supported.
-
-Letting middleware respond to incoming requests would bypass Next.js routing mechanism, creating an unnecessary escape hatch.
+[Middleware](https://nextjs.org/docs/advanced-features/middleware) can no longer produce a response body as of `v12.2+`.
 
 #### Possible Ways to Fix It
 
-Next.js middleware gives you a great opportunity to run code and adjust to the requesting user.
+Migrate to using `rewrite`/`redirect` to Pages/API Routes handling a response.
 
-It is intended for use cases like:
+#### Explanation
 
-- A/B testing, where you **_rewrite_** to a different page based on external data (User agent, user location, a custom header or cookie...)
+To respect the differences in client-side and server-side navigation, and to help ensure that developers do not build insecure Middleware, Middleware can no longer produce a response body. This ensures that Middleware is only used to `rewrite`, `redirect`, or modify the incoming request (e.g. [setting cookies](https://nextjs.org/docs/advanced-features/middleware#using-cookies)).
 
-  ```js
-  export function middleware(req: NextRequest) {
-    let res = NextResponse.next()
-    // reuses cookie, or builds a new one.
-    const cookie = req.cookies.get(COOKIE_NAME) ?? buildABTestingCookie()
+The following patterns will no longer work:
 
-    // the cookie contains the displayed variant, 0 being default
-    const [, variantId] = cookie.split('.')
-    if (variantId !== '0') {
-      const url = req.nextUrl.clone()
-      url.pathname = url.pathname.replace('/', `/${variantId}/`)
-      // rewrites the response to display desired variant
-      res = NextResponse.rewrite(url)
-    }
+```js
+new Response('a text value')
+new Response(streamOrBuffer)
+new Response(JSON.stringify(obj), { headers: 'application/json' })
+NextResponse.json()
+```
 
-    // don't forget to set cookie if not set yet
-    if (!req.cookies.has(COOKIE_NAME)) {
-      res.cookies.set(COOKIE_NAME, cookie)
-    }
-    return res
-  }
-  ```
+### How to upgrade
 
-- authentication, where you **_redirect_** to your log-in/sign-in page any un-authenticated request
+For cases where Middleware is used to respond (such as authorization), you should migrate to use `rewrite`/`redirect` to pages that show an authorization error, login forms, or to an API Route.
 
-  ```js
-  export function middleware(req: NextRequest) {
-    const basicAuth = req.headers.get('authorization')
+#### Before
 
-    if (basicAuth) {
-      const auth = basicAuth.split(' ')[1]
-      const [user, pwd] = atob(auth).split(':')
-      if (areCredentialsValid(user, pwd)) {
-        return NextResponse.next()
-      }
-    }
+```typescript
+// pages/_middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { isAuthValid } from './lib/auth'
 
-    return NextResponse.redirect(
-      new URL(`/login?from=${req.nextUrl.pathname}`, req.url)
-    )
-  }
-  ```
-
-- detecting bots and **_rewrite_** response to display to some sink
-
-  ```js
-  export function middleware(req: NextRequest) {
-    if (isABotRequest(req)) {
-      // Bot detected! rewrite to the sink
-      const url = req.nextUrl.clone()
-      url.pathname = '/bot-detected'
-      return NextResponse.rewrite(url)
-    }
+export function middleware(request: NextRequest) {
+  // Example function to validate auth
+  if (isAuthValid(request)) {
     return NextResponse.next()
   }
-  ```
 
-- programmatically adding **_headers_** to the response, like cookies.
+  return NextResponse.json({ message: 'Auth required' }, { status: 401 })
+}
+```
 
-  ```js
-  export function middleware(req: NextRequest) {
-    const res = NextResponse.next(null, {
-      // sets a custom response header
-      headers: { 'response-greetings': 'Hej!' },
-    })
-    // configures cookies
-    res.cookies.set('hello', 'world')
-    return res
+#### After
+
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { isAuthValid } from './lib/auth'
+
+export function middleware(request: NextRequest) {
+  // Example function to validate auth
+  if (isAuthValid(request)) {
+    return NextResponse.next()
   }
-  ```
+
+  request.nextUrl.searchParams.set('from', request.nextUrl.pathname)
+  request.nextUrl.pathname = '/login'
+
+  return NextResponse.redirect(request.nextUrl)
+}
+```
