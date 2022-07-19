@@ -928,9 +928,9 @@ export default class NextNodeServer extends BaseServer {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
-    //    https://github.com/pillarjs/send/asset/0.17.1/index.js#L518-L522
+    //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L518-L522
     // 2. resolve:
-    //    https://github.com/pillarjs/send/asset/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
+    //    https://github.com/pillarjs/send/blob/de073ed3237ade9ff71c61673a34474b30e5d45b/index.js#L561
 
     let decodedUntrustedFilePath: string
     try {
