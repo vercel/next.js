@@ -95,7 +95,7 @@ macro_rules! create_visitor {
         impl<T: Fn(&mut swc_ecma_ast::Program) + Send + Sync> $crate::code_gen::VisitorFactory
             for Box<Visitor<T>>
         {
-            fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
+            fn create<'a>(&'a self) -> Box<dyn swc_ecma_visit::VisitMut + Send + Sync + 'a> {
                 box &**self
             }
         }

@@ -1,27 +1,91 @@
-use std::{collections::BTreeMap, mem::replace};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashSet},
+};
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_common::DUMMY_SP;
 use swc_ecma_ast::{
-    ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl,
-    Ident, KeyValueProp, Module, ModuleDecl, ModuleItem, ObjectLit, Program, Prop, PropName,
-    PropOrSpread, Script, Stmt, Str,
+    ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module, ModuleItem,
+    ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Str,
 };
 use swc_ecma_quote::quote;
-use swc_ecma_visit::VisitMut;
+use turbo_tasks::{primitives::StringsVc, trace::TraceRawVcs, ValueToString};
 use turbopack_core::chunk::ChunkingContextVc;
 
-use crate::{
-    chunk::EcmascriptChunkContextVc,
-    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
-    create_visitor, magic_identifier,
-    references::AstPathVc,
+use super::{
+    esm::{get_ident, ReferencedAsset},
+    EsmAssetReferenceVc,
 };
+use crate::{
+    chunk::{EcmascriptChunkContextVc, EcmascriptChunkPlaceableVc, EcmascriptExports},
+    code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
+    create_visitor,
+};
+
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+pub enum EsmExport {
+    LocalBinding(String),
+    ImportedBinding(EsmAssetReferenceVc, String),
+    ImportedNamespace(EsmAssetReferenceVc),
+}
+
+#[turbo_tasks::function]
+async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<StringsVc> {
+    let mut set = HashSet::new();
+    let mut checked_assets = HashSet::new();
+    checked_assets.insert(root_asset);
+    let mut queue = vec![(root_asset, root_asset.get_exports())];
+    while let Some((asset, exports)) = queue.pop() {
+        match &*exports.await? {
+            EcmascriptExports::EsmExports(exports) => {
+                let exports = exports.await?;
+                set.extend(exports.exports.keys().filter(|n| *n != "default").cloned());
+                for esm_ref in exports.star_exports.iter() {
+                    if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
+                        if checked_assets.insert(*asset) {
+                            queue.push((*asset, asset.get_exports()));
+                        }
+                    }
+                }
+            }
+            EcmascriptExports::None => {
+                // TODO show parent
+                println!(
+                    "export * used with module {} which has no exports\nTypescipt only: Did you \
+                     want to import only types with `export type * from \"...\"`?",
+                    asset.to_string().await?
+                );
+            }
+            EcmascriptExports::Value => {
+                // TODO show parent
+                println!(
+                    "export * used with module {} which only has a default export (default export \
+                     is not exported with export *)\nDid you want to use `export {{ default }} \
+                     from \"...\";` instead?",
+                    asset.to_string().await?
+                );
+            }
+            EcmascriptExports::CommonJs => {
+                // TODO show parent
+                println!(
+                    "export * used with module {} which is a CommonJs module with exports only \
+                     available at runtime\nList all export names manually (`export {{ a, b, c }} \
+                     from \"...\") or rewrite the module to ESM.`",
+                    asset.to_string().await?
+                );
+            }
+        }
+    }
+    Ok(StringsVc::cell(set.into_iter().collect()))
+}
 
 #[turbo_tasks::value(shared, CodeGenerateable)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
-    pub exports: BTreeMap<String, String>,
+    pub exports: BTreeMap<String, EsmExport>,
+    pub star_exports: Vec<EsmAssetReferenceVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,22 +99,84 @@ impl CodeGenerateable for EsmExports {
         let this = self_vc.await?;
         let mut visitors = Vec::new();
 
+        let mut all_exports: BTreeMap<Cow<str>, Cow<EsmExport>> = this
+            .exports
+            .iter()
+            .map(|(k, v)| (Cow::<str>::Borrowed(k), Cow::Borrowed(v)))
+            .collect();
+        let mut props = Vec::new();
+        for esm_ref in this.star_exports.iter() {
+            if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
+                let export_names = expand_star_exports(*asset).await?;
+                for export in export_names.iter() {
+                    if !all_exports.contains_key(&Cow::<str>::Borrowed(&export)) {
+                        all_exports.insert(
+                            Cow::Owned(export.clone()),
+                            Cow::Owned(EsmExport::ImportedBinding(*esm_ref, export.clone())),
+                        );
+                    }
+                }
+            }
+        }
+        for (exported, local) in all_exports.into_iter() {
+            let expr = match local.as_ref() {
+                EsmExport::LocalBinding(name) => Some(quote!(
+                    "(() => $local)" as Expr,
+                    local = Ident::new((name as &str).into(), DUMMY_SP)
+                )),
+                EsmExport::ImportedBinding(esm_ref, name) => {
+                    if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
+                        let ident = get_ident(*asset).await?;
+                        Some(quote!(
+                            "(() => $expr)" as Expr,
+                            expr: Expr = Expr::Member(MemberExpr {
+                                span: DUMMY_SP,
+                                obj: box Expr::Ident(Ident::new(ident.into(), DUMMY_SP)),
+                                prop: MemberProp::Computed(ComputedPropName {
+                                    span: DUMMY_SP,
+                                    expr: box Expr::Lit(Lit::Str(Str {
+                                        span: DUMMY_SP,
+                                        value: (name as &str).into(),
+                                        raw: None,
+                                    }))
+                                })
+                            })
+                        ))
+                    } else {
+                        None
+                    }
+                }
+                EsmExport::ImportedNamespace(esm_ref) => {
+                    if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
+                        let ident = get_ident(*asset).await?;
+                        Some(quote!(
+                            "(() => $imported)" as Expr,
+                            imported = Ident::new(ident.into(), DUMMY_SP)
+                        ))
+                    } else {
+                        None
+                    }
+                }
+            };
+            if let Some(expr) = expr {
+                props.push(PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                    key: PropName::Str(Str {
+                        span: DUMMY_SP,
+                        value: exported.as_ref().into(),
+                        raw: None,
+                    }),
+                    value: box expr,
+                })));
+            }
+        }
+        let getters = Expr::Object(ObjectLit {
+            span: DUMMY_SP,
+            props,
+        });
+
         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let getters = Expr::Object(ObjectLit {
-                span: DUMMY_SP,
-                props: this.exports.iter().map(|(exported, local)| {
-                    PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-                        key: PropName::Str(Str {
-                            span: DUMMY_SP,
-                            value: (exported as &str).into(),
-                            raw: None
-                        }),
-                        value: box quote!("(() => $local)" as Expr, local = Ident::new((local as &str).into(), DUMMY_SP))
-                    }))
-                }).collect()
-            });
             let stmt = quote!("__turbopack_esm__($getters);" as Stmt,
-                getters: Expr = getters
+                getters: Expr = getters.clone()
             );
             match program {
                 Program::Module(Module { body, .. }) => {
@@ -61,90 +187,6 @@ impl CodeGenerateable for EsmExports {
                 }
             }
         }));
-
-        Ok(CodeGeneration { visitors }.into())
-    }
-}
-
-/// Makes code changes to remove export declarations and places the expr/decl in
-/// a normal statement. Unnamed expr/decl will be named with the magic
-/// identifier "export default"
-#[turbo_tasks::value(CodeGenerateable)]
-#[derive(Hash, Debug)]
-pub struct EsmExport {
-    pub path: AstPathVc,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmExportVc {
-    #[turbo_tasks::function]
-    pub fn new(path: AstPathVc) -> Self {
-        Self::cell(EsmExport { path })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmExport {
-    #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        _chunk_context: EcmascriptChunkContextVc,
-        _context: ChunkingContextVc,
-    ) -> Result<CodeGenerationVc> {
-        let mut visitors = Vec::new();
-
-        let path = &self.path.await?;
-        visitors.push(
-            create_visitor!(path, visit_mut_module_item(module_item: &mut ModuleItem) {
-                let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
-                if let ModuleItem::ModuleDecl(module_decl) = item {
-                    match module_decl {
-                        ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { box expr, .. }) => {
-                            let stmt = quote!("const $name = $expr;" as Stmt,
-                                name = Ident::new(magic_identifier::encode("default export").into(), DUMMY_SP),
-                                expr: Expr = expr
-                            );
-                            *module_item = ModuleItem::Stmt(stmt);
-                        }
-                        ModuleDecl::ExportDefaultDecl(ExportDefaultDecl { decl, ..}) => {
-                            match decl {
-                                DefaultDecl::Class(class) => {
-                                    *module_item = ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
-                                        ident: class.ident.unwrap_or_else(|| Ident::new(magic_identifier::encode("default export").into(), DUMMY_SP)),
-                                        declare: false,
-                                        class: class.class
-                                    })))
-                                }
-                                DefaultDecl::Fn(fn_expr) => {
-                                    *module_item = ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
-                                        ident: fn_expr.ident.unwrap_or_else(|| Ident::new(magic_identifier::encode("default export").into(), DUMMY_SP)),
-                                        declare: false,
-                                        function: fn_expr.function
-                                    })))
-                                }
-                                DefaultDecl::TsInterfaceDecl(_) => {
-                                    panic!("typescript declarations are unexpected here");
-                                }
-                            }
-                        }
-                        ModuleDecl::ExportDecl(ExportDecl { decl, .. }) => {
-                            *module_item = ModuleItem::Stmt(Stmt::Decl(decl));
-                        }
-                        ModuleDecl::ExportNamed(_) => {
-                            // already removed
-                        }
-                        ModuleDecl::ExportAll(_) => {
-                            // already removed
-                        }
-                        other => {
-                            panic!("EsmExport was created with a path that points to a unexpected ModuleDecl {:?}", other);
-                        }
-                    }
-                } else {
-                    panic!("EsmExport was created with a path that points to a unexpected ModuleItem {:?}", item);
-                }
-            }),
-        );
 
         Ok(CodeGeneration { visitors }.into())
     }

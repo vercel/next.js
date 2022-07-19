@@ -115,8 +115,8 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
 }
 
 pub struct EvalContext {
-    unresolved_mark: Mark,
-    imports: ImportMap,
+    pub(crate) unresolved_mark: Mark,
+    pub(crate) imports: ImportMap,
 }
 
 impl EvalContext {

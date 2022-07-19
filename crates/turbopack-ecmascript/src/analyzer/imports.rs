@@ -31,6 +31,7 @@ impl ImportMap {
         None
     }
 
+    // TODO this could return &str instead of String to avoid cloning
     pub fn get_binding(&self, id: &Id) -> Option<(String, Option<String>)> {
         if let Some((i_src, i_sym)) = self.imports.get(id) {
             return Some((i_src.to_string(), Some(i_sym.to_string())));

@@ -4,4 +4,7 @@ use crate as turbo_tasks;
 pub struct String(std::string::String);
 
 #[turbo_tasks::value(transparent)]
+pub struct Strings(Vec<std::string::String>);
+
+#[turbo_tasks::value(transparent)]
 pub struct Bool(bool);
