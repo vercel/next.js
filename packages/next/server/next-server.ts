@@ -512,8 +512,10 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl.search = stringifyQuery(req, query)
 
     const target = formatUrl(parsedUrl)
+    const secure = this.nextConfig.rewriteSecure
     const proxy = new HttpProxy({
       target,
+      secure,
       changeOrigin: true,
       ignorePath: true,
       xfwd: true,
