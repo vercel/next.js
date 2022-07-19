@@ -23,15 +23,22 @@ pub struct DevChunkingContext {
 #[turbo_tasks::value_impl]
 impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
-    async fn as_chunk_path(&self, path: FileSystemPathVc) -> Result<FileSystemPathVc> {
+    async fn as_chunk_path(
+        &self,
+        path: FileSystemPathVc,
+        extension: &str,
+    ) -> Result<FileSystemPathVc> {
         fn clean(s: &str) -> String {
             s.replace('/', "_")
         }
-        let name = if let Some(inner) = self.context_path.await?.get_path_to(&*path.await?) {
+        let mut name = if let Some(inner) = self.context_path.await?.get_path_to(&*path.await?) {
             clean(inner)
         } else {
             clean(&*path.to_string().await?)
         };
+        if !name.ends_with(extension) {
+            name += extension;
+        }
         Ok(self.chunk_root_path.join(&name))
     }
 

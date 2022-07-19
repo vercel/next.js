@@ -130,7 +130,7 @@ async fn module_factory(content: EcmascriptChunkItemContentVc) -> Result<StringV
 impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
     fn path(&self) -> FileSystemPathVc {
-        self.context.as_chunk_path(self.entry.path())
+        self.context.as_chunk_path(self.entry.path(), ".js")
     }
 
     #[turbo_tasks::function]
