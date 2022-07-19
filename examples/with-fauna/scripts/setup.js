@@ -190,7 +190,7 @@ const main = async () => {
   console.log('- Created .env.local file with secret')
 }
 
-exports.resolveDbDomain = resolveDbDomain;
+exports.resolveDbDomain = resolveDbDomain
 
 main().catch((err) => {
   console.error(err)
