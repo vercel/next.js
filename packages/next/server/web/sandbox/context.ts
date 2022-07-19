@@ -1,5 +1,5 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
   getServerError,
@@ -9,6 +9,8 @@ import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
+import { fetchInlineAsset } from './fetch-inline-assets'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -48,7 +50,8 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
-  wasm: WasmBinding[]
+  distDir: string
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -103,7 +106,7 @@ export async function getModuleContext(options: ModuleContextOptions) {
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const wasm = await loadWasm(options.wasm)
+  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -197,7 +200,17 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
+        const assetResponse = await fetchInlineAsset({
+          input,
+          assets: options.edgeFunctionEntry.assets,
+          distDir: options.distDir,
+          context,
+        })
+        if (assetResponse) {
+          return assetResponse
+        }
+
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -270,7 +283,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 }
 
 async function loadWasm(
-  wasm: WasmBinding[]
+  wasm: AssetBinding[]
 ): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
