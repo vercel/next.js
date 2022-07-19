@@ -543,15 +543,21 @@ export async function renderToHTML(
     tree: [segment, parallelRoutes, { layout, loading, page }],
     parentParams,
     firstItem,
+    rootLayoutIncluded,
   }: {
     createSegmentPath: CreateSegmentPath
     tree: LoaderTree
     parentParams: { [key: string]: any }
+    rootLayoutIncluded?: boolean
     firstItem?: boolean
   }): { Component: React.ComponentType } => {
     const Loading = loading ? interopDefault(loading()) : undefined
-    const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    const isPage = typeof page !== undefined
+    const isLayout = typeof layout !== 'undefined'
+    const isPage = typeof page !== 'undefined'
+    const layoutOrPageMod = isLayout ? layout() : isPage ? page() : undefined
+    const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+    const rootLayoutIncludedAtThisLevelOrAbove =
+      rootLayoutIncluded || rootLayoutAtThisLevel
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
@@ -600,6 +606,7 @@ export async function renderToHTML(
           },
           tree: parallelRoutes[currentValue],
           parentParams: currentParams,
+          rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
         })
 
         const childSegmentParam = getDynamicParamFromSegment(
@@ -622,6 +629,7 @@ export async function renderToHTML(
             segmentPath={createSegmentPath(currentSegmentPath)}
             loading={Loading ? <Loading /> : undefined}
             childProp={childProp}
+            rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
           />
         )
 
