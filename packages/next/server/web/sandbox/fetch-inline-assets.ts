@@ -1,7 +1,7 @@
 import { createReadStream, promises as fs } from 'fs'
 import path from 'path'
-import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { requestToBodyStream } from '../../body-streams'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 /**
  * Short-circuits the `fetch` function
