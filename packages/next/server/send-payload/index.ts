@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 
 import { isResSent } from '../../shared/lib/utils'
-import generateETag from 'next/dist/compiled/etag'
+import { generateETag } from '../lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from '../render-result'
 import { setRevalidateHeaders } from './revalidate-headers'
