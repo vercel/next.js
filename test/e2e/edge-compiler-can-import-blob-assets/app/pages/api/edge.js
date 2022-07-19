@@ -34,6 +34,26 @@ const handlers = new Map([
       return fetch(url)
     },
   ],
+  [
+    'remote-full',
+    async () => {
+      const url = new URL('https://example.vercel.sh')
+      const response = await fetch(url)
+      const headers = new Headers(response.headers)
+      headers.delete('content-encoding')
+      return new Response(response.body, { headers, status: response.status })
+    },
+  ],
+  [
+    'remote-with-base',
+    async () => {
+      const url = new URL('/', 'https://example.vercel.sh')
+      const response = await fetch(url)
+      const headers = new Headers(response.headers)
+      headers.delete('content-encoding')
+      return new Response(response.body, { headers, status: response.status })
+    },
+  ],
 ])
 
 const defaultHandler = async () =>
