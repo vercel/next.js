@@ -182,5 +182,6 @@ async fn handle_resolve_error(
     })
 }
 
+// TODO enable serialization
 #[turbo_tasks::value(transparent, serialization: none)]
 pub struct AstPath(#[trace_ignore] Vec<AstParentKind>);

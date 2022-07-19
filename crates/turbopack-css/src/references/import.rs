@@ -1,9 +1,7 @@
 use anyhow::Result;
 use swc_common::DUMMY_SP;
-use swc_css_ast::{
-    ComponentValue, Ident, ImportPrelude, ImportPreludeLayerName, ImportPreludeSupportsType,
-    MediaQuery, SupportsCondition, SupportsConditionType, SupportsFeature, SupportsInParens,
-};
+use swc_css_ast::*;
+use swc_css_codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit};
 use turbo_tasks::primitives::{BoolVc, StringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
@@ -17,7 +15,7 @@ use crate::references::{css_resolve, AstPathVc};
 #[turbo_tasks::value(into: new)]
 pub struct ImportAttributes {
     #[trace_ignore]
-    pub layer_name: Option<Option<Vec<Ident>>>,
+    pub layer_name: Option<Vec<Ident>>,
     #[trace_ignore]
     pub supports: Option<SupportsCondition>,
     #[trace_ignore]
@@ -27,12 +25,12 @@ pub struct ImportAttributes {
 impl ImportAttributes {
     pub fn new_from_prelude(prelude: &ImportPrelude) -> Self {
         let layer_name = prelude.layer_name.as_ref().map(|l| match l {
-            ImportPreludeLayerName::Ident(_) => None,
+            ImportPreludeLayerName::Ident(_) => Vec::new(),
             ImportPreludeLayerName::Function(f) => {
                 assert_eq!(f.value.len(), 1);
                 assert!(matches!(&f.value[0], ComponentValue::Ident(_)));
                 if let ComponentValue::Ident(ident) = &f.value[0] {
-                    Some(vec![ident.clone()])
+                    vec![ident.clone()]
                 } else {
                     unreachable!()
                 }
@@ -56,6 +54,84 @@ impl ImportAttributes {
             supports,
             media,
         }
+    }
+
+    pub fn print_block(&self) -> Result<(String, usize, String)> {
+        let token = |token| TokenAndSpan {
+            span: DUMMY_SP,
+            token,
+        };
+
+        // something random that's never gonna be in real css
+        let mut rule = Rule::Invalid(Tokens {
+            span: DUMMY_SP,
+            tokens: vec![token(Token::String {
+                value: Default::default(),
+                raw: r#""""__turbopack_placeholder__""""#.into(),
+            })],
+        });
+        let mut indent = 0;
+
+        fn at_rule(name: &str, prelude: AtRulePrelude, inner_rule: Rule) -> Rule {
+            Rule::AtRule(AtRule {
+                span: DUMMY_SP,
+                name: AtRuleName::Ident(Ident {
+                    span: DUMMY_SP,
+                    value: name.into(),
+                    raw: name.into(),
+                }),
+                prelude: Some(prelude),
+                block: Some(SimpleBlock {
+                    span: DUMMY_SP,
+                    name: '{',
+                    value: vec![ComponentValue::Rule(inner_rule)],
+                }),
+            })
+        }
+
+        if let Some(media) = &self.media {
+            rule = at_rule(
+                "media",
+                AtRulePrelude::MediaPrelude(MediaQueryList {
+                    span: DUMMY_SP,
+                    queries: media.clone(),
+                }),
+                rule,
+            );
+            indent += 2;
+        }
+        if let Some(supports) = &self.supports {
+            rule = at_rule(
+                "supports",
+                AtRulePrelude::SupportsPrelude(supports.clone()),
+                rule,
+            );
+            indent += 2;
+        }
+        if let Some(layer_name) = &self.layer_name {
+            rule = at_rule(
+                "layer",
+                AtRulePrelude::LayerPrelude(LayerPrelude::Name(LayerName {
+                    span: DUMMY_SP,
+                    name: layer_name.clone(),
+                })),
+                rule,
+            );
+            indent += 2;
+        }
+
+        let mut output = String::new();
+        let mut code_gen = CodeGenerator::new(
+            BasicCssWriter::new(&mut output, None, Default::default()),
+            Default::default(),
+        );
+        code_gen.emit(&rule)?;
+
+        let (open, close) = output
+            .split_once(r#""""__turbopack_placeholder__""""#)
+            .unwrap();
+
+        Ok((open.trim().into(), indent, close.trim().into()))
     }
 }
 

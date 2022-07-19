@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![feature(into_future)]
 
 use anyhow::Result;
 use swc_css_ast::{AtRule, AtRulePrelude, Rule};
@@ -109,18 +110,17 @@ impl CssChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(
         &self,
-        chunk_context: CssChunkContextVc,
+        _chunk_context: CssChunkContextVc,
         _context: ChunkingContextVc,
     ) -> Result<CssChunkItemContentVc> {
-        let references = self.module.references();
+        let references = &*self.module.references().await?;
         let mut imports = vec![];
 
-        for reference in &*references.await? {
+        for reference in references.iter() {
             if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
                 for asset in &*import.resolve_reference().primary_assets().await? {
-                    if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
-                        let imported_id = chunk_context.id(placeable);
-                        imports.push(imported_id);
+                    if let Some(_) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                        imports.push((import, asset.path().to_string()));
                     }
                 }
             }
@@ -138,23 +138,19 @@ impl CssChunkItem for ModuleChunkItem {
             let mut stylesheet = stylesheet.clone();
 
             // remove imports
-            stylesheet.rules = stylesheet
-                .rules
-                .into_iter()
-                .filter(|r| {
-                    !matches!(
-                        r,
-                        &Rule::AtRule(AtRule {
-                            prelude: Some(AtRulePrelude::ImportPrelude(_)),
-                            ..
-                        })
-                    )
-                })
-                .collect();
+            stylesheet.rules.retain(|r| {
+                !matches!(
+                    r,
+                    &Rule::AtRule(AtRule {
+                        prelude: Some(AtRulePrelude::ImportPrelude(_)),
+                        ..
+                    })
+                )
+            });
 
             let mut code_string = format!("/* {} */\n", self.module.path().to_string().await?);
 
-            // TODO: pass sourcemap somehow?
+            // TODO: pass sourcemap somehow (second param in the css writer)?
             let mut code_gen = CodeGenerator::new(
                 BasicCssWriter::new(&mut code_string, None, Default::default()),
                 Default::default(),
@@ -164,14 +160,17 @@ impl CssChunkItem for ModuleChunkItem {
 
             Ok(CssChunkItemContent {
                 inner_code: code_string,
-                id: chunk_context.id(CssChunkPlaceableVc::cast_from(self.module)),
+                path: self.module.path().to_string(),
                 imports,
             }
             .into())
         } else {
             Ok(CssChunkItemContent {
-                inner_code: format!("/* unparsable {} */", self.module.path().to_string().await?),
-                id: chunk_context.id(CssChunkPlaceableVc::cast_from(self.module)),
+                inner_code: format!(
+                    "/* unparseable {} */",
+                    self.module.path().to_string().await?
+                ),
+                path: self.module.path().to_string(),
                 imports: vec![],
             }
             .into())

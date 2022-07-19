@@ -5,7 +5,7 @@ use turbopack_core::{
     resolve::{parse::RequestVc, ResolveResultVc},
 };
 
-use crate::references;
+use crate::references::css_resolve;
 
 #[turbo_tasks::value(AssetReference)]
 #[derive(Hash, Debug)]
@@ -25,14 +25,8 @@ impl UrlAssetReferenceVc {
 #[turbo_tasks::value_impl]
 impl AssetReference for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> anyhow::Result<ResolveResultVc> {
-        let context_path = self.context.context_path();
-        let options = self.context.resolve_options();
-        let result = self
-            .context
-            .resolve_asset(context_path, self.request, options);
-
-        references::handle_resolve_error(result, context_path, self.request).await
+    fn resolve_reference(&self) -> ResolveResultVc {
+        css_resolve(self.request, self.context)
     }
 
     #[turbo_tasks::function]

@@ -1,4 +1,6 @@
-use std::collections::{HashMap, VecDeque};
+mod writer;
+
+use std::collections::HashMap;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, util::try_join_all, ValueToString, ValueToStringVc};
@@ -8,10 +10,13 @@ use turbopack_core::{
     chunk::{
         chunk_content, chunk_content_split, Chunk, ChunkContentResult, ChunkGroupReferenceVc,
         ChunkGroupVc, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc,
-        FromChunkableAsset, ModuleId, ModuleIdVc,
+        FromChunkableAsset,
     },
     reference::{AssetReferenceVc, AssetReferencesVc},
 };
+use writer::{expand_imports, WriterWithIndent};
+
+use crate::ImportAssetReferenceVc;
 
 #[turbo_tasks::value(Chunk, Asset, ValueToString)]
 pub struct CssChunk {
@@ -80,50 +85,6 @@ impl ValueToString for CssChunk {
     }
 }
 
-fn stringify_module_id(id: &ModuleId) -> String {
-    match id {
-        ModuleId::Number(n) => n.to_string(),
-        ModuleId::String(s) => s.clone(),
-    }
-}
-
-async fn expand_imports(
-    code: &mut String,
-    content_vc: CssChunkItemContentVc,
-    map: &HashMap<ModuleId, CssChunkItemContentVc>,
-) -> Result<()> {
-    let content: &CssChunkItemContent = &*content_vc.await?;
-    let mut stack = vec![(
-        content_vc,
-        content.imports.iter().cloned().collect::<VecDeque<_>>(),
-    )];
-
-    while let Some((content_vc, imports)) = stack.last_mut() {
-        if let Some(import) = imports.pop_front() {
-            // TODO: layer, media query, supports
-            let id = import.await?;
-            let id_string = stringify_module_id(&*id);
-            *code += &format!("/* import({}) */\n", id_string);
-            if let Some(imported_content_vc) = map.get(&*id) {
-                let imported_content: &CssChunkItemContent = &*(*imported_content_vc).await?;
-                stack.push((
-                    *imported_content_vc,
-                    imported_content.imports.iter().cloned().collect(),
-                ));
-            } else {
-                println!("unable to expand css import: {}", id_string);
-            }
-        } else {
-            let content: &CssChunkItemContent = &*(*content_vc).await?;
-            *code += &content.inner_code;
-            *code += "\n\n";
-            stack.pop();
-        }
-    }
-
-    Ok(())
-}
-
 #[turbo_tasks::value_impl]
 impl Asset for CssChunk {
     #[turbo_tasks::function]
@@ -134,20 +95,18 @@ impl Asset for CssChunk {
     #[turbo_tasks::function]
     async fn content(self_vc: CssChunkVc) -> Result<FileContentVc> {
         let this = self_vc.await?;
-        let content = css_chunk_content(this.context, this.entry).await?;
-        let content: &CssChunkContentResult = &*content;
+        let content = &*css_chunk_content(this.context, this.entry).await?;
         let c_context = chunk_context(this.context);
 
-        let entry_placable = CssChunkPlaceableVc::cast_from(this.entry);
-        let entry_content = entry_placable
+        let entry_placeable = CssChunkPlaceableVc::cast_from(this.entry);
+        let entry_content = entry_placeable
             .as_chunk_item(this.context)
             .content(c_context, this.context);
 
         let entries = try_join_all(content.chunk_items.iter().map(|chunk_item| async {
-            let chunk_item: &CssChunkItemVc = chunk_item;
             let content_vc = chunk_item.content(c_context, this.context);
-            let content: &CssChunkItemContent = &*content_vc.await?;
-            Ok((content.id.await?.clone(), content_vc)) as Result<_>
+            let content = &*content_vc.await?;
+            Ok((content.path.await?.clone(), content_vc)) as Result<_>
         }))
         .await?;
         let map = entries.into_iter().collect::<HashMap<_, _>>();
@@ -156,7 +115,8 @@ impl Asset for CssChunk {
         let chunk_id = path.to_string();
         let mut code = format!("/* chunk {} */\n", chunk_id.await?);
 
-        expand_imports(&mut code, entry_content, &map).await?;
+        let writer = WriterWithIndent::new(&mut code);
+        expand_imports(writer, entry_content, &map).await?;
 
         Ok(FileContent::Content(File::from_source(code)).into())
     }
@@ -181,14 +141,6 @@ impl Asset for CssChunk {
 #[turbo_tasks::value]
 pub struct CssChunkContext {}
 
-#[turbo_tasks::value_impl]
-impl CssChunkContextVc {
-    #[turbo_tasks::function]
-    pub async fn id(self, placeable: CssChunkPlaceableVc) -> Result<ModuleIdVc> {
-        Ok(ModuleId::String(placeable.to_string().await?.clone()).into())
-    }
-}
-
 #[turbo_tasks::value_trait]
 pub trait CssChunkPlaceable: ValueToString {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> CssChunkItemVc;
@@ -197,8 +149,8 @@ pub trait CssChunkPlaceable: ValueToString {
 #[turbo_tasks::value(shared)]
 pub struct CssChunkItemContent {
     pub inner_code: String,
-    pub id: ModuleIdVc,
-    pub imports: Vec<ModuleIdVc>,
+    pub path: StringVc,
+    pub imports: Vec<(ImportAssetReferenceVc, StringVc)>,
 }
 
 #[turbo_tasks::value_trait]
