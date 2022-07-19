@@ -68,7 +68,10 @@ use super::{
 use crate::{
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
     magic_identifier,
-    references::{cjs::{CjsRequireAssetReferenceVc, CjsRequireResolveAssetReferenceVc}, esm::EsmBinding},
+    references::{
+        cjs::{CjsRequireAssetReferenceVc, CjsRequireResolveAssetReferenceVc},
+        esm::EsmBinding,
+    },
 };
 #[turbo_tasks::value]
 pub struct AnalyseEcmascriptModuleResult {
