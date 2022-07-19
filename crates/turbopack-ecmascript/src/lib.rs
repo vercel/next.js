@@ -30,7 +30,6 @@ use parse::{parse, ParseResult};
 pub use parse::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use path_visitor::ApplyVisitors;
 use swc_common::GLOBALS;
-use swc_ecma_ast::Program;
 use swc_ecma_codegen::{text_writer::JsWriter, Emitter};
 use swc_ecma_visit::{VisitMutWith, VisitMutWithPath};
 use target::CompileTargetVc;
