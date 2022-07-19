@@ -57,9 +57,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const loginUrl = new URL('/login', request.url)
-  loginUrl.searchParams.set('from', request.nextUrl.pathname)
+  request.nextUrl.searchParams.set('from', request.nextUrl.pathname)
+  request.nextUrl.pathname = '/login'
 
-  return NextResponse.redirect(loginUrl)
+  return NextResponse.redirect(request.nextUrl)
 }
 ```
