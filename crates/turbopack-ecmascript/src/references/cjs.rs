@@ -280,6 +280,8 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
                         Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
                         _ => pm.create(),
                     };
+                } else {
+                    unreachable!("`CjsRequireResolveAssetReference` is only created from `CallExpr`");
                 }
             }));
         }
