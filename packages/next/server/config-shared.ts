@@ -566,3 +566,13 @@ export function isServerRuntime(value?: string): value is ServerRuntime {
     value === undefined || value === 'nodejs' || value === 'experimental-edge'
   )
 }
+
+export function validateConfig(userConfig: NextConfig): {
+  errors?: Array<any> | null
+} {
+  const configValidator = require('next/dist/next-config-validate.js')
+  configValidator(userConfig)
+  return {
+    errors: configValidator.errors,
+  }
+}

@@ -58,6 +58,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
+import { clientComponentRegex } from './webpack/loaders/utils'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1311,7 +1312,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|future\/image|head|script)/,
+                  test: clientComponentRegex,
                   issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-client-loader',
