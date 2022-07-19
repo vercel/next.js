@@ -19,6 +19,7 @@ tokio = "1.11.0"
 hyper = { version = "0.14", features = ["full"] }
 serde = "1.0.136"
 mime_guess = "2.0.4"
+webbrowser = "0.7.1"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

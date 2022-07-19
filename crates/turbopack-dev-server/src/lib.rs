@@ -196,7 +196,13 @@ impl DevServerVc {
             }
         });
         let server = Server::bind(&this.addr).serve(make_svc);
-        println!("server listening on: http://{}", this.addr);
+
+        {
+            let index_uri = format!("http://{}", this.addr);
+            println!("server listening on: {uri}", uri = index_uri);
+            webbrowser::open(&index_uri);
+        }
+
         Ok(DevServerListening::new(async move {
             server.await?;
             Ok(())
