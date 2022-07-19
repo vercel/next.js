@@ -120,8 +120,18 @@ async fn main() {
                             stats.add_id(b, task);
                         });
                         let tree = stats.treeify();
-                        let graph = viz::visualize_stats_tree(tree);
-                        return Some(viz::wrap_html(&graph));
+                        let graph = viz::graph::visualize_stats_tree(tree);
+                        return Some(viz::graph::wrap_html(&graph));
+                    }
+                    if path == "/__turbo_tasks_table__" {
+                        let mut stats = Stats::new();
+                        let b = tt.backend();
+                        b.with_all_cached_tasks(|task| {
+                            stats.add_id(b, task);
+                        });
+                        let tree = stats.treeify();
+                        let table = viz::table::create_table(tree);
+                        return Some(viz::table::wrap_html(&table));
                     }
                     None
                 })),
