@@ -305,7 +305,11 @@ impl DevServerVc {
         let server = Server::bind(&this.addr).serve(make_svc);
 
         {
-            let index_uri = format!("http://{}", this.addr);
+            let index_uri = if this.addr.ip().is_loopback() {
+                format!("http://localhost:{}", this.addr.port())
+            } else {
+                format!("http://{}", this.addr)
+            };
             println!("server listening on: {uri}", uri = index_uri);
             webbrowser::open(&index_uri);
         }
