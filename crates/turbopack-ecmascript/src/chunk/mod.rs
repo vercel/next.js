@@ -196,6 +196,7 @@ impl Asset for EcmascriptChunk {
         var runnable = [];
         var modules = {};
         var cache = {};
+        let socket;
         // TODO: temporary solution
         var process = { env: { NODE_ENV: "development" } };
         var hOP = Object.prototype.hasOwnProperty;
@@ -256,6 +257,7 @@ impl Asset for EcmascriptChunk {
         var runtime = { chunks, modules, cache, getModule };
         function op([id, chunkModules, ...run]) {
             chunks.add(id);
+            if(socket) socket.send(JSON.stringify(chunk));
             for(var m in chunkModules) {
                 if(!modules[m]) modules[m] = chunkModules[m];
             }
@@ -264,6 +266,16 @@ impl Asset for EcmascriptChunk {
         }
         self.TURBOPACK = { push: op };
         array.forEach(op);
+        var connectingSocket = new WebSocket("ws" + location.origin.slice(4));
+        connectingSocket.onopen = () => {
+            socket = connectingSocket;
+            for(var chunk of chunks) {
+                socket.send(JSON.stringify(chunk));
+            }
+            socket.onmessage = (event) => {
+                if(event.data === "refresh") location.reload();
+            }
+        }
     }
 })();"#;
         }
