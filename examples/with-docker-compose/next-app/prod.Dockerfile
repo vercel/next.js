@@ -3,11 +3,15 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy lock files if file exists
-COPY package.json yarn.lock* package-lock.json* .
-
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 # Omit --production flag for TypeScript devDependencies
-RUN yarn install
+RUN \
+  [ -f yarn.lock ] && yarn install --frozen-lockfile || \
+  [ -f package-lock.json ] && npm ci || \
+  [ -f pnpm-lock.yaml ] && yarn global add pnpm && pnpm fetch && pnpm i -r --offline || \
+  (echo "Lockfile not found." && exit 1)
+
 
 COPY src ./src
 COPY public ./public
