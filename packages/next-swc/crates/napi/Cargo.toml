@@ -8,7 +8,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["sentry_rustls"]
+default = []
 # Instead of enabling all the plugin-related features by default, make it explicitly specified
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time

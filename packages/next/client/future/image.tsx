@@ -301,7 +301,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  if (!experimentalFuture) {
+  if (!experimentalFuture && process.env.NODE_ENV !== 'test') {
     throw new Error(
       `The "next/future/image" component is experimental and may be subject to breaking changes. To enable this experiment, please include \`experimental: { images: { allowFutureImage: true } }\` in your next.config.js file.`
     )

@@ -1,14 +1,15 @@
 import { hydrate, version } from './app-index'
+import { displayContent } from './dev/fouc'
 
-// TODO: implement FOUC guard
+// TODO-APP: implement FOUC guard
 
-// TODO: hydration warning
+// TODO-APP: hydration warning
 
 window.next = {
   version,
   appDir: true,
 }
 
-hydrate()
+hydrate({ onFlightCssLoaded: displayContent })
 
-// TODO: build indicator
+// TODO-APP: build indicator

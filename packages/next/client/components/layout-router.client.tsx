@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, useEffect, useRef } from 'react'
 import type { ChildProp } from '../../server/app-render'
 import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
@@ -42,6 +42,11 @@ function createInfinitePromise() {
   return infinitePromise
 }
 
+function topOfElementInViewport(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  return rect.top >= 0
+}
+
 export function InnerLayoutRouter({
   parallelRouterKey,
   url,
@@ -51,6 +56,7 @@ export function InnerLayoutRouter({
   tree,
   // isActive,
   path,
+  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   url: string
@@ -60,9 +66,25 @@ export function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
+  rootLayoutIncluded: boolean
 }) {
-  const { changeByServerResponse, tree: fullTree } =
-    useContext(FullAppTreeContext)
+  const {
+    changeByServerResponse,
+    tree: fullTree,
+    focusRef,
+  } = useContext(FullAppTreeContext)
+  const focusAndScrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (focusRef.focus && focusAndScrollRef.current) {
+      focusRef.focus = false
+      focusAndScrollRef.current.focus()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!topOfElementInViewport(focusAndScrollRef.current)) {
+        focusAndScrollRef.current.scrollIntoView()
+      }
+    }
+  }, [focusRef])
 
   let childNode = childNodes.get(path)
 
@@ -123,7 +145,7 @@ export function InnerLayoutRouter({
       return treeToRecreate
     }
 
-    // TODO: remove ''
+    // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
     const data = fetchServerResponse(new URL(url, location.origin), refetchTree)
@@ -148,7 +170,7 @@ export function InnerLayoutRouter({
   }
 
   if (childNode.data) {
-    // TODO: error case
+    // TODO-APP: error case
     const flightData = childNode.data.readRoot()
 
     // Handle case when navigating to page in `pages` from `app`
@@ -165,7 +187,7 @@ export function InnerLayoutRouter({
       if (pathMatches(flightDataPath, segmentPath)) {
         childNode.data = null
         // Last item is the subtreeData
-        // TODO: routerTreePatch needs to be applied to the tree, handle it in render?
+        // TODO-APP: routerTreePatch needs to be applied to the tree, handle it in render?
         const [, /* routerTreePatch */ subTreeData] = flightDataPath.slice(-2)
         childNode.subTreeData = subTreeData
         childNode.parallelRoutes = new Map()
@@ -182,7 +204,7 @@ export function InnerLayoutRouter({
       setTimeout(() => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          // TODO: handle redirect
+          // TODO-APP: handle redirect
           changeByServerResponse(fullTree, flightData)
         })
       })
@@ -191,22 +213,29 @@ export function InnerLayoutRouter({
     }
   }
 
-  // TODO: double check users can't return null in a component that will kick in here
+  // TODO-APP: double check users can't return null in a component that will kick in here
   if (!childNode.subTreeData) {
     throw createInfinitePromise()
   }
 
-  return (
+  const subtree = (
     <AppTreeContext.Provider
       value={{
         tree: tree[1][parallelRouterKey],
         childNodes: childNode.parallelRoutes,
-        // TODO: overriding of url for parallel routes
+        // TODO-APP: overriding of url for parallel routes
         url: url,
       }}
     >
       {childNode.subTreeData}
     </AppTreeContext.Provider>
+  )
+
+  // Ensure root layout is not wrapped in a div
+  return rootLayoutIncluded ? (
+    <div ref={focusAndScrollRef}>{subtree}</div>
+  ) : (
+    subtree
   )
 }
 
@@ -229,11 +258,13 @@ export default function OuterLayoutRouter({
   segmentPath,
   childProp,
   loading,
+  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
   childProp: ChildProp
   loading: React.ReactNode | undefined
+  rootLayoutIncluded: boolean
 }) {
   const { childNodes, tree, url } = useContext(AppTreeContext)
 
@@ -256,6 +287,11 @@ export default function OuterLayoutRouter({
 
   return (
     <>
+      {/* {stylesheets
+        ? stylesheets.map((href) => (
+            <link rel="stylesheet" href={`/_next/${href}`} key={href} />
+          ))
+        : null} */}
       {preservedSegments.map((preservedSegment) => {
         return (
           <LoadingBoundary loading={loading} key={preservedSegment}>
@@ -270,6 +306,7 @@ export default function OuterLayoutRouter({
               segmentPath={segmentPath}
               path={preservedSegment}
               isActive={currentChildSegment === preservedSegment}
+              rootLayoutIncluded={rootLayoutIncluded}
             />
           </LoadingBoundary>
         )

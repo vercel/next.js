@@ -31,7 +31,13 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
       return {
         ...state,
         nextId: state.nextId + 1,
-        errors: [...state.errors, { id: state.nextId, event: ev }],
+        errors: [
+          ...state.errors.filter((err) => {
+            // Filter out duplicate errors
+            return err.event.reason !== ev.reason
+          }),
+          { id: state.nextId, event: ev },
+        ],
       }
     }
     default: {
@@ -82,7 +88,11 @@ const ReactDevOverlay: React.FunctionComponent = function ReactDevOverlay({
 
   return (
     <React.Fragment>
-      <ErrorBoundary onError={onComponentError}>
+      <ErrorBoundary
+        globalOverlay={globalOverlay}
+        isMounted={isMounted}
+        onError={onComponentError}
+      >
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
