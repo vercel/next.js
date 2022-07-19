@@ -91,7 +91,7 @@ impl<'a> ApplyVisitors<'a> {
 }
 
 macro_rules! method {
-    ($name:ident,$T:ty) => {
+    ($name:ident, $T:ty) => {
         fn $name(&mut self, n: &mut $T, ast_path: &mut AstKindPath<AstParentKind>) {
             self.visit_if_required(n, ast_path);
         }

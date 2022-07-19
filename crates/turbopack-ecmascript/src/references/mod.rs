@@ -68,7 +68,10 @@ use super::{
 use crate::{
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
     magic_identifier,
-    references::{cjs::CjsRequireAssetReferenceVc, esm::EsmBinding},
+    references::{
+        cjs::{CjsRequireAssetReferenceVc, CjsRequireResolveAssetReferenceVc},
+        esm::EsmBinding,
+    },
 };
 #[turbo_tasks::value]
 pub struct AnalyseEcmascriptModuleResult {
@@ -455,9 +458,10 @@ pub(crate) async fn analyze_ecmascript_module(
                                 )
                             }
                             references.push(
-                                CjsAssetReferenceVc::new(
+                                CjsRequireResolveAssetReferenceVc::new(
                                     context,
                                     RequestVc::parse(Value::new(pat)),
+                                    AstPathVc::cell(ast_path.clone()),
                                 )
                                 .into(),
                             );
