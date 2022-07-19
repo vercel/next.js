@@ -257,7 +257,7 @@ impl Asset for EcmascriptChunk {
         var runtime = { chunks, modules, cache, getModule };
         function op([id, chunkModules, ...run]) {
             chunks.add(id);
-            if(socket) socket.send(JSON.stringify(chunk));
+            if(socket) socket.send(JSON.stringify(id));
             for(var m in chunkModules) {
                 if(!modules[m]) modules[m] = chunkModules[m];
             }
