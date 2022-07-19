@@ -1,7 +1,15 @@
-import { useCallback, useContext, useEffect, useRef } from 'react'
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  // @ts-expect-error TODO-APP: startTransition exists
+  startTransition,
+} from 'react'
 import { FullAppTreeContext } from '../../shared/lib/app-router-context'
 import {
   register,
+  unregister,
   onBuildError,
   onBuildOk,
   onRefresh,
@@ -23,7 +31,7 @@ function getSocketProtocol(assetPrefix: string): string {
 
 // const TIMEOUT = 5000
 
-// TODO: add actual type
+// TODO-APP: add actual type
 type PongEvent = any
 
 let mostRecentCompilationHash: any = null
@@ -297,7 +305,7 @@ function processMessage(
       }
       return
     }
-    // TODO: make server component change more granular
+    // TODO-APP: make server component change more granular
     case 'serverComponentChanges': {
       sendMessage(
         JSON.stringify({
@@ -305,7 +313,15 @@ function processMessage(
           clientId: __nextDevClientId,
         })
       )
-      return router.reload()
+      if (hadRuntimeError) {
+        return window.location.reload()
+      }
+      startTransition(() => {
+        router.reload()
+        onRefresh()
+      })
+
+      return
     }
     case 'reloadPage': {
       sendMessage(
@@ -359,7 +375,7 @@ function processMessage(
             // Page exists now, reload
             location.reload()
           } else {
-            // TODO: fix this
+            // TODO-APP: fix this
             // Page doesn't exist
             // if (
             //   self.__NEXT_DATA__.page === Router.pathname &&
@@ -393,6 +409,16 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
 
   useEffect(() => {
     register()
+    const onError = () => {
+      hadRuntimeError = true
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onError)
+    return () => {
+      unregister()
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onError)
+    }
   }, [])
 
   useEffect(() => {
@@ -416,12 +442,12 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
   }, [assetPrefix])
   useEffect(() => {
     // Taken from on-demand-entries-client.js
-    // TODO: check 404 case
+    // TODO-APP: check 404 case
     const interval = setInterval(() => {
       sendMessage(
         JSON.stringify({
           event: 'ping',
-          // TODO: fix case for dynamic parameters, this will be resolved wrong currently.
+          // TODO-APP: fix case for dynamic parameters, this will be resolved wrong currently.
           tree,
           appDirRoute: true,
         })
@@ -433,7 +459,7 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (
         event.data.indexOf('action') === -1 &&
-        // TODO: clean this up for consistency
+        // TODO-APP: clean this up for consistency
         event.data.indexOf('pong') === -1
       ) {
         return

@@ -58,6 +58,7 @@ import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
+import { clientComponentRegex } from './webpack/loaders/utils'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1311,7 +1312,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|future\/image|head|script)/,
+                  test: clientComponentRegex,
                   issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-client-loader',
@@ -1497,7 +1498,14 @@ export default async function getBaseWebpackConfig(
         ...(compilerType !== 'edge-server'
           ? {}
           : {
-              EdgeRuntime: JSON.stringify('edge-runtime'),
+              EdgeRuntime: JSON.stringify(
+                /**
+                 * Cloud providers can set this environment variable to allow users
+                 * and library authors to have different implementations based on
+                 * the runtime they are running with, if it's not using `edge-runtime`
+                 */
+                process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
+              ),
             }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(

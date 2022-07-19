@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.10
+      '@edge-runtime/jest-environment': 1.1.0-beta.11
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -159,7 +159,7 @@ importers:
       taskr: 1.1.0
       tree-kill: 1.2.2
       tsec: 0.2.1
-      turbo: 1.3.1
+      turbo: 1.3.2-canary.1
       typescript: 4.6.3
       wait-port: 0.2.2
       webpack: link:node_modules/webpack5
@@ -173,7 +173,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.10
+      '@edge-runtime/jest-environment': 1.1.0-beta.11
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -313,7 +313,7 @@ importers:
       taskr: 1.1.0
       tree-kill: 1.2.2
       tsec: 0.2.1_5yr6raq5qir6dqmptdaiz6dy4a
-      turbo: 1.3.1
+      turbo: 1.3.2-canary.1
       typescript: 4.6.3
       wait-port: 0.2.2
       webpack: link:node_modules/webpack5
@@ -364,7 +364,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 12.2.3-canary.1
+      '@next/eslint-plugin-next': 12.2.3-canary.14
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.21.0
       eslint-import-resolver-node: ^0.3.6
@@ -416,16 +416,16 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.10
+      '@edge-runtime/primitives': 1.1.0-beta.11
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
-      '@next/env': 12.2.3-canary.1
-      '@next/polyfill-module': 12.2.3-canary.1
-      '@next/polyfill-nomodule': 12.2.3-canary.1
-      '@next/react-dev-overlay': 12.2.3-canary.1
-      '@next/react-refresh-utils': 12.2.3-canary.1
-      '@next/swc': 12.2.3-canary.1
+      '@next/env': 12.2.3-canary.14
+      '@next/polyfill-module': 12.2.3-canary.14
+      '@next/polyfill-nomodule': 12.2.3-canary.14
+      '@next/react-dev-overlay': 12.2.3-canary.14
+      '@next/react-refresh-utils': 12.2.3-canary.14
+      '@next/swc': 12.2.3-canary.14
       '@swc/helpers': 0.4.3
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -444,7 +444,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -468,6 +467,7 @@ importers:
       '@vercel/ncc': 0.33.4
       '@vercel/nft': 0.20.0
       acorn: 8.5.0
+      ajv: 8.11.0
       amphtml-validator: 1.0.35
       arg: 4.1.0
       assert: 2.0.0
@@ -496,8 +496,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.10
-      etag: 1.8.1
+      edge-runtime: 1.1.0-beta.11
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -610,7 +609,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.10
+      '@edge-runtime/primitives': 1.1.0-beta.11
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
@@ -636,7 +635,6 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
-      '@types/etag': 1.8.0
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 8.3.7
@@ -660,6 +658,7 @@ importers:
       '@vercel/ncc': 0.33.4
       '@vercel/nft': 0.20.0
       acorn: 8.5.0
+      ajv: 8.11.0
       amphtml-validator: 1.0.35
       arg: 4.1.0
       assert: 2.0.0
@@ -687,8 +686,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.10
-      etag: 1.8.1
+      edge-runtime: 1.1.0-beta.11
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -3215,29 +3213,29 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.0.0:
-    resolution: {integrity: sha512-mxi0n00nJwnjaXUQIfTS7l64yvwGXs435gEjuDhzTHZyrmnCYdELXdJr3Q+6v4DO1mmmtNTYFHUvIlpCmMUC6g==}
+  /@edge-runtime/format/1.1.0-beta.11:
+    resolution: {integrity: sha512-RecFoPVDjTHbRvvbTSivTZM1Ia9v4hHDYeDpsCiuFstfpyJBUNK3StImPAsm89pfW1H9awqx4bVbYflm8ZzdOg==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.10:
-    resolution: {integrity: sha512-RXZwWyra3yxs7TWGVy+8sDD2m2MAaTho92BBpaxcHWCEErJKzJIQT3UsA7rmvozcdr4vwbuTaFy/aL3AhsffdQ==}
+  /@edge-runtime/jest-environment/1.1.0-beta.11:
+    resolution: {integrity: sha512-BZiQBMrirKo2hbT9Imp1Krf/BlPPttFfqZ8K80R1jUDenlx9OEob0GHi9EkhGmf7uzO24Y+E7VXBHFcUR1IeGA==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.10
-      '@jest/environment': 28.1.1
-      '@jest/fake-timers': 28.1.1
+      '@edge-runtime/vm': 1.1.0-beta.11
+      '@jest/environment': 28.1.2
+      '@jest/fake-timers': 28.1.2
       '@jest/types': 28.1.1
       jest-mock: 28.1.1
       jest-util: 28.1.1
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.10:
-    resolution: {integrity: sha512-hv0i2ce35yspqlnmcSKV/GEKfk8WyB9aTSOk0ZMK6gOR6ZvBDCzDpdacIcGuktaTuDinwon2DLxXRhiAS2PjUg==}
+  /@edge-runtime/primitives/1.1.0-beta.11:
+    resolution: {integrity: sha512-E+EA8chHgBEC+hc8u0a8mGPAYovLGPdNbayD6GUS1boJpd8ivd5f4q59Jg/NM4TCS38QtEZnx9z7TIWUM0XqhQ==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.10:
-    resolution: {integrity: sha512-AHeIdWp1OUf4kvA4to56shXZzM66bR84LMNTbYGY7G3+BBr+VkUcvU+hWr8JYCOj/iAHi/fuE9r1TyrMm2pQaw==}
+  /@edge-runtime/vm/1.1.0-beta.11:
+    resolution: {integrity: sha512-1kgoF2TLbkSa3gHjJmCh/OvUOF8/wJ6mtihHWbB6XGQvSbIRgSQopWsWHRwwV5nOSSi7EbCGudrm3NYSuRR5/A==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.10
+      '@edge-runtime/primitives': 1.1.0-beta.11
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -3684,11 +3682,11 @@ packages:
       jest-mock: 27.0.6
     dev: true
 
-  /@jest/environment/28.1.1:
-    resolution: {integrity: sha512-9auVQ2GzQ7nrU+lAr8KyY838YahElTX9HVjbQPPS2XjlxQ+na18G113OoBhyBGBtD6ZnO/SrUy5WR8EzOj1/Uw==}
+  /@jest/environment/28.1.2:
+    resolution: {integrity: sha512-I0CR1RUMmOzd0tRpz10oUfaChBWs+/Hrvn5xYhMEF/ZqrDaaeHwS8yDBqEWCrEnkH2g+WE/6g90oBv3nKpcm8Q==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
-      '@jest/fake-timers': 28.1.1
+      '@jest/fake-timers': 28.1.2
       '@jest/types': 28.1.1
       '@types/node': 17.0.21
       jest-mock: 28.1.1
@@ -3706,8 +3704,8 @@ packages:
       jest-util: 27.0.6
     dev: true
 
-  /@jest/fake-timers/28.1.1:
-    resolution: {integrity: sha512-BY/3+TyLs5+q87rGWrGUY5f8e8uC3LsVHS9Diz8+FV3ARXL4sNnkLlIB8dvDvRrp+LUCGM+DLqlsYubizGUjIA==}
+  /@jest/fake-timers/28.1.2:
+    resolution: {integrity: sha512-xSYEI7Y0D5FbZN2LsCUj/EKRR1zfQYmGuAUVh6xTqhx7V5JhjgMcK5Pa0iR6WIk0GXiHDe0Ke4A+yERKE9saqg==}
     engines: {node: ^12.13.0 || ^14.15.0 || ^16.10.0 || >=17.0.0}
     dependencies:
       '@jest/types': 28.1.1
@@ -5573,12 +5571,6 @@ packages:
     resolution: {integrity: sha512-CuPgU6f3eT/XgKKPqKd/gLZV1Xmvf1a2R5POBOGQa6uv82xpls89HU5zKeVoyR8XzHd1RGNOlQlvUe3CFkjWNQ==}
     dev: true
 
-  /@types/etag/1.8.0:
-    resolution: {integrity: sha512-EdSN0x+Y0/lBv7YAb8IU4Jgm6DWM+Bqtz7o5qozl96fzaqdqbdfHS5qjdpFeIv7xQ8jSLyjMMNShgYtMajEHyQ==}
-    dependencies:
-      '@types/node': 17.0.21
-    dev: true
-
   /@types/events/3.0.0:
     resolution: {integrity: sha512-EaObqwIvayI5a8dCzhFrjKzVwKLxjoG9T6Ppd5CEo07LRKfQ8Yokw54r5+Wq7FaBQ+yXRvQAYPrHwya1/UFt9g==}
     dev: true
@@ -6684,6 +6676,15 @@ packages:
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
       uri-js: 4.2.2
+
+  /ajv/8.11.0:
+    resolution: {integrity: sha512-wGgprdCvMalC0BztXvitD2hC04YffAvtsUn93JbGXYLAtCUO4xd17mCCZQxUOItiBwZvJScWo8NIvQMQ71rdpg==}
+    dependencies:
+      fast-deep-equal: 3.1.3
+      json-schema-traverse: 1.0.0
+      require-from-string: 2.0.2
+      uri-js: 4.2.2
+    dev: true
 
   /alex/9.1.0:
     resolution: {integrity: sha512-mlNQ0CBGinzZj1pjiXaSLsihjZ4Kzq0U0EjR+DrZ3IQQfM4pf4OtxHI1agBIiEwv0tQUzimjgTk+5t9iHeT7Vw==}
@@ -9985,12 +9986,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.10:
-    resolution: {integrity: sha512-dFjK7DawBZl5OxGhfWR9JkFadF7dNkcZ2PxSgBQhF4L9S8Q1mj5Jt0Tng2Q7vwOEpRiNC4Xr3q1uvmLsgNc9eg==}
+  /edge-runtime/1.1.0-beta.11:
+    resolution: {integrity: sha512-2orDSNtEj46Vtj1DocDZe0grFDzZUnqjNYTuVuq04jIUB3GA2C+UlR2xELXj9FXvvz7tL88i/qr9rQo3PiqIrw==}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.0.0
-      '@edge-runtime/vm': 1.1.0-beta.10
+      '@edge-runtime/format': 1.1.0-beta.11
+      '@edge-runtime/vm': 1.1.0-beta.11
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
@@ -10448,7 +10449,6 @@ packages:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
     dependencies:
       eslint: 7.32.0
-    dev: false
 
   /eslint-plugin-react/7.23.2_eslint@7.24.0:
     resolution: {integrity: sha512-AfjgFQB+nYszudkxRkTFu0UR1zEQig0ArVMPloKhxwlwkzaw/fBiH0QWcBBhZONlXqQC51+nfqFrkn4EzHcGBw==}
@@ -21352,137 +21352,137 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /turbo-android-arm64/1.3.1:
-    resolution: {integrity: sha512-JcnZh9tLbZDpKaXaao/s/k4qXt3TbNEc1xEYYXurVWnqiMueGeS7QAtThVB85ZSqzj7djk+ngSrZabPy5RG25Q==}
+  /turbo-android-arm64/1.3.2-canary.1:
+    resolution: {integrity: sha512-XIX6/7iy7jT8/U3FSmN4HUxNk2/HAeFcYL2A7Vh0wGQ7aVJAqItYxV5Iawf49lokdmdxQnJnttQ2TRIEKH1ITg==}
     cpu: [arm64]
     os: [android]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-64/1.3.1:
-    resolution: {integrity: sha512-TIGDradVFoGck86VIuM38KaDeNxdKaP2ti93UpQeFw26ZhPIeTAa6wUgnz4DQP6bjIvQmXlYJ16ETZb4tFYygg==}
+  /turbo-darwin-64/1.3.2-canary.1:
+    resolution: {integrity: sha512-h1Dd6qx8L2FZG86zWgafEgw6JwuWI2hla4PNXP/jiLEp7QuALGONJ2jdwNmsuBj0+q47eQjY9Q1tZtVvnY/iKA==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-darwin-arm64/1.3.1:
-    resolution: {integrity: sha512-aLBq8KiMMmop7uKBkvDt/y+eER2UzxZyUzh1KWcZ7DZB5tFZnknEUyf2qggY2vd2WcDVfQ1EUjZ0MFxhhVaVzA==}
+  /turbo-darwin-arm64/1.3.2-canary.1:
+    resolution: {integrity: sha512-zM5BHkxHJltKK6isJilVL7L3dlYa6WF5VPfYOAekYor3u2ZhNsgFLGom+YXz22LD/csP2giRGokREObA7q0YJQ==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-freebsd-64/1.3.1:
-    resolution: {integrity: sha512-BOr/ifmxjlBeuDkDQLUJtzqzXQ2zPHHcI14U9Ys+z4Mza1uzQn/oSJqQvU5RuyRBVai7noMrpPS7QuKtDz0Cyg==}
+  /turbo-freebsd-64/1.3.2-canary.1:
+    resolution: {integrity: sha512-ZepqMN1relzuqr3g16wh0bXVKoBKzEivkGh1NVm87sDE5nvwLuB9lOCnxg89xb31PdJAyVr5UGeqVE5SfYltww==}
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-freebsd-arm64/1.3.1:
-    resolution: {integrity: sha512-bHPZjK4xnGLz6/oxl5XmWhdYOdtBMSadrGhptWSZ0wBGNn/gQzDTeZAkQeqhh25AD0eM1hzDe8QUz8GlS43lrA==}
+  /turbo-freebsd-arm64/1.3.2-canary.1:
+    resolution: {integrity: sha512-gL/U8Su+GjvdI2yon+revsRFi/GfB/CdWGvDzdsore4eO1/V1DiACDRJDzf+/gvNdUzoD3cwbpiKGFuaZ7wVow==}
     cpu: [arm64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-32/1.3.1:
-    resolution: {integrity: sha512-c5okimusfvivu9wS8MKSr+rXpQAV+M4TyR9JX+spIK8B1I7AjfECAqiK2D5WFWO1bQ33bUAuxXOEpUuLpgEm+g==}
+  /turbo-linux-32/1.3.2-canary.1:
+    resolution: {integrity: sha512-8jxYYI4q2AHODKgO1XQ7KL7ufRFfGT4phi0JPs4KilaYEgNvDGSIDr2d8BHPVJr3exlb884ZcAW1tm+0t0WCog==}
     cpu: [ia32]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-64/1.3.1:
-    resolution: {integrity: sha512-O0pNX+N5gbmRcyZT+jsCPUNCN3DpIZHqNN35j7MT5nr0IkZa83CGbZnrEc+7Qws//jFJ26EngqD/JyRB2E8nwQ==}
+  /turbo-linux-64/1.3.2-canary.1:
+    resolution: {integrity: sha512-uCHCQ1HZdns78hr2Z6N3zZwFrUYJdyYRIPWj12TwvtTEErTARAcKvtWV9mQkkXvzkkmUDHJoTsSl5cIyhtoreg==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm/1.3.1:
-    resolution: {integrity: sha512-f+r6JIwv/7ylxxJtgVi8cVw+6oNoD/r1IMTU6ejH8bfyMZZko4kkNwH9VYribQ44KDkJEgzdltnzFG5f6Hz10g==}
+  /turbo-linux-arm/1.3.2-canary.1:
+    resolution: {integrity: sha512-xEp/twlTo8Q5TaMz3g7UCtbPdO/VZS0ugAZ2egmbBpkEIdSQ7wjME8z7cgjK/Wc2l9y0BEuA/mc/ndmO43LaNw==}
     cpu: [arm]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-arm64/1.3.1:
-    resolution: {integrity: sha512-D6+1MeS/x+/VCCooHPU4NIpB8qI/eW70eMRA79bqTPaxxluP0g2CaxXgucco05P51YtNsSxeVcH7X76iadON6Q==}
+  /turbo-linux-arm64/1.3.2-canary.1:
+    resolution: {integrity: sha512-5JjIQTuDo5RALnKvxPholfljiWxVwhyUpBm8xYNMtufR8CmbkjsNZgNGm8cyFXl3syHdLOhL/PsCpeVaiWDlUw==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-mips64le/1.3.1:
-    resolution: {integrity: sha512-yL64jgwVCziOpBcdpMxIsczkgwwOvmaqKObFKWyCNlk/LOl5NKODLwXEaryLaALtpwUAoS4ltMSI64gKqmLrOA==}
+  /turbo-linux-mips64le/1.3.2-canary.1:
+    resolution: {integrity: sha512-oOZD03ZyfOxifgi3YAAbtcnZtCA6fpsc2/y6R5sm9jRpXlia7PCbQLiV4H1UWCfmsQzUsLCTTZmO+D8K2rjymg==}
     cpu: [mips64el]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-linux-ppc64le/1.3.1:
-    resolution: {integrity: sha512-tjnM+8RosykS1lBpOPLDXGOz/Po2h796ty17uBd7IFslWPOI16a/akFOFoLH8PCiGGJMe3CYgRhEKn4sPWNxFA==}
+  /turbo-linux-ppc64le/1.3.2-canary.1:
+    resolution: {integrity: sha512-JtFMPdO+N6lYCFO7gN042CdzQPWvF2ow77Hv1oOpVkyU2X9seK73XHmv+15dan92/flslZLFAW8T93kiXfsJug==}
     cpu: [ppc64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-32/1.3.1:
-    resolution: {integrity: sha512-Snnv+TVigulqwK6guHKndMlrLw88NXj8BtHRGrEksPR0QkyuHlwLf+tHYB4HmvpUl4W9lnXQf4hsljWP64BEdw==}
+  /turbo-windows-32/1.3.2-canary.1:
+    resolution: {integrity: sha512-xDi61dm5CbLGpi2nu20+fWcl7IcSayqQYtQNztVqyAv9TpP84gzItuETOxwNyK7BivZ0BTMuVhtVUfc44ZxG+A==}
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-64/1.3.1:
-    resolution: {integrity: sha512-gLeohHG07yIhON1Pp0YNE00i/yzip2GFhkA6HdJaK95uE5bKULpqxuO414hOS/WzGwrGVXBKCImfe24XXh5T+Q==}
+  /turbo-windows-64/1.3.2-canary.1:
+    resolution: {integrity: sha512-uj4RVdVXIffTOeozFk8df+hgLUOZInkFvUTJ9jEKSNR/9zF9QXz7EkeQF8Cq+f840W7zNMDxciGBls3SWWTX0w==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo-windows-arm64/1.3.1:
-    resolution: {integrity: sha512-0MWcHLvYgs/qdcoTFZ55nu8HhrpeiwXEMw9cbNfgqTlzy3OsrAsovYEJFyQ8KSxeploiD+QJlCdvhxx+5C0tlA==}
+  /turbo-windows-arm64/1.3.2-canary.1:
+    resolution: {integrity: sha512-rtU97ntfMRIr3IscaB3VwCxXCb60CkaM35NdTM3Yr+5H8UplmzQt1iBV8+Zc8/JO5YDfWD82dGZKVw4Oou+f2w==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /turbo/1.3.1:
-    resolution: {integrity: sha512-DXckoGKlZgvTn/PrHpBI/57aeXR7tfyPf2dK+4LmBczt24ELA3o6eYHeA7KzfpSYhB2LE9qveYFQ6mJ1OzGjjg==}
+  /turbo/1.3.2-canary.1:
+    resolution: {integrity: sha512-qrSrKjkKDn7afDMz++RXg84sXBmd+CprnmJNNQq7l1Ao0eOPRpe//uh4JsULgjxYHHLeB2Re1fJ02HF282Kaww==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      turbo-android-arm64: 1.3.1
-      turbo-darwin-64: 1.3.1
-      turbo-darwin-arm64: 1.3.1
-      turbo-freebsd-64: 1.3.1
-      turbo-freebsd-arm64: 1.3.1
-      turbo-linux-32: 1.3.1
-      turbo-linux-64: 1.3.1
-      turbo-linux-arm: 1.3.1
-      turbo-linux-arm64: 1.3.1
-      turbo-linux-mips64le: 1.3.1
-      turbo-linux-ppc64le: 1.3.1
-      turbo-windows-32: 1.3.1
-      turbo-windows-64: 1.3.1
-      turbo-windows-arm64: 1.3.1
+      turbo-android-arm64: 1.3.2-canary.1
+      turbo-darwin-64: 1.3.2-canary.1
+      turbo-darwin-arm64: 1.3.2-canary.1
+      turbo-freebsd-64: 1.3.2-canary.1
+      turbo-freebsd-arm64: 1.3.2-canary.1
+      turbo-linux-32: 1.3.2-canary.1
+      turbo-linux-64: 1.3.2-canary.1
+      turbo-linux-arm: 1.3.2-canary.1
+      turbo-linux-arm64: 1.3.2-canary.1
+      turbo-linux-mips64le: 1.3.2-canary.1
+      turbo-linux-ppc64le: 1.3.2-canary.1
+      turbo-windows-32: 1.3.2-canary.1
+      turbo-windows-64: 1.3.2-canary.1
+      turbo-windows-arm64: 1.3.2-canary.1
     dev: true
 
   /tweetnacl/0.14.5:
@@ -21921,7 +21921,7 @@ packages:
     dev: true
 
   /unset-value/1.0.0:
-    resolution: {integrity: sha1-g3aHP30jNRef+x5vw6jtDfyKtVk=}
+    resolution: {integrity: sha512-PcA2tsuGSF9cnySLHTLSh2qrQiJ70mn+r+Glzxv2TWZblxsxCC52BDlZoPCsz7STd9pN7EZetkWZBAvk4cgZdQ==}
     engines: {node: '>=0.10.0'}
     requiresBuild: true
     dependencies:
@@ -22001,7 +22001,7 @@ packages:
       punycode: 2.1.1
 
   /urix/0.1.0:
-    resolution: {integrity: sha1-2pN/emLiH+wf0Y1Js1wpNQZ6bHI=}
+    resolution: {integrity: sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg==}
     deprecated: Please see https://github.com/lydell/urix#deprecated
     requiresBuild: true
 
@@ -22047,7 +22047,7 @@ packages:
     requiresBuild: true
 
   /util-deprecate/1.0.2:
-    resolution: {integrity: sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=}
+    resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
 
   /util-promisify/2.1.0:
