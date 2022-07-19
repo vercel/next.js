@@ -228,10 +228,13 @@ fn node_file_trace<B: Backend + 'static>(
     };
 
     let is_bench = cfg!(bench_against_node_nft);
-    let r = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
+
+    let r = &mut {
+        let mut builder = tokio::runtime::Builder::new_current_thread();
+        builder.enable_all();
+        builder.max_blocking_threads(20);
+        builder.build().unwrap()
+    };
     r.block_on(async move {
         register();
         include!(concat!(
