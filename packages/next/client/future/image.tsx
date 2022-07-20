@@ -272,15 +272,31 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (
-        img.getAttribute('data-nfill') &&
-        (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
-      ) {
-        let widthViewportRatio =
-          img.getBoundingClientRect().width / window.innerWidth
-        if (widthViewportRatio < 0.6) {
+      if (img.getAttribute('data-nfill')) {
+        //Fill mode runtime warnings
+        if (
+          !img.getAttribute('sizes') ||
+          img.getAttribute('sizes') === '100vw'
+        ) {
+          let widthViewportRatio =
+            img.getBoundingClientRect().width / window.innerWidth
+          if (widthViewportRatio < 0.6) {
+            warnOnce(
+              `Image with src "${src}" has no sizes prop, but doesn't take up the full width of the screen. Use the sizes prop (https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/sizes) to improve page performance.`
+            )
+          }
+        }
+        if (img.parentElement) {
+          const { position } = window.getComputedStyle(img.parentElement)
+          if (position !== 'relative') {
+            warnOnce(
+              `Fill mode image with src "${src}" has a parent element without CSS position: "relative". This is required for the Fill attribute to function correctly.`
+            )
+          }
+        }
+        if (img.height === 0) {
           warnOnce(
-            `Image with src "${src}" has no sizes prop, but doesn't take up the full width of the screen. Use the sizes prop (https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/sizes) to improve page performance.`
+            `Fill mode image with src "${src}" has a height value of 0. This is likely because the parent element of the image has not been styled to have a set height.`
           )
         }
       }

@@ -977,13 +977,35 @@ function runTests(mode) {
       ).toBe('100%')
     })
     if (mode === 'dev') {
-      it('should warn when not using the sizes prop for a small image', async () => {
+      it('should not log incorrect warnings', async () => {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toMatch(
+          /Image with src "\/wide.png" has no sizes prop, but doesn't take up the full width of the screen.(.*)/gm
+        )
+        expect(warnings).not.toMatch(
+          /Fill mode image with src "\/wide.png" has a parent element without CSS position: "relative".(.*)/gm
+        )
+        expect(warnings).not.toMatch(
+          /Fill mode image with src "\/wide.png" has a height value of 0.(.*)/gm
+        )
+      })
+      it('should log warnings when using fill mode incorrectly', async () => {
+        browser = await webdriver(appPort, '/fill-warnings')
         await waitFor(1000)
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
           /Image with src "\/wide.png" has no sizes prop, but doesn't take up the full width of the screen.(.*)/gm
+        )
+        expect(warnings).toMatch(
+          /Fill mode image with src "\/wide.png" has a parent element without CSS position: "relative".(.*)/gm
+        )
+        expect(warnings).toMatch(
+          /Fill mode image with src "\/wide.png" has a height value of 0.(.*)/gm
         )
       })
     }

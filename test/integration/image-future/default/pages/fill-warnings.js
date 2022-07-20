@@ -14,7 +14,19 @@ const Page = () => {
           overflow: 'hidden',
         }}
       >
-        <Image id="fill-image-1" src="/wide.png" sizes="300px" fill />
+        <Image id="fill-image-1" src="/wide.png" fill />
+      </div>
+      <div id="image-container-2">
+        <Image id="fill-image-2" src="/wide.png" fill />
+      </div>
+      <div
+        id="image-container-3"
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <Image id="fill-image-3" src="/wide.png" fill />
       </div>
     </div>
   )
