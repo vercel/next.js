@@ -18,7 +18,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use event_listener::{Event, EventListener};
 use serde::{de::Visitor, Deserialize, Serialize};
-use tokio::{runtime::Handle, task::JoinHandle, task_local};
+use tokio::{runtime::Handle, select, task::JoinHandle, task_local};
 
 use crate::{
     backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
@@ -43,6 +43,10 @@ pub trait TurboTasksCallApi: Sync + Send {
     ) -> RawVc;
 
     fn run_once(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> TaskId;
+    fn run_once_process(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> TaskId;
@@ -150,7 +154,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
-    last_update: Mutex<Option<(Duration, usize)>>,
+    aggregated_update: Mutex<Option<(Duration, usize)>>,
     event: Event,
     event_foreground: Event,
     event_background: Event,
@@ -190,7 +194,7 @@ impl<B: Backend> TurboTasks<B> {
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
-            last_update: Default::default(),
+            aggregated_update: Default::default(),
             event: Event::new(),
             event_foreground: Event::new(),
             event_background: Event::new(),
@@ -392,7 +396,13 @@ impl<B: Backend> TurboTasks<B> {
             let total = self.scheduled_tasks.load(Ordering::Acquire);
             self.scheduled_tasks.store(0, Ordering::Release);
             if let Some(start) = *self.start.lock().unwrap() {
-                *self.last_update.lock().unwrap() = Some((start.elapsed(), total));
+                let mut update = self.aggregated_update.lock().unwrap();
+                if let Some(update) = update.as_mut() {
+                    update.0 += start.elapsed();
+                    update.1 += total;
+                } else {
+                    *update = Some((start.elapsed(), total));
+                }
             }
             self.event.notify(usize::MAX);
         }
@@ -420,18 +430,34 @@ impl<B: Backend> TurboTasks<B> {
         listener.await;
     }
 
+    pub fn get_in_progress_count(&self) -> usize {
+        self.currently_scheduled_tasks.load(Ordering::Acquire)
+    }
+
     pub async fn wait_done(&self) -> (Duration, usize) {
         let listener = self.event.listen();
         if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
             listener.await;
         }
-        self.last_update.lock().unwrap().unwrap()
+        self.aggregated_update.lock().unwrap().unwrap()
     }
 
-    pub async fn wait_next_done(&self) -> (Duration, usize) {
+    pub async fn wait_next_done(&self, aggregation: Duration) -> (Duration, usize) {
         let listener = self.event.listen();
-        listener.await;
-        self.last_update.lock().unwrap().unwrap()
+        if self.aggregated_update.lock().unwrap().is_none() {
+            listener.await;
+        }
+        loop {
+            select! {
+                () = tokio::time::sleep(aggregation) => {
+                    break;
+                }
+                () = self.event.listen() => {
+                    // Resets the sleep
+                }
+            }
+        }
+        return self.aggregated_update.lock().unwrap().take().unwrap();
     }
 
     pub async fn wait_background_done(&self) {
@@ -551,6 +577,19 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
     ) -> TaskId {
         self.spawn_once_task(async move {
             future.await?;
+            Ok(NothingVc::new().into())
+        })
+    }
+
+    fn run_once_process(
+        &self,
+        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> TaskId {
+        let this = self.pin();
+        self.spawn_once_task(async move {
+            this.finish_primary_job();
+            future.await?;
+            this.begin_primary_job();
             Ok(NothingVc::new().into())
         })
     }

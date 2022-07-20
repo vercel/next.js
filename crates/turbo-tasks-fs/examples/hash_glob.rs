@@ -2,7 +2,11 @@
 #![feature(once_cell)]
 #![feature(min_specialization)]
 
-use std::{collections::BTreeMap, env::current_dir, time::Instant};
+use std::{
+    collections::BTreeMap,
+    env::current_dir,
+    time::{Duration, Instant},
+};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -41,7 +45,7 @@ async fn main() {
     println!("done in {}", FormatDuration(start.elapsed()));
 
     loop {
-        let (elapsed, count) = tt.wait_next_done().await;
+        let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
         println!("updated {} tasks in {}", count, FormatDuration(elapsed));
     }
 }

@@ -201,7 +201,7 @@ impl DevServerVc {
                         if hyper_tungstenite::is_upgrade_request(&request) {
                             let (response, websocket) = hyper_tungstenite::upgrade(request, None)?;
 
-                            tt.run_once(Box::pin(async move {
+                            tt.run_once_process(Box::pin(async move {
                                 if let Err(err) = (async move {
                                     let mut websocket = websocket.await?;
                                     let mut change_stream_futures = FuturesUnordered::new();
@@ -271,11 +271,11 @@ impl DevServerVc {
                                             .body(Body::from(bytes))?,
                                     )
                                     .map_err(|_| anyhow!("receiver dropped"))?;
-                                    println!(
-                                        "[200] {} ({})",
-                                        path,
-                                        FormatDuration(start.elapsed())
-                                    );
+                                    // println!(
+                                    //     "[200] {} ({})",
+                                    //     path,
+                                    //     FormatDuration(start.elapsed())
+                                    // );
                                     return Ok(());
                                 }
                             }

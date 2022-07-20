@@ -309,7 +309,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
             println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {
-                let (elapsed, count) = tt.wait_next_done().await;
+                let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
                 println!("updated {} tasks in {}", count, FormatDuration(elapsed));
             }
         } else {

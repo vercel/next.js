@@ -53,7 +53,7 @@ fn main() {
                 }
 
                 loop {
-                    let (elapsed, count) = tt.wait_next_done().await;
+                    let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
                     println!("updated {} tasks in {}", count, FormatDuration(elapsed));
                 }
             }
