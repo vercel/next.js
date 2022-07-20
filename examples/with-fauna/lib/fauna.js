@@ -1,5 +1,5 @@
 import { GraphQLClient, gql } from 'graphql-request'
-import { resolveDbDomain } from '../scripts/setup'
+import { resolveDbDomain } from './constants'
 
 const CLIENT_SECRET =
   process.env.FAUNA_ADMIN_KEY || process.env.FAUNA_CLIENT_SECRET
