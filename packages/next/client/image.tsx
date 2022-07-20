@@ -507,16 +507,16 @@ export default function Image({
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
-      // Since react doesn't show the stack trace and we don't have a `src` to help identify the image with the error,
-      // we instead render an image with the error message embedded into the image
+      // React doesn't show the stack trace and there's no `src` to help identify which image,
+      // so we instead embed the error message into the image.
       console.warn(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
           { width, height, quality, className, style }
         )}`
       )
       const msg = `Missing \`src\` prop`
-      widthInt = widthInt || 200
-      heightInt = heightInt || 200
+      widthInt = Math.max(widthInt || 0, 200)
+      heightInt = Math.max(heightInt || 0, 200)
       src =
         'data:image/svg+xml;charset=utf-8,' +
         encodeURIComponent(
