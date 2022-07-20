@@ -208,21 +208,13 @@ function extractValue(node: Node): any {
     // then the first expression, then the next quasi, then the next expression, etc.,
     // until the last quasi.
     // Thus if there is no expression, the parser ends at the frst and also last quasis
-    const firstQuasis = node.quasis[0]
-
+    //
     // A "cooked" interpretation where backslashes have special meaning, while a
     // "raw" interpretation where backslashes do not have special meaning
     // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
-    const { cooked } = firstQuasis
+    const [{ cooked, raw }] = node.quasis
 
-    // FIXME: The type definition of "cooked" and "raw" (from swc) are outdated.
-    // Both of them should be string | null | undefined, not StringLiteral.
-    // It is a temporary type guard to make TypeScript happy.
-    // https://github.com/swc-project/swc/issues/4501
-    if (cooked == null || typeof cooked === 'string') {
-      return cooked
-    }
-    return extractValue(cooked)
+    return cooked ?? raw
   } else {
     throw new UnsupportedValueError()
   }
