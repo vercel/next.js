@@ -187,8 +187,6 @@ const main = async () => {
   console.log('- Created .env.local file with secret')
 }
 
-exports.resolveDbDomain = resolveDbDomain
-
 main().catch((err) => {
   console.error(err)
   process.exit(1)
