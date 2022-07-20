@@ -1121,6 +1121,12 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
+      assets: (pageInfo.assets ?? []).map((binding) => {
+        return {
+          ...binding,
+          filePath: join(this.distDir, binding.filePath),
+        }
+      }),
     }
   }
 
@@ -1223,10 +1229,11 @@ export default class NextNodeServer extends BaseServer {
         }
 
         result = await run({
+          distDir: this.distDir,
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
-          wasm: middlewareInfo.wasm,
+          edgeFunctionEntry: middlewareInfo,
           request: {
             headers: params.request.headers,
             method,
@@ -1552,10 +1559,11 @@ export default class NextNodeServer extends BaseServer {
     const nodeReq = params.req as NodeNextRequest
 
     const result = await run({
+      distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       env: middlewareInfo.env,
-      wasm: middlewareInfo.wasm,
+      edgeFunctionEntry: middlewareInfo,
       request: {
         headers: params.req.headers,
         method: params.req.method,
