@@ -507,21 +507,11 @@ export default function Image({
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
-      // React doesn't show the stack trace and there's no `src` to help identify which image,
-      // so we instead embed the error message into the image.
-      console.warn(
-        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality, className, style }
-        )}`
-      )
-      const msg = `Missing \`src\` prop`
-      widthInt = Math.max(widthInt || 0, 200)
-      heightInt = Math.max(heightInt || 0, 200)
-      src =
-        'data:image/svg+xml;charset=utf-8,' +
-        encodeURIComponent(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="${widthInt}" height="${heightInt}"><rect x="0" y="0" width="${widthInt}" height="${heightInt}" fill="red"/><text fill="#FFF" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">${msg}</text></svg>`
-        )
+      // React doesn't show the stack trace and there's
+      // no `src` to help identify which image, so we
+      // instead console.error(ref) during mount.
+      widthInt = widthInt || 1
+      heightInt = heightInt || 1
       unoptimized = true
     } else {
       if (!VALID_LAYOUT_VALUES.includes(layout)) {
@@ -893,6 +883,11 @@ const ImageElement = ({
         style={{ ...imgStyle, ...blurStyle }}
         ref={useCallback(
           (img: ImgElementWithDataProp) => {
+            if (process.env.NODE_ENV !== 'production') {
+              if (img && !srcString) {
+                console.error(`Image is missing required "src" property:`, img)
+              }
+            }
             setIntersection(img)
             if (img?.complete) {
               handleLoading(
