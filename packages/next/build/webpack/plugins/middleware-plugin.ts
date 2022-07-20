@@ -109,7 +109,7 @@ export async function handleWebpackExtenalForEdgeRuntime({
   contextInfo: any
 }) {
   if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    return `root  __import_unsupported('${request}')`
+    return `root  globalThis.__import_unsupported('${request}')`
   }
 }
 
