@@ -5,6 +5,7 @@ const readline = require('readline')
 const request = require('request')
 const { Client, query: Q } = require('faunadb')
 const streamToPromise = require('stream-to-promise')
+const { resolveDbDomain } = require('../lib/constants')
 
 const MakeLatestEntriesIndex = () =>
   Q.CreateIndex({
@@ -112,10 +113,6 @@ const resolveAdminKey = () => {
       resolve(res)
     })
   })
-}
-
-const resolveDbDomain = () => {
-  return process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com'
 }
 
 const importSchema = (adminKey) => {
