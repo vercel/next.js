@@ -928,7 +928,17 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
-
+  describe('Fill-mode tests', () => {
+    let browser
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/fill')
+    })
+    it('Should load the page', async () => {
+      expect(
+        await browser.elementById('fill-image-1').getAttribute('data-nfill')
+      ).toBe('true')
+    })
+  })
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {

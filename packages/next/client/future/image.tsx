@@ -102,6 +102,7 @@ export type ImageProps = Omit<
   src: string | StaticImport
   width?: number | string
   height?: number | string
+  fill?: boolean
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -121,6 +122,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
+  fill: boolean
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
@@ -295,6 +297,7 @@ export default function Image({
   quality,
   width,
   height,
+  fill,
   style,
   onLoadingComplete,
   placeholder = 'empty',
@@ -330,7 +333,7 @@ export default function Image({
     // Remove property so it's not spread on <img>
     delete rest.loader
   }
-
+  fill = !!fill
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -382,23 +385,26 @@ export default function Image({
         )}`
       )
     }
-    if (typeof widthInt === 'undefined') {
-      throw new Error(
-        `Image with src "${src}" is missing required "width" property.`
-      )
-    } else if (isNaN(widthInt)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
-      )
-    }
-    if (typeof heightInt === 'undefined') {
-      throw new Error(
-        `Image with src "${src}" is missing required "height" property.`
-      )
-    } else if (isNaN(heightInt)) {
-      throw new Error(
-        `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
-      )
+    if (fill) {
+    } else {
+      if (typeof widthInt === 'undefined') {
+        throw new Error(
+          `Image with src "${src}" is missing required "width" property.`
+        )
+      } else if (isNaN(widthInt)) {
+        throw new Error(
+          `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
+        )
+      }
+      if (typeof heightInt === 'undefined') {
+        throw new Error(
+          `Image with src "${src}" is missing required "height" property.`
+        )
+      } else if (isNaN(heightInt)) {
+        throw new Error(
+          `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+        )
+      }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
@@ -577,6 +583,7 @@ export default function Image({
     blurStyle,
     loading,
     config,
+    fill,
     unoptimized,
     placeholder,
     loader,
@@ -623,6 +630,7 @@ const ImageElement = ({
   imgStyle,
   blurStyle,
   isLazy,
+  fill,
   placeholder,
   loading,
   srcString,
@@ -646,6 +654,7 @@ const ImageElement = ({
         height={heightInt}
         decoding="async"
         data-nimg="future"
+        {...(fill ? { 'data-nfill': true } : {})}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}
@@ -704,6 +713,7 @@ const ImageElement = ({
             height={heightInt}
             decoding="async"
             data-nimg="future"
+            {...(fill ? { 'data-nfill': true } : {})}
             style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`
