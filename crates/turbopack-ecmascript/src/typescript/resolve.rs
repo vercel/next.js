@@ -9,6 +9,7 @@ use turbopack_core::{
     context::AssetContextVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
+        handle_resolve_error,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
             ResolveOptionsVc,
@@ -18,8 +19,6 @@ use turbopack_core::{
     },
     source_asset::SourceAssetVc,
 };
-
-use crate::resolve::handle_resolve_error;
 
 #[turbo_tasks::function]
 pub async fn apply_typescript_options(

@@ -6,12 +6,11 @@ use swc_common::{
 use swc_css_ast::{ImportPrelude, ImportPreludeHref, Url, UrlValue};
 use swc_css_visit::{self, AstNodePath, AstParentKind, VisitAstPath, VisitWithPath};
 use turbo_tasks::Value;
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
-    resolve::{parse::RequestVc, ResolveResult, ResolveResultVc},
+    resolve::{handle_resolve_error, parse::RequestVc, ResolveResultVc},
 };
 
 use crate::{
@@ -149,37 +148,7 @@ pub async fn css_resolve(request: RequestVc, context: AssetContextVc) -> Result<
     let options = context.resolve_options();
     let result = context.resolve_asset(context_path, request, options);
 
-    handle_resolve_error(result, context_path, request).await
-}
-
-async fn handle_resolve_error(
-    result: ResolveResultVc,
-    context_path: FileSystemPathVc,
-    request: RequestVc,
-) -> Result<ResolveResultVc> {
-    Ok(match result.is_unresolveable().await {
-        Ok(unresolveable) => {
-            if *unresolveable {
-                // TODO report this to stream
-                println!(
-                    "unable to resolve {} in {}",
-                    request.to_string().await?,
-                    context_path.to_string().await?
-                );
-            }
-            result
-        }
-        Err(err) => {
-            // TODO report this to stream
-            println!(
-                "fatal error during resolving request {} in {}: {}",
-                request.to_string().await?,
-                context_path.to_string().await?,
-                err
-            );
-            ResolveResult::unresolveable().into()
-        }
-    })
+    handle_resolve_error(result, "css request", context_path, request).await
 }
 
 // TODO enable serialization

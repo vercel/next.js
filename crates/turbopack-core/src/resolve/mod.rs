@@ -796,3 +796,34 @@ impl AssetReference for AffectingResolvingAssetReference {
         )))
     }
 }
+
+pub async fn handle_resolve_error(
+    result: ResolveResultVc,
+    request_type: &str,
+    context_path: FileSystemPathVc,
+    request: RequestVc,
+) -> Result<ResolveResultVc> {
+    Ok(match result.is_unresolveable().await {
+        Ok(unresolveable) => {
+            if *unresolveable {
+                // TODO report this to stream
+                println!(
+                    "unable to resolve {request_type} {} in {}",
+                    request.to_string().await?,
+                    context_path.to_string().await?
+                );
+            }
+            result
+        }
+        Err(err) => {
+            // TODO report this to stream
+            println!(
+                "fatal error during resolving request {} in {}: {}",
+                request.to_string().await?,
+                context_path.to_string().await?,
+                err
+            );
+            ResolveResult::unresolveable().into()
+        }
+    })
+}
