@@ -6,7 +6,7 @@
 export function parsePath(path: string) {
   const hashIndex = path.indexOf('#')
   const queryIndex = path.indexOf('?')
-  const hasQuery = queryIndex > -1 && queryIndex < hashIndex
+  const hasQuery = queryIndex > -1 && (hashIndex < 0 || queryIndex < hashIndex)
 
   if (hasQuery || hashIndex > -1) {
     return {
