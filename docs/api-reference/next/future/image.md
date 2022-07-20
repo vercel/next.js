@@ -9,6 +9,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
+| `v12.2.3` | Support for `fill` attribute added.          |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
@@ -36,7 +37,6 @@ Compared to `next/image`, the new `next/future/image` component has the followin
 - Removes `layout`, `objectFit`, and `objectPosition` props in favor of `style` or `className`
 - Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
 - Removes `loader` config in favor of [`loader`](#loader) prop
-- Note: there is no `fill` mode so `width` & `height` props are required
 - Note: the [`onError`](#onerror) prop might behave differently
 
 ## Required Props
@@ -57,13 +57,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` attribute](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` attribute](#fill).
 
 ## Optional Props
 
@@ -100,6 +100,18 @@ const MyImage = (props) => {
   )
 }
 ```
+
+### fill
+
+A boolean attribute. If present, sets the image to fill its containing element rather than defining its own size. When using `fill` mode, do not provide `height` and `width`.
+
+When using the `fill` attribute, the parent element _must_ have the CSS `position: "relative"` or the image will not render correctly. Also note that the image itself is automatically given `position: "absolute"` and this value should not be changed.
+
+Fill mode uses `object-fit: "contain"` by default, which sizes the image so that it fits entirely within the container, "letterboxing" as necessary. To fill the entire element instead, switch to `object-fit: "cover"` using CSS or the `style` property. For this to look correct, the `overflow: "hidden"` CSS property should be used on the containing element.
+
+See also:
+[object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+[object-position](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
 ### sizes
 
