@@ -1136,15 +1136,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    if (
-      this.renderOpts.customServer &&
-      pathname === '/index' &&
-      !(await this.hasPage('/index'))
-    ) {
-      // maintain backwards compatibility for custom server
-      // (see custom-server integration tests)
-      pathname = '/'
-    }
+    // if (
+    //   this.renderOpts.customServer &&
+    //   pathname === '/index' &&
+    //   !(await this.hasPage('/index'))
+    // ) {
+    //   // maintain backwards compatibility for custom server
+    //   // (see custom-server integration tests)
+    //   pathname = '/'
+    // }
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
