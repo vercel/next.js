@@ -678,8 +678,6 @@ if (process.env.__NEXT_RSC) {
     createFromFetch,
     createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack')
-  const { RefreshContext } = require('./streaming/refresh')
-
   const encoder = new TextEncoder()
 
   let initialServerDataBuffer: string[] | undefined = undefined
@@ -825,11 +823,7 @@ if (process.env.__NEXT_RSC) {
       })
     }
 
-    return (
-      <RefreshContext.Provider value={refreshCache}>
-        <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
-      </RefreshContext.Provider>
-    )
+    return <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
   }
 }
 
