@@ -976,6 +976,17 @@ function runTests(mode) {
         )
       ).toBe('100%')
     })
+    if (mode === 'dev') {
+      it('should warn when not using the sizes prop for a small image', async () => {
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).toMatch(
+          /Image with src "\/wide.png" has no sizes prop, but doesn't take up the full width of the screen.(.*)/gm
+        )
+      })
+    }
   })
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {

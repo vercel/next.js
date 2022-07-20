@@ -272,6 +272,19 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
+      if (
+        img.getAttribute('data-nfill') &&
+        (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
+      ) {
+        let widthViewportRatio =
+          img.getBoundingClientRect().width / window.innerWidth
+        if (widthViewportRatio < 0.6) {
+          warnOnce(
+            `Image with src "${src}" has no sizes prop, but doesn't take up the full width of the screen. Use the sizes prop (https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/sizes) to improve page performance.`
+          )
+        }
+      }
+
       const heightModified =
         img.height.toString() !== img.getAttribute('height')
       const widthModified = img.width.toString() !== img.getAttribute('width')
