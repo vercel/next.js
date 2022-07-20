@@ -8,7 +8,6 @@ import type { LoadComponentsReturnType } from './load-components'
 import type { Options } from './base-server'
 
 import BaseServer from './base-server'
-import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 
@@ -20,12 +19,20 @@ interface WebServerOptions extends Options {
     ) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
+    pagesRenderToHTML?: typeof import('./render').renderToHTML
+    appRenderToHTML?: typeof import('./app-render').renderToHTML
   }
 }
 
 export default class NextWebServer extends BaseServer<WebServerOptions> {
+  private pagesRenderToHTML?: typeof import('./render').renderToHTML
+  private appRenderToHTML?: typeof import('./app-render').renderToHTML
+
   constructor(options: WebServerOptions) {
     super(options)
+
+    this.pagesRenderToHTML = options.webServerConfig.pagesRenderToHTML
+    this.appRenderToHTML = options.webServerConfig.appRenderToHTML
 
     // Extend `renderOpts`.
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
@@ -117,8 +124,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
   }
   protected getServerComponentManifest() {
-    // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.
-    return undefined
+    return this.serverOptions.webServerConfig.extendRenderOpts
+      .serverComponentManifest
   }
   protected async renderHTML(
     req: WebNextRequest,
@@ -127,21 +134,27 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    return renderToHTML(
-      {
-        url: req.url,
-        cookies: req.cookies,
-        headers: req.headers,
-      } as any,
-      {} as any,
-      pathname,
-      query,
-      {
-        ...renderOpts,
-        disableOptimizedLoading: true,
-        runtime: 'experimental-edge',
-      }
-    )
+    const curRenderToHTML = this.pagesRenderToHTML || this.appRenderToHTML
+    if (curRenderToHTML) {
+      return curRenderToHTML(
+        {
+          url: req.url,
+          cookies: req.cookies,
+          headers: req.headers,
+        } as any,
+        {} as any,
+        pathname,
+        query,
+        {
+          ...renderOpts,
+          disableOptimizedLoading: true,
+          runtime: 'experimental-edge',
+        },
+        !!this.pagesRenderToHTML
+      )
+    } else {
+      throw new Error(`Invariant: curRenderToHTML is missing`)
+    }
   }
   protected async sendRenderResult(
     _req: WebNextRequest,

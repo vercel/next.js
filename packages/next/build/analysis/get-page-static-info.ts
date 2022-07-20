@@ -79,7 +79,7 @@ export async function getPageStaticInfo(params: {
     }
   }
 
-  return { ssr: false, ssg: false }
+  return { ssr: false, ssg: false, runtime: nextConfig.experimental?.runtime }
 }
 
 /**

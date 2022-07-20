@@ -12,6 +12,8 @@ export type EdgeSSRLoaderQuery = {
   isServerComponent: boolean
   page: string
   stringifiedConfig: string
+  pagesType?: string
+  appDirLoader?: string
 }
 
 export default async function edgeSSRLoader(this: any) {
@@ -19,6 +21,7 @@ export default async function edgeSSRLoader(this: any) {
     dev,
     page,
     buildId,
+    pagesType,
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -26,11 +29,19 @@ export default async function edgeSSRLoader(this: any) {
     absoluteErrorPath,
     isServerComponent,
     stringifiedConfig,
+    appDirLoader: appDirLoaderBase64,
   } = this.getOptions()
 
+  const appDirLoader = Buffer.from(
+    appDirLoaderBase64 || '',
+    'base64'
+  ).toString()
+  const isAppDir = pagesType === 'app'
   const buildInfo = getModuleBuildInfo(this._module)
+
   buildInfo.nextEdgeSSR = {
     isServerComponent: isServerComponent === 'true',
+    isAppDir,
     page: page,
   }
   buildInfo.route = {
@@ -49,11 +60,26 @@ export default async function edgeSSRLoader(this: any) {
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
     import { getRender } from 'next/dist/build/webpack/loaders/next-edge-ssr-loader/render'
-
     import Document from ${stringifiedDocumentPath}
 
+    ${
+      isAppDir
+        ? `
+      const appRenderToHTML = require('next/dist/server/app-render').renderToHTML
+      const pagesRenderToHTML = null
+      const pageMod = require("${appDirLoader}${stringifiedPagePath.substring(
+            1,
+            stringifiedPagePath.length - 1
+          )}")
+      pageMod.__client__ = self._CLIENT_ENTRY
+    `
+        : `
+      const appRenderToHTML = null
+      const pagesRenderToHTML = require('next/dist/server/render').renderToHTML
+      const pageMod = require(${stringifiedPagePath})
+    `
+    }
     const appMod = require(${stringifiedAppPath})
-    const pageMod = require(${stringifiedPagePath})
     const errorMod = require(${stringifiedErrorPath})
     const error500Mod = ${
       stringified500Path ? `require(${stringified500Path})` : 'null'
@@ -72,6 +98,8 @@ export default async function edgeSSRLoader(this: any) {
       error500Mod,
       Document,
       buildManifest,
+      appRenderToHTML,
+      pagesRenderToHTML,
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
       config: ${stringifiedConfig},

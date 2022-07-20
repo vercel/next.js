@@ -1773,26 +1773,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return path
   }
 
+  // map the route to the actual bundle name
+  protected getOriginalAppPath(route: string) {
+    if (this.nextConfig.experimental.appDir) {
+      const originalAppPath = this.appPathRoutes?.[route]
+
+      if (!originalAppPath) {
+        return null
+      }
+
+      return originalAppPath
+    }
+    return null
+  }
+
   protected async renderPageComponent(
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    // map the route to the actual bundle name
-    const getOriginalAppPath = (appPath: string) => {
-      if (this.nextConfig.experimental.appDir) {
-        const originalAppPath = this.appPathRoutes?.[appPath]
-
-        if (!originalAppPath) {
-          return null
-        }
-
-        return originalAppPath
-      }
-      return null
-    }
-
     const { query, pathname } = ctx
-    const appPath = getOriginalAppPath(pathname)
+    const appPath = this.getOriginalAppPath(pathname)
 
     let page = pathname
     if (typeof appPath === 'string') {

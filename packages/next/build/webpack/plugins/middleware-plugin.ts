@@ -64,7 +64,7 @@ export default class MiddlewarePlugin {
       /**
        * This is the static code analysis phase.
        */
-      const codeAnalyzer = getCodeAnalizer({
+      const codeAnalyzer = getCodeAnalyzer({
         dev: this.dev,
         compiler,
         compilation,
@@ -101,7 +101,7 @@ export default class MiddlewarePlugin {
   }
 }
 
-export async function handleWebpackExtenalForEdgeRuntime({
+export async function handleWebpackExternalForEdgeRuntime({
   request,
   contextInfo,
 }: {
@@ -113,7 +113,7 @@ export async function handleWebpackExtenalForEdgeRuntime({
   }
 }
 
-function getCodeAnalizer(params: {
+function getCodeAnalyzer(params: {
   dev: boolean
   compiler: webpack5.Compiler
   compilation: webpack5.Compilation
@@ -609,7 +609,9 @@ function getEntryFiles(entryFiles: string[], meta: EntryMetadata) {
         ...entryFiles
           .filter(
             (file) =>
-              file.startsWith('pages/') && !file.endsWith('.hot-update.js')
+              (file.startsWith('pages/') ||
+                (file.startsWith('app/') && meta.edgeSSR?.isAppDir)) &&
+              !file.endsWith('.hot-update.js')
           )
           .map(
             (file) =>

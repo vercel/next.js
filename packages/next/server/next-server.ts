@@ -1300,6 +1300,12 @@ export default class NextNodeServer extends BaseServer {
         const { query, pathname } = parsed
         const normalizedPathname = removeTrailingSlash(pathname || '')
         let page = normalizedPathname
+        let appPath = this.getOriginalAppPath(page)
+
+        if (typeof appPath === 'string') {
+          page = appPath
+        }
+
         let params: Params | undefined = undefined
         let pageFound = !isDynamicRoute(page)
 
@@ -1308,6 +1314,11 @@ export default class NextNodeServer extends BaseServer {
             params = dynamicRoute.match(normalizedPathname) || undefined
             if (params) {
               page = dynamicRoute.page
+              appPath = this.getOriginalAppPath(page)
+
+              if (typeof appPath === 'string') {
+                page = appPath
+              }
               pageFound = true
               break
             }

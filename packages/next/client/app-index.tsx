@@ -188,7 +188,7 @@ function createLoadFlightCssStream(onFlightCssLoaded: () => void) {
 
             if (!cssFlushed) {
               cssFlushed = true
-              Promise.all(promises).then(() => onFlightCssLoaded())
+              Promise.all(promises).then(() => onFlightCssLoaded?.())
             }
           }
         }

@@ -25,6 +25,8 @@ export function getRender({
   serverComponentManifest,
   config,
   buildId,
+  appRenderToHTML,
+  pagesRenderToHTML,
 }: {
   dev: boolean
   page: string
@@ -32,6 +34,8 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
+  appRenderToHTML: any
+  pagesRenderToHTML: any
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -61,6 +65,8 @@ export function getRender({
         disableOptimizedLoading: true,
         serverComponentManifest,
       },
+      appRenderToHTML,
+      pagesRenderToHTML,
       loadComponent: async (pathname) => {
         if (pathname === page) {
           return {
