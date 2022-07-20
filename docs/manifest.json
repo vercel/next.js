@@ -414,10 +414,6 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
-          "title": "next/streaming",
-          "path": "/docs/api-reference/next/streaming.md"
-        },
-        {
           "title": "next/future/image (experimental)",
           "path": "/docs/api-reference/next/future/image.md"
         },
