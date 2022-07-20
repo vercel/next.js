@@ -48,12 +48,7 @@ export async function getPageStaticInfo(params: {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
       if (e instanceof UnsupportedValueError) {
-        // `export config` is found, but can't extract its value
-        Log.warn(
-          `You have exported a \`config\` field in "${
-            page || pageFilePath
-          }" that Next.js can't recognize, so it will be ignored`
-        )
+        warnAboutUnsupportedValue(pageFilePath, page)
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
@@ -236,3 +231,19 @@ function warnAboutExperimentalEdgeApiFunctions() {
 }
 
 let warnedAboutExperimentalEdgeApiFunctions = false
+
+const warnedUnsupportedValueMap = new Map<string, boolean>()
+function warnAboutUnsupportedValue(
+  pageFilePath: string,
+  page: string | undefined
+) {
+  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+    return
+  }
+  Log.warn(
+    `You have exported a \`config\` field in ${
+      page ? `route "${page}"` : `"${pageFilePath}"`
+    } that Next.js can't recognize, so it will be ignored`
+  )
+  warnedUnsupportedValueMap.set(pageFilePath, true)
+}
