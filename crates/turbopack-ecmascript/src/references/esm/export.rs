@@ -29,6 +29,7 @@ pub enum EsmExport {
     LocalBinding(String),
     ImportedBinding(EsmAssetReferenceVc, String),
     ImportedNamespace(EsmAssetReferenceVc),
+    Error,
 }
 
 #[turbo_tasks::function]
@@ -120,6 +121,9 @@ impl CodeGenerateable for EsmExports {
         }
         for (exported, local) in all_exports.into_iter() {
             let expr = match local.as_ref() {
+                EsmExport::Error => Some(quote!(
+                    "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
+                )),
                 EsmExport::LocalBinding(name) => Some(quote!(
                     "(() => $local)" as Expr,
                     local = Ident::new((name as &str).into(), DUMMY_SP)

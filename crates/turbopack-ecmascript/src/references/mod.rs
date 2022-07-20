@@ -98,6 +98,7 @@ pub(crate) async fn analyze_ecmascript_module(
     let mut code_gen = Vec::new();
     let mut exports = EcmascriptExports::None;
     let path = source.path();
+    let path_debug = path.to_string().await?;
 
     let mut import_references = HashMap::new();
 
@@ -1386,8 +1387,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         let path = AstPathVc::cell(as_parent_path(ast_path));
-        let esm_ref = *self.import_references.get(&*export.src.value).unwrap();
-        self.esm_star_exports.push(esm_ref);
+        if let Some(esm_ref) = self.import_references.get(&*export.src.value) {
+            self.esm_star_exports.push(*esm_ref);
+        }
         self.code_gen.push(EsmModuleItemVc::new(path).into());
         export.visit_children_with_path(self, ast_path);
     }
@@ -1400,8 +1402,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
         let esm_ref = export
             .src
             .as_ref()
-            .map(|src| *self.import_references.get(&*src.value).unwrap());
-
+            .map(|src| self.import_references.get(&*src.value).copied());
         for spec in export.specifiers.iter() {
             fn to_string(name: &ModuleExportName) -> String {
                 match name {
@@ -1412,8 +1413,10 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             match spec {
                 ExportSpecifier::Namespace(ExportNamespaceSpecifier { name, .. }) => {
                     if let Some(esm_ref) = esm_ref {
-                        self.esm_exports
-                            .insert(to_string(name), EsmExport::ImportedNamespace(esm_ref));
+                        self.esm_exports.insert(
+                            to_string(name),
+                            esm_ref.map_or(EsmExport::Error, |r| EsmExport::ImportedNamespace(r)),
+                        );
                     } else {
                         panic!(
                             "ExportNamespaceSpecifier will not happen in combination with src == \
@@ -1425,7 +1428,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                     if let Some(esm_ref) = esm_ref {
                         self.esm_exports.insert(
                             exported.sym.to_string(),
-                            EsmExport::ImportedBinding(esm_ref, "default".to_string()),
+                            esm_ref.map_or(EsmExport::Error, |r| {
+                                EsmExport::ImportedBinding(r, "default".to_string())
+                            }),
                         );
                     } else {
                         panic!(
@@ -1438,7 +1443,9 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                     let key = to_string(exported.as_ref().unwrap_or(orig));
                     let binding_name = to_string(orig);
                     let export = if let Some(esm_ref) = esm_ref {
-                        EsmExport::ImportedBinding(esm_ref, binding_name)
+                        esm_ref.map_or(EsmExport::Error, |r| {
+                            EsmExport::ImportedBinding(r, binding_name)
+                        })
                     } else {
                         let imported_binding = if let ModuleExportName::Ident(ident) = orig {
                             self.eval_context.imports.get_binding(&ident.to_id())
@@ -1446,11 +1453,14 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                             None
                         };
                         if let Some((request, export)) = imported_binding {
-                            let esm_ref = *self.import_references.get(&request).unwrap();
-                            if let Some(export) = export {
-                                EsmExport::ImportedBinding(esm_ref, export)
+                            if let Some(esm_ref) = self.import_references.get(&request) {
+                                if let Some(export) = export {
+                                    EsmExport::ImportedBinding(*esm_ref, export)
+                                } else {
+                                    EsmExport::ImportedNamespace(*esm_ref)
+                                }
                             } else {
-                                EsmExport::ImportedNamespace(esm_ref)
+                                EsmExport::Error
                             }
                         } else {
                             EsmExport::LocalBinding(binding_name)
