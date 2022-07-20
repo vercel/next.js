@@ -674,6 +674,24 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when width prop on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-width')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has both "width" and "fill" properties.`
+      )
+    })
+
+    it('should show error when CSS position changed on fill image', async () => {
+      const browser = await webdriver(appPort, '/invalid-fill-position')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/wide.png" has a style attribute which modifies the CSS 'position' attribute`
+      )
+    })
+
     it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
       const browser = await webdriver(
         appPort,
@@ -933,10 +951,30 @@ function runTests(mode) {
     beforeAll(async () => {
       browser = await webdriver(appPort, '/fill')
     })
-    it('Should load the page', async () => {
+    it('should include a data-attribute on fill images', async () => {
       expect(
         await browser.elementById('fill-image-1').getAttribute('data-nfill')
       ).toBe('true')
+    })
+    it('should add position:absolute and object-fit to fill images', async () => {
+      expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(
+        'absolute'
+      )
+      expect(
+        await getComputedStyle(browser, 'fill-image-1', 'object-fit')
+      ).toBe('contain')
+    })
+    it('should add 100% width and height to fill images', async () => {
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.height`
+        )
+      ).toBe('100%')
+      expect(
+        await browser.eval(
+          `document.getElementById("fill-image-1").style.width`
+        )
+      ).toBe('100%')
     })
   })
   // Tests that use the `unsized` attribute:

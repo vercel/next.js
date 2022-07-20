@@ -386,6 +386,21 @@ export default function Image({
       )
     }
     if (fill) {
+      if (width) {
+        throw new Error(
+          `Image with src "${src}" has both "width" and "fill" properties. Images in fill mode should not specify width or height.`
+        )
+      }
+      if (height) {
+        throw new Error(
+          `Image with src "${src}" has both "height" and "fill" properties. Images in fill mode should not specify height or width.`
+        )
+      }
+      if (style?.position) {
+        throw new Error(
+          `Image with src "${src}" has a style attribute which modifies the CSS 'position' attribute. Fill images have position: 'absolute' and this should not be modified.`
+        )
+      }
     } else {
       if (typeof widthInt === 'undefined') {
         throw new Error(
@@ -512,7 +527,17 @@ export default function Image({
       }
     }
   }
-  const imgStyle = Object.assign({}, style)
+  const imgStyle = Object.assign(
+    fill
+      ? {
+          position: 'absolute',
+          objectFit: 'contain',
+          height: '100%',
+          width: '100%',
+        }
+      : {},
+    style
+  )
   const svgBlurPlaceholder = `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 ${widthInt} ${heightInt}'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='50'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='${blurDataURL}'/%3E%3C/svg%3E")`
   const blurStyle =
     placeholder === 'blur' && !blurComplete
