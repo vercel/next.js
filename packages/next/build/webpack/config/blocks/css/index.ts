@@ -470,7 +470,8 @@ export const css = curry(async function css(
     )
   }
 
-  if (ctx.isClient && ctx.isProduction) {
+  // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
+  if (ctx.isClient && (ctx.isProduction || ctx.experimental.appDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
       require('../../../plugins/mini-css-extract-plugin').default
