@@ -6,7 +6,8 @@
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "jsx": "react"
+    "jsx": "react",
+    "stripInternal": true
   },
   "exclude": ["dist", "./*.d.ts", "future/*.d.ts", "image-types/global.d.ts"]
 }
