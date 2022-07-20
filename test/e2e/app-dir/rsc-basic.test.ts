@@ -360,7 +360,8 @@ describe('app dir - react server components', () => {
     )
   })
 
-  it('should support partial hydration with inlined server data in browser', async () => {
+  // disable this flaky test
+  it.skip('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
     const browser = await webdriver(next.url, '/partial-hydration', {
       waitHydration: false,
