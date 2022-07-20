@@ -132,29 +132,6 @@ async function createModuleContext(options: ModuleContextOptions) {
         return fn()
       }
 
-      context.__import_unsupported = function __import_unsupported(
-        moduleName: string
-      ) {
-        const proxy: any = new Proxy(function () {}, {
-          get(_obj, prop) {
-            if (prop === 'then') {
-              return {}
-            }
-            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-          },
-          construct() {
-            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-          },
-          apply(_target, _this, args) {
-            if (args[0] instanceof Function) {
-              return args[0](proxy)
-            }
-            throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-          },
-        })
-        return new Proxy({}, { get: () => proxy })
-      }
-
       context.__next_webassembly_compile__ =
         function __next_webassembly_compile__(fn: Function) {
           const key = fn.toString()
@@ -366,10 +343,4 @@ function decorateUnhandledError(error: any) {
   if (error instanceof Error) {
     decorateServerError(error, 'edge-server')
   }
-}
-
-function getUnsupportedModuleErrorMessage(module: string) {
-  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
-  return `The edge runtime does not support Node.js '${module}' module.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
 }
