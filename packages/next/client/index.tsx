@@ -806,23 +806,6 @@ if (process.env.__NEXT_RSC) {
   RSCComponent = (props: any) => {
     const cacheKey = getCacheKey()
     const { __flight__ } = props
-    const [, dispatch] = useState({})
-    const startTransition = (React as any).startTransition
-    const rerender = () => dispatch({})
-
-    // If there is no cache, or there is serialized data already
-    function refreshCache(nextProps?: any) {
-      startTransition(() => {
-        const currentCacheKey = getCacheKey()
-        const response = createFromFetch(
-          fetchFlight(currentCacheKey, nextProps)
-        )
-
-        rscCache.set(currentCacheKey, response)
-        rerender()
-      })
-    }
-
     return <ServerRoot cacheKey={cacheKey} serialized={__flight__} />
   }
 }
