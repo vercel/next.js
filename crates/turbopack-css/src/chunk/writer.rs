@@ -5,8 +5,8 @@ use std::{
 
 use crate::CssChunkItemContentVc;
 
-pub async fn expand_imports(
-    mut writer: WriterWithIndent<'_>,
+pub async fn expand_imports<T: Write>(
+    mut writer: WriterWithIndent<T>,
     content_vc: CssChunkItemContentVc,
     map: &HashMap<String, CssChunkItemContentVc>,
 ) -> anyhow::Result<()> {
@@ -23,11 +23,11 @@ pub async fn expand_imports(
 
             let id = &*imported_id.await?;
 
-            writeln!(writer, "/* import({}) */", id).unwrap();
-            writeln!(writer, "{}", open).unwrap();
+            writeln!(writer, "/* import({}) */", id)?;
+            writeln!(writer, "{}", open)?;
             if let Some(imported_content_vc) = map.get(id) {
                 let imported_content = &*(*imported_content_vc).await?;
-                writer = writer.push_indent(inner_indent);
+                writer.push_indent(inner_indent)?;
                 stack.push((
                     *imported_content_vc,
                     imported_content.imports.iter().cloned().collect(),
@@ -35,14 +35,14 @@ pub async fn expand_imports(
                 ));
             } else {
                 println!("unable to expand css import: {}", id);
-                writeln!(writer, "").unwrap();
-                writeln!(writer, "{}", close).unwrap();
+                writeln!(writer, "/* could not expand imported css contents */")?;
+                writeln!(writer, "{}", close)?;
             }
         } else {
             let content = &*(*content_vc).await?;
-            writeln!(writer, "{}", content.inner_code).unwrap();
-            writer = writer.pop_indent(*indent);
-            writeln!(writer, "{}", close).unwrap();
+            writeln!(writer, "{}", content.inner_code)?;
+            writer.pop_indent(*indent)?;
+            writeln!(writer, "{}", close)?;
             stack.pop();
         }
     }
@@ -50,76 +50,58 @@ pub async fn expand_imports(
     Ok(())
 }
 
-pub struct WriterWithIndent<'a> {
-    buffer: &'a mut String,
-    indent: usize,
+pub struct WriterWithIndent<T: Write> {
+    writer: T,
     indent_str: String,
-    current_line: String,
+    needs_indent: bool,
 }
 
-impl<'a> WriterWithIndent<'a> {
-    pub fn new(buffer: &'a mut String) -> Self {
+impl<T: Write> WriterWithIndent<T> {
+    pub fn new(buffer: T) -> Self {
         Self {
-            buffer,
-            indent: 0,
+            writer: buffer,
             indent_str: "".to_string(),
-            current_line: "".to_string(),
+            needs_indent: true,
         }
     }
 
-    pub fn push_indent(mut self, indent: usize) -> Self {
-        if !self.current_line.is_empty() && self.current_line != self.indent_str {
-            self.finish_current_line();
-        }
+    pub fn push_indent(&mut self, indent: usize) -> std::fmt::Result {
+        self.indent_str += &" ".repeat(indent);
 
-        let indent = self.indent.saturating_add(indent);
-        let indent_str = " ".repeat(indent);
-
-        self.current_line.push_str(&indent_str);
-
-        Self {
-            buffer: self.buffer,
-            indent,
-            indent_str,
-            current_line: self.current_line,
-        }
+        Ok(())
     }
 
-    pub fn pop_indent(mut self, indent: usize) -> Self {
-        if !self.current_line.is_empty() && self.current_line != self.indent_str {
-            self.finish_current_line();
-        }
+    pub fn pop_indent(&mut self, indent: usize) -> std::fmt::Result {
+        self.indent_str = " ".repeat(self.indent_str.len().saturating_sub(indent));
 
-        let indent = self.indent.saturating_sub(indent);
-        let indent_str = " ".repeat(indent);
-
-        self.current_line.push_str(&indent_str);
-
-        Self {
-            buffer: self.buffer,
-            indent,
-            indent_str,
-            current_line: self.current_line,
-        }
-    }
-
-    fn finish_current_line(&mut self) {
-        self.buffer.extend(self.current_line.drain(..));
-        self.buffer.push('\n');
+        Ok(())
     }
 }
 
-impl Write for WriterWithIndent<'_> {
+impl<T: Write> Write for WriterWithIndent<T> {
+    #[inline]
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        let mut split = s.split('\n');
-        self.current_line.push_str(split.next().unwrap());
-
-        for line in split {
-            self.finish_current_line();
-            self.current_line.push_str(&self.indent_str);
-            self.current_line.push_str(line);
+        for c in s.chars() {
+            self.write_char(c)?;
         }
 
         Ok(())
+    }
+
+    #[inline]
+    fn write_char(&mut self, c: char) -> std::fmt::Result {
+        if c == '\n' {
+            self.writer.write_char('\n')?;
+            self.needs_indent = true;
+
+            return Ok(());
+        }
+
+        if self.needs_indent {
+            self.writer.write_str(&self.indent_str)?;
+            self.needs_indent = false;
+        }
+
+        self.writer.write_char(c)
     }
 }
