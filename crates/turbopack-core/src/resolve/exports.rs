@@ -227,6 +227,8 @@ impl ExportsField {
 }
 
 impl ImportsField {
+    // FIXME
+    #[allow(dead_code)]
     /// Looks up a request string in the "imports" field. Returns an iterator of
     /// matching requests. Usually only the first one is relevant, expect
     /// when conditions doesn't match or only partially match.

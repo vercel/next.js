@@ -12,21 +12,25 @@ bench = false
 [dependencies]
 async-trait = "0.1.56"
 anyhow = "1.0.47"
+serde = "1.0.136"
 
 turbopack-core = { path = "../turbopack-core" }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 
 swc_atoms = "0.2.13"
-serde = "1.0.136"
+swc_css_ast = "0.99.0"
+swc_css_codegen = "0.109.0"
+swc_css_parser = "0.108.0"
+swc_css_utils = "0.96.0"
 
 [dependencies.swc_common]
 version = "0.24.0"
 features = ["concurrent"]
 
-[dependencies.swc_css]
-version = "0.112.0"
-features = []
+[dependencies.swc_css_visit]
+version = "0.98.0"
+features = ["path"]
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

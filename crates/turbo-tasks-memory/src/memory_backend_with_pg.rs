@@ -1060,7 +1060,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         result: Result<RawVc>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
+        let (mut state, _task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState { ref mut memory, .. } = *state;
         let mem_state = memory.as_mut().unwrap();
         let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
@@ -1794,6 +1794,8 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             .unwrap()
     }
 
+    // FIXME
+    #[allow(dead_code)]
     #[must_use]
     fn pg_remove_outdated_externally_active(
         &self,

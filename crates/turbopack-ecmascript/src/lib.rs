@@ -62,7 +62,7 @@ pub enum ModuleAssetType {
 }
 
 #[turbo_tasks::value(Asset, EcmascriptChunkPlaceable, ChunkableAsset, ValueToString)]
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct ModuleAsset {
     pub source: AssetVc,
     pub context: AssetContextVc,
