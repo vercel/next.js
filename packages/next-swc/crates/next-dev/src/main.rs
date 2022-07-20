@@ -1,7 +1,14 @@
 #![feature(future_join)]
 #![feature(future_poll_fn)]
 
-use std::{env::current_dir, future::join, net::IpAddr, path::PathBuf, sync::Arc, time::Instant};
+use std::{
+    env::current_dir,
+    future::join,
+    net::IpAddr,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -145,6 +152,10 @@ async fn main() {
         async move {
             tt_clone.wait_done().await;
             println!("initial request prepared in {}", FormatDuration(start.elapsed()));
+            loop {
+                let (elapsed, count) = tt_clone.wait_next_done(Duration::from_millis(100)).await;
+                println!("updated {} tasks in {}", count, FormatDuration(elapsed));
+            }
         },
         async {
             server.future.await.unwrap()
