@@ -797,7 +797,7 @@ export default class DevServer extends Server {
         const frames = parseStack(err.stack!)
         const frame = frames.find(
           ({ file }) =>
-            !file?.startsWith('eval') && !file?.includes('sandbox/context')
+            !file?.startsWith('eval') && !file?.includes('web/adapter')
         )!
 
         if (frame.lineNumber && frame?.file) {
