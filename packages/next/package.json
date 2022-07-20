@@ -45,8 +45,6 @@
     "jest.d.ts",
     "amp.js",
     "amp.d.ts",
-    "streaming.js",
-    "streaming.d.ts",
     "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
