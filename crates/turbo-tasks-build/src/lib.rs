@@ -81,123 +81,129 @@ pub fn generate_register() {
         while let Some((mod_path, file_path)) = queue.pop() {
             println!("cargo:rerun-if-changed={}", file_path.to_string_lossy());
             let src = std::fs::read_to_string(&file_path).unwrap();
-            let file = syn::parse_file(&src)
+            match syn::parse_file(&src)
                 .with_context(|| format!("failed to parse {}", file_path.display()))
-                .unwrap();
-            for item in file.items {
-                match item {
-                    Item::Enum(enum_item) => {
-                        if enum_item.attrs.iter().any(|a| is_attribute(a, "value")) {
-                            let name = enum_item.ident.to_string();
-                            writeln!(
-                                values_code,
-                                "crate{mod_path}::{}_VALUE_TYPE.register({});",
-                                name.to_uppercase(),
-                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
-                            )
-                            .unwrap();
-                        }
-                    }
-                    Item::Fn(fn_item) => {
-                        if fn_item.attrs.iter().any(|a| is_attribute(a, "function")) {
-                            let name = fn_item.sig.ident.to_string();
-                            writeln!(
-                                functions_code,
-                                "crate{mod_path}::{}_FUNCTION.register({});",
-                                name.to_uppercase(),
-                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
-                            )
-                            .unwrap();
-                        }
-                    }
-                    Item::Impl(impl_item) => {
-                        if impl_item
-                            .attrs
-                            .iter()
-                            .any(|a| is_attribute(a, "value_impl"))
-                        {
-                            if let Type::Path(TypePath {
-                                qself: None,
-                                path: Path { segments, .. },
-                            }) = &*impl_item.self_ty
-                            {
-                                if segments.len() == 1 {
-                                    if let Some(PathSegment {
-                                        arguments: PathArguments::None,
-                                        ident,
-                                    }) = segments.first()
+            {
+                Ok(file) => {
+                    for item in file.items {
+                        match item {
+                            Item::Enum(enum_item) => {
+                                if enum_item.attrs.iter().any(|a| is_attribute(a, "value")) {
+                                    let name = enum_item.ident.to_string();
+                                    writeln!(
+                                        values_code,
+                                        "crate{mod_path}::{}_VALUE_TYPE.register({});",
+                                        name.to_uppercase(),
+                                        format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                    )
+                                    .unwrap();
+                                }
+                            }
+                            Item::Fn(fn_item) => {
+                                if fn_item.attrs.iter().any(|a| is_attribute(a, "function")) {
+                                    let name = fn_item.sig.ident.to_string();
+                                    writeln!(
+                                        functions_code,
+                                        "crate{mod_path}::{}_FUNCTION.register({});",
+                                        name.to_uppercase(),
+                                        format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                    )
+                                    .unwrap();
+                                }
+                            }
+                            Item::Impl(impl_item) => {
+                                if impl_item
+                                    .attrs
+                                    .iter()
+                                    .any(|a| is_attribute(a, "value_impl"))
+                                {
+                                    if let Type::Path(TypePath {
+                                        qself: None,
+                                        path: Path { segments, .. },
+                                    }) = &*impl_item.self_ty
                                     {
-                                        let struct_name = ident.to_string();
-                                        for item in impl_item.items {
-                                            if let syn::ImplItem::Method(method_item) = item {
-                                                // TODO: if method_item.attrs.iter().any(|a|
-                                                // is_attribute(a,
-                                                // "function")) {
-                                                let name = method_item.sig.ident.to_string();
-                                                writeln!(
-                                                    functions_code,
-                                                    "crate{mod_path}::{}_IMPL_{}_FUNCTION.\
-                                                     register({});",
-                                                    struct_name.to_uppercase(),
-                                                    name.to_uppercase(),
-                                                    format_args!(
+                                        if segments.len() == 1 {
+                                            if let Some(PathSegment {
+                                                arguments: PathArguments::None,
+                                                ident,
+                                            }) = segments.first()
+                                            {
+                                                let struct_name = ident.to_string();
+                                                for item in impl_item.items {
+                                                    if let syn::ImplItem::Method(method_item) = item
+                                                    {
+                                                        // TODO: if method_item.attrs.iter().any(|a|
+                                                        // is_attribute(a,
+                                                        // "function")) {
+                                                        let name =
+                                                            method_item.sig.ident.to_string();
+                                                        writeln!(
+                                                            functions_code,
+                                                            "crate{mod_path}::{}_IMPL_{}_FUNCTION.\
+                                                             register({});",
+                                                            struct_name.to_uppercase(),
+                                                            name.to_uppercase(),
+                                                            format_args!(
                                                         "r##\"{prefix}{mod_path}::{struct_name}::\
                                                          {name}\"##"
                                                     ),
-                                                )
-                                                .unwrap();
+                                                        )
+                                                        .unwrap();
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
-                    Item::Mod(mod_item) => {
-                        if mod_item.content.is_none() {
-                            let name = mod_item.ident.to_string();
-                            let context = file_path.parent().unwrap();
-                            let direct = context.join(format!("{name}.rs"));
-                            if direct.exists() {
-                                queue.push((format!("{mod_path}::{name}"), direct));
-                            } else {
-                                let nested = context.join(&name).join("mod.rs");
-                                if nested.exists() {
-                                    queue.push((format!("{mod_path}::{name}"), nested));
+                            Item::Mod(mod_item) => {
+                                if mod_item.content.is_none() {
+                                    let name = mod_item.ident.to_string();
+                                    let context = file_path.parent().unwrap();
+                                    let direct = context.join(format!("{name}.rs"));
+                                    if direct.exists() {
+                                        queue.push((format!("{mod_path}::{name}"), direct));
+                                    } else {
+                                        let nested = context.join(&name).join("mod.rs");
+                                        if nested.exists() {
+                                            queue.push((format!("{mod_path}::{name}"), nested));
+                                        }
+                                    }
                                 }
                             }
+                            Item::Struct(struct_item) => {
+                                if struct_item.attrs.iter().any(|a| is_attribute(a, "value")) {
+                                    let name = struct_item.ident.to_string();
+                                    writeln!(
+                                        values_code,
+                                        "crate{mod_path}::{}_VALUE_TYPE.register({});",
+                                        name.to_uppercase(),
+                                        format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                    )
+                                    .unwrap();
+                                }
+                            }
+                            Item::Trait(trait_item) => {
+                                if trait_item
+                                    .attrs
+                                    .iter()
+                                    .any(|a| is_attribute(a, "value_trait"))
+                                {
+                                    let name = trait_item.ident.to_string();
+                                    writeln!(
+                                        traits_code,
+                                        "crate{mod_path}::{}_TRAIT_TYPE.register({});",
+                                        name.to_uppercase(),
+                                        format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
+                                    )
+                                    .unwrap();
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                    Item::Struct(struct_item) => {
-                        if struct_item.attrs.iter().any(|a| is_attribute(a, "value")) {
-                            let name = struct_item.ident.to_string();
-                            writeln!(
-                                values_code,
-                                "crate{mod_path}::{}_VALUE_TYPE.register({});",
-                                name.to_uppercase(),
-                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
-                            )
-                            .unwrap();
-                        }
-                    }
-                    Item::Trait(trait_item) => {
-                        if trait_item
-                            .attrs
-                            .iter()
-                            .any(|a| is_attribute(a, "value_trait"))
-                        {
-                            let name = trait_item.ident.to_string();
-                            writeln!(
-                                traits_code,
-                                "crate{mod_path}::{}_TRAIT_TYPE.register({});",
-                                name.to_uppercase(),
-                                format_args!("r##\"{prefix}{mod_path}::{name}\"##"),
-                            )
-                            .unwrap();
-                        }
-                    }
-                    _ => {}
                 }
+                Err(err) => println!("{}", err),
             }
         }
 
