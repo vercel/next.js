@@ -17,7 +17,10 @@ use turbopack_core::{
 };
 
 use self::loader::ChunkGroupLoaderChunkItemVc;
-use crate::utils::{stringify_module_id, stringify_number, stringify_str, FormatIter};
+use crate::{
+    references::esm::EsmExportsVc,
+    utils::{stringify_module_id, stringify_number, stringify_str, FormatIter},
+};
 
 #[turbo_tasks::value(Chunk, Asset, ValueToString)]
 pub struct EcmascriptChunk {
@@ -203,8 +206,10 @@ impl Asset for EcmascriptChunk {
         function require(from, id) {
             return getModule(from, id).exports;
         }
+        var toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
         function esm(exports, getters) {
             Object.defineProperty(exports, "__esModule", { value: true });
+            if(toStringTag) Object.defineProperty(exports, toStringTag, { value: "Module" });
             for(var key in getters) {
                 if(hOP.call(getters, key)) {
                     Object.defineProperty(exports, key, { get: getters[key], enumerable: true, });
@@ -325,9 +330,18 @@ impl EcmascriptChunkContextVc {
     }
 }
 
+#[turbo_tasks::value(shared)]
+pub enum EcmascriptExports {
+    EsmExports(EsmExportsVc),
+    CommonJs,
+    Value,
+    None,
+}
+
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkPlaceable: Asset + ValueToString {
     fn as_chunk_item(&self, context: ChunkingContextVc) -> EcmascriptChunkItemVc;
+    fn get_exports(&self) -> EcmascriptExportsVc;
 }
 
 #[turbo_tasks::value(shared)]

@@ -15,7 +15,8 @@ use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkContextVc, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
+        EcmascriptExportsVc,
     },
     utils::stringify_str,
 };
@@ -86,6 +87,11 @@ impl EcmascriptChunkPlaceable for ModuleAsset {
             static_asset: self_vc.static_asset(context),
         })
         .into()
+    }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        EcmascriptExports::Value.into()
     }
 }
 

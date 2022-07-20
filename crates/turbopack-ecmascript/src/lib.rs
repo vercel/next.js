@@ -45,7 +45,10 @@ use turbopack_core::{
 };
 
 use self::{
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions},
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
+        EcmascriptExportsVc,
+    },
     references::{AnalyseEcmascriptModuleResult, AnalyseEcmascriptModuleResultVc},
 };
 use crate::{
@@ -146,6 +149,11 @@ impl EcmascriptChunkPlaceable for ModuleAsset {
         })
         .into()
     }
+
+    #[turbo_tasks::function]
+    async fn get_exports(self_vc: ModuleAssetVc) -> Result<EcmascriptExportsVc> {
+        Ok(self_vc.analyze().await?.exports)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -184,6 +192,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         let AnalyseEcmascriptModuleResult {
             references,
             code_generation,
+            ..
         } = &*self.module.analyze().await?;
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
