@@ -3,7 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath } from 'path'
+import path, { dirname, join as pathJoin, relative as relativePath } from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import {
   DOT_NEXT_ALIAS,
@@ -34,7 +34,9 @@ import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
-import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
+import MiddlewarePlugin, {
+  handleWebpackExtenalForEdgeRuntime,
+} from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
@@ -54,9 +56,10 @@ import type {
 import type { Span } from '../trace'
 import { withoutRSCExtensions } from './utils'
 import browserslist from 'next/dist/compiled/browserslist'
+import { getNextImageOpts } from './image-opts'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
-import { getNextImageOpts } from './image-opts'
+import { clientComponentRegex } from './webpack/loaders/utils'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -570,14 +573,29 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
         ...(config.experimental.appDir
           ? {
-              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]:
-                `./` +
-                path
-                  .relative(
-                    dir,
-                    path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
-                  )
-                  .replace(/\\/g, '/'),
+              [CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT]: dev
+                ? [
+                    require.resolve(
+                      `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+                    ),
+                    `./` +
+                      path
+                        .relative(
+                          dir,
+                          path.join(
+                            NEXT_PROJECT_ROOT_DIST_CLIENT,
+                            'app-next-dev.js'
+                          )
+                        )
+                        .replace(/\\/g, '/'),
+                  ]
+                : `./` +
+                  path
+                    .relative(
+                      dir,
+                      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'app-next.js')
+                    )
+                    .replace(/\\/g, '/'),
             }
           : {}),
       } as ClientEntries)
@@ -628,6 +646,15 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
+  const reactDir = dirname(require.resolve('react/package.json'))
+  const reactDomDir = dirname(require.resolve('react-dom/package.json'))
+
+  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
+    server: ['main', 'module'],
+    client: ['browser', 'module', 'main'],
+    'edge-server': ['browser', 'module', 'main'],
+  }
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -653,6 +680,12 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      react: `${reactDir}`,
+      'react-dom$': `${reactDomDir}`,
+      'react-dom/server$': `${reactDomDir}/server`,
+      'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+      'react-dom/client$': `${reactDomDir}/client`,
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -692,11 +725,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : undefined),
-    mainFields: isClient
-      ? ['browser', 'module', 'main']
-      : isEdgeServer
-      ? ['module', 'main']
-      : ['main', 'module'],
+    mainFields: mainFieldsPerCompiler[compilerType],
     plugins: [],
   }
 
@@ -966,6 +995,7 @@ export default async function getBaseWebpackConfig(
                     'next/dist/compiled/chalk': '{}',
                     'react-dom': '{}',
                   },
+                  handleWebpackExtenalForEdgeRuntime,
                 ]
               : []),
           ]
@@ -1243,6 +1273,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-loader',
         'next-edge-function-loader',
         'next-edge-ssr-loader',
+        'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
         'next-app-loader',
       ].reduce((alias, loader) => {
@@ -1283,7 +1314,7 @@ export default async function getBaseWebpackConfig(
                   },
                 },
                 {
-                  test: /(\.client\.(js|cjs|mjs))$|\/next\/(link|image|future\/image|head|script)/,
+                  test: clientComponentRegex,
                   issuerLayer: 'sc_server',
                   use: {
                     loader: 'next-flight-client-loader',
@@ -1439,12 +1470,6 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      ...(!dev &&
-      isEdgeServer &&
-      !!config.experimental.middlewareSourceMaps &&
-      !config.productionBrowserSourceMaps
-        ? require('./webpack/plugins/middleware-source-maps-plugin').getMiddlewareSourceMapPlugins()
-        : []),
       dev && isClient && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -1472,6 +1497,18 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
+        ...(compilerType !== 'edge-server'
+          ? {}
+          : {
+              EdgeRuntime: JSON.stringify(
+                /**
+                 * Cloud providers can set this environment variable to allow users
+                 * and library authors to have different implementations based on
+                 * the runtime they are running with, if it's not using `edge-runtime`
+                 */
+                process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
+              ),
+            }),
         // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
@@ -1648,7 +1685,7 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      new WellKnownErrorsPlugin({ config }),
+      new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
           filePath: require.resolve('./polyfills/polyfill-nomodule'),
@@ -1718,6 +1755,16 @@ export default async function getBaseWebpackConfig(
       loader: 'next-middleware-wasm-loader',
       type: 'javascript/auto',
       resourceQuery: /module/i,
+    })
+    webpack5Config.module?.rules?.unshift({
+      dependency: 'url',
+      loader: 'next-middleware-asset-loader',
+      type: 'javascript/auto',
+      layer: 'edge-asset',
+    })
+    webpack5Config.module?.rules?.unshift({
+      issuerLayer: 'edge-asset',
+      type: 'asset/source',
     })
   }
 

@@ -1,4 +1,4 @@
-import type { ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import { tryToExtractExportedConstValue } from './extract-const-value'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
@@ -39,6 +39,24 @@ export async function getPageStaticInfo(params: {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
     const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
+
+    if (
+      typeof config.runtime !== 'string' &&
+      typeof config.runtime !== 'undefined'
+    ) {
+      throw new Error(`Provided runtime `)
+    } else if (!isServerRuntime(config.runtime)) {
+      const options = Object.values(SERVER_RUNTIME).join(', ')
+      if (typeof config.runtime !== 'string') {
+        throw new Error(
+          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+        )
+      } else {
+        throw new Error(
+          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+        )
+      }
+    }
 
     let runtime =
       SERVER_RUNTIME.edge === config?.runtime

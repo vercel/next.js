@@ -1,5 +1,5 @@
 import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
-import type { WasmBinding } from '../../../build/webpack/loaders/get-module-build-info'
+import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
   getServerError,
@@ -9,6 +9,8 @@ import { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
+import { fetchInlineAsset } from './fetch-inline-assets'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -48,7 +50,8 @@ interface ModuleContextOptions {
   onWarning: (warn: Error) => void
   useCache: boolean
   env: string[]
-  wasm: WasmBinding[]
+  distDir: string
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
@@ -103,7 +106,7 @@ export async function getModuleContext(options: ModuleContextOptions) {
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const wasm = await loadWasm(options.wasm)
+  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -115,13 +118,16 @@ async function createModuleContext(options: ModuleContextOptions) {
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
         if (!warnedEvals.has(key)) {
-          const warning = new Error(
-            `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+          const warning = getServerError(
+            new Error(
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+            ),
+            'edge-server'
           )
           warning.name = 'DynamicCodeEvaluationWarning'
           Error.captureStackTrace(warning, __next_eval__)
           warnedEvals.add(key)
-          options.onWarning(getServerError(warning, 'edge-server'))
+          options.onWarning(warning)
         }
         return fn()
       }
@@ -131,10 +137,8 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (!warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -160,10 +164,8 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(
-                "Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.\n" +
-                  'Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation'
-              ),
+              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.
+Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
             warning.name = 'DynamicWasmCodeGenerationWarning'
@@ -175,7 +177,17 @@ async function createModuleContext(options: ModuleContextOptions) {
         }
 
       const __fetch = context.fetch
-      context.fetch = (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
+        const assetResponse = await fetchInlineAsset({
+          input,
+          assets: options.edgeFunctionEntry.assets,
+          distDir: options.distDir,
+          context,
+        })
+        if (assetResponse) {
+          return assetResponse
+        }
+
         init.headers = new Headers(init.headers ?? {})
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
@@ -248,7 +260,7 @@ async function createModuleContext(options: ModuleContextOptions) {
 }
 
 async function loadWasm(
-  wasm: WasmBinding[]
+  wasm: AssetBinding[]
 ): Promise<Record<string, WebAssembly.Module>> {
   const modules: Record<string, WebAssembly.Module> = {}
 
@@ -318,7 +330,7 @@ function emitWarning(
 ) {
   if (!warnedAlready.has(name)) {
     const warning =
-      new Error(`You're using a Node.js API (${name}) which is not supported in the Edge Runtime that Middleware uses.
+      new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
     contextOptions.onWarning(warning)

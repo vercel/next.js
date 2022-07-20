@@ -66,7 +66,7 @@ function generateClientManifest(
   })
 }
 
-function getEntrypointFiles(entrypoint: any): string[] {
+export function getEntrypointFiles(entrypoint: any): string[] {
   return (
     entrypoint
       ?.getFiles()

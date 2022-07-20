@@ -176,7 +176,7 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  if (opts.page.startsWith('/api/')) {
+  if (opts.page.startsWith('/api/') || opts.page === '/api') {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -303,7 +303,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
       const bundleFile = normalizePagePath(page)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
           ? posix.join('pages', bundleFile)
@@ -482,8 +482,8 @@ export function finalizeEntrypoint({
       ? { import: value }
       : value
 
+  const isApi = name.startsWith('pages/api/')
   if (compilerType === 'server') {
-    const isApi = name.startsWith('pages/api/')
     return {
       publicPath: isApi ? '' : undefined,
       runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
@@ -494,7 +494,7 @@ export function finalizeEntrypoint({
 
   if (compilerType === 'edge-server') {
     return {
-      layer: isMiddlewareFilename(name) ? 'middleware' : undefined,
+      layer: isMiddlewareFilename(name) || isApi ? 'middleware' : undefined,
       library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
       runtime: EDGE_RUNTIME_WEBPACK,
       asyncChunks: false,
@@ -510,7 +510,7 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
-    // TODO: this is a temporary fix. @shuding is going to change the handling of server components
+    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (appDir && entry.import.includes('flight')) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,

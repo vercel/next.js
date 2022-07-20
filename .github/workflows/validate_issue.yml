@@ -11,3 +11,4 @@ jobs:
       - uses: ./.github/actions/issue-validator
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: 1

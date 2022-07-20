@@ -30,4 +30,10 @@ impl Visit for CjsFinder {
         e.obj.visit_with(self);
         e.prop.visit_with(self);
     }
+
+    fn visit_str(&mut self, s: &Str) {
+        if s.value.contains("__esModule") {
+            self.found = true;
+        }
+    }
 }

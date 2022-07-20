@@ -397,8 +397,17 @@ export function runTests(ctx) {
     )
   })
 
-  it('should fail when w is 0 or less', async () => {
+  it('should fail when w is 0', async () => {
     const query = { url: '/test.png', w: 0, q: 100 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(
+      `"w" parameter (width) must be a number greater than 0`
+    )
+  })
+
+  it('should fail when w is less than 0', async () => {
+    const query = { url: '/test.png', w: -100, q: 100 }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(

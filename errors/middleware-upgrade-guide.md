@@ -119,7 +119,7 @@ import { isAuthValid } from './lib/auth'
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
-  if (isAuthValid(req)) {
+  if (isAuthValid(request)) {
     return NextResponse.next()
   }
 
@@ -137,7 +137,7 @@ import { isAuthValid } from './lib/auth'
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
-  if (isAuthValid(req)) {
+  if (isAuthValid(request)) {
     return NextResponse.next()
   }
 
@@ -323,9 +323,9 @@ Use [`URLPattern`](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) 
 ```typescript
 // pages/_middleware.ts
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest, NextFetchEvent } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function middleware(request: NextRequest, event: NextFetchEvent) {
   const { params } = event.request.page
   const { locale, slug } = params
 

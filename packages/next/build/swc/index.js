@@ -18,6 +18,7 @@ let wasmBindings
 let downloadWasmPromise
 let pendingBindings
 let swcTraceFlushGuard
+let swcCrashReporterFlushGuard
 export const lockfilePatchPromise = {}
 
 export async function loadBindings() {
@@ -136,23 +137,28 @@ async function loadWasm(importPath = '') {
         bindings = await bindings.default()
       }
       Log.info('Using experimental wasm build of next-swc')
+
+      // Note wasm binary does not support async intefaces yet, all async
+      // interface coereces to sync interfaces.
       wasmBindings = {
         isWasm: true,
         transform(src, options) {
-          return bindings.transformSync(src.toString(), options)
+          return Promise.resolve(
+            bindings.transformSync(src.toString(), options)
+          )
         },
         transformSync(src, options) {
           return bindings.transformSync(src.toString(), options)
         },
         minify(src, options) {
-          return bindings.minifySync(src.toString(), options)
+          return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
         minifySync(src, options) {
           return bindings.minifySync(src.toString(), options)
         },
         parse(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          return Promise.resolve(astStr)
         },
         parseSync(src, options) {
           const astStr = bindings.parseSync(src.toString(), options)
@@ -215,6 +221,18 @@ function loadNative() {
   }
 
   if (bindings) {
+    // Initialize crash reporter, as earliest as possible from any point of import.
+    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
+    // we can't rely on explicit manual initialization as similar to trace reporter.
+    if (!swcCrashReporterFlushGuard) {
+      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
+      /* TODO: temporarily disable initialization while confirming logistics.
+      let telemetry = new Telemetry({ distDir: process.cwd() })
+      if (telemetry.isEnabled) {
+        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
+      }*/
+    }
+
     nativeBindings = {
       isWasm: false,
       transform(src, options) {
@@ -278,6 +296,7 @@ function loadNative() {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
+      teardownCrashReporter: bindings.teardownCrashReporter,
     }
     return nativeBindings
   }
@@ -370,6 +389,23 @@ export const teardownTraceSubscriber = (() => {
         let bindings = loadNative()
         if (swcTraceFlushGuard) {
           bindings.teardownTraceSubscriber(swcTraceFlushGuard)
+        }
+      } catch (e) {
+        // Suppress exceptions, this fn allows to fail to load native bindings
+      }
+    }
+  }
+})()
+
+export const teardownCrashReporter = (() => {
+  let flushed = false
+  return () => {
+    if (!flushed) {
+      flushed = true
+      try {
+        let bindings = loadNative()
+        if (swcCrashReporterFlushGuard) {
+          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings

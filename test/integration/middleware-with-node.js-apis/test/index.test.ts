@@ -85,7 +85,7 @@ describe('Middleware using Node.js API', () => {
       expect(res.status).toBe(500)
       await check(
         () =>
-          output.includes(`NodejsRuntimeApiInMiddlewareWarning: You're using a Node.js API (${api}) which is not supported in the Edge Runtime that Middleware uses.
+          output.includes(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
             ? 'success'
             : output,
@@ -118,7 +118,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       )
     )(`warns for $api during build`, ({ api, line }) => {
       expect(buildResult.stderr)
-        .toContain(`You're using a Node.js API (${api} at line: ${line}) which is not supported in the Edge Runtime that Middleware uses.
+        .toContain(`A Node.js API is used (${api} at line: ${line}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     })
   })

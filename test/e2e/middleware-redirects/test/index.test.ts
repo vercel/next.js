@@ -26,6 +26,14 @@ describe('Middleware Redirect', () => {
   testsWithLocale('/fr')
 
   function tests() {
+    it('should redirect correctly with redirect in next.config.js', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/to-new")')
+      await browser.waitForElementByCss('#dynamic')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    })
+
     it('does not include the locale in redirects by default', async () => {
       const res = await fetchViaHTTP(next.url, `/old-home`, undefined, {
         redirect: 'manual',
