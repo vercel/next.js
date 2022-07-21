@@ -9,6 +9,12 @@ import type { MiddlewareManifest } from 'next/build/webpack/plugins/middleware-p
 describe('Edge Compiler can import asset assets', () => {
   let next: NextInstance
 
+  // TODO: remove after this is supported for deploy
+  if ((global as any).isNextDeploy) {
+    it('should skip for deploy for now', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './app')),
