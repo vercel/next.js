@@ -949,15 +949,15 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
-  describe('Fill-mode tests', () => {
+  describe.only('Fill-mode tests', () => {
     let browser
     beforeAll(async () => {
       browser = await webdriver(appPort, '/fill')
     })
     it('should include a data-attribute on fill images', async () => {
       expect(
-        await browser.elementById('fill-image-1').getAttribute('data-nfill')
-      ).toBe('true')
+        await browser.elementById('fill-image-1').getAttribute('data-nimg')
+      ).toBe('future-fill')
     })
     it('should add position:absolute and object-fit to fill images', async () => {
       expect(await getComputedStyle(browser, 'fill-image-1', 'position')).toBe(

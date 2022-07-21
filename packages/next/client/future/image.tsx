@@ -122,7 +122,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
-  fill: boolean
+  fill?: boolean
   loading: LoadingValue
   config: ImageConfig
   unoptimized: boolean
@@ -272,8 +272,7 @@ function handleLoading(
       onLoadingCompleteRef.current({ naturalWidth, naturalHeight })
     }
     if (process.env.NODE_ENV !== 'production') {
-      if (img.getAttribute('data-nfill')) {
-        //Fill mode runtime warnings
+      if (img.getAttribute('data-nimg') === 'future-fill') {
         if (
           !img.getAttribute('sizes') ||
           img.getAttribute('sizes') === '100vw'
@@ -362,7 +361,6 @@ export default function Image({
     // Remove property so it's not spread on <img>
     delete rest.loader
   }
-  fill = !!fill
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -725,8 +723,7 @@ const ImageElement = ({
         width={widthInt}
         height={heightInt}
         decoding="async"
-        data-nimg="future"
-        {...(fill ? { 'data-nfill': true } : {})}
+        data-nimg={`future${fill ? '-fill' : ''}`}
         className={className}
         // @ts-ignore - TODO: upgrade to `@types/react@17`
         loading={loading}
@@ -789,8 +786,7 @@ const ImageElement = ({
             width={widthInt}
             height={heightInt}
             decoding="async"
-            data-nimg="future"
-            {...(fill ? { 'data-nfill': true } : {})}
+            data-nimg={`future${fill ? '-fill' : ''}`}
             style={imgStyle}
             className={className}
             // @ts-ignore - TODO: upgrade to `@types/react@17`

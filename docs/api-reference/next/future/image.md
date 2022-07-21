@@ -9,7 +9,7 @@ description: Try the latest Image Optimization with the experimental `next/futur
 
 | Version   | Changes                                      |
 | --------- | -------------------------------------------- |
-| `v12.2.3` | Support for `fill` attribute added.          |
+| `v12.2.3` | Support for `fill` property added.           |
 | `v12.2.0` | Experimental `next/future/image` introduced. |
 
 </details>
@@ -57,13 +57,13 @@ When using an external URL, you must add it to [domains](#domains) in `next.conf
 
 The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` attribute](#fill).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ### height
 
 The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
-Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` attribute](#fill).
+Required, except for [statically imported images](/docs/basic-features/image-optimization.md#local-images) or images with the [`fill` property](#fill).
 
 ## Optional Props
 
