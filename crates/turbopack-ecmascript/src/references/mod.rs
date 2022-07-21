@@ -28,10 +28,10 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::AssetVc,
     context::AssetContextVc,
-    reference::{AssetReferenceVc, AssetReferencesVc},
+    reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
     resolve::{
-        find_context_file, parse::RequestVc, pattern::Pattern, resolve,
-        AffectingResolvingAssetReferenceVc, FindContextFileResult, ResolveResult,
+        find_context_file, parse::RequestVc, pattern::Pattern, resolve, FindContextFileResult,
+        ResolveResult,
     },
 };
 
@@ -184,7 +184,8 @@ pub(crate) async fn analyze_ecmascript_module(
                         if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
                             let path = &m[1];
                             references.push(
-                                AffectingResolvingAssetReferenceVc::new(
+                                SourceMapVc::new(
+                                    context.context_path(),
                                     context.context_path().join(path),
                                 )
                                 .into(),
