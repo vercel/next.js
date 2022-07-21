@@ -1276,9 +1276,8 @@ export default class Router implements BaseRouter {
       const routeRegex = getRouteRegex(route)
       routeMatch = getRouteMatcher(routeRegex)(asPathname)
       const shouldInterpolate = route === asPathname
-      const interpolatedAs = shouldInterpolate
-        ? interpolateAs(route, asPathname, query)
-        : ({} as { result: undefined; params: undefined })
+      const interpolatedAs: Partial<ReturnType<typeof interpolateAs>> =
+        shouldInterpolate ? interpolateAs(route, asPathname, query) : {}
 
       if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(
