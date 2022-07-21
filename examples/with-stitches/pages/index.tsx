@@ -1,6 +1,6 @@
 import Head from 'next/head'
-import { styled } from '../stitches.config'
 import StitchesLogo from '../components/StitchesLogo'
+import { styled } from '../stitches.config'
 
 const Box = styled('div', {})
 

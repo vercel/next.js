@@ -1,3 +1,4 @@
+import type Stitches from '@stitches/react'
 import { createStitches } from '@stitches/react'
 
 export const {
@@ -57,19 +58,27 @@ export const {
     },
   },
   utils: {
-    marginX: (value) => ({
+    marginX: (
+      value: Stitches.CSS['margin'] | Stitches.ScaleValue<'space'>
+    ) => ({
       marginLeft: value,
       marginRight: value,
     }),
-    marginY: (value) => ({
+    marginY: (
+      value: Stitches.CSS['margin'] | Stitches.ScaleValue<'space'>
+    ) => ({
       marginTop: value,
       marginBottom: value,
     }),
-    paddingX: (value) => ({
+    paddingX: (
+      value: Stitches.CSS['padding'] | Stitches.ScaleValue<'space'>
+    ) => ({
       paddingLeft: value,
       paddingRight: value,
     }),
-    paddingY: (value) => ({
+    paddingY: (
+      value: Stitches.CSS['padding'] | Stitches.ScaleValue<'space'>
+    ) => ({
       paddingTop: value,
       paddingBottom: value,
     }),
