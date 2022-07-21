@@ -114,7 +114,7 @@ async function createModuleContext(options: ModuleContextOptions) {
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
-        ? { strings: true, wasm: false }
+        ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(options)
