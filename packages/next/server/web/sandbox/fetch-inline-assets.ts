@@ -10,7 +10,7 @@ import { resolve } from 'path'
  * This allows to embed assets in Edge Runtime.
  */
 export async function fetchInlineAsset(options: {
-  input: RequestInfo
+  input: RequestInfo | URL
   distDir: string
   assets: EdgeFunctionDefinition['assets']
   context: EdgeRuntime['context']
