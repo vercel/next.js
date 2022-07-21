@@ -4,18 +4,12 @@ export default function Header() {
   return (
     <div>
       <Link href="/">
-        <a style={styles.a}>Home</a>
+        <a style={{ marginRight: 10 }}>Home</a>
       </Link>
 
       <Link href="/about">
-        <a style={styles.a}>About</a>
+        <a style={{ marginRight: 10 }}>About</a>
       </Link>
     </div>
   )
-}
-
-const styles = {
-  a: {
-    marginRight: 10,
-  },
 }

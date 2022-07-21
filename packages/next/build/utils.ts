@@ -1230,6 +1230,7 @@ server.listen(currentPort, (err) => {
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,
+    customServer: false,
     conf: ${JSON.stringify({
       ...serverConfig,
       distDir: `./${path.relative(dir, distDir)}`,

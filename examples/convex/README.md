@@ -20,16 +20,28 @@ yarn create next-app --example with-convex with-convex-app
 pnpm create next-app --example with-convex with-convex-app
 ```
 
-After creating a [Convex account](https://www.convex.dev) and getting a beta key,
+Log in to Convex,
 
 ```bash
-npx convex init --beta-key <your beta key>
+npx convex login
 ```
 
-Next, push the Convex functions for this project.
+initialize a new Convex project,
+
+```bash
+npx convex init
+```
+
+and push the Convex functions for this project.
 
 ```bash
 npx convex push
+```
+
+Now you can run your code locally with a Convex backend with
+
+```bash
+npm run dev
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
