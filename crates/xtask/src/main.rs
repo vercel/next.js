@@ -52,35 +52,49 @@ fn main() {
                 .unwrap_or_else(|| current_dir().unwrap());
             let cargo_lock_path = workspace_dir.join("Cargo.lock");
             let lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
+            let swc_packages = lock
+                .packages
+                .iter()
+                .filter(|p| p.name.as_str().starts_with("swc_"))
+                .collect::<Vec<_>>();
+            let only_swc_set = swc_packages
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect::<HashSet<_>>();
             let packages = lock
                 .packages
                 .iter()
-                .map(|p| (p.name.as_str(), p))
+                .map(|p| (format!("{}@{}", p.name, p.version), p))
                 .collect::<HashMap<_, _>>();
-            let mut queue = packages
-                .keys()
-                .filter(|name| name.starts_with("swc_"))
-                .copied()
-                .collect::<Vec<_>>();
-            let mut set = queue.iter().copied().collect::<HashSet<_>>();
-            while let Some(name) = queue.pop() {
-                let package = *packages.get(name).unwrap();
+            let mut queue = swc_packages.clone();
+            let mut set = HashSet::new();
+            while let Some(package) = queue.pop() {
                 for dep in package.dependencies.iter() {
-                    let name = &dep.name.as_str();
-                    if set.insert(name) {
-                        queue.push(name);
+                    let ident = format!("{}@{}", dep.name, dep.version);
+                    let package = *packages.get(&ident).unwrap();
+                    if set.insert(ident) {
+                        queue.push(package);
                     }
                 }
             }
             let status = process::Command::new("cargo")
                 .arg("upgrade")
                 .arg("--workspace")
-                .args(set.into_iter())
+                .args(only_swc_set.into_iter())
                 .current_dir(&workspace_dir)
                 .stdout(process::Stdio::inherit())
                 .stderr(process::Stdio::inherit())
                 .status()
                 .expect("Running cargo upgrade failed");
+            assert!(status.success());
+            let status = process::Command::new("cargo")
+                .arg("update")
+                .args(set.iter().flat_map(|p| ["-p", p]))
+                .current_dir(&workspace_dir)
+                .stdout(process::Stdio::inherit())
+                .stderr(process::Stdio::inherit())
+                .status()
+                .expect("Running cargo update failed");
             assert!(status.success());
         }
         _ => {
