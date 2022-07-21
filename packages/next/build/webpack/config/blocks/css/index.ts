@@ -479,8 +479,12 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].css',
+          filename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
+          chunkFilename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)
