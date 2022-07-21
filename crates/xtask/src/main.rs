@@ -1,3 +1,10 @@
+use std::{
+    collections::{HashMap, HashSet},
+    env::{current_dir, var_os},
+    path::PathBuf,
+    process,
+};
+
 use clap::{arg, Command};
 
 mod nft_bench;
@@ -23,6 +30,10 @@ fn cli() -> Command<'static> {
             Command::new("nft-bench-result")
                 .about("Print node-file-trace benchmark result against @vercel/nft"),
         )
+        .subcommand(
+            Command::new("upgrade-swc")
+                .about("Upgrade all SWC dependencies to the lastest version"),
+        )
 }
 
 fn main() {
@@ -34,6 +45,57 @@ fn main() {
         }
         Some(("nft-bench-result", _)) => {
             show_result();
+        }
+        Some(("upgrade-swc", _)) => {
+            let workspace_dir = var_os("CARGO_WORKSPACE_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| current_dir().unwrap());
+            let cargo_lock_path = workspace_dir.join("Cargo.lock");
+            let lock = cargo_lock::Lockfile::load(cargo_lock_path).unwrap();
+            let swc_packages = lock
+                .packages
+                .iter()
+                .filter(|p| p.name.as_str().starts_with("swc_"))
+                .collect::<Vec<_>>();
+            let only_swc_set = swc_packages
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect::<HashSet<_>>();
+            let packages = lock
+                .packages
+                .iter()
+                .map(|p| (format!("{}@{}", p.name, p.version), p))
+                .collect::<HashMap<_, _>>();
+            let mut queue = swc_packages.clone();
+            let mut set = HashSet::new();
+            while let Some(package) = queue.pop() {
+                for dep in package.dependencies.iter() {
+                    let ident = format!("{}@{}", dep.name, dep.version);
+                    let package = *packages.get(&ident).unwrap();
+                    if set.insert(ident) {
+                        queue.push(package);
+                    }
+                }
+            }
+            let status = process::Command::new("cargo")
+                .arg("upgrade")
+                .arg("--workspace")
+                .args(only_swc_set.into_iter())
+                .current_dir(&workspace_dir)
+                .stdout(process::Stdio::inherit())
+                .stderr(process::Stdio::inherit())
+                .status()
+                .expect("Running cargo upgrade failed");
+            assert!(status.success());
+            let status = process::Command::new("cargo")
+                .arg("update")
+                .args(set.iter().flat_map(|p| ["-p", p]))
+                .current_dir(&workspace_dir)
+                .stdout(process::Stdio::inherit())
+                .stderr(process::Stdio::inherit())
+                .status()
+                .expect("Running cargo update failed");
+            assert!(status.success());
         }
         _ => {
             panic!("Unknown command {:?}", matches.subcommand().map(|c| c.0));

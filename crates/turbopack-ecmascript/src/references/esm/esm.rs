@@ -170,5 +170,6 @@ fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                 body.insert(0, stmt);
             }
         }
+        _ => unimplemented!(),
     }
 }

@@ -17,3 +17,4 @@ serde_json = "1"
 semver = "1"
 tabled = { version = "0.7", features = ["color"] }
 owo-colors = "3"
+cargo-lock = "8.0.2"

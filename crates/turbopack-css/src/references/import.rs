@@ -78,7 +78,7 @@ impl ImportAttributes {
                 name: AtRuleName::Ident(Ident {
                     span: DUMMY_SP,
                     value: name.into(),
-                    raw: name.into(),
+                    raw: None,
                 }),
                 prelude: Some(prelude),
                 block: Some(SimpleBlock {
