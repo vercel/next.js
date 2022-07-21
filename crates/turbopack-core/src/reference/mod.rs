@@ -8,6 +8,10 @@ use crate::{
     resolve::{ResolveResult, ResolveResultVc},
 };
 
+pub mod source_map;
+
+pub use source_map::SourceMapVc;
+
 /// A reference to one or multiple [Asset]s or other special things.
 /// There are a bunch of optional traits that can influence how these references
 /// are handled. e. g. [ChunkableAssetReference], [AsyncLoadableReference] or
