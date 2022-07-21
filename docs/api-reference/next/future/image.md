@@ -105,7 +105,7 @@ const MyImage = (props) => {
 
 A boolean attribute. If present, sets the image to fill its containing element rather than defining its own size. When using `fill` mode, do not provide `height` and `width`.
 
-When using the `fill` attribute, the parent element _must_ have the CSS `position: "relative"` or the image will not render correctly. Also note that the image itself is automatically given `position: "absolute"` and this value should not be changed.
+When using the `fill` attribute, the parent element _must_ have a non-static CSS [`position`](https://developer.mozilla.org/en-US/docs/Web/CSS/position) attribute, such as `"relative"`, or the image will not render correctly. Also note that the image itself is automatically given `position: "absolute"` and this value should not be changed.
 
 Fill mode uses `object-fit: "contain"` by default, which sizes the image so that it fits entirely within the container, "letterboxing" as necessary. To fill the entire element instead, switch to `object-fit: "cover"` using CSS or the `style` property. For this to look correct, the `overflow: "hidden"` CSS property should be used on the containing element.
 
