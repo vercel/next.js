@@ -7,7 +7,6 @@ import {
   resolveHref,
 } from '../shared/lib/router/router'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
 import {
   AppRouterContext,
   AppRouterInstance,
@@ -15,6 +14,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { useRouter } from './router'
 
 // @ts-ignore useTransition exist
 const hasUseTransition = typeof React.useTransition !== 'undefined'
@@ -317,7 +317,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         // eslint-disable-next-line react-hooks/rules-of-hooks
         React.useTransition()
       : []
-    let router = React.useContext(RouterContext)
+    let router = useRouter()
 
     // TODO-APP: type error. Remove `as any`
     const appRouter = React.useContext(AppRouterContext) as any

@@ -130,7 +130,11 @@ export default singletonRouter as SingletonRouter
 export { default as withRouter } from './with-router'
 
 export function useRouter(): NextRouter {
-  return React.useContext(RouterContext)
+  const router = React.useContext(RouterContext)
+  if (router === null) {
+    throw Error('Cannot find RouterProvider')
+  }
+  return router
 }
 
 // INTERNAL APIS
