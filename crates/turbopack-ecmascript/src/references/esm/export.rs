@@ -189,6 +189,7 @@ impl CodeGenerateable for EsmExports {
                 Program::Script(Script { body, .. }) => {
                     body.insert(0, stmt);
                 }
+                _ => unimplemented!()
             }
         }));
 
