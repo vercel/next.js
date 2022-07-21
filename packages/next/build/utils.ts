@@ -42,6 +42,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
@@ -88,17 +89,21 @@ export async function printTreeView(
     middlewareManifest,
     useStatic404,
     gzipSize = true,
+    appBuildManifest,
   }: {
     distPath: string
     buildId: string
     pagesDir: string
     pageExtensions: string[]
+    appBuildManifest?: AppBuildManifest
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
     useStatic404: boolean
     gzipSize?: boolean
   }
 ) {
+  const appDirEnabled = !!appBuildManifest
+
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
     // green for 0-130kb
@@ -146,7 +151,7 @@ export async function printTreeView(
   }
 
   const sizeData = await computeFromManifest(
-    buildManifest,
+    { build: buildManifest, app: appBuildManifest },
     distPath,
     gzipSize,
     pageInfos
@@ -309,14 +314,15 @@ export async function printTreeView(
   const sharedFiles = sizeData.sizeCommonFile
 
   messages.push([
-    '+ First Load JS shared by all',
-    getPrettySize(sharedFilesSize),
+    appDirEnabled
+      ? '+ First Load JS shared by pages directory'
+      : '+ First Load JS shared by all',
+    getPrettySize(sharedFilesSize.pages),
     '',
   ])
-  const sharedFileKeys = Object.keys(sharedFiles)
   const sharedCssFiles: string[] = []
   ;[
-    ...sharedFileKeys
+    ...Object.keys(sharedFiles)
       .filter((file) => {
         if (file.endsWith('.css')) {
           sharedCssFiles.push(file)
@@ -339,6 +345,17 @@ export async function printTreeView(
       '',
     ])
   })
+
+  if (appDirEnabled) {
+    messages.push([
+      '+ First Load JS shared by app directory',
+      // TODO
+      typeof sharedFilesSize.app === 'number'
+        ? getPrettySize(sharedFilesSize.app)
+        : 'N/A',
+      '',
+    ])
+  }
 
   const middlewareInfo = middlewareManifest.middleware?.['/']
   if (middlewareInfo?.files.length > 0) {
@@ -480,34 +497,45 @@ export function printCustomRoutes({
 }
 
 type ComputeManifestShape = {
-  commonFiles: string[]
+  commonFiles: {
+    pages: string[]
+    app?: string
+  }
   uniqueFiles: string[]
   sizeUniqueFiles: { [file: string]: number }
   sizeCommonFile: { [file: string]: number }
-  sizeCommonFiles: number
+  sizeCommonFiles: {
+    pages: number
+    app?: number
+  }
 }
 
 let cachedBuildManifest: BuildManifest | undefined
+let cachedAppBuildManifest: AppBuildManifest | undefined
 
 let lastCompute: ComputeManifestShape | undefined
 let lastComputePageInfo: boolean | undefined
 
 export async function computeFromManifest(
-  manifest: BuildManifest,
+  manifests: {
+    build: BuildManifest
+    app?: AppBuildManifest
+  },
   distPath: string,
   gzipSize: boolean = true,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
-    Object.is(cachedBuildManifest, manifest) &&
-    lastComputePageInfo === !!pageInfos
+    Object.is(cachedBuildManifest, manifests.build) &&
+    lastComputePageInfo === !!pageInfos &&
+    Object.is(cachedAppBuildManifest, manifests.app)
   ) {
     return lastCompute!
   }
 
   let expected = 0
-  const files = new Map<string, number>()
-  Object.keys(manifest.pages).forEach((key) => {
+  const pageBuildFiles = new Map<string, number>()
+  Object.keys(manifests.build.pages).forEach((key) => {
     if (pageInfos) {
       const pageInfo = pageInfos.get(key)
       // don't include AMP pages since they don't rely on shared bundles
@@ -518,68 +546,73 @@ export async function computeFromManifest(
     }
 
     ++expected
-    manifest.pages[key].forEach((file) => {
+    manifests.build.pages[key].forEach((file) => {
       if (key === '/_app') {
-        files.set(file, Infinity)
-      } else if (files.has(file)) {
-        files.set(file, files.get(file)! + 1)
+        pageBuildFiles.set(file, Infinity)
+      } else if (pageBuildFiles.has(file)) {
+        pageBuildFiles.set(file, pageBuildFiles.get(file)! + 1)
       } else {
-        files.set(file, 1)
+        pageBuildFiles.set(file, 1)
       }
     })
   })
 
   const getSize = gzipSize ? fsStatGzip : fsStat
 
-  const commonFiles = [...files.entries()]
+  const commonPageFiles = [...pageBuildFiles.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
     .map(([f]) => f)
-  const uniqueFiles = [...files.entries()]
+  const uniquePageFiles = [...pageBuildFiles.entries()]
     .filter(([, len]) => len === 1)
     .map(([f]) => f)
 
-  let stats: [string, number][]
+  let commonPageStats: [string, number][]
   try {
-    stats = await Promise.all(
-      commonFiles.map(
+    commonPageStats = await Promise.all(
+      commonPageFiles.map(
         async (f) =>
           [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
-    stats = []
+    commonPageStats = []
   }
 
-  let uniqueStats: [string, number][]
+  let uniquePageStats: [string, number][]
   try {
-    uniqueStats = await Promise.all(
-      uniqueFiles.map(
+    uniquePageStats = await Promise.all(
+      uniquePageFiles.map(
         async (f) =>
           [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
-    uniqueStats = []
+    uniquePageStats = []
   }
 
   lastCompute = {
-    commonFiles,
-    uniqueFiles,
-    sizeUniqueFiles: uniqueStats.reduce(
+    commonFiles: {
+      pages: commonPageFiles,
+    },
+    uniqueFiles: uniquePageFiles,
+    sizeUniqueFiles: uniquePageStats.reduce(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFile: stats.reduce(
+    sizeCommonFile: commonPageStats.reduce(
       (obj, n) => Object.assign(obj, { [n[0]]: n[1] }),
       {}
     ),
-    sizeCommonFiles: stats.reduce((size, [f, stat]) => {
-      if (f.endsWith('.css')) return size
-      return size + stat
-    }, 0),
+    sizeCommonFiles: {
+      pages: commonPageStats.reduce((size, [f, stat]) => {
+        if (f.endsWith('.css')) return size
+        return size + stat
+      }, 0),
+    },
   }
 
-  cachedBuildManifest = manifest
+  cachedBuildManifest = manifests.build
+  cachedAppBuildManifest = manifests.app
   lastComputePageInfo = !!pageInfos
   return lastCompute!
 }
@@ -604,12 +637,17 @@ export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildManifest: BuildManifest,
+  appBuildManifest?: AppBuildManifest,
   gzipSize: boolean = true,
   computedManifestData?: ComputeManifestShape
 ): Promise<[number, number]> {
   const data =
     computedManifestData ||
-    (await computeFromManifest(buildManifest, distPath, gzipSize))
+    (await computeFromManifest(
+      { build: buildManifest, app: appBuildManifest },
+      distPath,
+      gzipSize
+    ))
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -625,7 +663,7 @@ export async function getJsPageSizeInKb(
   )
   const selfFilesReal = difference(
     intersect(pageFiles, data.uniqueFiles),
-    data.commonFiles
+    data.commonFiles.pages
   ).map(fnMapRealPath)
 
   const getSize = gzipSize ? fsStatGzip : fsStat

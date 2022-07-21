@@ -59,6 +59,7 @@ import browserslist from 'next/dist/compiled/browserslist'
 import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { clientComponentRegex } from './webpack/loaders/utils'
+import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 
 const watchOptions = Object.freeze({
   aggregateTimeout: 5,
@@ -1718,6 +1719,10 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      !!config.experimental.appDir &&
+        hasServerComponents &&
+        isClient &&
+        new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
           ? new FlightManifestPlugin({

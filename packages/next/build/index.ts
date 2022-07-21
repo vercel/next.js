@@ -3,7 +3,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { promises, writeFileSync } from 'fs'
+import { promises, writeFileSync, existsSync } from 'fs'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
@@ -56,6 +56,7 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
+  APP_BUILD_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -117,6 +118,7 @@ import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -931,6 +933,7 @@ export default async function build(
       })
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
+      const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
@@ -950,6 +953,12 @@ export default async function build(
       const buildManifest = JSON.parse(
         await promises.readFile(buildManifestPath, 'utf8')
       ) as BuildManifest
+      const appBuildManifest =
+        appDir && existsSync(appBuildManifestPath)
+          ? (JSON.parse(
+              await promises.readFile(appBuildManifestPath, 'utf8')
+            ) as AppBuildManifest)
+          : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
       const sharedPool = config.experimental.sharedPool || false
@@ -1080,7 +1089,7 @@ export default async function build(
         let hasSsrAmpPages = false
 
         const computedManifestData = await computeFromManifest(
-          buildManifest,
+          { build: buildManifest, app: appBuildManifest },
           distDir,
           config.experimental.gzipSize
         )
@@ -2311,6 +2320,7 @@ export default async function build(
             pagesDir,
             useStatic404,
             pageExtensions: config.pageExtensions,
+            appBuildManifest,
             buildManifest,
             middlewareManifest,
             gzipSize: config.experimental.gzipSize,
