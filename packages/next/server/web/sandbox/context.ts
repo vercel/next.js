@@ -120,7 +120,7 @@ async function createModuleContext(options: ModuleContextOptions) {
         if (!warnedEvals.has(key)) {
           const warning = getServerError(
             new Error(
-              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+              `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
             ),
             'edge-server'
           )
@@ -137,7 +137,7 @@ async function createModuleContext(options: ModuleContextOptions) {
           const key = fn.toString()
           if (!warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Middleware.
+              new Error(`Dynamic WASM code generation (e. g. 'WebAssembly.compile') not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
@@ -164,7 +164,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
           const key = fn.toString()
           if (instantiatedFromBuffer && !warnedWasmCodegens.has(key)) {
             const warning = getServerError(
-              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Middleware.
+              new Error(`Dynamic WASM code generation ('WebAssembly.instantiate' with a buffer parameter) not allowed in Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation`),
               'edge-server'
             )
@@ -240,7 +240,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
       }
 
       for (const name of EDGE_UNSUPPORTED_NODE_APIS) {
-        addStub(context, name, options)
+        addStub(context, name)
       }
 
       Object.assign(context, wasm)
@@ -285,9 +285,7 @@ function buildEnvironmentVariablesFrom(
   return env
 }
 
-function createProcessPolyfill(
-  options: Pick<ModuleContextOptions, 'env' | 'onWarning'>
-) {
+function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
   const env = buildEnvironmentVariablesFrom(options.env)
 
   const processPolyfill = { env }
@@ -296,8 +294,13 @@ function createProcessPolyfill(
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        emitWarning(`process.${key}`, options)
-        return overridenValue[key]
+        if (overridenValue[key]) {
+          return overridenValue[key]
+        }
+        if (typeof (process as any)[key] === 'function') {
+          return () => throwUnsupportedAPIError(`process.${key}`)
+        }
+        return undefined
       },
       set(value) {
         overridenValue[key] = value
@@ -308,35 +311,23 @@ function createProcessPolyfill(
   return processPolyfill
 }
 
-const warnedAlready = new Set<string>()
-
-function addStub(
-  context: Primitives,
-  name: string,
-  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
-) {
+function addStub(context: Primitives, name: string) {
   Object.defineProperty(context, name, {
     get() {
-      emitWarning(name, contextOptions)
-      return undefined
+      return function () {
+        throwUnsupportedAPIError(name)
+      }
     },
     enumerable: false,
   })
 }
 
-function emitWarning(
-  name: string,
-  contextOptions: Pick<ModuleContextOptions, 'onWarning'>
-) {
-  if (!warnedAlready.has(name)) {
-    const warning =
-      new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
+function throwUnsupportedAPIError(name: string) {
+  const error =
+    new Error(`A Node.js API is used (${name}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-    warning.name = 'NodejsRuntimeApiInMiddlewareWarning'
-    contextOptions.onWarning(warning)
-    console.warn(warning.message)
-    warnedAlready.add(name)
-  }
+  decorateServerError(error, 'edge-server')
+  throw error
 }
 
 function decorateUnhandledError(error: any) {

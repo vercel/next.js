@@ -1247,12 +1247,7 @@ export default class NextNodeServer extends BaseServer {
             body: originalBody?.cloneBodyStream(),
           },
           useCache: !this.nextConfig.experimental.runtime,
-          onWarning: (warning: Error) => {
-            if (params.onWarning) {
-              warning.message += ` "./${middlewareInfo.name}"`
-              params.onWarning(warning)
-            }
-          },
+          onWarning: params.onWarning,
         })
 
         for (let [key, value] of result.response.headers) {
@@ -1531,6 +1526,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
@@ -1584,12 +1580,7 @@ export default class NextNodeServer extends BaseServer {
             : requestToBodyStream(nodeReq.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
-      onWarning: (_warning: Error) => {
-        // if (params.onWarning) {
-        //   warning.message += ` "./${middlewareInfo.name}"`
-        //   params.onWarning(warning)
-        // }
-      },
+      onWarning: params.onWarning,
     })
 
     params.res.statusCode = result.response.status

@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -19,7 +19,13 @@ const unsupportedFunctions = [
   'clearImmediate',
   // no need to test all of the process methods
   'process.cwd',
+  'process.cpuUsage',
   'process.getuid',
+]
+const undefinedPropertoes = [
+  // no need to test all of the process properties
+  'process.arch',
+  'process.version',
 ]
 const unsupportedClasses = [
   'BroadcastChannel',
@@ -40,7 +46,20 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
-describe('Middleware using Node.js API', () => {
+describe.each([
+  {
+    title: 'Middleware',
+    computeRoute(useCase) {
+      return `/${useCase}`
+    },
+  },
+  {
+    title: 'Edge route',
+    computeRoute(useCase) {
+      return `/api/route?case=${useCase}`
+    },
+  },
+])('$title using Node.js API', ({ computeRoute }) => {
   const appDir = join(__dirname, '..')
 
   describe('dev mode', () => {
@@ -64,37 +83,33 @@ describe('Middleware using Node.js API', () => {
 
     afterAll(() => killApp(app))
 
+    it.each(undefinedPropertoes.map((api) => ({ api })))(
+      'does not throw on using $api',
+      async ({ api }) => {
+        const res = await fetchViaHTTP(appPort, computeRoute(api))
+        expect(res.status).toBe(200)
+        await waitFor(500)
+        expect(output).not.toInclude(`A Node.js API is used (${api})`)
+      }
+    )
+
     it.each([
-      {
-        api: 'Buffer',
-        error: process.version.startsWith('v16')
-          ? `Cannot read properties of undefined (reading 'from')`
-          : `Cannot read property 'from' of undefined`,
-      },
       ...unsupportedFunctions.map((api) => ({
         api,
-        error: `${api} is not a function`,
+        errorHighlight: `${api}(`,
       })),
       ...unsupportedClasses.map((api) => ({
         api,
-        error: `${api} is not a constructor`,
+        errorHighlight: `new ${api}(`,
       })),
-    ])(`shows error when using $api`, async ({ api, error }) => {
-      const res = await fetchViaHTTP(appPort, `/${api}`)
-      await waitFor(500)
+    ])(`throws error when using $api`, async ({ api, errorHighlight }) => {
+      const res = await fetchViaHTTP(appPort, computeRoute(api))
       expect(res.status).toBe(500)
-      await check(
-        () =>
-          output.includes(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
+      await waitFor(500)
+      expect(output)
+        .toInclude(`A Node.js API is used (${api}) which is not supported in the Edge Runtime.
 Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
-            ? 'success'
-            : output,
-        'success'
-      )
-      await check(
-        () => (output.includes(`TypeError: ${error}`) ? 'success' : output),
-        'success'
-      )
+      expect(stripAnsi(output)).toInclude(errorHighlight)
     })
   })
 
@@ -113,13 +128,17 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       ['Buffer', ...unsupportedFunctions, ...unsupportedClasses].map(
         (api, index) => ({
           api,
-          line: 5 + index * 3,
         })
       )
-    )(`warns for $api during build`, ({ api, line }) => {
-      expect(buildResult.stderr)
-        .toContain(`A Node.js API is used (${api} at line: ${line}) which is not supported in the Edge Runtime.
-Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
+    )(`warns for $api during build`, ({ api }) => {
+      expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
     })
+
+    it.each(undefinedPropertoes.map((api) => ({ api })))(
+      'does not warn on using $api',
+      ({ api }) => {
+        expect(buildResult.stderr).toContain(`A Node.js API is used (${api}`)
+      }
+    )
   })
 })
