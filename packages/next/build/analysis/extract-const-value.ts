@@ -11,6 +11,7 @@ import type {
   ObjectExpression,
   RegExpLiteral,
   StringLiteral,
+  TemplateLiteral,
   VariableDeclaration,
 } from '@swc/core'
 
@@ -60,26 +61,6 @@ export function extractExportedConstValue(
   throw new NoSuchDeclarationError()
 }
 
-/**
- * A wrapper on top of `extractExportedConstValue` that returns undefined
- * instead of throwing when the thrown error is known.
- */
-export function tryToExtractExportedConstValue(
-  module: Module,
-  exportedName: string
-) {
-  try {
-    return extractExportedConstValue(module, exportedName)
-  } catch (error) {
-    if (
-      error instanceof UnsupportedValueError ||
-      error instanceof NoSuchDeclarationError
-    ) {
-      return undefined
-    }
-  }
-}
-
 function isExportDeclaration(node: Node): node is ExportDeclaration {
   return node.type === 'ExportDeclaration'
 }
@@ -124,8 +105,12 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
   return node.type === 'RegExpLiteral'
 }
 
-class UnsupportedValueError extends Error {}
-class NoSuchDeclarationError extends Error {}
+function isTemplateLiteral(node: Node): node is TemplateLiteral {
+  return node.type === 'TemplateLiteral'
+}
+
+export class UnsupportedValueError extends Error {}
+export class NoSuchDeclarationError extends Error {}
 
 function extractValue(node: Node): any {
   if (isNullLiteral(node)) {
@@ -191,6 +176,25 @@ function extractValue(node: Node): any {
     }
 
     return obj
+  } else if (isTemplateLiteral(node)) {
+    // e.g. `abc`
+    if (node.expressions.length !== 0) {
+      // TODO: should we add support for `${'e'}d${'g'}'e'`?
+      throw new UnsupportedValueError()
+    }
+
+    // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
+    // Because when parsing TemplateLiteral, the parser yields the first quasi,
+    // then the first expression, then the next quasi, then the next expression, etc.,
+    // until the last quasi.
+    // Thus if there is no expression, the parser ends at the frst and also last quasis
+    //
+    // A "cooked" interpretation where backslashes have special meaning, while a
+    // "raw" interpretation where backslashes do not have special meaning
+    // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
+    const [{ cooked, raw }] = node.quasis
+
+    return cooked ?? raw
   } else {
     throw new UnsupportedValueError()
   }
