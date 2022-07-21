@@ -256,6 +256,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
     },
   })
 
+  const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
   runtime.context.addEventListener('error', decorateUnhandledError)
 
@@ -337,8 +338,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function decorateUnhandledError(error: any) {
-  if (error instanceof Error) {
-    decorateServerError(error, 'edge-server')
+function getDecorateUnhandledError(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (error: any) => {
+    if (error instanceof EdgeRuntimeError) {
+      decorateServerError(error, 'edge-server')
+    }
   }
 }
