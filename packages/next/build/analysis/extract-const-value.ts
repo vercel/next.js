@@ -61,26 +61,6 @@ export function extractExportedConstValue(
   throw new NoSuchDeclarationError()
 }
 
-/**
- * A wrapper on top of `extractExportedConstValue` that returns undefined
- * instead of throwing when the thrown error is known.
- */
-export function tryToExtractExportedConstValue(
-  module: Module,
-  exportedName: string
-) {
-  try {
-    return extractExportedConstValue(module, exportedName)
-  } catch (error) {
-    if (
-      error instanceof UnsupportedValueError ||
-      error instanceof NoSuchDeclarationError
-    ) {
-      return undefined
-    }
-  }
-}
-
 function isExportDeclaration(node: Node): node is ExportDeclaration {
   return node.type === 'ExportDeclaration'
 }
