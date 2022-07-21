@@ -7,7 +7,6 @@ const nextClientComponents = [
   'future/image',
   'head',
   'script',
-  'dynamic',
 ]
 
 const NEXT_BUILT_IN_CLIENT_RSC_REGEX = new RegExp(
