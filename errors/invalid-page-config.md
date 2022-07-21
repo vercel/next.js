@@ -9,62 +9,108 @@ In one of your pages or API Routes you did `export const config` with an invalid
 The page's config must be an object initialized directly when being exported and not modified dynamically.
 The config object must only contains static constant literals without expressions.
 
-This is not allowed
+<table>
+<thead>
+  <tr>
+    <th>Not Allowed</th>
+    <th>Allowed</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
 
 ```js
+// `config` should be an object
 export const config = 'hello world'
 ```
 
-This is not allowed
+</td>
+<td>
 
 ```js
-const config = {}
-config.amp = true
+export const config = {}
 ```
 
-This is not allowed
+</td>
+</tr>
+
+<tr>
+<td>
 
 ```js
+export const config = {}
+// `config.amp` is defined after `config` is exported
+config.amp = true
+
+// `config.amp` contains a dynamic expression
 export const config = {
   amp: 1 + 1 > 2,
 }
 ```
 
-This is not allowed
-
-```js
-export { config } from '../config'
-```
-
-This is not allowed
+</td>
+<td>
 
 ```js
 export const config = {
-  runtime: `n${'od'}ejs`,
+  amp: true,
+}
+
+export const config = {
+  amp: false,
 }
 ```
 
-This is allowed
+</td>
+</tr>
+
+<tr>
+<td>
 
 ```js
-export const config = { amp: true }
+// `config.runtime` contains a dynamic expression
+export const config = {
+  runtime: `node${'js'}`,
+}
 ```
 
-This is allowed
+</td>
+<td>
 
 ```js
 export const config = {
   runtime: 'nodejs',
 }
-```
-
-This is allowed
-
-```js
 export const config = {
   runtime: `nodejs`,
 }
 ```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```js
+// Re-exported `config` is not allowed
+export { config } from '../config'
+```
+
+</td>
+<td>
+
+```js
+export const config = {}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
 
 ### Useful Links
 
