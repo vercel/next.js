@@ -243,7 +243,7 @@ function warnAboutUnsupportedValue(
   Log.warn(
     `You have exported a \`config\` field in ${
       page ? `route "${page}"` : `"${pageFilePath}"`
-    } that Next.js can't recognize, so it will be ignored`
+    } that Next.js can't recognize, so it will be ignored. See: https://nextjs.org/docs/messages/invalid-page-config`
   )
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
