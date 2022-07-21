@@ -1,4 +1,3 @@
-import type { Primitives } from 'next/dist/compiled/@edge-runtime/primitives'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
 import {
   decorateServerError,
@@ -16,7 +15,7 @@ const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
 
 interface ModuleContext {
-  runtime: EdgeRuntime<Primitives>
+  runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
 }
@@ -71,7 +70,12 @@ function getModuleContextShared(options: ModuleContextOptions) {
  * with a function that allows to run some code from a given
  * filepath within the context.
  */
-export async function getModuleContext(options: ModuleContextOptions) {
+export async function getModuleContext(options: ModuleContextOptions): Promise<{
+  evaluateInContext: (filepath: string) => void
+  runtime: EdgeRuntime
+  paths: Map<string, string>
+  warnedEvals: Set<string>
+}> {
   let moduleContext = options.useCache
     ? moduleContexts.get(options.moduleName)
     : await getModuleContextShared(options)
@@ -110,7 +114,7 @@ async function createModuleContext(options: ModuleContextOptions) {
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
-        ? { strings: true, wasm: false }
+        ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(options)
@@ -177,7 +181,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
         }
 
       const __fetch = context.fetch
-      context.fetch = async (input: RequestInfo, init: RequestInit = {}) => {
+      context.fetch = async (input, init = {}) => {
         const assetResponse = await fetchInlineAsset({
           input,
           assets: options.edgeFunctionEntry.assets,
@@ -226,10 +230,13 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
 
       const __Request = context.Request
       context.Request = class extends __Request {
-        constructor(input: RequestInfo, init?: RequestInit | undefined) {
-          const url = typeof input === 'string' ? input : input.url
+        constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
+          const url =
+            typeof input !== 'string' && 'url' in input
+              ? input.url
+              : String(input)
           validateURL(url)
-          super(input, init)
+          super(url, init)
         }
       }
 
@@ -249,6 +256,7 @@ Learn More: https://nextjs.org/docs/messages/middleware-dynamic-wasm-compilation
     },
   })
 
+  const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('unhandledrejection', decorateUnhandledError)
   runtime.context.addEventListener('error', decorateUnhandledError)
 
@@ -311,7 +319,7 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
   return processPolyfill
 }
 
-function addStub(context: Primitives, name: string) {
+function addStub(context: EdgeRuntime['context'], name: string) {
   Object.defineProperty(context, name, {
     get() {
       return function () {
@@ -330,8 +338,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function decorateUnhandledError(error: any) {
-  if (error instanceof Error) {
-    decorateServerError(error, 'edge-server')
+function getDecorateUnhandledError(runtime: EdgeRuntime) {
+  const EdgeRuntimeError = runtime.evaluate(`Error`)
+  return (error: any) => {
+    if (error instanceof EdgeRuntimeError) {
+      decorateServerError(error, 'edge-server')
+    }
   }
 }
