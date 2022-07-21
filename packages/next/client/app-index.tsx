@@ -31,14 +31,18 @@ self.__next_require__ = __webpack_require__
 
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
+  if (!chunk) return Promise.resolve()
   if (chunk.endsWith('.css')) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = '/_next/' + chunk
-    document.head.appendChild(link)
+    const chunkPath = `/_next/${chunk}`
+    const existingTag = document.querySelector(`link[href="${chunkPath}"]`)
+    if (!existingTag) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = chunkPath
+      document.head.appendChild(link)
+    }
     return Promise.resolve()
   }
-
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 
@@ -153,51 +157,7 @@ function useInitialServerResponse(cacheKey: string) {
     },
   })
 
-  async function loadCss(cssChunkInfoJson: string) {
-    const data = JSON.parse(cssChunkInfoJson)
-    await Promise.all(
-      data.chunks.map((chunkId: string) => {
-        // load css related chunks
-        return (self as any).__next_chunk_load__(chunkId)
-      })
-    )
-    // In development mode, import css in dev when it's wrapped by style loader.
-    // In production mode, css are standalone chunk that doesn't need to be imported.
-    if (data.id) {
-      ;(self as any).__next_require__(data.id)
-    }
-  }
-
-  const loadCssFromStreamData = (data: string) => {
-    const seg = data.split(':')
-    if (seg[0] === 'CSS') {
-      loadCss(seg.slice(1).join(':'))
-    }
-  }
-
-  let buffer = ''
-  const loadCssFromFlight = new TransformStream({
-    transform(chunk, controller) {
-      const data = new TextDecoder().decode(chunk)
-      buffer += data
-      let index
-      while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index)
-        buffer = buffer.slice(index + 1)
-        loadCssFromStreamData(line)
-      }
-      if (!data.startsWith('CSS:')) {
-        controller.enqueue(chunk)
-      }
-    },
-    flush() {
-      loadCssFromStreamData(buffer)
-    },
-  })
-
-  const newResponse = createFromReadableStream(
-    readable.pipeThrough(loadCssFromFlight)
-  )
+  const newResponse = createFromReadableStream(readable)
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
@@ -227,9 +187,9 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent() {
+function RSCComponent(props: any) {
   const cacheKey = getCacheKey()
-  return <ServerRoot cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export function hydrate() {

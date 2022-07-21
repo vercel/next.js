@@ -1,4 +1,5 @@
 import React from 'react'
+import type { FocusRef } from '../../client/components/reducer'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -28,6 +29,7 @@ export const AppTreeContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
+  stylesheets?: string[]
 }>(null as any)
 export const FullAppTreeContext = React.createContext<{
   tree: FlightRouterState
@@ -35,6 +37,7 @@ export const FullAppTreeContext = React.createContext<{
     previousTree: FlightRouterState,
     flightData: FlightData
   ) => void
+  focusRef: FocusRef
 }>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {

@@ -21,6 +21,8 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
+// Also match the virtual client entry which doesn't have file path
+const regexClientEntry = /^$/
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
@@ -213,7 +215,11 @@ export const css = curry(async function css(
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
           issuer: {
-            and: [ctx.rootDirectory],
+            and: [
+              {
+                or: [ctx.rootDirectory, regexClientEntry],
+              },
+            ],
             not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
@@ -362,10 +368,13 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: {
-                or: [
-                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                  // Also match the virtual client entry which doesn't have file path
-                  (filePath) => !filePath,
+                and: [
+                  {
+                    or: [
+                      { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
+                      regexClientEntry,
+                    ],
+                  },
                 ],
               },
               use: getGlobalCssLoader(ctx, lazyPostCSSInitializer),
@@ -380,11 +389,8 @@ export const css = curry(async function css(
               sideEffects: false,
               test: regexCssModules,
               issuer: {
-                or: [
-                  { and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/] },
-                  // Also match the virtual client entry which doesn't have file path
-                  (filePath) => !filePath,
-                ],
+                and: [ctx.rootDirectory, /\.(js|mjs|jsx|ts|tsx)$/],
+                or: [regexClientEntry],
               },
               use: getCssModuleLoader(ctx, lazyPostCSSInitializer),
             }),
@@ -424,12 +430,8 @@ export const css = curry(async function css(
             ? {
                 // If it's inside the app dir, but not importing from a layout file,
                 // throw an error.
-                or: [
-                  {
-                    and: [ctx.rootDirectory],
-                    not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
-                  },
-                ],
+                and: [ctx.rootDirectory],
+                not: [/layout(\.client|\.server)?\.(js|mjs|jsx|ts|tsx)$/],
               }
             : undefined,
           use: {
@@ -468,7 +470,8 @@ export const css = curry(async function css(
     )
   }
 
-  if (ctx.isClient && ctx.isProduction) {
+  // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
+  if (ctx.isClient && (ctx.isProduction || ctx.experimental.appDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
       require('../../../plugins/mini-css-extract-plugin').default
@@ -476,8 +479,12 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].css',
+          filename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
+          chunkFilename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)

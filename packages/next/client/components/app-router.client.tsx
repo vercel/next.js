@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import {
   AppRouterContext,
   AppTreeContext,
-  CacheNode,
   FullAppTreeContext,
 } from '../../shared/lib/app-router-context'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type {
+  CacheNode,
+  AppRouterInstance,
+} from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import { reducer } from './reducer'
 import {
@@ -16,16 +18,19 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-function fetchFlight(
-  url: URL,
-  flightRouterStateData: string
-): Promise<Response> {
+function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
   searchParams.append('__flight__', '1')
   searchParams.append('__flight_router_state_tree__', flightRouterStateData)
 
-  return fetch(flightUrl.toString())
+  const { readable, writable } = new TransformStream()
+
+  fetch(flightUrl.toString()).then((res) => {
+    res.body?.pipeTo(writable)
+  })
+
+  return readable
 }
 
 export function fetchServerResponse(
@@ -33,7 +38,7 @@ export function fetchServerResponse(
   flightRouterState: FlightRouterState
 ): { readRoot: () => FlightData } {
   const flightRouterStateData = JSON.stringify(flightRouterState)
-  return createFromFetch(fetchFlight(url, flightRouterStateData))
+  return createFromReadableStream(fetchFlight(url, flightRouterStateData))
 }
 
 function ErrorOverlay({
@@ -56,27 +61,29 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] =
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
+  initialStylesheets,
   children,
   hotReloader,
 }: {
   initialTree: FlightRouterState
   initialCanonicalUrl: string
+  initialStylesheets: string[]
   children: React.ReactNode
   hotReloader?: React.ReactNode
 }) {
-  const [{ tree, cache, pushRef, canonicalUrl }, dispatch] = React.useReducer<
-    typeof reducer
-  >(reducer, {
-    tree: initialTree,
-    cache: {
-      data: null,
-      subTreeData: children,
-      parallelRoutes:
-        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-    },
-    pushRef: { pendingPush: false, mpaNavigation: false },
-    canonicalUrl: initialCanonicalUrl,
-  })
+  const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
+    React.useReducer<typeof reducer>(reducer, {
+      tree: initialTree,
+      cache: {
+        data: null,
+        subTreeData: children,
+        parallelRoutes:
+          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      },
+      pushRef: { pendingPush: false, mpaNavigation: false },
+      focusRef: { focus: false },
+      canonicalUrl: initialCanonicalUrl,
+    })
 
   useEffect(() => {
     initialParallelRoutes = null!
@@ -249,6 +256,7 @@ export default function AppRouter({
           value={{
             changeByServerResponse,
             tree,
+            focusRef,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
@@ -259,6 +267,7 @@ export default function AppRouter({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
+                stylesheets: initialStylesheets,
               }}
             >
               <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>

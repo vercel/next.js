@@ -16,13 +16,13 @@ export function useSearchParams() {
   return useContext(QueryContext)
 }
 
-export function useSearchParam(key: string) {
+export function useSearchParam(key: string): string | string[] {
   const params = useContext(QueryContext)
   return params[key]
 }
 
 // TODO-APP: Move the other router context over to this one
-export function useRouter() {
+export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
   return useContext(AppRouterContext)
 }
 
@@ -31,7 +31,7 @@ export function useRouter() {
 //   return useContext(ParamsContext)
 // }
 
-export function usePathname() {
+export function usePathname(): string {
   return useContext(PathnameContext)
 }
 
@@ -42,8 +42,10 @@ export function usePathname() {
 
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
-) {
+): string {
   const { tree } = useContext(AppTreeContext)
 
-  return tree[1][parallelRouteKey][0]
+  const segment = tree[1][parallelRouteKey][0]
+
+  return Array.isArray(segment) ? segment[1] : segment
 }
