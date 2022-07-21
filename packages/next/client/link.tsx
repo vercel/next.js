@@ -83,7 +83,7 @@ function prefetch(
   const curLocale =
     options && typeof options.locale !== 'undefined'
       ? options.locale
-      : router && router.locale
+      : router?.locale
 
   // Join on an invalid URI character
   prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
@@ -399,8 +399,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     )
     React.useEffect(() => {
       const shouldPrefetch = isVisible && p && isLocalURL(href)
-      const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
+      const curLocale = typeof locale !== 'undefined' ? locale : router?.locale
       const isPrefetched =
         prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')]
       if (shouldPrefetch && !isPrefetched) {
@@ -475,8 +474,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       passHref ||
       (child.type === 'a' && !('href' in child.props))
     ) {
-      const curLocale =
-        typeof locale !== 'undefined' ? locale : router && router.locale
+      const curLocale = typeof locale !== 'undefined' ? locale : router?.locale
 
       // we only render domain locales if we are currently on a domain locale
       // so that locale links are still visitable in development/preview envs
@@ -487,7 +485,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
       childProps.href =
         localeDomain ||
-        addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
+        addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
     return legacyBehavior ? (
