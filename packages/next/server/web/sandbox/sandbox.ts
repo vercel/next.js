@@ -8,7 +8,7 @@ export const ErrorSource = Symbol('SandboxError')
 type RunnerFn = (params: {
   name: string
   env: string[]
-  onWarning: (warn: Error) => void
+  onWarning?: (warn: Error) => void
   paths: string[]
   request: RequestData
   useCache: boolean
@@ -19,7 +19,7 @@ type RunnerFn = (params: {
 export const run = withTaggedErrors(async (params) => {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
-    onWarning: params.onWarning,
+    onWarning: params.onWarning ?? (() => {}),
     useCache: params.useCache !== false,
     env: params.env,
     edgeFunctionEntry: params.edgeFunctionEntry,

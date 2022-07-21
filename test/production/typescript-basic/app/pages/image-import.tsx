@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import FutureImage from 'next/future/image'
+import png from '../public/test.png'
 
 export default function Page() {
   return (
@@ -7,7 +8,7 @@ export default function Page() {
       <h1>Example Image Usage</h1>
       <Image src="/test.jpg" width={200} height={200} />
       <hr />
-      <FutureImage src="/test.png" width={200} height={200} />
+      <FutureImage src={png} />
     </>
   )
 }
