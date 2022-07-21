@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 1.1.0-beta.11
+      '@edge-runtime/jest-environment': 1.1.0-beta.17
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0
       '@next/bundle-analyzer': workspace:*
@@ -173,7 +173,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 1.1.0-beta.11
+      '@edge-runtime/jest-environment': 1.1.0-beta.17
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 0.18.0_uuaxwgga6hqycsez5ok7v2wg4i
       '@next/bundle-analyzer': link:packages/next-bundle-analyzer
@@ -416,7 +416,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.11
+      '@edge-runtime/primitives': 1.1.0-beta.17
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
@@ -496,7 +496,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.11
+      edge-runtime: 1.1.0-beta.17
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -609,7 +609,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 1.1.0-beta.11
+      '@edge-runtime/primitives': 1.1.0-beta.17
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.4.4
       '@napi-rs/triples': 1.1.0
@@ -686,7 +686,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 1.1.0-beta.11
+      edge-runtime: 1.1.0-beta.17
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -3213,14 +3213,14 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/format/1.1.0-beta.11:
-    resolution: {integrity: sha512-RecFoPVDjTHbRvvbTSivTZM1Ia9v4hHDYeDpsCiuFstfpyJBUNK3StImPAsm89pfW1H9awqx4bVbYflm8ZzdOg==}
+  /@edge-runtime/format/1.1.0-beta.17:
+    resolution: {integrity: sha512-H2vw3oA3ifica6QZ7fsc7vRD248KKPpiQC5v0cDZobGZdzGh4GU006QNp0Tvh0Nzr1fSVmidy+iPqa7YbeILgQ==}
     dev: true
 
-  /@edge-runtime/jest-environment/1.1.0-beta.11:
-    resolution: {integrity: sha512-BZiQBMrirKo2hbT9Imp1Krf/BlPPttFfqZ8K80R1jUDenlx9OEob0GHi9EkhGmf7uzO24Y+E7VXBHFcUR1IeGA==}
+  /@edge-runtime/jest-environment/1.1.0-beta.17:
+    resolution: {integrity: sha512-R+a42oGh+X79Z6Y+Z3J/CRLxKc8KbexS8Ir+2rHEkklJVX1bwKh1uq72s0R0w904evMn3sofX0TkD8jovCg9Ww==}
     dependencies:
-      '@edge-runtime/vm': 1.1.0-beta.11
+      '@edge-runtime/vm': 1.1.0-beta.17
       '@jest/environment': 28.1.2
       '@jest/fake-timers': 28.1.2
       '@jest/types': 28.1.1
@@ -3228,14 +3228,14 @@ packages:
       jest-util: 28.1.1
     dev: true
 
-  /@edge-runtime/primitives/1.1.0-beta.11:
-    resolution: {integrity: sha512-E+EA8chHgBEC+hc8u0a8mGPAYovLGPdNbayD6GUS1boJpd8ivd5f4q59Jg/NM4TCS38QtEZnx9z7TIWUM0XqhQ==}
+  /@edge-runtime/primitives/1.1.0-beta.17:
+    resolution: {integrity: sha512-9Gs+u6wIdZqRcYsYKXWcJWJ7xi1vp2nBiQ1kQUhdc2SqbV0npb/ye+k85E2vF7Rfof0jBVyvU6sYp+cbmwCSFw==}
     dev: true
 
-  /@edge-runtime/vm/1.1.0-beta.11:
-    resolution: {integrity: sha512-1kgoF2TLbkSa3gHjJmCh/OvUOF8/wJ6mtihHWbB6XGQvSbIRgSQopWsWHRwwV5nOSSi7EbCGudrm3NYSuRR5/A==}
+  /@edge-runtime/vm/1.1.0-beta.17:
+    resolution: {integrity: sha512-HZSY3NUVTMDraQjZsvv78ZwAqQhns2Y9SmiYH6WCz5hSWOh4CkFQZJg/SxLdMeo+rtraZvLcPf1eP6AqwR6wlg==}
     dependencies:
-      '@edge-runtime/primitives': 1.1.0-beta.11
+      '@edge-runtime/primitives': 1.1.0-beta.17
     dev: true
 
   /@emotion/is-prop-valid/0.8.8:
@@ -9986,12 +9986,12 @@ packages:
       safe-buffer: 5.2.0
     dev: true
 
-  /edge-runtime/1.1.0-beta.11:
-    resolution: {integrity: sha512-2orDSNtEj46Vtj1DocDZe0grFDzZUnqjNYTuVuq04jIUB3GA2C+UlR2xELXj9FXvvz7tL88i/qr9rQo3PiqIrw==}
+  /edge-runtime/1.1.0-beta.17:
+    resolution: {integrity: sha512-66Re96SHxwLEYsydRtaDVPqiWKrwBBVedcxUFuBgzWuqTKJdcL079DCx5k0cmphHLmBlDDI/H6raxakLwTkHmw==}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0-beta.11
-      '@edge-runtime/vm': 1.1.0-beta.11
+      '@edge-runtime/format': 1.1.0-beta.17
+      '@edge-runtime/vm': 1.1.0-beta.17
       exit-hook: 2.2.1
       http-status: 1.5.2
       mri: 1.2.0
@@ -20961,7 +20961,7 @@ packages:
       worker-farm: 1.7.0
     dev: true
 
-  /terser-webpack-plugin/5.2.4_webpack@5.73.0:
+  /terser-webpack-plugin/5.2.4:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
     engines: {node: '>= 10.13.0'}
     peerDependencies:
@@ -20983,7 +20983,6 @@ packages:
       serialize-javascript: 6.0.0
       source-map: 0.6.1
       terser: 5.14.1
-      webpack: 5.73.0
     dev: true
 
   /terser/4.8.0:
@@ -22423,7 +22422,7 @@ packages:
       neo-async: 2.6.2
       schema-utils: 3.1.1
       tapable: 2.2.0
-      terser-webpack-plugin: 5.2.4_webpack@5.73.0
+      terser-webpack-plugin: 5.2.4
       watchpack: 2.4.0
       webpack-sources: 3.2.3
     transitivePeerDependencies:
