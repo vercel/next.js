@@ -45,6 +45,11 @@ struct Cli {
     /// Hostname on which to start the application
     #[clap(short = 'H', long, value_parser, default_value = "127.0.0.1")]
     hostname: IpAddr,
+
+    /// Compile all, instead of only compiling referenced assets when their
+    /// parent asset is requested
+    #[clap(long)]
+    eager_compile: bool,
 }
 
 #[tokio::main]
@@ -113,11 +118,15 @@ async fn main() {
                          application"
                     ));
                 };
-            let lazy_asset = LazyAssetVc::new(entry_asset).into();
+
+            let mut served_asset = entry_asset;
+            if !args.eager_compile {
+                served_asset = LazyAssetVc::new(served_asset).into();
+            }
 
             let server = DevServerVc::new(
                 FileSystemPathVc::new(dev_server_fs, ""),
-                lazy_asset,
+                served_asset,
                 TransientValue::new((args.hostname, args.port).into()),
                 TransientValue::new(Arc::new(move |path| {
                     if path == "/__turbo_tasks_graph__" {
