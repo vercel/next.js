@@ -1,9 +1,8 @@
-import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import type { IncomingMessage } from 'http'
 import { PassThrough, Readable } from 'stream'
 
 export function requestToBodyStream(
-  context: EdgeRuntime['context'],
+  context: { ReadableStream: typeof ReadableStream },
   stream: Readable
 ) {
   return new context.ReadableStream({

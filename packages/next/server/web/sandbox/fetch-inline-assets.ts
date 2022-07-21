@@ -1,5 +1,4 @@
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
-import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { createReadStream, promises as fs } from 'fs'
 import { requestToBodyStream } from '../../body-streams'
 import { resolve } from 'path'
@@ -13,7 +12,7 @@ export async function fetchInlineAsset(options: {
   input: RequestInfo | URL
   distDir: string
   assets: EdgeFunctionDefinition['assets']
-  context: EdgeRuntime['context']
+  context: { Response: typeof Response; ReadableStream: typeof ReadableStream }
 }): Promise<Response | undefined> {
   const inputString = String(options.input)
   if (!inputString.startsWith('blob:')) {
