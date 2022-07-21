@@ -1105,6 +1105,7 @@ export default async function build(
                 actualPage,
                 distDir,
                 buildManifest,
+                appBuildManifest,
                 config.experimental.gzipSize,
                 computedManifestData
               )
