@@ -1,7 +1,8 @@
-import type { RequestData, FetchEventResult } from '../types'
+import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import { getModuleContext } from './context'
 import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import { requestToBodyStream } from '../../body-streams'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -10,7 +11,7 @@ type RunnerFn = (params: {
   env: string[]
   onWarning?: (warn: Error) => void
   paths: string[]
-  request: RequestData
+  request: NodejsRequestData
   useCache: boolean
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
   distDir: string
@@ -43,9 +44,25 @@ export const run = withTaggedErrors(async (params) => {
     }
   }
 
-  return runtime.context._ENTRIES[`middleware_${params.name}`].default({
-    request: params.request,
-  })
+  const edgeFunction: (args: {
+    request: RequestData
+  }) => Promise<FetchEventResult> =
+    runtime.context._ENTRIES[`middleware_${params.name}`].default
+
+  const cloned = !['HEAD', 'GET'].includes(params.request.method)
+    ? params.request.body?.cloneBodyStream()
+    : undefined
+
+  try {
+    return await edgeFunction({
+      request: {
+        ...params.request,
+        body: cloned && requestToBodyStream(runtime.context, cloned),
+      },
+    })
+  } finally {
+    await params.request.body?.finalize()
+  }
 })
 
 /**

@@ -1,7 +1,8 @@
-import { createReadStream, promises as fs } from 'fs'
-import path from 'path'
-import { requestToBodyStream } from '../../body-streams'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { createReadStream, promises as fs } from 'fs'
+import { requestToBodyStream } from '../../body-streams'
+import { resolve } from 'path'
 
 /**
  * Short-circuits the `fetch` function
@@ -12,7 +13,7 @@ export async function fetchInlineAsset(options: {
   input: RequestInfo
   distDir: string
   assets: EdgeFunctionDefinition['assets']
-  context: { Response: any }
+  context: EdgeRuntime['context']
 }): Promise<Response | undefined> {
   const inputString = String(options.input)
   if (!inputString.startsWith('blob:')) {
@@ -25,8 +26,7 @@ export async function fetchInlineAsset(options: {
     return
   }
 
-  const filePath = path.resolve(options.distDir, asset.filePath)
-
+  const filePath = resolve(options.distDir, asset.filePath)
   const fileIsReadable = await fs.access(filePath).then(
     () => true,
     () => false
@@ -34,6 +34,8 @@ export async function fetchInlineAsset(options: {
 
   if (fileIsReadable) {
     const readStream = createReadStream(filePath)
-    return new options.context.Response(requestToBodyStream(readStream))
+    return new options.context.Response(
+      requestToBodyStream(options.context, readStream)
+    )
   }
 }
