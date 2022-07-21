@@ -113,6 +113,13 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
+/**
+ * @param {number|string} appPort
+ * @param {string} [pathname]
+ * @param {string} [query]
+ * @param {RequestInit} opts
+ * @returns {Response}
+ */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
