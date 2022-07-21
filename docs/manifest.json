@@ -414,8 +414,10 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
-          "title": "next/streaming",
-          "path": "/docs/api-reference/next/streaming.md"
+          "path": "/docs/api-reference/next/streaming",
+          "redirect": {
+            "destination": "/docs/advanced-features/react-18"
+          }
         },
         {
           "title": "next/future/image (experimental)",

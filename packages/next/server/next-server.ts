@@ -1121,6 +1121,12 @@ export default class NextNodeServer extends BaseServer {
         ...binding,
         filePath: join(this.distDir, binding.filePath),
       })),
+      assets: (pageInfo.assets ?? []).map((binding) => {
+        return {
+          ...binding,
+          filePath: join(this.distDir, binding.filePath),
+        }
+      }),
     }
   }
 
@@ -1223,10 +1229,11 @@ export default class NextNodeServer extends BaseServer {
         }
 
         result = await run({
+          distDir: this.distDir,
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           env: middlewareInfo.env,
-          wasm: middlewareInfo.wasm,
+          edgeFunctionEntry: middlewareInfo,
           request: {
             headers: params.request.headers,
             method,
@@ -1240,12 +1247,7 @@ export default class NextNodeServer extends BaseServer {
             body: originalBody?.cloneBodyStream(),
           },
           useCache: !this.nextConfig.experimental.runtime,
-          onWarning: (warning: Error) => {
-            if (params.onWarning) {
-              warning.message += ` "./${middlewareInfo.name}"`
-              params.onWarning(warning)
-            }
-          },
+          onWarning: params.onWarning,
         })
 
         for (let [key, value] of result.response.headers) {
@@ -1524,6 +1526,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery
     params: Params | undefined
     page: string
+    onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let middlewareInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
@@ -1552,10 +1555,11 @@ export default class NextNodeServer extends BaseServer {
     const nodeReq = params.req as NodeNextRequest
 
     const result = await run({
+      distDir: this.distDir,
       name: middlewareInfo.name,
       paths: middlewareInfo.paths,
       env: middlewareInfo.env,
-      wasm: middlewareInfo.wasm,
+      edgeFunctionEntry: middlewareInfo,
       request: {
         headers: params.req.headers,
         method: params.req.method,
@@ -1576,12 +1580,7 @@ export default class NextNodeServer extends BaseServer {
             : requestToBodyStream(nodeReq.originalRequest),
       },
       useCache: !this.nextConfig.experimental.runtime,
-      onWarning: (_warning: Error) => {
-        // if (params.onWarning) {
-        //   warning.message += ` "./${middlewareInfo.name}"`
-        //   params.onWarning(warning)
-        // }
-      },
+      onWarning: params.onWarning,
     })
 
     params.res.statusCode = result.response.status
