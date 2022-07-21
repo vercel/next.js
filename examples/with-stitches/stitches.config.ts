@@ -1,4 +1,4 @@
-import type Stitches from '@stitches/react'
+import type * as Stitches from '@stitches/react'
 import { createStitches } from '@stitches/react'
 
 export const {
