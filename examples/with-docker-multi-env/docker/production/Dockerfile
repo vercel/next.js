@@ -4,8 +4,15 @@ FROM node:16-alpine AS deps
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+
+# Install dependencies based on the preferred package manager
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+RUN \
+  [ -f yarn.lock ] && yarn --frozen-lockfile --prod || \
+  [ -f package-lock.json ] && npm ci || \
+  [ -f pnpm-lock.yaml ] && yarn global add pnpm && pnpm fetch --prod && pnpm i -r --offline --prod || \
+  (echo "Lockfile not found." && exit 1)
+
 
 # 2. Rebuild the source code only when needed
 FROM node:16-alpine AS builder

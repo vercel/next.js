@@ -538,20 +538,30 @@ export async function renderToHTML(
     return segmentTree
   }
 
-  const createComponentTree = ({
+  const createComponentTree = async ({
     createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
     parentParams,
     firstItem,
+    rootLayoutIncluded,
   }: {
     createSegmentPath: CreateSegmentPath
     tree: LoaderTree
     parentParams: { [key: string]: any }
+    rootLayoutIncluded?: boolean
     firstItem?: boolean
-  }): { Component: React.ComponentType } => {
-    const Loading = loading ? interopDefault(loading()) : undefined
-    const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    const isPage = typeof page !== undefined
+  }): Promise<{ Component: React.ComponentType }> => {
+    const Loading = loading ? await interopDefault(loading()) : undefined
+    const isLayout = typeof layout !== 'undefined'
+    const isPage = typeof page !== 'undefined'
+    const layoutOrPageMod = isLayout
+      ? await layout()
+      : isPage
+      ? await page()
+      : undefined
+    const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+    const rootLayoutIncludedAtThisLevelOrAbove =
+      rootLayoutIncluded || rootLayoutAtThisLevel
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
@@ -588,43 +598,53 @@ export async function renderToHTML(
       : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
-      (list, currentValue) => {
-        const currentSegmentPath = firstItem
-          ? [currentValue]
-          : [actualSegment, currentValue]
+    const parallelRouteMap = await Promise.all(
+      Object.keys(parallelRoutes).map(
+        async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+          const currentSegmentPath = firstItem
+            ? [parallelRouteKey]
+            : [actualSegment, parallelRouteKey]
 
-        const { Component: ChildComponent } = createComponentTree({
-          createSegmentPath: (child) => {
-            return createSegmentPath([...currentSegmentPath, ...child])
-          },
-          tree: parallelRoutes[currentValue],
-          parentParams: currentParams,
-        })
+          const { Component: ChildComponent } = await createComponentTree({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            tree: parallelRoutes[parallelRouteKey],
+            parentParams: currentParams,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+          })
 
-        const childSegmentParam = getDynamicParamFromSegment(
-          parallelRoutes[currentValue][0]
-        )
-        const childProp: ChildProp = {
-          current: <ChildComponent />,
-          segment: childSegmentParam
-            ? [
-                childSegmentParam.param,
-                childSegmentParam.treeValue,
-                childSegmentParam.type,
-              ]
-            : parallelRoutes[currentValue][0],
+          const childSegmentParam = getDynamicParamFromSegment(
+            parallelRoutes[parallelRouteKey][0]
+          )
+          const childProp: ChildProp = {
+            current: <ChildComponent />,
+            segment: childSegmentParam
+              ? [
+                  childSegmentParam.param,
+                  childSegmentParam.treeValue,
+                  childSegmentParam.type,
+                ]
+              : parallelRoutes[parallelRouteKey][0],
+          }
+
+          return [
+            parallelRouteKey,
+            <LayoutRouter
+              parallelRouterKey={parallelRouteKey}
+              segmentPath={createSegmentPath(currentSegmentPath)}
+              loading={Loading ? <Loading /> : undefined}
+              childProp={childProp}
+              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+            />,
+          ]
         }
+      )
+    )
 
-        list[currentValue] = (
-          <LayoutRouter
-            parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath(currentSegmentPath)}
-            loading={Loading ? <Loading /> : undefined}
-            childProp={childProp}
-          />
-        )
-
+    const parallelRouteComponents = parallelRouteMap.reduce(
+      (list, [parallelRouteKey, Comp]) => {
+        list[parallelRouteKey] = Comp
         return list
       },
       {} as { [key: string]: React.ReactNode }
@@ -651,7 +671,18 @@ export async function renderToHTML(
     }
 
     type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      query: URLSearchParams
+      searchParams: URLSearchParams
+      pathname: string
+    }
+
+    type GetStaticPropsContext = {
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type GetStaticPropContextPage = GetStaticPropsContext & {
       pathname: string
     }
 
@@ -668,7 +699,7 @@ export async function renderToHTML(
         cookies,
         layoutSegments: segmentPath,
         // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
-        ...(isPage ? { query, pathname } : {}),
+        ...(isPage ? { searchParams: query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
           ? { preview: true, previewData: previewData }
@@ -681,7 +712,9 @@ export async function renderToHTML(
     }
     // TODO-APP: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext = {
+      const getStaticPropsContext:
+        | GetStaticPropsContext
+        | GetStaticPropContextPage = {
         layoutSegments: segmentPath,
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
@@ -729,7 +762,7 @@ export async function renderToHTML(
             // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
             params={currentParams}
             // Query is only provided to page
-            {...(isPage ? { query } : {})}
+            {...(isPage ? { searchParams: query } : {})}
           />
         )
       },
@@ -738,12 +771,12 @@ export async function renderToHTML(
 
   if (isFlight) {
     // TODO-APP: throw on invalid flightRouterState
-    const walkTreeWithFlightRouterState = (
+    const walkTreeWithFlightRouterState = async (
       treeToFilter: LoaderTree,
       parentParams: { [key: string]: string | string[] },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
-    ): FlightDataPath => {
+    ): Promise<FlightDataPath> => {
       const [segment, parallelRoutes] = treeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -773,14 +806,16 @@ export async function renderToHTML(
           actualSegment,
           createFlightRouterStateFromLoaderTree(treeToFilter),
           React.createElement(
-            createComponentTree(
-              // This ensures flightRouterPath is valid and filters down the tree
-              {
-                createSegmentPath: (child) => child,
-                tree: treeToFilter,
-                parentParams: currentParams,
-                firstItem: true,
-              }
+            (
+              await createComponentTree(
+                // This ensures flightRouterPath is valid and filters down the tree
+                {
+                  createSegmentPath: (child) => child,
+                  tree: treeToFilter,
+                  parentParams: currentParams,
+                  firstItem: true,
+                }
+              )
             ).Component
           ),
         ]
@@ -788,7 +823,7 @@ export async function renderToHTML(
 
       for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
-        const path = walkTreeWithFlightRouterState(
+        const path = await walkTreeWithFlightRouterState(
           parallelRoute,
           currentParams,
           flightRouterState && flightRouterState[1][parallelRouteKey],
@@ -810,9 +845,9 @@ export async function renderToHTML(
     )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
-      walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
-        1
-      ),
+      (
+        await walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState)
+      ).slice(1),
     ]
 
     return new RenderResult(
@@ -837,7 +872,7 @@ export async function renderToHTML(
     dev
   )
 
-  const { Component: ComponentTree } = createComponentTree({
+  const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     tree,
     parentParams: {},
