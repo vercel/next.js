@@ -172,7 +172,7 @@ function omit<T extends { [key: string]: any }, K extends keyof T>(
   const omitted: { [key: string]: any } = {}
   Object.keys(object).forEach((key) => {
     if (!keys.includes(key as K)) {
-      omitted[key as string] = object[key]
+      omitted[key] = object[key]
     }
   })
   return omitted as Omit<T, K>
@@ -292,16 +292,16 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname))
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
   }
 
   // handle resolving href for dynamic routes
-  if (!pages.includes(cleanPathname!)) {
+  if (!pages.includes(cleanPathname)) {
     // eslint-disable-next-line array-callback-return
     pages.some((page) => {
-      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
+      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname)) {
         pathname = page
         return true
       }
@@ -732,7 +732,7 @@ export default class Router implements BaseRouter {
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+    this.basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
