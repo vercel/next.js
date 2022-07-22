@@ -1,10 +1,10 @@
 module.exports = {
-  rewrites() {
-    return [
-      {
-        source: '/rewrite',
-        destination: '/?foo=bar',
-      },
-    ]
-  },
+  // rewrites() {
+  //   return [
+  //     {
+  //       source: '/rewrite',
+  //       destination: '/?foo=bar',
+  //     },
+  //   ]
+  // },
 }
