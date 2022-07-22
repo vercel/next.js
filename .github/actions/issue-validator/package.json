@@ -2,7 +2,7 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc -o . -m build src/index.js --license licenses.txt"
+    "build": "ncc -m -o . build src/index.js --license licenses.txt"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0"
