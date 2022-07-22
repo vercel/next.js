@@ -1,6 +1,7 @@
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
+import type { TLSSocket } from 'tls'
 import type { Route } from './router'
 import {
   CacheFs,
@@ -80,7 +81,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import ResponseCache from '../server/response-cache'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { bodyStreamToNodeStream } from './body-streams'
+import { bodyStreamToNodeStream, getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { shouldUseReactRoot } from './utils'
@@ -1509,6 +1510,28 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutesManifest() {
     return require(join(this.distDir, ROUTES_MANIFEST))
+  }
+
+  protected attachRequestMeta(
+    req: BaseNextRequest,
+    parsedUrl: NextUrlWithParsedQuery
+  ) {
+    const protocol = (
+      (req as NodeNextRequest).originalRequest?.socket as TLSSocket
+    )?.encrypted
+      ? 'https'
+      : 'http'
+
+    // When there are hostname and port we build an absolute URL
+    const initUrl =
+      this.hostname && this.port
+        ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+        : req.url
+
+    addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
+    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, '_protocol', protocol)
+    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getClonableBody(req.body))
   }
 
   protected async runEdgeFunction(params: {
