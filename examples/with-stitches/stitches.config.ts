@@ -58,27 +58,19 @@ export const {
     },
   },
   utils: {
-    marginX: (
-      value: Stitches.CSS['margin'] | Stitches.ScaleValue<'space'>
-    ) => ({
+    marginX: (value: Stitches.PropertyValue<'margin'>) => ({
       marginLeft: value,
       marginRight: value,
     }),
-    marginY: (
-      value: Stitches.CSS['margin'] | Stitches.ScaleValue<'space'>
-    ) => ({
+    marginY: (value: Stitches.PropertyValue<'margin'>) => ({
       marginTop: value,
       marginBottom: value,
     }),
-    paddingX: (
-      value: Stitches.CSS['padding'] | Stitches.ScaleValue<'space'>
-    ) => ({
+    paddingX: (value: Stitches.PropertyValue<'padding'>) => ({
       paddingLeft: value,
       paddingRight: value,
     }),
-    paddingY: (
-      value: Stitches.CSS['padding'] | Stitches.ScaleValue<'space'>
-    ) => ({
+    paddingY: (value: Stitches.PropertyValue<'padding'>) => ({
       paddingTop: value,
       paddingBottom: value,
     }),
