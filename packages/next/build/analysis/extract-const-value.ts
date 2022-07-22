@@ -121,12 +121,14 @@ export class UnsupportedValueError extends Error {
     if (paths) {
       codePath = ''
       for (const path of paths) {
-        if (path.startsWith('[')) {
+        if (path[0] === '[') {
+          // "array" + "[0]"
           codePath += path
         } else {
           if (codePath === '') {
             codePath = path
           } else {
+            // "object" + ".key"
             codePath += `.${path}`
           }
         }
