@@ -15,10 +15,11 @@ export class NextRequest extends Request {
     url: NextURL
   }
 
-  constructor(input: Request | string, init: RequestInit = {}) {
-    const url = typeof input === 'string' ? input : input.url
+  constructor(input: URL | RequestInfo, init: RequestInit = {}) {
+    const url =
+      typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    super(input, init)
+    super(url, init)
     this[INTERNALS] = {
       cookies: new NextCookies(this),
       geo: init.geo || {},

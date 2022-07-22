@@ -5,6 +5,7 @@ export default function DashboardPage(props) {
       <p id="from-dashboard" className="p">
         hello from app/dashboard
       </p>
+      <p className="bold">BOLD</p>
       <p className="green">this is green</p>
       <ClientComp />
     </>

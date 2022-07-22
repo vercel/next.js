@@ -13,7 +13,6 @@ import type { RoutingItem } from '../base-server'
 
 import crypto from 'crypto'
 import fs from 'fs'
-import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -714,7 +713,12 @@ export default class DevServer extends Server {
     page: string
   }) {
     try {
-      return super.runEdgeFunction(params)
+      return super.runEdgeFunction({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning')
+        },
+      })
     } catch (error) {
       if (error instanceof DecodeError) {
         throw error
@@ -797,7 +801,9 @@ export default class DevServer extends Server {
         const frames = parseStack(err.stack!)
         const frame = frames.find(
           ({ file }) =>
-            !file?.startsWith('eval') && !file?.includes('web/adapter')
+            !file?.startsWith('eval') &&
+            !file?.includes('web/adapter') &&
+            !file?.includes('sandbox/context')
         )!
 
         if (frame.lineNumber && frame?.file) {
@@ -838,12 +844,9 @@ export default class DevServer extends Server {
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
             if (src === 'edge-server') {
-              console[type === 'warning' ? 'warn' : 'error'](
-                `${(type === 'warning' ? chalk.yellow : chalk.red)(
-                  err.name
-                )}: ${err.message}`
-              )
-            } else if (type === 'warning') {
+              err = err.message
+            }
+            if (type === 'warning') {
               Log.warn(err)
             } else if (type) {
               Log.error(`${type}:`, err)

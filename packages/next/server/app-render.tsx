@@ -16,7 +16,6 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
-  createPrefixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -113,8 +112,7 @@ function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   cachePrefix: string,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any,
-  cssFlightData: string
+  serverComponentManifest: any
 ) {
   const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
@@ -127,9 +125,7 @@ function useFlightResponse(
 
     let bootstrapped = false
     // We only attach CSS chunks to the inlined data.
-    const forwardReader = forwardStream
-      .pipeThrough(createPrefixStream(cssFlightData))
-      .getReader()
+    const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
       forwardReader.read().then(({ done, value }) => {
@@ -176,8 +172,7 @@ function createServerComponentRenderer(
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<[ServerContextName: string, JSONValue: any]>
-  },
-  dev: boolean
+  }
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -190,12 +185,6 @@ function createServerComponentRenderer(
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
-
-  const cssFlightData = getCssFlightData(
-    ComponentMod,
-    serverComponentManifest,
-    dev
-  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -218,8 +207,7 @@ function createServerComponentRenderer(
       writable,
       cachePrefix,
       reqStream,
-      serverComponentManifest,
-      cssFlightData
+      serverComponentManifest
     )
     return response.readRoot()
   }
@@ -328,13 +316,10 @@ function getSegmentParam(segment: string): {
   return null
 }
 
-function getCSSInlinedLinkTags(
+function getCssInlinedLinkTags(
   ComponentMod: any,
-  serverComponentManifest: any,
-  dev: boolean
+  serverComponentManifest: any
 ) {
-  if (dev) return []
-
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
@@ -349,33 +334,6 @@ function getCSSInlinedLinkTags(
         .flat()
     )
   )
-}
-
-function getCssFlightData(
-  ComponentMod: any,
-  serverComponentManifest: any,
-  dev: boolean
-) {
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
-
-  const cssFiles = importedServerCSSFiles.map(
-    (css) => serverComponentManifest[css].default
-  )
-
-  if (dev) {
-    // Keep `id` in dev mode css flight to require the css module
-    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
-  }
-
-  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
-  // we use a set here to dedupe the css chunks in production.
-  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
-    res.add(...css.chunks)
-    return res
-  }, new Set())
-
-  return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
 export async function renderToHTML(
@@ -403,7 +361,6 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
   } = renderOpts
-  const dev = !!renderOpts.dev
 
   const isFlight = query.__flight__ !== undefined
 
@@ -838,11 +795,6 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
-    const cssFlightData = getCssFlightData(
-      ComponentMod,
-      serverComponentManifest,
-      dev
-    )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
       (
@@ -853,9 +805,7 @@ export async function renderToHTML(
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
         context: serverContexts,
-      })
-        .pipeThrough(createPrefixStream(cssFlightData))
-        .pipeThrough(createBufferedTransformStream())
+      }).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -866,10 +816,9 @@ export async function renderToHTML(
 
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
-  const initialStylesheets: string[] = getCSSInlinedLinkTags(
+  const initialStylesheets: string[] = getCssInlinedLinkTags(
     ComponentMod,
-    serverComponentManifest,
-    dev
+    serverComponentManifest
   )
 
   const { Component: ComponentTree } = await createComponentTree({
@@ -926,8 +875,7 @@ export async function renderToHTML(
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
-    },
-    dev
+    }
   )
 
   const jsxStyleRegistry = createStyleRegistry()
@@ -977,7 +925,6 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      dev,
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
