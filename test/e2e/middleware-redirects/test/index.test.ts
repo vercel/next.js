@@ -68,7 +68,7 @@ describe('Middleware Redirect', () => {
       )
 
       expect(res.headers.get('x-nextjs-redirect')).toEqual(
-        'https://example.com/'
+        'https://example.vercel.sh/'
       )
       expect(res.headers.get('location')).toEqual(null)
 

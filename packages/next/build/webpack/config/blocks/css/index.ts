@@ -470,7 +470,8 @@ export const css = curry(async function css(
     )
   }
 
-  if (ctx.isClient && ctx.isProduction) {
+  // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
+  if (ctx.isClient && (ctx.isProduction || ctx.experimental.appDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
       require('../../../plugins/mini-css-extract-plugin').default
@@ -478,8 +479,12 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          filename: 'static/css/[contenthash].css',
-          chunkFilename: 'static/css/[contenthash].css',
+          filename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
+          chunkFilename: ctx.isProduction
+            ? 'static/css/[contenthash].css'
+            : 'static/css/[name].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)

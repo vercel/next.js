@@ -80,6 +80,7 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { getClonableBody } from './body-streams'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -433,6 +434,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
       addRequestMeta(req, '_protocol', protocol)
+      addRequestMeta(req, '__NEXT_CLONABLE_BODY', getClonableBody(req.body))
 
       const domainLocale = detectDomainLocale(
         this.nextConfig.i18n?.domains,
