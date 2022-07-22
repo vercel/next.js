@@ -1,6 +1,6 @@
 /// Explicit extern crate to use allocator.
 extern crate turbo_malloc;
-#[cfg(bench_against_node_nft)]
+#[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
     collections::VecDeque,
@@ -155,6 +155,7 @@ fn node_file_trace_memory(#[case] input: String, #[case] should_succeed: bool) {
         input,
         should_succeed,
         "memory",
+        false,
         1,
         120,
         |_| TurboTasks::new(MemoryBackend::new()),
@@ -181,6 +182,7 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
         input,
         should_succeed,
         "rockdb",
+        false,
         2,
         240,
         |directory_path| {
@@ -192,13 +194,24 @@ fn node_file_trace_rocksdb(#[case] input: String, #[case] should_succeed: bool) 
     );
 }
 
-#[cfg(bench_against_node_nft)]
+#[cfg(feature = "bench_against_node_nft")]
 #[apply(test_cases)]
-fn bench_against_node_nft(#[case] input: String, #[case] should_succeed: bool) {
+fn bench_against_node_nft_st(#[case] input: String, #[case] should_succeed: bool) {
+    bench_against_node_nft_inner(input, should_succeed, false);
+}
+
+#[cfg(feature = "bench_against_node_nft")]
+#[apply(test_cases)]
+fn bench_against_node_nft_mt(#[case] input: String, #[case] should_succeed: bool) {
+    bench_against_node_nft_inner(input, should_succeed, true);
+}
+
+fn bench_against_node_nft_inner(input: String, should_succeed: bool, multi_threaded: bool) {
     node_file_trace(
         input,
         should_succeed,
         "memory",
+        multi_threaded,
         1,
         120,
         |_| TurboTasks::new(MemoryBackend::new()),
@@ -219,6 +232,7 @@ fn node_file_trace<B: Backend + 'static>(
     input: String,
     should_succeed: bool,
     mode: &str,
+    multi_threaded: bool,
     run_count: i32,
     timeout_len: u64,
     create_turbo_tasks: impl Fn(&Path) -> Arc<TurboTasks<B>>,
@@ -228,12 +242,16 @@ fn node_file_trace<B: Backend + 'static>(
         static ref BENCH_SUITES: Arc<Mutex<Vec<BenchSuite>>> = Arc::new(Mutex::new(Vec::new()));
     };
 
-    let is_bench = cfg!(bench_against_node_nft);
-
     let r = &mut {
-        let mut builder = tokio::runtime::Builder::new_current_thread();
+        let mut builder = if multi_threaded {
+            tokio::runtime::Builder::new_multi_thread()
+        } else {
+            tokio::runtime::Builder::new_current_thread()
+        };
         builder.enable_all();
-        builder.max_blocking_threads(20);
+        if !multi_threaded {
+            builder.max_blocking_threads(20);
+        }
         builder.build().unwrap()
     };
     r.block_on(async move {
@@ -271,14 +289,14 @@ fn node_file_trace<B: Backend + 'static>(
             let task = async move {
                 #[allow(unused)]
                 let bench_suites = bench_suites.clone();
-                #[cfg(bench_against_node_nft)]
+                #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
                 let input_fs: FileSystemVc =
                     DiskFileSystemVc::new("tests".to_string(), tests_root.clone()).into();
                 let input = FileSystemPathVc::new(input_fs, &input_string);
                 let input_dir = FileSystemPathVc::new(input_fs, "node-file-trace");
 
-                #[cfg(not(bench_against_node_nft))]
+                #[cfg(not(feature = "bench_against_node_nft"))]
                 let original_output = exec_node(tests_root, input);
 
                 let output_fs = DiskFileSystemVc::new("output".to_string(), directory.clone());
@@ -295,13 +313,13 @@ fn node_file_trace<B: Backend + 'static>(
                 let output_path = rebased.path();
                 emit_with_completion(rebased.into()).await?;
 
-                #[cfg(not(bench_against_node_nft))]
+                #[cfg(not(feature = "bench_against_node_nft"))]
                 {
                     let output = exec_node(directory.clone(), output_path);
                     let output = assert_output(original_output, output);
                     Ok(output.await?)
                 }
-                #[cfg(bench_against_node_nft)]
+                #[cfg(feature = "bench_against_node_nft")]
                 {
                     let duration = before_start.elapsed();
                     let node_start = Instant::now();
@@ -310,13 +328,30 @@ fn node_file_trace<B: Backend + 'static>(
                     let is_faster = node_duration > duration;
                     {
                         let mut bench_suites_lock = bench_suites.lock().unwrap();
+                        let rust_speedup =
+                            node_duration.as_millis() as f32 / duration.as_millis() as f32 - 1.0;
                         let rust_duration = format!("{:?}", duration);
                         let node_duration = format!("{:?}", node_duration);
+                        let rust_speedup = if rust_speedup > 1.0 {
+                            format!("+{:.2}x", rust_speedup)
+                        } else if rust_speedup > 0.0 {
+                            format!("+{:.0}%", rust_speedup * 100.0)
+                        } else {
+                            format!("-{:.0}%", -rust_speedup * 100.0)
+                        };
                         bench_suites_lock.push(BenchSuite {
-                            suite: input_string,
+                            suite: input_string
+                                .trim_start_matches("node-file-trace/integration/")
+                                .to_string()
+                                + (if multi_threaded {
+                                    " (multi-threaded)"
+                                } else {
+                                    ""
+                                }),
                             is_faster,
                             rust_duration,
                             node_duration,
+                            rust_speedup,
                         });
                     }
                     CommandOutputVc::cell(CommandOutput {
@@ -329,7 +364,8 @@ fn node_file_trace<B: Backend + 'static>(
             let handle_result =
                 |result: Result<turbo_tasks::RawVcReadResult<CommandOutput>>| match result {
                     Ok(output) => {
-                        if !is_bench {
+                        #[cfg(not(feature = "bench_against_node_nft"))]
+                        {
                             if should_succeed {
                                 assert!(
                                     output.is_empty(),
@@ -410,7 +446,7 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
     let dir = f.parent().unwrap();
     let label = path.to_string().await?;
 
-    #[cfg(not(bench_against_node_nft))]
+    #[cfg(not(feature = "bench_against_node_nft"))]
     if p.path.ends_with(".ts") {
         let mut ts_node = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         ts_node.push("tests");
@@ -422,7 +458,7 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         cmd.arg(&ts_node);
     }
 
-    #[cfg(bench_against_node_nft)]
+    #[cfg(feature = "bench_against_node_nft")]
     {
         let mut node_nft = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         node_nft.push("tests");
@@ -432,12 +468,12 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         node_nft.push("nft");
         cmd.arg(&node_nft).arg("build");
     }
-    #[cfg(not(bench_against_node_nft))]
+    #[cfg(not(feature = "bench_against_node_nft"))]
     {
         cmd.arg(&f);
         cmd.current_dir(dir);
     }
-    #[cfg(bench_against_node_nft)]
+    #[cfg(feature = "bench_against_node_nft")]
     {
         let mut current_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         current_dir.push("tests");
@@ -549,7 +585,8 @@ async fn assert_output(
 #[derive(Debug, Serialize, Deserialize)]
 struct BenchSuite {
     suite: String,
-    is_faster: bool,
-    rust_duration: String,
     node_duration: String,
+    rust_duration: String,
+    rust_speedup: String,
+    is_faster: bool,
 }

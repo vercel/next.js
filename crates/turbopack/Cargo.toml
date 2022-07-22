@@ -13,6 +13,7 @@ bench = false
 test_persistent_cache = [
   # "dep:turbo-tasks-rocksdb"
 ]
+bench_against_node_nft = []
 
 [dependencies]
 anyhow = "1.0.47"
