@@ -414,8 +414,8 @@ const configSchema = {
       isFunction: true,
     } as any,
     generateEtags: {
-      isFunction: true,
-    } as any,
+      type: 'boolean',
+    },
     headers: {
       isFunction: true,
     } as any,
