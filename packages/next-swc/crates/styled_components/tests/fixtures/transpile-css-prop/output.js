@@ -138,13 +138,20 @@ const LocalCallInterpolation = (p)=>{
 
     </_StyledP14>;
 };
-const LocalCallCssHelperProp = (p)=>{
-    const color = 'red';
-    return <_StyledP15 $_css16={id(color)}>
+const LocalCallInterpolation2 = ()=>{
+    return <_StyledP15 >
 
       H
 
     </_StyledP15>;
+};
+const LocalCallCssHelperProp = (p)=>{
+    const color = 'red';
+    return <_StyledP16 $_css16={id(color)}>
+
+      H
+
+    </_StyledP16>;
 };
 // issue #38914
 function Home() {
@@ -210,9 +217,12 @@ var _StyledP14 = _styled("p")`
         color: ${(p)=>p.$_css15};
       `;
 var _StyledP15 = _styled("p")`
+        /* direct call */
+        color: ${id('red')};
+      `;
+var _StyledP16 = _styled("p")`
         color: ${(p)=>p.$_css16};
       `;
 var _StyledDiv2 = _styled("div")`
-      // ReferenceError: x is not defined
       ${(p)=>p.$_css17}
   `;

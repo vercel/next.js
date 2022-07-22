@@ -232,6 +232,19 @@ const LocalCallInterpolation = p => {
   )
 }
 
+const LocalCallInterpolation2 = () => {
+  return (
+    <p
+      css={`
+        /* direct call */
+        color: ${id('red')};
+      `}
+    >
+      H
+    </p>
+  )
+}
+
 const LocalCallCssHelperProp = p => {
   const color = 'red'
 
@@ -253,7 +266,6 @@ function Home() {
   return (
     <div
       css={css`
-      // ReferenceError: x is not defined
       ${myCss(x)}
   `}
     />
