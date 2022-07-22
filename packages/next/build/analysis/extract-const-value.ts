@@ -53,7 +53,7 @@ export function extractExportedConstValue(
         decl.id.value === exportedName &&
         decl.init
       ) {
-        return extractValue(decl.init)
+        return extractValue(decl.init, [exportedName])
       }
     }
   }
@@ -109,10 +109,38 @@ function isTemplateLiteral(node: Node): node is TemplateLiteral {
   return node.type === 'TemplateLiteral'
 }
 
-export class UnsupportedValueError extends Error {}
+export class UnsupportedValueError extends Error {
+  /** @example `config.runtime[0].value` */
+  path?: string
+
+  constructor(message: string, paths?: string[]) {
+    super(message)
+
+    // Generating "path" that looks like "config.runtime[0].value"
+    let codePath: string | undefined
+    if (paths) {
+      codePath = ''
+      for (const path of paths) {
+        if (path[0] === '[') {
+          // "array" + "[0]"
+          codePath += path
+        } else {
+          if (codePath === '') {
+            codePath = path
+          } else {
+            // "object" + ".key"
+            codePath += `.${path}`
+          }
+        }
+      }
+    }
+
+    this.path = codePath
+  }
+}
 export class NoSuchDeclarationError extends Error {}
 
-function extractValue(node: Node): any {
+function extractValue(node: Node, path?: string[]): any {
   if (isNullLiteral(node)) {
     return null
   } else if (isBooleanLiteral(node)) {
@@ -132,19 +160,26 @@ function extractValue(node: Node): any {
       case 'undefined':
         return undefined
       default:
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          `Unknown identifier "${node.value}"`,
+          path
+        )
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
     const arr = []
-    for (const elem of node.elements) {
+    for (let i = 0, len = node.elements.length; i < len; i++) {
+      const elem = node.elements[i]
       if (elem) {
         if (elem.spread) {
           // e.g. [ ...a ]
-          throw new UnsupportedValueError()
+          throw new UnsupportedValueError(
+            'Unsupported spread operator in the Array Expression',
+            path
+          )
         }
 
-        arr.push(extractValue(elem.expression))
+        arr.push(extractValue(elem.expression, path && [...path, `[${i}]`]))
       } else {
         // e.g. [1, , 2]
         //         ^^
@@ -158,7 +193,10 @@ function extractValue(node: Node): any {
     for (const prop of node.properties) {
       if (!isKeyValueProperty(prop)) {
         // e.g. { ...a }
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          'Unsupported spread operator in the Object Expression',
+          path
+        )
       }
 
       let key
@@ -169,10 +207,13 @@ function extractValue(node: Node): any {
         // e.g. { "a": 1, "b": 2 }
         key = prop.key.value
       } else {
-        throw new UnsupportedValueError()
+        throw new UnsupportedValueError(
+          `Unsupported key type "${prop.key.type}" in the Object Expression`,
+          path
+        )
       }
 
-      obj[key] = extractValue(prop.value)
+      obj[key] = extractValue(prop.value, path && [...path, key])
     }
 
     return obj
@@ -180,7 +221,10 @@ function extractValue(node: Node): any {
     // e.g. `abc`
     if (node.expressions.length !== 0) {
       // TODO: should we add support for `${'e'}d${'g'}'e'`?
-      throw new UnsupportedValueError()
+      throw new UnsupportedValueError(
+        'Unsupported template literal with expressions',
+        path
+      )
     }
 
     // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
@@ -196,6 +240,9 @@ function extractValue(node: Node): any {
 
     return cooked ?? raw
   } else {
-    throw new UnsupportedValueError()
+    throw new UnsupportedValueError(
+      `Unsupported node type "${node.type}"`,
+      path
+    )
   }
 }
