@@ -3,7 +3,7 @@ import {
   APP_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../../../shared/lib/constants'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
@@ -63,12 +63,12 @@ export class AppBuildManifestPlugin {
       CLIENT_STATIC_FILES_RUNTIME_MAIN,
       CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
       CLIENT_STATIC_FILES_RUNTIME_AMP,
-      CLIENT_STATIC_FILES_RUNTIME_MAIN_ROOT,
+      CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
     ])
 
     const mainFiles = new Set(
       getEntrypointFiles(
-        compilation.entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
+        compilation.entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
       )
     )
 
