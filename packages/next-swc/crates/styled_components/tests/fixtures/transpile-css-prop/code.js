@@ -266,6 +266,9 @@ function Home() {
   return (
     <div
       css={css`
+      /* direct */
+      ${myCss(2)}
+      /* indirect */
       ${myCss(x)}
   `}
     />

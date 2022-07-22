@@ -224,5 +224,8 @@ var _StyledP16 = _styled("p")`
         color: ${(p)=>p.$_css16};
       `;
 var _StyledDiv2 = _styled("div")`
+      /* direct */
+      ${myCss(2)}
+      /* indirect */
       ${(p)=>p.$_css17}
   `;
