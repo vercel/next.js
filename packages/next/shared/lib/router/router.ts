@@ -1604,18 +1604,10 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      let Component: ComponentType
-      let styleSheets: StyleSheetTuple[]
       let props: Record<string, any> | undefined
-
-      if (
-        typeof Component! === 'undefined' ||
-        typeof styleSheets! === 'undefined'
-      ) {
-        ;({ page: Component, styleSheets } = await this.fetchComponent(
-          '/_error'
-        ))
-      }
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
