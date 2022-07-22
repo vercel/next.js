@@ -78,7 +78,7 @@ The [`getStaticProps` API reference](/docs/api-reference/data-fetching/get-stati
 
 ## Write server-side code directly
 
-As `getStaticProps` runs only on the server-side, it will never run on the client-side. It won’t even be included in the JS bundle for the browser, so you can write direct database queries without them being sent to browsers.
+As `getStaticProps` runs only on the server-side on build time, it will never run on the client-side. It won’t even be included in the JS bundle for the browser, so you can write direct database queries without them being sent to browsers.
 
 This means that instead of fetching an **API route** from `getStaticProps` (that itself fetches data from an external source), you can write the server-side code directly in `getStaticProps`.
 
