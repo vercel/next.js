@@ -54,7 +54,7 @@ impl TranspileCssProp {
         *idx
     }
     #[allow(clippy::wrong_self_convention)]
-    fn is_top_level_ident(&mut self, ident: &Ident) -> bool {
+    fn is_top_level_ident(&self, ident: &Ident) -> bool {
         self.top_level_decls
             .as_ref()
             .map(|decls| decls.contains(&ident.to_id()))
@@ -251,16 +251,11 @@ impl VisitMut for TranspileCssProp {
                                     if expr.is_fn_expr() || expr.is_arrow() {
                                         acc.push(expr);
                                         return acc;
-                                    } else if let Some(root) = trace_root_value(&mut *expr) {
-                                        let direct_access = match root {
-                                            Expr::Lit(_) => true,
-                                            Expr::Ident(id) if self.is_top_level_ident(id) => true,
-                                            _ => false,
-                                        };
-                                        if direct_access {
-                                            acc.push(expr);
-                                            return acc;
-                                        }
+                                    } else if is_direct_access(&expr, &|id| {
+                                        self.is_top_level_ident(id)
+                                    }) {
+                                        acc.push(expr);
+                                        return acc;
                                     }
 
                                     let identifier =
@@ -639,15 +634,40 @@ fn get_name_of_jsx_obj(el: &JSXObject) -> JsWord {
     }
 }
 
-fn trace_root_value(e: &mut Expr) -> Option<&mut Expr> {
+fn trace_root_value(e: &Expr) -> Option<&Expr> {
     match e {
-        Expr::Member(e) => trace_root_value(&mut e.obj),
-        Expr::Call(e) => match &mut e.callee {
-            Callee::Expr(e) => trace_root_value(&mut **e),
+        Expr::Member(e) => trace_root_value(&e.obj),
+        Expr::Call(e) => match &e.callee {
+            Callee::Expr(e) => trace_root_value(&**e),
             _ => None,
         },
         Expr::Ident(_) => Some(e),
         Expr::Lit(_) => Some(e),
         _ => None,
+    }
+}
+
+fn is_direct_access<F>(expr: &Expr, is_top_level_ident: &F) -> bool
+where
+    F: Fn(&Ident) -> bool,
+{
+    if let Some(root) = trace_root_value(&expr) {
+        match root {
+            Expr::Lit(_) => true,
+            Expr::Ident(id) if is_top_level_ident(id) => {
+                if let Expr::Call(CallExpr { args, .. }) = expr {
+                    args.iter().all(|arg| {
+                        let direct_access = is_direct_access(&*arg.expr, is_top_level_ident);
+
+                        direct_access
+                    })
+                } else {
+                    true
+                }
+            }
+            _ => false,
+        }
+    } else {
+        false
     }
 }

@@ -214,3 +214,52 @@ const ObjectPropWithSpread = () => {
     />
   )
 }
+
+
+const id = x => x
+
+const LocalCallInterpolation = p => {
+  const color = 'red'
+
+  return (
+    <p
+      css={`
+        color: ${id(color)};
+      `}
+    >
+      H
+    </p>
+  )
+}
+
+const LocalCallCssHelperProp = p => {
+  const color = 'red'
+
+  return (
+    <p
+      css={css`
+        color: ${id(color)};
+      `}
+    >
+      H
+    </p>
+  )
+}
+
+// issue #38914
+function Home() {
+  const { x } = { x: 4 };
+
+  return (
+    <div
+      css={css`
+      // ReferenceError: x is not defined
+      ${myCss(x)}
+  `}
+    />
+  );
+}
+
+const myCss = x => css`
+  margin: ${x}px;
+`;
