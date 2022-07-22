@@ -117,7 +117,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
  * @param {number|string} appPort
  * @param {string} [pathname]
  * @param {string} [query]
- * @param {RequestInit} opts
+ * @param {RequestInit} [opts]
  * @returns {Response}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
