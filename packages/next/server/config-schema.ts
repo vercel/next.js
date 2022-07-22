@@ -333,7 +333,14 @@ const configSchema = {
           type: 'boolean',
         },
         optimizeCss: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              type: 'object',
+            },
+          ] as any,
         },
         outputFileTracingRoot: {
           minLength: 1,
