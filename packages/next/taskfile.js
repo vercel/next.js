@@ -8,6 +8,8 @@ const glob = require('glob')
 const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const escapeRegex = require('escape-string-regexp')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const resolveFrom = require('resolve-from')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -238,6 +240,26 @@ export async function ncc_edge_runtime_primitives() {
     require.resolve('@edge-runtime/primitives/package.json')
   )
   await fs.remove(dest)
+
+  for (const file of pkg.files) {
+    if (['dist', 'types'].includes(file)) {
+      continue
+    }
+
+    externals[
+      `@edge-runtime/primitives/${file}`
+    ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
+    const dest2 = `compiled/@edge-runtime/primitives/${file}`
+    await fs.outputJson(join(dest2, 'package.json'), {
+      main: `../${file}.js`,
+    })
+
+    await fs.copy(
+      require.resolve(`@edge-runtime/primitives/${file}`),
+      join(dest, `${file}.js`)
+    )
+  }
+
   await fs.outputJson(join(dest, 'package.json'), {
     name: '@edge-runtime/primitives',
     version: pkg.version,
@@ -253,6 +275,23 @@ export async function ncc_edge_runtime_primitives() {
 // eslint-disable-next-line camelcase
 externals['edge-runtime'] = 'next/dist/compiled/edge-runtime'
 export async function ncc_edge_runtime(task, opts) {
+  const vmPath = resolveFrom(
+    dirname(require.resolve('edge-runtime')),
+    '@edge-runtime/vm/dist/edge-vm'
+  )
+
+  const content = await fs.readFile(vmPath, 'utf8')
+
+  // ensure ncc doesn't attempt to bundle dynamic requires
+  // so that they work at runtime correctly
+  await fs.writeFile(
+    vmPath,
+    content.replace(
+      /require\.resolve\('@edge-runtime\/primitives/g,
+      `__non_webpack_require__.resolve('next/dist/compiled/@edge-runtime/primitives`
+    )
+  )
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('edge-runtime')))
     .ncc({ packageName: 'edge-runtime', externals })
@@ -1732,8 +1771,6 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_cssnano_simple',
-        'ncc_edge_runtime_primitives',
-        'ncc_edge_runtime',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
@@ -1841,6 +1878,8 @@ export async function ncc(task, opts) {
       'copy_react_server_dom_webpack',
       'copy_react_is',
       'ncc_jest_worker',
+      'ncc_edge_runtime_primitives',
+      'ncc_edge_runtime',
     ],
     opts
   )
