@@ -96,7 +96,6 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
-    parsedUrl.hash = parsedPathQuery.hash
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname
