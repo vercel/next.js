@@ -82,7 +82,11 @@ export default function AppRouter({
       },
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusRef: { focus: false },
-      canonicalUrl: initialCanonicalUrl,
+      canonicalUrl:
+        initialCanonicalUrl +
+        // Hash is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
+        (typeof window !== 'undefined' ? window.location.hash : ''),
     })
 
   useEffect(() => {

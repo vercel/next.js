@@ -16,6 +16,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    analyticsId: {
+      type: 'string',
+    },
     assetPrefix: {
       minLength: 1,
       type: 'string',
