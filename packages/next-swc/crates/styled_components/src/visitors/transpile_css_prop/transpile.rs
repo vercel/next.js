@@ -656,11 +656,8 @@ where
             Expr::Lit(_) => true,
             Expr::Ident(id) if is_top_level_ident(id) => {
                 if let Expr::Call(CallExpr { args, .. }) = expr {
-                    args.iter().all(|arg| {
-                        let direct_access = is_direct_access(&*arg.expr, is_top_level_ident);
-
-                        direct_access
-                    })
+                    args.iter()
+                        .all(|arg| -> bool { is_direct_access(&*arg.expr, is_top_level_ident) })
                 } else {
                     true
                 }
