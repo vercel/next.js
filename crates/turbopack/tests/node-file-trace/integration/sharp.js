@@ -9,6 +9,6 @@ sharp(roundedCorners)
   .resize(200, 200)
   .png().toBuffer();
 
-sharp(path.resolve(__dirname, '../fixtures/img.jpg'))
+sharp(path.resolve(__dirname, 'fixtures/vercel.svg'))
   .resize({ width: 100, height: 100 })
   .jpeg().toBuffer();

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashSet,
     fmt::{Debug, Display},
 };
@@ -18,6 +19,7 @@ pub enum OutputContent {
     Empty,
     Link(RawVc),
     Error(SharedError),
+    Panic(Option<Cow<'static, str>>),
 }
 
 impl Default for OutputContent {
@@ -32,6 +34,8 @@ impl Display for OutputContent {
             OutputContent::Empty => write!(f, "empty"),
             OutputContent::Link(raw_vc) => write!(f, "link {}", raw_vc),
             OutputContent::Error(err) => write!(f, "error {}", err),
+            OutputContent::Panic(Some(message)) => write!(f, "panic {}", message),
+            OutputContent::Panic(None) => write!(f, "panic"),
         }
     }
 }
@@ -47,6 +51,8 @@ impl Output {
             OutputContent::Empty => Err(anyhow!("Output it empty")),
             OutputContent::Error(err) => Err(err.clone().into()),
             OutputContent::Link(raw_vc) => Ok(*raw_vc),
+            OutputContent::Panic(Some(message)) => Err(anyhow!("Task panic {message}")),
+            OutputContent::Panic(None) => Err(anyhow!("Task panic")),
         }
     }
 
@@ -74,7 +80,7 @@ impl Output {
                     change = Some(target);
                 }
             }
-            OutputContent::Empty | OutputContent::Error(_) => {
+            OutputContent::Empty | OutputContent::Error(_) | OutputContent::Panic(_) => {
                 change = Some(target);
             }
         };
@@ -85,6 +91,19 @@ impl Output {
 
     pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.content = OutputContent::Error(SharedError::new(error));
+        self.updates += 1;
+        // notify
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
+    }
+
+    pub fn panic(
+        &mut self,
+        message: Option<Cow<'static, str>>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.content = OutputContent::Panic(message);
         self.updates += 1;
         // notify
         if !self.dependent_tasks.is_empty() {

@@ -2,6 +2,6 @@
 
 On windows one need to install `llvm` to build `rocksdb`:
 
-``` bat
+```bat
 choco install llvm -y
 ```

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, fs, process};
 
 use semver::Version;
-use serde_json::json;
+use serde_json::Value;
 
 const PLATFORM_LINUX_X64: NpmSupportedPlatform = NpmSupportedPlatform {
     os: "linux",
@@ -101,8 +101,9 @@ pub fn run_publish(name: &str) {
         } else {
             "latest"
         };
-        let current_dir = env::current_dir().expect("Get current dir failed");
-        let temp_dir = current_dir.join("npm");
+        let current_dir = env::current_dir().expect("Unable to get current directory");
+        let package_dir = current_dir.join("packages").join("node-module-trace");
+        let temp_dir = package_dir.join("npm");
         if let Ok(()) = fs::remove_dir_all(&temp_dir) {};
         fs::create_dir(&temp_dir).expect("Unable to create temporary npm directory");
         for platform in pkg.platform.iter() {
@@ -123,8 +124,8 @@ pub fn run_publish(name: &str) {
                 pkg.bin: bin_file_name
               }
             });
-            let dir_name = format!("npm/{}-{}-{}", pkg.crate_name, platform.os, platform.arch);
-            let target_dir = current_dir.join(dir_name);
+            let dir_name = format!("{}-{}-{}", pkg.crate_name, platform.os, platform.arch);
+            let target_dir = package_dir.join("npm").join(dir_name);
             fs::create_dir(&target_dir).expect(&format!("Unable to create dir: {:?}", &target_dir));
             fs::write(
                 target_dir.join("package.json"),
@@ -162,12 +163,11 @@ pub fn run_publish(name: &str) {
             .into_iter()
             .map(|name| (name, version.clone()))
             .collect::<HashMap<String, String>>();
-        let pkg_json = json!({
-          "name": pkg.name,
-          "version": version,
-          "description": pkg.description,
-          "optionalDependencies": optional_dependencies_with_version,
-        });
+        let pkg_json_content =
+            fs::read(&package_dir.join("package.json")).expect("Unable to read package.json");
+        let mut pkg_json: Value = serde_json::from_slice(&pkg_json_content).unwrap();
+        pkg_json["optionalDependencies"] =
+            serde_json::to_value(&optional_dependencies_with_version).unwrap();
         fs::write(
             target_pkg_dir.join("package.json"),
             serde_json::to_string_pretty(&pkg_json).unwrap(),

@@ -6,6 +6,7 @@ use std::{
     future::Future,
     hash::Hash,
     mem::take,
+    panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -17,8 +18,9 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use event_listener::{Event, EventListener};
+use futures::FutureExt;
 use serde::{de::Visitor, Deserialize, Serialize};
-use tokio::{runtime::Handle, select, task::JoinHandle, task_local};
+use tokio::{runtime::Handle, select, task_local};
 
 use crate::{
     backend::{Backend, CellContent, CellMappings, PersistentTaskType, TransientTaskType},
@@ -294,7 +296,7 @@ impl<B: Backend> TurboTasks<B> {
         ))
     }
 
-    pub(crate) fn schedule(&self, task_id: TaskId) -> JoinHandle<()> {
+    pub(crate) fn schedule(&self, task_id: TaskId) {
         let this = self.pin();
         self.begin_primary_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
@@ -321,8 +323,10 @@ impl<B: Backend> TurboTasks<B> {
                                     RefCell::new(execution.cell_mappings.unwrap_or_default());
                                 let (result, duration, cell_mappings) = PREVIOUS_CELLS
                                     .scope(cell_mappings, async {
-                                        let (result, duration) =
-                                            TimedFuture::new(execution.future).await;
+                                        let (result, duration) = TimedFuture::new(
+                                            AssertUnwindSafe(execution.future).catch_unwind(),
+                                        )
+                                        .await;
                                         let cell_mappings = if has_cell_mappings {
                                             Some(
                                                 PREVIOUS_CELLS.with(|s| take(&mut *s.borrow_mut())),
@@ -333,9 +337,6 @@ impl<B: Backend> TurboTasks<B> {
                                         (result, duration, cell_mappings)
                                     })
                                     .await;
-                                if let Err(err) = &result {
-                                    println!("{} errored {}", task_id, err);
-                                }
                                 if duration.as_millis() > 1000 {
                                     println!(
                                         "{} took {}",
@@ -343,6 +344,13 @@ impl<B: Backend> TurboTasks<B> {
                                         FormatDuration(duration)
                                     )
                                 }
+                                let result = result.map_err(|any| match any.downcast::<String>() {
+                                    Ok(owned) => Some(Cow::Owned(*owned)),
+                                    Err(any) => match any.downcast::<&'static str>() {
+                                        Ok(str) => Some(Cow::Borrowed(*str)),
+                                        Err(_) => None,
+                                    },
+                                });
                                 this.backend.task_execution_result(task_id, result, &*this);
                                 this.notify_scheduled_tasks_internal();
                                 let reexecute = this.backend.task_execution_completed(
@@ -359,14 +367,15 @@ impl<B: Backend> TurboTasks<B> {
                             }
                         }
                         this.finish_primary_job();
+                        Ok::<(), anyhow::Error>(())
                     }),
                 ),
             ),
         );
         #[cfg(feature = "tokio_tracing")]
-        return tokio::task::Builder::new().name(&description).spawn(future);
+        tokio::task::Builder::new().name(&description).spawn(future);
         #[cfg(not(feature = "tokio_tracing"))]
-        return tokio::task::spawn(future);
+        tokio::task::spawn(future);
     }
 
     fn begin_primary_job(&self) {
@@ -434,26 +443,30 @@ impl<B: Backend> TurboTasks<B> {
         self.currently_scheduled_tasks.load(Ordering::Acquire)
     }
 
-    pub async fn wait_done(&self) -> (Duration, usize) {
-        let listener = self.event.listen();
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-            listener.await;
-        }
-        self.aggregated_update.lock().unwrap().unwrap()
+    pub async fn wait_task_completion(&self, id: TaskId, fully_settled: bool) -> Result<()> {
+        let result = unsafe { read_task_output_untracked(self, id, fully_settled).await };
+        result.map(|_| ())
     }
 
-    pub async fn wait_next_done(&self, aggregation: Duration) -> (Duration, usize) {
+    pub async fn get_or_wait_update_info(&self, aggregation: Duration) -> (Duration, usize) {
         let listener = self.event.listen();
-        if self.aggregated_update.lock().unwrap().is_none() {
+        if aggregation.is_zero() {
+            if let Some(info) = *self.aggregated_update.lock().unwrap() {
+                return info;
+            }
             listener.await;
-        }
-        loop {
-            select! {
-                () = tokio::time::sleep(aggregation) => {
-                    break;
-                }
-                () = self.event.listen() => {
-                    // Resets the sleep
+        } else {
+            if self.aggregated_update.lock().unwrap().is_none() {
+                listener.await;
+            }
+            loop {
+                select! {
+                    () = tokio::time::sleep(aggregation) => {
+                        break;
+                    }
+                    () = self.event.listen() => {
+                        // Resets the sleep
+                    }
                 }
             }
         }
@@ -725,7 +738,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     }
 
     fn schedule(&self, task: TaskId) {
-        self.schedule(task);
+        self.schedule(task)
     }
 }
 

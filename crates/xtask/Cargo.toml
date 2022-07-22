@@ -11,10 +11,10 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cargo-lock = "8.0.2"
 clap = { version = "3.2.1", features = ["derive"] }
+owo-colors = "3"
+semver = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
-semver = "1"
 tabled = { version = "0.7", features = ["color"] }
-owo-colors = "3"
-cargo-lock = "8.0.2"

@@ -10,11 +10,11 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.53"
+cargo-lock = "8.0.2"
 pmutil = "0.5.3"
 quote = "1.0"
 serde = "1.0.136"
 toml = "0.5"
-cargo-lock = "8.0.2"
 
 [dependencies.syn]
 features = ["full"]

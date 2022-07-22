@@ -1,0 +1,9 @@
+{
+  "name": "@vercel/node-module-trace",
+  "version": "0.0.0-alpha.0",
+  "description": "Node.js module trace",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

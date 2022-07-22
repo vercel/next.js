@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::HashSet,
     future::Future,
@@ -216,9 +217,9 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.get_description())
     }
 
-    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static> =
+    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> =
         TaskLocalFuture<RefCell<HashSet<RawVc>>, T>;
-    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         _task: TaskId,
         future: T,
@@ -247,7 +248,7 @@ impl Backend for MemoryBackend {
     fn task_execution_result(
         &self,
         task: TaskId,
-        result: anyhow::Result<RawVc>,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |task| {

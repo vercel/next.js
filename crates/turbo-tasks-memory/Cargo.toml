@@ -9,14 +9,14 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
 anyhow = "1.0.47"
-turbo-tasks = { path = "../turbo-tasks" }
-event-listener = "2.5.2"
-tokio = "1.11.0"
-flurry = "0.4.0"
 concurrent-queue = "1.2.2"
+event-listener = "2.5.2"
+flurry = "0.4.0"
+lazy_static = "1.4.0"
 num_cpus = "1.13.1"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
 
 [features]
 unsafe_once_map = []
@@ -25,4 +25,3 @@ log_scheduled_tasks = []
 log_activate_tasks = []
 log_connect_tasks = []
 report_expensive = []
-

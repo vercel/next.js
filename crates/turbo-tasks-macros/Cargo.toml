@@ -11,10 +11,10 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.53"
+convert_case = "0.5.0"
 pmutil = "0.5.3"
 proc-macro2 = "1.0.36"
 quote = "1.0"
-convert_case = "0.5.0"
 
 [dependencies.syn]
 features = ["full"]

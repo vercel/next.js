@@ -18,7 +18,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     register();
     include!(concat!(
         env!("OUT_DIR"),
@@ -28,7 +28,7 @@ async fn main() {
     let tt = TurboTasks::new(MemoryBackend::new());
     let start = Instant::now();
 
-    tt.spawn_root_task(|| {
+    let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().to_string();
             let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
@@ -42,11 +42,11 @@ async fn main() {
             Ok(NothingVc::new().into())
         })
     });
-    tt.wait_done().await;
+    tt.wait_task_completion(task, true).await.unwrap();
     println!("done in {}", FormatDuration(start.elapsed()));
 
     loop {
-        let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
+        let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
         println!("updated {} tasks in {}", count, FormatDuration(elapsed));
     }
 }

@@ -158,10 +158,10 @@ pub trait Backend: Sync + Send {
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
     fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
     fn get_task_description(&self, task: TaskId) -> String;
-    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static>: Future<Output = ()>
+    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
         + Send
         + 'static;
-    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         task: TaskId,
         future: T,
@@ -174,7 +174,7 @@ pub trait Backend: Sync + Send {
     fn task_execution_result(
         &self,
         task: TaskId,
-        result: Result<RawVc>,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     );
     fn task_execution_completed(

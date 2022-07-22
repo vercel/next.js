@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
@@ -21,7 +22,7 @@ use turbopack_core::source_asset::SourceAssetVc;
 use turbopack_ecmascript::target::CompileTarget;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     register();
 
     let tt = TurboTasks::new(MemoryBackend::new());
@@ -54,11 +55,11 @@ async fn main() {
     spawn({
         let tt = tt.clone();
         async move {
-            tt.wait_done().await;
+            tt.wait_task_completion(task, true).await.unwrap();
             println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {
-                let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
+                let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
                 println!("updated {} tasks in {}", count, FormatDuration(elapsed));
             }
         }

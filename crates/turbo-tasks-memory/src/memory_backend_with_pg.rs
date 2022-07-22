@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{BinaryHeap, HashSet},
     fmt::Debug,
     future::Future,
@@ -988,8 +989,8 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         format!("{:?}", task_info.task_type)
     }
 
-    type ExecutionScopeFuture<T: Future<Output = ()> + Send + 'static> = T;
-    fn execution_scope<T: Future<Output = ()> + Send + 'static>(
+    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> = T;
+    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         _task: TaskId,
         future: T,
@@ -1057,12 +1058,16 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn task_execution_result(
         &self,
         task: TaskId,
-        result: Result<RawVc>,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let (mut state, _task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState { ref mut memory, .. } = *state;
         let mem_state = memory.as_mut().unwrap();
+        let result = result.unwrap_or_else(|panic| match panic {
+            Some(message) => Err(anyhow!("Task panic {message}")),
+            None => Err(anyhow!("Task panic")),
+        });
         let output_change = if let (Some(Ok(old)), Ok(new)) = (&mem_state.output, &result) {
             old != new
         } else {

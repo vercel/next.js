@@ -94,7 +94,7 @@ pub fn benchmark(c: &mut Criterion) {
                     let tests_root = tests_root.clone();
                     let input = input.clone();
                     async move {
-                        tt.spawn_once_task(async move {
+                        let task = tt.spawn_once_task(async move {
                             let input_fs =
                                 DiskFileSystemVc::new("tests".to_string(), tests_root.clone());
                             let input = FileSystemPathVc::new(input_fs.into(), &input);
@@ -115,7 +115,7 @@ pub fn benchmark(c: &mut Criterion) {
 
                             Ok(NothingVc::new().into())
                         });
-                        tt.wait_done().await;
+                        tt.wait_task_completion(task, true).await;
                     }
                 })
             });

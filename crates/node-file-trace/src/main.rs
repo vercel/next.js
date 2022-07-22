@@ -66,6 +66,11 @@ struct CommonArgs {
 
     #[clap(short, long)]
     watch: bool,
+
+    /// Whether to skip the glob logic
+    /// assume the provided input is not glob even if it contains `*` and `[]`
+    #[clap(short, long)]
+    exact: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -147,17 +152,26 @@ async fn add_glob_results(
 }
 
 #[turbo_tasks::function]
-async fn input_to_modules<'a>(fs: FileSystemVc, input: Vec<String>) -> Result<AssetsVc> {
+async fn input_to_modules<'a>(
+    fs: FileSystemVc,
+    input: Vec<String>,
+    exact: bool,
+) -> Result<AssetsVc> {
     let root = FileSystemPathVc::new(fs, "");
-    let context = ModuleAssetContextVc::new(
+    let context: AssetContextVc = ModuleAssetContextVc::new(
         root,
         GraphOptionsVc::new(false, true, CompileTarget::Current.into()),
     )
     .into();
     let mut list = Vec::new();
     for input in input.iter() {
-        let glob = GlobVc::new(input);
-        add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
+        if exact {
+            let source = SourceAssetVc::new(root.join(input)).into();
+            list.push(context.process(source));
+        } else {
+            let glob = GlobVc::new(input);
+            add_glob_results(context, root.read_glob(glob, false), &mut list).await?;
+        };
     }
     Ok(AssetsVc::cell(list))
 }
@@ -202,7 +216,7 @@ fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<Stri
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
     register();
@@ -287,17 +301,18 @@ async fn main() {
             std::mem::forget(tt)
         },
     )
-    .await;
+    .await
 }
 
 async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: &Args,
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
-) {
+) -> Result<()> {
     let &CommonArgs {
         ref input,
         watch,
+        exact,
         ref context_directory,
         ..
     } = args.common();
@@ -305,20 +320,35 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let start = Instant::now();
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
         if watch {
-            tt.wait_done().await;
-            println!("done in {}", FormatDuration(start.elapsed()));
+            if let Err(e) = tt.wait_task_completion(root_task, true).await {
+                println!("{}", e);
+            }
+            let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
+            println!(
+                "done in {} ({} task execution, {} tasks)",
+                FormatDuration(start.elapsed()),
+                FormatDuration(elapsed),
+                count
+            );
 
             loop {
-                let (elapsed, count) = tt.wait_next_done(Duration::from_millis(100)).await;
+                let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
                 println!("updated {} tasks in {}", count, FormatDuration(elapsed));
             }
         } else {
-            tt.wait_done().await;
+            let result = tt.wait_task_completion(root_task, true).await;
             let dur = start.elapsed();
-            println!("done in {}", FormatDuration(dur));
+            let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
             final_finish(tt, root_task, dur).await;
-            let dur = start.elapsed();
-            println!("all done in {}", FormatDuration(dur));
+            let dur2 = start.elapsed();
+            println!(
+                "done in {} ({} compilation, {} task execution, {} tasks)",
+                FormatDuration(dur2),
+                FormatDuration(dur),
+                FormatDuration(elapsed),
+                count
+            );
+            result
         }
     };
 
@@ -334,7 +364,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 Box::pin(async move {
                     let mut result = BTreeSet::new();
                     let fs = create_fs("context directory", &context, watch).await?;
-                    let modules = input_to_modules(fs, input).await?;
+                    let modules = input_to_modules(fs, input, exact).await?;
                     for module in modules.iter() {
                         let set = all_assets(*module);
                         for asset in set.await?.iter() {
@@ -348,7 +378,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task).await;
+            finish(tt, task).await?;
         }
         Args::Annotate { common: _ } => {
             let dir = current_dir().unwrap();
@@ -360,14 +390,14 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 let input = input.clone();
                 Box::pin(async move {
                     let fs = create_fs("context directory", &context, watch).await?;
-                    for module in input_to_modules(fs, input).await?.iter() {
+                    for module in input_to_modules(fs, input, exact).await?.iter() {
                         let nft_asset = NftJsonAssetVc::new(*module).into();
                         emit(nft_asset)
                     }
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task).await;
+            finish(tt, task).await?;
         }
         Args::Build {
             ref output_directory,
@@ -387,17 +417,18 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                     let out_fs = create_fs("output directory", &output, watch).await?;
                     let input_dir = FileSystemPathVc::new(fs, "");
                     let output_dir = FileSystemPathVc::new(out_fs, "");
-                    for module in input_to_modules(fs, input).await?.iter() {
+                    for module in input_to_modules(fs, input, exact).await?.iter() {
                         let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
                         emit(rebased);
                     }
                     Ok(NothingVc::new().into())
                 })
             });
-            finish(tt, task).await;
+            finish(tt, task).await?;
         }
         Args::Size { common: _ } => todo!(),
     }
+    Ok(())
 }
 
 fn register() {

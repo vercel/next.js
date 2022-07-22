@@ -4,6 +4,7 @@ extern crate turbo_malloc;
 use std::time::Instant;
 use std::{
     collections::VecDeque,
+    env::temp_dir,
     fmt::{Display, Write as _},
     fs::{self, remove_dir_all},
     io::{ErrorKind, Write as _},
@@ -245,7 +246,7 @@ fn node_file_trace<B: Backend + 'static>(
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut tests_root = package_root.clone();
         tests_root.push("tests");
-        let mut tests_output_root = package_root.clone();
+        let mut tests_output_root = temp_dir();
         tests_output_root.push("tests_output");
         let tests_root = tests_root.to_string_lossy().to_string();
         let input = format!("node-file-trace/{input}");

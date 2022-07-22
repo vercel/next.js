@@ -15,18 +15,18 @@ tokio_tracing = ["tokio/tracing"]
 [dependencies]
 any_key = "0.1.1"
 anyhow = "1.0.47"
-tokio = { version = "1.11.0", features = ["full"] }
 bitflags = "1.3.2"
+erased-serde = "0.3.20"
+event-listener = "2.5.2"
 flurry = "0.4.0"
 futures = "0.3.21"
-event-listener = "2.5.2"
 lazy_static = "1.4.0"
-turbo-tasks-macros = { path = "../turbo-tasks-macros" }
-weak-table = "0.3.2"
 mopa = "0.2.0"
 serde = { version = "1.0.136", features = ["rc", "derive"] }
-erased-serde = "0.3.20"
 thiserror = "1.0.31"
+tokio = { version = "1.11.0", features = ["full"] }
+turbo-tasks-macros = { path = "../turbo-tasks-macros" }
+weak-table = "0.3.2"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

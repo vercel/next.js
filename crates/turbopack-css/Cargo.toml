@@ -10,13 +10,13 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.56"
 anyhow = "1.0.47"
+async-trait = "0.1.56"
 serde = "1.0.136"
 
-turbopack-core = { path = "../turbopack-core" }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbopack-core = { path = "../turbopack-core" }
 
 swc_atoms = "0.2.13"
 swc_css_ast = "0.100.0"
@@ -25,12 +25,12 @@ swc_css_parser = "0.109.0"
 swc_css_utils = "0.97.0"
 
 [dependencies.swc_common]
-version = "0.24.3"
 features = ["concurrent"]
+version = "0.24.3"
 
 [dependencies.swc_css_visit]
-version = "0.99.0"
 features = ["path"]
+version = "0.99.0"
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }

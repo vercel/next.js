@@ -406,14 +406,15 @@ impl Task {
 
     pub(crate) fn execution_result(
         &self,
-        result: Result<RawVc>,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.state.write().unwrap();
         match state.state_type {
             InProgress => match result {
-                Ok(result) => state.output.link(result, turbo_tasks),
-                Err(err) => state.output.error(err, turbo_tasks),
+                Ok(Ok(result)) => state.output.link(result, turbo_tasks),
+                Ok(Err(err)) => state.output.error(err, turbo_tasks),
+                Err(message) => state.output.panic(message, turbo_tasks),
             },
             InProgressDirty => {
                 // We don't want to assign the output cell here
