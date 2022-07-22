@@ -33,13 +33,15 @@ async function run() {
     /** @type {Label[]} */
     const labels = issue.labels
 
-    core.info(
-      `Validating issue ${issueNumber}:
-  Labels:
-    New: ${json(newLabel)}
-    All: ${json(labels)}
-  Body: ${body}`
-    )
+    if (debug) {
+      core.info(
+        `Validating issue ${issueNumber}:
+    Labels:
+      New: ${json(newLabel)}
+      All: ${json(labels)}
+    Body: ${body}`
+      )
+    }
 
     const isBugReport = newLabel.name === bugReportLabel
 
