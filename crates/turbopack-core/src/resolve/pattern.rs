@@ -789,6 +789,7 @@ pub async fn read_matches(
                             }
                             prefix.truncate(len)
                         }
+                        DirectoryEntry::Symlink(_) => {}
                         DirectoryEntry::Other(_) => {}
                         DirectoryEntry::Error => {}
                     }

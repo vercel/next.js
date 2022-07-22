@@ -42,6 +42,7 @@ use util::{join_path, normalize_path};
 #[turbo_tasks::value_trait]
 pub trait FileSystem {
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
+    fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
     fn parent_path(&self, fs_path: FileSystemPathVc) -> FileSystemPathVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
@@ -406,6 +407,47 @@ impl FileSystem for DiskFileSystem {
         })
     }
     #[turbo_tasks::function]
+    async fn read_link(&self, fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
+        let path = fs_path.await?;
+        let full_path =
+            Path::new(&self.root).join(&path.path.replace('/', &MAIN_SEPARATOR.to_string()));
+        {
+            let invalidator = turbo_tasks::get_invalidator();
+            self.invalidators
+                .insert(path_to_key(full_path.as_path()), invalidator);
+        }
+        Ok(match self
+            .execute(move || with_retry(move || full_path.read_link()))
+            .await
+        {
+            Ok(file) => {
+                let result = if self.root.starts_with("\\\\?\\") && !file.starts_with("\\\\?\\") {
+                    file.strip_prefix(Path::new(&self.root[4..]))
+                } else {
+                    file.strip_prefix(Path::new(&self.root))
+                };
+                match result {
+                    Ok(file) => {
+                        if let Some(s) = file.to_str() {
+                            let s = if MAIN_SEPARATOR != '/' {
+                                s.replace(MAIN_SEPARATOR, "/")
+                            } else {
+                                s.to_string()
+                            };
+                            LinkContent::Link(FileSystemPathVc::new_normalized(path.fs, s))
+                        } else {
+                            LinkContent::Invalid
+                        }
+                    }
+                    Err(_) => LinkContent::Invalid,
+                }
+            }
+            Err(_) => LinkContent::NotFound,
+        }
+        .into())
+    }
+
+    #[turbo_tasks::function]
     #[allow(unreachable_code)]
     async fn write(
         &self,
@@ -684,6 +726,12 @@ impl FileSystemPathVc {
     }
 
     #[turbo_tasks::function]
+    pub async fn read_link(self) -> Result<LinkContentVc> {
+        let this = self.await?;
+        Ok(this.fs.read_link(self))
+    }
+
+    #[turbo_tasks::function]
     pub async fn read_json(self) -> Result<FileJsonContentVc> {
         let this = self.await?;
         Ok(this.fs.read(self).parse_json())
@@ -732,6 +780,45 @@ impl FileSystemPathVc {
             }
         }
     }
+
+    #[turbo_tasks::function]
+    pub fn realpath(self) -> FileSystemPathVc {
+        self.realpath_with_links().path()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn realpath_with_links(self) -> Result<RealPathResultVc> {
+        let this = self.await?;
+        if this.is_root() {
+            return Ok(RealPathResult {
+                path: self,
+                symlinks: Vec::new(),
+            }
+            .into());
+        }
+        let segments = this.path.split("/");
+        let mut current = self.root();
+        let mut symlinks = Vec::new();
+        for segment in segments {
+            current = current.join(segment);
+            while let LinkContent::Link(target) = &*current.read_link().await? {
+                symlinks.push(current.resolve().await?);
+                current = *target;
+            }
+        }
+        if symlinks.is_empty() {
+            return Ok(RealPathResult {
+                path: self,
+                symlinks: Vec::new(),
+            }
+            .into());
+        }
+        return Ok(RealPathResult {
+            path: current.resolve().await?,
+            symlinks,
+        }
+        .into());
+    }
 }
 
 impl FileSystemPathVc {
@@ -753,6 +840,21 @@ impl ValueToString for FileSystemPath {
             self.fs.to_string().await?,
             self.path
         )))
+    }
+}
+
+#[derive(Clone, Debug)]
+#[turbo_tasks::value(shared)]
+pub struct RealPathResult {
+    pub path: FileSystemPathVc,
+    pub symlinks: Vec<FileSystemPathVc>,
+}
+
+#[turbo_tasks::value_impl]
+impl RealPathResultVc {
+    #[turbo_tasks::function]
+    pub async fn path(self) -> Result<FileSystemPathVc> {
+        Ok(self.await?.path)
     }
 }
 
@@ -785,6 +887,13 @@ impl From<Permissions> for fs::Permissions {
 #[turbo_tasks::value(shared)]
 pub enum FileContent {
     Content(File),
+    NotFound,
+}
+
+#[turbo_tasks::value(shared)]
+pub enum LinkContent {
+    Link(FileSystemPathVc),
+    Invalid,
     NotFound,
 }
 
@@ -1019,6 +1128,7 @@ pub enum FileJsonContent {
 pub enum DirectoryEntry {
     File(FileSystemPathVc),
     Directory(FileSystemPathVc),
+    Symlink(FileSystemPathVc),
     Other(FileSystemPathVc),
     Error,
 }
@@ -1029,7 +1139,18 @@ pub enum FileSystemEntryType {
     NotFound,
     File,
     Directory,
+    Symlink,
     Other,
+    Error,
+}
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Copy, Debug)]
+pub enum ResolvedFileSystemEntry {
+    NotFound,
+    File(FileSystemPathVc),
+    Directory(FileSystemPathVc),
+    Other(FileSystemPathVc),
     Error,
 }
 
@@ -1038,6 +1159,7 @@ impl From<DirectoryEntry> for FileSystemEntryType {
         match entry {
             DirectoryEntry::File(_) => FileSystemEntryType::File,
             DirectoryEntry::Directory(_) => FileSystemEntryType::Directory,
+            DirectoryEntry::Symlink(_) => FileSystemEntryType::Symlink,
             DirectoryEntry::Other(_) => FileSystemEntryType::Other,
             DirectoryEntry::Error => FileSystemEntryType::Error,
         }
@@ -1049,6 +1171,7 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
         match entry {
             DirectoryEntry::File(_) => FileSystemEntryType::File,
             DirectoryEntry::Directory(_) => FileSystemEntryType::Directory,
+            DirectoryEntry::Symlink(_) => FileSystemEntryType::Symlink,
             DirectoryEntry::Other(_) => FileSystemEntryType::Other,
             DirectoryEntry::Error => FileSystemEntryType::Error,
         }

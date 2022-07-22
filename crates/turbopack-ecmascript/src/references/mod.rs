@@ -98,7 +98,6 @@ pub(crate) async fn analyze_ecmascript_module(
     let mut code_gen = Vec::new();
     let mut exports = EcmascriptExports::None;
     let path = source.path();
-    let path_debug = path.to_string().await?;
 
     let mut import_references = HashMap::new();
 
@@ -110,18 +109,18 @@ pub(crate) async fn analyze_ecmascript_module(
     let parsed = parse(source, ty, transforms);
 
     match &*find_context_file(path.parent(), "package.json").await? {
-        FindContextFileResult::Found(package_json) => {
+        FindContextFileResult::Found(package_json, _) => {
             references.push(PackageJsonReferenceVc::new(*package_json).into());
         }
-        FindContextFileResult::NotFound => {}
+        FindContextFileResult::NotFound(_) => {}
     };
 
     if is_typescript {
         match &*find_context_file(path.parent(), "tsconfig.json").await? {
-            FindContextFileResult::Found(tsconfig) => {
+            FindContextFileResult::Found(tsconfig, _) => {
                 references.push(TsConfigReferenceVc::new(*tsconfig, context).into());
             }
-            FindContextFileResult::NotFound => {}
+            FindContextFileResult::NotFound(_) => {}
         };
     }
 

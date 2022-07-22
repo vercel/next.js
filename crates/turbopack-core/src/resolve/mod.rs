@@ -215,6 +215,15 @@ impl ResolveResultVc {
     }
 
     #[turbo_tasks::function]
+    pub async fn add_references(self, references: Vec<AssetReferenceVc>) -> Result<Self> {
+        let mut this = self.await?.clone();
+        for reference in references {
+            this.add_reference(reference);
+        }
+        Ok(this.into())
+    }
+
+    #[turbo_tasks::function]
     pub async fn alternatives(results: Vec<ResolveResultVc>) -> Result<Self> {
         if results.len() == 1 {
             return Ok(results.into_iter().next().unwrap());
@@ -228,6 +237,36 @@ impl ResolveResultVc {
             Ok(Self::cell(current))
         } else {
             Ok(Self::cell(ResolveResult::Unresolveable(Vec::new())))
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn alternatives_with_references(
+        results: Vec<ResolveResultVc>,
+        references: Vec<AssetReferenceVc>,
+    ) -> Result<Self> {
+        if references.is_empty() {
+            return Self::alternatives_inline(results).await;
+        }
+        if results.len() == 1 {
+            return Ok(results
+                .into_iter()
+                .next()
+                .unwrap()
+                .add_references(references));
+        }
+        let mut iter = results.into_iter();
+        if let Some(current) = iter.next() {
+            let mut current = current.await?.clone();
+            for reference in references {
+                current.add_reference(reference)
+            }
+            for result in iter {
+                current.merge_alternatives(&*result.await?);
+            }
+            Ok(Self::cell(current))
+        } else {
+            Ok(Self::cell(ResolveResult::Unresolveable(references)))
         }
     }
 
@@ -258,18 +297,35 @@ impl ResolveResultVc {
     }
 }
 
-async fn exists(fs_path: FileSystemPathVc) -> Result<bool> {
-    Ok(matches!(
-        &*fs_path.get_type().await?,
-        FileSystemEntryType::File
-    ))
+async fn exists(
+    fs_path: FileSystemPathVc,
+    refs: &mut Vec<AssetReferenceVc>,
+) -> Result<Option<FileSystemPathVc>> {
+    type_exists(fs_path, FileSystemEntryType::File, refs).await
 }
 
-async fn dir_exists(fs_path: FileSystemPathVc) -> Result<bool> {
-    Ok(matches!(
-        &*fs_path.get_type().await?,
-        FileSystemEntryType::Directory
-    ))
+async fn dir_exists(
+    fs_path: FileSystemPathVc,
+    refs: &mut Vec<AssetReferenceVc>,
+) -> Result<Option<FileSystemPathVc>> {
+    type_exists(fs_path, FileSystemEntryType::Directory, refs).await
+}
+
+async fn type_exists(
+    fs_path: FileSystemPathVc,
+    ty: FileSystemEntryType,
+    refs: &mut Vec<AssetReferenceVc>,
+) -> Result<Option<FileSystemPathVc>> {
+    let result = fs_path.realpath_with_links().await?;
+    for link in result.symlinks.iter() {
+        refs.push(AffectingResolvingAssetReferenceVc::new(*link).into());
+    }
+    let path = result.path;
+    Ok(if *path.get_type().await? == ty {
+        Some(path)
+    } else {
+        None
+    })
 }
 
 #[turbo_tasks::value(shared)]
@@ -310,8 +366,8 @@ async fn exports_field(
 
 #[turbo_tasks::value(shared)]
 pub enum FindContextFileResult {
-    Found(FileSystemPathVc),
-    NotFound,
+    Found(FileSystemPathVc, Vec<AssetReferenceVc>),
+    NotFound(Vec<AssetReferenceVc>),
 }
 
 #[turbo_tasks::function]
@@ -319,23 +375,40 @@ pub async fn find_context_file(
     context: FileSystemPathVc,
     name: &str,
 ) -> Result<FindContextFileResultVc> {
+    let mut refs = Vec::new();
     let context_value = context.await?;
     if let Some(new_path) = join_path(&context_value.path, name) {
         let fs_path = FileSystemPathVc::new_normalized(context_value.fs, new_path);
-        if exists(fs_path).await? {
-            return Ok(FindContextFileResult::Found(fs_path).into());
+        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+            return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
     if context_value.is_root() {
-        return Ok(FindContextFileResult::NotFound.into());
+        return Ok(FindContextFileResult::NotFound(refs).into());
     }
-    Ok(find_context_file(context.parent(), name))
+    if refs.is_empty() {
+        // Tailcall
+        Ok(find_context_file(context.parent(), name))
+    } else {
+        let parent_result = find_context_file(context.parent(), name).await?;
+        Ok(match &*parent_result {
+            FindContextFileResult::Found(p, r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::Found(*p, refs)
+            }
+            FindContextFileResult::NotFound(r) => {
+                refs.extend(r.iter().copied());
+                FindContextFileResult::NotFound(refs)
+            }
+        }
+        .into())
+    }
 }
 
 #[turbo_tasks::value(shared)]
 enum FindPackageResult {
-    Package(FileSystemPathVc),
-    NotFound,
+    Package(FileSystemPathVc, Vec<AssetReferenceVc>),
+    NotFound(Vec<AssetReferenceVc>),
 }
 
 #[turbo_tasks::function]
@@ -344,6 +417,7 @@ async fn find_package(
     package_name: String,
     options: ResolveModulesOptionsVc,
 ) -> Result<FindPackageResultVc> {
+    let mut refs = Vec::new();
     let options = options.await?;
     for resolve_modules in &options.modules {
         match resolve_modules {
@@ -353,17 +427,12 @@ async fn find_package(
                 while context_value.is_inside(&*root.await?) {
                     for name in names.iter() {
                         if let Some(nested_path) = join_path(&context_value.path, name) {
-                            if let Some(new_path) = join_path(&nested_path, &package_name) {
-                                let fs_path =
-                                    FileSystemPathVc::new_normalized(context_value.fs, nested_path);
-                                if dir_exists(fs_path).await? {
-                                    let fs_path = FileSystemPathVc::new_normalized(
-                                        context_value.fs,
-                                        new_path,
-                                    );
-                                    if dir_exists(fs_path).await? {
-                                        return Ok(FindPackageResult::Package(fs_path).into());
-                                    }
+                            let fs_path =
+                                FileSystemPathVc::new_normalized(context_value.fs, nested_path);
+                            if let Some(fs_path) = dir_exists(fs_path, &mut refs).await? {
+                                let fs_path = fs_path.join(&package_name);
+                                if let Some(fs_path) = dir_exists(fs_path, &mut refs).await? {
+                                    return Ok(FindPackageResult::Package(fs_path, refs).into());
                                 }
                             }
                         }
@@ -378,14 +447,16 @@ async fn find_package(
             }
             ResolveModules::Path(context) => {
                 let package_dir = context.join(&package_name);
-                if dir_exists(package_dir).await? {
-                    return Ok(FindPackageResult::Package(package_dir.resolve().await?).into());
+                if let Some(package_dir) = dir_exists(package_dir, &mut refs).await? {
+                    return Ok(
+                        FindPackageResult::Package(package_dir.resolve().await?, refs).into(),
+                    );
                 }
             }
             ResolveModules::Registry(_, _) => todo!(),
         }
     }
-    Ok(FindPackageResult::NotFound.into())
+    Ok(FindPackageResult::NotFound(refs).into())
 }
 
 fn merge_results(results: Vec<ResolveResultVc>) -> ResolveResultVc {
@@ -393,6 +464,24 @@ fn merge_results(results: Vec<ResolveResultVc>) -> ResolveResultVc {
         0 => ResolveResult::unresolveable().into(),
         1 => results.into_iter().next().unwrap(),
         _ => ResolveResultVc::alternatives(results),
+    }
+}
+
+fn merge_results_with_references(
+    results: Vec<ResolveResultVc>,
+    references: Vec<AssetReferenceVc>,
+) -> ResolveResultVc {
+    if references.is_empty() {
+        return merge_results(results);
+    }
+    match results.len() {
+        0 => ResolveResult::Unresolveable(references).into(),
+        1 => results
+            .into_iter()
+            .next()
+            .unwrap()
+            .add_references(references),
+        _ => ResolveResultVc::alternatives_with_references(results, references),
     }
 }
 
@@ -524,10 +613,10 @@ pub async fn resolve(
             }
         }
         // other options do not apply anymore when an exports field exist
-        let resolved = merge_results(resolved_results);
-        let resolved =
-            resolved.add_reference(AffectingResolvingAssetReferenceVc::new(package_json).into());
-        Ok(resolved)
+        Ok(merge_results_with_references(
+            resolved_results,
+            vec![AffectingResolvingAssetReferenceVc::new(package_json).into()],
+        ))
     }
 
     async fn resolve_into_folder(
@@ -673,8 +762,8 @@ pub async fn resolve(
         }
         Request::Module { module, path } => {
             let package = find_package(context, module.clone(), resolve_modules_options(options));
-            match *package.await? {
-                FindPackageResult::Package(package_path) => {
+            match &*package.await? {
+                FindPackageResult::Package(package_path, refs) => {
                     let package_path_value = package_path.await?;
                     let package_json = {
                         if let Some(new_path) = join_path(&package_path_value.path, "package.json")
@@ -689,7 +778,7 @@ pub async fn resolve(
                     let mut results = Vec::new();
                     if path.is_match("") {
                         results
-                            .push(resolve_into_folder(package_path, package_json, options).await?);
+                            .push(resolve_into_folder(*package_path, package_json, options).await?);
                     }
                     if path.could_match_others("") {
                         for resolve_into_package in options_value.into_package.iter() {
@@ -700,7 +789,7 @@ pub async fn resolve(
                                     if path.is_match("/") {
                                         results.push(
                                             resolve_into_folder(
-                                                package_path,
+                                                *package_path,
                                                 package_json,
                                                 options,
                                             )
@@ -719,7 +808,7 @@ pub async fn resolve(
                                         {
                                             if let Some(path) = path.clone().into_string() {
                                                 results.push(handle_exports_field(
-                                                    package_path,
+                                                    *package_path,
                                                     package_json_path,
                                                     options,
                                                     exports_field,
@@ -744,11 +833,13 @@ pub async fn resolve(
                         let mut new_pat = path.clone();
                         new_pat.push_front(".".to_string().into());
                         let relative = RequestVc::relative(Value::new(new_pat), true);
-                        results.push(resolve(package_path, relative, options));
+                        results.push(resolve(*package_path, relative, options));
                     }
-                    merge_results(results)
+                    merge_results_with_references(results, refs.clone())
                 }
-                FindPackageResult::NotFound => ResolveResult::unresolveable().into(),
+                FindPackageResult::NotFound(refs) => {
+                    ResolveResult::Unresolveable(refs.clone()).into()
+                }
             }
         }
         Request::ServerRelative { path } => {

@@ -137,10 +137,10 @@ pub async fn typescript_resolve_options(context: FileSystemPathVc) -> Result<Res
     let cjs_resolve_options = apply_cjs_specific_options(base_resolve_options);
     let mut options = apply_typescript_options(base_resolve_options);
     match *tsconfig {
-        FindContextFileResult::Found(path) => {
+        FindContextFileResult::Found(path, _) => {
             options = apply_tsconfig(options, path, cjs_resolve_options);
         }
-        FindContextFileResult::NotFound => {}
+        FindContextFileResult::NotFound(_) => {}
     }
     Ok(options)
 }
