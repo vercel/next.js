@@ -49,7 +49,8 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { serverComponentRegex } from '../../build/webpack/loaders/utils'
-import { stringify } from 'querystring'
+import { ParsedUrlQuery, stringify } from 'querystring'
+import resolveRewrites from '../../shared/lib/router/utils/resolve-rewrites'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -77,8 +78,27 @@ export async function renderScriptError(
   res.end('500 - Internal Error')
 }
 
-function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  const isApiRoute = req.url!.match(API_ROUTE)
+function isApiRouteAfterRewrites(
+  parsedUrl: UrlObject,
+  rewrites: HotReloader['rewrites']
+): boolean {
+  const rewrittenRoute = resolveRewrites(
+    parsedUrl.pathname as string,
+    [],
+    rewrites,
+    parsedUrl.query as ParsedUrlQuery,
+    (s) => s
+  ).resolvedHref
+  if (!rewrittenRoute)
+    return Boolean((parsedUrl.pathname || '').match(API_ROUTE))
+  return Boolean(rewrittenRoute.match(API_ROUTE))
+}
+
+function addCorsSupport(
+  req: IncomingMessage,
+  res: ServerResponse,
+  isApiRoute: boolean
+) {
   // API routes handle their own CORS headers
   if (isApiRoute) {
     return { preflight: false }
@@ -234,7 +254,11 @@ export default class HotReloader {
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
     // That's when the CORS support is needed.
-    const { preflight } = addCorsSupport(req, res)
+    const { preflight } = addCorsSupport(
+      req,
+      res,
+      isApiRouteAfterRewrites(parsedUrl, this.rewrites)
+    )
     if (preflight) {
       return {}
     }
