@@ -493,7 +493,6 @@ For further reading, you may find these resources helpful:
 
 The Next.js community has created packages and articles you may find helpful:
 
-- [next-page-tester](https://github.com/toomuchdesign/next-page-tester) for DOM Integration Testing.
 - [next-router-mock](https://github.com/scottrippey/next-router-mock) for Storybook.
 - [Test Preview Vercel Deploys with Cypress](https://glebbahmutov.com/blog/develop-preview-test/) by Gleb Bahmutov.
 

@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -23,6 +23,7 @@ describe('app dir', () => {
     next = await createNext({
       files: {
         public: new FileRef(path.join(__dirname, 'app/public')),
+        styles: new FileRef(path.join(__dirname, 'app/styles')),
         pages: new FileRef(path.join(__dirname, 'app/pages')),
         app: new FileRef(path.join(__dirname, 'app/app')),
         'next.config.js': new FileRef(
@@ -241,6 +242,20 @@ describe('app dir', () => {
       }
     }
   )
+
+  it('should handle hash in initial url', async () => {
+    const browser = await webdriver(next.url, '/dashboard#abc')
+
+    try {
+      // Check if hash is preserved
+      expect(await browser.eval('window.location.hash')).toBe('#abc')
+      await waitFor(1000)
+      // Check again to be sure as it might be timed different
+      expect(await browser.eval('window.location.hash')).toBe('#abc')
+    } finally {
+      await browser.close()
+    }
+  })
 
   describe('<Link />', () => {
     // TODO-APP: fix development test
