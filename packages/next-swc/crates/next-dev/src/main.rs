@@ -54,13 +54,13 @@ struct Cli {
 
 #[tokio::main]
 async fn main() {
+    let start = Instant::now();
+
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
     register();
 
     let args = Cli::parse();
-
-    let start = Instant::now();
 
     let dir = args
         .dir
@@ -159,11 +159,12 @@ async fn main() {
         .unwrap();
     join! {
         async move {
-            tt_clone.wait_done().await;
-            println!("initial request prepared in {}", FormatDuration(start.elapsed()));
+            let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::ZERO).await;
+            println!("initial compilation {} ({} task execution, {} tasks)", FormatDuration(start.elapsed()), FormatDuration(elapsed), count);
+
             loop {
-                let (elapsed, count) = tt_clone.wait_next_done(Duration::from_millis(100)).await;
-                println!("updated {} tasks in {}", count, FormatDuration(elapsed));
+                let (elapsed, count) = tt_clone.get_or_wait_update_info(Duration::from_millis(100)).await;
+                println!("updated in {} ({} tasks)", FormatDuration(elapsed), count);
             }
         },
         async {

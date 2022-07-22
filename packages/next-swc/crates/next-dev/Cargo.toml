@@ -11,21 +11,25 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-tokio_console = ["dep:console-subscriber", "tokio/tracing", "turbo-tasks/tokio_tracing"]
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
 
 [dependencies]
+anyhow = "1.0.47"
 clap = { version = "3.1.3", features = ["derive"] }
+console-subscriber = { version = "0.1.6", optional = true }
+json = "0.12.4"
+serde = "1.0.136"
+tokio = { version = "1.11.0", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
-anyhow = "1.0.47"
-tokio = { version = "1.11.0", features = ["full"] }
-json = "0.12.4"
-serde = "1.0.136"
-console-subscriber = { version = "0.1.6", optional = true }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
