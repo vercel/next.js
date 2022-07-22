@@ -520,7 +520,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     return legacyBehavior ? (
-      React.cloneElement(child, childProps)
+      typeof child.type === 'string' ? (
+        React.cloneElement(child, childProps)
+      ) : (
+        child
+      )
     ) : (
       <a {...restProps} {...childProps}>
         {children}
