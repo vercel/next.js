@@ -29,6 +29,7 @@ export default function getRouteFromEntrypoint(
 
   if (app) {
     pagePath = matchBundle(APP_ROUTE_NAME_REGEX, entryFile)
+    if (typeof pagePath === 'string' && !pagePath) pagePath = '/'
     if (pagePath) return pagePath
   }
 

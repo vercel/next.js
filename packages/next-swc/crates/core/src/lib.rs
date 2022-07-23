@@ -202,8 +202,9 @@ impl TransformOptions {
     pub fn patch(mut self, fm: &SourceFile) -> Self {
         self.swc.swcrc = false;
 
-        let should_enable_commonjs =
-            self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
+        let should_enable_commonjs = self.swc.config.module.is_none()
+            && (fm.src.contains("module.exports") || fm.src.contains("__esModule"))
+            && {
                 let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
                 let target = self.swc.config.jsc.target.unwrap_or_else(EsVersion::latest);
 

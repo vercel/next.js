@@ -9,7 +9,7 @@
     "next": "latest",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "supertokens-auth-react": "^0.21.2",
-    "supertokens-node": "^9.1.1"
+    "supertokens-auth-react": "^0.24.0",
+    "supertokens-node": "^11.0.0"
   }
 }

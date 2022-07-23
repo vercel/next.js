@@ -1,6 +1,9 @@
-import type { ServerRuntime } from '../../server/config-shared'
+import { isServerRuntime, ServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
-import { tryToExtractExportedConstValue } from './extract-const-value'
+import {
+  extractExportedConstValue,
+  UnsupportedValueError,
+} from './extract-const-value'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
@@ -32,13 +35,41 @@ export async function getPageStaticInfo(params: {
   isDev?: boolean
   page?: string
 }): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig } = params
+  const { isDev, pageFilePath, nextConfig, page } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (/runtime|getStaticProps|getServerSideProps|matcher/.test(fileContent)) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr } = checkExports(swcAST)
-    const config = tryToExtractExportedConstValue(swcAST, 'config') || {}
+
+    // default / failsafe value for config
+    let config: any = {}
+    try {
+      config = extractExportedConstValue(swcAST, 'config')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        warnAboutUnsupportedValue(pageFilePath, page, e)
+      }
+      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    }
+
+    if (
+      typeof config.runtime !== 'string' &&
+      typeof config.runtime !== 'undefined'
+    ) {
+      throw new Error(`Provided runtime `)
+    } else if (!isServerRuntime(config.runtime)) {
+      const options = Object.values(SERVER_RUNTIME).join(', ')
+      if (typeof config.runtime !== 'string') {
+        throw new Error(
+          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+        )
+      } else {
+        throw new Error(
+          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+        )
+      }
+    }
 
     let runtime =
       SERVER_RUNTIME.edge === config?.runtime
@@ -200,3 +231,27 @@ function warnAboutExperimentalEdgeApiFunctions() {
 }
 
 let warnedAboutExperimentalEdgeApiFunctions = false
+
+const warnedUnsupportedValueMap = new Map<string, boolean>()
+function warnAboutUnsupportedValue(
+  pageFilePath: string,
+  page: string | undefined,
+  error: UnsupportedValueError
+) {
+  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+    return
+  }
+
+  Log.warn(
+    `Next.js can't recognize the exported \`config\` field in ` +
+      (page ? `route "${page}"` : `"${pageFilePath}"`) +
+      ':\n' +
+      error.message +
+      (error.path ? ` at "${error.path}"` : '') +
+      '.\n' +
+      'The default config will be used instead.\n' +
+      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
+  )
+
+  warnedUnsupportedValueMap.set(pageFilePath, true)
+}

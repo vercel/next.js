@@ -72,8 +72,6 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
 - [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
 
-You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
-
 This will take precedence over the configuration from `next.config.js`.
 
 ## ESLint Plugin
@@ -128,7 +126,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 
 ## Linting Custom Directories and Files
 
-By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
+By default, Next.js will run ESLint for all files in the `pages/`, `components/`, `lib/`, and `src/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
 
 ```js
 module.exports = {

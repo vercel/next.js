@@ -39,7 +39,7 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
   delete query.__flight__
   delete query.__props__
   // routing
-  delete query.__flight_router_path__
+  delete query.__flight_router_state_tree__
 
   return query
 }
