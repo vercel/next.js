@@ -1517,7 +1517,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           !hadCache &&
           !this.minimalMode
         ) {
-          await this.render404(req, res)
+          // Use a minimal 404 response to save bandwidth since it is only
+          // handled internally
+          res.statusCode = 404
+          res.setHeader(
+            'Cache-Control',
+            'no-cache, no-store, max-age=0, must-revalidate'
+          )
+          res.send()
           return null
         }
 
