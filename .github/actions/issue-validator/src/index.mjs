@@ -1,7 +1,6 @@
 // @ts-check
 import * as github from '@actions/github'
 import * as core from '@actions/core'
-import { fetch } from 'undici'
 
 const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'

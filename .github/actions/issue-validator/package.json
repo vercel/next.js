@@ -1,15 +1,14 @@
 {
   "private": true,
-  "main": "dist/index.js",
+  "exports": "./index.mjs",
   "scripts": {
-    "build": "ncc -m -o . build src/index.js --license licenses.txt"
+    "build": "ncc -m -o . build src/index.mjs --license licenses.txt"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0"
   },
   "dependencies": {
     "@actions/core": "1.9.0",
-    "@actions/github": "5.0.3",
-    "undici": "5.8.0"
+    "@actions/github": "5.0.3"
   }
 }
