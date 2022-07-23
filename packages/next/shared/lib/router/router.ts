@@ -1499,7 +1499,7 @@ export default class Router implements BaseRouter {
         !upcomingScrollState &&
         !readyStateChange &&
         !localeChange &&
-        compareRouterStates(upcomingRouterState, this.state) 
+        compareRouterStates(upcomingRouterState, this.state)
 
       if (!canSkipUpdating) {
         await this.set(
