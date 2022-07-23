@@ -27,16 +27,14 @@ const runTests = () => {
 
   describe('with rewrites', () => {
     // TODO: Figure out the `isReady` issue.
-    // it('should not trigger unncessary rerenders when rewrites or middleware are used', async () => {
-    //   const browser = await webdriver(appPort, '/')
-    //   await new Promise((resolve) => setTimeout(resolve, 100))
-    //   expect(await browser.eval('window.__renders')).toEqual([undefined])
-    // })
-    // it('should rerender with the correct query parameter if present with rewrites', async () => {
-    //   const browser = await webdriver(appPort, '/rewrite')
-    //   await new Promise((resolve) => setTimeout(resolve, 100))
-    //   expect(await browser.eval('window.__renders')).toEqual([undefined, 'bar'])
-    // })
+    it.todo(
+      'should not trigger unncessary rerenders when rewrites are used',
+      async () => {}
+    )
+    it.todo(
+      'should rerender with the correct query parameter if present with rewrites',
+      async () => {}
+    )
   })
 }
 
