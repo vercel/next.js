@@ -1497,9 +1497,9 @@ export default class Router implements BaseRouter {
       const canSkipUpdating =
         (options as any)._h &&
         !upcomingScrollState &&
-        compareRouterStates(upcomingRouterState, this.state) &&
         !readyStateChange &&
-        !localeChange
+        !localeChange &&
+        compareRouterStates(upcomingRouterState, this.state) 
 
       if (!canSkipUpdating) {
         await this.set(
