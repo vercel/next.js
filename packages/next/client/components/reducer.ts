@@ -12,7 +12,6 @@ const fillCacheWithNewSubTreeData = (
   existingCache: CacheNode,
   flightDataPath: FlightDataPath
 ) => {
-  // TODO: handle case of / (root of the tree) refetch
   const isLastEntry = flightDataPath.length <= 4
   const [parallelRouteKey, segment] = flightDataPath
 
@@ -149,12 +148,50 @@ const fillCacheWithDataProperty = (
   )
 }
 
+const canOptimisticallyRender = (
+  segments: string[],
+  flightRouterState: FlightRouterState
+): boolean => {
+  const segment = segments[0]
+  const isLastSegment = segments.length === 1
+  const [existingSegment, existingParallelRoutes, , , loadingMarker] =
+    flightRouterState
+  // If the segments mismatch we can't resolve deeper into the tree
+  const segmentMatches = matchSegment(existingSegment, segment)
+
+  // If the segment mismatches we can't assume this level has loading
+  if (!segmentMatches) {
+    return false
+  }
+
+  const hasLoading = loadingMarker === 'loading'
+  // If the tree path holds at least one loading.js it will be optimistic
+  if (hasLoading) {
+    return true
+  }
+  // Above already catches the last segment case where `hasLoading` is true, so in this case it would always be `false`.
+  if (isLastSegment) {
+    return false
+  }
+
+  // If the existingParallelRoutes does not have a `children` parallelRouteKey we can't resolve deeper into the tree
+  if (!existingParallelRoutes.children) {
+    return hasLoading
+  }
+
+  // Resolve deeper in the tree as the current level did not have a loading marker
+  return canOptimisticallyRender(
+    segments.slice(1),
+    existingParallelRoutes.children
+  )
+}
+
 const createOptimisticTree = (
   segments: string[],
   flightRouterState: FlightRouterState | null,
-  isFirstSegment: boolean,
+  _isFirstSegment: boolean,
   parentRefetch: boolean,
-  href?: string
+  _href?: string
 ): FlightRouterState => {
   const [existingSegment, existingParallelRoutes] = flightRouterState || [
     null,
@@ -163,11 +200,12 @@ const createOptimisticTree = (
   const segment = segments[0]
   const isLastSegment = segments.length === 1
 
-  const shouldRefetchThisLevel =
-    !flightRouterState || segment !== flightRouterState[0]
+  const segmentMatches =
+    existingSegment !== null && matchSegment(existingSegment, segment)
+  const shouldRefetchThisLevel = !flightRouterState || !segmentMatches
 
   let parallelRoutes: FlightRouterState[1] = {}
-  if (existingSegment !== null && matchSegment(existingSegment, segment)) {
+  if (existingSegment !== null && segmentMatches) {
     parallelRoutes = existingParallelRoutes
   }
 
@@ -195,9 +233,15 @@ const createOptimisticTree = (
     result[3] = 'refetch'
   }
 
+  // TODO-APP: Revisit
   // Add url into the tree
-  if (isFirstSegment) {
-    result[2] = href
+  // if (isFirstSegment) {
+  //   result[2] = href
+  // }
+
+  // Copy the loading flag from existing tree
+  if (flightRouterState && flightRouterState[4]) {
+    result[4] = flightRouterState[4]
   }
 
   return result
@@ -208,11 +252,23 @@ const walkTreeWithFlightDataPath = (
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
 ): FlightRouterState => {
-  const [segment, parallelRoutes, url] = flightRouterState
+  const [segment, parallelRoutes /* , url */] = flightRouterState
+
+  // Root refresh
+  if (flightSegmentPath.length === 1) {
+    const tree: FlightRouterState = [...treePatch]
+
+    // TODO-APP: revisit
+    // if (url) {
+    //   tree[2] = url
+    // }
+
+    return tree
+  }
+
   const [currentSegment, parallelRouteKey] = flightSegmentPath
 
   // Tree path returned from the server should always match up with the current tree in the browser
-  // TODO: verify
   if (!matchSegment(currentSegment, segment)) {
     throw new Error('SEGMENT MISMATCH')
   }
@@ -233,23 +289,50 @@ const walkTreeWithFlightDataPath = (
     },
   ]
 
-  if (url) {
-    tree.push(url)
+  // TODO-APP: Revisit
+  // if (url) {
+  //   tree[2] = url
+  // }
+
+  // Copy loading flag
+  if (flightRouterState[4]) {
+    tree[4] = flightRouterState[4]
   }
 
   return tree
 }
 
+type PushRef = {
+  pendingPush: boolean
+  mpaNavigation: boolean
+}
+
+export type FocusRef = {
+  focus: boolean
+}
+
 type AppRouterState = {
   tree: FlightRouterState
   cache: CacheNode
-  pushRef: { pendingPush: boolean; mpaNavigation: boolean }
+  pushRef: PushRef
+  focusRef: FocusRef
   canonicalUrl: string
 }
 
 export function reducer(
   state: AppRouterState,
   action:
+    | {
+        type: 'reload'
+        payload: {
+          url: URL
+          cache: CacheNode
+          mutable: {
+            previousTree?: FlightRouterState
+            patchedTree?: FlightRouterState
+          }
+        }
+      }
     | {
         type: 'navigate'
         payload: {
@@ -280,6 +363,7 @@ export function reducer(
     return {
       canonicalUrl: href,
       pushRef: state.pushRef,
+      focusRef: state.focusRef,
       cache: state.cache,
       tree: tree,
     }
@@ -292,7 +376,7 @@ export function reducer(
     const href = url.pathname + url.search + url.hash
 
     const segments = pathname.split('/')
-    // TODO: figure out something better for index pages
+    // TODO-APP: figure out something better for index pages
     segments.push('')
 
     // In case of soft push data fetching happens in layout-router if a segment is missing
@@ -308,6 +392,7 @@ export function reducer(
       return {
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
         cache: state.cache,
         tree: optimisticTree,
       }
@@ -324,13 +409,14 @@ export function reducer(
         return {
           canonicalUrl: href,
           pushRef: { pendingPush, mpaNavigation: false },
+          focusRef: { focus: true },
           cache: cache,
           tree: mutable.patchedTree,
         }
       }
 
-      // TODO: flag on the tree of which part of the tree for if there is a loading boundary
-      const isOptimistic = false
+      // TODO-APP: flag on the tree of which part of the tree for if there is a loading boundary
+      const isOptimistic = canOptimisticallyRender(segments, state.tree)
 
       if (isOptimistic) {
         // Build optimistic tree
@@ -344,7 +430,8 @@ export function reducer(
         )
 
         // Fill in the cache with blank that holds the `data` field.
-        // TODO: segments.slice(1) strips '', we can get rid of '' altogether.
+        // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+        cache.subTreeData = state.cache.subTreeData
         const res = fillCacheWithDataProperty(
           cache,
           state.cache,
@@ -360,6 +447,7 @@ export function reducer(
           return {
             canonicalUrl: href,
             pushRef: { pendingPush, mpaNavigation: false },
+            focusRef: { focus: true },
             cache: cache,
             tree: optimisticTree,
           }
@@ -376,6 +464,7 @@ export function reducer(
         return {
           canonicalUrl: flightData,
           pushRef: { pendingPush: true, mpaNavigation: true },
+          focusRef: { focus: false },
           cache: state.cache,
           tree: state.tree,
         }
@@ -383,13 +472,13 @@ export function reducer(
 
       cache.data = null
 
-      // TODO: ensure flightDataPath does not have "" as first item
+      // TODO-APP: ensure flightDataPath does not have "" as first item
       const flightDataPath = flightData[0]
 
       const [treePatch] = flightDataPath.slice(-2)
       const treePath = flightDataPath.slice(0, -3)
       const newTree = walkTreeWithFlightDataPath(
-        // TODO: remove ''
+        // TODO-APP: remove ''
         ['', ...treePath],
         state.tree,
         treePatch
@@ -398,11 +487,13 @@ export function reducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
 
+      cache.subTreeData = state.cache.subTreeData
       fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
       return {
         canonicalUrl: href,
         pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
         cache: cache,
         tree: newTree,
       }
@@ -414,11 +505,12 @@ export function reducer(
   if (action.type === 'server-patch') {
     const { flightData, previousTree, cache } = action.payload
     if (JSON.stringify(previousTree) !== JSON.stringify(state.tree)) {
-      // TODO: Handle tree mismatch
+      // TODO-APP: Handle tree mismatch
       console.log('TREE MISMATCH')
       return {
         canonicalUrl: state.canonicalUrl,
         pushRef: state.pushRef,
+        focusRef: state.focusRef,
         tree: state.tree,
         cache: state.cache,
       }
@@ -429,12 +521,13 @@ export function reducer(
       return {
         canonicalUrl: flightData,
         pushRef: { pendingPush: true, mpaNavigation: true },
+        focusRef: { focus: false },
         cache: state.cache,
         tree: state.tree,
       }
     }
 
-    // TODO: flightData could hold multiple paths
+    // TODO-APP: flightData could hold multiple paths
     const flightDataPath = flightData[0]
 
     // Slices off the last segment (which is at -3) as it doesn't exist in the tree yet
@@ -442,19 +535,97 @@ export function reducer(
     const [treePatch] = flightDataPath.slice(-2)
 
     const newTree = walkTreeWithFlightDataPath(
-      // TODO: remove ''
+      // TODO-APP: remove ''
       ['', ...treePath],
       state.tree,
       treePatch
     )
 
+    cache.subTreeData = state.cache.subTreeData
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
 
     return {
       canonicalUrl: state.canonicalUrl,
       pushRef: state.pushRef,
+      focusRef: state.focusRef,
       tree: newTree,
       cache: cache,
+    }
+  }
+
+  if (action.type === 'reload') {
+    const { url, cache, mutable } = action.payload
+    const href = url.pathname + url.search + url.hash
+    const pendingPush = false
+
+    // When doing a hard push there can be two cases: with optimistic tree and without
+    // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
+    // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
+
+    if (
+      mutable.patchedTree &&
+      JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
+    ) {
+      return {
+        canonicalUrl: href,
+        pushRef: { pendingPush, mpaNavigation: false },
+        focusRef: { focus: true },
+        cache: cache,
+        tree: mutable.patchedTree,
+      }
+    }
+
+    if (!cache.data) {
+      cache.data = fetchServerResponse(url, [
+        state.tree[0],
+        state.tree[1],
+        state.tree[2],
+        'refetch',
+      ])
+    }
+    const flightData = cache.data.readRoot()
+
+    // Handle case when navigating to page in `pages` from `app`
+    if (typeof flightData === 'string') {
+      return {
+        canonicalUrl: flightData,
+        pushRef: { pendingPush: true, mpaNavigation: true },
+        focusRef: { focus: false },
+        cache: state.cache,
+        tree: state.tree,
+      }
+    }
+
+    cache.data = null
+
+    const flightDataPath = flightData[0]
+
+    if (flightDataPath.length !== 2) {
+      // TODO-APP: handle this case better
+      console.log('RELOAD FAILED')
+      return state
+    }
+
+    const [treePatch, subTreeData] = flightDataPath.slice(-2)
+    const newTree = walkTreeWithFlightDataPath(
+      // TODO-APP: remove ''
+      [''],
+      state.tree,
+      treePatch
+    )
+
+    mutable.previousTree = state.tree
+    mutable.patchedTree = newTree
+
+    cache.subTreeData = subTreeData
+
+    return {
+      canonicalUrl: href,
+      pushRef: { pendingPush, mpaNavigation: false },
+      // TODO-APP: Revisit if this needs to be true in certain cases
+      focusRef: { focus: false },
+      cache: cache,
+      tree: newTree,
     }
   }
 

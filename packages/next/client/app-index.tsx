@@ -30,16 +30,19 @@ __webpack_require__.u = (chunkId: any) => {
 self.__next_require__ = __webpack_require__
 
 // eslint-disable-next-line no-undef
-// @ts-expect-error TODO: fix type
-self.__next_chunk_load__ = (chunk) => {
+;(self as any).__next_chunk_load__ = (chunk: string) => {
+  if (!chunk) return Promise.resolve()
   if (chunk.endsWith('.css')) {
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = '/_next/' + chunk
-    document.head.appendChild(link)
+    const chunkPath = `/_next/${chunk}`
+    const existingTag = document.querySelector(`link[href="${chunkPath}"]`)
+    if (!existingTag) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = chunkPath
+      document.head.appendChild(link)
+    }
     return Promise.resolve()
   }
-
   const [chunkId, chunkFileName] = chunk.split(':')
   chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 
@@ -153,6 +156,7 @@ function useInitialServerResponse(cacheKey: string) {
       nextServerDataRegisterWriter(controller)
     },
   })
+
   const newResponse = createFromReadableStream(readable)
 
   rscCache.set(cacheKey, newResponse)
@@ -166,19 +170,6 @@ function ServerRoot({ cacheKey }: { cacheKey: string }) {
   const response = useInitialServerResponse(cacheKey)
   const root = response.readRoot()
   return root
-}
-
-function ErrorOverlay({
-  children,
-}: React.PropsWithChildren<{}>): React.ReactElement {
-  if (process.env.NODE_ENV === 'production') {
-    return <>{children}</>
-  } else {
-    const {
-      ReactDevOverlay,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
-    return <ReactDevOverlay globalOverlay>{children}</ReactDevOverlay>
-  }
 }
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
@@ -196,19 +187,17 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent() {
+function RSCComponent(props: any) {
   const cacheKey = getCacheKey()
-  return <ServerRoot cacheKey={cacheKey} />
+  return <ServerRoot {...props} cacheKey={cacheKey} />
 }
 
 export function hydrate() {
   renderReactElement(appElement!, () => (
-    <ErrorOverlay>
-      <React.StrictMode>
-        <Root>
-          <RSCComponent />
-        </Root>
-      </React.StrictMode>
-    </ErrorOverlay>
+    <React.StrictMode>
+      <Root>
+        <RSCComponent />
+      </Root>
+    </React.StrictMode>
   ))
 }

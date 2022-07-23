@@ -49,19 +49,29 @@ stages:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
-          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
-          - script: pnpm store path
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
 
-          - script: |
-              pnpm install && pnpm run build
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Install and build'
 
-          - script: |
-              npx playwright install chromium
+          - script: npx playwright install chromium
+            condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
               node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+            condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
 
       - job: test_unit
@@ -77,14 +87,23 @@ stages:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
 
-          - script: npm i -g pnpm@$(PNPM_VERSION)
-          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
-          - script: pnpm store path
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
 
-          - script: |
-              pnpm install && pnpm run build
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Install and build'
 
-          - script: |
-              node run-tests.js --type unit
+          - script: node run-tests.js --type unit
+            condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'

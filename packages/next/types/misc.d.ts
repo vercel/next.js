@@ -46,11 +46,6 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
-  export = m
-}
-
 declare module 'next/dist/compiled/p-limit' {
   import m from 'p-limit'
   export = m

@@ -1,13 +1,22 @@
-import { useCallback, useContext, useEffect, useRef } from 'react'
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  // @ts-expect-error TODO-APP: startTransition exists
+  startTransition,
+} from 'react'
 import { FullAppTreeContext } from '../../shared/lib/app-router-context'
 import {
   register,
+  unregister,
   onBuildError,
   onBuildOk,
   onRefresh,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../dev/error-overlay/format-webpack-messages'
+import { useRouter } from './hooks-client'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
@@ -22,7 +31,7 @@ function getSocketProtocol(assetPrefix: string): string {
 
 // const TIMEOUT = 5000
 
-// TODO: add actual type
+// TODO-APP: add actual type
 type PongEvent = any
 
 let mostRecentCompilationHash: any = null
@@ -177,7 +186,11 @@ function performFullReload(err: any, sendMessage: any) {
   window.location.reload()
 }
 
-function processMessage(e: any, sendMessage: any) {
+function processMessage(
+  e: any,
+  sendMessage: any,
+  router: ReturnType<typeof useRouter>
+) {
   const obj = JSON.parse(e.data)
 
   switch (obj.action) {
@@ -292,6 +305,24 @@ function processMessage(e: any, sendMessage: any) {
       }
       return
     }
+    // TODO-APP: make server component change more granular
+    case 'serverComponentChanges': {
+      sendMessage(
+        JSON.stringify({
+          event: 'server-component-reload-page',
+          clientId: __nextDevClientId,
+        })
+      )
+      if (hadRuntimeError) {
+        return window.location.reload()
+      }
+      startTransition(() => {
+        router.reload()
+        onRefresh()
+      })
+
+      return
+    }
     case 'reloadPage': {
       sendMessage(
         JSON.stringify({
@@ -344,7 +375,7 @@ function processMessage(e: any, sendMessage: any) {
             // Page exists now, reload
             location.reload()
           } else {
-            // TODO: fix this
+            // TODO-APP: fix this
             // Page doesn't exist
             // if (
             //   self.__NEXT_DATA__.page === Router.pathname &&
@@ -367,6 +398,7 @@ function processMessage(e: any, sendMessage: any) {
 
 export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
   const { tree } = useContext(FullAppTreeContext)
+  const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()
   const sendMessage = useCallback((data) => {
@@ -377,6 +409,16 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
 
   useEffect(() => {
     register()
+    const onError = () => {
+      hadRuntimeError = true
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onError)
+    return () => {
+      unregister()
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onError)
+    }
   }, [])
 
   useEffect(() => {
@@ -400,12 +442,12 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
   }, [assetPrefix])
   useEffect(() => {
     // Taken from on-demand-entries-client.js
-    // TODO: check 404 case
+    // TODO-APP: check 404 case
     const interval = setInterval(() => {
       sendMessage(
         JSON.stringify({
           event: 'ping',
-          // TODO: fix case for dynamic parameters, this will be resolved wrong currently.
+          // TODO-APP: fix case for dynamic parameters, this will be resolved wrong currently.
           tree,
           appDirRoute: true,
         })
@@ -417,14 +459,14 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
     const handler = (event: MessageEvent<PongEvent>) => {
       if (
         event.data.indexOf('action') === -1 &&
-        // TODO: clean this up for consistency
+        // TODO-APP: clean this up for consistency
         event.data.indexOf('pong') === -1
       ) {
         return
       }
 
       try {
-        processMessage(event, sendMessage)
+        processMessage(event, sendMessage, router)
       } catch (ex) {
         console.warn('Invalid HMR message: ' + event.data + '\n', ex)
       }
@@ -437,7 +479,7 @@ export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
     return () =>
       webSocketRef.current &&
       webSocketRef.current.removeEventListener('message', handler)
-  }, [sendMessage])
+  }, [sendMessage, router])
   // useEffect(() => {
   //   const interval = setInterval(function () {
   //     if (

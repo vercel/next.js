@@ -344,7 +344,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
 
-      const filePath = path.resolve(options.rootDirectory, frameFile)
+      // frame files may start with their webpack layer, like (middleware)/middleware.js
+      const filePath = path.resolve(
+        options.rootDirectory,
+        frameFile.replace(/^\([^)]+\)\//, '')
+      )
       const fileExists = await fs.access(filePath, FS.F_OK).then(
         () => true,
         () => false

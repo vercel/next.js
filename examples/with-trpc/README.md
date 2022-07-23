@@ -10,4 +10,4 @@
 
 ## Next.js + tRPC minimal implementation
 
-- https://github.com/trpc/examples-next-minimal-starter
+- https://github.com/trpc/trpc/tree/main/examples/next-minimal-starter

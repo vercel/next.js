@@ -15,7 +15,7 @@ describe('app dir rendering', () => {
     return
   }
 
-  const isDev = (global as any).isDev
+  const isDev = (global as any).isNextDev
   let next: NextInstance
 
   beforeAll(async () => {
