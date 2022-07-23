@@ -9,7 +9,6 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 import { clientComponentRegex } from '../loaders/utils'
 import { relative } from 'path'
-import { getEntrypointFiles } from './build-manifest-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 // This is the module that will be used to anchor all client references to.
@@ -59,8 +58,10 @@ export class FlightManifestPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets: any) => this.createAsset(assets, compilation, compiler.context)
       )
@@ -78,14 +79,29 @@ export class FlightManifestPlugin {
         id: string | number,
         mod: any
       ) {
-        const resource: string = mod.resource
-
-        // TODO: Hook into deps instead of the target module.
-        // That way we know by the type of dep whether to include.
-        // It also resolves conflicts when the same module is in multiple chunks.
-        if (!resource || !clientComponentRegex.test(resource)) {
+        // if appDir is enabled we shouldn't process chunks from
+        // the pages dir
+        if (chunk.name?.startsWith('pages/') && appDir) {
           return
         }
+
+        const isCSSModule =
+          mod.type === 'css/mini-extract' ||
+          (mod.loaders &&
+            (dev
+              ? mod.loaders.some((item: any) =>
+                  item.loader.includes('next-style-loader/index.js')
+                )
+              : mod.loaders.some((item: any) =>
+                  item.loader.includes('mini-css-extract-plugin/loader.js')
+                )))
+
+        const resource =
+          mod.type === 'css/mini-extract'
+            ? mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            : mod.resource
+
+        if (!resource) return
 
         const moduleExports: any = manifest[resource] || {}
         const moduleIdMapping: any = manifest.__ssr_module_mapping__ || {}
@@ -94,9 +110,39 @@ export class FlightManifestPlugin {
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
         // module ID strategy.
-        let ssrNamedModuleId = relative(context, mod.resourceResolveData.path)
+        let ssrNamedModuleId = relative(
+          context,
+          mod.resourceResolveData?.path || resource
+        )
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId}`
+
+        if (isCSSModule) {
+          if (!manifest[resource]) {
+            const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+            manifest[resource] = {
+              default: {
+                id,
+                name: 'default',
+                chunks,
+              },
+            }
+            moduleIdMapping[id]['default'] = {
+              id: ssrNamedModuleId,
+              name: 'default',
+              chunks,
+            }
+            manifest.__ssr_module_mapping__ = moduleIdMapping
+          }
+          return
+        }
+
+        // TODO: Hook into deps instead of the target module.
+        // That way we know by the type of dep whether to include.
+        // It also resolves conflicts when the same module is in multiple chunks.
+        if (!clientComponentRegex.test(resource)) {
+          return
+        }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const cjsExports = [
@@ -132,16 +178,36 @@ export class FlightManifestPlugin {
           )
           .filter((name) => name !== null)
 
-        // Get all CSS files imported in that chunk.
-        const cssChunks: string[] = []
-        for (const entrypoint of chunk.groupsIterable) {
-          const files = getEntrypointFiles(entrypoint)
-          for (const file of files) {
-            if (file.endsWith('.css')) {
-              cssChunks.push(file)
-            }
+        // Get all CSS files imported from the module's dependencies.
+        const visitedModule = new Set()
+        const cssChunks: Set<string> = new Set()
+
+        function collectClientImportedCss(module: any) {
+          if (!module) return
+
+          const modRequest = module.userRequest
+          if (visitedModule.has(modRequest)) return
+          visitedModule.add(modRequest)
+
+          if (/\.css$/.test(modRequest)) {
+            // collect relative imported css chunks
+            compilation.chunkGraph.getModuleChunks(module).forEach((c) => {
+              ;[...c.files]
+                .filter((file) => file.endsWith('.css'))
+                .forEach((file) => cssChunks.add(file))
+            })
           }
+
+          const connections = Array.from(
+            compilation.moduleGraph.getOutgoingConnections(module)
+          )
+          connections.forEach((connection) => {
+            collectClientImportedCss(
+              compilation.moduleGraph.getResolvedModule(connection.dependency!)
+            )
+          })
         }
+        collectClientImportedCss(mod)
 
         moduleExportedKeys.forEach((name) => {
           let requiredChunks = []
@@ -167,7 +233,7 @@ export class FlightManifestPlugin {
             moduleExports[name] = {
               id,
               name,
-              chunks: requiredChunks.concat(cssChunks),
+              chunks: requiredChunks.concat([...cssChunks]),
             }
           }
           if (!moduleIdMapping[id][name]) {

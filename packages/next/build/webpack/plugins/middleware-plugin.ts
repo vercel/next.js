@@ -1,5 +1,8 @@
-import type { EdgeMiddlewareMeta } from '../loaders/get-module-build-info'
-import type { EdgeSSRMeta, WasmBinding } from '../loaders/get-module-build-info'
+import type {
+  AssetBinding,
+  EdgeMiddlewareMeta,
+} from '../loaders/get-module-build-info'
+import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -14,13 +17,14 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
 } from '../../../shared/lib/constants'
 
-interface EdgeFunctionDefinition {
+export interface EdgeFunctionDefinition {
   env: string[]
   files: string[]
   name: string
   page: string
   regexp: string
-  wasm?: WasmBinding[]
+  wasm?: AssetBinding[]
+  assets?: AssetBinding[]
 }
 
 export interface MiddlewareManifest {
@@ -35,7 +39,8 @@ interface EntryMetadata {
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   env: Set<string>
-  wasmBindings: Set<WasmBinding>
+  wasmBindings: Map<string, string>
+  assetBindings: Map<string, string>
 }
 
 const NAME = 'MiddlewarePlugin'
@@ -104,7 +109,7 @@ export async function handleWebpackExtenalForEdgeRuntime({
   contextInfo: any
 }) {
   if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
-    return `root  __import_unsupported('${request}')`
+    return `root  globalThis.__import_unsupported('${request}')`
   }
 }
 
@@ -375,7 +380,10 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
         }
       }
     })
-    registerUnsupportedApiHooks(parser, compilation)
+    if (!dev) {
+      // do not issue compilation warning on dev: invoking code will provide details
+      registerUnsupportedApiHooks(parser, compilation)
+    }
   }
 }
 
@@ -410,7 +418,8 @@ function getExtractMetadata(params: {
 
       const entryMetadata: EntryMetadata = {
         env: new Set<string>(),
-        wasmBindings: new Set<WasmBinding>(),
+        wasmBindings: new Map(),
+        assetBindings: new Map(),
       }
 
       for (const entryModule of entryModules) {
@@ -439,7 +448,7 @@ function getExtractMetadata(params: {
 
           compilation.errors.push(
             buildWebpackError({
-              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Middleware ${entryName}${
+              message: `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime ${
                 typeof buildInfo.usingIndirectEval !== 'boolean'
                   ? `\nUsed by ${Array.from(buildInfo.usingIndirectEval).join(
                       ', '
@@ -479,7 +488,17 @@ function getExtractMetadata(params: {
          * append it to the entry wasm bindings.
          */
         if (buildInfo?.nextWasmMiddlewareBinding) {
-          entryMetadata.wasmBindings.add(buildInfo.nextWasmMiddlewareBinding)
+          entryMetadata.wasmBindings.set(
+            buildInfo.nextWasmMiddlewareBinding.name,
+            buildInfo.nextWasmMiddlewareBinding.filePath
+          )
+        }
+
+        if (buildInfo?.nextAssetMiddlewareBinding) {
+          entryMetadata.assetBindings.set(
+            buildInfo.nextAssetMiddlewareBinding.name,
+            buildInfo.nextAssetMiddlewareBinding.filePath
+          )
         }
 
         /**
@@ -557,7 +576,14 @@ function getCreateAssets(params: {
         name: entrypoint.name,
         page: page,
         regexp,
-        wasm: Array.from(metadata.wasmBindings),
+        wasm: Array.from(metadata.wasmBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
+        assets: Array.from(metadata.assetBindings, ([name, filePath]) => ({
+          name,
+          filePath,
+        })),
       }
 
       if (metadata.edgeApiFunction || metadata.edgeSSR) {

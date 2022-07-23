@@ -41,6 +41,8 @@ The second strategy is to create a new Next.js app that points to the root URL o
 
 For example, let's say you created a Next.js app to be served from `example.com` with the following `next.config.js`. Now, requests for the pages you’ve added to this Next.js app (e.g. `/about` if you’ve added `pages/about.js`) will be handled by Next.js, and requests for any other route (e.g. `/dashboard`) will be proxied to `proxy.example.com`.
 
+> **Note:** If you use [fallback: true/'blocking'](/docs/api-reference/data-fetching/get-static-paths#fallback-true) in `getStaticPaths`, the catch-all fallback `rewrites` defined in `next.config.js` will not be run. They are instead caught by the `getStaticPaths` fallback.
+
 ```jsx
 // next.config.js
 

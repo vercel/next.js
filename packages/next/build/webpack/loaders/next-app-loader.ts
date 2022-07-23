@@ -16,12 +16,6 @@ async function createTreeCodeFromPath({
   const appDirPrefix = splittedPath[0]
 
   const segments = ['', ...splittedPath.slice(1)]
-  const isNewRootLayout =
-    segments[0]?.length > 2 &&
-    segments[0]?.startsWith('(') &&
-    segments[0]?.endsWith(')')
-
-  let isCustomRootLayout = false
 
   // segment.length - 1 because arrays start at 0 and we're decrementing
   for (let i = segments.length - 1; i >= 0; i--) {
@@ -43,11 +37,6 @@ async function createTreeCodeFromPath({
     const resolvedLayoutPath = await resolve(layoutPath)
     const resolvedLoadingPath = await resolve(loadingPath)
 
-    // if we are in a new root app/(root) and a custom root layout was
-    // not provided or a root layout app/layout is not present, we use
-    // a default root layout to provide the html/body tags
-    isCustomRootLayout = isNewRootLayout && i === 1
-
     // Existing tree are the children of the current segment
     const children = tree
 
@@ -68,11 +57,6 @@ async function createTreeCodeFromPath({
           : ''
       }
     }]`
-
-    // if we're in a new root layout don't add the top-level app/layout
-    if (isCustomRootLayout) {
-      break
-    }
   }
 
   return `const tree = ${tree};`
@@ -140,6 +124,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
     export const AppRouter = require('next/dist/client/components/app-router.client.js').default
     export const LayoutRouter = require('next/dist/client/components/layout-router.client.js').default
+    export const HotReloader = ${
+      // Disable HotReloader component in production
+      this.mode === 'development'
+        ? `require('next/dist/client/components/hot-reloader.client.js').default`
+        : 'null'
+    }
     export const hooksClientContext = require('next/dist/client/components/hooks-client-context.js')
 
     export const __next_app_webpack_require__ = __webpack_require__

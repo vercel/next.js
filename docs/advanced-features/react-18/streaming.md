@@ -2,8 +2,6 @@
 
 React 18 includes architectural improvements to React server-side rendering (SSR) performance. This means you can use `Suspense` in your React components in streaming SSR mode and React will render content on the server and send updates through HTTP streams.
 
-React Server Components, an experimental feature, is based on streaming. You can read more about Server Components related streaming APIs in [`next/streaming`](/docs/api-reference/next/streaming.md). However, this guide focuses on streaming with React 18.
-
 ## Using Streaming Server-Rendering
 
 When you use Suspense in a server-rendered page, there is no extra configuration required to use streaming SSR. When deployed, streaming can be utilized through infrastructure like [Edge Functions](https://vercel.com/edge) on Vercel (with the Edge Runtime) or with a Node.js server (with the Node.js runtime). AWS Lambda Functions do not currently support streaming responses.
@@ -12,7 +10,7 @@ All SSR pages have the ability to render components into streams and the client 
 
 As an added bonus, in streaming SSR mode the client will also use selective hydration to prioritize component hydration based on user interactions, further improving performance.
 
-For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md). Check out [`next/streaming`](/docs/api-reference/next/streaming.md) for the API reference for streaming SSR.
+For non-SSR pages, all Suspense boundaries will still be [statically optimized](/docs/advanced-features/automatic-static-optimization.md).
 
 ## Streaming Features
 
