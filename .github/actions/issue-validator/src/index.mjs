@@ -158,12 +158,10 @@ async function getLastVersion() {
           'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
       },
     })
-    // @ts-ignore
-    const { value } = await res.body?.getReader().read()
-    const string = new TextDecoder().decode(value).slice(0, 100)
+    const value = (await res.body?.getReader().read())?.value
+    const string = new TextDecoder().decode(value?.slice(0, 100))
     const re = /"latest":"(?<latest>.*)","canary":"(?<canary>.*)","/
-    // @ts-ignore
-    const { latest, canary } = string.match(re).groups
+    const { latest, canary } = string.match(re)?.groups ?? {}
     return latest >= canary.split('-canary')[0] ? latest : canary
   } catch (error) {
     core.error(error)
