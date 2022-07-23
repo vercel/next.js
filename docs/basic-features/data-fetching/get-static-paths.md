@@ -14,19 +14,16 @@ When you export a function called `getStaticPaths` (Static Site Generation) from
 // Generates `/posts/1` and `/posts/2`
 export async function getStaticPaths() {
   return {
-    paths: [
-      { params: { id: '1' }},
-      { params: { id: '2' }},
-    ],
-    fallback: false // can also be true or 'blocking'
-  };
+    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
+    fallback: false, // can also be true or 'blocking'
+  }
 }
 
 // `getStaticPaths` requires using `getStaticProps`
 export async function getStaticProps(context) {
   return {
     // Passed to the page component as props
-    props: { post: {} }
+    props: { post: {} },
   }
 }
 
@@ -86,7 +83,7 @@ export async function getStaticPaths() {
     return {
       paths: [],
       fallback: 'blocking',
-    };
+    }
   }
 
   // Call an external API endpoint to get posts
