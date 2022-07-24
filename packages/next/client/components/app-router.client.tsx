@@ -18,27 +18,6 @@ import {
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-async function loadCss(cssChunkInfoJson: string) {
-  const data = JSON.parse(cssChunkInfoJson)
-  await Promise.all(
-    data.chunks.map((chunkId: string) => {
-      // load css related chunks
-      return (self as any).__next_chunk_load__(chunkId)
-    })
-  )
-  // In development mode, import css in dev when it's wrapped by style loader.
-  // In production mode, css are standalone chunk that doesn't need to be imported.
-  if (data.id) {
-    ;(self as any).__next_require__(data.id)
-  }
-}
-
-const loadCssFromStreamData = (data: string) => {
-  if (data.startsWith('CSS:')) {
-    loadCss(data.slice(4).trim())
-  }
-}
-
 function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
@@ -47,35 +26,8 @@ function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
 
   const { readable, writable } = new TransformStream()
 
-  // TODO-APP: Refine the buffering code here to make it more correct.
-  let buffer = ''
-  const loadCssFromFlight = new TransformStream({
-    transform(chunk, controller) {
-      const process = (buf: string) => {
-        if (buf) {
-          if (buf.startsWith('CSS:')) {
-            loadCssFromStreamData(buf)
-          } else {
-            controller.enqueue(new TextEncoder().encode(buf))
-          }
-        }
-      }
-
-      const data = new TextDecoder().decode(chunk)
-      buffer += data
-      let index
-      while ((index = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, index + 1)
-        buffer = buffer.slice(index + 1)
-        process(line)
-      }
-      process(buffer)
-      buffer = ''
-    },
-  })
-
   fetch(flightUrl.toString()).then((res) => {
-    res.body?.pipeThrough(loadCssFromFlight).pipeTo(writable)
+    res.body?.pipeTo(writable)
   })
 
   return readable
@@ -130,7 +82,11 @@ export default function AppRouter({
       },
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusRef: { focus: false },
-      canonicalUrl: initialCanonicalUrl,
+      canonicalUrl:
+        initialCanonicalUrl +
+        // Hash is read as the initial value for canonicalUrl in the browser
+        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates the useEffect further down.
+        (typeof window !== 'undefined' ? window.location.hash : ''),
     })
 
   useEffect(() => {
