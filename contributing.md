@@ -265,22 +265,21 @@ Below are the steps to add a new link:
 
 When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
 
-- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred as it's less to maintain). TypeScript helps eliminate a class of bugs, while also providing better developer experience, even for newcomers.
-- Examples should not add custom ESLint or Prettier configuration (we have specific templates for those)
+- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred as it's less to maintain). TypeScript helps eliminate a class of bugs while also providing better developer experience, even for newcomers.
+- Examples should not add custom ESLint or Prettier configurations (we have specific templates for those)
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
 - In `package.json` the version of `next` (and `eslint-config-next`) should be `latest`
-- In `package.json` the dependency versions should be up-to-date
+- In `package.json` the dependency versions should be up-to-date, and accept new minor and patch versions (e.g. `^version`)
+- Omit the `name` and `version` fields from your `package.json`
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - TypeScript examples should not use `prop-types`
 - TypeScript `strict` mode should be set to `false` in `tsconfig.json`
-- Type definition files should be placed in the `interfaces` directory
+- Type definition files should be inside the `interfaces` directory. `.d.ts` modules should be in the root directory
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
-- Omit the `name` and `version` fields from your `package.json`
-- Ensure all your dependencies are up to date
-- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image)
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image) and [`next/link`](https://nextjs.org/docs/api-reference/next/link)
 - Make sure linting passes (you can run `pnpm lint-fix`)
 
 Also don’t forget to add a `README.md` file with the following format:
