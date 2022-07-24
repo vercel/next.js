@@ -265,26 +265,28 @@ Below are the steps to add a new link:
 
 When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high quality examples:
 
-- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
-- Examples should not add custom ESLint configuration (we have specific templates for ESLint)
+- TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred as it's less to maintain). TypeScript helps eliminate a class of bugs, while also providing better developer experience, even for newcomers.
+- Examples should not add custom ESLint or Prettier configuration (we have specific templates for those)
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
 - In `package.json` the version of `next` (and `eslint-config-next`) should be `latest`
 - In `package.json` the dependency versions should be up-to-date
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
+- TypeScript examples should not use `prop-types`
+- TypeScript `strict` mode should be set to `false` in `tsconfig.json`
+- Type definition files should be placed in the `interfaces` directory
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
+- Omit the `name` and `version` fields from your `package.json`
+- Ensure all your dependencies are up to date
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image)
 - Make sure linting passes (you can run `pnpm lint-fix`)
 
 Also don’t forget to add a `README.md` file with the following format:
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
-- Examples should be TypeScript first, if possible.
-- Omit the `name` and `version` fields from your `package.json`.
-- Ensure all your dependencies are up to date.
-- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
@@ -314,6 +316,16 @@ pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````
+
+## Deprecating examples
+
+Replace the app with just a `README.md` file.
+
+```markdown
+## Deprecated
+
+The main [blog-starter](/examples/blog-starter) example has been refactored to use TypeScript, so this example is deprecated.
+```
 
 ## Publishing
 
