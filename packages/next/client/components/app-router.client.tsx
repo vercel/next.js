@@ -18,17 +18,28 @@ import {
   reducer,
 } from './reducer'
 import {
-  QueryContext,
+  SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
 } from './hooks-client-context'
 
-function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
+/**
+ * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ */
+function fetchFlight(
+  url: URL,
+  flightRouterState: FlightRouterState
+): ReadableStream {
   const flightUrl = new URL(url)
   const searchParams = flightUrl.searchParams
+  // Enable flight response
   searchParams.append('__flight__', '1')
-  searchParams.append('__flight_router_state_tree__', flightRouterStateData)
+  // Provide the current router state
+  searchParams.append(
+    '__flight_router_state_tree__',
+    JSON.stringify(flightRouterState)
+  )
 
   const { readable, writable } = new TransformStream()
 
@@ -39,14 +50,20 @@ function fetchFlight(url: URL, flightRouterStateData: string): ReadableStream {
   return readable
 }
 
+/**
+ * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ */
 export function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState
 ): { readRoot: () => FlightData } {
-  const flightRouterStateData = JSON.stringify(flightRouterState)
-  return createFromReadableStream(fetchFlight(url, flightRouterStateData))
+  // Handle the `fetch` readable stream that can be read using `readRoot`.
+  return createFromReadableStream(fetchFlight(url, flightRouterState))
 }
 
+/**
+ * Renders development error overlay when NODE_ENV is development.
+ */
 function ErrorOverlay({
   children,
 }: React.PropsWithChildren<{}>): React.ReactElement {
@@ -60,10 +77,14 @@ function ErrorOverlay({
   }
 }
 
+// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 // TODO-APP: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
+/**
+ * The global router that wraps the application components.
+ */
 export default function AppRouter({
   initialTree,
   initialCanonicalUrl,
@@ -96,19 +117,23 @@ export default function AppRouter({
     })
 
   useEffect(() => {
+    // Ensure initialParallelRoutes is cleaned up from memory once it's used.
     initialParallelRoutes = null!
   }, [])
 
-  const { query, pathname } = React.useMemo(() => {
+  // Add memoized pathname/query for useSearchParams and usePathname.
+  const { searchParams, pathname } = React.useMemo(() => {
     const url = new URL(
       canonicalUrl,
       typeof window === 'undefined' ? 'http://n' : window.location.href
     )
-    const queryObj: { [key: string]: string } = {}
+
+    // Convert searchParams to a plain object to match server-side.
+    const searchParamsObj: { [key: string]: string } = {}
     url.searchParams.forEach((value, key) => {
-      queryObj[key] = value
+      searchParamsObj[key] = value
     })
-    return { query: queryObj, pathname: url.pathname }
+    return { searchParams: searchParamsObj, pathname: url.pathname }
   }, [canonicalUrl])
 
   // Server response only patches the tree
@@ -254,7 +279,7 @@ export default function AppRouter({
   }, [onPopState])
   return (
     <PathnameContext.Provider value={pathname}>
-      <QueryContext.Provider value={query}>
+      <SearchParamsContext.Provider value={searchParams}>
         <FullAppTreeContext.Provider
           value={{
             changeByServerResponse,
@@ -278,7 +303,7 @@ export default function AppRouter({
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </FullAppTreeContext.Provider>
-      </QueryContext.Provider>
+      </SearchParamsContext.Provider>
     </PathnameContext.Provider>
   )
 }
