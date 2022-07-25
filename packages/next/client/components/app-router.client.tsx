@@ -313,8 +313,16 @@ export default function AppRouter({
                 stylesheets: initialStylesheets,
               }}
             >
-              <ErrorOverlay>{cache.subTreeData}</ErrorOverlay>
-              {hotReloader}
+              <ErrorOverlay>
+                {
+                  // ErrorOverlay intentionally only wraps the children of app-router.
+                  cache.subTreeData
+                }
+              </ErrorOverlay>
+              {
+                // HotReloader uses the router tree and router.reload() in order to apply Server Component changes.
+                hotReloader
+              }
             </AppTreeContext.Provider>
           </AppRouterContext.Provider>
         </GlobalLayoutRouterContext.Provider>
