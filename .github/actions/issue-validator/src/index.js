@@ -6,27 +6,50 @@ const verifyCanaryLabel = 'please verify canary'
 const bugReportLabel = 'template: bug'
 const addReproductionLabel = 'please add a complete reproduction'
 const debug = !!process.env.DEBUG
+const json = (o) => JSON.stringify(o, null, 2)
+
+/**
+ * @typedef {{
+ *  id :number
+ *  node_id :string
+ *  url :string
+ *  name :string
+ *  description :string
+ *  color :string
+ *  default :boolean
+ * }} Label
+ */
 
 async function run() {
   try {
-    const {
-      payload: { issue, pull_request },
-      repo,
-    } = github.context
+    const { payload, repo } = github.context
+    const { issue, pull_request } = payload
 
     if (pull_request || !issue?.body) return
 
-    const { body, labels, number: issueNumber } = issue
+    /** @type {Label} */
+    const newLabel = payload.label
+    const { body, number: issueNumber } = issue
+    /** @type {Label[]} */
+    const labels = issue.labels
 
-    const isBugReport = labels.some((label) => label.name === bugReportLabel)
+    core.info(
+      `Validating issue ${issueNumber}:
+  Labels:
+    New: ${json(newLabel)}
+    All: ${json(labels)}
+  Body: ${body}`
+    )
+
+    const isBugReport = newLabel.name === bugReportLabel
 
     const isManuallyLabeled = labels.some(
       (label) => label.name === verifyCanaryLabel
     )
 
-    if (!isBugReport || !isManuallyLabeled) {
+    if (!isBugReport && !isManuallyLabeled) {
       return core.info(
-        `issue ${issueNumber} is ignored, because it is not a bug report or is not manually labeled`
+        'Issue is ignored, because it is not a bug report or is not manually labeled'
       )
     }
 
@@ -45,7 +68,7 @@ async function run() {
 
       if (debug) {
         core.info('Skipping comment/label because we are in DEBUG mode')
-        core.info(JSON.stringify({ label, comment }, null, 2))
+        core.info(json({ label, comment }))
         return
       }
 
@@ -65,7 +88,7 @@ async function run() {
         'Please verify your issue reproduces with `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
       )
       return core.info(
-        `Commented on issue ${issueNumber}, because it was ${
+        `Commented on issue, because it was ${
           isManuallyLabeled ? 'manually labeled' : 'not verified against canary'
         }`
       )
@@ -81,7 +104,7 @@ async function run() {
         'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field. If your project is private, you can invite @balazsorban44 to the repository so the Next.js team can investigate further.'
       )
       return core.info(
-        `Commented on issue ${issueNumber}, because it the reproduction url (${reproductionUrl}) was not reachable.`
+        `Commented on issue, because the reproduction url (${reproductionUrl}) was not reachable`
       )
     }
 
@@ -120,7 +143,7 @@ async function run() {
         `The reported Next.js version did not match the latest \`next@canary\` version (${lastVersion}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
       )
       return core.info(
-        `Commented on issue ${issueNumber}, because it was not verified against canary.`
+        `Commented on issue, because it was not verified against canary`
       )
     }
   } catch (error) {

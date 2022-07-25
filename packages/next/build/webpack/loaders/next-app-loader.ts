@@ -16,12 +16,6 @@ async function createTreeCodeFromPath({
   const appDirPrefix = splittedPath[0]
 
   const segments = ['', ...splittedPath.slice(1)]
-  const isNewRootLayout =
-    segments[0]?.length > 2 &&
-    segments[0]?.startsWith('(') &&
-    segments[0]?.endsWith(')')
-
-  let isCustomRootLayout = false
 
   // segment.length - 1 because arrays start at 0 and we're decrementing
   for (let i = segments.length - 1; i >= 0; i--) {
@@ -43,11 +37,6 @@ async function createTreeCodeFromPath({
     const resolvedLayoutPath = await resolve(layoutPath)
     const resolvedLoadingPath = await resolve(loadingPath)
 
-    // if we are in a new root app/(root) and a custom root layout was
-    // not provided or a root layout app/layout is not present, we use
-    // a default root layout to provide the html/body tags
-    isCustomRootLayout = isNewRootLayout && i === 1
-
     // Existing tree are the children of the current segment
     const children = tree
 
@@ -68,11 +57,6 @@ async function createTreeCodeFromPath({
           : ''
       }
     }]`
-
-    // if we're in a new root layout don't add the top-level app/layout
-    if (isCustomRootLayout) {
-      break
-    }
   }
 
   return `const tree = ${tree};`
