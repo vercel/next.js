@@ -58,7 +58,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ Object.__WEBPACK_DEFAULT_EXPORT__ \\[as handler\\]\nError: boom`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ Object.__WEBPACK_DEFAULT_EXPORT__ \\[as handler\\]\nerror - boom`,
           'm'
         )
       )
@@ -93,7 +93,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ throwError\nError: async boom!`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ throwError\nerror - unhandledRejection: async boom!`,
           'm'
         )
       )
@@ -124,7 +124,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ eval\nReferenceError: test is not defined`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ eval\nerror - test is not defined`,
           'm'
         )
       )
@@ -157,7 +157,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ <unknown>\nError: booooom!`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ <unknown>\nerror - booooom!`,
           'm'
         )
       )
@@ -195,7 +195,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ eval\nError: you shall see me`,
+          `error - \\(middleware\\)/middleware.js \\(\\d+:\\d+\\) @ eval\nerror - unhandledRejection: you shall see me`,
           'm'
         )
       )
@@ -227,7 +227,7 @@ describe('Middleware development errors', () => {
       const output = stripAnsi(context.logs.output)
       expect(output).toMatch(
         new RegExp(
-          `error - \\(middleware\\)/lib/unhandled.js \\(\\d+:\\d+\\) @ Timeout.eval \\[as _onTimeout\\]\nError: This file asynchronously fails while loading`,
+          `error - \\(middleware\\)/lib/unhandled.js \\(\\d+:\\d+\\) @ Timeout.eval \\[as _onTimeout\\]\nerror - uncaughtException: This file asynchronously fails while loading`,
           'm'
         )
       )

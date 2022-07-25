@@ -46,6 +46,7 @@ import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
+import { compareRouterStates } from './utils/compare-states'
 
 declare global {
   interface Window {
@@ -172,7 +173,7 @@ function omit<T extends { [key: string]: any }, K extends keyof T>(
   const omitted: { [key: string]: any } = {}
   Object.keys(object).forEach((key) => {
     if (!keys.includes(key as K)) {
-      omitted[key as string] = object[key]
+      omitted[key] = object[key]
     }
   })
   return omitted as Omit<T, K>
@@ -292,16 +293,16 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname))
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
   }
 
   // handle resolving href for dynamic routes
-  if (!pages.includes(cleanPathname!)) {
+  if (!pages.includes(cleanPathname)) {
     // eslint-disable-next-line array-callback-return
     pages.some((page) => {
-      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
+      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname)) {
         pathname = page
         return true
       }
@@ -732,7 +733,7 @@ export default class Router implements BaseRouter {
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+    this.basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -990,6 +991,7 @@ export default class Router implements BaseRouter {
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     // or a navigation has occurred
+    const readyStateChange = this.isReady !== true
     this.isReady = true
     const isSsr = this.isSsr
 
@@ -1127,7 +1129,7 @@ export default class Router implements BaseRouter {
     )
     this._inFlightRoute = as
 
-    let localeChange = prevLocale !== nextState.locale
+    const localeChange = prevLocale !== nextState.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -1481,46 +1483,63 @@ export default class Router implements BaseRouter {
       const isValidShallowRoute =
         options.shallow && nextState.route === (routeInfo.route ?? route)
 
-      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const shouldScroll =
+        options.scroll ?? (!(options as any)._h && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
 
-      await this.set(
-        {
-          ...nextState,
-          route,
-          pathname,
-          query,
-          asPath: cleanedAs,
-          isFallback: false,
-        },
-        routeInfo,
-        forcedScroll ?? resetScroll
-      ).catch((e) => {
-        if (e.cancelled) error = error || e
-        else throw e
-      })
+      // the new state that the router gonna set
+      const upcomingRouterState = {
+        ...nextState,
+        route,
+        pathname,
+        query,
+        asPath: cleanedAs,
+        isFallback: false,
+      }
+      const upcomingScrollState = forcedScroll ?? resetScroll
 
-      if (error) {
+      // for query updates we can skip it if the state is unchanged and we don't
+      // need to scroll
+      // https://github.com/vercel/next.js/issues/37139
+      const canSkipUpdating =
+        (options as any)._h &&
+        !upcomingScrollState &&
+        !readyStateChange &&
+        !localeChange &&
+        compareRouterStates(upcomingRouterState, this.state)
+
+      if (!canSkipUpdating) {
+        await this.set(
+          upcomingRouterState,
+          routeInfo,
+          upcomingScrollState
+        ).catch((e) => {
+          if (e.cancelled) error = error || e
+          else throw e
+        })
+
+        if (error) {
+          if (!isQueryUpdating) {
+            Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          }
+          throw error
+        }
+
+        if (process.env.__NEXT_I18N_SUPPORT) {
+          if (nextState.locale) {
+            document.documentElement.lang = nextState.locale
+          }
+        }
+
         if (!isQueryUpdating) {
-          Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+          Router.events.emit('routeChangeComplete', as, routeProps)
         }
-        throw error
-      }
 
-      if (process.env.__NEXT_I18N_SUPPORT) {
-        if (nextState.locale) {
-          document.documentElement.lang = nextState.locale
+        // A hash mark # is the optional last part of a URL
+        const hashRegex = /#.+$/
+        if (shouldScroll && hashRegex.test(as)) {
+          this.scrollToHash(as)
         }
-      }
-
-      if (!isQueryUpdating) {
-        Router.events.emit('routeChangeComplete', as, routeProps)
-      }
-
-      // A hash mark # is the optional last part of a URL
-      const hashRegex = /#.+$/
-      if (shouldScroll && hashRegex.test(as)) {
-        this.scrollToHash(as)
       }
 
       return true
@@ -1604,18 +1623,10 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      let Component: ComponentType
-      let styleSheets: StyleSheetTuple[]
       let props: Record<string, any> | undefined
-
-      if (
-        typeof Component! === 'undefined' ||
-        typeof styleSheets! === 'undefined'
-      ) {
-        ;({ page: Component, styleSheets } = await this.fetchComponent(
-          '/_error'
-        ))
-      }
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,

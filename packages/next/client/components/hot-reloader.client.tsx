@@ -6,7 +6,7 @@ import {
   // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
-import { FullAppTreeContext } from '../../shared/lib/app-router-context'
+import { GlobalLayoutRouterContext } from '../../shared/lib/app-router-context'
 import {
   register,
   unregister,
@@ -397,7 +397,7 @@ function processMessage(
 }
 
 export default function HotReload({ assetPrefix }: { assetPrefix: string }) {
-  const { tree } = useContext(FullAppTreeContext)
+  const { tree } = useContext(GlobalLayoutRouterContext)
   const router = useRouter()
 
   const webSocketRef = useRef<WebSocket>()
