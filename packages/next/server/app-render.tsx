@@ -16,7 +16,6 @@ import {
   renderToInitialStream,
   createBufferedTransformStream,
   continueFromInitialStream,
-  createPrefixStream,
 } from './node-web-streams-helper'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
@@ -113,8 +112,7 @@ function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   cachePrefix: string,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any,
-  cssFlightData: string
+  serverComponentManifest: any
 ) {
   const id = cachePrefix + ',' + (React as any).useId()
   let entry = rscCache.get(id)
@@ -127,9 +125,7 @@ function useFlightResponse(
 
     let bootstrapped = false
     // We only attach CSS chunks to the inlined data.
-    const forwardReader = forwardStream
-      .pipeThrough(createPrefixStream(cssFlightData))
-      .getReader()
+    const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
       forwardReader.read().then(({ done, value }) => {
@@ -176,8 +172,7 @@ function createServerComponentRenderer(
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
     serverContexts: Array<[ServerContextName: string, JSONValue: any]>
-  },
-  dev: boolean
+  }
 ) {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
@@ -190,12 +185,6 @@ function createServerComponentRenderer(
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
   }
-
-  const cssFlightData = getCssFlightData(
-    ComponentMod,
-    serverComponentManifest,
-    dev
-  )
 
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
@@ -218,8 +207,7 @@ function createServerComponentRenderer(
       writable,
       cachePrefix,
       reqStream,
-      serverComponentManifest,
-      cssFlightData
+      serverComponentManifest
     )
     return response.readRoot()
   }
@@ -328,13 +316,10 @@ function getSegmentParam(segment: string): {
   return null
 }
 
-function getCSSInlinedLinkTags(
+function getCssInlinedLinkTags(
   ComponentMod: any,
-  serverComponentManifest: any,
-  dev: boolean
+  serverComponentManifest: any
 ) {
-  if (dev) return []
-
   const importedServerCSSFiles: string[] =
     ComponentMod.__client__?.__next_rsc_css__ || []
 
@@ -349,33 +334,6 @@ function getCSSInlinedLinkTags(
         .flat()
     )
   )
-}
-
-function getCssFlightData(
-  ComponentMod: any,
-  serverComponentManifest: any,
-  dev: boolean
-) {
-  const importedServerCSSFiles: string[] =
-    ComponentMod.__client__?.__next_rsc_css__ || []
-
-  const cssFiles = importedServerCSSFiles.map(
-    (css) => serverComponentManifest[css].default
-  )
-
-  if (dev) {
-    // Keep `id` in dev mode css flight to require the css module
-    return cssFiles.map((css) => `CSS:${JSON.stringify(css)}`).join('\n') + '\n'
-  }
-
-  // Multiple css chunks could be merged into one by mini-css-extract-plugin,
-  // we use a set here to dedupe the css chunks in production.
-  const cssSet: Set<string> = cssFiles.reduce((res, css) => {
-    res.add(...css.chunks)
-    return res
-  }, new Set())
-
-  return cssSet.size ? `CSS:${JSON.stringify({ chunks: [...cssSet] })}\n` : ''
 }
 
 export async function renderToHTML(
@@ -403,7 +361,6 @@ export async function renderToHTML(
     runtime,
     ComponentMod,
   } = renderOpts
-  const dev = !!renderOpts.dev
 
   const isFlight = query.__flight__ !== undefined
 
@@ -538,7 +495,7 @@ export async function renderToHTML(
     return segmentTree
   }
 
-  const createComponentTree = ({
+  const createComponentTree = async ({
     createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
     parentParams,
@@ -550,11 +507,15 @@ export async function renderToHTML(
     parentParams: { [key: string]: any }
     rootLayoutIncluded?: boolean
     firstItem?: boolean
-  }): { Component: React.ComponentType } => {
-    const Loading = loading ? interopDefault(loading()) : undefined
+  }): Promise<{ Component: React.ComponentType }> => {
+    const Loading = loading ? await interopDefault(loading()) : undefined
     const isLayout = typeof layout !== 'undefined'
     const isPage = typeof page !== 'undefined'
-    const layoutOrPageMod = isLayout ? layout() : isPage ? page() : undefined
+    const layoutOrPageMod = isLayout
+      ? await layout()
+      : isPage
+      ? await page()
+      : undefined
     const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
     const rootLayoutIncludedAtThisLevelOrAbove =
       rootLayoutIncluded || rootLayoutAtThisLevel
@@ -594,45 +555,53 @@ export async function renderToHTML(
       : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
-      (list, currentValue) => {
-        const currentSegmentPath = firstItem
-          ? [currentValue]
-          : [actualSegment, currentValue]
+    const parallelRouteMap = await Promise.all(
+      Object.keys(parallelRoutes).map(
+        async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+          const currentSegmentPath = firstItem
+            ? [parallelRouteKey]
+            : [actualSegment, parallelRouteKey]
 
-        const { Component: ChildComponent } = createComponentTree({
-          createSegmentPath: (child) => {
-            return createSegmentPath([...currentSegmentPath, ...child])
-          },
-          tree: parallelRoutes[currentValue],
-          parentParams: currentParams,
-          rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-        })
+          const { Component: ChildComponent } = await createComponentTree({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            tree: parallelRoutes[parallelRouteKey],
+            parentParams: currentParams,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+          })
 
-        const childSegmentParam = getDynamicParamFromSegment(
-          parallelRoutes[currentValue][0]
-        )
-        const childProp: ChildProp = {
-          current: <ChildComponent />,
-          segment: childSegmentParam
-            ? [
-                childSegmentParam.param,
-                childSegmentParam.treeValue,
-                childSegmentParam.type,
-              ]
-            : parallelRoutes[currentValue][0],
+          const childSegmentParam = getDynamicParamFromSegment(
+            parallelRoutes[parallelRouteKey][0]
+          )
+          const childProp: ChildProp = {
+            current: <ChildComponent />,
+            segment: childSegmentParam
+              ? [
+                  childSegmentParam.param,
+                  childSegmentParam.treeValue,
+                  childSegmentParam.type,
+                ]
+              : parallelRoutes[parallelRouteKey][0],
+          }
+
+          return [
+            parallelRouteKey,
+            <LayoutRouter
+              parallelRouterKey={parallelRouteKey}
+              segmentPath={createSegmentPath(currentSegmentPath)}
+              loading={Loading ? <Loading /> : undefined}
+              childProp={childProp}
+              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+            />,
+          ]
         }
+      )
+    )
 
-        list[currentValue] = (
-          <LayoutRouter
-            parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath(currentSegmentPath)}
-            loading={Loading ? <Loading /> : undefined}
-            childProp={childProp}
-            rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
-          />
-        )
-
+    const parallelRouteComponents = parallelRouteMap.reduce(
+      (list, [parallelRouteKey, Comp]) => {
+        list[parallelRouteKey] = Comp
         return list
       },
       {} as { [key: string]: React.ReactNode }
@@ -759,12 +728,12 @@ export async function renderToHTML(
 
   if (isFlight) {
     // TODO-APP: throw on invalid flightRouterState
-    const walkTreeWithFlightRouterState = (
+    const walkTreeWithFlightRouterState = async (
       treeToFilter: LoaderTree,
       parentParams: { [key: string]: string | string[] },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
-    ): FlightDataPath => {
+    ): Promise<FlightDataPath> => {
       const [segment, parallelRoutes] = treeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -794,14 +763,16 @@ export async function renderToHTML(
           actualSegment,
           createFlightRouterStateFromLoaderTree(treeToFilter),
           React.createElement(
-            createComponentTree(
-              // This ensures flightRouterPath is valid and filters down the tree
-              {
-                createSegmentPath: (child) => child,
-                tree: treeToFilter,
-                parentParams: currentParams,
-                firstItem: true,
-              }
+            (
+              await createComponentTree(
+                // This ensures flightRouterPath is valid and filters down the tree
+                {
+                  createSegmentPath: (child) => child,
+                  tree: treeToFilter,
+                  parentParams: currentParams,
+                  firstItem: true,
+                }
+              )
             ).Component
           ),
         ]
@@ -809,7 +780,7 @@ export async function renderToHTML(
 
       for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
-        const path = walkTreeWithFlightRouterState(
+        const path = await walkTreeWithFlightRouterState(
           parallelRoute,
           currentParams,
           flightRouterState && flightRouterState[1][parallelRouteKey],
@@ -824,24 +795,17 @@ export async function renderToHTML(
       return [actualSegment]
     }
 
-    const cssFlightData = getCssFlightData(
-      ComponentMod,
-      serverComponentManifest,
-      dev
-    )
     const flightData: FlightData = [
       // TODO-APP: change walk to output without ''
-      walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
-        1
-      ),
+      (
+        await walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState)
+      ).slice(1),
     ]
 
     return new RenderResult(
       renderToReadableStream(flightData, serverComponentManifest, {
         context: serverContexts,
-      })
-        .pipeThrough(createPrefixStream(cssFlightData))
-        .pipeThrough(createBufferedTransformStream())
+      }).pipeThrough(createBufferedTransformStream())
     )
   }
 
@@ -852,13 +816,12 @@ export async function renderToHTML(
 
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
-  const initialStylesheets: string[] = getCSSInlinedLinkTags(
+  const initialStylesheets: string[] = getCssInlinedLinkTags(
     ComponentMod,
-    serverComponentManifest,
-    dev
+    serverComponentManifest
   )
 
-  const { Component: ComponentTree } = createComponentTree({
+  const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     tree,
     parentParams: {},
@@ -867,29 +830,17 @@ export async function renderToHTML(
 
   const AppRouter =
     ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
-  const {
-    QueryContext,
-    PathnameContext,
-    // ParamsContext,
-    // LayoutSegmentsContext,
-  } = ComponentMod.hooksClientContext as typeof import('../client/components/hooks-client-context')
 
   const WrappedComponentTreeWithRouter = () => {
     return (
-      <QueryContext.Provider value={query}>
-        <PathnameContext.Provider value={pathname}>
-          {/* <ParamsContext.Provider value={pathParams}> */}
-          <AppRouter
-            hotReloader={HotReloader && <HotReloader assetPrefix="" />}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialStylesheets={initialStylesheets}
-          >
-            <ComponentTree />
-          </AppRouter>
-          {/* </ParamsContext.Provider> */}
-        </PathnameContext.Provider>
-      </QueryContext.Provider>
+      <AppRouter
+        hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+        initialCanonicalUrl={initialCanonicalUrl}
+        initialTree={initialTree}
+        initialStylesheets={initialStylesheets}
+      >
+        <ComponentTree />
+      </AppRouter>
     )
   }
 
@@ -912,8 +863,7 @@ export async function renderToHTML(
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
-    },
-    dev
+    }
   )
 
   const jsxStyleRegistry = createStyleRegistry()
@@ -963,7 +913,6 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      dev,
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,

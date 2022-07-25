@@ -56,7 +56,7 @@
     "@babel/plugin-proposal-object-rest-spread": "7.14.7",
     "@babel/preset-flow": "7.14.5",
     "@babel/preset-react": "7.14.5",
-    "@edge-runtime/jest-environment": "1.1.0-beta.11",
+    "@edge-runtime/jest-environment": "1.1.0-beta.17",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
     "@next/bundle-analyzer": "workspace:*",
@@ -199,9 +199,8 @@
     "turbo": "1.3.2-canary.1",
     "typescript": "4.6.3",
     "wait-port": "0.2.2",
-    "webpack": "link:node_modules/webpack5",
-    "webpack-bundle-analyzer": "4.3.0",
-    "worker-loader": "3.0.7"
+    "webpack": "link:packages/next/node_modules/webpack5",
+    "webpack-bundle-analyzer": "4.3.0"
   },
   "resolutions": {
     "browserslist": "4.20.2",
