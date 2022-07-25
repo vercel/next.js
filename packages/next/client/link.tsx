@@ -382,6 +382,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       (el: Element) => {
         if (
           process.env.NODE_ENV !== 'production' &&
+          el &&
           href === '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
         ) {
           console.error(`<Link> is missing required "href" property:`, el)
