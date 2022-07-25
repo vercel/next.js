@@ -136,7 +136,7 @@ describe('Prerender prefetch', () => {
     })
 
     if (optimisticClientCache) {
-      it('should attempt cache update on link hover', async () => {
+      it('should attempt cache update on link hover/touch start', async () => {
         const browser = await webdriver(next.url, '/')
         const timeRes = await fetchViaHTTP(
           next.url,
@@ -166,15 +166,20 @@ describe('Prerender prefetch', () => {
 
         // now trigger cache update and navigate again
         await check(async () => {
-          await browser.elementByCss('#to-blog-second').moveTo()
-          await browser.elementByCss('#to-blog-first').moveTo()
+          if (process.env.DEVICE_NAME) {
+            await browser.elementByCss('#to-blog-second').touchStart()
+            await browser.elementByCss('#to-blog-first').touchStart()
+          } else {
+            await browser.elementByCss('#to-blog-second').moveTo()
+            await browser.elementByCss('#to-blog-first').moveTo()
+          }
           return requests.some((url) => url.includes('/blog/first.json'))
             ? 'success'
             : requests
         }, 'success')
       })
     } else {
-      it('should not attempt client cache update on link hover', async () => {
+      it('should not attempt client cache update on link hover/touch start', async () => {
         const browser = await webdriver(next.url, '/')
         let requests = []
 
@@ -194,8 +199,13 @@ describe('Prerender prefetch', () => {
 
         requests = []
 
-        await browser.elementByCss('#to-blog-second').moveTo()
-        await browser.elementByCss('#to-blog-first').moveTo()
+        if (process.env.DEVICE_NAME) {
+          await browser.elementByCss('#to-blog-second').touchStart()
+          await browser.elementByCss('#to-blog-first').touchStart()
+        } else {
+          await browser.elementByCss('#to-blog-second').moveTo()
+          await browser.elementByCss('#to-blog-first').moveTo()
+        }
 
         expect(requests.filter((url) => url.includes('.json'))).toEqual([])
       })

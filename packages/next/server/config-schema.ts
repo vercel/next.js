@@ -16,12 +16,14 @@ const configSchema = {
       },
       type: 'object',
     },
+    analyticsId: {
+      type: 'string',
+    },
     assetPrefix: {
       minLength: 1,
       type: 'string',
     },
     basePath: {
-      minLength: 1,
       type: 'string',
     },
     cleanDistDir: {
@@ -333,7 +335,14 @@ const configSchema = {
           type: 'boolean',
         },
         optimizeCss: {
-          type: 'boolean',
+          oneOf: [
+            {
+              type: 'boolean',
+            },
+            {
+              type: 'object',
+            },
+          ] as any,
         },
         optimisticClientCache: {
           type: 'boolean',
@@ -407,8 +416,8 @@ const configSchema = {
       isFunction: true,
     } as any,
     generateEtags: {
-      isFunction: true,
-    } as any,
+      type: 'boolean',
+    },
     headers: {
       isFunction: true,
     } as any,
