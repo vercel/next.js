@@ -2,7 +2,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import type { Route } from './router'
+import type { DynamicRoutes, PageChecker, Route } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -22,6 +22,8 @@ import type {
   Params,
   RouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
+import type { NextConfig } from '../types'
+import type { CustomRoutes } from '../lib/load-custom-routes'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -64,6 +66,7 @@ import BaseServer, {
   prepareServerlessUrl,
   stringifyQuery,
   RoutingItem,
+  NoFallbackError,
 } from './base-server'
 import { getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -77,7 +80,11 @@ import { prepareDestination } from '../shared/lib/router/utils/prepare-destinati
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { loadEnvConfig } from '@next/env'
-import { getCustomRoute } from './server-route-utils'
+import {
+  createHeaderRoute,
+  createRedirectRoute,
+  getCustomRoute,
+} from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -517,6 +524,214 @@ export default class NextNodeServer extends BaseServer {
     path: string
   ): Promise<void> {
     return serveStatic(req.originalRequest, res.originalResponse, path)
+  }
+
+  protected generateHeaderRoutes({
+    restrictedRedirectPaths,
+  }: {
+    restrictedRedirectPaths: string[]
+  }) {
+    return this.minimalMode
+      ? []
+      : this.customRoutes.headers.map((rule) =>
+          createHeaderRoute({ rule, restrictedRedirectPaths })
+        )
+  }
+
+  protected generateRedirectRoutes({
+    restrictedRedirectPaths,
+  }: {
+    restrictedRedirectPaths: string[]
+  }) {
+    return this.minimalMode
+      ? []
+      : this.customRoutes.redirects.map((rule) =>
+          createRedirectRoute({ rule, restrictedRedirectPaths })
+        )
+  }
+
+  protected generateRoutes(): {
+    headers: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
+    fsRoutes: Route[]
+    redirects: Route[]
+    catchAllRoute: Route
+    catchAllMiddleware: Route[]
+    pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
+    dynamicRoutes: DynamicRoutes | undefined
+    nextConfig: NextConfig
+  } {
+    const publicRoutes = this.generatePublicRoutes()
+    const imageRoutes = this.generateImageRoutes()
+    const staticFilesRoutes = this.generateStaticRoutes()
+
+    const fsRoutes: Route[] = [
+      ...this.generateFsStaticRoutes(),
+      this.generateDataCatchallRoute(),
+      ...imageRoutes,
+      {
+        match: getPathMatch('/_next/:path*'),
+        type: 'route',
+        name: '_next catchall',
+        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+        fn: async (req, res, _params, parsedUrl) => {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        },
+      },
+      ...publicRoutes,
+      ...staticFilesRoutes,
+    ]
+
+    const restrictedRedirectPaths = this.nextConfig.basePath
+      ? [`${this.nextConfig.basePath}/_next`]
+      : ['/_next']
+
+    // Headers come very first
+    const headers = this.generateHeaderRoutes({ restrictedRedirectPaths })
+    const redirects = this.generateRedirectRoutes({ restrictedRedirectPaths })
+
+    const rewrites = this.generateRewrites({ restrictedRedirectPaths })
+    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
+
+    const catchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      matchesLocale: true,
+      name: 'Catchall render',
+      fn: async (req, res, _params, parsedUrl) => {
+        let { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removeTrailingSlash(pathname)
+
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
+          const handled = await this.handleApiRequest(req, res, pathname, query)
+          if (handled) {
+            return { finished: true }
+          }
+        }
+
+        try {
+          await this.render(req, res, pathname, query, parsedUrl, true)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
+        }
+      },
+    }
+
+    const { useFileSystemPublicRoutes } = this.nextConfig
+
+    if (useFileSystemPublicRoutes) {
+      this.appPathRoutes = this.getAppPathRoutes()
+      this.dynamicRoutes = this.getDynamicRoutes()
+    }
+
+    return {
+      headers,
+      fsRoutes,
+      rewrites,
+      redirects,
+      catchAllRoute,
+      catchAllMiddleware,
+      useFileSystemPublicRoutes,
+      dynamicRoutes: this.dynamicRoutes,
+      pageChecker: this.hasPage.bind(this),
+      nextConfig: this.nextConfig,
+    }
+  }
+
+  protected async hasPage(pathname: string): Promise<boolean> {
+    let found = false
+    try {
+      found = !!this.getPagePath(pathname, this.nextConfig.i18n?.locales)
+    } catch (_) {}
+
+    return found
+  }
+
+  // Used to build API page in development
+  protected async ensureApiPage(_pathname: string): Promise<void> {}
+
+  /**
+   * Resolves `API` request, in development builds on demand
+   * @param req http request
+   * @param res http response
+   * @param pathname path of request
+   */
+  protected async handleApiRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: ParsedUrlQuery
+  ): Promise<boolean> {
+    let page = pathname
+    let params: Params | undefined = undefined
+    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
+
+    if (!pageFound && this.dynamicRoutes) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        params = dynamicRoute.match(pathname) || undefined
+        if (dynamicRoute.page.startsWith('/api') && params) {
+          page = dynamicRoute.page
+          pageFound = true
+          break
+        }
+      }
+    }
+
+    if (!pageFound) {
+      return false
+    }
+    // Make sure the page is built before getting the path
+    // or else it won't be in the manifest yet
+    await this.ensureApiPage(page)
+
+    let builtPagePath
+    try {
+      builtPagePath = this.getPagePath(page)
+    } catch (err) {
+      if (isError(err) && err.code === 'ENOENT') {
+        return false
+      }
+      throw err
+    }
+
+    return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
   protected handleCompression(

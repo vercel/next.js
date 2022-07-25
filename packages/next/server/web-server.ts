@@ -6,13 +6,18 @@ import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
 import type { Options } from './base-server'
+import type { DynamicRoutes, PageChecker, Route } from './router'
+import type { NextConfig } from '../types'
 
-import BaseServer from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -56,10 +61,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       redirects: [],
     }
   }
-  protected getPagePath() {
-    // @TODO
-    return ''
+
+  // Edge API requests are handled separately in minimal mode.
+  protected async handleApiRequest() {
+    return false
   }
+
   protected getPublicDir() {
     // Public files are not handled by the web server.
     return ''
@@ -74,21 +81,109 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getHasStaticDir() {
     return false
   }
-  protected generateImageRoutes() {
-    return []
+
+  protected generateRoutes(): {
+    headers: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
+    fsRoutes: Route[]
+    redirects: Route[]
+    catchAllRoute: Route
+    catchAllMiddleware: Route[]
+    pageChecker: PageChecker
+    useFileSystemPublicRoutes: boolean
+    dynamicRoutes: DynamicRoutes | undefined
+    nextConfig: NextConfig
+  } {
+    const fsRoutes: Route[] = [
+      this.generateDataCatchallRoute(),
+      {
+        match: getPathMatch('/_next/:path*'),
+        type: 'route',
+        name: '_next catchall',
+        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+        fn: async (req, res, _params, parsedUrl) => {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        },
+      },
+    ]
+
+    const catchAllRoute: Route = {
+      match: getPathMatch('/:path*'),
+      type: 'route',
+      matchesLocale: true,
+      name: 'Catchall render',
+      fn: async (req, res, _params, parsedUrl) => {
+        let { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+
+        // next.js core assumes page path without trailing slash
+        pathname = removeTrailingSlash(pathname)
+
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+        }
+
+        try {
+          await this.render(req, res, pathname, query, parsedUrl, true)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
+        }
+      },
+    }
+
+    return {
+      headers: [],
+      fsRoutes,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      redirects: [],
+      catchAllRoute,
+      catchAllMiddleware: [],
+      useFileSystemPublicRoutes: this.nextConfig.useFileSystemPublicRoutes,
+      dynamicRoutes: this.dynamicRoutes,
+      pageChecker: this.hasPage.bind(this),
+      nextConfig: this.nextConfig,
+    }
   }
-  protected generateStaticRoutes() {
-    return []
+
+  protected async hasPage() {
+    return false
   }
-  protected generateFsStaticRoutes() {
-    return []
-  }
-  protected generatePublicRoutes() {
-    return []
-  }
-  protected generateCatchAllMiddlewareRoute() {
-    return []
-  }
+
   protected getFontManifest() {
     return undefined
   }

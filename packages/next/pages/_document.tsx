@@ -974,9 +974,9 @@ export class NextScript extends Component<OriginProps> {
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
           : Buffer.from(data).byteLength
-      const prettyBytes = require('../lib/pretty-bytes').default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
+        const prettyBytes = require('../lib/pretty-bytes').default
         console.warn(
           `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
             bytes

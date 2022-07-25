@@ -63,7 +63,7 @@ import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
-} from '../lib/load-custom-routes'
+} from '../lib/get-redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
@@ -77,11 +77,11 @@ import {
 } from './node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { postProcessHTML } from './post-process'
 import { shouldUseReactRoot, stripInternalQueries } from './utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
+let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
 const ReactDOMServer = shouldUseReactRoot
@@ -92,8 +92,10 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
   require('./node-polyfill-web-streams')
   tryGetPreviewData = require('./api-utils/node').tryGetPreviewData
   warn = require('../build/output/log').warn
+  postProcessHTML = require('./post-process').postProcessHTML
 } else {
   warn = console.warn.bind(console)
+  postProcessHTML = async (_pathname: string, html: string) => html
 }
 
 function noRouter() {
@@ -1298,9 +1300,9 @@ export async function renderToHTML(
       const documentElement = () => {
         if (process.env.NEXT_RUNTIME === 'edge') {
           return (Document as any)()
+        } else {
+          return <Document {...htmlProps} {...docProps} />
         }
-
-        return <Document {...htmlProps} {...docProps} />
       }
 
       let styles
