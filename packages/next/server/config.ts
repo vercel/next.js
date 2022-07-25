@@ -372,9 +372,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
     ) {
       throw new Error(
-        `Specified images.minimumCacheTTL should be an integer 0 or more
-          ', '
-        )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
@@ -409,9 +407,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       typeof images.dangerouslyAllowSVG !== 'boolean'
     ) {
       throw new Error(
-        `Specified images.dangerouslyAllowSVG should be a boolean
-          ', '
-        )}), received  (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        `Specified images.dangerouslyAllowSVG should be a boolean received (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
@@ -420,9 +416,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       typeof images.contentSecurityPolicy !== 'string'
     ) {
       throw new Error(
-        `Specified images.contentSecurityPolicy should be a string
-          ', '
-        )}), received  (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        `Specified images.contentSecurityPolicy should be a string received (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
 
