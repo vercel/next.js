@@ -12,6 +12,7 @@ import { renderToHTML } from './render'
 import { byteLength } from './api-utils/web'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
+import WebResponseCache from './response-cache/web'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -122,6 +123,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         previewModeEncryptionKey: '',
       },
     }
+  }
+  protected getResponseCache() {
+    return new WebResponseCache(this.minimalMode)
   }
   protected getServerComponentManifest() {
     // @TODO: Need to return `extendRenderOpts.serverComponentManifest` here.

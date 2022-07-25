@@ -14,7 +14,11 @@ import type {
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
-import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
+import type {
+  ResponseCacheBase,
+  ResponseCacheEntry,
+  ResponseCacheValue,
+} from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   CacheFs,
@@ -51,7 +55,6 @@ import { isTargetLikeServerless } from './utils'
 import Router from './router'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { setRevalidateHeaders } from './send-payload/revalidate-headers'
-import { IncrementalCache } from './lib/incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
@@ -63,7 +66,6 @@ import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
-import ResponseCache from './response-cache'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
@@ -186,8 +188,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     largePageDataBytes?: number
   }
   protected serverOptions: ServerOptions
-  private incrementalCache: IncrementalCache
-  private responseCache: ResponseCache
+  private responseCache: ResponseCacheBase
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected appPathRoutes?: Record<string, string>
@@ -265,6 +266,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse
   ): void
+
+  protected abstract getResponseCache(options: {
+    dev: boolean
+  }): ResponseCacheBase
 
   protected abstract loadEnvConfig(params: { dev: boolean }): void
 
@@ -360,32 +365,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    this.incrementalCache = new IncrementalCache({
-      fs: this.getCacheFilesystem(),
+    this.responseCache = this.getResponseCache({
       dev,
-      serverDistDir: this.serverDistDir,
-      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
-      getPrerenderManifest: () => {
-        if (dev) {
-          return {
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }
-        } else {
-          return this.getPrerenderManifest()
-        }
-      },
     })
-    this.responseCache = new ResponseCache(
-      this.incrementalCache,
-      this.minimalMode
-    )
   }
 
   public logError(err: Error): void {
