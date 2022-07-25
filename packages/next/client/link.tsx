@@ -284,7 +284,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const {
       href: hrefProp = process.env.NODE_ENV !== 'production'
         ? '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
-        : undefined,
+        : '',
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp,
