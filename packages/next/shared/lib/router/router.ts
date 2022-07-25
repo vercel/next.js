@@ -74,8 +74,9 @@ interface NextHistoryState {
 
 export type HistoryState =
   | null
-  | { __N: false }
-  | ({ __N: true; key: string } & NextHistoryState)
+  | { __NA: true; __N?: false }
+  | { __N: false; __NA?: false }
+  | ({ __NA?: false; __N: true; key: string } & NextHistoryState)
 
 function buildCancellationError() {
   return Object.assign(new Error('Route Cancelled'), {
@@ -172,7 +173,7 @@ function omit<T extends { [key: string]: any }, K extends keyof T>(
   const omitted: { [key: string]: any } = {}
   Object.keys(object).forEach((key) => {
     if (!keys.includes(key as K)) {
-      omitted[key as string] = object[key]
+      omitted[key] = object[key]
     }
   })
   return omitted as Omit<T, K>
@@ -292,16 +293,16 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname!))
+  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname))
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
   }
 
   // handle resolving href for dynamic routes
-  if (!pages.includes(cleanPathname!)) {
+  if (!pages.includes(cleanPathname)) {
     // eslint-disable-next-line array-callback-return
     pages.some((page) => {
-      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
+      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname)) {
         pathname = page
         return true
       }
@@ -732,7 +733,7 @@ export default class Router implements BaseRouter {
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+    this.basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp
@@ -838,6 +839,12 @@ export default class Router implements BaseRouter {
         formatWithValidation({ pathname: addBasePath(pathname), query }),
         getURL()
       )
+      return
+    }
+
+    // __NA is used to identify if the history entry can be handled by the app-router.
+    if (state.__NA) {
+      window.location.reload()
       return
     }
 
@@ -1616,18 +1623,10 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      let Component: ComponentType
-      let styleSheets: StyleSheetTuple[]
       let props: Record<string, any> | undefined
-
-      if (
-        typeof Component! === 'undefined' ||
-        typeof styleSheets! === 'undefined'
-      ) {
-        ;({ page: Component, styleSheets } = await this.fetchComponent(
-          '/_error'
-        ))
-      }
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,

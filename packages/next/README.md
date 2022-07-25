@@ -56,3 +56,9 @@ We have a list of [good first issues](https://github.com/vercel/next.js/labels/g
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda))
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen))
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable))
+
+## Security
+
+If you believe you have found a security vulnerability in Next.js, we encourage you to responsibly disclose this and not open a public issue. We will investigate all legitimate reports. Email `security@vercel.com` to disclose any security vulnerabilities.
+
+https://vercel.com/security

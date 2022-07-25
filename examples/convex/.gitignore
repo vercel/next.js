@@ -33,8 +33,5 @@ yarn-error.log*
 # vercel
 .vercel
 
-# convex
-convex/_generated
-
 # typescript
 *.tsbuildinfo

@@ -20,10 +20,13 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { tryGetPreviewData } from './api-utils/node'
 import { htmlEscapeJsonString } from './htmlescape'
-import { stripInternalQueries } from './utils'
+import { shouldUseReactRoot, stripInternalQueries } from './utils'
 import { NextApiRequestCookies } from './api-utils'
+import { matchSegment } from '../client/components/match-segments'
 
-const ReactDOMServer = process.env.__NEXT_REACT_ROOT
+// this needs to be required lazily so that `next-server` can set
+// the env before we require
+const ReactDOMServer = shouldUseReactRoot
   ? require('react-dom/server.browser')
   : require('react-dom/server')
 
@@ -121,7 +124,7 @@ function useFlightResponse(
     rscCache.set(id, entry)
 
     let bootstrapped = false
-    let remainingFlightResponse = ''
+    // We only attach CSS chunks to the inlined data.
     const forwardReader = forwardStream.getReader()
     const writer = writable.getWriter()
     function process() {
@@ -141,42 +144,11 @@ function useFlightResponse(
           writer.close()
         } else {
           const responsePartial = decodeText(value)
-          const css = responsePartial
-            .split('\n')
-            .map((partialLine) => {
-              const line = remainingFlightResponse + partialLine
-              remainingFlightResponse = ''
+          const scripts = `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([1, id, responsePartial])
+          )})</script>`
 
-              try {
-                const match = line.match(/^M\d+:(.+)/)
-                if (match) {
-                  return JSON.parse(match[1])
-                    .chunks.filter((chunkId: string) =>
-                      chunkId.endsWith('.css')
-                    )
-                    .map(
-                      (file: string) =>
-                        `<link rel="stylesheet" href="/_next/${file}">`
-                    )
-                    .join('')
-                }
-                return ''
-              } catch (err) {
-                // The JSON is partial
-                remainingFlightResponse = line
-                return ''
-              }
-            })
-            .join('')
-
-          writer.write(
-            encodeText(
-              css +
-                `<script>(self.__next_s=self.__next_s||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([1, id, responsePartial])
-                )})</script>`
-            )
-          )
+          writer.write(encodeText(scripts))
           process()
         }
       })
@@ -215,7 +187,6 @@ function createServerComponentRenderer(
   }
 
   let RSCStream: ReadableStream<Uint8Array>
-
   const createRSCStream = () => {
     if (!RSCStream) {
       RSCStream = renderToReadableStream(
@@ -230,7 +201,7 @@ function createServerComponentRenderer(
   }
 
   const writable = transformStream.writable
-  const ServerComponentWrapper = () => {
+  return function ServerComponentWrapper() {
     const reqStream = createRSCStream()
     const response = useFlightResponse(
       writable,
@@ -238,12 +209,34 @@ function createServerComponentRenderer(
       reqStream,
       serverComponentManifest
     )
-    const root = response.readRoot()
-    return root
+    return response.readRoot()
   }
-
-  return ServerComponentWrapper
 }
+
+type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
+// c = catchall
+// oc = optional catchall
+// d = dynamic
+export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+function getShortDynamicParamType(
+  type: DynamicParamTypes
+): DynamicParamTypesShort {
+  switch (type) {
+    case 'catchall':
+      return 'c'
+    case 'optional-catchall':
+      return 'oc'
+    case 'dynamic':
+      return 'd'
+    default:
+      throw new Error('Unknown dynamic param type')
+  }
+}
+
+export type Segment =
+  | string
+  | [param: string, value: string, type: DynamicParamTypesShort]
 
 type LoaderTree = [
   segment: string,
@@ -256,21 +249,22 @@ type LoaderTree = [
 ]
 
 export type FlightRouterState = [
-  segment: string,
+  segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string,
-  refresh?: 'refetch'
+  refresh?: 'refetch',
+  loading?: 'loading'
 ]
 
 export type FlightSegmentPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string,
-      segment: string,
+      segment: Segment,
       parallelRouterKey: string
     ]
 
@@ -278,18 +272,69 @@ export type FlightDataPath =
   | any[]
   // Looks somewhat like this
   | [
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
-      segment: string,
+      segment: Segment,
       parallelRoute: string,
       tree: FlightRouterState,
       subTreeData: React.ReactNode
     ]
 
 export type FlightData = Array<FlightDataPath> | string
-export type ChildProp = { current: React.ReactNode; segment: string }
+export type ChildProp = {
+  current: React.ReactNode
+  segment: Segment
+}
+
+function getSegmentParam(segment: string): {
+  param: string
+  type: DynamicParamTypes
+} | null {
+  if (segment.startsWith('[[...') && segment.endsWith(']]')) {
+    return {
+      type: 'optional-catchall',
+      param: segment.slice(5, -2),
+    }
+  }
+
+  if (segment.startsWith('[...') && segment.endsWith(']')) {
+    return {
+      type: 'catchall',
+      param: segment.slice(4, -1),
+    }
+  }
+
+  if (segment.startsWith('[') && segment.endsWith(']')) {
+    return {
+      type: 'dynamic',
+      param: segment.slice(1, -1),
+    }
+  }
+
+  return null
+}
+
+function getCssInlinedLinkTags(
+  ComponentMod: any,
+  serverComponentManifest: any
+) {
+  const importedServerCSSFiles: string[] =
+    ComponentMod.__client__?.__next_rsc_css__ || []
+
+  return Array.from(
+    new Set(
+      importedServerCSSFiles
+        .map((css) =>
+          css.endsWith('.css')
+            ? serverComponentManifest[css].default.chunks
+            : []
+        )
+        .flat()
+    )
+  )
+}
 
 export async function renderToHTML(
   req: IncomingMessage,
@@ -299,6 +344,13 @@ export async function renderToHTML(
   renderOpts: RenderOpts,
   isPagesDir: boolean
 ): Promise<RenderResult | null> {
+  // @ts-expect-error createServerContext exists in react@experimental + react-dom@experimental
+  if (typeof React.createServerContext === 'undefined') {
+    throw new Error(
+      '"app" directory requires React.createServerContext which is not available in the version of React you are using. Please update to react@experimental and react-dom@experimental.'
+    )
+  }
+
   // don't modify original query object
   query = Object.assign({}, query)
 
@@ -325,9 +377,9 @@ export async function renderToHTML(
     )
   }
 
-  // TODO: verify the tree is valid
-  // TODO: verify query param is single value (not an array)
-  // TODO: verify tree can't grow out of control
+  // TODO-APP: verify the tree is valid
+  // TODO-APP: verify query param is single value (not an array)
+  // TODO-APP: verify tree can't grow out of control
   const providedFlightRouterState: FlightRouterState = isFlight
     ? query.__flight_router_state_tree__
       ? JSON.parse(query.__flight_router_state_tree__ as string)
@@ -341,9 +393,12 @@ export async function renderToHTML(
 
   const LayoutRouter =
     ComponentMod.LayoutRouter as typeof import('../client/components/layout-router.client').default
+  const HotReloader = ComponentMod.HotReloader as
+    | typeof import('../client/components/hot-reloader.client').default
+    | null
 
   const headers = req.headers
-  // @ts-expect-error TODO: fix type of req
+  // @ts-expect-error TODO-APP: fix type of req
   const cookies = req.cookies
 
   const tree: LoaderTree = ComponentMod.tree
@@ -358,7 +413,7 @@ export async function renderToHTML(
   )
   const isPreview = previewData !== false
   const serverContexts: Array<[string, any]> = [
-    ['WORKAROUND', null], // TODO: First value has a bug currently where the value is not set on the second request
+    ['WORKAROUND', null], // TODO-APP: First value has a bug currently where the value is not set on the second request: https://github.com/facebook/react/issues/24849
     ['HeadersContext', headers],
     ['CookiesContext', cookies],
     ['PreviewDataContext', previewData],
@@ -373,29 +428,52 @@ export async function renderToHTML(
   const getDynamicParamFromSegment = (
     // [id] or [slug]
     segment: string
-  ): { param: string; value: string } | null => {
-    // TODO: use correct matching for dynamic routes to get segment param
-    const segmentParam =
-      segment.startsWith('[') && segment.endsWith(']')
-        ? segment.slice(1, -1)
-        : null
-
-    if (!segmentParam || !pathParams[segmentParam]) {
+  ): {
+    param: string
+    value: string | string[] | null
+    treeValue: string
+    type: DynamicParamTypesShort
+  } | null => {
+    const segmentParam = getSegmentParam(segment)
+    if (!segmentParam) {
       return null
     }
 
-    // @ts-expect-error TODO:  handle case where value is an array
-    return { param: segmentParam, value: pathParams[segmentParam] }
+    const key = segmentParam.param
+    const value = pathParams[key]
+
+    if (!value) {
+      if (segmentParam.type === 'optional-catchall') {
+        return {
+          param: key,
+          value: null,
+          type: getShortDynamicParamType(segmentParam.type),
+          treeValue: '',
+        }
+      }
+      return null
+    }
+
+    return {
+      param: key,
+      value: value,
+      treeValue: Array.isArray(value) ? value.join('/') : value,
+      type: getShortDynamicParamType(segmentParam.type),
+    }
   }
 
   const createFlightRouterStateFromLoaderTree = ([
     segment,
     parallelRoutes,
+    { loading },
   ]: LoaderTree): FlightRouterState => {
+    const hasLoading = Boolean(loading)
     const dynamicParam = getDynamicParamFromSegment(segment)
 
     const segmentTree: FlightRouterState = [
-      dynamicParam ? dynamicParam.value : segment,
+      dynamicParam
+        ? [dynamicParam.param, dynamicParam.treeValue, dynamicParam.type]
+        : segment,
       {},
     ]
 
@@ -410,30 +488,43 @@ export async function renderToHTML(
         {} as FlightRouterState[1]
       )
     }
+
+    if (hasLoading) {
+      segmentTree[4] = 'loading'
+    }
     return segmentTree
   }
 
-  const createComponentTree = ({
+  const createComponentTree = async ({
     createSegmentPath,
     tree: [segment, parallelRoutes, { layout, loading, page }],
     parentParams,
     firstItem,
+    rootLayoutIncluded,
   }: {
     createSegmentPath: CreateSegmentPath
     tree: LoaderTree
     parentParams: { [key: string]: any }
+    rootLayoutIncluded?: boolean
     firstItem?: boolean
-  }): { Component: React.ComponentType } => {
-    const Loading = loading ? interopDefault(loading()) : undefined
-    const layoutOrPageMod = layout ? layout() : page ? page() : undefined
-    // TODO: improve detection
-    const isPage = !firstItem && segment === ''
+  }): Promise<{ Component: React.ComponentType }> => {
+    const Loading = loading ? await interopDefault(loading()) : undefined
+    const isLayout = typeof layout !== 'undefined'
+    const isPage = typeof page !== 'undefined'
+    const layoutOrPageMod = isLayout
+      ? await layout()
+      : isPage
+      ? await page()
+      : undefined
+    const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+    const rootLayoutIncludedAtThisLevelOrAbove =
+      rootLayoutIncluded || rootLayoutAtThisLevel
 
     const isClientComponentModule =
       layoutOrPageMod && !layoutOrPageMod.hasOwnProperty('__next_rsc__')
 
     // Only server components can have getServerSideProps / getStaticProps
-    // TODO: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
+    // TODO-APP: friendly error with correct stacktrace. Potentially this can be part of the compiler instead.
     if (isClientComponentModule) {
       if (layoutOrPageMod.getServerSideProps) {
         throw new Error(
@@ -451,50 +542,66 @@ export async function renderToHTML(
       : undefined
 
     const segmentParam = getDynamicParamFromSegment(segment)
-
-    const currentParams = segmentParam
-      ? {
-          ...parentParams,
-          [segmentParam.param]: segmentParam.value,
-        }
-      : parentParams
-
-    const actualSegment = segmentParam ? segmentParam.value : segment
+    const currentParams =
+      // Handle null case where dynamic param is optional
+      segmentParam && segmentParam.value !== null
+        ? {
+            ...parentParams,
+            [segmentParam.param]: segmentParam.value,
+          }
+        : parentParams
+    const actualSegment = segmentParam
+      ? [segmentParam.param, segmentParam.treeValue]
+      : segment
 
     // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-    const parallelRouteComponents = Object.keys(parallelRoutes).reduce(
-      (list, currentValue) => {
-        const currentSegmentPath = firstItem
-          ? [currentValue]
-          : [actualSegment, currentValue]
+    const parallelRouteMap = await Promise.all(
+      Object.keys(parallelRoutes).map(
+        async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+          const currentSegmentPath = firstItem
+            ? [parallelRouteKey]
+            : [actualSegment, parallelRouteKey]
 
-        const { Component: ChildComponent } = createComponentTree({
-          createSegmentPath: (child) => {
-            return createSegmentPath([...currentSegmentPath, ...child])
-          },
-          tree: parallelRoutes[currentValue],
-          parentParams: currentParams,
-        })
+          const { Component: ChildComponent } = await createComponentTree({
+            createSegmentPath: (child) => {
+              return createSegmentPath([...currentSegmentPath, ...child])
+            },
+            tree: parallelRoutes[parallelRouteKey],
+            parentParams: currentParams,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+          })
 
-        const childSegmentParam = getDynamicParamFromSegment(
-          parallelRoutes[currentValue][0]
-        )
-        const childProp: ChildProp = {
-          current: <ChildComponent />,
-          segment: childSegmentParam
-            ? childSegmentParam.value
-            : parallelRoutes[currentValue][0],
+          const childSegmentParam = getDynamicParamFromSegment(
+            parallelRoutes[parallelRouteKey][0]
+          )
+          const childProp: ChildProp = {
+            current: <ChildComponent />,
+            segment: childSegmentParam
+              ? [
+                  childSegmentParam.param,
+                  childSegmentParam.treeValue,
+                  childSegmentParam.type,
+                ]
+              : parallelRoutes[parallelRouteKey][0],
+          }
+
+          return [
+            parallelRouteKey,
+            <LayoutRouter
+              parallelRouterKey={parallelRouteKey}
+              segmentPath={createSegmentPath(currentSegmentPath)}
+              loading={Loading ? <Loading /> : undefined}
+              childProp={childProp}
+              rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
+            />,
+          ]
         }
+      )
+    )
 
-        list[currentValue] = (
-          <LayoutRouter
-            parallelRouterKey={currentValue}
-            segmentPath={createSegmentPath(currentSegmentPath)}
-            loading={Loading ? <Loading /> : undefined}
-            childProp={childProp}
-          />
-        )
-
+    const parallelRouteComponents = parallelRouteMap.reduce(
+      (list, [parallelRouteKey, Comp]) => {
+        list[parallelRouteKey] = Comp
         return list
       },
       {} as { [key: string]: React.ReactNode }
@@ -512,7 +619,6 @@ export async function renderToHTML(
     let fetcher: (() => Promise<any>) | null = null
 
     type GetServerSidePropsContext = {
-      // TODO: has to be serializable
       headers: IncomingHttpHeaders
       cookies: NextApiRequestCookies
       layoutSegments: FlightSegmentPath
@@ -522,13 +628,24 @@ export async function renderToHTML(
     }
 
     type getServerSidePropsContextPage = GetServerSidePropsContext & {
-      query: URLSearchParams
+      searchParams: URLSearchParams
       pathname: string
     }
 
-    // TODO: pass a shared cache from previous getStaticProps/getServerSideProps calls?
+    type GetStaticPropsContext = {
+      layoutSegments: FlightSegmentPath
+      params?: { [key: string]: string | string[] }
+      preview?: boolean
+      previewData?: string | object | undefined
+    }
+
+    type GetStaticPropContextPage = GetStaticPropsContext & {
+      pathname: string
+    }
+
+    // TODO-APP: pass a shared cache from previous getStaticProps/getServerSideProps calls?
     if (layoutOrPageMod.getServerSideProps) {
-      // TODO: recommendation for i18n
+      // TODO-APP: recommendation for i18n
       // locales: (renderOpts as any).locales, // always the same
       // locale: (renderOpts as any).locale, // /nl/something -> nl
       // defaultLocale: (renderOpts as any).defaultLocale, // changes based on domain
@@ -536,11 +653,10 @@ export async function renderToHTML(
         | GetServerSidePropsContext
         | getServerSidePropsContextPage = {
         headers,
-        // TODO: convert to NextCookies
         cookies,
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
-        ...(isPage ? { query, pathname } : {}),
+        // TODO-APP: change pathname to actual pathname, it holds the dynamic parameter currently
+        ...(isPage ? { searchParams: query, pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
           ? { preview: true, previewData: previewData }
@@ -551,11 +667,12 @@ export async function renderToHTML(
           layoutOrPageMod.getServerSideProps(getServerSidePropsContext)
         )
     }
-    // TODO: implement layout specific caching for getStaticProps
+    // TODO-APP: implement layout specific caching for getStaticProps
     if (layoutOrPageMod.getStaticProps) {
-      const getStaticPropsContext = {
+      const getStaticPropsContext:
+        | GetStaticPropsContext
+        | GetStaticPropContextPage = {
         layoutSegments: segmentPath,
-        // TODO: change this to be URLSearchParams instead?
         ...(isPage ? { pathname } : {}),
         ...(pageIsDynamic ? { params: currentParams } : undefined),
         ...(isPreview
@@ -597,12 +714,12 @@ export async function renderToHTML(
           <Component
             {...props}
             {...parallelRouteComponents}
-            // TODO: params and query have to be blocked parallel route names. Might have to add a reserved name list.
+            // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
             // Params are always the current params that apply to the layout
             // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
             params={currentParams}
             // Query is only provided to page
-            {...(isPage ? { query } : {})}
+            {...(isPage ? { searchParams: query } : {})}
           />
         )
       },
@@ -610,29 +727,32 @@ export async function renderToHTML(
   }
 
   if (isFlight) {
-    // TODO: throw on invalid flightRouterState
-    const walkTreeWithFlightRouterState = (
+    // TODO-APP: throw on invalid flightRouterState
+    const walkTreeWithFlightRouterState = async (
       treeToFilter: LoaderTree,
-      parentParams: { [key: string]: any },
+      parentParams: { [key: string]: string | string[] },
       flightRouterState?: FlightRouterState,
       parentRendered?: boolean
-    ): FlightDataPath => {
+    ): Promise<FlightDataPath> => {
       const [segment, parallelRoutes] = treeToFilter
       const parallelRoutesKeys = Object.keys(parallelRoutes)
 
       const segmentParam = getDynamicParamFromSegment(segment)
-      const actualSegment = segmentParam ? segmentParam.value : segment
-
-      const currentParams = segmentParam
-        ? {
-            ...parentParams,
-            [segmentParam.param]: segmentParam.value,
-          }
-        : parentParams
+      const currentParams =
+        // Handle null case where dynamic param is optional
+        segmentParam && segmentParam.value !== null
+          ? {
+              ...parentParams,
+              [segmentParam.param]: segmentParam.value,
+            }
+          : parentParams
+      const actualSegment: Segment = segmentParam
+        ? [segmentParam.param, segmentParam.treeValue, segmentParam.type]
+        : segment
 
       const renderComponentsOnThisLevel =
         !flightRouterState ||
-        actualSegment !== flightRouterState[0] ||
+        !matchSegment(actualSegment, flightRouterState[0]) ||
         // Last item in the tree
         parallelRoutesKeys.length === 0 ||
         // Explicit refresh
@@ -643,14 +763,16 @@ export async function renderToHTML(
           actualSegment,
           createFlightRouterStateFromLoaderTree(treeToFilter),
           React.createElement(
-            createComponentTree(
-              // This ensures flightRouterPath is valid and filters down the tree
-              {
-                createSegmentPath: (child) => child,
-                tree: treeToFilter,
-                parentParams: currentParams,
-                firstItem: true,
-              }
+            (
+              await createComponentTree(
+                // This ensures flightRouterPath is valid and filters down the tree
+                {
+                  createSegmentPath: (child) => child,
+                  tree: treeToFilter,
+                  parentParams: currentParams,
+                  firstItem: true,
+                }
+              )
             ).Component
           ),
         ]
@@ -658,7 +780,7 @@ export async function renderToHTML(
 
       for (const parallelRouteKey of parallelRoutesKeys) {
         const parallelRoute = parallelRoutes[parallelRouteKey]
-        const path = walkTreeWithFlightRouterState(
+        const path = await walkTreeWithFlightRouterState(
           parallelRoute,
           currentParams,
           flightRouterState && flightRouterState[1][parallelRouteKey],
@@ -674,58 +796,51 @@ export async function renderToHTML(
     }
 
     const flightData: FlightData = [
-      // TODO: change walk to output without ''
-      walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState).slice(
-        1
-      ),
+      // TODO-APP: change walk to output without ''
+      (
+        await walkTreeWithFlightRouterState(tree, {}, providedFlightRouterState)
+      ).slice(1),
     ]
 
     return new RenderResult(
-      renderToReadableStream(flightData, serverComponentManifest).pipeThrough(
-        createBufferedTransformStream()
-      )
+      renderToReadableStream(flightData, serverComponentManifest, {
+        context: serverContexts,
+      }).pipeThrough(createBufferedTransformStream())
     )
   }
 
   const search = stringifyQuery(query)
 
-  // TODO: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url
+  // TODO-APP: validate req.url as it gets passed to render.
+  const initialCanonicalUrl = req.url!
 
-  // TODO: change tree to accommodate this
-  // /blog/[...slug]/page.js -> /blog/hello-world/b/c/d -> ['children', 'blog', 'children', ['slug', 'hello-world/b/c/d']]
-  // /blog/[slug] /blog/hello-world -> ['children', 'blog', 'children', ['slug', 'hello-world']]
   const initialTree = createFlightRouterStateFromLoaderTree(tree)
 
-  const { Component: ComponentTree } = createComponentTree({
+  const initialStylesheets: string[] = getCssInlinedLinkTags(
+    ComponentMod,
+    serverComponentManifest
+  )
+
+  const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     tree,
     parentParams: {},
     firstItem: true,
   })
 
-  const AppRouter = ComponentMod.AppRouter
-  const {
-    QueryContext,
-    PathnameContext,
-    // ParamsContext,
-    // LayoutSegmentsContext,
-  } = ComponentMod.hooksClientContext as typeof import('../client/components/hooks-client-context')
+  const AppRouter =
+    ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
 
   const WrappedComponentTreeWithRouter = () => {
     return (
-      <QueryContext.Provider value={query}>
-        <PathnameContext.Provider value={pathname}>
-          {/* <ParamsContext.Provider value={pathParams}> */}
-          <AppRouter
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-          >
-            <ComponentTree />
-          </AppRouter>
-          {/* </ParamsContext.Provider> */}
-        </PathnameContext.Provider>
-      </QueryContext.Provider>
+      <AppRouter
+        hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+        initialCanonicalUrl={initialCanonicalUrl}
+        initialTree={initialTree}
+        initialStylesheets={initialStylesheets}
+      >
+        <ComponentTree />
+      </AppRouter>
     )
   }
 
@@ -798,10 +913,10 @@ export async function renderToHTML(
     }
 
     return await continueFromInitialStream(renderStream, {
-      suffix: '',
       dataStream: serverComponentsInlinedTransformStream?.readable,
       generateStaticHTML: generateStaticHTML || !hasConcurrentFeatures,
       flushEffectHandler,
+      initialStylesheets,
     })
   }
 
