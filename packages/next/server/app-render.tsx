@@ -41,6 +41,9 @@ export type RenderOptsPartial = {
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
+/**
+ * Interop between "export default" and "module.exports".
+ */
 function interopDefault(mod: any) {
   return mod.default || mod
 }
@@ -60,6 +63,9 @@ type Record = {
   value: any
 }
 
+/**
+ * Create data fetching record for Promise.
+ */
 function createRecordFromThenable(thenable: Promise<any>) {
   const record: Record = {
     status: RecordStatus.Pending,
@@ -84,6 +90,9 @@ function createRecordFromThenable(thenable: Promise<any>) {
   return record
 }
 
+/**
+ * Read record value or throw Promise if it's not resolved yet.
+ */
 function readRecordValue(record: Record) {
   if (record.status === RecordStatus.Resolved) {
     return record.value
@@ -92,6 +101,10 @@ function readRecordValue(record: Record) {
   }
 }
 
+/**
+ * Preload data fetching record before it is called during React rendering.
+ * If the record is already in the cache returns that record.
+ */
 function preloadDataFetchingRecord(
   map: Map<string, Record>,
   key: string,
@@ -108,6 +121,9 @@ function preloadDataFetchingRecord(
   return record
 }
 
+/**
+ * Render Flight stream during
+ */
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   cachePrefix: string,
@@ -831,23 +847,6 @@ export async function renderToHTML(
   const AppRouter =
     ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
 
-  const WrappedComponentTreeWithRouter = () => {
-    return (
-      <AppRouter
-        hotReloader={HotReloader && <HotReloader assetPrefix="" />}
-        initialCanonicalUrl={initialCanonicalUrl}
-        initialTree={initialTree}
-        initialStylesheets={initialStylesheets}
-      >
-        <ComponentTree />
-      </AppRouter>
-    )
-  }
-
-  const bootstrapScripts = buildManifest.rootMainFiles.map(
-    (src) => '/_next/' + src
-  )
-
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
     Uint8Array
@@ -855,8 +854,19 @@ export async function renderToHTML(
 
   serverComponentsInlinedTransformStream = new TransformStream()
 
-  const Component = createServerComponentRenderer(
-    WrappedComponentTreeWithRouter,
+  const ServerComponentsWrapper = createServerComponentRenderer(
+    () => {
+      return (
+        <AppRouter
+          hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+          initialCanonicalUrl={initialCanonicalUrl}
+          initialTree={initialTree}
+          initialStylesheets={initialStylesheets}
+        >
+          <ComponentTree />
+        </AppRouter>
+      )
+    },
     ComponentMod,
     {
       cachePrefix: pathname + (search ? `?${search}` : ''),
@@ -874,10 +884,6 @@ export async function renderToHTML(
     return <>{styles}</>
   }
 
-  const AppContainer = ({ children }: { children: JSX.Element }) => (
-    <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-  )
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -894,16 +900,19 @@ export async function renderToHTML(
   const generateStaticHTML = supportsDynamicHTML !== true
   const bodyResult = async () => {
     const content = (
-      <AppContainer>
-        <Component />
-      </AppContainer>
+      <StyleRegistry registry={jsxStyleRegistry}>
+        <ServerComponentsWrapper />
+      </StyleRegistry>
     )
 
     const renderStream = await renderToInitialStream({
       ReactDOMServer,
       element: content,
       streamOptions: {
-        bootstrapScripts,
+        // Include hydration scripts in the HTML
+        bootstrapScripts: buildManifest.rootMainFiles.map(
+          (src) => '/_next/' + src
+        ),
       },
     })
 
