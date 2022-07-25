@@ -830,29 +830,17 @@ export async function renderToHTML(
 
   const AppRouter =
     ComponentMod.AppRouter as typeof import('../client/components/app-router.client').default
-  const {
-    QueryContext,
-    PathnameContext,
-    // ParamsContext,
-    // LayoutSegmentsContext,
-  } = ComponentMod.hooksClientContext as typeof import('../client/components/hooks-client-context')
 
   const WrappedComponentTreeWithRouter = () => {
     return (
-      <QueryContext.Provider value={query}>
-        <PathnameContext.Provider value={pathname}>
-          {/* <ParamsContext.Provider value={pathParams}> */}
-          <AppRouter
-            hotReloader={HotReloader && <HotReloader assetPrefix="" />}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialStylesheets={initialStylesheets}
-          >
-            <ComponentTree />
-          </AppRouter>
-          {/* </ParamsContext.Provider> */}
-        </PathnameContext.Provider>
-      </QueryContext.Provider>
+      <AppRouter
+        hotReloader={HotReloader && <HotReloader assetPrefix="" />}
+        initialCanonicalUrl={initialCanonicalUrl}
+        initialTree={initialTree}
+        initialStylesheets={initialStylesheets}
+      >
+        <ComponentTree />
+      </AppRouter>
     )
   }
 
