@@ -17,7 +17,12 @@ use crate::{
     resolve::esm_resolve,
 };
 
-#[turbo_tasks::value(AssetReference, ChunkableAssetReference, AsyncLoadableReference)]
+#[turbo_tasks::value(
+    AssetReference,
+    ChunkableAssetReference,
+    AsyncLoadableReference,
+    CodeGenerateable
+)]
 #[derive(Hash, Debug)]
 pub struct EsmAsyncAssetReference {
     pub context: AssetContextVc,

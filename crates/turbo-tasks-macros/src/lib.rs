@@ -75,6 +75,17 @@ fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Ident) -
     )
 }
 
+fn get_check_trait_method_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
+    Ident::new(
+        &format!(
+            "__trait_{}_need_to_be_in_turbo_tasks_value_attr_of_{}_",
+            trait_ident.to_string(),
+            struct_ident.to_string()
+        ),
+        trait_ident.span(),
+    )
+}
+
 fn get_function_ident(ident: &Ident) -> Ident {
     Ident::new(
         &(ident.to_string().to_uppercase() + "_FUNCTION"),
@@ -296,6 +307,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let value_type_id_ident = get_value_type_id_ident(ident);
     let trait_refs: Vec<_> = traits.iter().map(get_ref_ident).collect();
     let as_trait_methods: Vec<_> = traits.iter().map(get_as_super_ident).collect();
+    let check_from_impl_methods: Vec<_> = traits
+        .iter()
+        .map(|t| get_check_trait_method_ident(t, ident))
+        .collect();
 
     let mut inner_type = None;
     if transparent {
@@ -561,6 +576,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 pub fn #as_trait_methods(self) -> #trait_refs {
                     std::convert::From::<turbo_tasks::RawVc>::from(self.node)
                 }
+            )*
+
+            #(
+                #[deny(unused)]
+                #[doc(hidden)]
+                #[allow(non_snake_case)]
+                #[inline]
+                fn #check_from_impl_methods() {}
             )*
         }
 
@@ -1046,6 +1069,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         items: &[ImplItem],
     ) -> TokenStream2 {
         let register = get_register_trait_methods_ident(trait_ident, struct_ident);
+        let check = get_check_trait_method_ident(trait_ident, struct_ident);
         let ref_ident = get_ref_ident(struct_ident);
         let trait_ref_ident = get_ref_ident(trait_ident);
         let mut trait_registers = Vec::new();
@@ -1172,6 +1196,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             #[allow(non_snake_case)]
             fn #register(value_type: &mut turbo_tasks::ValueType) {
+                if false { #ref_ident::#check(); }
                 value_type.register_trait(#trait_ref_ident::__type());
                 #(#trait_registers)*
             }
