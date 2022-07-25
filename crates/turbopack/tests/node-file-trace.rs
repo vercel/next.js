@@ -136,15 +136,15 @@ use turbopack_ecmascript::target::CompileTargetVc;
 #[case::whatwg_url("integration/whatwg-url.js", true)]
 #[case::when("integration/when.js", true)]
 #[cfg_attr(
-    not(bench_against_node_nft),
+    not(feature = "bench_against_node_nft"),
     case::ts_package_base("integration/ts-package/index.ts", true)
 )]
 #[cfg_attr(
-    not(bench_against_node_nft),
+    not(feature = "bench_against_node_nft"),
     case::ts_package_extends("integration/ts-package-extends/index.ts", true)
 )]
 #[cfg_attr(
-    not(bench_against_node_nft),
+    not(feature = "bench_against_node_nft"),
     case::ts_package_from_js("integration/ts-package-from-js/index.js", true)
 )]
 fn test_cases() {}
@@ -464,8 +464,10 @@ async fn exec_node(directory: String, path: FileSystemPathVc) -> Result<CommandO
         node_nft.push("tests");
         node_nft.push("node-file-trace");
         node_nft.push("node_modules");
-        node_nft.push(".bin");
+        node_nft.push("@vercel");
         node_nft.push("nft");
+        node_nft.push("out");
+        node_nft.push("cli.js");
         cmd.arg(&node_nft).arg("build");
     }
     #[cfg(not(feature = "bench_against_node_nft"))]
