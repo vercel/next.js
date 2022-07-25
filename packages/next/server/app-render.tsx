@@ -122,7 +122,8 @@ function preloadDataFetchingRecord(
 }
 
 /**
- * Render Flight stream during
+ * Render Flight stream.
+ * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
@@ -174,10 +175,18 @@ function useFlightResponse(
   return entry
 }
 
-// Create the wrapper component for a Flight stream.
+/**
+ * Create a component that renders the Flight stream.
+ * This is only used for renderToHTML, the Flight response does not need additional wrappers.
+ */
 function createServerComponentRenderer(
   ComponentToRender: React.ComponentType,
-  ComponentMod: any,
+  ComponentMod: {
+    __next_app_webpack_require__?: any
+    __next_rsc__?: {
+      __webpack_require__?: any
+    }
+  },
   {
     cachePrefix,
     transformStream,
@@ -187,7 +196,9 @@ function createServerComponentRenderer(
     cachePrefix: string
     transformStream: TransformStream<Uint8Array, Uint8Array>
     serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
-    serverContexts: Array<[ServerContextName: string, JSONValue: any]>
+    serverContexts: Array<
+      [ServerContextName: string, JSONValue: Object | number | string]
+    >
   }
 ) {
   // We need to expose the `__webpack_require__` API globally for
@@ -196,7 +207,7 @@ function createServerComponentRenderer(
     // @ts-ignore
     globalThis.__next_require__ =
       ComponentMod.__next_app_webpack_require__ ||
-      ComponentMod.__next_rsc__.__webpack_require__
+      ComponentMod.__next_rsc__?.__webpack_require__
 
     // @ts-ignore
     globalThis.__next_chunk_load__ = () => Promise.resolve()
@@ -294,6 +305,7 @@ export type FlightDataPath =
       parallelRoute: string,
       segment: Segment,
       parallelRoute: string,
+      currentSegment: Segment,
       tree: FlightRouterState,
       subTreeData: React.ReactNode
     ]
@@ -352,7 +364,7 @@ function getCssInlinedLinkTags(
   )
 }
 
-export async function renderToHTML(
+export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
@@ -825,18 +837,6 @@ export async function renderToHTML(
     )
   }
 
-  const search = stringifyQuery(query)
-
-  // TODO-APP: validate req.url as it gets passed to render.
-  const initialCanonicalUrl = req.url!
-
-  const initialTree = createFlightRouterStateFromLoaderTree(tree)
-
-  const initialStylesheets: string[] = getCssInlinedLinkTags(
-    ComponentMod,
-    serverComponentManifest
-  )
-
   const { Component: ComponentTree } = await createComponentTree({
     createSegmentPath: (child) => child,
     tree,
@@ -853,9 +853,17 @@ export async function renderToHTML(
   > | null = null
 
   serverComponentsInlinedTransformStream = new TransformStream()
+  // TODO-APP: validate req.url as it gets passed to render.
+  const initialCanonicalUrl = req.url!
+  const initialStylesheets: string[] = getCssInlinedLinkTags(
+    ComponentMod,
+    serverComponentManifest
+  )
 
-  const ServerComponentsWrapper = createServerComponentRenderer(
+  const ServerComponentsRenderer = createServerComponentRenderer(
     () => {
+      const initialTree = createFlightRouterStateFromLoaderTree(tree)
+
       return (
         <AppRouter
           hotReloader={HotReloader && <HotReloader assetPrefix="" />}
@@ -869,7 +877,7 @@ export async function renderToHTML(
     },
     ComponentMod,
     {
-      cachePrefix: pathname + (search ? `?${search}` : ''),
+      cachePrefix: initialCanonicalUrl,
       transformStream: serverComponentsInlinedTransformStream,
       serverComponentManifest,
       serverContexts,
@@ -901,7 +909,7 @@ export async function renderToHTML(
   const bodyResult = async () => {
     const content = (
       <StyleRegistry registry={jsxStyleRegistry}>
-        <ServerComponentsWrapper />
+        <ServerComponentsRenderer />
       </StyleRegistry>
     )
 
