@@ -190,11 +190,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             props[key] == null ||
             (typeof props[key] !== 'string' && typeof props[key] !== 'object')
           ) {
-            throw createPropError({
-              key,
-              expected: '`string` or `object`',
-              actual: props[key] === null ? 'null' : typeof props[key],
-            })
+            // React doesn't show the stack trace and there's
+            // no `href` to help identify which link, so we
+            // instead console.error(ref) during mount.
           }
         } else {
           // TypeScript trick for type-guarding:
@@ -284,7 +282,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     let children: React.ReactNode
 
     const {
-      href: hrefProp,
+      href: hrefProp = process.env.NODE_ENV !== 'production'
+        ? '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
+        : undefined,
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp,
@@ -380,6 +380,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     const setRef = React.useCallback(
       (el: Element) => {
+        if (
+          process.env.NODE_ENV !== 'production' &&
+          href === '/__NEXT_LINK_HREF_IS_MISSING_CHECK_THE_CONSOLE'
+        ) {
+          console.error(`<Link> is missing required "href" property:`, el)
+        }
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
