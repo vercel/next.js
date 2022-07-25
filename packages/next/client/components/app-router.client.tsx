@@ -78,7 +78,7 @@ export default function AppRouter({
   hotReloader?: React.ReactNode
 }) {
   const [{ tree, cache, pushRef, focusRef, canonicalUrl }, dispatch] =
-    React.useReducer<typeof reducer>(reducer, {
+    React.useReducer(reducer, {
       tree: initialTree,
       cache: {
         data: null,
