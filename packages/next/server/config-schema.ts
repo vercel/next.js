@@ -24,7 +24,6 @@ const configSchema = {
       type: 'string',
     },
     basePath: {
-      minLength: 1,
       type: 'string',
     },
     cleanDistDir: {
