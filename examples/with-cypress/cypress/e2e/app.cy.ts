@@ -18,3 +18,5 @@ describe('Navigation', () => {
     cy.get('h1').contains('About Page')
   })
 })
+
+export {}
