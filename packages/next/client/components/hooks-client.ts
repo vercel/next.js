@@ -2,7 +2,7 @@
 
 import { useContext } from 'react'
 import {
-  QueryContext,
+  SearchParamsContext,
   // ParamsContext,
   PathnameContext,
   // LayoutSegmentsContext,
@@ -13,11 +13,11 @@ import {
 } from '../../shared/lib/app-router-context'
 
 export function useSearchParams() {
-  return useContext(QueryContext)
+  return useContext(SearchParamsContext)
 }
 
 export function useSearchParam(key: string): string | string[] {
-  const params = useContext(QueryContext)
+  const params = useContext(SearchParamsContext)
   return params[key]
 }
 
